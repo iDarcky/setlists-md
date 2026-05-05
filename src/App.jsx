@@ -1036,6 +1036,7 @@ export default function App() {
         />
       )}
       {view === 'onboarding' && (
+        <div style={{ height: '100dvh', overflowY: 'auto', overflowX: 'hidden' }}>
         <OnboardingFlow
           onComplete={(quiz) => {
             // Inject demos if not already present (covers the first-run path).
@@ -1061,6 +1062,7 @@ export default function App() {
             setView('signin');
           }}
         />
+        </div>
       )}
       {view === 'recovery' && (
         <RecoveryScreen

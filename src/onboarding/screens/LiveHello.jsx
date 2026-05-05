@@ -46,7 +46,7 @@ export default function LiveHello({ onContinue, onSkip, onSignIn, onInteract }) 
   };
 
   return (
-    <div className="min-h-screen bg-[var(--ds-background-200)] flex flex-col items-center px-5 py-8 relative overflow-hidden sm-onboard-screen-in">
+    <div className="min-h-screen bg-[var(--ds-background-200)] flex flex-col items-center px-5 py-8 relative overflow-x-hidden sm-onboard-screen-in">
       {/* Background glow */}
       <div
         aria-hidden="true"

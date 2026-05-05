@@ -11,7 +11,20 @@ import { toast } from './ui/use-toast';
 
 const TAB_LIST = [
   { id: 'write', label: 'Write' },
-  { id: 'arrange', label: 'Arrange' },
+  {
+    id: 'arrange',
+    label: (
+      <span className="flex items-center gap-1.5">
+        Arrange
+        <span
+          className="text-[10px] font-bold leading-none px-1.5 py-0.5 rounded-full"
+          style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}
+        >
+          BETA
+        </span>
+      </span>
+    ),
+  },
 ];
 
 const TIME_OPTIONS = ['4/4', '3/4', '6/8', '7/8', '12/8', '2/4', '5/4'];
