@@ -10,6 +10,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import { cn } from '../lib/utils';
 import { StructureRibbon } from './StructureRibbon';
 import { exportSongPdf } from '../pdf/exportSongPdf';
+import { headerFrostStyle } from '../lib/headerFrost';
 
 const FONT_SIZES = { S: 14, M: 18, L: 22 };
 
@@ -126,7 +127,7 @@ export default function ChartView({
     >
       {/* ── Sticky Header ── */}
       {!isPreview && (
-        <div className="material-header transition-all duration-200">
+        <div className="material-header transition-all duration-200" style={headerFrostStyle}>
           {/* Line 1: Title + meta (compact) or Title only (expanded) + buttons */}
           <div className="a4-container flex items-center justify-between pt-3 pb-1 gap-3">
             <div className="min-w-0 flex-1 flex items-center gap-3">

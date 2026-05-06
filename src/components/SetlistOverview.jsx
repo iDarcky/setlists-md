@@ -5,6 +5,7 @@ import { IconButton } from './ui/IconButton';
 import ExportSetlistDialog from './ExportSetlistDialog';
 import { useTeam } from '../auth/useTeam';
 import RosterPanel from './setlist/RosterPanel';
+import { headerFrostStyle } from '../lib/headerFrost';
 
 export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen }) {
   const { team, isAdmin } = useTeam();
@@ -116,7 +117,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
     <div className="min-h-screen material-page pb-8">
 
       {/* ── Sticky header ── */}
-      <div className="material-header transition-all duration-200">
+      <div className="material-header transition-all duration-200" style={headerFrostStyle}>
         <div className="a4-container">
 
           {collapsed ? (

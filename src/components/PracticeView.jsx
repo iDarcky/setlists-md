@@ -7,6 +7,7 @@ import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import NoteContent from './ui/NoteContent';
+import { headerFrostStyle } from '../lib/headerFrost';
 
 export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, defaultColumns }) {
   const [idx, setIdx] = useState(0);
@@ -153,7 +154,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       {/* ── Minimal sticky header ── */}
-      <div className="material-header" style={{ zIndex: 50 }}>
+      <div className="material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
         {/* Title row — collapse hides the title + meta + badge but keeps the
             close X and the collapse chevron reachable. */}
         <div className="a4-container flex items-center gap-2 py-3">

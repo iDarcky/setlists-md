@@ -7,6 +7,7 @@ import { IconButton } from './ui/IconButton';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import NoteContent from './ui/NoteContent';
 import { useWakeLock } from '../hooks/useWakeLock';
+import { headerFrostStyle } from '../lib/headerFrost';
 
 export default function PerformanceView({ setlist, songs, onBack, onFinish, defaultFontSize, defaultColumns }) {
   useWakeLock(true);
@@ -95,7 +96,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       {/* ── Minimal sticky header ── */}
-      <div className="material-header" style={{ zIndex: 50 }}>
+      <div className="material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
         {/* Title row — collapse hides the title + meta but keeps the close X
             and the collapse chevron reachable. */}
         <div className="a4-container flex items-center gap-2 py-3">

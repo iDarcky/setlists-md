@@ -4,6 +4,7 @@ import { IconButton } from './ui/IconButton';
 import NoteContent from './ui/NoteContent';
 import { useTeam } from '../auth/useTeam';
 import { useTeamSchedules } from '../hooks/useTeamSchedules';
+import { headerFrostStyle } from '../lib/headerFrost';
 
 // Wake-lock is intentionally NOT acquired here — the finale lives off-stage.
 
@@ -111,7 +112,7 @@ export default function LiveFinale({ setlist, sessionStats, onBack, onRunAgain, 
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
-      <div className="material-header" style={{ zIndex: 50 }}>
+      <div className="material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
         <div className="a4-container flex items-center gap-2 py-3">
           <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Back">
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

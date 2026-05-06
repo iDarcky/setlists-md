@@ -8,6 +8,7 @@ import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { Tabs } from './ui/Tabs';
 import { toast } from './ui/use-toast';
+import { headerFrostStyle } from '../lib/headerFrost';
 
 const TAB_LIST = [
   { id: 'write', label: 'Write' },
@@ -114,7 +115,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
   return (
     <div className="h-screen bg-[var(--ds-background-200)] flex flex-col">
       {/* ─── Sticky Header ─── */}
-      <div className="material-header border-b border-[var(--ds-gray-200)] pb-1">
+      <div className="material-header border-b border-[var(--ds-gray-200)] pb-1" style={headerFrostStyle}>
         <div className="a4-container pt-2 flex flex-col gap-1">
           {/* Row 1: back + title + key/bpm/time + actions */}
         <div className="flex items-center gap-2 mb-1">
