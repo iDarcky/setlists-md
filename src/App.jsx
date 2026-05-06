@@ -876,7 +876,23 @@ export default function App() {
     if (!settings?.firstSetlistBuilt) {
       setSettings(prev => ({ ...prev, firstSetlistBuilt: true }));
     }
-    goBack();
+    // Keep the desktop split-view selection in sync so the new/updated
+    // setlist is preselected if the user navigates back to the list.
+    setPreviewSetlistId(sl.id);
+    if (isNew) {
+      // Land on the new setlist's overview so the user can immediately see
+      // (and play) what they built. `replace` keeps the history stack at
+      // the entry point that opened the builder, so Back from the overview
+      // returns there rather than re-opening the builder.
+      navigate('setlist-view', { setlist: sl, replace: true });
+    } else {
+      // For edits, return to wherever the builder was opened from. goBack
+      // restores currentSetlist from the pre-edit snapshot, so overwrite it
+      // with the freshly saved object — otherwise SetlistOverview would
+      // render stale data until the next render cycle.
+      goBack();
+      setCurrentSetlist(sl);
+    }
     if (isNew && !user && !settings?.seenSaveAccountWall) {
       openAccountWall({ kind: 'setlist', title: sl.name || 'Untitled setlist' });
     }
