@@ -303,6 +303,11 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
             {cur.duration > 0 && (
               <div className="text-copy-16 text-[var(--ds-gray-600)] font-mono">{cur.duration} min</div>
             )}
+            {cur.note && (
+              <p className="max-w-xl mt-4 text-copy-15 text-[var(--ds-gray-700)] text-center whitespace-pre-wrap">
+                {cur.note}
+              </p>
+            )}
           </div>
         ) : displayKey ? (
           <PracticeChart
@@ -480,6 +485,21 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns, onSaveCue }
         fontFamily: "var(--font-mono)",
       }}
     >
+      {song.notes && (
+        <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]">
+          <span className="shrink-0 mt-0.5 text-[var(--ds-gray-600)]" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <path d="M14 2v6h6" />
+              <path d="M8 13h6" />
+              <path d="M8 17h4" />
+            </svg>
+          </span>
+          <p className="flex-1 m-0 text-copy-13 text-[var(--ds-gray-1000)] whitespace-pre-wrap" style={{ fontFamily: 'var(--font-sans)' }}>
+            {song.notes}
+          </p>
+        </div>
+      )}
       {song.sections.map((section, i) => (
         <div key={section.id || i} id={`practice-section-${i}`} style={{ scrollMarginTop: '7rem' }}>
           <SectionBlock

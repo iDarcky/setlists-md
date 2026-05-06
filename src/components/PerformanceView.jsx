@@ -242,6 +242,11 @@ export default function PerformanceView({ setlist, songs, onBack }) {
             {cur.duration > 0 && (
               <div className="text-copy-16 text-[var(--ds-gray-600)] font-mono">{cur.duration} min</div>
             )}
+            {cur.note && (
+              <p className="max-w-xl mt-4 text-copy-16 text-[var(--ds-gray-700)] text-center whitespace-pre-wrap">
+                {cur.note}
+              </p>
+            )}
           </div>
         ) : displayKey ? (
           <SongChart
@@ -270,6 +275,7 @@ export default function PerformanceView({ setlist, songs, onBack }) {
 
 function SongChart({ song, selectedKey, capo, fontSize, columns }) {
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
+  const [notesOpen, setNotesOpen] = useState(false);
 
   const sectionModOffsets = useMemo(() => {
     const acc = { total: 0 };
@@ -293,6 +299,50 @@ function SongChart({ song, selectedKey, capo, fontSize, columns }) {
         fontFamily: "var(--font-mono)",
       }}
     >
+      {song.notes && (
+        <div className="mb-3" style={{ columnSpan: 'all', WebkitColumnSpan: 'all' }}>
+          {notesOpen ? (
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]" style={{ fontFamily: 'var(--font-sans)' }}>
+              <span className="shrink-0 mt-0.5 text-[var(--ds-gray-600)]" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 2v6h6" />
+                  <path d="M8 13h6" />
+                  <path d="M8 17h4" />
+                </svg>
+              </span>
+              <p className="flex-1 m-0 text-copy-13 text-[var(--ds-gray-1000)] whitespace-pre-wrap">
+                {song.notes}
+              </p>
+              <button
+                type="button"
+                onClick={() => setNotesOpen(false)}
+                aria-label="Hide notes"
+                className="shrink-0 text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setNotesOpen(true)}
+              aria-label="Show song notes"
+              aria-expanded="false"
+              className="inline-flex items-center gap-1.5 px-2.5 h-6 rounded-full border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)] text-label-11 text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors"
+              style={{ fontFamily: 'var(--font-sans)' }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+              </svg>
+              Notes
+            </button>
+          )}
+        </div>
+      )}
       {song.sections.map((section, i) => (
         <div key={section.id || i} id={`perf-section-${i}`} style={{ breakInside: 'avoid', scrollMarginTop: '7rem' }}>
           <SectionBlock

@@ -195,7 +195,7 @@ export default function SetlistPlayer({ setlist, songs, onBack, defaultColumns, 
       </div>
       {progress}
       {songBar}
-      {cur.note && (
+      {cur.note && !cur.isBreak && (
         <div className="px-5 pt-1">
           <div className="px-3 py-1.5 rounded-md bg-[var(--ds-warning-soft)] border border-[var(--ds-warning-border)] text-label-12 text-[var(--ds-warning-900)]">
             {cur.note}
@@ -212,7 +212,12 @@ export default function SetlistPlayer({ setlist, songs, onBack, defaultColumns, 
               {cur.duration} min
             </div>
           )}
-          <div className="mt-4">{nav}</div>
+          {cur.note && (
+            <p className="max-w-xl mt-4 text-copy-16 text-[var(--ds-gray-700)] text-center whitespace-pre-wrap">
+              {cur.note}
+            </p>
+          )}
+          <div className="mt-6">{nav}</div>
         </div>
       ) : (
         <ChartView
@@ -228,6 +233,7 @@ export default function SetlistPlayer({ setlist, songs, onBack, defaultColumns, 
           inlineNoteStyle={inlineNoteStyle}
           displayRole={displayRole}
           duplicateSections={duplicateSections}
+          notesPeekDefaultOpen={false}
         />
       )}
       {showHelp && (

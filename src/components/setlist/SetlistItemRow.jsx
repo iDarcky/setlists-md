@@ -14,9 +14,12 @@ export default function SetlistItemRow({
   dragHandleProps,
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [breakNotesOpen, setBreakNotesOpen] = useState(() => Boolean(item.type === 'break' && item.note));
 
   /* ── Break row: slim dashed-border divider, no number ── */
   if (item.type === 'break') {
+    const note = item.note || '';
+    const noteLen = note.length;
     return (
       <div
         className="rounded-lg border border-dashed border-[var(--ds-gray-400)] bg-[var(--ds-gray-alpha-100)] overflow-hidden"
@@ -70,6 +73,27 @@ export default function SetlistItemRow({
               />
               <span className="text-label-10 text-[var(--ds-gray-600)]">min</span>
             </div>
+            <button
+              type="button"
+              onClick={() => setBreakNotesOpen(v => !v)}
+              aria-label={breakNotesOpen ? 'Hide notes' : 'Add notes'}
+              aria-expanded={breakNotesOpen}
+              title={note ? 'Notes' : 'Add notes'}
+              className={`flex items-center gap-1 px-1.5 h-6 rounded-md border transition-colors ${
+                note
+                  ? 'border-[var(--color-brand)] text-[var(--color-brand-text)] bg-[var(--ds-background-100)]'
+                  : 'border-[var(--ds-gray-400)] text-[var(--ds-gray-600)] bg-[var(--ds-background-100)] hover:border-[var(--ds-gray-500)]'
+              }`}
+              style={{ minHeight: 'auto' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+                <path d="M8 13h6" />
+                <path d="M8 17h4" />
+              </svg>
+              {note && <span className="text-label-10-mono tabular-nums">{noteLen}</span>}
+            </button>
             <IconButton
               size="xs"
               variant="error"
@@ -80,6 +104,25 @@ export default function SetlistItemRow({
             </IconButton>
           </div>
         </div>
+
+        {breakNotesOpen && (
+          <div className="border-t border-dashed border-[var(--ds-gray-400)] px-3 py-2 bg-[var(--ds-background-100)]">
+            <textarea
+              value={note}
+              onChange={e => onUpdateBreakField(idx, 'note', e.target.value.slice(0, 500))}
+              maxLength={500}
+              placeholder="Notes for this break (e.g. who's leading, slide cue, prayer points)…"
+              rows={2}
+              className="w-full px-2 py-1.5 text-copy-13 bg-transparent border-none outline-none resize-y text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-500)]"
+              style={{ minHeight: '2.5rem' }}
+            />
+            <div className="flex justify-end">
+              <span className={`text-label-10-mono tabular-nums ${noteLen >= 500 ? 'text-[var(--ds-error-600)]' : 'text-[var(--ds-gray-500)]'}`}>
+                {noteLen}/500
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
