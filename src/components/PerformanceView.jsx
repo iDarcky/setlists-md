@@ -89,6 +89,29 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
 
   const displayKey = cur.isBreak ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
 
+  // Chevron + close X — rendered alongside the title when expanded, alongside
+  // the structure ribbon when collapsed.
+  const headerControls = (
+    <>
+      <IconButton
+        size="sm"
+        variant="ghost"
+        onClick={() => setHeaderCollapsed(c => !c)}
+        aria-label={headerCollapsed ? 'Expand header' : 'Collapse header'}
+        className="shrink-0 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)]"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d={headerCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
+        </svg>
+      </IconButton>
+      <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close live view">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </IconButton>
+    </>
+  );
+
   return (
     <div
       ref={scrollRef}
@@ -97,83 +120,61 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
     >
       {/* ── Minimal sticky header ── */}
       <div className="material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
-        {/* Title row — collapse hides the title + meta but keeps the close X
-            and the collapse chevron reachable. */}
-        <div className="a4-container flex items-center gap-2 py-3">
-          {!headerCollapsed && (
-            <>
-              {/* Title */}
-              <h1 className="text-heading-16 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
-                {cur.isBreak ? (cur.label || 'Break') : cur.song.title}
-              </h1>
+        {/* Title row — only renders when the header is expanded. When
+            collapsed, the chevron + X drop down into the structure ribbon row
+            below so the header occupies a single slim row instead of two. */}
+        {!headerCollapsed && (
+          <div className="a4-container flex items-center gap-2 py-3">
+            {/* Title */}
+            <h1 className="text-heading-16 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
+              {cur.isBreak ? (cur.label || 'Break') : cur.song.title}
+            </h1>
 
-              {/* Meta: key picker + tempo + time */}
-              {!cur.isBreak && displayKey && (
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Select value={displayKey} onValueChange={setSelectedKey}>
-                    <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ALL_KEYS.map(k => {
-                        const st = semitonesBetween(cur.song.key, k);
-                        const display = st > 6 ? st - 12 : st;
-                        return (
-                          <SelectItem key={k} value={k}>
-                            {k}{st !== 0 && ` (${display > 0 ? '+' : ''}${display})`}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  {cur.capo > 0 && (
-                    <span className="text-label-12 font-bold text-[var(--color-brand)] whitespace-nowrap bg-[var(--color-brand-soft)] px-1.5 py-0.5 rounded border border-[var(--color-brand-border)]">
-                      Capo {cur.capo}
-                    </span>
-                  )}
-                  {cur.song.tempo && (
-                    <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
-                      ♩ {cur.song.tempo}
-                    </span>
-                  )}
-                  {cur.song.time && (
-                    <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
-                      {cur.song.time}
-                    </span>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-          {headerCollapsed && <span className="flex-1" />}
+            {/* Meta: key picker + tempo + time */}
+            {!cur.isBreak && displayKey && (
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Select value={displayKey} onValueChange={setSelectedKey}>
+                  <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ALL_KEYS.map(k => {
+                      const st = semitonesBetween(cur.song.key, k);
+                      const display = st > 6 ? st - 12 : st;
+                      return (
+                        <SelectItem key={k} value={k}>
+                          {k}{st !== 0 && ` (${display > 0 ? '+' : ''}${display})`}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                {cur.capo > 0 && (
+                  <span className="text-label-12 font-bold text-[var(--color-brand)] whitespace-nowrap bg-[var(--color-brand-soft)] px-1.5 py-0.5 rounded border border-[var(--color-brand-border)]">
+                    Capo {cur.capo}
+                  </span>
+                )}
+                {cur.song.tempo && (
+                  <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
+                    ♩ {cur.song.tempo}
+                  </span>
+                )}
+                {cur.song.time && (
+                  <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
+                    {cur.song.time}
+                  </span>
+                )}
+              </div>
+            )}
 
-          {/* Collapse chevron — toggles header expansion. Stays in the title
-              row so it's reachable whether or not a structure ribbon renders. */}
-          <IconButton
-            size="sm"
-            variant="ghost"
-            onClick={() => setHeaderCollapsed(c => !c)}
-            aria-label={headerCollapsed ? 'Expand header' : 'Collapse header'}
-            className="shrink-0 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)]"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d={headerCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
-            </svg>
-          </IconButton>
+            {headerControls}
+          </div>
+        )}
 
-          {/* Close session — exits to whichever screen opened the live view.
-              Stays visible even when the header is collapsed. */}
-          <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close live view">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </IconButton>
-        </div>
-
-        {/* Structure ribbon — only for songs. Stays visible when the title
-            row collapses so the user can still jump between sections. */}
+        {/* Structure ribbon — only for songs. When the header is collapsed,
+            the chevron + X live here too so the row holds both. */}
         {!cur.isBreak && cur.song.sections?.length > 0 && (
-          <div className="a4-container pb-2 pt-0 flex items-center gap-1">
+          <div className={`a4-container flex items-center gap-1 ${headerCollapsed ? 'py-2' : 'pb-2 pt-0'}`}>
             <div className="flex-1 overflow-x-auto no-scrollbar">
               <StructureRibbon
                 structure={cur.song.structure || cur.song.sections.map(s => s.type)}
@@ -189,6 +190,15 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
                 }}
               />
             </div>
+            {headerCollapsed && headerControls}
+          </div>
+        )}
+
+        {/* Fallback control row when collapsed AND there's no structure ribbon
+            (break, or song with no sections) — keeps chevron + X reachable. */}
+        {headerCollapsed && (cur.isBreak || !cur.song.sections?.length) && (
+          <div className="a4-container py-2 flex justify-end items-center gap-1">
+            {headerControls}
           </div>
         )}
       </div>
