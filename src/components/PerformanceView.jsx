@@ -8,15 +8,13 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import NoteContent from './ui/NoteContent';
 import { useWakeLock } from '../hooks/useWakeLock';
 
-export default function PerformanceView({ setlist, songs, onBack, onFinish }) {
+export default function PerformanceView({ setlist, songs, onBack, onFinish, defaultFontSize, defaultColumns }) {
   useWakeLock(true);
   const [idx, setIdx] = useState(0);
   const [selectedKey, setSelectedKey] = useState(null);
-  const [fontSize, setFontSize] = useState(18);
-  const [columns, setColumns] = useState(1);
-  const [showOverflow, setShowOverflow] = useState(false);
+  const fontSize = defaultFontSize || 18;
+  const columns = defaultColumns || 1;
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
-  const overflowRef = useRef(null);
   const scrollRef = useRef(null);
 
   // Session metrics for the finale screen.
@@ -78,18 +76,6 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish }) {
     return () => window.removeEventListener('keydown', handler);
   }, [goNext, goPrev]);
 
-  // Close overflow popover on outside click
-  useEffect(() => {
-    if (!showOverflow) return;
-    const handler = (e) => {
-      if (overflowRef.current && !overflowRef.current.contains(e.target)) {
-        setShowOverflow(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showOverflow]);
-
   if (!resolved.length) {
     return (
       <div className="p-10 text-center text-[var(--ds-gray-600)] text-copy-14">
@@ -113,13 +99,6 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish }) {
         {/* Title row — hidden when collapsed */}
         {!headerCollapsed && (
           <div className="a4-container flex items-center gap-2 py-3">
-            {/* Back */}
-            <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Back">
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
-              </svg>
-            </IconButton>
-
             {/* Title */}
             <h1 className="text-heading-16 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
               {cur.isBreak ? (cur.label || 'Break') : cur.song.title}
@@ -162,59 +141,12 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish }) {
               </div>
             )}
 
-            {/* Separator */}
-            <div className="w-px h-5 bg-[var(--ds-gray-400)] shrink-0" />
-
-            {/* Overflow: font size + columns */}
-            <div className="relative" ref={overflowRef}>
-              <IconButton
-                variant={showOverflow ? 'active' : 'default'}
-                size="sm"
-                onClick={() => setShowOverflow(s => !s)}
-                aria-label="Display options"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <circle cx="5" cy="12" r="2" />
-                  <circle cx="12" cy="12" r="2" />
-                  <circle cx="19" cy="12" r="2" />
-                </svg>
-              </IconButton>
-              {showOverflow && (
-                <div className="absolute right-0 top-full mt-2 z-[200] min-w-[190px] rounded-xl bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] shadow-xl p-3 flex flex-col gap-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-label-12 text-[var(--ds-gray-700)]">Font size</span>
-                    <div className="flex items-center bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] rounded-lg p-0.5">
-                      <button
-                        onClick={() => setFontSize(p => Math.max(12, p - 2))}
-                        className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] text-label-14 font-bold"
-                      >−</button>
-                      <span className="px-2 text-label-11-mono text-[var(--ds-gray-700)] tabular-nums">{fontSize}px</span>
-                      <button
-                        onClick={() => setFontSize(p => Math.min(32, p + 2))}
-                        className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] text-label-14 font-bold"
-                      >+</button>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-label-12 text-[var(--ds-gray-700)]">Columns</span>
-                    <div className="flex items-center gap-1.5">
-                      {[1, 2].map(n => (
-                        <button
-                          key={n}
-                          onClick={() => setColumns(n)}
-                          className="h-7 px-3 rounded-lg text-label-12 font-semibold transition-colors border"
-                          style={{
-                            background: columns === n ? 'var(--color-brand)' : 'var(--ds-background-100)',
-                            color: columns === n ? 'white' : 'var(--ds-gray-900)',
-                            borderColor: columns === n ? 'transparent' : 'var(--ds-gray-400)',
-                          }}
-                        >{n}</button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Close session — exits to whichever screen opened the live view */}
+            <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close live view">
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </IconButton>
           </div>
         )}
 

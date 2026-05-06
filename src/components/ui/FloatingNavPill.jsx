@@ -51,13 +51,13 @@ export default function FloatingNavPill({ current, total, nextLabel, onPrev, onN
           <button
             onClick={onFinish}
             aria-label="Finish session"
-            style={{ minWidth: 96, border: 'none', cursor: 'pointer', background: 'var(--color-brand)' }}
-            className="flex items-center justify-center gap-1.5 px-5 transition-opacity duration-150 hover:opacity-90 active:opacity-80"
+            style={{ minWidth: 96, border: 'none', background: 'transparent', cursor: 'pointer' }}
+            className="flex items-center justify-center gap-1.5 px-5 transition-colors duration-150 hover:bg-[var(--ds-gray-100)] active:bg-[var(--ds-gray-200)]"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'white' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--ds-gray-900)]">
               <path d="M20 6L9 17l-5-5" />
             </svg>
-            <span className="text-label-14 font-semibold tracking-wide" style={{ color: 'white' }}>Finish</span>
+            <span className="text-label-14 font-semibold tracking-wide text-[var(--ds-gray-1000)]">Finish</span>
           </button>
         ) : (
           <button

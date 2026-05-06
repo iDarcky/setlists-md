@@ -1337,6 +1337,8 @@ export default function App() {
               songs={songs}
               onBack={goBack}
               onFinish={(stats) => goLiveFinale(currentSetlist, stats, 'performance')}
+              defaultColumns={settings?.defaultColumns}
+              defaultFontSize={settings?.defaultFontSize}
             />
           )}
           {view === 'setlist-practice' && currentSetlist && (
@@ -1347,6 +1349,8 @@ export default function App() {
               onFinish={(stats) => goPracticeFinale(currentSetlist, stats)}
               onUpdateSong={handleUpdateSong}
               onUpdateSetlist={handleUpdateSetlist}
+              defaultColumns={settings?.defaultColumns}
+              defaultFontSize={settings?.defaultFontSize}
             />
           )}
           {view === 'practice-finale' && currentSetlist && (

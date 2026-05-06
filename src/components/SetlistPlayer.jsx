@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { transposeKey, sectionStyle } from '../music';
-import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import NoteContent from './ui/NoteContent';
 import ChartView from './ChartView';
@@ -101,8 +100,7 @@ export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaul
           type="button"
           onClick={handleFinish}
           aria-label="Finish session"
-          className="inline-flex items-center gap-1 h-8 px-3 rounded-lg text-label-12 font-semibold transition-opacity hover:opacity-90 active:opacity-80"
-          style={{ background: 'var(--color-brand)', color: 'white' }}
+          className="inline-flex items-center gap-1 h-8 px-3 rounded-lg text-label-12 font-semibold border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] transition-colors"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6L9 17l-5-5" />
@@ -220,12 +218,16 @@ export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaul
 
   return (
     <div style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-      {/* Back button for the whole player */}
+      {/* Top row — setlist name on the left, close X on the right */}
       <div className="flex items-center gap-2.5 px-5 pt-2.5">
-        <Button variant="ghost" size="xs" onClick={onBack}>← Back</Button>
-        <span className="text-label-13 font-semibold text-[var(--ds-gray-600)]">
+        <span className="text-label-13 font-semibold text-[var(--ds-gray-600)] flex-1 min-w-0 truncate">
           {setlist.name}
         </span>
+        <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close player">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </IconButton>
       </div>
       {progress}
       {songBar}
