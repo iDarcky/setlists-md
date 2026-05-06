@@ -165,17 +165,6 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish }) {
             {/* Separator */}
             <div className="w-px h-5 bg-[var(--ds-gray-400)] shrink-0" />
 
-            {/* Finish session — wraps the live set and lands on the finale */}
-            {onFinish && (
-              <button
-                type="button"
-                onClick={handleFinish}
-                className="shrink-0 h-7 px-2.5 rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] text-label-12 font-semibold text-[var(--ds-gray-900)] hover:border-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] transition-colors"
-              >
-                Finish
-              </button>
-            )}
-
             {/* Overflow: font size + columns */}
             <div className="relative" ref={overflowRef}>
               <IconButton
@@ -297,6 +286,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish }) {
         onNext={goNext}
         hasPrev={idx > 0}
         hasNext={idx < resolved.length - 1}
+        onFinish={onFinish ? handleFinish : undefined}
       />
     </div>
   );

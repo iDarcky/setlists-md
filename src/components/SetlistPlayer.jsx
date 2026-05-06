@@ -80,6 +80,8 @@ export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaul
 
   const cur = resolved[idx];
 
+  const isLast = idx === resolved.length - 1;
+  const showFinish = isLast && typeof onFinish === 'function';
   const nav = (
     <div className="flex items-center gap-1.5">
       <span className="text-label-11-mono text-[var(--ds-gray-600)]">
@@ -94,15 +96,30 @@ export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaul
       >
         &#9664;
       </IconButton>
-      <IconButton
-        variant="default"
-        size="sm"
-        onClick={goNext}
-        disabled={idx === resolved.length - 1}
-        aria-label="Next song"
-      >
-        &#9654;
-      </IconButton>
+      {showFinish ? (
+        <button
+          type="button"
+          onClick={handleFinish}
+          aria-label="Finish session"
+          className="inline-flex items-center gap-1 h-8 px-3 rounded-lg text-label-12 font-semibold transition-opacity hover:opacity-90 active:opacity-80"
+          style={{ background: 'var(--color-brand)', color: 'white' }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+          Finish
+        </button>
+      ) : (
+        <IconButton
+          variant="default"
+          size="sm"
+          onClick={goNext}
+          disabled={idx === resolved.length - 1}
+          aria-label="Next song"
+        >
+          &#9654;
+        </IconButton>
+      )}
       <IconButton
         variant="default"
         size="sm"
@@ -206,18 +223,9 @@ export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaul
       {/* Back button for the whole player */}
       <div className="flex items-center gap-2.5 px-5 pt-2.5">
         <Button variant="ghost" size="xs" onClick={onBack}>← Back</Button>
-        <span className="text-label-13 font-semibold text-[var(--ds-gray-600)] flex-1 min-w-0 truncate">
+        <span className="text-label-13 font-semibold text-[var(--ds-gray-600)]">
           {setlist.name}
         </span>
-        {onFinish && (
-          <button
-            type="button"
-            onClick={handleFinish}
-            className="shrink-0 h-7 px-2.5 rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] text-label-12 font-semibold text-[var(--ds-gray-900)] hover:border-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] transition-colors"
-          >
-            Finish
-          </button>
-        )}
       </div>
       {progress}
       {songBar}
