@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { transposeKey, sectionStyle } from '../music';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import NoteContent from './ui/NoteContent';
 import ChartView from './ChartView';
 import { useWakeLock } from '../hooks/useWakeLock';
 
@@ -213,9 +214,10 @@ export default function SetlistPlayer({ setlist, songs, onBack, defaultColumns, 
             </div>
           )}
           {cur.note && (
-            <p className="max-w-xl mt-4 text-copy-16 text-[var(--ds-gray-700)] text-center whitespace-pre-wrap">
-              {cur.note}
-            </p>
+            <NoteContent
+              text={cur.note}
+              className="w-full max-w-xl mt-4 px-5 py-4 rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)] text-copy-16 text-[var(--ds-gray-900)]"
+            />
           )}
           <div className="mt-6">{nav}</div>
         </div>

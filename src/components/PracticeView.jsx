@@ -6,6 +6,7 @@ import FloatingNavPill from './ui/FloatingNavPill';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
+import NoteContent from './ui/NoteContent';
 
 export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onUpdateSetlist }) {
   const [idx, setIdx] = useState(0);
@@ -304,9 +305,10 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
               <div className="text-copy-16 text-[var(--ds-gray-600)] font-mono">{cur.duration} min</div>
             )}
             {cur.note && (
-              <p className="max-w-xl mt-4 text-copy-15 text-[var(--ds-gray-700)] text-center whitespace-pre-wrap">
-                {cur.note}
-              </p>
+              <NoteContent
+                text={cur.note}
+                className="w-full max-w-xl mt-4 px-5 py-4 rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)] text-copy-15 text-[var(--ds-gray-900)]"
+              />
             )}
           </div>
         ) : displayKey ? (

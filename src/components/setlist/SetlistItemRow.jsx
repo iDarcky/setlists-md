@@ -111,12 +111,15 @@ export default function SetlistItemRow({
               value={note}
               onChange={e => onUpdateBreakField(idx, 'note', e.target.value.slice(0, 500))}
               maxLength={500}
-              placeholder="Notes for this break (e.g. who's leading, slide cue, prayer points)…"
-              rows={2}
+              placeholder={"# Heading\n\nParagraph text. Blank lines start a new paragraph."}
+              rows={3}
               className="w-full px-2 py-1.5 text-copy-13 bg-transparent border-none outline-none resize-y text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-500)]"
-              style={{ minHeight: '2.5rem' }}
+              style={{ minHeight: '3rem' }}
             />
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between">
+              <span className="text-label-10 text-[var(--ds-gray-500)]">
+                Supports <code className="font-mono">#</code> heading, <code className="font-mono">##</code> subheading, blank lines for paragraphs.
+              </span>
               <span className={`text-label-10-mono tabular-nums ${noteLen >= 500 ? 'text-[var(--ds-error-600)]' : 'text-[var(--ds-gray-500)]'}`}>
                 {noteLen}/500
               </span>
