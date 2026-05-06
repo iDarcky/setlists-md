@@ -179,31 +179,24 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                 return (
                   <div
                     key={idx}
-                    className="flex flex-col items-stretch py-2"
+                    className="flex items-center gap-3 px-1 py-2"
                     aria-label="Break"
                   >
-                    <div className="flex items-center gap-3 px-1">
-                      <span className="flex-1 border-t border-dashed border-[var(--ds-gray-400)]" aria-hidden="true" />
-                      <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)]">
-                        <span className="text-label-11 uppercase tracking-[0.18em] font-semibold text-[var(--ds-gray-1000)]">
-                          {item.label || 'Break'}
-                        </span>
-                        {(item.duration || 0) > 0 && (
-                          <>
-                            <span className="w-[3px] h-[3px] rounded-full bg-[var(--ds-gray-600)]" aria-hidden="true" />
-                            <span className="text-label-11 text-[var(--ds-gray-700)] tabular-nums">
-                              {item.duration} min
-                            </span>
-                          </>
-                        )}
+                    <span className="flex-1 border-t border-dashed border-[var(--ds-gray-400)]" aria-hidden="true" />
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)]">
+                      <span className="text-label-11 uppercase tracking-[0.18em] font-semibold text-[var(--ds-gray-1000)]">
+                        {item.label || 'Break'}
                       </span>
-                      <span className="flex-1 border-t border-dashed border-[var(--ds-gray-400)]" aria-hidden="true" />
-                    </div>
-                    {item.note && (
-                      <p className="text-copy-12 text-[var(--ds-gray-600)] italic m-0 mt-1.5 text-center px-4">
-                        {item.note}
-                      </p>
-                    )}
+                      {(item.duration || 0) > 0 && (
+                        <>
+                          <span className="w-[3px] h-[3px] rounded-full bg-[var(--ds-gray-600)]" aria-hidden="true" />
+                          <span className="text-label-11 text-[var(--ds-gray-700)] tabular-nums">
+                            {item.duration} min
+                          </span>
+                        </>
+                      )}
+                    </span>
+                    <span className="flex-1 border-t border-dashed border-[var(--ds-gray-400)]" aria-hidden="true" />
                   </div>
                 );
               }
@@ -245,6 +238,11 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                   <p className="text-copy-12 text-[var(--ds-gray-700)] m-0 mt-0.5 truncate">
                     {song.artist}
                   </p>
+                  {item.note && (
+                    <p className="text-copy-12 text-[var(--ds-gray-600)] italic m-0 mt-1 whitespace-pre-wrap">
+                      {item.note}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex flex-col items-end shrink-0 gap-0.5">
