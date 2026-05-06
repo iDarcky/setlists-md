@@ -8,7 +8,7 @@ import { Button } from './ui/Button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import NoteContent from './ui/NoteContent';
 
-export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onUpdateSetlist }) {
+export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist }) {
   const [idx, setIdx] = useState(0);
   const [selectedKey, setSelectedKey] = useState(null);
   const [fontSize, setFontSize] = useState(18);
@@ -18,6 +18,14 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const overflowRef = useRef(null);
   const scrollRef = useRef(null);
+
+  // Session metrics for the finale screen.
+  const [sessionStartTime] = useState(() => Date.now());
+  const startTimeRef = useRef(sessionStartTime);
+  const transposeCountRef = useRef(0);
+  const cueCountRef = useRef(0);
+  const farthestIdxRef = useRef(0);
+  const touchedSongIdsRef = useRef(new Set());
 
   const resolved = useMemo(() =>
     setlist.items
@@ -42,7 +50,11 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
   }, [idx, cur?.song?.id]);
 
   const goNext = useCallback(() => {
-    setIdx(p => Math.min(resolved.length - 1, p + 1));
+    setIdx(p => {
+      const next = Math.min(resolved.length - 1, p + 1);
+      if (next > farthestIdxRef.current) farthestIdxRef.current = next;
+      return next;
+    });
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [resolved.length]);
 
@@ -50,6 +62,16 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
     setIdx(p => Math.max(0, p - 1));
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  const handleFinish = useCallback(() => {
+    onFinish?.({
+      startTime: startTimeRef.current,
+      farthestIdx: farthestIdxRef.current,
+      transposeCount: transposeCountRef.current,
+      cueCount: cueCountRef.current,
+      touchedSongIds: Array.from(touchedSongIdsRef.current),
+    });
+  }, [onFinish]);
 
   // Keyboard navigation (ignore when editing text)
   useEffect(() => {
@@ -80,6 +102,10 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
     setSelectedKey(newKey);
     if (!cur || cur.isBreak) return;
     const semitones = semitonesBetween(cur.song.key, newKey);
+    if (semitones !== (cur.transpose || 0)) {
+      transposeCountRef.current += 1;
+      touchedSongIdsRef.current.add(cur.song.id);
+    }
     onUpdateSetlist?.({
       ...setlist,
       items: setlist.items.map((it, i) =>
@@ -91,6 +117,8 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
   // Save band cue (section.note) → persists to song
   const handleSaveCue = useCallback((sectionIdx, newNote) => {
     if (!cur || cur.isBreak) return;
+    cueCountRef.current += 1;
+    touchedSongIdsRef.current.add(cur.song.id);
     onUpdateSong?.({
       ...cur.song,
       sections: cur.song.sections.map((sec, i) =>
@@ -102,6 +130,7 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
   // Save setlist note → persists to setlist item
   const handleSaveNote = useCallback((newNote) => {
     if (!cur || cur.isBreak) return;
+    touchedSongIdsRef.current.add(cur.song.id);
     onUpdateSetlist?.({
       ...setlist,
       items: setlist.items.map((it, i) =>
@@ -198,6 +227,17 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
             >
               Practice
             </span>
+
+            {/* Finish session — wraps the practice and lands on the finale */}
+            {onFinish && (
+              <button
+                type="button"
+                onClick={handleFinish}
+                className="shrink-0 h-7 px-2.5 rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] text-label-12 font-semibold text-[var(--ds-gray-900)] hover:border-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] transition-colors"
+              >
+                Finish
+              </button>
+            )}
 
             {/* Overflow: font size + columns */}
             <div className="relative" ref={overflowRef}>

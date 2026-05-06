@@ -6,11 +6,16 @@ import NoteContent from './ui/NoteContent';
 import ChartView from './ChartView';
 import { useWakeLock } from '../hooks/useWakeLock';
 
-export default function SetlistPlayer({ setlist, songs, onBack, defaultColumns, defaultFontSize, showInlineNotes, inlineNoteStyle, displayRole, duplicateSections }) {
+export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaultColumns, defaultFontSize, showInlineNotes, inlineNoteStyle, displayRole, duplicateSections }) {
   useWakeLock(true);
   const [idx, setIdx] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
   const songBarRef = useRef(null);
+
+  // Session metrics for the finale screen.
+  const [sessionStartTime] = useState(() => Date.now());
+  const startTimeRef = useRef(sessionStartTime);
+  const farthestIdxRef = useRef(0);
 
   const resolved = useMemo(() => {
     const acc = { count: 0 };
@@ -26,8 +31,19 @@ export default function SetlistPlayer({ setlist, songs, onBack, defaultColumns, 
       .filter(Boolean);
   }, [setlist, songs]);
 
-  const goNext = useCallback(() => setIdx(p => Math.min(resolved.length - 1, p + 1)), [resolved.length]);
+  const goNext = useCallback(() => setIdx(p => {
+    const next = Math.min(resolved.length - 1, p + 1);
+    if (next > farthestIdxRef.current) farthestIdxRef.current = next;
+    return next;
+  }), [resolved.length]);
   const goPrev = useCallback(() => setIdx(p => Math.max(0, p - 1)), []);
+
+  const handleFinish = useCallback(() => {
+    onFinish?.({
+      startTime: startTimeRef.current,
+      farthestIdx: farthestIdxRef.current,
+    });
+  }, [onFinish]);
 
   // Auto-scroll song strip to keep active item visible
   useEffect(() => {
@@ -190,9 +206,18 @@ export default function SetlistPlayer({ setlist, songs, onBack, defaultColumns, 
       {/* Back button for the whole player */}
       <div className="flex items-center gap-2.5 px-5 pt-2.5">
         <Button variant="ghost" size="xs" onClick={onBack}>← Back</Button>
-        <span className="text-label-13 font-semibold text-[var(--ds-gray-600)]">
+        <span className="text-label-13 font-semibold text-[var(--ds-gray-600)] flex-1 min-w-0 truncate">
           {setlist.name}
         </span>
+        {onFinish && (
+          <button
+            type="button"
+            onClick={handleFinish}
+            className="shrink-0 h-7 px-2.5 rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] text-label-12 font-semibold text-[var(--ds-gray-900)] hover:border-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] transition-colors"
+          >
+            Finish
+          </button>
+        )}
       </div>
       {progress}
       {songBar}

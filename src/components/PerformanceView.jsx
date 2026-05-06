@@ -8,7 +8,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import NoteContent from './ui/NoteContent';
 import { useWakeLock } from '../hooks/useWakeLock';
 
-export default function PerformanceView({ setlist, songs, onBack }) {
+export default function PerformanceView({ setlist, songs, onBack, onFinish }) {
   useWakeLock(true);
   const [idx, setIdx] = useState(0);
   const [selectedKey, setSelectedKey] = useState(null);
@@ -18,6 +18,11 @@ export default function PerformanceView({ setlist, songs, onBack }) {
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const overflowRef = useRef(null);
   const scrollRef = useRef(null);
+
+  // Session metrics for the finale screen.
+  const [sessionStartTime] = useState(() => Date.now());
+  const startTimeRef = useRef(sessionStartTime);
+  const farthestIdxRef = useRef(0);
 
   const resolved = useMemo(() =>
     setlist.items
@@ -41,7 +46,11 @@ export default function PerformanceView({ setlist, songs, onBack }) {
   }, [idx, cur?.song?.id]);
 
   const goNext = useCallback(() => {
-    setIdx(p => Math.min(resolved.length - 1, p + 1));
+    setIdx(p => {
+      const next = Math.min(resolved.length - 1, p + 1);
+      if (next > farthestIdxRef.current) farthestIdxRef.current = next;
+      return next;
+    });
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [resolved.length]);
 
@@ -49,6 +58,13 @@ export default function PerformanceView({ setlist, songs, onBack }) {
     setIdx(p => Math.max(0, p - 1));
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  const handleFinish = useCallback(() => {
+    onFinish?.({
+      startTime: startTimeRef.current,
+      farthestIdx: farthestIdxRef.current,
+    });
+  }, [onFinish]);
 
   // Keyboard / Bluetooth pedal navigation
   useEffect(() => {
@@ -148,6 +164,17 @@ export default function PerformanceView({ setlist, songs, onBack }) {
 
             {/* Separator */}
             <div className="w-px h-5 bg-[var(--ds-gray-400)] shrink-0" />
+
+            {/* Finish session — wraps the live set and lands on the finale */}
+            {onFinish && (
+              <button
+                type="button"
+                onClick={handleFinish}
+                className="shrink-0 h-7 px-2.5 rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] text-label-12 font-semibold text-[var(--ds-gray-900)] hover:border-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] transition-colors"
+              >
+                Finish
+              </button>
+            )}
 
             {/* Overflow: font size + columns */}
             <div className="relative" ref={overflowRef}>
