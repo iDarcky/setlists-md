@@ -263,7 +263,7 @@
 
   --chord: #e2a832;
   --header-bg: rgba(0, 0, 0, 0.92);
-  --header-bg-blur: rgba(0, 0, 0, 0.65);
+  --header-bg-blur: rgba(0, 0, 0, 0.45);
   --fm: var(--font-mono);
 
   /* Shared Dashboard Surfaces (Dark Default) */
@@ -484,7 +484,7 @@
 
               --chord: #b45309;
     --header-bg: rgba(255, 255, 255, 0.92);
-    --header-bg-blur: rgba(255, 255, 255, 0.65);
+    --header-bg-blur: rgba(255, 255, 255, 0.45);
   }
 
   * {
