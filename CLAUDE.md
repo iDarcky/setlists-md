@@ -21,6 +21,31 @@ npm run preview  # Preview production build
 npm run lint     # ESLint
 ```
 
+## Versioning
+
+The app follows **Semantic Versioning 2.0.0** (https://semver.org).
+`MAJOR.MINOR.PATCH`, optionally suffixed with a pre-release label
+(`-pre-alpha`, `-alpha`, `-beta`, `-rc.N`).
+
+- **MAJOR** — breaking change to stored data shapes, the `.md` format,
+  or any user-visible contract that requires migration.
+- **MINOR** — new feature or non-breaking enhancement (added settings,
+  new screens, additive schema fields with safe defaults).
+- **PATCH** — bug fix, copy tweak, visual polish, dependency bumps that
+  don't change behaviour.
+- **Pre-release** — anything not yet considered stable. Order is
+  `pre-alpha < alpha < beta < rc.N < (no suffix)`.
+
+Single source of truth is `package.json#version`. Vite injects it as
+the build-time global `__APP_VERSION__` (`define` in `vite.config.js`),
+declared as a readonly global in `eslint.config.js`. The Settings
+"About" panel and hub row both render `v${__APP_VERSION__}` so they
+stay in lockstep with the package — never hardcode the version in JSX.
+
+To cut a new version: bump `package.json#version`, write a one-line
+note in the commit subject describing the bump (e.g. "Release 0.1.0:
+add finale screens"), then commit + tag.
+
 ## Project Structure
 
 ```

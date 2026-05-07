@@ -301,7 +301,7 @@ function AboutPanel({ isSignedIn, displayName }) {
           A workspace for music teams. Your songs belong to you as plain Markdown files — open them in any text editor, forever.
         </p>
         <div className="mt-3 flex items-center gap-3 text-label-12 text-[var(--modes-text-muted)] font-medium">
-          <span>v1.2.0</span>
+          <span>v{__APP_VERSION__}</span>
           <span className="text-[var(--modes-text-dim)]">·</span>
           <a
             href="https://github.com/iDarcky/setlists-md"
@@ -427,7 +427,7 @@ export default function Settings({
             <HubRow
               icon={AboutIcon}
               label="About"
-              value="v1.2.0"
+              value={`v${__APP_VERSION__}`}
               onClick={() => onChangePanel('about')}
             />
           </div>
