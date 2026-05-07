@@ -55,6 +55,7 @@ export default function Setlists({
   isFullscreen = false,
   onToggleFullscreen,
   onEditSetlist,
+  clockFormat = '12h',
   onExportSetlistZip,
   onExportSetlistPdfOverview,
   onExportSetlistPdfFull,
@@ -192,6 +193,7 @@ export default function Setlists({
                         selected={isDesktop && sl.id === previewSetlistId}
                         onPlay={() => onPlaySetlist(sl)}
                         onView={() => handleView(sl)}
+                        clockFormat={clockFormat}
                       />
                     ))}
                   </div>
@@ -217,6 +219,7 @@ export default function Setlists({
                         selected={isDesktop && sl.id === previewSetlistId}
                         onPlay={() => onPlaySetlist(sl)}
                         onView={() => handleView(sl)}
+                        clockFormat={clockFormat}
                       />
                     ))}
                   </div>
@@ -319,6 +322,7 @@ export default function Setlists({
               key={previewSetlist.id}
               setlist={previewSetlist}
               songs={songs}
+              clockFormat={clockFormat}
               onBack={() => {
                 if (isFullscreen) onToggleFullscreen?.();
                 onSelectPreview?.(null);

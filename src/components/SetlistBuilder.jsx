@@ -4,6 +4,7 @@ import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { toast } from './ui/use-toast';
 import ScreenHeader from './ui/ScreenHeader';
+import { nextSundayDateStr } from '../lib/dateFormat';
 
 const UNDO_STACK_LIMIT = 50;
 import SetlistMetaForm from './setlist/SetlistMetaForm';
@@ -13,8 +14,10 @@ import RosterPanel from './setlist/RosterPanel';
 
 export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext }) {
   const [name, setName] = useState(setlist?.name || '');
-  const [date, setDate] = useState(setlist?.date || new Date().toISOString().slice(0, 10));
-  const [time, setTime] = useState(setlist?.time || '20:00');
+  // New setlists default to the upcoming Sunday at 10:00 — the most common
+  // worship slot. Existing ones keep whatever they were saved with.
+  const [date, setDate] = useState(setlist?.date || nextSundayDateStr());
+  const [time, setTime] = useState(setlist?.time || '10:00');
   const [location, setLocation] = useState(setlist?.location || '');
   // Migrate legacy `service` field → tags
   const [tags, setTags] = useState(() => {

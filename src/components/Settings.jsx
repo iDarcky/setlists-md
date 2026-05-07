@@ -161,6 +161,42 @@ function AppearancePanel({ settings, update, isSignedIn }) {
           ))}
         </div>
       </Row>
+      <Row label="First day of week" description="Affects calendar grids and weekly schedule.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: 'sunday', label: 'Sunday' },
+            { key: 'monday', label: 'Monday' },
+          ].map(({ key, label }) => (
+            <Button
+              key={key}
+              size="sm"
+              variant={(settings.firstDayOfWeek || 'sunday') === key ? 'secondary' : 'ghost'}
+              onClick={() => update('firstDayOfWeek', key)}
+              className={(settings.firstDayOfWeek || 'sunday') === key ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </Row>
+      <Row label="Clock format" description="How times display on cards and schedules.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: '12h', label: '12-hour' },
+            { key: '24h', label: '24-hour' },
+          ].map(({ key, label }) => (
+            <Button
+              key={key}
+              size="sm"
+              variant={(settings.clockFormat || '12h') === key ? 'secondary' : 'ghost'}
+              onClick={() => update('clockFormat', key)}
+              className={(settings.clockFormat || '12h') === key ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </Row>
     </Section>
   );
 }
@@ -313,7 +349,9 @@ function AboutPanel({ isSignedIn, displayName }) {
 function appearanceSummary(s) {
   const theme = s?.theme === 'light' ? 'Light' : s?.theme === 'dark' ? 'Dark' : 'System';
   const cols = s?.defaultColumns === 'auto' ? 'Auto' : `${s?.defaultColumns || 1}-col`;
-  return `${theme} · ${cols}`;
+  const week = s?.firstDayOfWeek === 'monday' ? 'Mon-start' : 'Sun-start';
+  const clock = s?.clockFormat === '24h' ? '24h' : '12h';
+  return `${theme} · ${cols} · ${week} · ${clock}`;
 }
 
 function chartSummary(s) {

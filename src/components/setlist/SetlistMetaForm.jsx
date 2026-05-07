@@ -24,7 +24,11 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    // Both Enter and Space commit the current draft tag — space lets people
+    // type "fast slow loud" and get three tags without ever lifting their
+    // hand off the keyboard.
+    if (e.key === 'Enter' || e.key === ' ') {
+      if (!tagInput.trim()) return;
       e.preventDefault();
       addTag();
     }
@@ -123,7 +127,7 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
               onKeyDown={handleKeyDown}
               onBlur={addTag}
               maxLength={10}
-              placeholder={tags.length === 0 ? 'Type and press Enter…' : ''}
+              placeholder={tags.length === 0 ? 'Type, then press space or Enter…' : ''}
               className="flex-1 min-w-[80px] bg-transparent border-none outline-none text-copy-14 text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-600)]"
               style={{ minHeight: 'auto', padding: 0 }}
             />

@@ -93,6 +93,8 @@ const PORTABLE_PREF_KEYS = [
   'displayRole',
   'duplicateSections',
   'chartLayout',
+  'firstDayOfWeek',
+  'clockFormat',
   'userName',
 ];
 
@@ -463,6 +465,8 @@ export default function App() {
     settings?.duplicateSections,
     settings?.chartLayout,
     settings?.userName,
+    settings?.firstDayOfWeek,
+    settings?.clockFormat,
   ]);
 
   // Sync on tab focus
@@ -1237,6 +1241,7 @@ export default function App() {
               isFullscreen={isFullscreen}
               onToggleFullscreen={toggleFullscreen}
               onEditSetlist={(sl) => goSetlistBuild(sl)}
+              clockFormat={settings?.clockFormat || '12h'}
               onExportSetlistZip={(sl) => handleExportSetlist(sl)}
               onExportSetlistPdfOverview={(sl) => exportSetlistPdf(sl, songs, { mode: 'overview' })}
               onExportSetlistPdfFull={(sl) => exportSetlistPdf(sl, songs, { mode: 'full' })}
@@ -1302,6 +1307,7 @@ export default function App() {
               onExportZip={() => handleExportSetlist(currentSetlist)}
               onExportPdfOverview={() => exportSetlistPdf(currentSetlist, songs, { mode: 'overview' })}
               onExportPdfFull={() => exportSetlistPdf(currentSetlist, songs, { mode: 'full' })}
+              clockFormat={settings?.clockFormat || '12h'}
               onPlay={() => goSetlistPerformance(currentSetlist)}
               onPractice={() => goSetlistPractice(currentSetlist)}
               onDelete={() => handleDeleteSetlist(currentSetlist.id)}
@@ -1449,6 +1455,8 @@ export default function App() {
               setlists={setlists}
               onBack={goBack}
               onOpenSetlist={goSetlistView}
+              clockFormat={settings?.clockFormat || '12h'}
+              firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />
           )}
           {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view'].includes(view) && (

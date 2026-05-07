@@ -2,6 +2,7 @@ import React from 'react';
 import { Chip } from './ui/Chip';
 import { Button } from './ui/Button';
 import { cn } from '../lib/utils';
+import { formatClockTime } from '../lib/dateFormat';
 
 function formatDateFriendly(dateStr) {
   if (!dateStr) return 'TBA';
@@ -15,21 +16,19 @@ function formatDateFriendly(dateStr) {
   return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 }
 
-function formatTimeFriendly(timeStr) {
-  if (!timeStr) return '';
-  return new Date(`1970-01-01T${timeStr}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric' });
-}
-
-export default function SetlistCard({ setlist, onPlay, onView, selected = false }) {
+export default function SetlistCard({ setlist, onPlay, onView, selected = false, clockFormat = '12h' }) {
   const songCount = setlist.items?.filter(it => it.type !== 'break').length || 0;
 
+  // Tags are optional — when none are set we render no chip at all instead
+  // of falling back to a generic "Live Show" pill, which made every card
+  // look tagged.
   const displayTags = setlist.tags?.length
     ? setlist.tags
     : setlist.service
       ? [setlist.service]
       : [];
 
-  const timeStr = formatTimeFriendly(setlist.time);
+  const timeStr = formatClockTime(setlist.time, clockFormat);
   const dateLabel = `${formatDateFriendly(setlist.date)}${timeStr ? ` • ${timeStr}` : ''}`;
 
   return (
@@ -48,16 +47,14 @@ export default function SetlistCard({ setlist, onPlay, onView, selected = false 
 
       {/* Right details */}
       <div className="flex-1 min-w-0 p-6 md:p-8 flex flex-col justify-center group-hover:bg-white/[0.02] transition-colors">
-        {/* Tags */}
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
-          {displayTags.length > 0 ? (
-            displayTags.slice(0, 2).map(tag => (
+        {/* Tags — rendered only when the setlist actually has any. */}
+        {displayTags.length > 0 && (
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            {displayTags.slice(0, 2).map(tag => (
               <Chip key={tag} variant="success" size="sm">{tag}</Chip>
-            ))
-          ) : (
-            <Chip variant="success" size="sm">Live Show</Chip>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Setlist Name */}
         <h3 className="text-heading-20 md:text-heading-24 font-bold text-[var(--modes-text)] m-0 mb-3 tracking-tight truncate">

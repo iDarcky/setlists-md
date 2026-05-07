@@ -9,6 +9,7 @@ import { useTeam } from '../auth/useTeam';
 import { useTeamSchedules } from '../hooks/useTeamSchedules';
 import { useTeamAvailability } from '../hooks/useTeamAvailability';
 import { useAuth } from '../auth/useAuth';
+import { formatClockTime } from '../lib/dateFormat';
 
 export default function Dashboard({
   songs,
@@ -102,8 +103,9 @@ export default function Dashboard({
   };
 
   const formatTimeFriendly = (timeStr) => {
-    if (!timeStr) return '8:00 PM';
-    return new Date(`1970-01-01T${timeStr}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric' });
+    const fallback = settings?.clockFormat === '24h' ? '20:00' : '8:00 PM';
+    if (!timeStr) return fallback;
+    return formatClockTime(timeStr, settings?.clockFormat || '12h');
   };
 
   return (

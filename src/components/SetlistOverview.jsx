@@ -6,8 +6,9 @@ import ExportSetlistDialog from './ExportSetlistDialog';
 import { useTeam } from '../auth/useTeam';
 import RosterPanel from './setlist/RosterPanel';
 import { headerFrostStyle } from '../lib/headerFrost';
+import { formatClockTime } from '../lib/dateFormat';
 
-export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen }) {
+export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h' }) {
   const { team, isAdmin } = useTeam();
   const [showRoster, setShowRoster] = useState(false);
   const getSong = (id, title) => {
@@ -47,7 +48,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
   const dateStr = new Date(setlist.date + 'T' + (setlist.time || '12:00') + ':00').toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
   });
-  const timeStr = setlist.time ? new Date(`1970-01-01T${setlist.time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric' }) : '';
+  const timeStr = formatClockTime(setlist.time, clockFormat);
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this setlist? This cannot be undone.')) {
