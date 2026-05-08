@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Button } from './ui/Button';
-import { IconButton } from './ui/IconButton';
 import NoteContent from './ui/NoteContent';
 import { headerFrostStyle } from '../lib/headerFrost';
 
@@ -28,7 +27,7 @@ function formatDuration(ms) {
   return `${s}s`;
 }
 
-export default function PracticeFinale({ setlist, songs, sessionStats, onBack, onRunAgain, onUpdateSetlist, onGoOverview, onGoHome }) {
+export default function PracticeFinale({ setlist, songs, sessionStats, onRunAgain, onUpdateSetlist, onGoOverview, onGoHome }) {
   const stats = sessionStats || {};
   const [startTime] = useState(() => stats.startTime || Date.now());
   const farthestIdx = Number.isInteger(stats.farthestIdx) ? stats.farthestIdx : 0;
@@ -116,11 +115,6 @@ export default function PracticeFinale({ setlist, songs, sessionStats, onBack, o
     >
       <div className="material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
         <div className="a4-container flex items-center gap-2 py-3">
-          <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Back">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
-            </svg>
-          </IconButton>
           <h1 className="text-heading-16 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
             {setlist.name}
           </h1>

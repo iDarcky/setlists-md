@@ -241,7 +241,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                     {song.artist}
                   </p>
                   {item.note && (
-                    <p className="text-copy-12 text-[var(--ds-gray-600)] italic m-0 mt-1 whitespace-pre-wrap">
+                    <p className="text-copy-12 text-[var(--ds-gray-600)] italic m-0 mt-1 whitespace-pre-wrap break-words">
                       {item.note}
                     </p>
                   )}

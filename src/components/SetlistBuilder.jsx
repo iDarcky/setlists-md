@@ -12,7 +12,7 @@ import SetlistItemRow from './setlist/SetlistItemRow';
 import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RosterPanel from './setlist/RosterPanel';
 
-export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext }) {
+export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, firstDayOfWeek = 'sunday' }) {
   const [name, setName] = useState(setlist?.name || '');
   // New setlists default to the upcoming Sunday at 10:00 — the most common
   // worship slot. Existing ones keep whatever they were saved with.
@@ -226,6 +226,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               location={location}
               tags={tags}
               service={service}
+              firstDayOfWeek={firstDayOfWeek}
               onNameChange={setName}
               onDateChange={setDate}
               onTimeChange={setTime}

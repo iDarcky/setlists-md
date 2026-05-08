@@ -1321,6 +1321,7 @@ export default function App() {
               onBack={goBack}
               onDelete={currentSetlist ? handleDeleteSetlist : null}
               isTeamContext={activeLibrary !== 'personal'}
+              firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />
           )}
           {view === 'setlist-play' && currentSetlist && (
@@ -1364,7 +1365,6 @@ export default function App() {
               setlist={currentSetlist}
               songs={songs}
               sessionStats={sessionStats}
-              onBack={goBack}
               onRunAgain={handleRunSessionAgain}
               onUpdateSetlist={handleUpdateSetlist}
               onGoOverview={handleFinaleViewOverview}
@@ -1375,7 +1375,6 @@ export default function App() {
             <LiveFinale
               setlist={currentSetlist}
               sessionStats={sessionStats}
-              onBack={goBack}
               onRunAgain={handleRunSessionAgain}
               onUpdateSetlist={handleUpdateSetlist}
               onGoOverview={handleFinaleViewOverview}

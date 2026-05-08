@@ -250,15 +250,28 @@ export default function SetlistItemRow({
             </select>
           </div>
 
-          {/* Note */}
+          {/* Note — capped at 100 chars so it stays a one-liner cue and
+              never overflows the row in the setlist viewer. */}
           <div className="flex flex-col gap-0.5 flex-1 min-w-[120px]">
-            <span className="text-label-10 text-[var(--ds-gray-600)] uppercase">Note</span>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-label-10 text-[var(--ds-gray-600)] uppercase">Note</span>
+              <span
+                className={`text-label-10 tabular-nums ${
+                  (item.note?.length || 0) >= 100
+                    ? 'text-[var(--ds-error-600)]'
+                    : 'text-[var(--ds-gray-500)]'
+                }`}
+              >
+                {item.note?.length || 0}/100
+              </span>
+            </div>
             <Input
               value={item.note}
-              onChange={e => onUpdateNote(idx, e.target.value)}
+              onChange={e => onUpdateNote(idx, e.target.value.slice(0, 100))}
               placeholder="Add a note…"
               size="sm"
               variant="ghost"
+              maxLength={100}
             />
           </div>
 
