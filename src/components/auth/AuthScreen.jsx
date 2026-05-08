@@ -189,8 +189,8 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
         <ScreenHeader onBack={onBack} title="Sign In" />
         <div className="flex-1 flex items-center justify-center px-6">
           <div className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] max-w-sm p-6 text-center">
-            <h2 className="text-heading-20 text-[var(--modes-text)] m-0 mb-2">Auth not configured</h2>
-            <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">
+            <h2 className="text-heading-20 text-[var(--notion-text-main)] m-0 mb-2">Auth not configured</h2>
+            <p className="text-copy-14 text-[var(--notion-text-dim)] m-0">
               This build is missing Supabase credentials. Set <code>VITE_SUPABASE_URL</code> and{' '}
               <code>VITE_SUPABASE_ANON_KEY</code> in your environment to enable sign-in.
             </p>
@@ -236,7 +236,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
 
           <div className="flex items-center gap-3 px-2">
             <div className="flex-1 h-px bg-[var(--modes-border)]" />
-            <span className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider">or</span>
+            <span className="text-label-12 text-[var(--notion-text-dim)] uppercase tracking-wider">or</span>
             <div className="flex-1 h-px bg-[var(--modes-border)]" />
           </div>
 
@@ -246,7 +246,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
                 type="button"
                 onClick={() => { setEmailMode('magic'); setMessage(null); }}
                 className={`flex-1 h-8 rounded-md text-label-12 font-semibold cursor-pointer border-none transition-colors ${
-                  emailMode === 'magic' ? 'bg-[var(--ds-background-100)] text-[var(--modes-text)] shadow-sm' : 'bg-transparent text-[var(--modes-text-muted)]'
+                  emailMode === 'magic' ? 'bg-[var(--ds-background-100)] text-[var(--notion-text-main)] shadow-sm' : 'bg-transparent text-[var(--notion-text-dim)]'
                 }`}
               >
                 Magic link
@@ -255,7 +255,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
                 type="button"
                 onClick={() => { setEmailMode('password'); setMessage(null); }}
                 className={`flex-1 h-8 rounded-md text-label-12 font-semibold cursor-pointer border-none transition-colors ${
-                  emailMode === 'password' ? 'bg-[var(--ds-background-100)] text-[var(--modes-text)] shadow-sm' : 'bg-transparent text-[var(--modes-text-muted)]'
+                  emailMode === 'password' ? 'bg-[var(--ds-background-100)] text-[var(--notion-text-main)] shadow-sm' : 'bg-transparent text-[var(--notion-text-dim)]'
                 }`}
               >
                 Password
@@ -264,7 +264,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
 
             {isSignUp && emailMode === 'password' && (
               <label className="flex flex-col gap-1">
-                <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Name</span>
+                <span className="text-label-12 text-[var(--notion-text-dim)] uppercase tracking-wider">Name</span>
                 <Input
                   type="text"
                   autoComplete="name"
@@ -276,7 +276,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
             )}
 
             <label className="flex flex-col gap-1">
-              <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Email</span>
+              <span className="text-label-12 text-[var(--notion-text-dim)] uppercase tracking-wider">Email</span>
               <Input
                 type="email"
                 autoComplete="email"
@@ -289,7 +289,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
 
             {emailMode === 'password' && (
               <label className="flex flex-col gap-1">
-                <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Password</span>
+                <span className="text-label-12 text-[var(--notion-text-dim)] uppercase tracking-wider">Password</span>
                 <Input
                   type={showPassword ? 'text' : 'password'}
                   autoComplete={isSignUp ? 'new-password' : 'current-password'}
@@ -303,14 +303,14 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
                       type="button"
                       onClick={() => setShowPassword(s => !s)}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      className="bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] transition-colors flex items-center"
+                      className="bg-transparent border-none p-0 cursor-pointer text-[var(--notion-text-dim)] hover:text-[var(--notion-text-main)] transition-colors flex items-center"
                     >
                       <EyeIcon off={showPassword} />
                     </button>
                   }
                 />
                 {isSignUp && (
-                  <span className={`text-label-12 mt-1 ${passwordTooShort ? 'text-[var(--ds-amber-900)]' : 'text-[var(--modes-text-dim)]'}`}>
+                  <span className={`text-label-12 mt-1 ${passwordTooShort ? 'text-[var(--ds-amber-900)]' : 'text-[var(--notion-text-dim)]'}`}>
                     At least 8 characters.
                   </span>
                 )}

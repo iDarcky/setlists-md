@@ -25,7 +25,7 @@ function SkeletonCards() {
           <div className="h-5 w-28 bg-[var(--modes-surface-strong)] rounded animate-pulse" />
           <div className="flex flex-col gap-4">
             {[1, 2].map(c => (
-              <div key={c} className="modes-card-strong flex flex-col md:flex-row h-auto md:h-64 overflow-hidden">
+              <div key={c} className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)]-strong flex flex-col md:flex-row h-auto md:h-64 overflow-hidden">
                 <div className="w-full md:w-1/3 h-32 md:h-full bg-[var(--modes-surface-strong)] animate-pulse" />
                 <div className="flex-1 p-8 flex flex-col gap-3">
                   <div className="h-5 w-20 bg-[var(--modes-surface-strong)] rounded animate-pulse" />
@@ -223,13 +223,13 @@ export default function Setlists({
               {/* Empty State */}
               {filtered.length === 0 && (
                 query ? (
-                  <div className="modes-card py-14 text-center flex flex-col items-center gap-3 border-dashed">
+                  <div className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] py-14 text-center flex flex-col items-center gap-3 border-dashed">
                     <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">
                       No setlists matching your search.
                     </p>
                   </div>
                 ) : (
-                  <div className="modes-card py-16 px-6 flex flex-col items-center text-center border-dashed">
+                  <div className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] py-16 px-6 flex flex-col items-center text-center border-dashed">
                     <div className="w-14 h-14 mb-4 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--modes-text-muted)]">
                         <line x1="8" y1="6" x2="21" y2="6" />

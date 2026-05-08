@@ -84,7 +84,7 @@ function SkeletonRows() {
       {[1, 2, 3].map(g => (
         <div key={g} className="flex flex-col gap-3">
           <div className="h-5 w-8 bg-[var(--modes-surface-strong)] rounded animate-pulse mx-1" />
-          <div className="modes-card overflow-hidden divide-y" style={{ borderColor: 'var(--modes-border)' }}>
+          <div className="border border-[var(--notion-border)] bg-[var(--notion-bg)] overflow-hidden divide-y" style={{ borderColor: 'var(--modes-border)' }}>
             {[1, 2, 3].map(r => (
               <div key={r} className="flex items-center justify-between px-5 py-4">
                 <div className="flex flex-col gap-2 flex-1">
@@ -252,7 +252,7 @@ export default function Library({
     }
   };
 
-  // We split the rendering between mobile (existing modes-card based view)
+  // We split the rendering between mobile (existing border border-[var(--notion-border)] bg-[var(--notion-bg)] based view)
   // and desktop (Notion-style data table view) to preserve mobile as-is.
 
   return (
@@ -293,7 +293,7 @@ export default function Library({
                     text-label-14 transition-all duration-150
                     ${selectedTags.length > 0
                       ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--modes-surface)]'
-                      : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]'
+                      : 'border-[var(--notion-border)] text-[var(--notion-text-main)] bg-[var(--notion-bg)] hover:bg-[var(--notion-bg-hover)]'
                     }
                   `}
                 >
@@ -312,7 +312,7 @@ export default function Library({
                 </button>
 
                 {tagsOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-[220px] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden">
+                  <div className="absolute right-0 top-full mt-2 w-[220px] rounded-xl border border-[var(--notion-border)] bg-[var(--notion-bg)] shadow-lg z-50 overflow-hidden">
                     {allTags.length > 5 && (
                       <div className="px-3 pt-3 pb-2">
                         <input
@@ -389,7 +389,7 @@ export default function Library({
                   transition-all duration-150 border-none flex items-center gap-1.5
                   ${sortMode === mode.key
                     ? 'bg-[var(--ds-gray-100)] text-[var(--color-brand)]'
-                    : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]'
+                    : 'bg-transparent text-[var(--notion-text-dim)] hover:bg-[var(--notion-bg-hover)]'
                   }
                 `}
               >

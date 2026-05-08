@@ -84,7 +84,7 @@ export default function SetlistCard({ setlist, onPlay, onView, selected = false,
     <div
       onClick={onView}
       className={cn(
-        "modes-card-strong flex flex-col md:flex-row w-full overflow-hidden shadow-[0_8px_28px_rgba(0,0,0,0.35)] h-auto md:h-64 cursor-pointer group transition-transform duration-150 active:scale-[0.99]",
+        "flex flex-col md:flex-row w-full overflow-hidden shadow-[0_8px_28px_rgba(0,0,0,0.35)] h-auto md:h-64 cursor-pointer group transition-transform duration-150 active:scale-[0.99]",
         selected && "ring-2 ring-[var(--color-brand)]",
       )}
       style={{ WebkitTapHighlightColor: 'transparent' }}
@@ -108,12 +108,12 @@ export default function SetlistCard({ setlist, onPlay, onView, selected = false,
         </div>
 
         {/* Setlist Name */}
-        <h3 className="text-heading-20 md:text-heading-24 font-bold text-[var(--modes-text)] m-0 mb-3 tracking-tight truncate">
+        <h3 className="text-heading-20 md:text-heading-24 font-bold text-[var(--notion-text-main)] m-0 mb-3 tracking-tight truncate">
           {setlist.name || 'Untitled Setlist'}
         </h3>
 
         {/* Date & Location */}
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-label-14 text-[var(--modes-text-muted)] mb-6 font-medium">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-label-14 text-[var(--notion-text-dim)] mb-6 font-medium">
           <div className="flex items-center gap-2 min-w-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
             <span className="truncate">{dateLabel}</span>
@@ -134,7 +134,7 @@ export default function SetlistCard({ setlist, onPlay, onView, selected = false,
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="mr-2"><path d="M8 5v14l11-7z"/></svg>
             Play Live
           </Button>
-          <div className="text-label-13 text-[var(--modes-text-dim)] font-medium">
+          <div className="text-label-13 text-[var(--notion-text-dim)] font-medium">
             {songCount} Song{songCount !== 1 ? 's' : ''}
           </div>
         </div>

@@ -47,8 +47,8 @@ export default function AuthCallback({ onDone }) {
       <div className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] max-w-sm p-8 text-center">
         {error ? (
           <>
-            <h2 className="text-heading-20 text-[var(--modes-text)] m-0 mb-2">Sign-in failed</h2>
-            <p className="text-copy-14 text-[var(--modes-text-muted)] m-0 mb-4">{error}</p>
+            <h2 className="text-heading-20 text-[var(--notion-text-main)] m-0 mb-2">Sign-in failed</h2>
+            <p className="text-copy-14 text-[var(--notion-text-dim)] m-0 mb-4">{error}</p>
             <button
               onClick={onDone}
               className="text-[var(--color-brand)] font-semibold bg-transparent border-none cursor-pointer"
@@ -58,8 +58,8 @@ export default function AuthCallback({ onDone }) {
           </>
         ) : (
           <>
-            <h2 className="text-heading-20 text-[var(--modes-text)] m-0 mb-2">Signing you in…</h2>
-            <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">One moment.</p>
+            <h2 className="text-heading-20 text-[var(--notion-text-main)] m-0 mb-2">Signing you in…</h2>
+            <p className="text-copy-14 text-[var(--notion-text-dim)] m-0">One moment.</p>
           </>
         )}
       </div>

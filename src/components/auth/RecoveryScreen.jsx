@@ -86,7 +86,7 @@ export default function RecoveryScreen({ onBack, onDone }) {
       type="button"
       onClick={() => setShowPassword(s => !s)}
       aria-label={showPassword ? 'Hide password' : 'Show password'}
-      className="bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] transition-colors flex items-center"
+      className="bg-transparent border-none p-0 cursor-pointer text-[var(--notion-text-dim)] hover:text-[var(--notion-text-main)] transition-colors flex items-center"
     >
       <EyeIcon off={showPassword} />
     </button>
@@ -97,12 +97,12 @@ export default function RecoveryScreen({ onBack, onDone }) {
       <ScreenHeader onBack={handleBack} title="Set new password" />
       <div className="flex-1 flex items-start justify-center px-4 py-6 sm:py-10">
         <form onSubmit={handleSubmit} className="w-full max-w-sm border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] p-6 flex flex-col gap-4">
-          <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">
+          <p className="text-copy-14 text-[var(--notion-text-dim)] m-0">
             Choose a new password for your account. Must be at least 8 characters.
           </p>
 
           <label className="flex flex-col gap-1">
-            <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">New password</span>
+            <span className="text-label-12 text-[var(--notion-text-dim)] uppercase tracking-wider">New password</span>
             <Input
               type={passwordInputType}
               autoComplete="new-password"
@@ -119,7 +119,7 @@ export default function RecoveryScreen({ onBack, onDone }) {
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Confirm password</span>
+            <span className="text-label-12 text-[var(--notion-text-dim)] uppercase tracking-wider">Confirm password</span>
             <Input
               type={passwordInputType}
               autoComplete="new-password"
