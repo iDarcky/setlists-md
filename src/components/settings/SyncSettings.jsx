@@ -55,14 +55,14 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
   if (!user) {
     return (
       <section className="flex flex-col gap-4">
-        <h2 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold px-2">
+        <h2 className="text-label-12 text-[var(--notion-text-dim)] uppercase tracking-wider font-semibold px-2">
           Cloud Sync
         </h2>
-        <div className="modes-card p-5 flex flex-col gap-3 border-dashed">
-          <h3 className="text-heading-16 text-[var(--modes-text)] m-0 font-semibold">
+        <div className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] p-5 flex flex-col gap-3 border-dashed">
+          <h3 className="text-heading-16 text-[var(--notion-text-main)] m-0 font-semibold">
             Sign in to enable cloud sync
           </h3>
-          <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">
+          <p className="text-copy-14 text-[var(--notion-text-dim)] m-0">
             Cloud sync with Google Drive, Dropbox, or OneDrive is a Pro feature.
             Sign in to connect your account.
           </p>
@@ -79,7 +79,7 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
   return (
     <section className="flex flex-col gap-4">
       <div className="flex justify-between items-center px-2">
-        <h2 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">
+        <h2 className="text-label-12 text-[var(--notion-text-dim)] uppercase tracking-wider font-semibold">
           Cloud Sync
         </h2>
         {activeName && (
@@ -89,24 +89,24 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
         )}
       </div>
 
-      <div className="modes-card flex flex-col p-0 overflow-hidden divide-y" style={{ borderColor: 'var(--modes-border)' }}>
+      <div className="flex flex-col bg-[var(--notion-bg)] border border-[var(--notion-border)] rounded-lg overflow-hidden divide-y divide-[var(--notion-border)]">
         <div className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col">
-            <span className="text-copy-14 text-[var(--modes-text)] font-medium">Status</span>
-            <span className="text-copy-13 text-[var(--modes-text-muted)]">
+            <span className="text-copy-14 text-[var(--notion-text-main)] font-medium">Status</span>
+            <span className="text-copy-13 text-[var(--notion-text-dim)]">
               {syncState.lastSync ? `Last synced: ${new Date(syncState.lastSync).toLocaleString()}` : 'Not connected'}
             </span>
           </div>
           <div className="flex items-center gap-2 mt-2 sm:mt-0">
-            <div className={`h-2 w-2 rounded-full ${syncState.state === 'syncing' ? 'bg-amber-400 animate-pulse' : activeName ? 'bg-emerald-400' : 'bg-[var(--modes-border)]'}`} />
-            <span className="text-label-12 uppercase font-semibold text-[var(--modes-text-muted)]">
+            <div className={`h-2 w-2 rounded-full ${syncState.state === 'syncing' ? 'bg-amber-400 animate-pulse' : activeName ? 'bg-emerald-400' : 'bg-[var(--notion-border)]'}`} />
+            <span className="text-label-12 uppercase font-semibold text-[var(--notion-text-dim)]">
               {syncState.state === 'syncing' ? 'Syncing…' : activeName ? 'Connected' : 'Disconnected'}
             </span>
           </div>
         </div>
 
         {standalone && !activeName && (
-          <div className="p-4 flex flex-col gap-2 bg-[var(--ds-amber-100)]" style={{ borderColor: 'var(--modes-border)' }}>
+          <div className="p-4 flex flex-col gap-2 bg-[var(--ds-amber-100)]" style={{ borderColor: 'var(--notion-border)' }}>
             <p className="text-copy-13 text-[var(--ds-amber-900)] m-0 font-medium">
               Cloud sync setup requires a browser window.
             </p>
@@ -130,11 +130,11 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
           return (
             <div key={p.name} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col">
-                <span className="text-copy-14 text-[var(--modes-text)] font-medium flex items-center gap-2">
+                <span className="text-copy-14 text-[var(--notion-text-main)] font-medium flex items-center gap-2">
                   {p.icon} {p.displayName}
                   <span className="text-label-11 uppercase tracking-wider text-[var(--color-brand)] font-semibold">Pro</span>
                 </span>
-                <span className="text-copy-13 text-[var(--modes-text-muted)]">
+                <span className="text-copy-13 text-[var(--notion-text-dim)]">
                   {!p.configured
                     ? 'Not configured on this build.'
                     : isActive
@@ -172,7 +172,7 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
       </div>
 
       {activeName && (
-        <p className="text-copy-12 text-[var(--modes-text-dim)] px-2">
+        <p className="text-copy-12 text-[var(--notion-text-dim)] px-2">
           Only one provider at a time. Disconnect to switch.
         </p>
       )}

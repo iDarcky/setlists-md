@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import ScreenHeader from './ui/ScreenHeader';
 import { Button } from './ui/Button';
+import { cn } from '../lib/utils';
 import { Input } from './ui/Input';
 import { supabase } from '../auth/supabase';
 import { useAuth } from '../auth/useAuth';
@@ -172,29 +173,29 @@ export default function PricingScreen({ onBack, onSignIn, settings }) {
       <div className="flex-1 flex items-start justify-center px-4 py-6 sm:py-10 pb-20">
         <div className="w-full max-w-5xl flex flex-col gap-6">
           {/* Hero */}
-          <div className="modes-card-strong p-6 sm:p-8 flex flex-col gap-3 text-center">
-            <h1 className="text-heading-32 font-bold text-[var(--modes-text)] m-0 leading-tight">
+          <div className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] p-6 sm:p-8 flex flex-col gap-3 text-center">
+            <h1 className="text-heading-32 font-bold text-[var(--notion-text-main)] m-0 leading-tight">
               Upgrade your plan.
             </h1>
-            <p className="text-copy-15 text-[var(--modes-text-muted)] m-0 max-w-lg mx-auto">
+            <p className="text-copy-15 text-[var(--notion-text-dim)] m-0 max-w-lg mx-auto">
               {personalHook}
             </p>
           </div>
 
           {/* Early access — billing isn't live yet, capture intent */}
-          <div className="modes-card p-5">
+          <div className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] p-5">
             <div className="text-label-11 font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--color-brand)' }}>
               Early access
             </div>
-            <h3 className="text-heading-18 text-[var(--modes-text)] m-0 mb-1 font-semibold">
+            <h3 className="text-heading-18 text-[var(--notion-text-main)] m-0 mb-1 font-semibold tracking-tight">
               Billing goes live in v1.1
             </h3>
-            <p className="text-copy-13 text-[var(--modes-text-muted)] m-0 mb-4">
+            <p className="text-copy-13 text-[var(--notion-text-dim)] m-0 mb-4">
               Billing isn't live yet. Drop your email and we'll let you know the moment it is.
             </p>
 
             {joined ? (
-              <div className="text-copy-14 text-[var(--modes-text)]">
+              <div className="text-copy-14 text-[var(--notion-text-main)]">
                 You're on the list. We'll email <strong>{email}</strong> the moment billing ships.
               </div>
             ) : (
@@ -224,63 +225,67 @@ export default function PricingScreen({ onBack, onSignIn, settings }) {
             {tiers.map(tier => (
               <div
                 key={tier.id}
-                className={`relative rounded-2xl p-5 flex flex-col gap-4 ${tier.featured ? 'modes-card-strong' : 'modes-card'}`}
+                className={cn(
+                  "relative rounded-2xl p-5 flex flex-col gap-4 border",
+                  tier.featured ? "bg-[var(--notion-bg-hover)] border-[var(--color-brand)]" : "bg-[var(--notion-bg)] border-[var(--notion-border)]"
+                )}
                 style={tier.featured ? {
-                  borderColor: 'var(--color-brand)',
-                  boxShadow: '0 0 0 1px var(--color-brand), 0 8px 32px var(--color-brand-border)',
+                  boxShadow: '0 0 0 1px var(--color-brand)',
                 } : {}}
               >
                 {(tier.featured || tier.badge) && (
                   <div
                     className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-label-11 font-semibold uppercase tracking-widest whitespace-nowrap"
-                    style={{ background: tier.featured ? 'var(--color-brand)' : 'var(--modes-surface-strong)', color: tier.featured ? 'white' : 'var(--modes-text)' }}
+                    style={{ background: tier.featured ? 'var(--color-brand)' : 'var(--notion-bg-hover)', color: tier.featured ? 'white' : 'var(--notion-text-main)', border: tier.featured ? 'none' : '1px solid var(--notion-border)' }}
                   >
                     {tier.badge || 'Most Popular'}
                   </div>
                 )}
 
                 <div>
-                  <div className="text-copy-15 font-semibold text-[var(--modes-text)]">{tier.name}</div>
-                  <div className="text-label-12 text-[var(--modes-text-muted)] mt-0.5">{tier.tagline}</div>
+                  <div className="text-copy-15 font-semibold text-[var(--notion-text-main)]">{tier.name}</div>
+                  <div className="text-label-12 text-[var(--notion-text-dim)] mt-0.5">{tier.tagline}</div>
                 </div>
 
                 <div>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-heading-32 font-bold text-[var(--modes-text)]">{tier.price}</span>
+                    <span className="text-heading-32 font-bold text-[var(--notion-text-main)]">{tier.price}</span>
                     {tier.interval && (
-                      <span className="text-copy-14 text-[var(--modes-text-muted)]">{tier.interval}</span>
+                      <span className="text-copy-14 text-[var(--notion-text-dim)]">{tier.interval}</span>
                     )}
                   </div>
                   {tier.altPrice && (
-                    <div className="text-label-11 text-[var(--modes-text-dim)] mt-0.5">{tier.altPrice}</div>
+                    <div className="text-label-11 text-[var(--notion-text-dim)] opacity-70 mt-0.5">{tier.altPrice}</div>
                   )}
                 </div>
 
-                <div className="flex flex-col gap-2.5">
+                <div className="flex flex-col gap-2.5 mt-2">
                   {tier.features.map((f, i) => (
-                    <div key={i} className="flex items-start gap-2.5 text-copy-13 text-[var(--modes-text)]">
+                    <div key={i} className="flex items-start gap-2.5 text-copy-13 text-[var(--notion-text-main)]">
                       <div
                         className="shrink-0 mt-0.5 w-4 h-4 rounded-full flex items-center justify-center"
                         style={{
-                          background: tier.featured ? 'var(--color-brand)' : 'var(--modes-surface-strong)',
+                          background: tier.featured ? 'var(--color-brand)' : 'var(--notion-bg-hover)',
                           color: tier.featured ? 'white' : 'var(--color-brand)',
                         }}
                       >
                         {CHECK}
                       </div>
-                      <span>{f}</span>
+                      <span className="leading-tight">{f}</span>
                     </div>
                   ))}
                 </div>
 
-                <Button
-                  variant={tier.ctaVariant}
-                  size="md"
-                  onClick={() => handleTierAction(tier.ctaAction)}
-                  className="mt-2 w-full"
-                >
-                  {tier.cta}
-                </Button>
+                <div className="mt-auto pt-2">
+                  <Button
+                    variant={tier.ctaVariant}
+                    size="md"
+                    onClick={() => handleTierAction(tier.ctaAction)}
+                    className="w-full"
+                  >
+                    {tier.cta}
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

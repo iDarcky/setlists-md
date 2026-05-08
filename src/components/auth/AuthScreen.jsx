@@ -188,7 +188,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
       <div data-theme-variant="modes" className="min-h-screen flex flex-col">
         <ScreenHeader onBack={onBack} title="Sign In" />
         <div className="flex-1 flex items-center justify-center px-6">
-          <div className="modes-card max-w-sm p-6 text-center">
+          <div className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] max-w-sm p-6 text-center">
             <h2 className="text-heading-20 text-[var(--modes-text)] m-0 mb-2">Auth not configured</h2>
             <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">
               This build is missing Supabase credentials. Set <code>VITE_SUPABASE_URL</code> and{' '}
@@ -207,7 +207,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
       <div className="flex-1 flex items-start justify-center px-4 py-6 sm:py-10">
         <div className="w-full max-w-sm flex flex-col gap-4">
 
-          <div className="modes-card p-6 flex flex-col gap-3">
+          <div className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] p-6 flex flex-col gap-3">
             <Button
               variant="secondary"
               size="lg"
@@ -240,7 +240,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
             <div className="flex-1 h-px bg-[var(--modes-border)]" />
           </div>
 
-          <form onSubmit={handleEmailSubmit} className="modes-card p-6 flex flex-col gap-4">
+          <form onSubmit={handleEmailSubmit} className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] p-6 flex flex-col gap-4">
             <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
               <button
                 type="button"

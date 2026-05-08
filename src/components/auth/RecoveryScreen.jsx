@@ -96,7 +96,7 @@ export default function RecoveryScreen({ onBack, onDone }) {
     <div data-theme-variant="modes" className="min-h-screen flex flex-col">
       <ScreenHeader onBack={handleBack} title="Set new password" />
       <div className="flex-1 flex items-start justify-center px-4 py-6 sm:py-10">
-        <form onSubmit={handleSubmit} className="w-full max-w-sm modes-card p-6 flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="w-full max-w-sm border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] p-6 flex flex-col gap-4">
           <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">
             Choose a new password for your account. Must be at least 8 characters.
           </p>

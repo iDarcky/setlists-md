@@ -74,14 +74,14 @@ export default function ProgressChecklist({ settings, songs, setlists, hasCloud,
   if (allDone) return null;
 
   return (
-    <div className="modes-card-strong relative overflow-hidden">
+    <div className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] relative overflow-hidden">
       {/* Dismiss */}
       {onDismiss && (
         <button
           type="button"
           onClick={onDismiss}
-          className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center cursor-pointer border-none z-10"
-          style={{ background: 'transparent', color: 'var(--modes-text-dim)' }}
+          className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center cursor-pointer border-none z-10 hover:bg-[var(--notion-bg-hover)] transition-colors"
+          style={{ background: 'transparent', color: 'var(--notion-text-dim)' }}
           aria-label="Hide checklist"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -94,21 +94,20 @@ export default function ProgressChecklist({ settings, songs, setlists, hasCloud,
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full text-left p-5 pr-12 flex items-center gap-4 cursor-pointer border-none"
+        className="w-full text-left p-5 pr-12 flex items-center gap-4 cursor-pointer border-none hover:bg-[var(--notion-bg-hover)] transition-colors active:bg-[var(--notion-bg-hover)]"
         style={{ background: 'transparent' }}
       >
         <div
           className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center font-bold text-copy-14"
           style={{
-            background: 'conic-gradient(var(--color-brand) ' + pct + '%, var(--modes-border) 0)',
-            color: 'var(--modes-text)',
+            background: 'conic-gradient(var(--color-brand) ' + pct + '%, var(--notion-border) 0)',
+            color: 'var(--notion-text-main)',
           }}
         >
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center"
-            style={{ background: 'var(--ds-background-100)' }}
+            className="w-9 h-9 rounded-full flex items-center justify-center bg-[var(--notion-bg)]"
           >
-            <span className="text-label-12 font-bold text-[var(--modes-text)]">{completed}/{total}</span>
+            <span className="text-label-12 font-bold text-[var(--notion-text-main)]">{completed}/{total}</span>
           </div>
         </div>
         <div className="flex-1 min-w-0">
@@ -117,11 +116,11 @@ export default function ProgressChecklist({ settings, songs, setlists, hasCloud,
               Get Started
             </span>
           </div>
-          <h3 className="text-heading-20 text-[var(--modes-text)] m-0 leading-tight">
+          <h3 className="text-heading-20 text-[var(--notion-text-main)] m-0 font-bold tracking-tight">
             {completed === 0 ? 'Try your first chord chart' : `${total - completed} step${total - completed === 1 ? '' : 's'} to go`}
           </h3>
         </div>
-        <div className="shrink-0 text-[var(--modes-text-dim)]">{CHEVRON(open)}</div>
+        <div className="shrink-0 text-[var(--notion-text-dim)]">{CHEVRON(open)}</div>
       </button>
 
       {/* Body */}
@@ -132,22 +131,22 @@ export default function ProgressChecklist({ settings, songs, setlists, hasCloud,
               key={item.id}
               className="flex items-center gap-3 px-3 py-3 rounded-xl"
               style={{
-                background: item.done ? 'transparent' : 'rgba(255,255,255,0.02)',
-                border: item.done ? '1px solid transparent' : '1px solid var(--modes-border)',
+                background: item.done ? 'transparent' : 'var(--notion-bg-hover)',
+                border: item.done ? '1px solid transparent' : '1px solid var(--notion-border)',
               }}
             >
               <div
                 className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center"
                 style={{
                   background: item.done ? 'var(--color-brand)' : 'transparent',
-                  border: item.done ? 'none' : '1.5px solid var(--modes-border)',
+                  border: item.done ? 'none' : '1.5px solid var(--notion-border)',
                   color: 'white',
                 }}
               >
                 {item.done && CHECK_ICON}
               </div>
-              <div className="flex-1 min-w-0 text-copy-14" style={{
-                color: item.done ? 'var(--modes-text-dim)' : 'var(--modes-text)',
+              <div className="flex-1 min-w-0 text-copy-14 font-medium" style={{
+                color: item.done ? 'var(--notion-text-dim)' : 'var(--notion-text-main)',
                 textDecoration: item.done ? 'line-through' : 'none',
               }}>
                 {item.title}
@@ -157,7 +156,7 @@ export default function ProgressChecklist({ settings, songs, setlists, hasCloud,
                   variant="ghost"
                   size="sm"
                   onClick={item.onAction}
-                  className="shrink-0 text-[var(--color-brand)] hover:bg-white/5"
+                  className="shrink-0 text-[var(--color-brand)] bg-[var(--notion-bg)] border border-[var(--notion-border)] hover:bg-[var(--notion-bg-hover)]"
                 >
                   {item.action}
                 </Button>

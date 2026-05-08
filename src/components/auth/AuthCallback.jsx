@@ -44,7 +44,7 @@ export default function AuthCallback({ onDone }) {
 
   return (
     <div data-theme-variant="modes" className="min-h-screen flex items-center justify-center px-6">
-      <div className="modes-card max-w-sm p-8 text-center">
+      <div className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] max-w-sm p-8 text-center">
         {error ? (
           <>
             <h2 className="text-heading-20 text-[var(--modes-text)] m-0 mb-2">Sign-in failed</h2>
