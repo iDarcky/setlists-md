@@ -12,7 +12,7 @@ import SetlistItemRow from './setlist/SetlistItemRow';
 import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RosterPanel from './setlist/RosterPanel';
 
-export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, firstDayOfWeek = 'sunday' }) {
+export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
   const [name, setName] = useState(setlist?.name || '');
   // New setlists default to the upcoming Sunday at 10:00 — the most common
   // worship slot. Existing ones keep whatever they were saved with.
@@ -169,11 +169,13 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   };
 
   return (
-    <div className="min-h-screen material-page pb-8">
+    <div className="min-h-screen material-page pb-32">
 
-      {/* ── Sticky header ── */}
+      {/* ── Sticky header — title + secondary actions only. The primary
+          Save / Cancel pair lives in the bottom action bar where it's
+          always thumb-reachable on tablet/mobile. The back chevron is
+          gone; bail-out lives in Cancel below. ── */}
       <ScreenHeader
-        onBack={onBack}
         title={setlist ? 'Edit Setlist' : 'New Setlist'}
         actions={
           <>
@@ -185,13 +187,13 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                </IconButton>
              )}
              {isTeamContext && (
-               <Button 
-                variant={showRoster ? "brand" : "secondary"} 
-                size="sm" 
+               <Button
+                variant={showRoster ? "brand" : "secondary"}
+                size="sm"
                 onClick={() => {
                   if (!setlist) {
-                    toast({ 
-                      title: 'Save setlist first', 
+                    toast({
+                      title: 'Save setlist first',
                       description: 'The setlist needs to be saved before you can manage the roster.',
                       variant: 'error'
                     });
@@ -206,7 +208,6 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                 Roster
               </Button>
              )}
-             <Button variant="brand" size="sm" onClick={handleSave}>Save</Button>
            </>
         }
       />
@@ -227,6 +228,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               tags={tags}
               service={service}
               firstDayOfWeek={firstDayOfWeek}
+              clockFormat={clockFormat}
               onNameChange={setName}
               onDateChange={setDate}
               onTimeChange={setTime}
@@ -319,6 +321,25 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
             />
           </div>
 
+        </div>
+      </div>
+
+      {/* ── Sticky bottom action bar ──
+          Save lives here so it's always thumb-reachable on tablets/phones
+          without scrolling, and so it pairs naturally with Cancel — the
+          standard form pattern. The whole bar floats above the page with
+          the same frosted treatment as the top header. */}
+      <div
+        className="fixed left-0 right-0 bottom-0 z-30 border-t border-[var(--ds-gray-300)] bg-[color-mix(in_srgb,var(--ds-background-100)_85%,transparent)] backdrop-blur-md"
+        style={{
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        }}
+      >
+        <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-end gap-2">
+          <Button variant="ghost" size="md" onClick={onBack}>Cancel</Button>
+          <Button variant="brand" size="md" onClick={handleSave}>Save</Button>
         </div>
       </div>
 

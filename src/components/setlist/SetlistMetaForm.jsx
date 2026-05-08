@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Input } from '../ui/Input';
 import { DatePicker } from '../ui/DatePicker';
+import { TimePicker } from '../ui/TimePicker';
 import { useEntitlement } from '../../hooks/useEntitlement';
 
 const MAX_TAGS = 3;
@@ -8,7 +9,7 @@ const MAX_TAGS = 3;
 /**
  * Setlist metadata form — name, date, freeform tags, and (Church tier only) service.
  */
-export default function SetlistMetaForm({ name, date, time = '20:00', location = '', tags, service = '', firstDayOfWeek = 'sunday', onNameChange, onDateChange, onTimeChange, onLocationChange, onTagsChange, onServiceChange }) {
+export default function SetlistMetaForm({ name, date, time = '20:00', location = '', tags, service = '', firstDayOfWeek = 'sunday', clockFormat = '12h', onNameChange, onDateChange, onTimeChange, onLocationChange, onTagsChange, onServiceChange }) {
   const [tagInput, setTagInput] = useState('');
 
   const addTag = () => {
@@ -60,12 +61,12 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
             firstDayOfWeek={firstDayOfWeek}
           />
         </div>
-        <div className="w-32 flex flex-col gap-1">
+        <div className="w-40 flex flex-col gap-1">
           <label className="section-title px-0.5">Time</label>
-          <Input
-            type="time"
+          <TimePicker
             value={time}
-            onChange={e => onTimeChange(e.target.value)}
+            onChange={onTimeChange}
+            clockFormat={clockFormat}
           />
         </div>
       </div>

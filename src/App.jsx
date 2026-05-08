@@ -1322,6 +1322,7 @@ export default function App() {
               onDelete={currentSetlist ? handleDeleteSetlist : null}
               isTeamContext={activeLibrary !== 'personal'}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
+              clockFormat={settings?.clockFormat || '12h'}
             />
           )}
           {view === 'setlist-play' && currentSetlist && (
