@@ -7,6 +7,7 @@ import '@fontsource/jetbrains-mono/700.css';
 import App from './App';
 import { AuthProvider } from './auth/AuthProvider';
 import { TeamProvider } from './auth/TeamProvider';
+import { ConfirmProvider } from './components/ui/useConfirm';
 import { initSentry } from './sentry';
 import './styles/index.css';
 
@@ -17,7 +18,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>
       <TeamProvider>
-        <App />
+        <ConfirmProvider>
+          <App />
+        </ConfirmProvider>
       </TeamProvider>
     </AuthProvider>
   </React.StrictMode>

@@ -7,8 +7,10 @@ import { useTeam } from '../auth/useTeam';
 import RosterPanel from './setlist/RosterPanel';
 import { headerFrostStyle } from '../lib/headerFrost';
 import { formatClockTime } from '../lib/dateFormat';
+import { useConfirm } from './ui/useConfirmHook';
 
 export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h' }) {
+  const confirm = useConfirm();
   const { team, isAdmin } = useTeam();
   const [showRoster, setShowRoster] = useState(false);
   const getSong = (id, title) => {
@@ -50,10 +52,14 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
   });
   const timeStr = formatClockTime(setlist.time, clockFormat);
 
-  const handleDelete = () => {
-    if (window.confirm('Are you sure you want to delete this setlist? This cannot be undone.')) {
-      onDelete?.();
-    }
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: 'Delete setlist?',
+      description: `"${setlist?.name || 'Untitled'}" will be permanently removed. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (ok) onDelete?.();
   };
 
   const actionIcons = (

@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { IconButton } from '../ui/IconButton';
 import { toast } from '../ui/use-toast';
+import { useConfirm } from '../ui/useConfirmHook';
 
 const PREDEFINED_ROLES = [
   "Acoustic Guitar",
@@ -34,6 +35,7 @@ function availabilityLabel(status) {
 }
 
 export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly = false }) {
+  const confirm = useConfirm();
   const { team, members } = useTeam();
   const { schedules, createSchedule, updateSchedule, deleteSchedule, loading } = useTeamSchedules(team?.id);
   const { availability } = useTeamAvailability(team?.id);
@@ -103,12 +105,17 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
   };
 
   const handleRemove = async (scheduleId) => {
-    if (confirm('Remove this person from the roster?')) {
-      try {
-        await deleteSchedule(scheduleId);
-      } catch (err) {
-        console.error(err);
-      }
+    const ok = await confirm({
+      title: 'Remove from roster?',
+      description: 'They will be unassigned from this setlist. You can add them again later.',
+      confirmLabel: 'Remove',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await deleteSchedule(scheduleId);
+    } catch (err) {
+      console.error(err);
     }
   };
 

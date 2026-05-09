@@ -3,7 +3,6 @@ import PageHeader from './PageHeader';
 import SongCard from './SongCard';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
-import { Input } from './ui/Input';
 import { cn } from '../lib/utils';
 import { useIsDesktop } from '../lib/useMediaQuery';
 
@@ -254,13 +253,31 @@ export default function Library({
           {/* Search Bar + Tags */}
           <div className="flex gap-3 items-stretch">
             {/* Desktop text search — mobile uses the global top bar */}
-            <Input
-              className="flex-1 hidden sm:block"
-              placeholder="Search…"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              prefix={<SearchIcon />}
-            />
+            <div className="relative flex-1 hidden sm:flex items-center">
+              <span className="absolute left-3.5 text-[var(--modes-text-muted)] pointer-events-none">
+                <SearchIcon />
+              </span>
+              <input
+                type="text"
+                placeholder="Search songs by title, artist, key, or tag…"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                className="w-full h-11 pl-10 pr-10 rounded-xl border border-[var(--modes-border)] bg-[var(--modes-surface)] text-copy-14 text-[var(--modes-text)] placeholder:text-[var(--modes-text-dim)] outline-none transition-colors focus:border-[var(--color-brand)] focus:bg-[var(--modes-surface-strong)]"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  aria-label="Clear search"
+                  className="absolute right-2 w-7 h-7 rounded-md flex items-center justify-center text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] hover:bg-[var(--modes-surface-strong)] bg-transparent border-none cursor-pointer"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
 
             {/* Tags Dropdown */}
             {allTags.length > 0 && (
@@ -373,7 +390,7 @@ export default function Library({
                   }
                 `}
               >
-                {mode.label.toUpperCase()}
+                {mode.label}
                 {sortMode === mode.key && (
                   <svg
                     width="12" height="12" viewBox="0 0 24 24"

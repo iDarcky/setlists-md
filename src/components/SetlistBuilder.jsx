@@ -3,6 +3,7 @@ import { generateId } from '../parser';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { toast } from './ui/use-toast';
+import { useConfirm } from './ui/useConfirmHook';
 import ScreenHeader from './ui/ScreenHeader';
 import { nextSundayDateStr } from '../lib/dateFormat';
 
@@ -13,6 +14,7 @@ import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RosterPanel from './setlist/RosterPanel';
 
 export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
+  const confirm = useConfirm();
   const [name, setName] = useState(setlist?.name || '');
   // New setlists default to the upcoming Sunday at 10:00 — the most common
   // worship slot. Existing ones keep whatever they were saved with.
@@ -162,10 +164,14 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     });
   };
 
-  const handleDelete = () => {
-    if (confirm('Delete this setlist? This cannot be undone.')) {
-      onDelete(setlist.id);
-    }
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: 'Delete setlist?',
+      description: `"${setlist?.name || 'Untitled'}" will be permanently removed. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (ok) onDelete(setlist.id);
   };
 
   return (
