@@ -46,6 +46,69 @@ To cut a new version: bump `package.json#version`, write a one-line
 note in the commit subject describing the bump (e.g. "Release 0.1.0:
 add finale screens"), then commit + tag.
 
+## "Finish" workflow
+
+When the user says **"finish"** (or "ship it", "wrap up", "release"),
+treat it as a request to close out the current batch of work with a
+proper version bump and changelog entry. Run, in order:
+
+1. **Pick the next version.** Read the current `package.json#version`
+   and bump it per Semantic Versioning 2.0.0 (https://semver.org):
+   - **PATCH** (`0.0.3 → 0.0.4`) — bug fix, copy tweak, visual polish,
+     dependency bumps with no behaviour change.
+   - **MINOR** (`0.0.3 → 0.1.0`) — new feature, new screen, new setting,
+     additive schema field with a safe default.
+   - **MAJOR** (`0.1.0 → 1.0.0`) — breaking change to stored data, the
+     `.md` format, or any user-visible contract.
+   - Preserve the existing pre-release suffix (`-pre-alpha`, `-alpha`,
+     etc.) unless the user explicitly asks to graduate it. Pre-release
+     order: `pre-alpha < alpha < beta < rc.N < (no suffix)`.
+   - If a single batch contains a mix (e.g. a feature **and** a fix),
+     bump to the highest applicable level (MINOR wins over PATCH).
+
+2. **Update `src/data/changelog.md`.** Insert a new `## <version> — <title>`
+   block directly under the page intro, above the previous newest release.
+   Use this exact shape so `WhatsNewPanel.jsx` parses it correctly:
+
+   ```md
+   ## 0.0.4-pre-alpha — Short title for the batch
+   *Month YYYY*
+
+   ### Added
+   - One bullet per user-visible addition.
+
+   ### Improved
+   - One bullet per user-visible enhancement.
+
+   ### Fixed
+   - One bullet per user-visible bug fix.
+   ```
+
+   Only include sections that actually apply (`Added` / `Improved` /
+   `Fixed` / `Removed` / `Security`). Write bullets in the user's voice
+   — what they will notice, not the file you touched. Use today's
+   `currentDate` for the month.
+
+3. **Update `package.json#version`** to the new value. Do not edit
+   anywhere else — `__APP_VERSION__` flows automatically from there.
+
+4. **Verify.** Run `npm run build` to make sure the changelog still
+   parses and the version compiles in. Don't run `npm run lint` unless
+   you actually changed code that day; the repo has pre-existing lint
+   noise unrelated to release bumps.
+
+5. **Commit.** Use a single commit with the subject
+   `Release <version>: <short title>` and the bullet list as the body.
+   Push to the active branch with `git push -u origin <branch>`.
+
+6. **PR.** If a PR is already open for this branch, do nothing extra —
+   the new commit appears on it automatically. If not, ask the user
+   whether to open one before creating it.
+
+Do not tag the commit (`git tag`) unless the user explicitly asks; tags
+on this repo are cut from `master` after merge, not from feature
+branches.
+
 ## Project Structure
 
 ```
