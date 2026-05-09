@@ -1,4 +1,5 @@
 import SyncSettings from './settings/SyncSettings';
+import WhatsNewPanel from './settings/WhatsNewPanel';
 import ScreenHeader from './ui/ScreenHeader';
 import { Button } from './ui/Button';
 import { useConfirm } from './ui/useConfirmHook';
@@ -41,6 +42,13 @@ const AboutIcon = () => (
     <circle cx="12" cy="12" r="10" />
     <line x1="12" y1="16" x2="12" y2="12" />
     <line x1="12" y1="8" x2="12.01" y2="8" />
+  </svg>
+);
+
+const SparkleIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z" />
+    <path d="M19 14l.7 1.7L21.5 16.5l-1.8.7L19 19l-.7-1.7-1.7-.8 1.7-.8z" />
   </svg>
 );
 
@@ -118,6 +126,7 @@ const PANEL_TITLES = {
   chart: 'Chart Defaults',
   sync: 'Cloud Sync',
   data: 'Data',
+  whatsnew: "What's New",
   about: 'About',
 };
 
@@ -427,6 +436,8 @@ export default function Settings({
             onClearAll={onClearAll}
           />
         );
+      case 'whatsnew':
+        return <WhatsNewPanel />;
       case 'about':
         return <AboutPanel isSignedIn={isSignedIn} displayName={displayName} />;
       default:
@@ -442,6 +453,7 @@ export default function Settings({
       { key: 'chart', label: 'Chart Defaults', icon: ChartIcon, summary: chartSummary(settings) },
       { key: 'sync', label: 'Cloud Sync', icon: CloudIcon, summary: syncSummary(syncState) },
       { key: 'data', label: 'Data', icon: DataIcon, summary: `${songCount} songs · ${setlistCount} setlists` },
+      { key: 'whatsnew', label: "What's New", icon: SparkleIcon, summary: `v${__APP_VERSION__}` },
       { key: 'about', label: 'About', icon: AboutIcon, summary: `v${__APP_VERSION__}` },
     ];
     return (
@@ -540,6 +552,12 @@ export default function Settings({
               label="Data"
               value={`${songCount} songs · ${setlistCount} setlists`}
               onClick={() => onChangePanel('data')}
+            />
+            <HubRow
+              icon={SparkleIcon}
+              label="What's New"
+              value={`v${__APP_VERSION__}`}
+              onClick={() => onChangePanel('whatsnew')}
             />
             <HubRow
               icon={AboutIcon}
