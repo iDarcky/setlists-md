@@ -147,27 +147,27 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
 
   const displayKey = cur.isBreak ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
 
-  // Chevron + close X — rendered alongside the title when expanded, alongside
-  // the structure ribbon when collapsed.
+  // Chevron + close X — anchored to the right end of the title row in both
+  // expanded and collapsed states. Same variant and size so they render
+  // with matching color and weight.
   const headerControls = (
-    <>
+    <div className="flex items-center gap-1 shrink-0">
       <IconButton
         size="sm"
         variant="ghost"
         onClick={() => setHeaderCollapsed(c => !c)}
         aria-label={headerCollapsed ? 'Expand header' : 'Collapse header'}
-        className="shrink-0 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)]"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
           <path d={headerCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
         </svg>
       </IconButton>
       <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close practice">
-        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 18L18 6M6 6l12 12" />
         </svg>
       </IconButton>
-    </>
+    </div>
   );
 
   return (
@@ -176,71 +176,69 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
       className="h-full overflow-y-auto overflow-x-hidden bg-[var(--ds-background-100)]"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
-      {/* ── Minimal sticky header ── */}
+      {/* ── Minimal sticky header ──
+          The title row always renders so the chevron + X stay anchored to
+          the same spot regardless of collapse state. When collapsed, the
+          inner content (title, meta, badge) hides and the row shrinks
+          vertically; the controls stay in place. */}
       <div className="material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
-        {/* Title row — only renders when the header is expanded. When
-            collapsed, the chevron + X drop down into the structure ribbon row
-            below so the header occupies a single slim row instead of two. */}
-        {!headerCollapsed && (
-          <div className="a4-container flex items-center gap-2 py-3">
-            {/* Title */}
-            <h1 className="text-heading-16 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
-              {cur.isBreak ? (cur.label || 'Break') : cur.song.title}
-            </h1>
+        <div className={`a4-container flex items-center gap-2 ${headerCollapsed ? 'py-1.5' : 'py-3'}`}>
+          {!headerCollapsed && (
+            <>
+              {/* Title */}
+              <h1 className="text-heading-16 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
+                {cur.isBreak ? (cur.label || 'Break') : cur.song.title}
+              </h1>
 
-            {/* Meta: key (saves on change) + tempo + time */}
-            {!cur.isBreak && displayKey && (
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Select value={displayKey} onValueChange={handleKeyChange}>
-                  <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ALL_KEYS.map(k => {
-                      const st = semitonesBetween(cur.song.key, k);
-                      const display = st > 6 ? st - 12 : st;
-                      return (
+              {/* Meta: key (saves on change) + tempo + time */}
+              {!cur.isBreak && displayKey && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Select value={displayKey} onValueChange={handleKeyChange}>
+                    <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ALL_KEYS.map(k => (
                         <SelectItem key={k} value={k}>
-                          {k}{st !== 0 && ` (${display > 0 ? '+' : ''}${display})`}
+                          {k}
                         </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-                {cur.capo > 0 && (
-                  <span className="text-label-12 font-bold text-[var(--color-brand)] whitespace-nowrap bg-[var(--color-brand-soft)] px-1.5 py-0.5 rounded border border-[var(--color-brand-border)]">
-                    Capo {cur.capo}
-                  </span>
-                )}
-                {cur.song.tempo && (
-                  <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
-                    ♩ {cur.song.tempo}
-                  </span>
-                )}
-                {cur.song.time && (
-                  <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
-                    {cur.song.time}
-                  </span>
-                )}
-              </div>
-            )}
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {cur.capo > 0 && (
+                    <span className="text-label-12 font-bold text-[var(--color-brand)] whitespace-nowrap bg-[var(--color-brand-soft)] px-1.5 py-0.5 rounded border border-[var(--color-brand-border)]">
+                      Capo {cur.capo}
+                    </span>
+                  )}
+                  {cur.song.tempo && (
+                    <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
+                      ♩ {cur.song.tempo}
+                    </span>
+                  )}
+                  {cur.song.time && (
+                    <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
+                      {cur.song.time}
+                    </span>
+                  )}
+                </div>
+              )}
 
-            {/* Practice badge */}
-            <span
-              className="hidden sm:inline-flex shrink-0 items-center px-2 py-0.5 rounded-md text-label-10 font-black uppercase tracking-widest"
-              style={{ background: 'var(--color-brand)', color: 'white' }}
-            >
-              Practice
-            </span>
+              {/* Practice badge */}
+              <span
+                className="hidden sm:inline-flex shrink-0 items-center px-2 py-0.5 rounded-md text-label-10 font-black uppercase tracking-widest"
+                style={{ background: 'var(--color-brand)', color: 'white' }}
+              >
+                Practice
+              </span>
+            </>
+          )}
+          {headerCollapsed && <span className="flex-1" />}
+          {headerControls}
+        </div>
 
-            {headerControls}
-          </div>
-        )}
-
-        {/* Structure ribbon — only for songs. When the header is collapsed,
-            the chevron + X live here too so the row holds both. */}
-        {!cur.isBreak && cur.song.sections?.length > 0 && (
-          <div className={`a4-container flex items-center gap-1 ${headerCollapsed ? 'py-2' : 'pb-2 pt-0'}`}>
+        {/* Structure ribbon — songs only, hidden when collapsed. */}
+        {!headerCollapsed && !cur.isBreak && cur.song.sections?.length > 0 && (
+          <div className="a4-container flex items-center gap-1 pb-2 pt-0">
             <div className="flex-1 overflow-x-auto no-scrollbar">
               <StructureRibbon
                 structure={cur.song.structure || cur.song.sections.map(s => s.type)}
@@ -261,21 +259,12 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
               variant="ghost"
               onClick={() => setShowStructureEditor(true)}
               title="Edit structure"
-              className="shrink-0 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)]"
+              className="shrink-0"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
               </svg>
             </IconButton>
-            {headerCollapsed && headerControls}
-          </div>
-        )}
-
-        {/* Fallback control row when collapsed AND there's no structure ribbon
-            (break, or song with no sections) — keeps chevron + X reachable. */}
-        {headerCollapsed && (cur.isBreak || !cur.song.sections?.length) && (
-          <div className="a4-container py-2 flex justify-end items-center gap-1">
-            {headerControls}
           </div>
         )}
       </div>

@@ -169,7 +169,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   };
 
   return (
-    <div className="min-h-screen material-page pb-32">
+    <div className="min-h-screen material-page flex flex-col">
 
       {/* ── Sticky header — title + secondary actions only. The primary
           Save / Cancel pair lives in the bottom action bar where it's
@@ -212,8 +212,10 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
         }
       />
 
-      {/* ── Content: responsive two-column layout ── */}
-      <div className="max-w-5xl mx-auto px-5 pt-6">
+      {/* ── Content: responsive two-column layout. flex-1 makes this fill
+          all available space so the Save/Cancel bar below pins to the
+          bottom of <main> even when the form is short. ── */}
+      <div className="flex-1 w-full max-w-5xl mx-auto px-5 pt-6 pb-12">
         <div className="flex flex-col lg:flex-row gap-8">
 
           {/* Left column: meta + current set */}

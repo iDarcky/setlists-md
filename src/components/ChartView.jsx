@@ -237,15 +237,11 @@ export default function ChartView({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {ALL_KEYS.map(k => {
-                  const st = semitonesBetween(song.key, k);
-                  const display = st > 6 ? st - 12 : st;
-                  return (
-                    <SelectItem key={k} value={k}>
-                      {k} {st !== 0 && `(${display > 0 ? '+' : ''}${display})`}
-                    </SelectItem>
-                  );
-                })}
+                {ALL_KEYS.map(k => (
+                  <SelectItem key={k} value={k}>
+                    {k}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             {song.tempo && (

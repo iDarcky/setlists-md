@@ -279,20 +279,17 @@ export default function Dashboard({
 
                 {/* Right part (Details) */}
                 <div className="flex-1 p-5 md:p-8 flex flex-col justify-center group-hover:bg-white/[0.02] transition-colors">
-                  {/* Tags */}
-                  <div className="flex items-center gap-2 mb-3">
-                    {upcomingSetlists[0].tags && upcomingSetlists[0].tags.length > 0 ? (
-                      upcomingSetlists[0].tags.slice(0,2).map(tag => (
+                  {/* Tags — rendered only when the setlist has any. No
+                      placeholder chip, mirrors SetlistCard behavior. */}
+                  {upcomingSetlists[0].tags?.length > 0 && (
+                    <div className="flex items-center gap-2 mb-3">
+                      {upcomingSetlists[0].tags.slice(0, 2).map(tag => (
                         <Chip key={tag} variant="success" size="sm">
                           {tag}
                         </Chip>
-                      ))
-                    ) : (
-                      <Chip variant="success" size="sm">
-                        Live Show
-                      </Chip>
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Setlist Name */}
                   <h3 className="text-heading-24 md:text-[32px] md:leading-[36px] font-bold text-[var(--modes-text)] m-0 mb-3 tracking-tight">
