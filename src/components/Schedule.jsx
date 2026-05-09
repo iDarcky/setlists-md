@@ -33,7 +33,7 @@ function useIsMobile() {
   );
 }
 
-export default function Schedule({ setlists, onBack, onOpenSetlist }) {
+export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
   const { team, members, isAdmin } = useTeam();
   const { user } = useAuth();
   const { availability, setStatus, clearStatus } = useTeamAvailability(team?.id);
@@ -126,6 +126,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist }) {
             members={members}
             userId={user?.id}
             isAdmin={isAdmin}
+            clockFormat={clockFormat}
             onSelectDate={(date) => setPickerDate(date)}
             onOpenSetlist={(sl) => onOpenSetlist?.(sl)}
             onOpenRoster={(sl) => setRosterSetlist(sl)}
@@ -136,6 +137,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist }) {
             availability={availability}
             members={members}
             userId={user?.id}
+            firstDayOfWeek={firstDayOfWeek}
             isAdmin={isAdmin}
             onSelectDate={(date) => setPickerDate(date)}
             onOpenSetlist={(sl) => onOpenSetlist?.(sl)}

@@ -138,6 +138,8 @@ export const DEFAULT_SETTINGS = {
   displayRole: 'leader',
   duplicateSections: 'full',
   chartLayout: 'columns',
+  firstDayOfWeek: 'sunday',
+  clockFormat: '12h',
   helpPageSeen: false,
   notifications: [
     {

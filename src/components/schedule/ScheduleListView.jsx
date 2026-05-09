@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Button } from '../ui/Button';
 import { Chip } from '../ui/Chip';
+import { formatClockTime } from '../../lib/dateFormat';
 
 function toLocalDateStr(date) {
   const y = date.getFullYear();
@@ -43,6 +44,7 @@ export default function ScheduleListView({
   members,
   userId,
   isAdmin,
+  clockFormat = '12h',
   onSelectDate,
   onOpenSetlist,
   onOpenRoster,
@@ -133,7 +135,7 @@ export default function ScheduleListView({
                   </span>
                   {sl.time && (
                     <span className="text-copy-12 text-[var(--ds-gray-600)] shrink-0">
-                      {new Date(`1970-01-01T${sl.time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric' })}
+                      {formatClockTime(sl.time, clockFormat)}
                     </span>
                   )}
                 </div>

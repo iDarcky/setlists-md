@@ -5,8 +5,10 @@ import { IconButton } from './ui/IconButton';
 import ExportSetlistDialog from './ExportSetlistDialog';
 import { useTeam } from '../auth/useTeam';
 import RosterPanel from './setlist/RosterPanel';
+import { headerFrostStyle } from '../lib/headerFrost';
+import { formatClockTime } from '../lib/dateFormat';
 
-export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen }) {
+export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h' }) {
   const { team, isAdmin } = useTeam();
   const [showRoster, setShowRoster] = useState(false);
   const getSong = (id, title) => {
@@ -46,7 +48,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
   const dateStr = new Date(setlist.date + 'T' + (setlist.time || '12:00') + ':00').toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
   });
-  const timeStr = setlist.time ? new Date(`1970-01-01T${setlist.time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric' }) : '';
+  const timeStr = formatClockTime(setlist.time, clockFormat);
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this setlist? This cannot be undone.')) {
@@ -116,7 +118,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
     <div className="min-h-screen material-page pb-8">
 
       {/* ── Sticky header ── */}
-      <div className="material-header transition-all duration-200">
+      <div className="material-header transition-all duration-200" style={headerFrostStyle}>
         <div className="a4-container">
 
           {collapsed ? (
@@ -179,31 +181,24 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                 return (
                   <div
                     key={idx}
-                    className="flex flex-col items-stretch py-2"
+                    className="flex items-center gap-3 px-1 py-2"
                     aria-label="Break"
                   >
-                    <div className="flex items-center gap-3 px-1">
-                      <span className="flex-1 border-t border-dashed border-[var(--ds-gray-400)]" aria-hidden="true" />
-                      <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)]">
-                        <span className="text-label-11 uppercase tracking-[0.18em] font-semibold text-[var(--ds-gray-1000)]">
-                          {item.label || 'Break'}
-                        </span>
-                        {(item.duration || 0) > 0 && (
-                          <>
-                            <span className="w-[3px] h-[3px] rounded-full bg-[var(--ds-gray-600)]" aria-hidden="true" />
-                            <span className="text-label-11 text-[var(--ds-gray-700)] tabular-nums">
-                              {item.duration} min
-                            </span>
-                          </>
-                        )}
+                    <span className="flex-1 border-t border-dashed border-[var(--ds-gray-400)]" aria-hidden="true" />
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)]">
+                      <span className="text-label-11 uppercase tracking-[0.18em] font-semibold text-[var(--ds-gray-1000)]">
+                        {item.label || 'Break'}
                       </span>
-                      <span className="flex-1 border-t border-dashed border-[var(--ds-gray-400)]" aria-hidden="true" />
-                    </div>
-                    {item.note && (
-                      <p className="text-copy-12 text-[var(--ds-gray-600)] italic m-0 mt-1.5 text-center px-4">
-                        {item.note}
-                      </p>
-                    )}
+                      {(item.duration || 0) > 0 && (
+                        <>
+                          <span className="w-[3px] h-[3px] rounded-full bg-[var(--ds-gray-600)]" aria-hidden="true" />
+                          <span className="text-label-11 text-[var(--ds-gray-700)] tabular-nums">
+                            {item.duration} min
+                          </span>
+                        </>
+                      )}
+                    </span>
+                    <span className="flex-1 border-t border-dashed border-[var(--ds-gray-400)]" aria-hidden="true" />
                   </div>
                 );
               }
@@ -242,9 +237,21 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                   <p className="text-heading-14 text-[var(--ds-gray-1000)] m-0 truncate">
                     {song.title}
                   </p>
-                  <p className="text-copy-12 text-[var(--ds-gray-700)] m-0 mt-0.5 truncate">
-                    {song.artist}
-                  </p>
+                  {/* Show the song's section flow instead of the artist — the
+                      structure is the actionable bit in a setlist context. */}
+                  {(() => {
+                    const flow = (song.structure || song.sections?.map(s => s.type) || []).join(' · ');
+                    return flow ? (
+                      <p className="text-copy-12 text-[var(--ds-gray-700)] m-0 mt-0.5 truncate">
+                        {flow}
+                      </p>
+                    ) : null;
+                  })()}
+                  {item.note && (
+                    <p className="text-copy-12 text-[var(--ds-gray-600)] italic m-0 mt-1 whitespace-pre-wrap break-words">
+                      {item.note}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex flex-col items-end shrink-0 gap-0.5">

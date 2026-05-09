@@ -263,7 +263,7 @@
 
   --chord: #e2a832;
   --header-bg: rgba(0, 0, 0, 0.92);
-  --header-bg-blur: rgba(0, 0, 0, 0.65);
+  --header-bg-blur: rgba(0, 0, 0, 0.45);
   --fm: var(--font-mono);
 
   /* Shared Dashboard Surfaces (Dark Default) */
@@ -484,7 +484,7 @@
 
               --chord: #b45309;
     --header-bg: rgba(255, 255, 255, 0.92);
-    --header-bg-blur: rgba(255, 255, 255, 0.65);
+    --header-bg-blur: rgba(255, 255, 255, 0.45);
   }
 
   * {
@@ -554,23 +554,18 @@
     border-color: var(--ds-gray-600);
   }
 
-  /* Frosted glass sticky header — solid fallback, blur when supported.
-   * Also provides iOS safe-area-top padding so standalone PWAs don't render
-   * under the status bar / dynamic island. */
+  /* Frosted glass sticky header. Note: backdrop-filter is set INLINE on the
+   * usages, not here — Lightning CSS aggressively de-dupes
+   * `-webkit-backdrop-filter` and `backdrop-filter` declarations and ends up
+   * stripping the unprefixed one, which silently breaks the effect in Firefox
+   * (and any non-WebKit engine). Setting it inline bypasses that pipeline. */
   .material-header {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: var(--header-bg);
+    background: var(--header-bg-blur);
     border-bottom: 1px solid var(--ds-gray-200);
     padding-top: env(safe-area-inset-top, 0px);
-  }
-  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-    .material-header {
-      background: var(--header-bg-blur);
-      backdrop-filter: blur(24px) saturate(1.4);
-      -webkit-backdrop-filter: blur(24px) saturate(1.4);
-    }
   }
 
   /* Section title label pattern (used in Settings, Dashboard) */

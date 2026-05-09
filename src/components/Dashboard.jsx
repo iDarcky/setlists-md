@@ -9,6 +9,7 @@ import { useTeam } from '../auth/useTeam';
 import { useTeamSchedules } from '../hooks/useTeamSchedules';
 import { useTeamAvailability } from '../hooks/useTeamAvailability';
 import { useAuth } from '../auth/useAuth';
+import { formatClockTime } from '../lib/dateFormat';
 
 export default function Dashboard({
   songs,
@@ -102,8 +103,9 @@ export default function Dashboard({
   };
 
   const formatTimeFriendly = (timeStr) => {
-    if (!timeStr) return '8:00 PM';
-    return new Date(`1970-01-01T${timeStr}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric' });
+    const fallback = settings?.clockFormat === '24h' ? '20:00' : '8:00 PM';
+    if (!timeStr) return fallback;
+    return formatClockTime(timeStr, settings?.clockFormat || '12h');
   };
 
   return (
@@ -277,20 +279,17 @@ export default function Dashboard({
 
                 {/* Right part (Details) */}
                 <div className="flex-1 p-5 md:p-8 flex flex-col justify-center group-hover:bg-white/[0.02] transition-colors">
-                  {/* Tags */}
-                  <div className="flex items-center gap-2 mb-3">
-                    {upcomingSetlists[0].tags && upcomingSetlists[0].tags.length > 0 ? (
-                      upcomingSetlists[0].tags.slice(0,2).map(tag => (
+                  {/* Tags — rendered only when the setlist has any. No
+                      placeholder chip, mirrors SetlistCard behavior. */}
+                  {upcomingSetlists[0].tags?.length > 0 && (
+                    <div className="flex items-center gap-2 mb-3">
+                      {upcomingSetlists[0].tags.slice(0, 2).map(tag => (
                         <Chip key={tag} variant="success" size="sm">
                           {tag}
                         </Chip>
-                      ))
-                    ) : (
-                      <Chip variant="success" size="sm">
-                        Live Show
-                      </Chip>
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Setlist Name */}
                   <h3 className="text-heading-24 md:text-[32px] md:leading-[36px] font-bold text-[var(--modes-text)] m-0 mb-3 tracking-tight">

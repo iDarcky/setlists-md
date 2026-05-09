@@ -1,4 +1,7 @@
-export default function FloatingNavPill({ current, total, nextLabel, onPrev, onNext, hasPrev, hasNext }) {
+export default function FloatingNavPill({ current, total, nextLabel, onPrev, onNext, hasPrev, hasNext, onFinish }) {
+  // When the user has reached the last item and a finish handler is wired,
+  // the next-arrow slot turns into a Finish action instead of a dead arrow.
+  const showFinish = !hasNext && typeof onFinish === 'function';
   return (
     <div
       className="fixed left-0 right-0 flex justify-center z-[100] pointer-events-none"
@@ -43,18 +46,32 @@ export default function FloatingNavPill({ current, total, nextLabel, onPrev, onN
 
         <div className="w-px shrink-0 bg-[var(--ds-gray-400)]" />
 
-        {/* Next button */}
-        <button
-          onClick={onNext}
-          disabled={!hasNext}
-          aria-label="Next song"
-          style={{ minWidth: 72, border: 'none', background: 'transparent', cursor: hasNext ? 'pointer' : 'default' }}
-          className="flex items-center justify-center px-5 transition-colors duration-150 disabled:opacity-25 hover:bg-[var(--ds-gray-100)] active:bg-[var(--ds-gray-200)]"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-[var(--ds-gray-900)]">
-            <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
-          </svg>
-        </button>
+        {/* Next / Finish button */}
+        {showFinish ? (
+          <button
+            onClick={onFinish}
+            aria-label="Finish session"
+            style={{ minWidth: 96, border: 'none', background: 'transparent', cursor: 'pointer' }}
+            className="flex items-center justify-center gap-1.5 px-5 transition-colors duration-150 hover:bg-[var(--ds-gray-100)] active:bg-[var(--ds-gray-200)]"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--ds-gray-900)]">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+            <span className="text-label-14 font-semibold tracking-wide text-[var(--ds-gray-1000)]">Finish</span>
+          </button>
+        ) : (
+          <button
+            onClick={onNext}
+            disabled={!hasNext}
+            aria-label="Next song"
+            style={{ minWidth: 72, border: 'none', background: 'transparent', cursor: hasNext ? 'pointer' : 'default' }}
+            className="flex items-center justify-center px-5 transition-colors duration-150 disabled:opacity-25 hover:bg-[var(--ds-gray-100)] active:bg-[var(--ds-gray-200)]"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-[var(--ds-gray-900)]">
+              <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );

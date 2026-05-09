@@ -63,6 +63,8 @@ const SetlistPlayer = lazy(() => import('./components/SetlistPlayer'));
 const SetlistOverview = lazy(() => import('./components/SetlistOverview'));
 const PerformanceView = lazy(() => import('./components/PerformanceView'));
 const PracticeView = lazy(() => import('./components/PracticeView'));
+const PracticeFinale = lazy(() => import('./components/PracticeFinale'));
+const LiveFinale = lazy(() => import('./components/LiveFinale'));
 const LydianShowcase = lazy(() => import('./components/LydianShowcase'));
 const NewSongModal = lazy(() => import('./components/NewSongModal'));
 const HelpPage = lazy(() => import('./components/HelpPage'));
@@ -91,6 +93,8 @@ const PORTABLE_PREF_KEYS = [
   'displayRole',
   'duplicateSections',
   'chartLayout',
+  'firstDayOfWeek',
+  'clockFormat',
   'userName',
 ];
 
@@ -165,6 +169,11 @@ export default function App() {
   // Wake-lock explainer is now state-driven (was render-condition-driven) so
   // it can participate in the history stack.
   const [showWakeLockExplainer, setShowWakeLockExplainer] = useState(false);
+  // Session metrics handed off from Practice / Live views to their finale
+  // screens. `sessionSource` records which Live view started the session
+  // ('play' | 'performance') so "Run it again" returns to the right one.
+  const [sessionStats, setSessionStats] = useState(null);
+  const [sessionSource, setSessionSource] = useState(null);
 
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
@@ -456,6 +465,8 @@ export default function App() {
     settings?.duplicateSections,
     settings?.chartLayout,
     settings?.userName,
+    settings?.firstDayOfWeek,
+    settings?.clockFormat,
   ]);
 
   // Sync on tab focus
@@ -517,6 +528,8 @@ export default function App() {
     iosHint: showIOSHint,
     wakeLockExplainer: showWakeLockExplainer,
     isFullscreen,
+    sessionStats,
+    sessionSource,
   });
 
   const pushHistory = (snap) => {
@@ -547,6 +560,8 @@ export default function App() {
       setShowIOSHint(!!prev.iosHint);
       setShowWakeLockExplainer(!!prev.wakeLockExplainer);
       if (typeof prev.isFullscreen === 'boolean') setIsFullscreen(prev.isFullscreen);
+      setSessionStats(prev.sessionStats ?? null);
+      setSessionSource(prev.sessionSource ?? null);
     } else {
       setView('home');
       setCurrentSong(null);
@@ -557,6 +572,8 @@ export default function App() {
       setShowIOSHint(false);
       setShowWakeLockExplainer(false);
       setIsFullscreen(false);
+      setSessionStats(null);
+      setSessionSource(null);
     }
   }, []);
 
@@ -706,6 +723,44 @@ export default function App() {
     navigate('setlist-performance', { setlist: sl });
   };
   const goSetlistPractice = (sl) => navigate('setlist-practice', { setlist: sl });
+  const goPracticeFinale = (sl, stats) => {
+    setSessionStats(stats || null);
+    setSessionSource('practice');
+    navigate('practice-finale', { setlist: sl });
+  };
+  const goLiveFinale = (sl, stats, source) => {
+    setSessionStats(stats || null);
+    setSessionSource(source || 'play');
+    navigate('live-finale', { setlist: sl });
+  };
+  // From a finale "Run it again" — re-enter the originating session view
+  // with replace, so the back stack stays at the entry point that opened
+  // the original session rather than nesting another finale below it.
+  const handleRunSessionAgain = () => {
+    if (!currentSetlist) return;
+    const dest = sessionSource === 'performance'
+      ? 'setlist-performance'
+      : sessionSource === 'play'
+        ? 'setlist-play'
+        : 'setlist-practice';
+    setSessionStats(null);
+    setSessionSource(null);
+    navigate(dest, { setlist: currentSetlist, replace: true });
+  };
+  // From a finale "Back to setlist" / "View setlist" — replace the finale
+  // with the setlist overview so back from there returns to the original
+  // entry point rather than the finale.
+  const handleFinaleViewOverview = () => {
+    if (!currentSetlist) return;
+    setSessionStats(null);
+    setSessionSource(null);
+    navigate('setlist-view', { setlist: currentSetlist, replace: true });
+  };
+  const handleFinaleGoHome = () => {
+    setSessionStats(null);
+    setSessionSource(null);
+    goToMainView('home');
+  };
   const goTeam = () => goToMainView('team');
   const goSchedule = () => navigate('schedule');
 
@@ -876,7 +931,23 @@ export default function App() {
     if (!settings?.firstSetlistBuilt) {
       setSettings(prev => ({ ...prev, firstSetlistBuilt: true }));
     }
-    goBack();
+    // Keep the desktop split-view selection in sync so the new/updated
+    // setlist is preselected if the user navigates back to the list.
+    setPreviewSetlistId(sl.id);
+    if (isNew) {
+      // Land on the new setlist's overview so the user can immediately see
+      // (and play) what they built. `replace` keeps the history stack at
+      // the entry point that opened the builder, so Back from the overview
+      // returns there rather than re-opening the builder.
+      navigate('setlist-view', { setlist: sl, replace: true });
+    } else {
+      // For edits, return to wherever the builder was opened from. goBack
+      // restores currentSetlist from the pre-edit snapshot, so overwrite it
+      // with the freshly saved object — otherwise SetlistOverview would
+      // render stale data until the next render cycle.
+      goBack();
+      setCurrentSetlist(sl);
+    }
     if (isNew && !user && !settings?.seenSaveAccountWall) {
       openAccountWall({ kind: 'setlist', title: sl.name || 'Untitled setlist' });
     }
@@ -1170,6 +1241,7 @@ export default function App() {
               isFullscreen={isFullscreen}
               onToggleFullscreen={toggleFullscreen}
               onEditSetlist={(sl) => goSetlistBuild(sl)}
+              clockFormat={settings?.clockFormat || '12h'}
               onExportSetlistZip={(sl) => handleExportSetlist(sl)}
               onExportSetlistPdfOverview={(sl) => exportSetlistPdf(sl, songs, { mode: 'overview' })}
               onExportSetlistPdfFull={(sl) => exportSetlistPdf(sl, songs, { mode: 'full' })}
@@ -1235,6 +1307,7 @@ export default function App() {
               onExportZip={() => handleExportSetlist(currentSetlist)}
               onExportPdfOverview={() => exportSetlistPdf(currentSetlist, songs, { mode: 'overview' })}
               onExportPdfFull={() => exportSetlistPdf(currentSetlist, songs, { mode: 'full' })}
+              clockFormat={settings?.clockFormat || '12h'}
               onPlay={() => goSetlistPerformance(currentSetlist)}
               onPractice={() => goSetlistPractice(currentSetlist)}
               onDelete={() => handleDeleteSetlist(currentSetlist.id)}
@@ -1248,6 +1321,8 @@ export default function App() {
               onBack={goBack}
               onDelete={currentSetlist ? handleDeleteSetlist : null}
               isTeamContext={activeLibrary !== 'personal'}
+              firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
+              clockFormat={settings?.clockFormat || '12h'}
             />
           )}
           {view === 'setlist-play' && currentSetlist && (
@@ -1255,6 +1330,7 @@ export default function App() {
               setlist={currentSetlist}
               songs={songs}
               onBack={goBack}
+              onFinish={(stats) => goLiveFinale(currentSetlist, stats, 'play')}
               defaultColumns={settings?.defaultColumns}
               defaultFontSize={settings?.defaultFontSize}
               showInlineNotes={settings?.showInlineNotes !== false}
@@ -1268,6 +1344,9 @@ export default function App() {
               setlist={currentSetlist}
               songs={songs}
               onBack={goBack}
+              onFinish={(stats) => goLiveFinale(currentSetlist, stats, 'performance')}
+              defaultColumns={settings?.defaultColumns}
+              defaultFontSize={settings?.defaultFontSize}
             />
           )}
           {view === 'setlist-practice' && currentSetlist && (
@@ -1275,8 +1354,32 @@ export default function App() {
               setlist={currentSetlist}
               songs={songs}
               onBack={goBack}
+              onFinish={(stats) => goPracticeFinale(currentSetlist, stats)}
               onUpdateSong={handleUpdateSong}
               onUpdateSetlist={handleUpdateSetlist}
+              defaultColumns={settings?.defaultColumns}
+              defaultFontSize={settings?.defaultFontSize}
+            />
+          )}
+          {view === 'practice-finale' && currentSetlist && (
+            <PracticeFinale
+              setlist={currentSetlist}
+              songs={songs}
+              sessionStats={sessionStats}
+              onRunAgain={handleRunSessionAgain}
+              onUpdateSetlist={handleUpdateSetlist}
+              onGoOverview={handleFinaleViewOverview}
+              onGoHome={handleFinaleGoHome}
+            />
+          )}
+          {view === 'live-finale' && currentSetlist && (
+            <LiveFinale
+              setlist={currentSetlist}
+              sessionStats={sessionStats}
+              onRunAgain={handleRunSessionAgain}
+              onUpdateSetlist={handleUpdateSetlist}
+              onGoOverview={handleFinaleViewOverview}
+              onGoHome={handleFinaleGoHome}
             />
           )}
           {view === "design" && (
@@ -1352,6 +1455,8 @@ export default function App() {
               setlists={setlists}
               onBack={goBack}
               onOpenSetlist={goSetlistView}
+              clockFormat={settings?.clockFormat || '12h'}
+              firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />
           )}
           {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view'].includes(view) && (

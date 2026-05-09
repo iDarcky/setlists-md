@@ -6,17 +6,25 @@ import FloatingNavPill from './ui/FloatingNavPill';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
+import NoteContent from './ui/NoteContent';
+import { headerFrostStyle } from '../lib/headerFrost';
 
-export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onUpdateSetlist }) {
+export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, defaultColumns }) {
   const [idx, setIdx] = useState(0);
   const [selectedKey, setSelectedKey] = useState(null);
-  const [fontSize, setFontSize] = useState(18);
-  const [columns, setColumns] = useState(1);
-  const [showOverflow, setShowOverflow] = useState(false);
+  const fontSize = defaultFontSize || 18;
+  const columns = defaultColumns || 1;
   const [showStructureEditor, setShowStructureEditor] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
-  const overflowRef = useRef(null);
   const scrollRef = useRef(null);
+
+  // Session metrics for the finale screen.
+  const [sessionStartTime] = useState(() => Date.now());
+  const startTimeRef = useRef(sessionStartTime);
+  const transposeCountRef = useRef(0);
+  const cueCountRef = useRef(0);
+  const farthestIdxRef = useRef(0);
+  const touchedSongIdsRef = useRef(new Set());
 
   const resolved = useMemo(() =>
     setlist.items
@@ -41,7 +49,11 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
   }, [idx, cur?.song?.id]);
 
   const goNext = useCallback(() => {
-    setIdx(p => Math.min(resolved.length - 1, p + 1));
+    setIdx(p => {
+      const next = Math.min(resolved.length - 1, p + 1);
+      if (next > farthestIdxRef.current) farthestIdxRef.current = next;
+      return next;
+    });
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [resolved.length]);
 
@@ -49,6 +61,16 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
     setIdx(p => Math.max(0, p - 1));
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  const handleFinish = useCallback(() => {
+    onFinish?.({
+      startTime: startTimeRef.current,
+      farthestIdx: farthestIdxRef.current,
+      transposeCount: transposeCountRef.current,
+      cueCount: cueCountRef.current,
+      touchedSongIds: Array.from(touchedSongIdsRef.current),
+    });
+  }, [onFinish]);
 
   // Keyboard navigation (ignore when editing text)
   useEffect(() => {
@@ -62,23 +84,15 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
     return () => window.removeEventListener('keydown', handler);
   }, [goNext, goPrev]);
 
-  // Close overflow popover on outside click
-  useEffect(() => {
-    if (!showOverflow) return;
-    const handler = (e) => {
-      if (overflowRef.current && !overflowRef.current.contains(e.target)) {
-        setShowOverflow(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showOverflow]);
-
   // Save key change → persists to setlist item transpose
   const handleKeyChange = useCallback((newKey) => {
     setSelectedKey(newKey);
     if (!cur || cur.isBreak) return;
     const semitones = semitonesBetween(cur.song.key, newKey);
+    if (semitones !== (cur.transpose || 0)) {
+      transposeCountRef.current += 1;
+      touchedSongIdsRef.current.add(cur.song.id);
+    }
     onUpdateSetlist?.({
       ...setlist,
       items: setlist.items.map((it, i) =>
@@ -90,6 +104,8 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
   // Save band cue (section.note) → persists to song
   const handleSaveCue = useCallback((sectionIdx, newNote) => {
     if (!cur || cur.isBreak) return;
+    cueCountRef.current += 1;
+    touchedSongIdsRef.current.add(cur.song.id);
     onUpdateSong?.({
       ...cur.song,
       sections: cur.song.sections.map((sec, i) =>
@@ -101,6 +117,7 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
   // Save setlist note → persists to setlist item
   const handleSaveNote = useCallback((newNote) => {
     if (!cur || cur.isBreak) return;
+    touchedSongIdsRef.current.add(cur.song.id);
     onUpdateSetlist?.({
       ...setlist,
       items: setlist.items.map((it, i) =>
@@ -130,170 +147,140 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
 
   const displayKey = cur.isBreak ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
 
+  // Chevron + close X — anchored to the right end of the title row in both
+  // expanded and collapsed states. Same variant and size so they render
+  // with matching color and weight.
+  const headerControls = (
+    <div className="flex items-center gap-1 shrink-0">
+      <IconButton
+        size="sm"
+        variant="ghost"
+        onClick={() => setHeaderCollapsed(c => !c)}
+        aria-label={headerCollapsed ? 'Expand header' : 'Collapse header'}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d={headerCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
+        </svg>
+      </IconButton>
+      <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close practice">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </IconButton>
+    </div>
+  );
+
   return (
     <div
       ref={scrollRef}
       className="h-full overflow-y-auto overflow-x-hidden bg-[var(--ds-background-100)]"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
-      {/* ── Minimal sticky header ── */}
-      <div className="material-header" style={{ zIndex: 50 }}>
-        {/* Title row — hidden when collapsed */}
-        {!headerCollapsed && (
-          <div className="a4-container flex items-center gap-2 py-3">
-            {/* Back */}
-            <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Back">
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
-              </svg>
-            </IconButton>
+      {/* ── Minimal sticky header ──
+          The title row always renders so the chevron + X stay anchored to
+          the same spot regardless of collapse state. When collapsed, the
+          structure ribbon takes the title's slot so the row stays useful
+          (you can still jump between sections), and the title + meta +
+          badge tuck away. The dedicated ribbon row below only renders
+          when the header is expanded. */}
+      {(() => {
+        const structRibbon = !cur.isBreak && cur.song.sections?.length > 0 ? (
+          <StructureRibbon
+            structure={cur.song.structure || cur.song.sections.map(s => s.type)}
+            compact
+            onSelect={(i) => {
+              const struct = cur.song.structure || cur.song.sections.map(s => s.type);
+              const name = struct[i];
+              const sectionIdx = cur.song.sections.findIndex(s => s.type === name);
+              if (sectionIdx !== -1) {
+                const el = document.getElementById(`practice-section-${sectionIdx}`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }}
+          />
+        ) : null;
+        return (
+          <div className="material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
+            <div className={`a4-container flex items-center gap-2 ${headerCollapsed ? 'py-1.5' : 'py-3'}`}>
+              {!headerCollapsed && (
+                <>
+                  {/* Title */}
+                  <h1 className="text-heading-16 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
+                    {cur.isBreak ? (cur.label || 'Break') : cur.song.title}
+                  </h1>
 
-            {/* Title */}
-            <h1 className="text-heading-16 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
-              {cur.isBreak ? (cur.label || 'Break') : cur.song.title}
-            </h1>
-
-            {/* Meta: key (saves on change) + tempo + time */}
-            {!cur.isBreak && displayKey && (
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Select value={displayKey} onValueChange={handleKeyChange}>
-                  <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ALL_KEYS.map(k => {
-                      const st = semitonesBetween(cur.song.key, k);
-                      const display = st > 6 ? st - 12 : st;
-                      return (
-                        <SelectItem key={k} value={k}>
-                          {k}{st !== 0 && ` (${display > 0 ? '+' : ''}${display})`}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-                {cur.capo > 0 && (
-                  <span className="text-label-12 font-bold text-[var(--color-brand)] whitespace-nowrap bg-[var(--color-brand-soft)] px-1.5 py-0.5 rounded border border-[var(--color-brand-border)]">
-                    Capo {cur.capo}
-                  </span>
-                )}
-                {cur.song.tempo && (
-                  <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
-                    ♩ {cur.song.tempo}
-                  </span>
-                )}
-                {cur.song.time && (
-                  <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
-                    {cur.song.time}
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* Practice badge */}
-            <span
-              className="hidden sm:inline-flex shrink-0 items-center px-2 py-0.5 rounded-md text-label-10 font-black uppercase tracking-widest"
-              style={{ background: 'var(--color-brand)', color: 'white' }}
-            >
-              Practice
-            </span>
-
-            {/* Overflow: font size + columns */}
-            <div className="relative" ref={overflowRef}>
-              <IconButton
-                variant={showOverflow ? 'active' : 'default'}
-                size="sm"
-                onClick={() => setShowOverflow(s => !s)}
-                aria-label="Display options"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <circle cx="5" cy="12" r="2" />
-                  <circle cx="12" cy="12" r="2" />
-                  <circle cx="19" cy="12" r="2" />
-                </svg>
-              </IconButton>
-              {showOverflow && (
-                <div className="absolute right-0 top-full mt-2 z-[200] min-w-[190px] rounded-xl bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] shadow-xl p-3 flex flex-col gap-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-label-12 text-[var(--ds-gray-700)]">Font size</span>
-                    <div className="flex items-center bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] rounded-lg p-0.5">
-                      <button
-                        onClick={() => setFontSize(p => Math.max(12, p - 2))}
-                        className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] text-label-14 font-bold"
-                      >−</button>
-                      <span className="px-2 text-label-11-mono text-[var(--ds-gray-700)] tabular-nums">{fontSize}px</span>
-                      <button
-                        onClick={() => setFontSize(p => Math.min(32, p + 2))}
-                        className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] text-label-14 font-bold"
-                      >+</button>
+                  {/* Meta: key (saves on change) + tempo + time */}
+                  {!cur.isBreak && displayKey && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Select value={displayKey} onValueChange={handleKeyChange}>
+                        <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ALL_KEYS.map(k => (
+                            <SelectItem key={k} value={k}>
+                              {k}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {cur.capo > 0 && (
+                        <span className="text-label-12 font-bold text-[var(--color-brand)] whitespace-nowrap bg-[var(--color-brand-soft)] px-1.5 py-0.5 rounded border border-[var(--color-brand-border)]">
+                          Capo {cur.capo}
+                        </span>
+                      )}
+                      {cur.song.tempo && (
+                        <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
+                          ♩ {cur.song.tempo}
+                        </span>
+                      )}
+                      {cur.song.time && (
+                        <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
+                          {cur.song.time}
+                        </span>
+                      )}
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-label-12 text-[var(--ds-gray-700)]">Columns</span>
-                    <div className="flex items-center gap-1.5">
-                      {[1, 2].map(n => (
-                        <button
-                          key={n}
-                          onClick={() => setColumns(n)}
-                          className="h-7 px-3 rounded-lg text-label-12 font-semibold transition-colors border"
-                          style={{
-                            background: columns === n ? 'var(--color-brand)' : 'var(--ds-background-100)',
-                            color: columns === n ? 'white' : 'var(--ds-gray-900)',
-                            borderColor: columns === n ? 'transparent' : 'var(--ds-gray-400)',
-                          }}
-                        >{n}</button>
-                      ))}
-                    </div>
-                  </div>
+                  )}
+
+                  {/* Practice badge */}
+                  <span
+                    className="hidden sm:inline-flex shrink-0 items-center px-2 py-0.5 rounded-md text-label-10 font-black uppercase tracking-widest"
+                    style={{ background: 'var(--color-brand)', color: 'white' }}
+                  >
+                    Practice
+                  </span>
+                </>
+              )}
+              {headerCollapsed && (
+                <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
+                  {structRibbon}
                 </div>
               )}
+              {headerControls}
             </div>
-          </div>
-        )}
 
-        {/* Structure ribbon — only for songs */}
-        {!cur.isBreak && cur.song.sections?.length > 0 && (
-          <div className="a4-container pb-2 pt-0 flex items-center gap-1">
-            <div className="flex-1 overflow-x-auto no-scrollbar">
-              <StructureRibbon
-                structure={cur.song.structure || cur.song.sections.map(s => s.type)}
-                compact
-                onSelect={(i) => {
-                  const struct = cur.song.structure || cur.song.sections.map(s => s.type);
-                  const name = struct[i];
-                  const sectionIdx = cur.song.sections.findIndex(s => s.type === name);
-                  if (sectionIdx !== -1) {
-                    const el = document.getElementById(`practice-section-${sectionIdx}`);
-                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }
-                }}
-              />
-            </div>
-            <IconButton
-              size="xs"
-              variant="ghost"
-              onClick={() => setShowStructureEditor(true)}
-              title="Edit structure"
-              className="shrink-0 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)]"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-              </svg>
-            </IconButton>
-            <IconButton
-              size="xs"
-              variant="ghost"
-              onClick={() => setHeaderCollapsed(c => !c)}
-              aria-label={headerCollapsed ? 'Expand header' : 'Collapse header'}
-              className="shrink-0 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)]"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d={headerCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
-              </svg>
-            </IconButton>
+            {/* Dedicated structure-ribbon row — only when expanded. */}
+            {!headerCollapsed && structRibbon && (
+              <div className="a4-container flex items-center gap-1 pb-2 pt-0">
+                <div className="flex-1 overflow-x-auto no-scrollbar">
+                  {structRibbon}
+                </div>
+                <IconButton
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => setShowStructureEditor(true)}
+                  title="Edit structure"
+                  className="shrink-0"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                </IconButton>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* ── Content ── */}
       <div className="a4-container pt-4 pb-32">
@@ -302,6 +289,12 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
             <div className="text-heading-32 text-[var(--ds-gray-1000)] mb-2">{cur.label || 'Break'}</div>
             {cur.duration > 0 && (
               <div className="text-copy-16 text-[var(--ds-gray-600)] font-mono">{cur.duration} min</div>
+            )}
+            {cur.note && (
+              <NoteContent
+                text={cur.note}
+                className="w-full max-w-xl mt-4 px-5 py-4 rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)] text-copy-15 text-[var(--ds-gray-900)]"
+              />
             )}
           </div>
         ) : displayKey ? (
@@ -335,6 +328,7 @@ export default function PracticeView({ setlist, songs, onBack, onUpdateSong, onU
         onNext={goNext}
         hasPrev={idx > 0}
         hasNext={idx < resolved.length - 1}
+        onFinish={onFinish ? handleFinish : undefined}
       />
 
       {showStructureEditor && (
@@ -480,6 +474,21 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns, onSaveCue }
         fontFamily: "var(--font-mono)",
       }}
     >
+      {song.notes && (
+        <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]">
+          <span className="shrink-0 mt-0.5 text-[var(--ds-gray-600)]" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <path d="M14 2v6h6" />
+              <path d="M8 13h6" />
+              <path d="M8 17h4" />
+            </svg>
+          </span>
+          <p className="flex-1 m-0 text-copy-13 text-[var(--ds-gray-1000)] whitespace-pre-wrap" style={{ fontFamily: 'var(--font-sans)' }}>
+            {song.notes}
+          </p>
+        </div>
+      )}
       {song.sections.map((section, i) => (
         <div key={section.id || i} id={`practice-section-${i}`} style={{ scrollMarginTop: '7rem' }}>
           <SectionBlock

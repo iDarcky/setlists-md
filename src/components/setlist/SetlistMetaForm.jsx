@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Input } from '../ui/Input';
+import { DatePicker } from '../ui/DatePicker';
+import { TimePicker } from '../ui/TimePicker';
 import { useEntitlement } from '../../hooks/useEntitlement';
 
 const MAX_TAGS = 3;
@@ -7,7 +9,7 @@ const MAX_TAGS = 3;
 /**
  * Setlist metadata form — name, date, freeform tags, and (Church tier only) service.
  */
-export default function SetlistMetaForm({ name, date, time = '20:00', location = '', tags, service = '', onNameChange, onDateChange, onTimeChange, onLocationChange, onTagsChange, onServiceChange }) {
+export default function SetlistMetaForm({ name, date, time = '20:00', location = '', tags, service = '', firstDayOfWeek = 'sunday', clockFormat = '12h', onNameChange, onDateChange, onTimeChange, onLocationChange, onTagsChange, onServiceChange }) {
   const [tagInput, setTagInput] = useState('');
 
   const addTag = () => {
@@ -24,7 +26,11 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    // Both Enter and Space commit the current draft tag — space lets people
+    // type "fast slow loud" and get three tags without ever lifting their
+    // hand off the keyboard.
+    if (e.key === 'Enter' || e.key === ' ') {
+      if (!tagInput.trim()) return;
       e.preventDefault();
       addTag();
     }
@@ -49,18 +55,18 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
       <div className="flex gap-4">
         <div className="flex-1 flex flex-col gap-1">
           <label className="section-title px-0.5">Date</label>
-          <Input
-            type="date"
+          <DatePicker
             value={date}
-            onChange={e => onDateChange(e.target.value)}
+            onChange={onDateChange}
+            firstDayOfWeek={firstDayOfWeek}
           />
         </div>
-        <div className="w-32 flex flex-col gap-1">
+        <div className="w-40 flex flex-col gap-1">
           <label className="section-title px-0.5">Time</label>
-          <Input
-            type="time"
+          <TimePicker
             value={time}
-            onChange={e => onTimeChange(e.target.value)}
+            onChange={onTimeChange}
+            clockFormat={clockFormat}
           />
         </div>
       </div>
@@ -123,7 +129,7 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
               onKeyDown={handleKeyDown}
               onBlur={addTag}
               maxLength={10}
-              placeholder={tags.length === 0 ? 'Type and press Enter…' : ''}
+              placeholder={tags.length === 0 ? 'Type, then press space or Enter…' : ''}
               className="flex-1 min-w-[80px] bg-transparent border-none outline-none text-copy-14 text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-600)]"
               style={{ minHeight: 'auto', padding: 0 }}
             />

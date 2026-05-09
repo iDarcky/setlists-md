@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button } from '../ui/Button';
-
-const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+import { weekdayLabels, firstDayOffset } from '../../lib/dateFormat';
 
 function toLocalDateStr(date) {
   const y = date.getFullYear();
@@ -20,11 +19,15 @@ function statusDotClass(status) {
 /**
  * Generate the 6-row × 7-col grid (42 cells) for a given month.
  * Includes leading/trailing days from adjacent months so the grid is whole.
+ * `weekStart` is the day index the user wants in the leftmost column
+ * (0 = Sunday, 1 = Monday, …).
  */
-function buildMonthGrid(year, monthIdx) {
+function buildMonthGrid(year, monthIdx, weekStart = 0) {
   const firstOfMonth = new Date(year, monthIdx, 1);
   const start = new Date(firstOfMonth);
-  start.setDate(start.getDate() - firstOfMonth.getDay()); // Sunday-aligned
+  // Walk back to the first weekday of the user's chosen week start.
+  const offset = (firstOfMonth.getDay() - weekStart + 7) % 7;
+  start.setDate(start.getDate() - offset);
   const cells = [];
   for (let i = 0; i < 42; i++) {
     const d = new Date(start);
@@ -45,10 +48,13 @@ export default function ScheduleCalendarView({
   members,
   userId,
   isAdmin,
+  firstDayOfWeek = 'sunday',
   onSelectDate,
   onOpenSetlist,
   onOpenRoster,
 }) {
+  const weekStart = firstDayOffset(firstDayOfWeek);
+  const WEEKDAY_LABELS = weekdayLabels(firstDayOfWeek);
   const today = useMemo(() => {
     const t = new Date();
     t.setHours(0, 0, 0, 0);
@@ -58,8 +64,8 @@ export default function ScheduleCalendarView({
   const [cursor, setCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
 
   const cells = useMemo(
-    () => buildMonthGrid(cursor.getFullYear(), cursor.getMonth()),
-    [cursor],
+    () => buildMonthGrid(cursor.getFullYear(), cursor.getMonth(), weekStart),
+    [cursor, weekStart],
   );
 
   const monthLabel = cursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });

@@ -55,6 +55,7 @@ export default function Setlists({
   isFullscreen = false,
   onToggleFullscreen,
   onEditSetlist,
+  clockFormat = '12h',
   onExportSetlistZip,
   onExportSetlistPdfOverview,
   onExportSetlistPdfFull,
@@ -153,8 +154,8 @@ export default function Setlists({
               <IconButton variant="default" size="sm" onClick={() => fileInputRef.current?.click()} aria-label="Import .zip" title="Import .zip">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
               </IconButton>
               <IconButton variant="default" size="sm" onClick={onNewSetlist} aria-label="New setlist" title="New setlist">
@@ -192,6 +193,7 @@ export default function Setlists({
                         selected={isDesktop && sl.id === previewSetlistId}
                         onPlay={() => onPlaySetlist(sl)}
                         onView={() => handleView(sl)}
+                        clockFormat={clockFormat}
                       />
                     ))}
                   </div>
@@ -217,6 +219,7 @@ export default function Setlists({
                         selected={isDesktop && sl.id === previewSetlistId}
                         onPlay={() => onPlaySetlist(sl)}
                         onView={() => handleView(sl)}
+                        clockFormat={clockFormat}
                       />
                     ))}
                   </div>
@@ -319,6 +322,7 @@ export default function Setlists({
               key={previewSetlist.id}
               setlist={previewSetlist}
               songs={songs}
+              clockFormat={clockFormat}
               onBack={() => {
                 if (isFullscreen) onToggleFullscreen?.();
                 onSelectPreview?.(null);

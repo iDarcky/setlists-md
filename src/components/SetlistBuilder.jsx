@@ -4,6 +4,7 @@ import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { toast } from './ui/use-toast';
 import ScreenHeader from './ui/ScreenHeader';
+import { nextSundayDateStr } from '../lib/dateFormat';
 
 const UNDO_STACK_LIMIT = 50;
 import SetlistMetaForm from './setlist/SetlistMetaForm';
@@ -11,10 +12,12 @@ import SetlistItemRow from './setlist/SetlistItemRow';
 import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RosterPanel from './setlist/RosterPanel';
 
-export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext }) {
+export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
   const [name, setName] = useState(setlist?.name || '');
-  const [date, setDate] = useState(setlist?.date || new Date().toISOString().slice(0, 10));
-  const [time, setTime] = useState(setlist?.time || '20:00');
+  // New setlists default to the upcoming Sunday at 10:00 — the most common
+  // worship slot. Existing ones keep whatever they were saved with.
+  const [date, setDate] = useState(setlist?.date || nextSundayDateStr());
+  const [time, setTime] = useState(setlist?.time || '10:00');
   const [location, setLocation] = useState(setlist?.location || '');
   // Migrate legacy `service` field → tags
   const [tags, setTags] = useState(() => {
@@ -166,11 +169,13 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   };
 
   return (
-    <div className="min-h-screen material-page pb-8">
+    <div className="min-h-screen material-page flex flex-col">
 
-      {/* ── Sticky header ── */}
+      {/* ── Sticky header — title + secondary actions only. The primary
+          Save / Cancel pair lives in the bottom action bar where it's
+          always thumb-reachable on tablet/mobile. The back chevron is
+          gone; bail-out lives in Cancel below. ── */}
       <ScreenHeader
-        onBack={onBack}
         title={setlist ? 'Edit Setlist' : 'New Setlist'}
         actions={
           <>
@@ -182,13 +187,13 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                </IconButton>
              )}
              {isTeamContext && (
-               <Button 
-                variant={showRoster ? "brand" : "secondary"} 
-                size="sm" 
+               <Button
+                variant={showRoster ? "brand" : "secondary"}
+                size="sm"
                 onClick={() => {
                   if (!setlist) {
-                    toast({ 
-                      title: 'Save setlist first', 
+                    toast({
+                      title: 'Save setlist first',
                       description: 'The setlist needs to be saved before you can manage the roster.',
                       variant: 'error'
                     });
@@ -203,13 +208,14 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                 Roster
               </Button>
              )}
-             <Button variant="brand" size="sm" onClick={handleSave}>Save</Button>
            </>
         }
       />
 
-      {/* ── Content: responsive two-column layout ── */}
-      <div className="max-w-5xl mx-auto px-5 pt-6">
+      {/* ── Content: responsive two-column layout. flex-1 makes this fill
+          all available space so the Save/Cancel bar below pins to the
+          bottom of <main> even when the form is short. ── */}
+      <div className="flex-1 w-full max-w-5xl mx-auto px-5 pt-6 pb-12">
         <div className="flex flex-col lg:flex-row gap-8">
 
           {/* Left column: meta + current set */}
@@ -223,6 +229,8 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               location={location}
               tags={tags}
               service={service}
+              firstDayOfWeek={firstDayOfWeek}
+              clockFormat={clockFormat}
               onNameChange={setName}
               onDateChange={setDate}
               onTimeChange={setTime}
@@ -306,8 +314,11 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
             </div>
           </div>
 
-          {/* Right column: song library picker */}
-          <div className="lg:w-[320px] shrink-0">
+          {/* Right column: song library picker — pinned on desktop so it
+              stays in view as the user scrolls a long set of items below.
+              `top-20` clears the sticky ScreenHeader; the height clamp
+              leaves room for the bottom action bar at the foot of <main>. */}
+          <div className="lg:w-[320px] shrink-0 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto">
             <SetlistSongPicker
               songs={songs}
               currentItems={items}
@@ -315,6 +326,26 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
             />
           </div>
 
+        </div>
+      </div>
+
+      {/* ── Sticky bottom action bar ──
+          Save lives here so it's always thumb-reachable on tablets/phones
+          without scrolling, and so it pairs naturally with Cancel — the
+          standard form pattern. Sticky (not fixed) so the bar stops at the
+          edge of <main> on desktop instead of running under the sidebar. */}
+      <div
+        className="sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)]"
+        style={{
+          background: 'var(--header-bg-blur)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        }}
+      >
+        <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-end gap-2">
+          <Button variant="ghost" size="md" onClick={onBack}>Cancel</Button>
+          <Button variant="brand" size="md" onClick={handleSave}>Save</Button>
         </div>
       </div>
 

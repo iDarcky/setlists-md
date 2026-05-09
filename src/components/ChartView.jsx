@@ -10,6 +10,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import { cn } from '../lib/utils';
 import { StructureRibbon } from './StructureRibbon';
 import { exportSongPdf } from '../pdf/exportSongPdf';
+import { headerFrostStyle } from '../lib/headerFrost';
 
 const FONT_SIZES = { S: 14, M: 18, L: 22 };
 
@@ -27,6 +28,7 @@ export default function ChartView({
   chartLayout = 'columns',
   isFullscreen = false, onToggleFullscreen,
   onTransposed,
+  notesPeekDefaultOpen = true,
 }) {
   const initialFontSize = FONT_SIZES[defaultFontSize] || (typeof defaultFontSize === 'number' ? defaultFontSize : 16);
 
@@ -41,6 +43,7 @@ export default function ChartView({
   const [showMusicSettings, setShowMusicSettings] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [notesPeekOpen, setNotesPeekOpen] = useState(notesPeekDefaultOpen);
 
   const scrollContainerRef = useRef(null);
 
@@ -124,7 +127,7 @@ export default function ChartView({
     >
       {/* ── Sticky Header ── */}
       {!isPreview && (
-        <div className="material-header transition-all duration-200">
+        <div className="material-header transition-all duration-200" style={headerFrostStyle}>
           {/* Line 1: Title + meta (compact) or Title only (expanded) + buttons */}
           <div className="a4-container flex items-center justify-between pt-3 pb-1 gap-3">
             <div className="min-w-0 flex-1 flex items-center gap-3">
@@ -234,15 +237,11 @@ export default function ChartView({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {ALL_KEYS.map(k => {
-                  const st = semitonesBetween(song.key, k);
-                  const display = st > 6 ? st - 12 : st;
-                  return (
-                    <SelectItem key={k} value={k}>
-                      {k} {st !== 0 && `(${display > 0 ? '+' : ''}${display})`}
-                    </SelectItem>
-                  );
-                })}
+                {ALL_KEYS.map(k => (
+                  <SelectItem key={k} value={k}>
+                    {k}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             {song.tempo && (
@@ -270,6 +269,51 @@ export default function ChartView({
               }}
             />
           </div>
+
+          {/* Song notes peek strip — collapsible, hidden when song has no notes */}
+          {song.notes && (
+            <div className="a4-container pb-2">
+              {notesPeekOpen ? (
+                <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]">
+                  <span className="shrink-0 mt-0.5 text-[var(--ds-gray-600)]" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <path d="M14 2v6h6" />
+                      <path d="M8 13h6" />
+                      <path d="M8 17h4" />
+                    </svg>
+                  </span>
+                  <p className="flex-1 m-0 text-copy-13 text-[var(--text-1)] whitespace-pre-wrap">
+                    {song.notes}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setNotesPeekOpen(false)}
+                    aria-label="Hide notes"
+                    className="shrink-0 text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] -mr-1 -mt-1 px-1 py-0.5"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setNotesPeekOpen(true)}
+                  aria-label="Show song notes"
+                  aria-expanded="false"
+                  className="inline-flex items-center gap-1.5 px-2.5 h-6 rounded-full border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)] text-label-11 text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <path d="M14 2v6h6" />
+                  </svg>
+                  Notes
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Expanded controls sub-row — collapses when scrolled */}
           {panelOpen && (

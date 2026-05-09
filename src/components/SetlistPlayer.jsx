@@ -1,15 +1,20 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { transposeKey, sectionStyle } from '../music';
-import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import NoteContent from './ui/NoteContent';
 import ChartView from './ChartView';
 import { useWakeLock } from '../hooks/useWakeLock';
 
-export default function SetlistPlayer({ setlist, songs, onBack, defaultColumns, defaultFontSize, showInlineNotes, inlineNoteStyle, displayRole, duplicateSections }) {
+export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaultColumns, defaultFontSize, showInlineNotes, inlineNoteStyle, displayRole, duplicateSections }) {
   useWakeLock(true);
   const [idx, setIdx] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
   const songBarRef = useRef(null);
+
+  // Session metrics for the finale screen.
+  const [sessionStartTime] = useState(() => Date.now());
+  const startTimeRef = useRef(sessionStartTime);
+  const farthestIdxRef = useRef(0);
 
   const resolved = useMemo(() => {
     const acc = { count: 0 };
@@ -25,8 +30,19 @@ export default function SetlistPlayer({ setlist, songs, onBack, defaultColumns, 
       .filter(Boolean);
   }, [setlist, songs]);
 
-  const goNext = useCallback(() => setIdx(p => Math.min(resolved.length - 1, p + 1)), [resolved.length]);
+  const goNext = useCallback(() => setIdx(p => {
+    const next = Math.min(resolved.length - 1, p + 1);
+    if (next > farthestIdxRef.current) farthestIdxRef.current = next;
+    return next;
+  }), [resolved.length]);
   const goPrev = useCallback(() => setIdx(p => Math.max(0, p - 1)), []);
+
+  const handleFinish = useCallback(() => {
+    onFinish?.({
+      startTime: startTimeRef.current,
+      farthestIdx: farthestIdxRef.current,
+    });
+  }, [onFinish]);
 
   // Auto-scroll song strip to keep active item visible
   useEffect(() => {
@@ -63,6 +79,8 @@ export default function SetlistPlayer({ setlist, songs, onBack, defaultColumns, 
 
   const cur = resolved[idx];
 
+  const isLast = idx === resolved.length - 1;
+  const showFinish = isLast && typeof onFinish === 'function';
   const nav = (
     <div className="flex items-center gap-1.5">
       <span className="text-label-11-mono text-[var(--ds-gray-600)]">
@@ -77,15 +95,29 @@ export default function SetlistPlayer({ setlist, songs, onBack, defaultColumns, 
       >
         &#9664;
       </IconButton>
-      <IconButton
-        variant="default"
-        size="sm"
-        onClick={goNext}
-        disabled={idx === resolved.length - 1}
-        aria-label="Next song"
-      >
-        &#9654;
-      </IconButton>
+      {showFinish ? (
+        <button
+          type="button"
+          onClick={handleFinish}
+          aria-label="Finish session"
+          className="inline-flex items-center gap-1 h-8 px-3 rounded-lg text-label-12 font-semibold border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-1000)] transition-colors"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+          Finish
+        </button>
+      ) : (
+        <IconButton
+          variant="default"
+          size="sm"
+          onClick={goNext}
+          disabled={idx === resolved.length - 1}
+          aria-label="Next song"
+        >
+          &#9654;
+        </IconButton>
+      )}
       <IconButton
         variant="default"
         size="sm"
@@ -186,16 +218,20 @@ export default function SetlistPlayer({ setlist, songs, onBack, defaultColumns, 
 
   return (
     <div style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-      {/* Back button for the whole player */}
+      {/* Top row — setlist name on the left, close X on the right */}
       <div className="flex items-center gap-2.5 px-5 pt-2.5">
-        <Button variant="ghost" size="xs" onClick={onBack}>← Back</Button>
-        <span className="text-label-13 font-semibold text-[var(--ds-gray-600)]">
+        <span className="text-label-13 font-semibold text-[var(--ds-gray-600)] flex-1 min-w-0 truncate">
           {setlist.name}
         </span>
+        <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close player">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </IconButton>
       </div>
       {progress}
       {songBar}
-      {cur.note && (
+      {cur.note && !cur.isBreak && (
         <div className="px-5 pt-1">
           <div className="px-3 py-1.5 rounded-md bg-[var(--ds-warning-soft)] border border-[var(--ds-warning-border)] text-label-12 text-[var(--ds-warning-900)]">
             {cur.note}
@@ -212,7 +248,13 @@ export default function SetlistPlayer({ setlist, songs, onBack, defaultColumns, 
               {cur.duration} min
             </div>
           )}
-          <div className="mt-4">{nav}</div>
+          {cur.note && (
+            <NoteContent
+              text={cur.note}
+              className="w-full max-w-xl mt-4 px-5 py-4 rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)] text-copy-16 text-[var(--ds-gray-900)]"
+            />
+          )}
+          <div className="mt-6">{nav}</div>
         </div>
       ) : (
         <ChartView
@@ -228,6 +270,7 @@ export default function SetlistPlayer({ setlist, songs, onBack, defaultColumns, 
           inlineNoteStyle={inlineNoteStyle}
           displayRole={displayRole}
           duplicateSections={duplicateSections}
+          notesPeekDefaultOpen={false}
         />
       )}
       {showHelp && (
