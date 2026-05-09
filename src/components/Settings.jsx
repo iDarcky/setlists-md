@@ -391,6 +391,7 @@ export default function Settings({
   settings,
   onUpdate,
   onBack,
+  onClose,
   onClearAll,
   onDownloadSongs,
   songCount,
@@ -456,8 +457,9 @@ export default function Settings({
       { key: 'whatsnew', label: "What's New", icon: SparkleIcon, summary: `v${__APP_VERSION__}` },
       { key: 'about', label: 'About', icon: AboutIcon, summary: `v${__APP_VERSION__}` },
     ];
+    const handleClose = onClose || onBack;
     return (
-      <Dialog open={true} onClose={onBack} size="xl" ariaLabel="Settings" className="overflow-hidden">
+      <Dialog open={true} onClose={handleClose} size="xl" ariaLabel="Settings" className="overflow-hidden">
         <div data-theme-variant="modes" className="flex h-[640px] max-h-[85vh]">
           {/* Sidebar */}
           <aside className="w-[240px] shrink-0 border-r border-[var(--modes-border)] bg-[var(--ds-background-200)] flex flex-col">
@@ -501,7 +503,7 @@ export default function Settings({
               <button
                 type="button"
                 aria-label="Close"
-                onClick={onBack}
+                onClick={handleClose}
                 className="bg-transparent border-none text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] cursor-pointer p-1 rounded-md"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

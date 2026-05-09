@@ -657,6 +657,32 @@ export default function App() {
     setSettingsPanel(nextPanel);
   };
 
+  // Fully close Settings — pop history until we land on a non-settings view,
+  // so the desktop modal × button always exits regardless of how many
+  // sub-panels the user drilled through.
+  const closeSettings = () => {
+    while (historyRef.current.length > 0) {
+      const prev = historyRef.current.pop();
+      if (prev && prev.view !== 'settings') {
+        setView(prev.view);
+        setCurrentSong(prev.song);
+        setCurrentSetlist(prev.setlist);
+        if (prev.settingsPanel !== undefined) setSettingsPanel(prev.settingsPanel);
+        setAccountWallTrigger(prev.accountWall ?? null);
+        setShowFounderNote(!!prev.founderNote);
+        setShowIOSHint(!!prev.iosHint);
+        setShowWakeLockExplainer(!!prev.wakeLockExplainer);
+        if (typeof prev.isFullscreen === 'boolean') setIsFullscreen(prev.isFullscreen);
+        setSessionStats(prev.sessionStats ?? null);
+        setSessionSource(prev.sessionSource ?? null);
+        return;
+      }
+    }
+    // Nothing else in history — fall back to home.
+    setView('home');
+    setSettingsPanel('hub');
+  };
+
   // Modal openers — each one pushes history first so hardware Back closes
   // the modal instead of bypassing it. Modal close handlers call
   // window.history.back() which triggers popstate → goBack → modal hides.
@@ -1411,6 +1437,7 @@ export default function App() {
               settings={settings}
               onUpdate={setSettings}
               onBack={goBack}
+              onClose={closeSettings}
               panel={settingsPanel}
               onChangePanel={goSettingsPanel}
               onClearAll={handleClearAll}
