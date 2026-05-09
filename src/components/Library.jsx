@@ -3,15 +3,9 @@ import PageHeader from './PageHeader';
 import SongCard from './SongCard';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
 import { useIsDesktop } from '../lib/useMediaQuery';
-
-const SearchIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
-    <circle cx="11" cy="11" r="8" />
-    <path d="m21 21-4.3-4.3" />
-  </svg>
-);
 
 const ChartView = lazy(() => import('./ChartView'));
 
@@ -253,31 +247,12 @@ export default function Library({
           {/* Search Bar + Tags */}
           <div className="flex gap-3 items-stretch">
             {/* Desktop text search — mobile uses the global top bar */}
-            <div className="relative flex-1 hidden sm:flex items-center">
-              <span className="absolute left-3.5 text-[var(--modes-text-muted)] pointer-events-none">
-                <SearchIcon />
-              </span>
-              <input
-                type="text"
-                placeholder="Search songs by title, artist, key, or tag…"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                className="w-full h-11 pl-10 pr-10 rounded-xl border border-[var(--modes-border)] bg-[var(--modes-surface)] text-copy-14 text-[var(--modes-text)] placeholder:text-[var(--modes-text-dim)] outline-none transition-colors focus:border-[var(--color-brand)] focus:bg-[var(--modes-surface-strong)]"
-              />
-              {query && (
-                <button
-                  type="button"
-                  onClick={() => setQuery('')}
-                  aria-label="Clear search"
-                  className="absolute right-2 w-7 h-7 rounded-md flex items-center justify-center text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] hover:bg-[var(--modes-surface-strong)] bg-transparent border-none cursor-pointer"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 6 6 18" />
-                    <path d="m6 6 12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
+            <SearchBar
+              className="flex-1 hidden sm:flex"
+              placeholder="Search songs by title, artist, key, or tag…"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+            />
 
             {/* Tags Dropdown */}
             {allTags.length > 0 && (

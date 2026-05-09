@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import SongCard from './SongCard';
 import { Button } from './ui/Button';
-import { Input } from './ui/Input';
+import { SearchBar } from './ui/SearchBar';
 import { Chip } from './ui/Chip';
 import ProgressChecklist from '../onboarding/ProgressChecklist';
 import { CalendarWidget } from './ui/CalendarWidget';
@@ -127,19 +127,13 @@ export default function Dashboard({
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
           {/* Search Bar - hidden on mobile header, we'll put it in content below */}
-          <div className="relative w-full sm:w-64 hidden sm:block" ref={searchContainerRef}>
-            <Input
+          <div className="relative w-full sm:w-72 hidden sm:block" ref={searchContainerRef}>
+            <SearchBar
               ref={searchInputRef}
-              placeholder="Search songs…"
+              placeholder="Search songs by title or artist…"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onFocus={() => setSearchFocused(true)}
-              prefix={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
-              }
             />
             {searchFocused && searchQuery.trim().length > 0 && (
               <div className="absolute top-full right-0 left-0 sm:left-auto sm:w-80 mt-2 rounded-xl border border-white/10 bg-[rgba(20,16,28,0.95)] backdrop-blur-md shadow-xl z-50 overflow-hidden divide-y divide-white/10 max-h-[400px] overflow-y-auto">
