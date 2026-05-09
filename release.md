@@ -8,6 +8,62 @@ the Settings hub and About card.
 
 ---
 
+## 0.0.3-pre-alpha
+
+### Setlist builder
+
+- **Save / Cancel bar pins to the viewport bottom.** The previous
+  sticky bar would float mid-page when the form was short. The
+  builder root is now `flex flex-col min-h-screen` with the form area
+  marked `flex-1`, so the spacer fills the gap and the action bar
+  always lands flush at the bottom of `<main>`. Long forms still
+  pin via `position: sticky bottom-0` and the bar still respects the
+  desktop sidebar (it doesn't run underneath).
+- **Setlist rows show the song's structure instead of the artist.**
+  In a setlist context the section flow (`Verse · Chorus · Bridge ·
+  Chorus`) is the actionable bit — that's what the leader needs at a
+  glance. Both `SetlistItemRow` (builder) and `SetlistOverview`
+  (viewer) derive the structure from
+  `song.structure ?? sections.map(s => s.type)` and render it under
+  the title. Falls back to nothing if the song has no structure.
+- **Import .zip icon flipped.** The library import button now shows
+  a download arrow (into the tray) instead of an upload arrow (out
+  of the tray) so it reads correctly as importing.
+
+### Practice / Performance headers
+
+- **Plain key list in the picker.** Dropped the "(+N)" semitone
+  suffix from the key dropdown options across Practice, Performance,
+  and the chart view. The trigger already shows the active key; the
+  per-row offset clutter wasn't earning its keep.
+- **Chevron + close X share the same chrome.** The collapse chevron
+  was previously forced to gray-500 with a hover override; both
+  controls now use the standard `ghost` IconButton variant so they
+  render with matching color and weight.
+- **Controls stop jumping rows on collapse.** The title row always
+  renders, with chevron + X anchored to the right end. Collapsing
+  hides the title + meta + Practice badge inside that row instead of
+  removing the row, so the buttons keep their position.
+- **Structure ribbon stays useful when collapsed.** Tapping the
+  collapse chevron now folds the dedicated ribbon row into the title
+  row itself — the slim strip carries the structure ribbon plus the
+  chevron + X. Expanded layout is unchanged: title row on top, ribbon
+  row below (with the Edit-structure pencil in Practice).
+- **Per-song note now visible in Performance.** `cur.note` from the
+  setlist builder is rendered above the chart in `PerformanceView`,
+  using the same warning-pill treatment `SetlistPlayer` already
+  applies, so live cues actually reach the leader during a service.
+
+### Dashboard
+
+- **No placeholder tag chip when a setlist has no tags.** The
+  upcoming-setlist hero card on the dashboard previously fell back
+  to a generic "Live Show" chip when the setlist was untagged. The
+  whole tag row now hides instead — same behaviour `SetlistCard`
+  picked up in 0.0.2.
+
+---
+
 ## 0.0.2-pre-alpha
 
 ### Setlist builder
