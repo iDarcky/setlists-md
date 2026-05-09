@@ -237,9 +237,16 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                   <p className="text-heading-14 text-[var(--ds-gray-1000)] m-0 truncate">
                     {song.title}
                   </p>
-                  <p className="text-copy-12 text-[var(--ds-gray-700)] m-0 mt-0.5 truncate">
-                    {song.artist}
-                  </p>
+                  {/* Show the song's section flow instead of the artist — the
+                      structure is the actionable bit in a setlist context. */}
+                  {(() => {
+                    const flow = (song.structure || song.sections?.map(s => s.type) || []).join(' · ');
+                    return flow ? (
+                      <p className="text-copy-12 text-[var(--ds-gray-700)] m-0 mt-0.5 truncate">
+                        {flow}
+                      </p>
+                    ) : null;
+                  })()}
                   {item.note && (
                     <p className="text-copy-12 text-[var(--ds-gray-600)] italic m-0 mt-1 whitespace-pre-wrap break-words">
                       {item.note}

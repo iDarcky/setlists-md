@@ -170,8 +170,9 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
           {headerControls}
         </div>
 
-        {/* Structure ribbon — songs only, hidden when collapsed. */}
-        {!headerCollapsed && !cur.isBreak && cur.song.sections?.length > 0 && (
+        {/* Structure ribbon — songs only. Stays visible when the title row
+            collapses so the user can still see (and tap) the section flow. */}
+        {!cur.isBreak && cur.song.sections?.length > 0 && (
           <div className="a4-container flex items-center gap-1 pb-2 pt-0">
             <div className="flex-1 overflow-x-auto no-scrollbar">
               <StructureRibbon
