@@ -312,8 +312,11 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
             </div>
           </div>
 
-          {/* Right column: song library picker */}
-          <div className="lg:w-[320px] shrink-0">
+          {/* Right column: song library picker — pinned on desktop so it
+              stays in view as the user scrolls a long set of items below.
+              `top-20` clears the sticky ScreenHeader; the height clamp
+              leaves room for the bottom action bar at the foot of <main>. */}
+          <div className="lg:w-[320px] shrink-0 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto">
             <SetlistSongPicker
               songs={songs}
               currentItems={items}
@@ -327,11 +330,12 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
       {/* ── Sticky bottom action bar ──
           Save lives here so it's always thumb-reachable on tablets/phones
           without scrolling, and so it pairs naturally with Cancel — the
-          standard form pattern. The whole bar floats above the page with
-          the same frosted treatment as the top header. */}
+          standard form pattern. Sticky (not fixed) so the bar stops at the
+          edge of <main> on desktop instead of running under the sidebar. */}
       <div
-        className="fixed left-0 right-0 bottom-0 z-30 border-t border-[var(--ds-gray-300)] bg-[color-mix(in_srgb,var(--ds-background-100)_85%,transparent)] backdrop-blur-md"
+        className="sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)]"
         style={{
+          background: 'var(--header-bg-blur)',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
