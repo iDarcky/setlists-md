@@ -8,6 +8,9 @@ import {
   sectionStyle,
   compactLabel,
   ALL_KEYS,
+  circleOfFifthsDistance,
+  keyCompatibilityScore,
+  tempoProximityScore,
 } from '../music';
 
 describe('transposeChord', () => {
@@ -160,5 +163,57 @@ describe('ALL_KEYS', () => {
   it('has 12 unique keys', () => {
     expect(ALL_KEYS).toHaveLength(12);
     expect(new Set(ALL_KEYS).size).toBe(12);
+  });
+});
+
+describe('circleOfFifthsDistance', () => {
+  it('returns 0 for identical major keys', () => {
+    expect(circleOfFifthsDistance('C', 'C')).toBe(0);
+    expect(circleOfFifthsDistance('G', 'G')).toBe(0);
+  });
+
+  it('treats relative minor as same slot', () => {
+    // Am ↔ C, Em ↔ G
+    expect(circleOfFifthsDistance('Am', 'C')).toBe(0);
+    expect(circleOfFifthsDistance('Em', 'G')).toBe(0);
+  });
+
+  it('returns 1 for perfect 5th and perfect 4th', () => {
+    expect(circleOfFifthsDistance('C', 'G')).toBe(1);  // 5th
+    expect(circleOfFifthsDistance('C', 'F')).toBe(1);  // 4th
+  });
+
+  it('returns 6 for tritone-distant keys', () => {
+    expect(circleOfFifthsDistance('C', 'F#')).toBe(6);
+  });
+
+  it('returns null for unknown keys', () => {
+    expect(circleOfFifthsDistance('Q', 'C')).toBe(null);
+  });
+});
+
+describe('keyCompatibilityScore', () => {
+  it('returns 1 for identical keys', () => {
+    expect(keyCompatibilityScore('C', 'C')).toBe(1);
+  });
+  it('decays linearly with distance', () => {
+    expect(keyCompatibilityScore('C', 'G')).toBeCloseTo(1 - 1 / 6, 5); // 1 step
+    expect(keyCompatibilityScore('C', 'F#')).toBeCloseTo(0, 5);        // 6 steps
+  });
+});
+
+describe('tempoProximityScore', () => {
+  it('returns 1 at zero delta', () => {
+    expect(tempoProximityScore(120, 120)).toBe(1);
+  });
+  it('decays for larger BPM gaps', () => {
+    const close = tempoProximityScore(120, 125);
+    const far = tempoProximityScore(120, 150);
+    expect(close).toBeGreaterThan(far);
+    expect(far).toBeGreaterThan(0);
+    expect(far).toBeLessThan(0.5);
+  });
+  it('handles missing tempos by defaulting to 0.5', () => {
+    expect(tempoProximityScore(undefined, undefined)).toBe(0.5);
   });
 });

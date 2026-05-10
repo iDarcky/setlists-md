@@ -125,35 +125,78 @@ export function parseSongMd(text) {
         ? meta.structure.split(',').map(s => s.trim()).filter(Boolean)
         : sections.map(s => s.type)),
     sections,
+    // Arrangement linkage — null when the file is a standalone (single-arrangement) song.
+    songId: meta.songid || null,
+    arrangementId: meta.arrangementid || null,
+    arrangementName: meta.arrangementname || null,
   };
 }
 
-// Convert a song object back to .md format
-export function songToMd(song) {
+// Convert a song object back to .md format.
+// Accepts both the v2 song shape (with arrangements[]) and the legacy flat
+// shape. For v2 songs, pass `arrangement` to choose which arrangement to
+// serialize; omitted, the default arrangement is used. The emitted .md
+// includes `songId` + `arrangementId` + `arrangementName` frontmatter so
+// multiple files for one song can be re-grouped on import.
+export function songToMd(song, arrangement) {
+  // Resolve a flat view of the song so the rest of this function can stay
+  // shape-agnostic.
+  let arr = arrangement;
+  let isV2 = Array.isArray(song?.arrangements) && song.arrangements.length > 0;
+  if (isV2 && !arr) {
+    arr = song.arrangements.find(a => a.id === song.defaultArrangementId) || song.arrangements[0];
+  }
+  const view = isV2
+    ? {
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        ccli: song.ccli,
+        tags: song.tags,
+        spotify: song.spotify,
+        youtube: song.youtube,
+        key: arr?.key,
+        tempo: arr?.tempo,
+        time: arr?.time,
+        capo: arr?.capo,
+        notes: arr?.notes,
+        structure: arr?.structure,
+        sections: arr?.sections || [],
+        _songId: song.id,
+        _arrangementId: arr?.id,
+        _arrangementName: arr?.name,
+      }
+    : song;
+
   let md = '---\n';
-  if (song.id) md += `id: ${song.id}\n`;
-  md += `title: ${song.title}\n`;
-  md += `artist: ${song.artist}\n`;
-  md += `key: ${song.key}\n`;
-  md += `tempo: ${song.tempo}\n`;
-  md += `time: ${song.time}\n`;
-  if (song.ccli) md += `ccli: "${song.ccli}"\n`;
-  if (song.tags?.length) md += `tags: [${song.tags.join(', ')}]\n`;
-  if (song.spotify) md += `spotify: ${song.spotify}\n`;
-  if (song.youtube) md += `youtube: ${song.youtube}\n`;
-  if (song.capo) md += `capo: ${song.capo}\n`;
-  if (song.notes) md += `notes: ${song.notes}\n`;
+  if (view.id) md += `id: ${view.id}\n`;
+  md += `title: ${view.title}\n`;
+  md += `artist: ${view.artist}\n`;
+  md += `key: ${view.key}\n`;
+  md += `tempo: ${view.tempo}\n`;
+  md += `time: ${view.time}\n`;
+  if (view.ccli) md += `ccli: "${view.ccli}"\n`;
+  if (view.tags?.length) md += `tags: [${view.tags.join(', ')}]\n`;
+  if (view.spotify) md += `spotify: ${view.spotify}\n`;
+  if (view.youtube) md += `youtube: ${view.youtube}\n`;
+  if (view.capo) md += `capo: ${view.capo}\n`;
+  if (view.notes) md += `notes: ${view.notes}\n`;
   // Use explicit structure if present, otherwise fallback to section order
-  const structure = (song.structure && song.structure.length > 0)
-    ? song.structure
-    : song.sections.map(s => s.type);
+  const structure = (view.structure && view.structure.length > 0)
+    ? view.structure
+    : view.sections.map(s => s.type);
 
   if (structure.length) {
     md += `structure: [${structure.join(', ')}]\n`;
   }
+  if (view._songId && view._arrangementId) {
+    md += `songId: ${view._songId}\n`;
+    md += `arrangementId: ${view._arrangementId}\n`;
+    if (view._arrangementName) md += `arrangementName: ${view._arrangementName}\n`;
+  }
   md += '---\n\n';
 
-  for (const sec of song.sections) {
+  for (const sec of view.sections) {
     md += `## ${sec.type}\n`;
     if (sec.note) md += `> ${sec.note}\n`;
     md += sec.lines.map(l => {
@@ -330,6 +373,7 @@ export function parseFrontmatterFields(frontmatter) {
     title: '', artist: '', key: 'C', tempo: '120', time: '4/4',
     structure: '', ccli: '', tags: '', capo: '',
     spotify: '', youtube: '', notes: '',
+    songid: '', arrangementid: '', arrangementname: '',
   };
   if (!frontmatter) return fields;
   frontmatter.split('\n').forEach(line => {
@@ -361,5 +405,8 @@ export function serializeFrontmatterFields(fields) {
   if (fields.spotify) lines.push(`spotify: ${fields.spotify}`);
   if (fields.youtube) lines.push(`youtube: ${fields.youtube}`);
   if (fields.notes) lines.push(`notes: ${fields.notes}`);
+  if (fields.songid) lines.push(`songId: ${fields.songid}`);
+  if (fields.arrangementid) lines.push(`arrangementId: ${fields.arrangementid}`);
+  if (fields.arrangementname) lines.push(`arrangementName: ${fields.arrangementname}`);
   return lines.join('\n');
 }

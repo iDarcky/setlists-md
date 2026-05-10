@@ -14,6 +14,7 @@
 // if either file's print styles change meaningfully.
 
 import { transposeKey } from '../music';
+import { resolveSongView } from '../arrangements';
 import {
   escapeHtml,
   buildSongBody,
@@ -659,7 +660,8 @@ function renderBreakBanner(item) {
 }
 
 function renderSongRow(item, songs, songIndex) {
-  const song = songs.find(s => s.id === item.songId);
+  const raw = songs.find(s => s.id === item.songId);
+  const song = raw ? resolveSongView(raw, item.arrangementId) : null;
   if (!song) return '';
   const num = String(songIndex).padStart(2, '0');
   const transpose = item.transpose || 0;
@@ -707,7 +709,8 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
     songsHtml = items
       .filter(it => it.type !== 'break')
       .map(item => {
-        const song = songs.find(s => s.id === item.songId);
+        const raw = songs.find(s => s.id === item.songId);
+        const song = raw ? resolveSongView(raw, item.arrangementId) : null;
         if (!song) return '';
         const transpose = item.transpose || 0;
         const noteOverride = item.note ? item.note : null;

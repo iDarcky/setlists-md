@@ -2,6 +2,7 @@ import { getProvider } from './provider';
 import { getSyncState, updateSyncManifest, updateSetlistManifest, updateTokens, isTokenExpired } from './tokens';
 import { SONGS_FOLDER, SETLISTS_FOLDER, SYNC_DEBOUNCE_MS } from './constants';
 import { parseSongMd, songToMd, generateId } from '../parser';
+import { songFromFlat, withArrangement } from '../arrangements';
 
 function quickHash(str) {
   let hash = 0;
@@ -114,14 +115,32 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal') {
                 conflicts.push({ kind: 'song', id: songId, title: localSong.title });
               }
             }
-            updatedSongs[existingIdx] = { ...parsed, id: songId };
+            // For v2 songs, merge the remote arrangement into the existing
+            // arrangements rather than replacing the whole song object.
+            const targetArrId = parsed.arrangementId || localSong.defaultArrangementId;
+            const next = withArrangement(localSong, targetArrId, (a) => ({
+              ...a,
+              key: parsed.key, tempo: parsed.tempo, time: parsed.time,
+              capo: parsed.capo, notes: parsed.notes,
+              structure: parsed.structure, sections: parsed.sections,
+            }));
+            // Carry song-level fields from the remote payload.
+            updatedSongs[existingIdx] = {
+              ...next,
+              title: parsed.title || next.title,
+              artist: parsed.artist || next.artist,
+              ccli: parsed.ccli || next.ccli,
+              tags: parsed.tags || next.tags,
+              spotify: parsed.spotify || next.spotify,
+              youtube: parsed.youtube || next.youtube,
+            };
           } else {
-            updatedSongs.push({ ...parsed, id: songId });
+            updatedSongs.push(songFromFlat({ ...parsed, id: songId }));
           }
         } else {
           // New song from remote
           songId = parsed.id || generateId();
-          updatedSongs.push({ ...parsed, id: songId });
+          updatedSongs.push(songFromFlat({ ...parsed, id: songId }));
         }
 
         manifest[songId] = {

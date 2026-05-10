@@ -12,7 +12,7 @@ const FIELDS = [
   { key: 'notes', label: 'Notes', placeholder: 'Performance notes', span: 2 },
 ];
 
-export default function MetadataPanel({ md, onChange, isOpen, onToggle }) {
+export default function MetadataPanel({ md, onChange, isOpen, onToggle, keyHistory }) {
   const isInternalUpdate = useRef(false);
 
   const [fields, setFields] = useState(() => parseFrontmatterFields(splitMd(md).frontmatter));
@@ -66,6 +66,26 @@ export default function MetadataPanel({ md, onChange, isOpen, onToggle }) {
               />
             </label>
           ))}
+          {keyHistory && Object.keys(keyHistory).length > 0 && (
+            <div className="col-span-2">
+              <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] block mb-1">
+                Most played in
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(keyHistory)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([k, count]) => (
+                    <span
+                      key={k}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-label-11 border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)]"
+                    >
+                      <span className="text-[var(--chord)] font-semibold">{k}</span>
+                      <span className="text-[var(--ds-gray-600)] tabular-nums">·{count}</span>
+                    </span>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

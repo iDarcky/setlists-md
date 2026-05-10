@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields } from '../parser';
 import { ALL_KEYS } from '../music';
+import { addArrangement, deleteArrangement, renameArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
 import WriteTab from './editor/WriteTab';
 import ArrangeTab from './editor/ArrangeTab';
 import MetadataPanel from './editor/MetadataPanel';
@@ -45,8 +46,27 @@ time: 4/4
 
 export default function Editor({ song, onSave, onBack, onDelete, onMove, activeLibrary, team, importProgress }) {
   const confirm = useConfirm();
-  const [md, setMd] = useState(song ? songToMd(song) : DEFAULT_MD);
-  const [savedMd, setSavedMd] = useState(song ? songToMd(song) : DEFAULT_MD);
+
+  // Working copy of the song we're editing. For a new song, songFromFlat
+  // produces a fresh v2 song with one "Main Arrangement". For existing v2
+  // songs, we hold a reference and patch arrangements as the user edits.
+  const [workingSong, setWorkingSong] = useState(() => {
+    if (song && Array.isArray(song.arrangements)) return song;
+    if (song) return songFromFlat(song);
+    return songFromFlat({ id: generateId(), title: 'New Song', artist: '', key: 'C', tempo: 120, time: '4/4', sections: [] });
+  });
+
+  const [activeArrangementId, setActiveArrangementId] = useState(
+    workingSong.defaultArrangementId || workingSong.arrangements?.[0]?.id
+  );
+
+  const initialMd = useMemo(() => {
+    const arr = getArrangement(workingSong, activeArrangementId);
+    return song ? songToMd(workingSong, arr) : DEFAULT_MD;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [md, setMd] = useState(initialMd);
+  const [savedMd, setSavedMd] = useState(initialMd);
   const [activeTab, setActiveTab] = useState('arrange');
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
@@ -64,13 +84,103 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
 
   const handleSave = useCallback(() => {
     if (!preview) return;
-    onSave({ ...preview, id: song?.id || generateId() });
+    // Build the next v2 song by patching the active arrangement's content
+    // from the freshly parsed preview, plus carrying over the song-level
+    // fields the preview frontmatter exposes (title/artist/etc).
+    const nextSong = withArrangement(workingSong, activeArrangementId, (a) => ({
+      ...a,
+      key: preview.key,
+      tempo: preview.tempo,
+      time: preview.time,
+      capo: preview.capo,
+      notes: preview.notes,
+      structure: Array.isArray(preview.structure) ? preview.structure : a.structure,
+      sections: Array.isArray(preview.sections) ? preview.sections : a.sections,
+    }));
+    nextSong.title = preview.title || nextSong.title;
+    nextSong.artist = preview.artist || nextSong.artist;
+    if (preview.ccli !== undefined) nextSong.ccli = preview.ccli;
+    if (preview.tags !== undefined) nextSong.tags = preview.tags;
+    if (preview.spotify !== undefined) nextSong.spotify = preview.spotify;
+    if (preview.youtube !== undefined) nextSong.youtube = preview.youtube;
+    setWorkingSong(nextSong);
+    onSave(nextSong);
     setSavedMd(md);
     toast({
       title: 'Song saved',
       description: preview.title || 'Untitled',
     });
-  }, [preview, song, onSave, md]);
+  }, [preview, onSave, md, workingSong, activeArrangementId]);
+
+  // Switch the textarea content to a different arrangement. Saves the
+  // current edits into workingSong first so the user doesn't lose them.
+  const switchArrangement = useCallback((nextArrId) => {
+    if (nextArrId === activeArrangementId) return;
+    let next = workingSong;
+    if (preview && isDirty) {
+      next = withArrangement(workingSong, activeArrangementId, (a) => ({
+        ...a,
+        key: preview.key, tempo: preview.tempo, time: preview.time,
+        capo: preview.capo, notes: preview.notes,
+        structure: preview.structure, sections: preview.sections,
+      }));
+      setWorkingSong(next);
+    }
+    const arr = getArrangement(next, nextArrId);
+    const newMd = songToMd(next, arr);
+    setActiveArrangementId(nextArrId);
+    setMd(newMd);
+    setSavedMd(newMd);
+  }, [activeArrangementId, workingSong, preview, isDirty]);
+
+  const handleAddArrangement = useCallback(async () => {
+    const name = (typeof window !== 'undefined' && window.prompt)
+      ? window.prompt('Arrangement name:', `Arrangement ${(workingSong.arrangements?.length || 0) + 1}`)
+      : null;
+    if (!name) return;
+    const seedArr = getArrangement(workingSong, activeArrangementId);
+    const { song: nextSong, arrangementId: newId } = addArrangement(workingSong, name.trim(), seedArr);
+    setWorkingSong(nextSong);
+    const arr = getArrangement(nextSong, newId);
+    const newMd = songToMd(nextSong, arr);
+    setActiveArrangementId(newId);
+    setMd(newMd);
+    setSavedMd(newMd);
+    toast({ title: 'Arrangement added', description: name });
+  }, [workingSong, activeArrangementId]);
+
+  const handleRenameArrangement = useCallback(() => {
+    const current = getArrangement(workingSong, activeArrangementId);
+    const name = (typeof window !== 'undefined' && window.prompt)
+      ? window.prompt('Rename arrangement:', current?.name || '')
+      : null;
+    if (!name || !name.trim()) return;
+    const next = renameArrangement(workingSong, activeArrangementId, name.trim());
+    setWorkingSong(next);
+    // Reseed md so frontmatter shows the new name
+    const arr = getArrangement(next, activeArrangementId);
+    setMd(songToMd(next, arr));
+    setSavedMd(songToMd(next, arr));
+  }, [workingSong, activeArrangementId]);
+
+  const handleDeleteArrangement = useCallback(async () => {
+    if ((workingSong.arrangements?.length || 0) <= 1) return;
+    const current = getArrangement(workingSong, activeArrangementId);
+    const ok = await confirm({
+      title: 'Delete arrangement?',
+      description: `"${current?.name || 'This arrangement'}" will be removed from this song.`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    const next = deleteArrangement(workingSong, activeArrangementId);
+    setWorkingSong(next);
+    const newActive = next.defaultArrangementId;
+    const arr = getArrangement(next, newActive);
+    setActiveArrangementId(newActive);
+    setMd(songToMd(next, arr));
+    setSavedMd(songToMd(next, arr));
+  }, [workingSong, activeArrangementId, confirm]);
 
   const handleBack = useCallback(async () => {
     if (isDirty) {
@@ -186,6 +296,41 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
           )}
 
           <div className="flex items-center gap-2 ml-auto">
+            {/* Arrangement controls — surface even when there's only one so
+                the user always knows arrangements exist. */}
+            <select
+              value={activeArrangementId || ''}
+              onChange={e => switchArrangement(e.target.value)}
+              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 text-[var(--ds-gray-1000)] outline-none cursor-pointer max-w-[140px] truncate"
+              aria-label="Arrangement"
+              title="Switch arrangement"
+            >
+              {workingSong.arrangements?.map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+            <IconButton
+              variant="ghost"
+              size="xs"
+              onClick={handleAddArrangement}
+              aria-label="Add arrangement"
+              title="Add arrangement"
+            >+</IconButton>
+            <IconButton
+              variant="ghost"
+              size="xs"
+              onClick={handleRenameArrangement}
+              aria-label="Rename arrangement"
+              title="Rename arrangement"
+            >✎</IconButton>
+            <IconButton
+              variant="ghost"
+              size="xs"
+              onClick={handleDeleteArrangement}
+              aria-label="Delete arrangement"
+              title="Delete arrangement"
+              disabled={(workingSong.arrangements?.length || 0) <= 1}
+            >🗑</IconButton>
             <select
               value={currentKey}
               onChange={e => updateField('key', e.target.value)}
@@ -258,6 +403,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
           onChange={setMd}
           isOpen={metaPanelOpen}
           onToggle={() => setMetaPanelOpen(v => !v)}
+          keyHistory={workingSong.keyHistory}
         />
 
         {/* Tabs + tools */}

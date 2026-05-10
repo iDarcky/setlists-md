@@ -2,6 +2,11 @@ import React from 'react';
 import { Card } from './ui/Card';
 import { cn } from '../lib/utils';
 
+function defaultArr(song) {
+  if (!Array.isArray(song?.arrangements)) return song;
+  return song.arrangements.find(a => a.id === song.defaultArrangementId) || song.arrangements[0] || song;
+}
+
 function formatRelativeTime(ts) {
   if (!ts) return null;
   const diff = Date.now() - ts;
@@ -16,6 +21,10 @@ function formatRelativeTime(ts) {
 }
 
 export default function SongCard({ song, onClick, variant = 'card', showTags = false, selected = false }) {
+  const arr = defaultArr(song);
+  const songKey = arr?.key || song?.key || 'C';
+  const songTempo = arr?.tempo ?? song?.tempo;
+  const arrCount = Array.isArray(song?.arrangements) ? song.arrangements.length : 1;
   if (variant === 'row') {
     return (
       <div
@@ -36,6 +45,11 @@ export default function SongCard({ song, onClick, variant = 'card', showTags = f
                 {song.artist}
               </span>
             )}
+            {arrCount > 1 && (
+              <span className="text-label-11 text-[var(--text-2)] px-2 py-0.5 rounded-md border border-[var(--border-1)] bg-[var(--bg-1)]">
+                {arrCount} arrangements
+              </span>
+            )}
             {showTags && song.tags?.length > 0 && song.tags.map(tag => (
               <span
                 key={tag}
@@ -49,11 +63,11 @@ export default function SongCard({ song, onClick, variant = 'card', showTags = f
         <div className="flex flex-col items-end gap-1 ml-4 shrink-0">
           <div className="flex items-center gap-1.5">
             <span className="text-label-12-mono text-[var(--chord)] font-semibold">
-              {song.key || 'C'}
+              {songKey}
             </span>
             <span className="text-[var(--text-2)] text-[12px] opacity-60">•</span>
             <span className="text-label-12-mono text-[var(--text-2)]">
-              {song.tempo ? `${song.tempo} BPM` : 'No Tempo'}
+              {songTempo ? `${songTempo} BPM` : 'No Tempo'}
             </span>
           </div>
           {song.updatedAt && (

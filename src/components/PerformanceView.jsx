@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { transposeKey, ALL_KEYS, semitonesBetween } from '../music';
+import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
 import { StructureRibbon } from './StructureRibbon';
 import FloatingNavPill from './ui/FloatingNavPill';
@@ -27,7 +28,8 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
     setlist.items
       .map(it => {
         if (it.type === 'break') return { ...it, isBreak: true };
-        const song = songs.find(s => s.id === it.songId);
+        const raw = songs.find(s => s.id === it.songId);
+        const song = resolveSongView(raw, it.arrangementId);
         return song ? { ...it, song } : null;
       })
       .filter(Boolean),

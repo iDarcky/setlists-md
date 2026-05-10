@@ -28,6 +28,12 @@ function formatRelativeTime(ts) {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+function defaultArrangementKey(song) {
+  if (!Array.isArray(song?.arrangements)) return song?.key || 'C';
+  const arr = song.arrangements.find(a => a.id === song.defaultArrangementId) || song.arrangements[0];
+  return arr?.key || 'C';
+}
+
 function getGroupKey(song, sortMode) {
   if (sortMode === 'title') {
     const first = (song.title || '').trim()[0]?.toUpperCase();
@@ -37,7 +43,7 @@ function getGroupKey(song, sortMode) {
     return (song.artist || 'Unknown').trim();
   }
   if (sortMode === 'key') {
-    return (song.key || 'C').replace(/[#bmb]/g, '').toUpperCase();
+    return defaultArrangementKey(song).replace(/[#bmb]/g, '').toUpperCase();
   }
   return '#';
 }
