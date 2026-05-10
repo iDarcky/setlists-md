@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields } from '../../parser';
+import ArrangementMenu from './ArrangementMenu';
 
 const FIELDS = [
   { key: 'title', label: 'Title', placeholder: 'Song title', span: 2 },
@@ -12,7 +13,12 @@ const FIELDS = [
   { key: 'notes', label: 'Notes', placeholder: 'Performance notes', span: 2 },
 ];
 
-export default function MetadataPanel({ md, onChange, isOpen, onToggle, keyHistory }) {
+export default function MetadataPanel({
+  md, onChange, isOpen, onToggle, keyHistory,
+  arrangements, activeArrangementId, defaultArrangementId,
+  onSwitchArrangement, onAddArrangement, onRenameArrangement,
+  onDeleteArrangement, onEditArrangements,
+}) {
   const isInternalUpdate = useRef(false);
 
   const [fields, setFields] = useState(() => parseFrontmatterFields(splitMd(md).frontmatter));
@@ -49,6 +55,23 @@ export default function MetadataPanel({ md, onChange, isOpen, onToggle, keyHisto
 
       {isOpen && (
         <div className="grid grid-cols-2 gap-2 pb-3">
+          {Array.isArray(arrangements) && arrangements.length > 0 && (
+            <div className="col-span-2 flex items-center gap-2">
+              <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">
+                Arrangement
+              </span>
+              <ArrangementMenu
+                arrangements={arrangements}
+                activeId={activeArrangementId}
+                defaultId={defaultArrangementId}
+                onSwitch={onSwitchArrangement}
+                onAdd={onAddArrangement}
+                onRename={onRenameArrangement}
+                onDelete={onDeleteArrangement}
+                onEdit={onEditArrangements}
+              />
+            </div>
+          )}
           {FIELDS.map(f => (
             <label
               key={f.key}

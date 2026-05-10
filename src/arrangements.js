@@ -107,6 +107,12 @@ export function renameArrangement(song, arrangementId, name) {
   return withArrangement(song, arrangementId, a => ({ ...a, name }));
 }
 
+export function setDefaultArrangement(song, arrangementId) {
+  if (!song || !Array.isArray(song.arrangements)) return song;
+  if (!song.arrangements.some(a => a.id === arrangementId)) return song;
+  return { ...song, defaultArrangementId: arrangementId, updatedAt: Date.now() };
+}
+
 // Build a v2 song from the pre-v2 flat fields (title/artist/key/sections/...).
 // Used by Editor/import flows that still produce a single arrangement.
 export function songFromFlat(flat) {

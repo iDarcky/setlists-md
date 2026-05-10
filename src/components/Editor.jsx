@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields } from '../parser';
 import { ALL_KEYS } from '../music';
-import { addArrangement, deleteArrangement, renameArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
+import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
 import WriteTab from './editor/WriteTab';
 import ArrangeTab from './editor/ArrangeTab';
 import MetadataPanel from './editor/MetadataPanel';
+import { EditArrangementsDialog } from './editor/ArrangementMenu';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { Tabs } from './ui/Tabs';
@@ -71,6 +72,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
   const [activeTab, setActiveTab] = useState('arrange');
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
+  const [editArrangementsOpen, setEditArrangementsOpen] = useState(false);
   const textareaRef = useRef(null);
   const isDirty = md !== savedMd;
 
@@ -182,6 +184,42 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
     setMd(songToMd(next, arr));
     setSavedMd(songToMd(next, arr));
   }, [workingSong, activeArrangementId, confirm]);
+
+  // Delete a specific arrangement by id (the dropdown's × delete; can be a
+  // non-active arrangement). If we delete the one we're currently editing,
+  // switch the editor to the new default arrangement.
+  const handleDeleteArrangementById = useCallback((id) => {
+    if ((workingSong.arrangements?.length || 0) <= 1) return;
+    const next = deleteArrangement(workingSong, id);
+    setWorkingSong(next);
+    if (id === activeArrangementId) {
+      const newActive = next.defaultArrangementId;
+      const arr = getArrangement(next, newActive);
+      setActiveArrangementId(newActive);
+      setMd(songToMd(next, arr));
+      setSavedMd(songToMd(next, arr));
+    }
+  }, [workingSong, activeArrangementId]);
+
+  const handleRenameArrangementById = useCallback((id, name) => {
+    if (!name || !name.trim()) return;
+    setWorkingSong(prev => {
+      const next = renameArrangement(prev, id, name.trim());
+      // If we renamed the arrangement currently showing in the editor,
+      // refresh `md` so the frontmatter reflects the new arrangementName.
+      if (id === activeArrangementId) {
+        const arr = getArrangement(next, id);
+        const newMd = songToMd(next, arr);
+        setMd(newMd);
+        setSavedMd(newMd);
+      }
+      return next;
+    });
+  }, [activeArrangementId]);
+
+  const handleSetDefaultArrangement = useCallback((id) => {
+    setWorkingSong(prev => setDefaultArrangement(prev, id));
+  }, []);
 
   const handleBack = useCallback(async () => {
     if (isDirty) {
@@ -334,67 +372,54 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
         }
       />
 
-      {/* ─── Arrangement / key / tempo / time controls ─── */}
+      {/* ─── Key / tempo / time toolbar + collapsible metadata ─── */}
       <div className="material-header border-b border-[var(--ds-gray-200)] pb-1" style={headerFrostStyle}>
         <div className="a4-container pt-2 flex flex-col gap-1">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <select
-              value={activeArrangementId || ''}
-              onChange={e => switchArrangement(e.target.value)}
-              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 text-[var(--ds-gray-1000)] outline-none cursor-pointer max-w-[160px] truncate"
-              aria-label="Arrangement"
-              title="Switch arrangement"
+              value={currentKey}
+              onChange={e => updateField('key', e.target.value)}
+              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
+              aria-label="Key"
             >
-              {workingSong.arrangements?.map(a => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
+              {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
             </select>
-            <IconButton variant="ghost" size="xs" onClick={handleAddArrangement} aria-label="Add arrangement" title="Add arrangement">+</IconButton>
-            <IconButton variant="ghost" size="xs" onClick={handleRenameArrangement} aria-label="Rename arrangement" title="Rename arrangement">✎</IconButton>
-            <IconButton
-              variant="ghost"
-              size="xs"
-              onClick={handleDeleteArrangement}
-              aria-label="Delete arrangement"
-              title="Delete arrangement"
-              disabled={(workingSong.arrangements?.length || 0) <= 1}
-            >🗑</IconButton>
-
-            <div className="ml-auto flex items-center gap-2">
-              <select
-                value={currentKey}
-                onChange={e => updateField('key', e.target.value)}
-                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
-                aria-label="Key"
-              >
-                {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
-              </select>
-              <input
-                type="number"
-                value={currentTempo}
-                onChange={e => updateField('tempo', e.target.value)}
-                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
-                min="30" max="300"
-                aria-label="Tempo"
-              />
-              <select
-                value={currentTime}
-                onChange={e => updateField('time', e.target.value)}
-                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
-                aria-label="Time signature"
-              >
-                {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
+            <input
+              type="number"
+              value={currentTempo}
+              onChange={e => updateField('tempo', e.target.value)}
+              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
+              min="30" max="300"
+              aria-label="Tempo"
+            />
+            <select
+              value={currentTime}
+              onChange={e => updateField('time', e.target.value)}
+              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
+              aria-label="Time signature"
+            >
+              {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
           </div>
 
-          {/* Collapsible metadata */}
+          {/* Collapsible metadata — Song Details now hosts the arrangement
+              picker, key history pills, and the rest of the song-level
+              fields. The picker is the single trigger Proclaim-style
+              dropdown. */}
           <MetadataPanel
             md={md}
             onChange={setMd}
             isOpen={metaPanelOpen}
             onToggle={() => setMetaPanelOpen(v => !v)}
             keyHistory={workingSong.keyHistory}
+            arrangements={workingSong.arrangements}
+            activeArrangementId={activeArrangementId}
+            defaultArrangementId={workingSong.defaultArrangementId}
+            onSwitchArrangement={switchArrangement}
+            onAddArrangement={handleAddArrangement}
+            onRenameArrangement={handleRenameArrangement}
+            onDeleteArrangement={handleDeleteArrangementById}
+            onEditArrangements={() => setEditArrangementsOpen(true)}
           />
 
           {/* Tabs + tools */}
@@ -433,6 +458,17 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
           <Button variant="brand" size="md" onClick={handleSave} disabled={!preview}>Save</Button>
         </div>
       </div>
+
+      <EditArrangementsDialog
+        open={editArrangementsOpen}
+        onClose={() => setEditArrangementsOpen(false)}
+        arrangements={workingSong.arrangements || []}
+        defaultId={workingSong.defaultArrangementId}
+        onRename={handleRenameArrangementById}
+        onDelete={handleDeleteArrangementById}
+        onSetDefault={handleSetDefaultArrangement}
+        onAdd={handleAddArrangement}
+      />
     </div>
   );
 }
