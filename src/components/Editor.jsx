@@ -372,34 +372,49 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
         }
       />
 
-      {/* ─── Key / tempo / time toolbar + collapsible metadata ─── */}
+      {/* ─── Song Details toggle + Key / tempo / time toolbar +
+          collapsible metadata. The toggle and the music meta share one
+          row so the header stays compact. ─── */}
       <div className="material-header border-b border-[var(--ds-gray-200)] pb-1" style={headerFrostStyle}>
         <div className="a4-container pt-2 flex flex-col gap-1">
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            <select
-              value={currentKey}
-              onChange={e => updateField('key', e.target.value)}
-              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
-              aria-label="Key"
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setMetaPanelOpen(v => !v)}
+              aria-expanded={metaPanelOpen}
+              className="inline-flex items-center gap-1.5 bg-transparent border-none cursor-pointer px-0 py-0.5"
             >
-              {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
-            </select>
-            <input
-              type="number"
-              value={currentTempo}
-              onChange={e => updateField('tempo', e.target.value)}
-              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
-              min="30" max="300"
-              aria-label="Tempo"
-            />
-            <select
-              value={currentTime}
-              onChange={e => updateField('time', e.target.value)}
-              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
-              aria-label="Time signature"
-            >
-              {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+              <span className="text-[10px] text-[var(--ds-gray-600)]">{metaPanelOpen ? '▾' : '▸'}</span>
+              <span className="text-label-11 font-semibold text-[var(--ds-gray-600)] uppercase tracking-wider">
+                Song Details
+              </span>
+            </button>
+            <div className="ml-auto flex items-center gap-2">
+              <select
+                value={currentKey}
+                onChange={e => updateField('key', e.target.value)}
+                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
+                aria-label="Key"
+              >
+                {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
+              </select>
+              <input
+                type="number"
+                value={currentTempo}
+                onChange={e => updateField('tempo', e.target.value)}
+                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
+                min="30" max="300"
+                aria-label="Tempo"
+              />
+              <select
+                value={currentTime}
+                onChange={e => updateField('time', e.target.value)}
+                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
+                aria-label="Time signature"
+              >
+                {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
           </div>
 
           {/* Collapsible metadata — Song Details now hosts the arrangement

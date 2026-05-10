@@ -41,18 +41,10 @@ export default function MetadataPanel({
     });
   }, [md, onChange]);
 
+  // The toggle button now lives on the controls row in Editor.jsx so the
+  // header stays compact. We only render the expanded body here.
   return (
     <div>
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-1.5 bg-transparent border-none cursor-pointer px-0 py-1.5 text-left"
-      >
-        <span className="text-[10px] text-[var(--ds-gray-600)]">{isOpen ? '▾' : '▸'}</span>
-        <span className="text-label-11 font-semibold text-[var(--ds-gray-600)] uppercase tracking-wider">
-          Song Details
-        </span>
-      </button>
-
       {isOpen && (
         <div className="grid grid-cols-2 gap-2 pb-3">
           {Array.isArray(arrangements) && arrangements.length > 0 && (
