@@ -8,6 +8,7 @@ import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { Tabs } from './ui/Tabs';
 import { toast } from './ui/use-toast';
+import { useConfirm } from './ui/useConfirmHook';
 import { headerFrostStyle } from '../lib/headerFrost';
 
 const TAB_LIST = [
@@ -43,11 +44,14 @@ time: 4/4
 `;
 
 export default function Editor({ song, onSave, onBack, onDelete, onMove, activeLibrary, team, importProgress }) {
+  const confirm = useConfirm();
   const [md, setMd] = useState(song ? songToMd(song) : DEFAULT_MD);
+  const [savedMd, setSavedMd] = useState(song ? songToMd(song) : DEFAULT_MD);
   const [activeTab, setActiveTab] = useState('arrange');
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
   const textareaRef = useRef(null);
+  const isDirty = md !== savedMd;
 
   // Parse md → preview with debounce
   useEffect(() => {
@@ -61,13 +65,50 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
   const handleSave = useCallback(() => {
     if (!preview) return;
     onSave({ ...preview, id: song?.id || generateId() });
-  }, [preview, song, onSave]);
+    setSavedMd(md);
+    toast({
+      title: 'Song saved',
+      description: preview.title || 'Untitled',
+    });
+  }, [preview, song, onSave, md]);
+
+  const handleBack = useCallback(async () => {
+    if (isDirty) {
+      const ok = await confirm({
+        title: 'Discard unsaved changes?',
+        description: 'You have unsaved edits. Leaving now will lose them.',
+        confirmLabel: 'Discard',
+        cancelLabel: 'Keep editing',
+        variant: 'danger',
+      });
+      if (!ok) return;
+    }
+    onBack?.();
+  }, [isDirty, confirm, onBack]);
+
+  // Warn before browser/tab close on unsaved edits.
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
   const handleImport = useCallback(async () => {
     try {
       const text = await navigator.clipboard.readText();
       if (!text.trim()) return;
-      if (md.trim() && !confirm('Replace current content with clipboard?')) return;
+      if (md.trim()) {
+        const ok = await confirm({
+          title: 'Replace content?',
+          description: 'The current editor content will be replaced with the clipboard contents.',
+          confirmLabel: 'Replace',
+        });
+        if (!ok) return;
+      }
       setMd(text);
     } catch {
       toast({
@@ -76,7 +117,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
         variant: 'error',
       });
     }
-  }, [md]);
+  }, [md, confirm]);
 
   const handleUndo = useCallback(() => {
     textareaRef.current?.focus();
@@ -119,7 +160,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
         <div className="a4-container pt-2 flex flex-col gap-1">
           {/* Row 1: back + title + key/bpm/time + actions */}
         <div className="flex items-center gap-2 mb-1">
-          <Button variant="ghost" size="xs" onClick={onBack}>←</Button>
+          <Button variant="ghost" size="xs" onClick={handleBack}>←</Button>
           <span className="text-heading-16 text-[var(--ds-gray-1000)] truncate max-w-[140px]">
             {preview?.title || (song ? 'Edit Song' : 'New Song')}
           </span>
@@ -171,12 +212,17 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
               <Button
                 variant="secondary"
                 size="xs"
-                onClick={() => {
+                onClick={async () => {
                   const target = activeLibrary === 'personal' ? team.id : 'personal';
                   const label = activeLibrary === 'personal' ? team.name : 'Personal Library';
-                  if (confirm(`Move to ${label}?`)) {
-                    onMove(target);
-                  }
+                  const ok = await confirm({
+                    title: `Move to ${label}?`,
+                    description: activeLibrary === 'personal'
+                      ? `"${preview?.title || song.title || 'this song'}" will be shared with everyone in ${team.name}.`
+                      : `"${preview?.title || song.title || 'this song'}" will be moved out of ${team.name} and into your personal library only.`,
+                    confirmLabel: 'Move',
+                  });
+                  if (ok) onMove(target);
                 }}
               >
                 Move to {activeLibrary === 'personal' ? 'Team' : 'Personal'}
@@ -184,7 +230,19 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
             )}
 
             {song && onDelete && (
-              <Button variant="error" size="xs" onClick={() => { if (confirm('Delete this song?')) onDelete(song.id); }}>
+              <Button
+                variant="error"
+                size="xs"
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: 'Delete song?',
+                    description: `"${preview?.title || song.title || 'Untitled'}" will be permanently removed. This cannot be undone.`,
+                    confirmLabel: 'Delete',
+                    variant: 'danger',
+                  });
+                  if (ok) onDelete(song.id);
+                }}
+              >
                 Delete
               </Button>
             )}

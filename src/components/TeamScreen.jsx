@@ -6,6 +6,7 @@ import ScreenHeader from './ui/ScreenHeader';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import UpgradeGate from './ui/UpgradeGate';
+import { useConfirm } from './ui/useConfirmHook';
 
 const TeamIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -444,6 +445,7 @@ function EditTeamForm({ team, onUpdate }) {
 }
 
 function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemove, onInvite, onCancelInvite, onLeave, onDelete, onUpdate }) {
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState('members');
   const seatsLeft = (team.max_seats || 10) - members.length - (invites?.length || 0);
 
@@ -564,10 +566,14 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => {
-                      if (window.confirm(`Delete "${team.name}"? This removes all members and cannot be undone.`)) {
-                        onDelete();
-                      }
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: `Delete "${team.name}"?`,
+                        description: 'All members will be removed and the team will be permanently deleted. This cannot be undone.',
+                        confirmLabel: 'Delete team',
+                        variant: 'danger',
+                      });
+                      if (ok) onDelete();
                     }}
                     className="text-[var(--ds-red-700)]"
                   >

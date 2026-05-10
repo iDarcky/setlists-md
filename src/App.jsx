@@ -1,5 +1,7 @@
 import { Toaster } from "./components/ui/Toaster";
 import { toast } from "./components/ui/use-toast";
+import { useConfirm } from "./components/ui/useConfirmHook";
+import OfflineBanner from "./components/ui/OfflineBanner";
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { parseSongMd, songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, getStorageEstimate, clearAll } from './storage';
@@ -117,6 +119,7 @@ function prefsEqual(a, b) {
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
   const { team } = useTeam();
+  const confirm = useConfirm();
   // PWA update prompt — toast appears when a new SW is downloaded.
   usePWAUpdate();
   // Native + iOS install affordance.
@@ -654,6 +657,32 @@ export default function App() {
     setSettingsPanel(nextPanel);
   };
 
+  // Fully close Settings — pop history until we land on a non-settings view,
+  // so the desktop modal × button always exits regardless of how many
+  // sub-panels the user drilled through.
+  const closeSettings = () => {
+    while (historyRef.current.length > 0) {
+      const prev = historyRef.current.pop();
+      if (prev && prev.view !== 'settings') {
+        setView(prev.view);
+        setCurrentSong(prev.song);
+        setCurrentSetlist(prev.setlist);
+        if (prev.settingsPanel !== undefined) setSettingsPanel(prev.settingsPanel);
+        setAccountWallTrigger(prev.accountWall ?? null);
+        setShowFounderNote(!!prev.founderNote);
+        setShowIOSHint(!!prev.iosHint);
+        setShowWakeLockExplainer(!!prev.wakeLockExplainer);
+        if (typeof prev.isFullscreen === 'boolean') setIsFullscreen(prev.isFullscreen);
+        setSessionStats(prev.sessionStats ?? null);
+        setSessionSource(prev.sessionSource ?? null);
+        return;
+      }
+    }
+    // Nothing else in history — fall back to home.
+    setView('home');
+    setSettingsPanel('hub');
+  };
+
   // Modal openers — each one pushes history first so hardware Back closes
   // the modal instead of bypassing it. Modal close handlers call
   // window.history.back() which triggers popstate → goBack → modal hides.
@@ -1001,13 +1030,18 @@ export default function App() {
 
   // Setlist export/import
   const handleExportSetlist = async (sl) => {
-    const blob = await exportSetlistZip(sl, songs);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = slugify(sl.name || 'setlist') + '.zip';
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const blob = await exportSetlistZip(sl, songs);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = slugify(sl.name || 'setlist') + '.zip';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Setlist exported', description: `${sl.name || 'Untitled'}.zip` });
+    } catch (err) {
+      toast({ title: 'Export failed', description: err?.message || 'Could not build the .zip file.', variant: 'error' });
+    }
   };
 
   const handleExportSetlistPdf = (sl) => {
@@ -1076,10 +1110,12 @@ export default function App() {
     ? profile.plan.charAt(0).toUpperCase() + profile.plan.slice(1)
     : 'Free';
   const handleSignOut = async () => {
-    if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-      const ok = window.confirm('Sign out? Your songs and setlists stay on this device.');
-      if (!ok) return;
-    }
+    const ok = await confirm({
+      title: 'Sign out?',
+      description: 'Your songs and setlists stay on this device. You can sign back in any time to resume cloud sync.',
+      confirmLabel: 'Sign out',
+    });
+    if (!ok) return;
     try {
       await signOut();
       toast({ title: 'Signed out' });
@@ -1093,6 +1129,7 @@ export default function App() {
     <ErrorBoundary>
     <Suspense fallback={lazyFallback}>
       <Toaster />
+      <OfflineBanner />
       {view === 'signin' && (
         <AuthScreen onBack={goBack} onSignedIn={() => goToMainView('home')} defaultMode={authStartMode} />
       )}
@@ -1400,6 +1437,7 @@ export default function App() {
               settings={settings}
               onUpdate={setSettings}
               onBack={goBack}
+              onClose={closeSettings}
               panel={settingsPanel}
               onChangePanel={goSettingsPanel}
               onClearAll={handleClearAll}
@@ -1413,6 +1451,10 @@ export default function App() {
                   a.download = slugify(s.title) + '.md';
                   a.click();
                   URL.revokeObjectURL(url);
+                });
+                toast({
+                  title: 'Library exported',
+                  description: `${songs.length} song${songs.length === 1 ? '' : 's'} downloaded as .md files.`,
                 });
               }}
               songCount={songs.length}

@@ -3,16 +3,9 @@ import PageHeader from './PageHeader';
 import SetlistCard from './SetlistCard';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
-import { Input } from './ui/Input';
+import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
 import { useIsDesktop } from '../lib/useMediaQuery';
-
-const SearchIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
-    <circle cx="11" cy="11" r="8" />
-    <path d="m21 21-4.3-4.3" />
-  </svg>
-);
 
 const SetlistOverview = lazy(() => import('./SetlistOverview'));
 
@@ -141,12 +134,11 @@ export default function Setlists({
         {/* Sticky Search — hidden on mobile (global top-bar covers it) */}
         <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)] hidden sm:block">
           <div className="a4-container pt-6 pb-4 flex items-center gap-2">
-            <Input
+            <SearchBar
               className="flex-1"
-              placeholder="Search setlists…"
+              placeholder="Search setlists by name, location, or tag…"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              prefix={<SearchIcon />}
             />
 
             {/* Desktop-only quick actions (FAB is hidden on lg+) */}

@@ -1,6 +1,10 @@
 import SyncSettings from './settings/SyncSettings';
+import WhatsNewPanel from './settings/WhatsNewPanel';
 import ScreenHeader from './ui/ScreenHeader';
 import { Button } from './ui/Button';
+import { useConfirm } from './ui/useConfirmHook';
+import { Dialog } from './ui/Dialog';
+import { useIsDesktop } from '../lib/useMediaQuery';
 
 // ─── Icons ───────────────────────────────────────────────────────────────
 
@@ -38,6 +42,13 @@ const AboutIcon = () => (
     <circle cx="12" cy="12" r="10" />
     <line x1="12" y1="16" x2="12" y2="12" />
     <line x1="12" y1="8" x2="12.01" y2="8" />
+  </svg>
+);
+
+const SparkleIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z" />
+    <path d="M19 14l.7 1.7L21.5 16.5l-1.8.7L19 19l-.7-1.7-1.7-.8 1.7-.8z" />
   </svg>
 );
 
@@ -115,6 +126,7 @@ const PANEL_TITLES = {
   chart: 'Chart Defaults',
   sync: 'Cloud Sync',
   data: 'Data',
+  whatsnew: "What's New",
   about: 'About',
 };
 
@@ -270,19 +282,23 @@ function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, a
 }
 
 function DataPanel({ songCount, setlistCount, onDownloadSongs, onClearAll }) {
+  const confirm = useConfirm();
+  const handleClear = async () => {
+    const ok = await confirm({
+      title: 'Clear all local data?',
+      description: 'Every song and setlist on this device will be removed. Cloud copies stay intact, but unsynced edits will be lost. This cannot be undone.',
+      confirmLabel: 'Clear all',
+      variant: 'danger',
+    });
+    if (ok) onClearAll();
+  };
   return (
     <Section subtitle={`${songCount} songs, ${setlistCount} setlists saved on this device.`}>
       <Row label="Export library" description="Download every song as a separate .md file.">
         <Button size="sm" variant="secondary" onClick={onDownloadSongs}>Download all</Button>
       </Row>
       <Row label="Clear all data" description="Wipe every song and setlist on this device. Cloud copies are kept.">
-        <Button
-          size="sm"
-          variant="error"
-          onClick={() => { if (confirm('Delete ALL local songs and setlists? This cannot be undone.')) onClearAll(); }}
-        >
-          Clear all
-        </Button>
+        <Button size="sm" variant="error" onClick={handleClear}>Clear all</Button>
       </Row>
     </Section>
   );
@@ -375,6 +391,7 @@ export default function Settings({
   settings,
   onUpdate,
   onBack,
+  onClose,
   onClearAll,
   onDownloadSongs,
   songCount,
@@ -392,7 +409,121 @@ export default function Settings({
   team = null,
 }) {
   const update = (key, value) => onUpdate({ ...settings, [key]: value });
+  const isDesktop = useIsDesktop();
 
+  const renderPanel = (activePanel) => {
+    switch (activePanel) {
+      case 'appearance':
+        return <AppearancePanel settings={settings} update={update} isSignedIn={isSignedIn} />;
+      case 'chart':
+        return <ChartPanel settings={settings} update={update} />;
+      case 'sync':
+        return (
+          <SyncPanel
+            syncState={syncState}
+            onSyncStateChange={onSyncStateChange}
+            onSyncNow={onSyncNow}
+            onRequestSignIn={onRequestSignIn}
+            activeLibrary={activeLibrary}
+            team={team}
+          />
+        );
+      case 'data':
+        return (
+          <DataPanel
+            songCount={songCount}
+            setlistCount={setlistCount}
+            onDownloadSongs={onDownloadSongs}
+            onClearAll={onClearAll}
+          />
+        );
+      case 'whatsnew':
+        return <WhatsNewPanel />;
+      case 'about':
+        return <AboutPanel isSignedIn={isSignedIn} displayName={displayName} />;
+      default:
+        return null;
+    }
+  };
+
+  // Desktop: Notion-style modal with sidebar nav + content pane.
+  if (isDesktop) {
+    const desktopPanel = panel === 'hub' ? 'appearance' : panel;
+    const navItems = [
+      { key: 'appearance', label: 'Appearance', icon: AppearanceIcon, summary: appearanceSummary(settings) },
+      { key: 'chart', label: 'Chart Defaults', icon: ChartIcon, summary: chartSummary(settings) },
+      { key: 'sync', label: 'Cloud Sync', icon: CloudIcon, summary: syncSummary(syncState) },
+      { key: 'data', label: 'Data', icon: DataIcon, summary: `${songCount} songs · ${setlistCount} setlists` },
+      { key: 'whatsnew', label: "What's New", icon: SparkleIcon, summary: `v${__APP_VERSION__}` },
+      { key: 'about', label: 'About', icon: AboutIcon, summary: `v${__APP_VERSION__}` },
+    ];
+    const handleClose = onClose || onBack;
+    return (
+      <Dialog open={true} onClose={handleClose} size="xl" ariaLabel="Settings" className="overflow-hidden">
+        <div data-theme-variant="modes" className="flex h-[640px] max-h-[85vh]">
+          {/* Sidebar */}
+          <aside className="w-[240px] shrink-0 border-r border-[var(--modes-border)] bg-[var(--ds-background-200)] flex flex-col">
+            <div className="px-5 pt-5 pb-3">
+              <h2 className="text-heading-16 font-semibold text-[var(--modes-text)] m-0">Settings</h2>
+              <p className="text-copy-13 text-[var(--modes-text-muted)] m-0 mt-1">
+                {isSignedIn && displayName ? displayName : 'Local device'}
+              </p>
+            </div>
+            <nav className="flex-1 overflow-y-auto px-2 pb-3 flex flex-col gap-0.5">
+              {navItems.map(({ key, label, icon: Icon }) => {
+                const active = desktopPanel === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => onChangePanel(key)}
+                    className={
+                      'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left cursor-pointer border-none transition-colors ' +
+                      (active
+                        ? 'bg-[var(--modes-surface-strong)] text-[var(--modes-text)]'
+                        : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)] hover:text-[var(--modes-text)]')
+                    }
+                  >
+                    <span className="shrink-0"><Icon /></span>
+                    <span className="text-copy-14 font-medium">{label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </aside>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0 flex flex-col bg-[var(--ds-background-100)]">
+            <header className="flex items-center justify-between px-7 pt-5 pb-3 border-b border-[var(--modes-border)]">
+              <div className="flex flex-col">
+                <h3 className="text-heading-20 font-semibold text-[var(--modes-text)] m-0">
+                  {PANEL_TITLES[desktopPanel] || 'Settings'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={handleClose}
+                className="bg-transparent border-none text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] cursor-pointer p-1 rounded-md"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </header>
+            <div className="flex-1 overflow-y-auto px-7 py-6">
+              <div className="flex flex-col gap-6 max-w-[640px]">
+                {renderPanel(desktopPanel)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Dialog>
+    );
+  }
+
+  // Mobile/tablet: existing full-page hub-and-drilldown layout.
   return (
     <div data-theme-variant="modes" className="flex flex-col">
       <ScreenHeader onBack={onBack} title={PANEL_TITLES[panel]} />
@@ -425,6 +556,12 @@ export default function Settings({
               onClick={() => onChangePanel('data')}
             />
             <HubRow
+              icon={SparkleIcon}
+              label="What's New"
+              value={`v${__APP_VERSION__}`}
+              onClick={() => onChangePanel('whatsnew')}
+            />
+            <HubRow
               icon={AboutIcon}
               label="About"
               value={`v${__APP_VERSION__}`}
@@ -433,33 +570,7 @@ export default function Settings({
           </div>
         )}
 
-        {panel === 'appearance' && (
-          <AppearancePanel settings={settings} update={update} isSignedIn={isSignedIn} />
-        )}
-        {panel === 'chart' && (
-          <ChartPanel settings={settings} update={update} />
-        )}
-        {panel === 'sync' && (
-          <SyncPanel
-            syncState={syncState}
-            onSyncStateChange={onSyncStateChange}
-            onSyncNow={onSyncNow}
-            onRequestSignIn={onRequestSignIn}
-            activeLibrary={activeLibrary}
-            team={team}
-          />
-        )}
-        {panel === 'data' && (
-          <DataPanel
-            songCount={songCount}
-            setlistCount={setlistCount}
-            onDownloadSongs={onDownloadSongs}
-            onClearAll={onClearAll}
-          />
-        )}
-        {panel === 'about' && (
-          <AboutPanel isSignedIn={isSignedIn} displayName={displayName} />
-        )}
+        {panel !== 'hub' && renderPanel(panel)}
       </div>
     </div>
   );
