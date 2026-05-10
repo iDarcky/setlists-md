@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { transposeChord, ALL_KEYS, semitonesBetween } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
@@ -70,13 +71,14 @@ export default function ChartView({
   const [nns, setNns] = useState(false);
   const [showChords, setShowChords] = useState(true);
   const [showDiagrams, setShowDiagrams] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showMusicSettings, setShowMusicSettings] = useState(false);
-  const [showInfo, setShowInfo] = useState(false);
+  const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'info' | null
+  const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [notesPeekOpen, setNotesPeekOpen] = useState(notesPeekDefaultOpen);
 
   const scrollContainerRef = useRef(null);
+  const menuTriggerRef = useRef(null);
+  const menuPanelRef = useRef(null);
 
   const transpose = semitonesBetween(song.key, selectedKey);
 
@@ -91,9 +93,27 @@ export default function ChartView({
     }
   }, [selectedKey, song.key, onTransposed]);
 
-  const toggleInfo = () => { setShowInfo(s => !s); setShowSettings(false); setShowMusicSettings(false); };
-  const toggleAa = () => { setShowSettings(s => !s); setShowInfo(false); setShowMusicSettings(false); };
-  const toggleMusic = () => { setShowMusicSettings(s => !s); setShowInfo(false); setShowSettings(false); };
+  // Close the kebab menu on outside click and Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (e) => {
+      const t = menuTriggerRef.current;
+      const p = menuPanelRef.current;
+      if (t && t.contains(e.target)) return;
+      if (p && p.contains(e.target)) return;
+      setMenuOpen(false);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setMenuOpen(false); };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
+
+  const openSheet = (name) => { setActiveSheet(name); setMenuOpen(false); };
+  const runAndClose = (fn) => { fn?.(); setMenuOpen(false); };
 
   // Detect scroll position for collapsing header
   useEffect(() => {
@@ -145,9 +165,6 @@ export default function ChartView({
   // Check if any metadata exists
   const hasMetadata = song.capo > 0 || song.ccli || (song.tags?.length > 0) || song.notes || song.spotify || song.youtube;
 
-  // Close expanded panels when header collapses
-  const panelOpen = showSettings || showMusicSettings || showInfo;
-
   return (
     <div
       ref={scrollContainerRef}
@@ -166,7 +183,124 @@ export default function ChartView({
                 "text-[var(--text-1)] m-0 truncate transition-all duration-200",
                 scrolled ? "text-heading-16" : "text-heading-24"
               )}>{song.title}</h1>
-              {song._arrangementCount > 1 && (
+              {/* Inline meta — visible only in compact mode */}
+              {scrolled && (
+                <div className="flex items-center gap-2 flex-shrink-0 text-label-12 text-[var(--text-2)]">
+                  <span className="text-[var(--text-2)] text-[12px] opacity-60">•</span>
+                  <span className="font-bold text-[var(--text-1)]">{selectedKey}</span>
+                  {song.tempo && <span>{song.tempo} bpm</span>}
+                  {song.time && <span>{song.time}</span>}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-1.5 items-center flex-shrink-0">
+              <div className="relative">
+                <IconButton
+                  ref={menuTriggerRef}
+                  variant={menuOpen ? 'active' : 'default'}
+                  size="sm"
+                  onClick={() => setMenuOpen(o => !o)}
+                  aria-label="More options"
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <circle cx="12" cy="5" r="1.6" />
+                    <circle cx="12" cy="12" r="1.6" />
+                    <circle cx="12" cy="19" r="1.6" />
+                  </svg>
+                </IconButton>
+                {menuOpen && (
+                  <div
+                    ref={menuPanelRef}
+                    role="menu"
+                    className="absolute z-40 right-0 mt-1 min-w-[220px] rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-150"
+                  >
+                    <MenuItem
+                      onClick={() => openSheet('layout')}
+                      label="Layout"
+                      icon={<span className="text-label-12 font-semibold">Aa</span>}
+                    />
+                    <MenuItem
+                      onClick={() => openSheet('music')}
+                      label="Music"
+                      icon={(
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                        </svg>
+                      )}
+                    />
+                    <MenuItem
+                      onClick={() => openSheet('info')}
+                      label="Song info"
+                      icon={(
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M12 16v-4" />
+                          <path d="M12 8h.01" />
+                        </svg>
+                      )}
+                    />
+                    <div className="my-1 h-px bg-[var(--border-1)]" />
+                    <MenuItem
+                      onClick={() => runAndClose(() => exportSongPdf(song, { transpose }))}
+                      label="Print / Save as PDF"
+                      icon={(
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="6 9 6 2 18 2 18 9" />
+                          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                          <rect x="6" y="14" width="12" height="8" />
+                        </svg>
+                      )}
+                    />
+                    <MenuItem
+                      onClick={() => runAndClose(onEdit)}
+                      label="Edit"
+                      icon={(
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                        </svg>
+                      )}
+                    />
+                    {onToggleFullscreen && (
+                      <MenuItem
+                        onClick={() => runAndClose(onToggleFullscreen)}
+                        label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                        icon={isFullscreen ? (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M8 3v4a1 1 0 0 1-1 1H3" />
+                            <path d="M21 8h-4a1 1 0 0 1-1-1V3" />
+                            <path d="M3 16h4a1 1 0 0 1 1 1v4" />
+                            <path d="M16 21v-4a1 1 0 0 1 1-1h4" />
+                          </svg>
+                        ) : (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 8V3h5" />
+                            <path d="M21 8V3h-5" />
+                            <path d="M3 16v5h5" />
+                            <path d="M21 16v5h-5" />
+                          </svg>
+                        )}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+              <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </IconButton>
+            </div>
+          </div>
+
+          {/* Line 2: Arrangement + Key / Tempo / Time — collapses when scrolled */}
+          <div className={cn(
+            "a4-container flex flex-wrap items-center gap-3 transition-all duration-200 overflow-hidden",
+            scrolled ? "max-h-0 opacity-0 pb-0" : "max-h-12 opacity-100 pb-1.5"
+          )}>
+            {song._arrangementCount > 1 ? (
+              <>
                 <select
                   value={song._arrangementId || ''}
                   onChange={(e) => {
@@ -181,103 +315,14 @@ export default function ChartView({
                     <option key={a.id} value={a.id}>{a.name}</option>
                   ))}
                 </select>
-              )}
-              {/* Inline meta — visible only in compact mode */}
-              {scrolled && (
-                <div className="flex items-center gap-2 flex-shrink-0 text-label-12 text-[var(--text-2)]">
-                  <span className="text-[var(--text-2)] text-[12px] opacity-60">•</span>
-                  <span className="font-bold text-[var(--text-1)]">{selectedKey}</span>
-                  {song.tempo && <span>{song.tempo} bpm</span>}
-                  {song.time && <span>{song.time}</span>}
-                </div>
-              )}
-            </div>
-            <div className="flex gap-1.5 items-center flex-shrink-0">
-              <div className={cn(
-                "flex gap-1.5 items-center transition-all duration-200 overflow-hidden",
-                scrolled ? "max-w-0 opacity-0 pointer-events-none" : "max-w-[200px] opacity-100"
-              )}>
-                <IconButton
-                  variant={showInfo ? 'active' : 'default'}
-                  size="sm"
-                  onClick={toggleInfo}
-                  aria-label="Song info"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M12 16v-4" />
-                    <path d="M12 8h.01" />
-                  </svg>
-                </IconButton>
-                <IconButton
-                  variant={showSettings ? 'active' : 'default'}
-                  size="sm"
-                  onClick={toggleAa}
-                  aria-label="Layout settings"
-                >Aa</IconButton>
-                <IconButton
-                  variant={showMusicSettings ? 'active' : 'default'}
-                  size="sm"
-                  onClick={toggleMusic}
-                  aria-label="Music display settings"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-                  </svg>
-                </IconButton>
-                <div className="w-px h-5 bg-[var(--border-1)]" />
-              </div>
-
-              <IconButton variant="default" size="sm" onClick={() => exportSongPdf(song, { transpose })} aria-label="Print chart" title="Print / Save as PDF">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 6 2 18 2 18 9" />
-                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                  <rect x="6" y="14" width="12" height="8" />
-                </svg>
-              </IconButton>
-              <IconButton variant="default" size="sm" onClick={onEdit} aria-label="Edit chart">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-              </IconButton>
-              {onToggleFullscreen && (
-                <IconButton
-                  variant={isFullscreen ? 'active' : 'default'}
-                  size="sm"
-                  onClick={onToggleFullscreen}
-                  aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-                  title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-                >
-                  {isFullscreen ? (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M8 3v4a1 1 0 0 1-1 1H3" />
-                      <path d="M21 8h-4a1 1 0 0 1-1-1V3" />
-                      <path d="M3 16h4a1 1 0 0 1 1 1v4" />
-                      <path d="M16 21v-4a1 1 0 0 1 1-1h4" />
-                    </svg>
-                  ) : (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 8V3h5" />
-                      <path d="M21 8V3h-5" />
-                      <path d="M3 16v5h5" />
-                      <path d="M21 16v5h-5" />
-                    </svg>
-                  )}
-                </IconButton>
-              )}
-              <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </IconButton>
-            </div>
-          </div>
-
-          {/* Line 2: Artist + Key / Tempo / Time — collapses when scrolled */}
-          <div className={cn(
-            "a4-container flex flex-wrap items-center gap-3 transition-all duration-200 overflow-hidden",
-            scrolled ? "max-h-0 opacity-0 pb-0" : "max-h-12 opacity-100 pb-1.5"
-          )}>
-            <span className="text-copy-14 text-[var(--text-2)]">{song.artist}</span>
-            <div className="w-px h-3.5 bg-[var(--border-1)]" />
+                <div className="w-px h-3.5 bg-[var(--border-1)]" />
+              </>
+            ) : song._arrangementId ? (
+              <>
+                <span className="text-copy-14 text-[var(--text-2)]">{song._arrangementName}</span>
+                <div className="w-px h-3.5 bg-[var(--border-1)]" />
+              </>
+            ) : null}
             <Select value={selectedKey} onValueChange={setSelectedKey}>
               <SelectTrigger className="h-6 px-1.5 border-transparent bg-transparent text-label-14 font-bold text-[var(--text-1)] hover:bg-[var(--bg-2)] gap-1 min-w-0 w-auto focus:ring-0">
                 <span className="text-label-12 font-semibold text-[var(--text-2)] mr-0.5">Key</span>
@@ -362,95 +407,119 @@ export default function ChartView({
             </div>
           )}
 
-          {/* Expanded controls sub-row — collapses when scrolled */}
-          {panelOpen && (
-            <div className={cn(
-              "a4-container flex flex-wrap items-center gap-1.5 transition-all duration-200 overflow-hidden",
-              scrolled ? "max-h-0 opacity-0 pb-0" : "max-h-24 opacity-100 pb-3"
-            )}>
-              {showSettings && (
-                <>
-                  <SegmentedControl
-                    value={columns}
-                    onChange={setColumns}
-                    options={[
-                      { value: 1, label: '1 COL' },
-                      { value: 2, label: '2 COL' },
-                    ]}
-                    size="xs"
-                  />
-                  <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5">
-                    <IconButton variant="ghost" size="xs" onClick={() => setFontSize(prev => Math.max(10, prev - 2))} aria-label="Decrease font size">-</IconButton>
-                    <span className="px-1.5 text-label-10-mono text-[var(--text-2)]">{fontSize}px</span>
-                    <IconButton variant="ghost" size="xs" onClick={() => setFontSize(prev => Math.min(30, prev + 2))} aria-label="Increase font size">+</IconButton>
-                  </div>
-                  <Select value={fontFamily} onValueChange={setFontFamily}>
-                    <SelectTrigger className="h-7 px-2 text-label-11 font-medium text-[var(--text-1)] gap-1 min-w-0 w-auto">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.keys(FONT_FAMILIES).map(name => (
-                        <SelectItem key={name} value={name}>
-                          <span style={{ fontFamily: FONT_FAMILIES[name] }}>{name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </>
-              )}
-              {showMusicSettings && (
-                <>
-                  <Button
-                    variant={nns ? 'brand' : 'secondary'}
-                    size="xs"
-                    onClick={() => setNns(!nns)}
-                  >NUMBERS</Button>
-                  <Button
-                    variant="secondary"
-                    size="xs"
-                    onClick={() => setShowChords(!showChords)}
-                    className={cn(!showChords && "opacity-40")}
-                  >CHORDS</Button>
-                  <Button
-                    variant={showDiagrams ? 'brand' : 'secondary'}
-                    size="xs"
-                    onClick={() => setShowDiagrams(!showDiagrams)}
-                  >DIAGRAMS</Button>
-                </>
-              )}
-              {showInfo && (
-                hasMetadata ? (
-                  <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-label-14 text-[var(--text-2)]">
-                    {song.capo > 0 && (
-                      <span><span className="font-semibold text-[var(--text-1)]">Capo</span> {song.capo}</span>
-                    )}
-                    {song.ccli && (
-                      <span><span className="font-semibold text-[var(--text-1)]">CCLI</span> {song.ccli}</span>
-                    )}
-                    {song.tags?.length > 0 && (
-                      <span><span className="font-semibold text-[var(--text-1)]">Tags</span> {song.tags.join(', ')}</span>
-                    )}
-                    {song.notes && (
-                      <span><span className="font-semibold text-[var(--text-1)]">Notes</span> {song.notes}</span>
-                    )}
-                    {song.spotify && (
-                      <a href={song.spotify} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-text)] hover:underline">
-                        Spotify ↗
-                      </a>
-                    )}
-                    {song.youtube && (
-                      <a href={song.youtube} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-text)] hover:underline">
-                        YouTube ↗
-                      </a>
-                    )}
-                  </div>
-                ) : (
-                  <span className="text-label-14 text-[var(--text-2)] italic">No additional song info</span>
-                )
-              )}
-            </div>
-          )}
         </div>
+      )}
+
+      {/* ── Bottom-sheet modals (Layout / Music / Song info) ── */}
+      {!isPreview && (
+        <>
+          <BottomSheet
+            open={activeSheet === 'layout'}
+            onClose={() => setActiveSheet(null)}
+            title="Layout"
+          >
+            <div className="flex flex-col gap-4">
+              <SheetField label="Columns">
+                <SegmentedControl
+                  value={columns}
+                  onChange={setColumns}
+                  options={[
+                    { value: 1, label: '1 COL' },
+                    { value: 2, label: '2 COL' },
+                  ]}
+                  size="sm"
+                />
+              </SheetField>
+              <SheetField label="Font size">
+                <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+                  <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.max(10, prev - 2))} aria-label="Decrease font size">−</IconButton>
+                  <span className="px-2 text-label-12-mono text-[var(--text-1)] font-semibold">{fontSize}px</span>
+                  <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.min(30, prev + 2))} aria-label="Increase font size">+</IconButton>
+                </div>
+              </SheetField>
+              <SheetField label="Font family">
+                <Select value={fontFamily} onValueChange={setFontFamily}>
+                  <SelectTrigger className="h-9 px-3 text-label-13 font-medium text-[var(--text-1)] gap-1 min-w-[200px] w-auto">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(FONT_FAMILIES).map(name => (
+                      <SelectItem key={name} value={name}>
+                        <span style={{ fontFamily: FONT_FAMILIES[name] }}>{name}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </SheetField>
+            </div>
+          </BottomSheet>
+
+          <BottomSheet
+            open={activeSheet === 'music'}
+            onClose={() => setActiveSheet(null)}
+            title="Music"
+          >
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={nns ? 'brand' : 'secondary'}
+                size="sm"
+                onClick={() => setNns(!nns)}
+              >NUMBERS</Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowChords(!showChords)}
+                className={cn(!showChords && "opacity-40")}
+              >CHORDS</Button>
+              <Button
+                variant={showDiagrams ? 'brand' : 'secondary'}
+                size="sm"
+                onClick={() => setShowDiagrams(!showDiagrams)}
+              >DIAGRAMS</Button>
+            </div>
+          </BottomSheet>
+
+          <BottomSheet
+            open={activeSheet === 'info'}
+            onClose={() => setActiveSheet(null)}
+            title="Song info"
+          >
+            {hasMetadata ? (
+              <dl className="flex flex-col gap-3 text-copy-14 m-0">
+                {song.capo > 0 && (
+                  <InfoRow label="Capo">{song.capo}</InfoRow>
+                )}
+                {song.ccli && (
+                  <InfoRow label="CCLI">{song.ccli}</InfoRow>
+                )}
+                {song.tags?.length > 0 && (
+                  <InfoRow label="Tags">{song.tags.join(', ')}</InfoRow>
+                )}
+                {song.notes && (
+                  <InfoRow label="Notes">
+                    <span className="whitespace-pre-wrap">{song.notes}</span>
+                  </InfoRow>
+                )}
+                {song.spotify && (
+                  <InfoRow label="Spotify">
+                    <a href={song.spotify} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-text)] hover:underline">
+                      Open ↗
+                    </a>
+                  </InfoRow>
+                )}
+                {song.youtube && (
+                  <InfoRow label="YouTube">
+                    <a href={song.youtube} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-text)] hover:underline">
+                      Open ↗
+                    </a>
+                  </InfoRow>
+                )}
+              </dl>
+            ) : (
+              <p className="text-copy-14 text-[var(--text-2)] italic m-0">No additional song info</p>
+            )}
+          </BottomSheet>
+        </>
       )}
 
       <div className={cn(
@@ -498,5 +567,88 @@ export default function ChartView({
         </div>
       </div>
     </div>
+  );
+}
+
+function MenuItem({ onClick, icon, label }) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-3 py-2 text-left text-copy-14 text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] transition-colors"
+    >
+      <span className="inline-flex items-center justify-center w-5 text-[var(--ds-gray-700)]" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="flex-1">{label}</span>
+    </button>
+  );
+}
+
+function SheetField({ label, children }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-label-12 font-semibold uppercase tracking-wide text-[var(--text-2)]">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function InfoRow({ label, children }) {
+  return (
+    <div className="flex gap-3">
+      <dt className="w-20 shrink-0 text-label-12 font-semibold uppercase tracking-wide text-[var(--text-2)] pt-0.5">{label}</dt>
+      <dd className="flex-1 m-0 text-[var(--text-1)]">{children}</dd>
+    </div>
+  );
+}
+
+function BottomSheet({ open, onClose, title, children }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      className="fixed inset-0 z-[200] flex items-end justify-center animate-in fade-in duration-150"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
+    >
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="relative w-full sm:max-w-[640px] bg-[var(--ds-background-100)] border-t border-x border-[var(--ds-gray-400)] rounded-t-2xl shadow-2xl animate-in slide-in-from-bottom-8 duration-200"
+        style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-center pt-2 pb-1">
+          <span className="block w-10 h-1 rounded-full bg-[var(--ds-gray-400)]" aria-hidden="true" />
+        </div>
+        <div className="flex items-center justify-between px-5 pt-1 pb-3">
+          <h2 className="text-heading-18 font-semibold text-[var(--ds-gray-1000)] m-0">{title}</h2>
+          <IconButton variant="ghost" size="sm" onClick={onClose} aria-label="Close">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </IconButton>
+        </div>
+        <div className="px-5 pb-4">
+          {children}
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
