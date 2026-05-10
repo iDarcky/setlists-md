@@ -107,7 +107,9 @@ export function parseSongMd(text) {
   }
 
   return {
-    id: meta.id || null,
+    // `id` is legacy; new-shape files only emit `songId` + `arrangementId`.
+    // Fall back to songId so a file without `id:` still parses with one.
+    id: meta.id || meta.songid || null,
     title: meta.title || 'Untitled',
     artist: meta.artist || 'Unknown',
     key: meta.key || 'C',
@@ -169,7 +171,12 @@ export function songToMd(song, arrangement) {
     : song;
 
   let md = '---\n';
-  if (view.id) md += `id: ${view.id}\n`;
+  // For v2 songs we use songId+arrangementId for identity (a song with N
+  // arrangements gets N .md files; each one's identity is the pair). For
+  // legacy single-arrangement exports we still emit `id` so older tooling
+  // keeps working.
+  const useArrangementIdentity = !!(view._songId && view._arrangementId);
+  if (!useArrangementIdentity && view.id) md += `id: ${view.id}\n`;
   md += `title: ${view.title}\n`;
   md += `artist: ${view.artist}\n`;
   md += `key: ${view.key}\n`;
@@ -189,7 +196,7 @@ export function songToMd(song, arrangement) {
   if (structure.length) {
     md += `structure: [${structure.join(', ')}]\n`;
   }
-  if (view._songId && view._arrangementId) {
+  if (useArrangementIdentity) {
     md += `songId: ${view._songId}\n`;
     md += `arrangementId: ${view._arrangementId}\n`;
     if (view._arrangementName) md += `arrangementName: ${view._arrangementName}\n`;

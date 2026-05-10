@@ -11,6 +11,7 @@ import { Tabs } from './ui/Tabs';
 import { toast } from './ui/use-toast';
 import { useConfirm } from './ui/useConfirmHook';
 import { headerFrostStyle } from '../lib/headerFrost';
+import ScreenHeader from './ui/ScreenHeader';
 
 const TAB_LIST = [
   { id: 'write', label: 'Write' },
@@ -263,45 +264,84 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
     }
   };
 
+  const handleDeleteSong = useCallback(async () => {
+    if (!song || !onDelete) return;
+    const ok = await confirm({
+      title: 'Delete song?',
+      description: `"${preview?.title || song.title || 'Untitled'}" will be permanently removed. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (ok) onDelete(song.id);
+  }, [song, onDelete, confirm, preview]);
+
+  const handleMoveSong = useCallback(async () => {
+    if (!song || !onMove || !team) return;
+    const target = activeLibrary === 'personal' ? team.id : 'personal';
+    const label = activeLibrary === 'personal' ? team.name : 'Personal Library';
+    const ok = await confirm({
+      title: `Move to ${label}?`,
+      description: activeLibrary === 'personal'
+        ? `"${preview?.title || song.title || 'this song'}" will be shared with everyone in ${team.name}.`
+        : `"${preview?.title || song.title || 'this song'}" will be moved out of ${team.name} and into your personal library only.`,
+      confirmLabel: 'Move',
+    });
+    if (ok) onMove(target);
+  }, [song, onMove, team, activeLibrary, confirm, preview]);
+
   return (
     <div className="h-screen bg-[var(--ds-background-200)] flex flex-col">
-      {/* ─── Sticky Header ─── */}
+      {/* ─── Sticky Header — matches the SetlistBuilder pattern: title +
+          secondary actions only. The primary Save/Cancel pair lives in the
+          bottom action bar so it's always thumb-reachable on mobile. ─── */}
+      <ScreenHeader
+        title={preview?.title || (song ? 'Edit Song' : 'New Song')}
+        actions={
+          <>
+            {importProgress && (
+              <span
+                className="inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 text-label-11 font-semibold border"
+                style={{
+                  color: 'var(--color-brand-text)',
+                  borderColor: 'var(--color-brand-border)',
+                  background: 'var(--color-brand-soft)',
+                }}
+              >
+                Importing {importProgress.current} of {importProgress.total}
+                {importProgress.onSkip && (
+                  <button
+                    onClick={importProgress.onSkip}
+                    className="bg-transparent border-none p-0 text-[var(--color-brand-text)] underline cursor-pointer text-label-11 font-semibold"
+                  >
+                    Skip
+                  </button>
+                )}
+              </span>
+            )}
+            {song && onMove && team && (
+              <Button variant="secondary" size="sm" onClick={handleMoveSong}>
+                Move to {activeLibrary === 'personal' ? 'Team' : 'Personal'}
+              </Button>
+            )}
+            {song && onDelete && (
+              <IconButton variant="error" size="sm" onClick={handleDeleteSong} aria-label="Delete song">
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </IconButton>
+            )}
+          </>
+        }
+      />
+
+      {/* ─── Arrangement / key / tempo / time controls ─── */}
       <div className="material-header border-b border-[var(--ds-gray-200)] pb-1" style={headerFrostStyle}>
         <div className="a4-container pt-2 flex flex-col gap-1">
-          {/* Row 1: back + title + key/bpm/time + actions */}
-        <div className="flex items-center gap-2 mb-1">
-          <Button variant="ghost" size="xs" onClick={handleBack}>←</Button>
-          <span className="text-heading-16 text-[var(--ds-gray-1000)] truncate max-w-[140px]">
-            {preview?.title || (song ? 'Edit Song' : 'New Song')}
-          </span>
-          {importProgress && (
-            <span
-              className="inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 text-label-11 font-semibold border"
-              style={{
-                color: 'var(--color-brand-text)',
-                borderColor: 'var(--color-brand-border)',
-                background: 'var(--color-brand-soft)',
-              }}
-            >
-              Importing {importProgress.current} of {importProgress.total}
-              {importProgress.onSkip && (
-                <button
-                  onClick={importProgress.onSkip}
-                  className="bg-transparent border-none p-0 text-[var(--color-brand-text)] underline cursor-pointer text-label-11 font-semibold"
-                >
-                  Skip
-                </button>
-              )}
-            </span>
-          )}
-
-          <div className="flex items-center gap-2 ml-auto">
-            {/* Arrangement controls — surface even when there's only one so
-                the user always knows arrangements exist. */}
+          <div className="flex items-center gap-2 flex-wrap">
             <select
               value={activeArrangementId || ''}
               onChange={e => switchArrangement(e.target.value)}
-              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 text-[var(--ds-gray-1000)] outline-none cursor-pointer max-w-[140px] truncate"
+              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 text-[var(--ds-gray-1000)] outline-none cursor-pointer max-w-[160px] truncate"
               aria-label="Arrangement"
               title="Switch arrangement"
             >
@@ -309,20 +349,8 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
-            <IconButton
-              variant="ghost"
-              size="xs"
-              onClick={handleAddArrangement}
-              aria-label="Add arrangement"
-              title="Add arrangement"
-            >+</IconButton>
-            <IconButton
-              variant="ghost"
-              size="xs"
-              onClick={handleRenameArrangement}
-              aria-label="Rename arrangement"
-              title="Rename arrangement"
-            >✎</IconButton>
+            <IconButton variant="ghost" size="xs" onClick={handleAddArrangement} aria-label="Add arrangement" title="Add arrangement">+</IconButton>
+            <IconButton variant="ghost" size="xs" onClick={handleRenameArrangement} aria-label="Rename arrangement" title="Rename arrangement">✎</IconButton>
             <IconButton
               variant="ghost"
               size="xs"
@@ -331,100 +359,79 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
               title="Delete arrangement"
               disabled={(workingSong.arrangements?.length || 0) <= 1}
             >🗑</IconButton>
-            <select
-              value={currentKey}
-              onChange={e => updateField('key', e.target.value)}
-              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
-            >
-              {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
-            </select>
-            <input
-              type="number"
-              value={currentTempo}
-              onChange={e => updateField('tempo', e.target.value)}
-              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
-              min="30" max="300"
-            />
-            <select
-              value={currentTime}
-              onChange={e => updateField('time', e.target.value)}
-              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
-            >
-              {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
 
-            {song && onMove && team && (
-              <Button
-                variant="secondary"
-                size="xs"
-                onClick={async () => {
-                  const target = activeLibrary === 'personal' ? team.id : 'personal';
-                  const label = activeLibrary === 'personal' ? team.name : 'Personal Library';
-                  const ok = await confirm({
-                    title: `Move to ${label}?`,
-                    description: activeLibrary === 'personal'
-                      ? `"${preview?.title || song.title || 'this song'}" will be shared with everyone in ${team.name}.`
-                      : `"${preview?.title || song.title || 'this song'}" will be moved out of ${team.name} and into your personal library only.`,
-                    confirmLabel: 'Move',
-                  });
-                  if (ok) onMove(target);
-                }}
+            <div className="ml-auto flex items-center gap-2">
+              <select
+                value={currentKey}
+                onChange={e => updateField('key', e.target.value)}
+                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
+                aria-label="Key"
               >
-                Move to {activeLibrary === 'personal' ? 'Team' : 'Personal'}
-              </Button>
-            )}
-
-            {song && onDelete && (
-              <Button
-                variant="error"
-                size="xs"
-                onClick={async () => {
-                  const ok = await confirm({
-                    title: 'Delete song?',
-                    description: `"${preview?.title || song.title || 'Untitled'}" will be permanently removed. This cannot be undone.`,
-                    confirmLabel: 'Delete',
-                    variant: 'danger',
-                  });
-                  if (ok) onDelete(song.id);
-                }}
+                {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
+              </select>
+              <input
+                type="number"
+                value={currentTempo}
+                onChange={e => updateField('tempo', e.target.value)}
+                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
+                min="30" max="300"
+                aria-label="Tempo"
+              />
+              <select
+                value={currentTime}
+                onChange={e => updateField('time', e.target.value)}
+                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
+                aria-label="Time signature"
               >
-                Delete
-              </Button>
-            )}
-            <Button variant="brand" size="xs" onClick={handleSave} disabled={!preview}>
-              Save
-            </Button>
+                {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
           </div>
-        </div>
 
-        {/* Collapsible metadata */}
-        <MetadataPanel
-          md={md}
-          onChange={setMd}
-          isOpen={metaPanelOpen}
-          onToggle={() => setMetaPanelOpen(v => !v)}
-          keyHistory={workingSong.keyHistory}
-        />
+          {/* Collapsible metadata */}
+          <MetadataPanel
+            md={md}
+            onChange={setMd}
+            isOpen={metaPanelOpen}
+            onToggle={() => setMetaPanelOpen(v => !v)}
+            keyHistory={workingSong.keyHistory}
+          />
 
-        {/* Tabs + tools */}
-        <div className="flex items-center justify-between">
-          <Tabs tabs={TAB_LIST} activeTab={activeTab} onTabChange={setActiveTab} />
-          <div className="flex items-center gap-1 pb-1">
-            {activeTab === 'write' && (
-              <>
-                <IconButton variant="ghost" size="xs" onClick={handleUndo} aria-label="Undo">↶</IconButton>
-                <IconButton variant="ghost" size="xs" onClick={handleRedo} aria-label="Redo">↷</IconButton>
-              </>
-            )}
-            <IconButton variant="ghost" size="xs" onClick={handleImport} aria-label="Import from clipboard">📋</IconButton>
+          {/* Tabs + tools */}
+          <div className="flex items-center justify-between">
+            <Tabs tabs={TAB_LIST} activeTab={activeTab} onTabChange={setActiveTab} />
+            <div className="flex items-center gap-1 pb-1">
+              {activeTab === 'write' && (
+                <>
+                  <IconButton variant="ghost" size="xs" onClick={handleUndo} aria-label="Undo">↶</IconButton>
+                  <IconButton variant="ghost" size="xs" onClick={handleRedo} aria-label="Redo">↷</IconButton>
+                </>
+              )}
+              <IconButton variant="ghost" size="xs" onClick={handleImport} aria-label="Import from clipboard">📋</IconButton>
+            </div>
           </div>
-        </div>
         </div>
       </div>
 
       {/* ─── Content Area ─── */}
       <div className={`flex-1 min-h-0 flex flex-col a4-container w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
         {renderTab()}
+      </div>
+
+      {/* ─── Sticky bottom action bar — Cancel + Save, mirrors SetlistBuilder ─── */}
+      <div
+        className="sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)]"
+        style={{
+          background: 'var(--header-bg-blur)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        }}
+      >
+        <div className="a4-container px-5 py-3 flex items-center justify-end gap-2">
+          <Button variant="ghost" size="md" onClick={handleBack}>Cancel</Button>
+          <Button variant="brand" size="md" onClick={handleSave} disabled={!preview}>Save</Button>
+        </div>
       </div>
     </div>
   );
