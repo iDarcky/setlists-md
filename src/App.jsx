@@ -1020,17 +1020,22 @@ export default function App() {
 
   // Setlist CRUD
   const handleSaveSetlist = (sl) => {
-    let isNew = false;
-    let prevSetlist = null;
+    // Determine isNew / prevSetlist synchronously from the current render's
+    // setlists value. We can't read it from inside the setSetlists updater
+    // because React 18 defers updaters until the next render, so any closure
+    // variables they mutate are still at their initial values when the rest
+    // of this function runs (the bug: new-setlist saves were taking the
+    // edit branch and goBack()ing to wherever the builder was opened from).
+    const existingIdx = setlists.findIndex(s => s.id === sl.id);
+    const isNew = existingIdx < 0;
+    const prevSetlist = existingIdx >= 0 ? setlists[existingIdx] : null;
     setSetlists(prev => {
       const idx = prev.findIndex(s => s.id === sl.id);
       if (idx >= 0) {
-        prevSetlist = prev[idx];
         const n = [...prev];
         n[idx] = sl;
         return n;
       }
-      isNew = true;
       return [...prev, sl];
     });
     // Update keyHistory in response to this save. incrementForSetlistDiff

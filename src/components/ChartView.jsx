@@ -772,6 +772,10 @@ function InfoRow({ label, children }) {
 }
 
 function BottomSheet({ open, onClose, title, children }) {
+  const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startYRef = useRef(0);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
@@ -786,6 +790,23 @@ function BottomSheet({ open, onClose, title, children }) {
 
   if (!open) return null;
 
+  const onTouchStart = (e) => {
+    startYRef.current = e.touches[0].clientY;
+    setDragging(true);
+  };
+  const onTouchMove = (e) => {
+    const dy = e.touches[0].clientY - startYRef.current;
+    setDragY(dy > 0 ? dy : 0);
+  };
+  const onTouchEnd = () => {
+    setDragging(false);
+    if (dragY > 120) {
+      onClose?.();
+    } else {
+      setDragY(0);
+    }
+  };
+
   return createPortal(
     <div
       role="dialog"
@@ -794,21 +815,28 @@ function BottomSheet({ open, onClose, title, children }) {
       className="fixed inset-0 z-[200] flex items-end justify-center animate-in fade-in duration-150"
       onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
     >
+      <div className="absolute inset-0 bg-black/20" />
       <div
         className="relative w-full sm:max-w-[640px] bg-[var(--ds-background-100)] border-t border-x border-[var(--ds-gray-400)] rounded-t-2xl shadow-2xl animate-in slide-in-from-bottom-8 duration-200"
-        style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+        style={{
+          paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+          transition: dragging ? 'none' : 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1)',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-center pt-2 pb-1">
-          <span className="block w-10 h-1 rounded-full bg-[var(--ds-gray-400)]" aria-hidden="true" />
-        </div>
-        <div className="flex items-center justify-between px-5 pt-1 pb-3">
+        <div
+          className="pt-2 pb-3 px-5 cursor-grab active:cursor-grabbing select-none"
+          style={{ touchAction: 'none' }}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onTouchCancel={onTouchEnd}
+        >
+          <div className="flex justify-center pb-2">
+            <span className="block w-10 h-1 rounded-full bg-[var(--ds-gray-400)]" aria-hidden="true" />
+          </div>
           <h2 className="text-heading-18 font-semibold text-[var(--ds-gray-1000)] m-0">{title}</h2>
-          <IconButton variant="ghost" size="sm" onClick={onClose} aria-label="Close">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </IconButton>
         </div>
         <div className="px-5 pb-4">
           {children}
