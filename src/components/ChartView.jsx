@@ -627,7 +627,6 @@ function BottomSheet({ open, onClose, title, children }) {
       className="fixed inset-0 z-[200] flex items-end justify-center animate-in fade-in duration-150"
       onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
     >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         className="relative w-full sm:max-w-[640px] bg-[var(--ds-background-100)] border-t border-x border-[var(--ds-gray-400)] rounded-t-2xl shadow-2xl animate-in slide-in-from-bottom-8 duration-200"
         style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
