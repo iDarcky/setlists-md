@@ -203,13 +203,13 @@ export function songToMd(song, arrangement) {
   }
   md += '---\n\n';
 
-  for (const sec of view.sections) {
+  for (const sec of (view.sections || [])) {
     md += `## ${sec.type}\n`;
     if (sec.note) md += `> ${sec.note}\n`;
-    md += sec.lines.map(l => {
+    md += (sec.lines || []).map(l => {
       if (typeof l === 'string') return l;
-      if (l.type === 'tab') return serializeTabBlock(l);
-      if (l.type === 'modulate') return `{modulate: ${l.semitones > 0 ? '+' : ''}${l.semitones}}`;
+      if (l && l.type === 'tab') return serializeTabBlock(l);
+      if (l && l.type === 'modulate') return `{modulate: ${l.semitones > 0 ? '+' : ''}${l.semitones}}`;
       return '';
     }).join('\n') + '\n\n';
   }

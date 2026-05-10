@@ -250,7 +250,9 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal') {
 
   async function push(songs, setlists, tombstones = { songs: [], setlists: [] }) {
     const syncState = await getSyncState(libraryId);
-    if (!syncState.activeProvider) return { tombstones, tombstonesChanged: false };
+    if (!syncState.activeProvider) {
+      return { tombstones, tombstonesChanged: false, uploaded: { songs: 0, setlists: 0 }, errors: [] };
+    }
 
     const provider = getProvider(syncState.activeProvider);
     await ensureAuth(provider, syncState);
@@ -258,6 +260,9 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal') {
 
     const manifest = { ...syncState.syncManifest };
     const slManifest = { ...syncState.setlistManifest };
+    const errors = [];
+    let uploadedSongs = 0;
+    let uploadedSetlists = 0;
 
     // Push songs
     for (const song of songs) {
@@ -282,9 +287,11 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal') {
             lastSyncedHash: hash,
             lastSyncedTime: result.modifiedTime,
           };
+          uploadedSongs += 1;
         }
       } catch (err) {
         console.error(`Failed to sync song "${song.title}":`, err);
+        errors.push({ kind: 'song', id: song.id, title: song.title, message: err?.message || String(err) });
       }
     }
 
@@ -322,9 +329,11 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal') {
             lastSyncedHash: hash,
             lastSyncedTime: result.modifiedTime,
           };
+          uploadedSetlists += 1;
         }
       } catch (err) {
         console.error(`Failed to sync setlist "${sl.name}":`, err);
+        errors.push({ kind: 'setlist', id: sl.id, title: sl.name, message: err?.message || String(err) });
       }
     }
 
@@ -350,6 +359,8 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal') {
         ? { songs: prunedSongTs, setlists: prunedSetlistTs }
         : tombstones,
       tombstonesChanged,
+      uploaded: { songs: uploadedSongs, setlists: uploadedSetlists },
+      errors,
     };
   }
 
@@ -371,11 +382,13 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal') {
           ...pullResult,
           tombstones: pushResult.tombstones,
           tombstonesChanged: pullResult.tombstonesChanged || pushResult.tombstonesChanged,
+          uploaded: pushResult.uploaded,
+          errors: pushResult.errors,
         };
       } catch (err) {
         console.error('Sync error:', err);
         setStatus('error');
-        return { songs, setlists, tombstones, conflicts: [], changed: false };
+        return { songs, setlists, tombstones, conflicts: [], changed: false, errors: [{ kind: 'engine', message: err?.message || String(err) }] };
       } finally {
         syncing = false;
       }

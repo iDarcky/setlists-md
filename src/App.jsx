@@ -257,6 +257,21 @@ export default function App() {
     if (result.conflicts?.length > 0) {
       notifyConflicts(result.conflicts);
     }
+    if (result.errors?.length > 0) {
+      const first = result.errors[0];
+      const more = result.errors.length > 1 ? ` (+${result.errors.length - 1} more)` : '';
+      const where = first.title ? ` "${first.title}"` : '';
+      toast({
+        title: 'Some items failed to sync',
+        description: `${first.kind}${where}: ${first.message}${more}`,
+        variant: 'error',
+      });
+    } else if (result.uploaded && (result.uploaded.songs > 0 || result.uploaded.setlists > 0)) {
+      const parts = [];
+      if (result.uploaded.songs) parts.push(`${result.uploaded.songs} song${result.uploaded.songs === 1 ? '' : 's'}`);
+      if (result.uploaded.setlists) parts.push(`${result.uploaded.setlists} setlist${result.uploaded.setlists === 1 ? '' : 's'}`);
+      toast({ title: 'Synced', description: `Uploaded ${parts.join(', ')}.` });
+    }
   }, [songs, setlists, tombstones, activeLibrary]);
 
   // Subscribe to realtime changes for team libraries

@@ -27,6 +27,10 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
       await connectProvider(name);
       onSyncStateChange({ ...syncState, provider: name, state: 'idle' });
       toast({ title: 'Connected', description: `Syncing with ${providers.find(p => p.name === name)?.displayName}.` });
+      // Kick off an initial sync so the user's existing songs and setlists
+      // get pushed to the cloud right away — otherwise they have to find
+      // and click "Sync Now" themselves and the cloud looks empty.
+      try { await onSyncNow?.(); } catch { /* errors surfaced by triggerSync */ }
     } catch (err) {
       toast({
         title: 'Connect failed',
