@@ -161,7 +161,11 @@ export function createGoogleDriveProvider() {
       const existing = await api(`/files?q=${q}&fields=files(id)`);
 
       const metadata = { name, parents: [parentId] };
-      const boundary = '---Setlists MD_boundary';
+      // Boundary must be a valid HTTP token per RFC 7230 — no spaces, no
+      // quoted-string syntax. The previous `---Setlists MD_boundary` had a
+      // space which modern browsers refuse to send, surfacing as
+      // "Failed to fetch" before the request ever leaves the device.
+      const boundary = 'setlistsmd-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
       const body = [
         `--${boundary}`,
         'Content-Type: application/json; charset=UTF-8',
