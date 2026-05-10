@@ -1408,6 +1408,9 @@ export default function App() {
               song={currentSong}
               onBack={goBack}
               onEdit={() => goEditor(currentSong)}
+              onSongChange={(updated) => {
+                setSongs(prev => prev.map(s => s.id === updated.id ? { ...updated, updatedAt: Date.now() } : s));
+              }}
               defaultColumns={settings?.defaultColumns}
               defaultFontSize={settings?.defaultFontSize}
               showInlineNotes={settings?.showInlineNotes !== false}

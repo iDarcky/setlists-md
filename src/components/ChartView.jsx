@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { transposeChord, ALL_KEYS, semitonesBetween } from '../music';
-import { resolveSongView } from '../arrangements';
+import { resolveSongView, addArrangement, renameArrangement, deleteArrangement, setDefaultArrangement } from '../arrangements';
 import SectionBlock from './SectionBlock';
 import ChordDiagram from './ChordDiagram';
 import { Button } from './ui/Button';
@@ -33,6 +33,7 @@ export default function ChartView({
   notesPeekDefaultOpen = true,
   arrangementId,
   onArrangementChange,
+  onSongChange,
 }) {
   const initialFontSize = FONT_SIZES[defaultFontSize] || (typeof defaultFontSize === 'number' ? defaultFontSize : 16);
 
@@ -71,10 +72,11 @@ export default function ChartView({
   const [nns, setNns] = useState(false);
   const [showChords, setShowChords] = useState(true);
   const [showDiagrams, setShowDiagrams] = useState(false);
-  const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'info' | null
+  const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'info' | 'arrangements' | null
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [notesPeekOpen, setNotesPeekOpen] = useState(notesPeekDefaultOpen);
+  const [editingArrId, setEditingArrId] = useState(null);
 
   const scrollContainerRef = useRef(null);
   const menuTriggerRef = useRef(null);
@@ -92,6 +94,37 @@ export default function ChartView({
       onTransposed?.();
     }
   }, [selectedKey, song.key, onTransposed]);
+
+  const handleSwitchArrangement = (id) => {
+    setInternalArrId(id);
+    onArrangementChange?.(id);
+  };
+  const handleAddArrangement = () => {
+    if (!songInput || !onSongChange) return;
+    const { song: nextSong, arrangementId: newId } = addArrangement(songInput);
+    onSongChange(nextSong);
+    handleSwitchArrangement(newId);
+    setEditingArrId(newId);
+  };
+  const handleRenameArrangement = (id, name) => {
+    if (!songInput || !onSongChange) return;
+    const trimmed = (name || '').trim();
+    if (!trimmed) return;
+    onSongChange(renameArrangement(songInput, id, trimmed));
+  };
+  const handleDeleteArrangement = (id) => {
+    if (!songInput || !onSongChange) return;
+    if ((songInput.arrangements?.length || 0) <= 1) return;
+    const next = deleteArrangement(songInput, id);
+    onSongChange(next);
+    if (id === activeArrId) {
+      handleSwitchArrangement(next.defaultArrangementId || next.arrangements[0].id);
+    }
+  };
+  const handleSetDefaultArrangement = (id) => {
+    if (!songInput || !onSongChange) return;
+    onSongChange(setDefaultArrangement(songInput, id));
+  };
 
   // Close the kebab menu on outside click and Escape.
   useEffect(() => {
@@ -163,7 +196,7 @@ export default function ChartView({
   ));
 
   // Check if any metadata exists
-  const hasMetadata = song.capo > 0 || song.ccli || (song.tags?.length > 0) || song.notes || song.spotify || song.youtube;
+  const hasMetadata = !!song.artist || song.capo > 0 || !!song.ccli || (song.tags?.length > 0) || !!song.notes || !!song.spotify || !!song.youtube;
 
   return (
     <div
@@ -299,27 +332,20 @@ export default function ChartView({
             "a4-container flex flex-wrap items-center gap-3 transition-all duration-200 overflow-hidden",
             scrolled ? "max-h-0 opacity-0 pb-0" : "max-h-12 opacity-100 pb-1.5"
           )}>
-            {song._arrangementCount > 1 ? (
+            {song._arrangementId ? (
               <>
-                <select
-                  value={song._arrangementId || ''}
-                  onChange={(e) => {
-                    setInternalArrId(e.target.value);
-                    onArrangementChange?.(e.target.value);
-                  }}
-                  className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 py-1 text-label-12 font-semibold text-[var(--ds-gray-1000)] outline-none cursor-pointer shrink-0"
-                  aria-label="Arrangement"
-                  title="Switch arrangement"
+                <button
+                  type="button"
+                  onClick={() => setActiveSheet('arrangements')}
+                  className="inline-flex items-center gap-1.5 bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)] border border-[var(--ds-gray-400)] rounded-md px-2 py-1 text-label-12 font-semibold text-[var(--ds-gray-1000)] cursor-pointer shrink-0 transition-colors"
+                  aria-label="Manage arrangements"
+                  title="Manage arrangements"
                 >
-                  {song._allArrangements?.map(a => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
-                <div className="w-px h-3.5 bg-[var(--border-1)]" />
-              </>
-            ) : song._arrangementId ? (
-              <>
-                <span className="text-copy-14 text-[var(--text-2)]">{song._arrangementName}</span>
+                  <span className="truncate max-w-[180px]">{song._arrangementName}</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
                 <div className="w-px h-3.5 bg-[var(--border-1)]" />
               </>
             ) : null}
@@ -480,12 +506,54 @@ export default function ChartView({
           </BottomSheet>
 
           <BottomSheet
+            open={activeSheet === 'arrangements'}
+            onClose={() => { setActiveSheet(null); setEditingArrId(null); }}
+            title="Arrangements"
+          >
+            <div className="flex flex-col gap-1">
+              {song._allArrangements?.map(a => (
+                <ArrangementRow
+                  key={a.id}
+                  arrangement={a}
+                  isActive={a.id === activeArrId}
+                  isDefault={a.id === song._defaultArrangementId}
+                  isOnly={(song._allArrangements?.length || 0) <= 1}
+                  isEditing={editingArrId === a.id}
+                  canMutate={!!onSongChange}
+                  onSwitch={() => { handleSwitchArrangement(a.id); setActiveSheet(null); }}
+                  onStartRename={() => setEditingArrId(a.id)}
+                  onCommitRename={(name) => { handleRenameArrangement(a.id, name); setEditingArrId(null); }}
+                  onCancelRename={() => setEditingArrId(null)}
+                  onDelete={() => handleDeleteArrangement(a.id)}
+                  onSetDefault={() => handleSetDefaultArrangement(a.id)}
+                />
+              ))}
+            </div>
+            {onSongChange && (
+              <div className="mt-3 pt-3 border-t border-[var(--ds-gray-300)]">
+                <Button variant="secondary" size="md" onClick={handleAddArrangement}>
+                  + New arrangement
+                </Button>
+              </div>
+            )}
+          </BottomSheet>
+
+          <BottomSheet
             open={activeSheet === 'info'}
             onClose={() => setActiveSheet(null)}
             title="Song info"
           >
             {hasMetadata ? (
               <dl className="flex flex-col gap-3 text-copy-14 m-0">
+                {song.artist && (
+                  <InfoRow label="Artist">{song.artist}</InfoRow>
+                )}
+                {song.tempo && (
+                  <InfoRow label="Tempo">{song.tempo} bpm</InfoRow>
+                )}
+                {song.time && (
+                  <InfoRow label="Time">{song.time}</InfoRow>
+                )}
                 {song.capo > 0 && (
                   <InfoRow label="Capo">{song.capo}</InfoRow>
                 )}
@@ -583,6 +651,105 @@ function MenuItem({ onClick, icon, label }) {
       </span>
       <span className="flex-1">{label}</span>
     </button>
+  );
+}
+
+function RenameInput({ initial, onCommit, onCancel }) {
+  const [draft, setDraft] = useState(initial);
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)]">
+      <input
+        autoFocus
+        type="text"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onCommit(draft);
+          else if (e.key === 'Escape') onCancel();
+        }}
+        className="flex-1 min-w-0 bg-transparent border-0 outline-none text-copy-14 text-[var(--ds-gray-1000)]"
+      />
+      <Button variant="secondary" size="xs" onClick={onCancel}>Cancel</Button>
+      <Button variant="brand" size="xs" onClick={() => onCommit(draft)}>Save</Button>
+    </div>
+  );
+}
+
+function ArrangementRow({
+  arrangement, isActive, isDefault, isOnly, isEditing, canMutate,
+  onSwitch, onStartRename, onCommitRename, onCancelRename, onDelete, onSetDefault,
+}) {
+  if (isEditing) {
+    return (
+      <RenameInput
+        initial={arrangement.name}
+        onCommit={onCommitRename}
+        onCancel={onCancelRename}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors",
+        isActive
+          ? "border-[var(--color-brand-border)] bg-[var(--color-brand-soft)]"
+          : "border-transparent hover:bg-[var(--ds-gray-100)]"
+      )}
+    >
+      <button
+        type="button"
+        onClick={onSwitch}
+        className="flex-1 min-w-0 flex items-center gap-2 text-left cursor-pointer bg-transparent border-0 p-0"
+      >
+        <span
+          className={cn(
+            "inline-flex items-center justify-center w-4 h-4 rounded-full border-2 shrink-0",
+            isActive ? "border-[var(--color-brand-text)]" : "border-[var(--ds-gray-600)]"
+          )}
+          aria-hidden="true"
+        >
+          {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-text)]" />}
+        </span>
+        <span className={cn(
+          "truncate text-copy-14",
+          isActive ? "font-semibold text-[var(--color-brand-text)]" : "text-[var(--ds-gray-1000)]"
+        )}>
+          {arrangement.name}
+        </span>
+        {isDefault && (
+          <span className="text-label-10-mono uppercase tracking-wide text-[var(--ds-gray-700)] shrink-0">
+            default
+          </span>
+        )}
+      </button>
+      {canMutate && (
+        <div className="flex items-center gap-1 shrink-0">
+          {!isDefault && (
+            <IconButton variant="ghost" size="xs" onClick={onSetDefault} aria-label="Set as default" title="Set as default">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+            </IconButton>
+          )}
+          <IconButton variant="ghost" size="xs" onClick={onStartRename} aria-label="Rename arrangement" title="Rename">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+            </svg>
+          </IconButton>
+          <IconButton variant="error" size="xs" onClick={onDelete} disabled={isOnly} aria-label="Delete arrangement" title={isOnly ? 'Cannot delete the only arrangement' : 'Delete'}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6" />
+              <path d="M14 11v6" />
+              <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+            </svg>
+          </IconButton>
+        </div>
+      )}
+    </div>
   );
 }
 
