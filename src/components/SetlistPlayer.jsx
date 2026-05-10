@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { transposeKey, sectionStyle } from '../music';
+import { resolveSongView } from '../arrangements';
 import { IconButton } from './ui/IconButton';
 import NoteContent from './ui/NoteContent';
 import ChartView from './ChartView';
@@ -21,8 +22,10 @@ export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaul
     return setlist.items
       .map(it => {
         if (it.type === 'break') return { ...it, isBreak: true };
-        let song = songs.find(s => s.id === it.songId);
-        if (!song && it.songTitle) song = songs.find(s => s.title === it.songTitle);
+        let raw = songs.find(s => s.id === it.songId);
+        if (!raw && it.songTitle) raw = songs.find(s => s.title === it.songTitle);
+        if (!raw) return null;
+        const song = resolveSongView(raw, it.arrangementId);
         if (!song) return null;
         acc.count += 1;
         return { ...it, song, songNum: acc.count };

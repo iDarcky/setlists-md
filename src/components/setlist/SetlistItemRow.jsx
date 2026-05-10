@@ -12,6 +12,8 @@ export default function SetlistItemRow({
   onRemove, onUpdateNote, onUpdateTranspose, onUpdateCapo,
   onUpdateBreakField,
   dragHandleProps,
+  rawSong,
+  onSelectArrangement,
 }) {
   const [expanded, setExpanded] = useState(false);
   const [breakNotesOpen, setBreakNotesOpen] = useState(() => Boolean(item.type === 'break' && item.note));
@@ -238,6 +240,23 @@ export default function SetlistItemRow({
               ))}
             </select>
           </div>
+
+          {/* Arrangement (only when the song has more than one) */}
+          {rawSong && Array.isArray(rawSong.arrangements) && rawSong.arrangements.length > 1 && onSelectArrangement && (
+            <div className="flex flex-col gap-0.5">
+              <span className="text-label-10 text-[var(--ds-gray-600)] uppercase">Arrangement</span>
+              <select
+                value={item.arrangementId || rawSong.defaultArrangementId}
+                onChange={e => onSelectArrangement(e.target.value)}
+                className="px-2 py-1 rounded-md text-label-13 font-bold outline-none cursor-pointer bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] text-[var(--ds-gray-1000)] transition-colors"
+                style={{ minHeight: 'auto' }}
+              >
+                {rawSong.arrangements.map(a => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Capo */}
           <div className="flex flex-col gap-0.5">

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Input } from '../ui/Input';
+import { getArrangement } from '../../arrangements';
 
 /**
  * Song library picker — search and click to add songs.
@@ -87,7 +88,10 @@ export default function SetlistSongPicker({ songs, currentItems, onAddSong }) {
                   {song.title}
                 </p>
                 <p className="text-copy-12 text-[var(--ds-gray-700)] m-0 mt-0.5 truncate">
-                  {song.artist} · {song.key}
+                  {song.artist} · {getArrangement(song)?.key || song.key || 'C'}
+                  {Array.isArray(song.arrangements) && song.arrangements.length > 1 && (
+                    <span className="ml-1 opacity-70">· {song.arrangements.length} arr</span>
+                  )}
                 </p>
               </div>
             </div>

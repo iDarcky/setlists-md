@@ -5,6 +5,8 @@ import OfflineBanner from "./components/ui/OfflineBanner";
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { parseSongMd, songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, getStorageEstimate, clearAll } from './storage';
+import { withArrangement, songFromFlat } from './arrangements';
+import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
 import { DEMO_SONGS_MD } from './data/demos';
 import { createSyncEngine } from './sync/engine';
 import { getSyncState, setActiveProvider } from './sync/tokens';
@@ -255,6 +257,21 @@ export default function App() {
     if (result.conflicts?.length > 0) {
       notifyConflicts(result.conflicts);
     }
+    if (result.errors?.length > 0) {
+      const first = result.errors[0];
+      const more = result.errors.length > 1 ? ` (+${result.errors.length - 1} more)` : '';
+      const where = first.title ? ` "${first.title}"` : '';
+      toast({
+        title: 'Some items failed to sync',
+        description: `${first.kind}${where}: ${first.message}${more}`,
+        variant: 'error',
+      });
+    } else if (result.uploaded && (result.uploaded.songs > 0 || result.uploaded.setlists > 0)) {
+      const parts = [];
+      if (result.uploaded.songs) parts.push(`${result.uploaded.songs} song${result.uploaded.songs === 1 ? '' : 's'}`);
+      if (result.uploaded.setlists) parts.push(`${result.uploaded.setlists} setlist${result.uploaded.setlists === 1 ? '' : 's'}`);
+      toast({ title: 'Synced', description: `Uploaded ${parts.join(', ')}.` });
+    }
   }, [songs, setlists, tombstones, activeLibrary]);
 
   // Subscribe to realtime changes for team libraries
@@ -281,7 +298,7 @@ export default function App() {
         setSongs(savedSongs);
       } else if (activeLibrary === 'personal') {
         // First time in personal library — load demo songs
-        const demos = DEMO_SONGS_MD.map(md => ({
+        const demos = DEMO_SONGS_MD.map(md => songFromFlat({
           ...parseSongMd(md),
           id: generateId(),
         }));
@@ -295,6 +312,15 @@ export default function App() {
       const savedSetlists = await loadSetlists(activeLibrary);
       if (ignore) return;
       setSetlists(savedSetlists || []);
+
+      // Recompute keyHistory once on load by scanning past-dated setlists.
+      // This is cheap and self-healing — if the device missed an
+      // increment-on-save (e.g. it was offline) the history catches up.
+      setSongs(prev => {
+        if (!prev || prev.length === 0) return prev;
+        const histories = computeKeyHistories(prev, savedSetlists || []);
+        return applyKeyHistories(prev, histories);
+      });
 
       const savedTombstones = await loadTombstones(activeLibrary);
       if (ignore) return;
@@ -794,15 +820,58 @@ export default function App() {
   const goSchedule = () => navigate('schedule');
 
   // Song CRUD
-  const handleSaveSong = (song) => {
-    const stamped = { ...song, updatedAt: Date.now() };
+  // Accepts either a v2-shaped song (with arrangements[]) or a flat shape
+  // emitted by the Editor (parseSongMd returns flat). When the input is flat
+  // and matches an existing song id, we merge into the active/default
+  // arrangement so the song's other arrangements are preserved.
+  const handleSaveSong = (input, opts = {}) => {
+    const isV2 = !!(input && Array.isArray(input.arrangements) && input.arrangements.length > 0);
+    let v2 = input;
     let isNew = false;
     setSongs(prev => {
-      const idx = prev.findIndex(s => s.id === song.id);
-      if (idx >= 0) { const n = [...prev]; n[idx] = stamped; return n; }
-      isNew = true;
-      return [...prev, stamped];
+      const idx = prev.findIndex(s => s.id === input.id);
+      if (idx < 0) {
+        // Brand-new song. Wrap a flat input as a single-arrangement song.
+        v2 = isV2 ? input : songFromFlat(input);
+        isNew = true;
+        return [...prev, { ...v2, updatedAt: Date.now() }];
+      }
+      const existing = prev[idx];
+      if (isV2) {
+        v2 = { ...input, updatedAt: Date.now() };
+      } else {
+        // Flat input → merge into the targeted arrangement of the existing song.
+        const targetArrId = opts.arrangementId || existing.defaultArrangementId;
+        v2 = withArrangement(existing, targetArrId, (a) => ({
+          ...a,
+          key: input.key ?? a.key,
+          tempo: input.tempo ?? a.tempo,
+          time: input.time ?? a.time,
+          capo: input.capo ?? a.capo,
+          notes: input.notes ?? a.notes,
+          structure: Array.isArray(input.structure) ? input.structure : a.structure,
+          sections: Array.isArray(input.sections) ? input.sections : a.sections,
+        }));
+        // Carry over song-level fields from the editor.
+        const songLevel = {
+          title: input.title,
+          artist: input.artist,
+          ccli: input.ccli,
+          tags: input.tags,
+          spotify: input.spotify,
+          youtube: input.youtube,
+        };
+        for (const k of Object.keys(songLevel)) {
+          if (songLevel[k] !== undefined) v2[k] = songLevel[k];
+        }
+        v2.updatedAt = Date.now();
+      }
+      const next = [...prev];
+      next[idx] = v2;
+      return next;
     });
+    const stamped = v2;
+    const song = stamped;
     if (isNew && !settings?.firstSongAdded) {
       setSettings(prev => ({ ...prev, firstSongAdded: true }));
     }
@@ -917,7 +986,8 @@ export default function App() {
 
   const handleSmartImport = (mdText) => {
     try {
-      const song = { ...parseSongMd(mdText), id: generateId(), updatedAt: Date.now() };
+      const parsed = parseSongMd(mdText);
+      const song = songFromFlat({ ...parsed, id: generateId(), updatedAt: Date.now() });
       setSongs(prev => [...prev, song]);
       setNewSongModal(null);
       navigate('editor', { song });
@@ -951,12 +1021,22 @@ export default function App() {
   // Setlist CRUD
   const handleSaveSetlist = (sl) => {
     let isNew = false;
+    let prevSetlist = null;
     setSetlists(prev => {
       const idx = prev.findIndex(s => s.id === sl.id);
-      if (idx >= 0) { const n = [...prev]; n[idx] = sl; return n; }
+      if (idx >= 0) {
+        prevSetlist = prev[idx];
+        const n = [...prev];
+        n[idx] = sl;
+        return n;
+      }
       isNew = true;
       return [...prev, sl];
     });
+    // Update keyHistory in response to this save. incrementForSetlistDiff
+    // handles all four cases (was-past × is-past) and is a no-op for
+    // future/undated setlists.
+    setSongs(prev => incrementForSetlistDiff(prev, prevSetlist, sl));
     if (!settings?.firstSetlistBuilt) {
       setSettings(prev => ({ ...prev, firstSetlistBuilt: true }));
     }
@@ -982,13 +1062,43 @@ export default function App() {
     }
   };
 
+  // Accepts either a v2 song shape OR a flat resolved view (which carries
+  // _arrangementId). For resolved views we patch the named arrangement only,
+  // preserving the song's other arrangements.
   const handleUpdateSong = useCallback((updatedSong) => {
+    if (!updatedSong || !updatedSong.id) return;
     setSongs(prev => {
       const i = prev.findIndex(s => s.id === updatedSong.id);
       if (i < 0) return prev;
-      const next = [...prev];
-      next[i] = { ...updatedSong, updatedAt: Date.now() };
-      return next;
+      const existing = prev[i];
+      const isResolvedView = !!updatedSong._arrangementId && Array.isArray(existing.arrangements);
+      let next;
+      if (isResolvedView) {
+        next = withArrangement(existing, updatedSong._arrangementId, (a) => ({
+          ...a,
+          key: updatedSong.key ?? a.key,
+          tempo: updatedSong.tempo ?? a.tempo,
+          time: updatedSong.time ?? a.time,
+          capo: updatedSong.capo ?? a.capo,
+          notes: updatedSong.notes ?? a.notes,
+          structure: Array.isArray(updatedSong.structure) ? updatedSong.structure : a.structure,
+          sections: Array.isArray(updatedSong.sections) ? updatedSong.sections : a.sections,
+        }));
+        // Allow song-level fields (title, artist, ccli, tags, links) to be
+        // updated through the same path.
+        const songLevel = { title: updatedSong.title, artist: updatedSong.artist, ccli: updatedSong.ccli, tags: updatedSong.tags, spotify: updatedSong.spotify, youtube: updatedSong.youtube };
+        for (const k of Object.keys(songLevel)) {
+          if (songLevel[k] !== undefined) next[k] = songLevel[k];
+        }
+      } else if (Array.isArray(updatedSong.arrangements)) {
+        next = updatedSong;
+      } else {
+        // Legacy flat → wrap as new song with one arrangement, preserving id/keyHistory.
+        next = { ...songFromFlat(updatedSong), id: updatedSong.id, keyHistory: existing.keyHistory };
+      }
+      const arr = [...prev];
+      arr[i] = { ...next, updatedAt: Date.now() };
+      return arr;
     });
   }, []);
 
@@ -1150,7 +1260,7 @@ export default function App() {
             // Inject demos if not already present (covers the first-run path).
             setSongs(prev => {
               if (prev.length > 0) return prev;
-              const demos = DEMO_SONGS_MD.map(md => ({
+              const demos = DEMO_SONGS_MD.map(md => songFromFlat({
                 ...parseSongMd(md),
                 id: generateId(),
               }));

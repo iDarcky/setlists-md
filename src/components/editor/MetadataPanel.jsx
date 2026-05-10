@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields } from '../../parser';
+import ArrangementMenu from './ArrangementMenu';
 
 const FIELDS = [
   { key: 'title', label: 'Title', placeholder: 'Song title', span: 2 },
@@ -12,7 +13,12 @@ const FIELDS = [
   { key: 'notes', label: 'Notes', placeholder: 'Performance notes', span: 2 },
 ];
 
-export default function MetadataPanel({ md, onChange, isOpen, onToggle }) {
+export default function MetadataPanel({
+  md, onChange, isOpen, onToggle, keyHistory,
+  arrangements, activeArrangementId, defaultArrangementId,
+  onSwitchArrangement, onAddArrangement, onRenameArrangement,
+  onDeleteArrangement, onEditArrangements,
+}) {
   const isInternalUpdate = useRef(false);
 
   const [fields, setFields] = useState(() => parseFrontmatterFields(splitMd(md).frontmatter));
@@ -35,20 +41,29 @@ export default function MetadataPanel({ md, onChange, isOpen, onToggle }) {
     });
   }, [md, onChange]);
 
+  // The toggle button now lives on the controls row in Editor.jsx so the
+  // header stays compact. We only render the expanded body here.
   return (
     <div>
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-1.5 bg-transparent border-none cursor-pointer px-0 py-1.5 text-left"
-      >
-        <span className="text-[10px] text-[var(--ds-gray-600)]">{isOpen ? '▾' : '▸'}</span>
-        <span className="text-label-11 font-semibold text-[var(--ds-gray-600)] uppercase tracking-wider">
-          Song Details
-        </span>
-      </button>
-
       {isOpen && (
         <div className="grid grid-cols-2 gap-2 pb-3">
+          {Array.isArray(arrangements) && arrangements.length > 0 && (
+            <div className="col-span-2 flex items-center gap-2">
+              <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">
+                Arrangement
+              </span>
+              <ArrangementMenu
+                arrangements={arrangements}
+                activeId={activeArrangementId}
+                defaultId={defaultArrangementId}
+                onSwitch={onSwitchArrangement}
+                onAdd={onAddArrangement}
+                onRename={onRenameArrangement}
+                onDelete={onDeleteArrangement}
+                onEdit={onEditArrangements}
+              />
+            </div>
+          )}
           {FIELDS.map(f => (
             <label
               key={f.key}
@@ -66,6 +81,26 @@ export default function MetadataPanel({ md, onChange, isOpen, onToggle }) {
               />
             </label>
           ))}
+          {keyHistory && Object.keys(keyHistory).length > 0 && (
+            <div className="col-span-2">
+              <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] block mb-1">
+                Most played in
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(keyHistory)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([k, count]) => (
+                    <span
+                      key={k}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-label-11 border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)]"
+                    >
+                      <span className="text-[var(--chord)] font-semibold">{k}</span>
+                      <span className="text-[var(--ds-gray-600)] tabular-nums">·{count}</span>
+                    </span>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

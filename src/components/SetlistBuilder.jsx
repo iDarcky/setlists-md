@@ -1,5 +1,8 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { generateId } from '../parser';
+import { semitonesBetween } from '../music';
+import { resolveSongView, getArrangement } from '../arrangements';
+import { mostPlayedKey } from '../keyHistory';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { toast } from './ui/use-toast';
@@ -11,6 +14,7 @@ const UNDO_STACK_LIMIT = 50;
 import SetlistMetaForm from './setlist/SetlistMetaForm';
 import SetlistItemRow from './setlist/SetlistItemRow';
 import SetlistSongPicker from './setlist/SetlistSongPicker';
+import RecommendedNextPanel from './setlist/RecommendedNextPanel';
 import RosterPanel from './setlist/RosterPanel';
 
 export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
@@ -83,8 +87,35 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
 
-  const addSong = (song) => {
-    applyStructural(p => [...p, { songId: song.id, songTitle: song.title, note: '', transpose: 0, capo: 0 }]);
+  // Adds a song to the setlist. Defaults the transpose so the song lands in
+  // its most-played key (when keyHistory has data); otherwise leaves it at 0.
+  // overrideKey, when supplied (e.g. from the recommendations panel), wins.
+  const addSong = (song, overrideKey) => {
+    if (!song) return;
+    const arr = getArrangement(song);
+    const arrangementId = arr?.id || song.defaultArrangementId;
+    const arrangementName = arr?.name || 'Main Arrangement';
+    const targetKey = overrideKey || mostPlayedKey(song.keyHistory);
+    let transpose = 0;
+    if (targetKey && arr?.key && targetKey !== arr.key) {
+      const semis = semitonesBetween(arr.key, targetKey);
+      // semitonesBetween returns 0..11 — wrap to nearest in [-6, 6] for a
+      // sensible UI default (small + or - rather than always positive).
+      transpose = semis > 6 ? semis - 12 : semis;
+      toast({
+        title: `Most played in ${targetKey}`,
+        description: `Transposed ${transpose > 0 ? '+' : ''}${transpose}`,
+      });
+    }
+    applyStructural(p => [...p, {
+      songId: song.id,
+      songTitle: song.title,
+      arrangementId,
+      arrangementName,
+      note: '',
+      transpose,
+      capo: 0,
+    }]);
   };
   const addBreak = () => {
     applyStructural(p => [...p, { type: 'break', label: '', note: '', duration: 0 }]);
@@ -98,10 +129,10 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     setItems(p => p.map((it, i) => i === idx ? { ...it, capo: val } : it));
   const updateBreakField = (idx, field, value) =>
     setItems(p => p.map((it, i) => i === idx ? { ...it, [field]: value } : it));
-  const getSong = (id, title) => {
+  const getSong = (id, title, arrangementId) => {
     let s = songs.find(s => s.id === id);
     if (!s && title) s = songs.find(s => s.title === title);
-    return s;
+    return s ? resolveSongView(s, arrangementId) : null;
   };
 
   // Drag handlers
@@ -282,7 +313,22 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                       item={item}
                       idx={idx}
                       songNum={songNumberFor[idx]}
-                      song={item.type !== 'break' ? getSong(item.songId, item.songTitle) : null}
+                      song={item.type !== 'break' ? getSong(item.songId, item.songTitle, item.arrangementId) : null}
+                      rawSong={item.type !== 'break' ? songs.find(s => s.id === item.songId) : null}
+                      onSelectArrangement={(arrId) => setItems(p => p.map((it, i) => {
+                        if (i !== idx) return it;
+                        const raw = songs.find(s => s.id === it.songId);
+                        const newArr = getArrangement(raw, arrId);
+                        const oldArr = getArrangement(raw, it.arrangementId);
+                        // Preserve transpose only when the source key matches.
+                        const keepTranspose = newArr && oldArr && newArr.key === oldArr.key;
+                        return {
+                          ...it,
+                          arrangementId: arrId,
+                          arrangementName: newArr?.name || it.arrangementName,
+                          transpose: keepTranspose ? it.transpose : 0,
+                        };
+                      }))}
                       onRemove={removeItem}
                       onUpdateNote={updateNote}
                       onUpdateTranspose={updateTranspose}
@@ -324,11 +370,16 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               stays in view as the user scrolls a long set of items below.
               `top-20` clears the sticky ScreenHeader; the height clamp
               leaves room for the bottom action bar at the foot of <main>. */}
-          <div className="lg:w-[320px] shrink-0 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto">
+          <div className="lg:w-[320px] shrink-0 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto flex flex-col gap-4">
             <SetlistSongPicker
               songs={songs}
               currentItems={items}
               onAddSong={addSong}
+            />
+            <RecommendedNextPanel
+              songs={songs}
+              currentItems={items}
+              onAddSong={(song, suggestedKey) => addSong(song, suggestedKey)}
             />
           </div>
 

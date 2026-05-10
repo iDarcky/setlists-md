@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Button } from '../ui/Button';
 import { parseSongMd, generateId } from '../../parser';
+import { songFromFlat } from '../../arrangements';
 import { smartImport } from '../../importer';
 
 const CHORDPRO_EXTS = ['.cho', '.chopro', '.chord', '.crd', '.pro', '.onsong'];
@@ -70,13 +71,15 @@ export default function ImportTab({ onImportSongs, onImportSetlistFile, isMobile
           let songMd;
           if (fmt === 'native') {
             // Native .md goes straight through parseSongMd below.
-            const song = { ...parseSongMd(text), id: generateId(), updatedAt: Date.now() };
+            const flat = parseSongMd(text);
+            const song = songFromFlat({ ...flat, id: generateId(), updatedAt: Date.now() });
             parsed.push(song);
             continue;
           }
           const result = smartImport(text, fmt);
           songMd = result.md;
-          const song = { ...parseSongMd(songMd), id: generateId(), updatedAt: Date.now() };
+          const flat = parseSongMd(songMd);
+          const song = songFromFlat({ ...flat, id: generateId(), updatedAt: Date.now() });
           parsed.push(song);
         } catch {
           failed.push(f.name);

@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { transposeKey } from '../music';
+import { resolveSongView } from '../arrangements';
 import { Chip } from './ui/Chip';
 import { IconButton } from './ui/IconButton';
 import ExportSetlistDialog from './ExportSetlistDialog';
@@ -13,10 +14,10 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
   const confirm = useConfirm();
   const { team, isAdmin } = useTeam();
   const [showRoster, setShowRoster] = useState(false);
-  const getSong = (id, title) => {
+  const getSong = (id, title, arrangementId) => {
     let s = songs.find(s => s.id === id);
     if (!s && title) s = songs.find(s => s.title === title);
-    return s;
+    return s ? resolveSongView(s, arrangementId) : null;
   };
   const [collapsed, setCollapsed] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -210,7 +211,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
               }
 
               /* ── Song row ── */
-              const song = getSong(item.songId, item.songTitle);
+              const song = getSong(item.songId, item.songTitle, item.arrangementId);
               const num = String(songNumberByIdx[idx] || 0).padStart(2, '0');
 
               if (!song) {

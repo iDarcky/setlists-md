@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { transposeChord, ALL_KEYS, semitonesBetween } from '../music';
+import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
 import ChordDiagram from './ChordDiagram';
 import { Button } from './ui/Button';
@@ -21,7 +22,7 @@ const FONT_FAMILIES = {
 };
 
 export default function ChartView({
-  song, onBack, onEdit, isPreview,
+  song: songInput, onBack, onEdit, isPreview,
   defaultColumns = 1, defaultFontSize = 16,
   showInlineNotes = true, inlineNoteStyle = 'dashes',
   displayRole = 'leader', duplicateSections = 'full',
@@ -29,10 +30,40 @@ export default function ChartView({
   isFullscreen = false, onToggleFullscreen,
   onTransposed,
   notesPeekDefaultOpen = true,
+  arrangementId,
+  onArrangementChange,
 }) {
   const initialFontSize = FONT_SIZES[defaultFontSize] || (typeof defaultFontSize === 'number' ? defaultFontSize : 16);
 
-  const [selectedKey, setSelectedKey] = useState(song.key);
+  // Internal active arrangement id for v2 songs viewed without an external
+  // controller (e.g. from the Library). Setlist contexts pass arrangementId
+  // and/or a pre-resolved view; both cases bypass this state.
+  const [internalArrId, setInternalArrId] = useState(
+    arrangementId || (songInput?.arrangements ? songInput.defaultArrangementId : undefined)
+  );
+  useEffect(() => {
+    if (arrangementId) setInternalArrId(arrangementId);
+  }, [arrangementId]);
+
+  const activeArrId = arrangementId || internalArrId;
+  const song = useMemo(() => {
+    if (songInput && Array.isArray(songInput.arrangements)) {
+      return resolveSongView(songInput, activeArrId);
+    }
+    return songInput;
+  }, [songInput, activeArrId]);
+
+  const [selectedKey, setSelectedKey] = useState(song?.key || 'C');
+  // Reset transpose when the user switches arrangement (each arrangement has
+  // its own source key — preserving an old selectedKey would leak the wrong
+  // transposition into the new chart).
+  const lastArrIdRef = useRef(activeArrId);
+  useEffect(() => {
+    if (lastArrIdRef.current !== activeArrId) {
+      lastArrIdRef.current = activeArrId;
+      if (song?.key) setSelectedKey(song.key);
+    }
+  }, [activeArrId, song?.key]);
   const [columns, setColumns] = useState(defaultColumns);
   const [fontSize, setFontSize] = useState(initialFontSize);
   const [fontFamily, setFontFamily] = useState('Geist Mono');
@@ -135,6 +166,22 @@ export default function ChartView({
                 "text-[var(--text-1)] m-0 truncate transition-all duration-200",
                 scrolled ? "text-heading-16" : "text-heading-24"
               )}>{song.title}</h1>
+              {song._arrangementCount > 1 && (
+                <select
+                  value={song._arrangementId || ''}
+                  onChange={(e) => {
+                    setInternalArrId(e.target.value);
+                    onArrangementChange?.(e.target.value);
+                  }}
+                  className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 py-1 text-label-12 font-semibold text-[var(--ds-gray-1000)] outline-none cursor-pointer shrink-0"
+                  aria-label="Arrangement"
+                  title="Switch arrangement"
+                >
+                  {song._allArrangements?.map(a => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              )}
               {/* Inline meta — visible only in compact mode */}
               {scrolled && (
                 <div className="flex items-center gap-2 flex-shrink-0 text-label-12 text-[var(--text-2)]">

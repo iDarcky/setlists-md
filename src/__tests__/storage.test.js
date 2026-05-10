@@ -1,9 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { isValidSong, isValidSetlist } from '../storage';
 
+const validArrangement = (overrides = {}) => ({
+  id: 'arr_1', name: 'Main Arrangement', sections: [], ...overrides,
+});
+
 describe('isValidSong', () => {
-  it('accepts a minimal valid song (parsed shape)', () => {
-    expect(isValidSong({ id: 'abc', title: 'T', sections: [] })).toBe(true);
+  it('accepts a minimal valid v2 song', () => {
+    expect(isValidSong({
+      id: 'abc', title: 'T', artist: 'A',
+      arrangements: [validArrangement()],
+    })).toBe(true);
   });
 
   it('rejects null / non-objects', () => {
@@ -14,16 +21,21 @@ describe('isValidSong', () => {
   });
 
   it('rejects missing or non-string id', () => {
-    expect(isValidSong({ title: 'T', sections: [] })).toBe(false);
-    expect(isValidSong({ id: '', title: 'T', sections: [] })).toBe(false);
-    expect(isValidSong({ id: 123, title: 'T', sections: [] })).toBe(false);
+    expect(isValidSong({ title: 'T', artist: 'A', arrangements: [validArrangement()] })).toBe(false);
+    expect(isValidSong({ id: '', title: 'T', artist: 'A', arrangements: [validArrangement()] })).toBe(false);
+    expect(isValidSong({ id: 123, title: 'T', artist: 'A', arrangements: [validArrangement()] })).toBe(false);
   });
 
-  it('rejects missing title or sections', () => {
+  it('rejects missing artist or arrangements', () => {
     expect(isValidSong({ id: 'a' })).toBe(false);
     expect(isValidSong({ id: 'a', title: 'T' })).toBe(false);
-    expect(isValidSong({ id: 'a', sections: [] })).toBe(false);
-    expect(isValidSong({ id: 'a', title: 'T', sections: 'nope' })).toBe(false);
+    expect(isValidSong({ id: 'a', title: 'T', artist: 'A' })).toBe(false);
+    expect(isValidSong({ id: 'a', title: 'T', artist: 'A', arrangements: [] })).toBe(false);
+  });
+
+  it('rejects malformed arrangements', () => {
+    expect(isValidSong({ id: 'a', title: 'T', artist: 'A', arrangements: [{ id: 'x', name: 'M' }] })).toBe(false);
+    expect(isValidSong({ id: 'a', title: 'T', artist: 'A', arrangements: [{ name: 'M', sections: [] }] })).toBe(false);
   });
 });
 

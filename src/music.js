@@ -119,3 +119,55 @@ export function getDiatonicChords(key) {
     transposeChord(key, interval) + DIATONIC_QUALITIES[i]
   );
 }
+
+// ─── Compatibility scoring (used by recommendations.js) ────────────────────
+// Circle of fifths positions for major keys. Minors share their relative
+// major's slot (Am ↔ C, Em ↔ G, etc.).
+const FIFTHS_POSITIONS = {
+  C: 0, G: 1, D: 2, A: 3, E: 4, B: 5, 'F#': 6, 'C#': 7, 'G#': 8, 'D#': 9, 'A#': 10, F: 11,
+};
+
+function normalizeKeyForFifths(key) {
+  if (!key) return null;
+  // Strip a trailing 'm' (minor) — for fifths distance the relative major lives
+  // in the same slot. (Am → C, Em → G, …)
+  const isMinor = /m$/.test(key) && !/maj/i.test(key);
+  let root = isMinor ? key.slice(0, -1) : key;
+  if (FLAT_MAP[root]) root = FLAT_MAP[root];
+  if (isMinor) {
+    // Relative major is +3 semitones from the minor root.
+    const idx = CHROMATIC.indexOf(root);
+    if (idx === -1) return null;
+    root = CHROMATIC[(idx + 3) % 12];
+  }
+  return FIFTHS_POSITIONS[root] ?? null;
+}
+
+// Distance around the circle of fifths in steps (0..6). 0 = same key (or
+// relative major/minor); 1 = perfect 4th/5th; up to 6 (tritone, far apart).
+export function circleOfFifthsDistance(keyA, keyB) {
+  const a = normalizeKeyForFifths(keyA);
+  const b = normalizeKeyForFifths(keyB);
+  if (a == null || b == null) return null;
+  const raw = Math.abs(a - b);
+  return Math.min(raw, 12 - raw);
+}
+
+// 0..1 score where 1 = identical (or relative major/minor) and 0 = tritone away.
+// Decays linearly with circle-of-fifths distance.
+export function keyCompatibilityScore(keyA, keyB) {
+  const dist = circleOfFifthsDistance(keyA, keyB);
+  if (dist == null) return 0;
+  return Math.max(0, 1 - dist / 6);
+}
+
+// Gaussian-shaped tempo proximity: 1.0 at 0 BPM delta; ~0.5 around 18 BPM;
+// ~0 above ~50 BPM. Returns 0..1.
+export function tempoProximityScore(bpmA, bpmB) {
+  const a = Number(bpmA);
+  const b = Number(bpmB);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0.5;
+  const d = Math.abs(a - b);
+  const sigma = 18;
+  return Math.exp(-(d * d) / (2 * sigma * sigma));
+}
