@@ -1,6 +1,6 @@
 # Release Notes
 
-A running log of what's new in Setlists MD. Newest releases first.
+A running log of what's new in setlists.md. Newest releases first.
 
 ## 0.2.0-pre-alpha — Arrangements, key history & next-song picks
 *May 2026*

@@ -39,6 +39,7 @@ const RIPPLE_SIZE = 64;
 
 export default function BottomNav({ activeView, onNavigate }) {
   const containerRef = useRef(null);
+  const gridRef = useRef(null);
   const iconRefs = useRef({});
   const [pill, setPill] = useState(null); // { x, y }
   const [mounted, setMounted] = useState(false);
@@ -48,10 +49,10 @@ export default function BottomNav({ activeView, onNavigate }) {
   const activeId = tabs.some(t => t.id === activeView) ? activeView : 'home';
 
   const measurePill = () => {
-    const container = containerRef.current;
+    const grid = gridRef.current;
     const iconEl = iconRefs.current[activeId];
-    if (!container || !iconEl) return;
-    const cRect = container.getBoundingClientRect();
+    if (!grid || !iconEl) return;
+    const cRect = grid.getBoundingClientRect();
     const iRect = iconEl.getBoundingClientRect();
     const centerX = iRect.left - cRect.left + iRect.width / 2;
     const centerY = iRect.top - cRect.top + iRect.height / 2;
@@ -103,7 +104,7 @@ export default function BottomNav({ activeView, onNavigate }) {
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
         }}
       >
-        <div className="relative grid grid-cols-3 gap-2">
+        <div ref={gridRef} className="relative grid grid-cols-3 gap-2">
           {/* Circular active indicator — slides between icon centers */}
           {pill && (
             <span

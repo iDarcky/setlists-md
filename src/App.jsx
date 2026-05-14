@@ -517,7 +517,7 @@ export default function App() {
     const theme = settings.theme;
 
     const setThemeColor = (mode) => {
-      const color = mode === 'light' ? '#ffffff' : '#14161e';
+      const color = mode === 'light' ? '#f6f4ef' : '#0a0807';
       // Remove the media-scoped tags so the single active tag wins everywhere.
       document.querySelectorAll('meta[name="theme-color"][media]').forEach(m => m.remove());
       let tag = document.querySelector('meta[name="theme-color"]:not([media])');
