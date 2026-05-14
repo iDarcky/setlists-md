@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 
 const DashboardIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -34,46 +34,13 @@ const tabs = [
   { id: 'library', label: 'Songs', Icon: SongsIcon },
 ];
 
-const INDICATOR_SIZE = 36;
 const RIPPLE_SIZE = 64;
 
 export default function BottomNav({ activeView, onNavigate }) {
-  const containerRef = useRef(null);
-  const gridRef = useRef(null);
-  const iconRefs = useRef({});
-  const [pill, setPill] = useState(null); // { x, y }
-  const [mounted, setMounted] = useState(false);
   const [ripples, setRipples] = useState([]); // [{ id, tileId }]
   const nextRippleId = useRef(0);
 
   const activeId = tabs.some(t => t.id === activeView) ? activeView : 'home';
-
-  const measurePill = () => {
-    const grid = gridRef.current;
-    const iconEl = iconRefs.current[activeId];
-    if (!grid || !iconEl) return;
-    const cRect = grid.getBoundingClientRect();
-    const iRect = iconEl.getBoundingClientRect();
-    const centerX = iRect.left - cRect.left + iRect.width / 2;
-    const centerY = iRect.top - cRect.top + iRect.height / 2;
-    setPill({ x: centerX - INDICATOR_SIZE / 2, y: centerY - INDICATOR_SIZE / 2 });
-  };
-
-  useLayoutEffect(() => {
-    measurePill();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId]);
-
-  useLayoutEffect(() => {
-    window.addEventListener('resize', measurePill);
-    return () => window.removeEventListener('resize', measurePill);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId]);
-
-  useEffect(() => {
-    const t = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(t);
-  }, []);
 
   const handleTileClick = (id) => {
     const rid = nextRippleId.current++;
@@ -94,7 +61,6 @@ export default function BottomNav({ activeView, onNavigate }) {
         }}
       />
       <nav
-        ref={containerRef}
         className="fixed bottom-0 left-0 right-0 z-[100] sm:hidden"
         style={{
           background: 'var(--ds-background-100)',
@@ -104,24 +70,7 @@ export default function BottomNav({ activeView, onNavigate }) {
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
         }}
       >
-        <div ref={gridRef} className="relative grid grid-cols-3 gap-2">
-          {/* Circular active indicator — slides between icon centers */}
-          {pill && (
-            <span
-              aria-hidden="true"
-              className="absolute pointer-events-none rounded-full"
-              style={{
-                left: 0,
-                top: 0,
-                width: INDICATOR_SIZE,
-                height: INDICATOR_SIZE,
-                transform: `translate(${pill.x}px, ${pill.y}px)`,
-                background: 'var(--ds-gray-100)',
-                transition: mounted ? 'transform 320ms cubic-bezier(0.32, 0.72, 0, 1)' : 'none',
-              }}
-            />
-          )}
-
+        <div className="grid grid-cols-3 gap-2">
           {tabs.map(({ id, label, Icon }) => {
             const active = id === activeId;
             const tileRipples = ripples.filter(r => r.tileId === id);
@@ -129,33 +78,27 @@ export default function BottomNav({ activeView, onNavigate }) {
               <button
                 key={id}
                 onClick={() => handleTileClick(id)}
-                className={`relative z-[1] flex flex-col items-center justify-center gap-1 h-14 border-none cursor-pointer p-0 bg-transparent transition-[color,transform] duration-200 active:scale-[0.97] ${
+                className={`relative overflow-hidden flex flex-col items-center justify-center gap-1 h-14 border-none cursor-pointer p-0 bg-transparent transition-[color,transform] duration-200 active:scale-[0.97] ${
                   active ? 'text-[var(--color-brand)]' : 'text-[var(--ds-gray-700)]'
                 }`}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <span
-                  ref={el => { iconRefs.current[id] = el; }}
-                  className="relative flex items-center justify-center"
-                  style={{ width: INDICATOR_SIZE, height: INDICATOR_SIZE }}
-                >
-                  {tileRipples.map(r => (
-                    <span
-                      key={r.id}
-                      aria-hidden="true"
-                      className="absolute left-1/2 top-1/2 rounded-full pointer-events-none"
-                      style={{
-                        width: RIPPLE_SIZE,
-                        height: RIPPLE_SIZE,
-                        marginLeft: -RIPPLE_SIZE / 2,
-                        marginTop: -RIPPLE_SIZE / 2,
-                        background: 'var(--color-brand)',
-                        animation: 'nav-tile-ripple 550ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards',
-                      }}
-                    />
-                  ))}
-                  <span className="relative"><Icon /></span>
-                </span>
+                {tileRipples.map(r => (
+                  <span
+                    key={r.id}
+                    aria-hidden="true"
+                    className="absolute left-1/2 top-1/2 rounded-full pointer-events-none"
+                    style={{
+                      width: RIPPLE_SIZE,
+                      height: RIPPLE_SIZE,
+                      marginLeft: -RIPPLE_SIZE / 2,
+                      marginTop: -RIPPLE_SIZE / 2,
+                      background: 'var(--color-brand)',
+                      animation: 'nav-tile-ripple 550ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards',
+                    }}
+                  />
+                ))}
+                <span className="relative"><Icon /></span>
                 <span className={`relative text-[11px] leading-tight ${active ? 'font-semibold' : 'font-medium'}`}>
                   {label}
                 </span>
