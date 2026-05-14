@@ -2,6 +2,21 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.3.0-pre-alpha — New look: official brand kit
+*May 2026*
+
+### Added
+- Official setlists.md brand kit is now live across the app: new app icon, favicon, and wordmark.
+- Brand wordmark now appears on the loading splash, sign-in screen, onboarding hero, and the mobile drawer footer (when signed out).
+
+### Improved
+- Lydian Teal is now the exact brand primary, with Mist, Vetiver, Bone, and Stage joining the palette.
+- Dark mode shifts to a warmer "Stage" black and light mode to a softer "Bone" paper, matching the brand kit.
+- App name reads as "setlists.md" everywhere in the UI, page title, and PWA install card.
+
+### Fixed
+- Mobile bottom-nav active state no longer shows an off-centre circle behind the tab — the active tab now simply tints in brand teal.
+
 ## 0.2.0-pre-alpha — Arrangements, key history & next-song picks
 *May 2026*
 
