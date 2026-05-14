@@ -311,7 +311,7 @@ function AboutPanel({ isSignedIn, displayName }) {
     <div className="flex flex-col gap-4">
       <div className="modes-card p-5 flex flex-col gap-2">
         <h2 className="text-heading-20 text-[var(--modes-text)] m-0">
-          {isSignedIn && displayName ? displayName : 'Setlists.md'}
+          {isSignedIn && displayName ? displayName : 'setlists.md'}
         </h2>
         <p className="text-copy-14 text-[var(--modes-text-muted)] leading-relaxed">
           A workspace for music teams. Your songs belong to you as plain Markdown files — open them in any text editor, forever.
@@ -335,7 +335,7 @@ function AboutPanel({ isSignedIn, displayName }) {
           Legal &amp; Copyright
         </h3>
         <p className="text-copy-13 text-[var(--modes-text-muted)] leading-relaxed m-0">
-          Setlists.md is a private workspace; you are responsible for licensing
+          setlists.md is a private workspace; you are responsible for licensing
           the content you import. We act on valid copyright takedown notices.
         </p>
         <div className="flex flex-col gap-2 mt-1 text-copy-14">

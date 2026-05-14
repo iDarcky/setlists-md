@@ -18,17 +18,22 @@
 }
 
 @theme {
-  --color-brand: hsl(164, 19%, 40%);
-  --color-brand-soft: hsla(164, 19%, 40%, 0.15);
-  --color-brand-text: hsl(164, 19%, 40%);
-  --color-brand-border: hsla(164, 19%, 40%, 0.3);
+  /* Setlists.md brand palette */
+  --color-brand: #53796F;          /* Lydian Teal — primary */
+  --color-brand-soft: rgba(83, 121, 111, 0.15);
+  --color-brand-text: #53796F;
+  --color-brand-border: rgba(83, 121, 111, 0.3);
+  --color-brand-mist: #7AA89C;     /* tint */
+  --color-brand-vetiver: #3B5A52;  /* shade */
+  --color-brand-bone: #F6F4EF;     /* paper */
+  --color-brand-stage: #0A0807;    /* ink */
 
   --font-sans: 'Geist Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Roboto Mono, Menlo, Monaco, Libration Mono, Courier New, monospace;
 
   /* Page Backgrounds (Dark Mode fallback) */
-  --ds-background-100: #14161e;
-  --ds-background-200: #0e1017;
+  --ds-background-100: #0a0807;
+  --ds-background-200: #050403;
 
     /* Geist Gray Scale (Dark Mode) */
   --ds-gray-100-value: 0, 0%, 10%;
@@ -275,8 +280,8 @@
 
 @layer base {
   [data-theme="light"] {
-    --ds-background-100: #ffffff;
-    --ds-background-200: #F9FAFB;
+    --ds-background-100: #F6F4EF;
+    --ds-background-200: #EFEDE6;
 
     /* Dashboard Surfaces (Light Mode) */
     --dashboard-hero-bg: hsl(0, 0%, 100%);
@@ -672,7 +677,7 @@
   --modes-text-muted: rgba(255, 255, 255, 0.6);
   --modes-text-dim: rgba(255, 255, 255, 0.45);
 
-  background: #14161e;
+  background: #0a0807;
   color: var(--modes-text);
 }
 

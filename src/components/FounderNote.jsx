@@ -29,7 +29,7 @@ export default function FounderNote({ onClose }) {
         <div className="text-copy-15 text-[var(--ds-gray-1000)] leading-relaxed">
           <p className="m-0 mb-4">Hey &mdash; glad you're here.</p>
           <p className="m-0 mb-4">
-            I built Setlists.md because I was tired of squinting at PDF chord charts on stage and rewriting them by hand every time we played in a different key. You shouldn't have to fight your tools when you're just trying to play.
+            I built setlists.md because I was tired of squinting at PDF chord charts on stage and rewriting them by hand every time we played in a different key. You shouldn't have to fight your tools when you're just trying to play.
           </p>
           <p className="m-0 mb-4">
             Every chart you make stays on your device. Sync is optional, and your data is always yours &mdash; plain Markdown files you can open in any text editor, forever.
@@ -44,7 +44,7 @@ export default function FounderNote({ onClose }) {
             &mdash; Daniel
           </div>
           <div className="text-label-12 uppercase tracking-widest mt-1" style={{ color: 'var(--ds-gray-600)' }}>
-            Setlists.md team
+            setlists.md team
           </div>
         </div>
 

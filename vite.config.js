@@ -22,11 +22,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Setlists MD',
-        short_name: 'Setlists MD',
+        name: 'setlists.md',
+        short_name: 'setlists.md',
         description: 'Chord charts for worship teams',
-        theme_color: '#14161e',
-        background_color: '#14161e',
+        theme_color: '#0a0807',
+        background_color: '#0a0807',
         display: 'standalone',
         orientation: 'any',
         icons: [

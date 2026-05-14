@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Setlists.md mark">
+  <rect width="512" height="512" rx="112" ry="112" fill="#53796F"></rect>
+  <g fill="#FFFFFF">
+    <rect x="120" y="156" width="272" height="40" rx="20"></rect>
+    <rect x="120" y="236" width="220" height="40" rx="20" opacity="0.82"></rect>
+    <rect x="120" y="316" width="160" height="40" rx="20" opacity="0.62"></rect>
+  </g>
+</svg>

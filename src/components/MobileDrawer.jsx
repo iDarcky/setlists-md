@@ -8,6 +8,7 @@ import {
   CreateAccountButton,
   StatCards,
 } from './account/AccountPanel';
+import BrandWordmark from './ui/BrandWordmark';
 
 const CloseIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -292,11 +293,19 @@ export default function MobileDrawer({
         </div>
 
         {/* Footer — surfaces the signed-in account name as the primary brand
-            label; falls back to the app name for guests. */}
+            label; falls back to the wordmark for guests. */}
         <div className="mt-auto px-5 pt-8 text-center">
-          <div className="text-label-11 text-[var(--drawer-text-faint)]">
-            {isSignedIn ? displayName : 'Setlists MD'}
-          </div>
+          {isSignedIn ? (
+            <div className="text-label-11 text-[var(--drawer-text-faint)]">
+              {displayName}
+            </div>
+          ) : (
+            <BrandWordmark
+              height={20}
+              accent="var(--color-brand-mist)"
+              className="mx-auto text-[var(--drawer-text)] opacity-90"
+            />
+          )}
         </div>
       </aside>
     </>

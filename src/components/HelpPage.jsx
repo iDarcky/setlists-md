@@ -37,14 +37,14 @@ export default function HelpPage({ onBack, onMarkSeen }) {
 
   return (
     <div className="min-h-screen material-page pb-8">
-      <ScreenHeader onBack={onBack} title="Welcome to Setlists MD" />
+      <ScreenHeader onBack={onBack} title="Welcome to setlists.md" />
 
       <div className="a4-container py-8 flex flex-col gap-6">
 
         {/* Intro */}
         <div className="px-2 pb-2">
           <p className="text-copy-16 text-[var(--ds-gray-700)] leading-relaxed max-w-lg m-0">
-            Setlists MD is a free, offline-first chord chart app built for worship teams.
+            setlists.md is a free, offline-first chord chart app built for worship teams.
             Your songs are stored as simple markdown files — no accounts, no subscriptions, no lock-in.
           </p>
         </div>

@@ -1199,9 +1199,10 @@ export default function App() {
 
   if (!loaded) {
     return (
-      <div className="min-h-screen bg-[var(--ds-background-200)] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--ds-background-200)] flex flex-col items-center justify-center gap-6">
+        <img src="/setlists-md-mark.svg" alt="setlists.md" width="80" height="80" className="rounded-2xl" />
         <div className="text-copy-14 text-[var(--text-2)]">
-          Loading Setlists MD...
+          Loading setlists.md…
         </div>
       </div>
     );

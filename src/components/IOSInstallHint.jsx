@@ -46,7 +46,7 @@ export default function IOSInstallHint({ onClose }) {
           Install to your Home Screen
         </h2>
         <p className="text-copy-14 text-[var(--ds-gray-600)] m-0 mb-5 leading-relaxed">
-          On iPad and iPhone, Setlists.md installs through Safari's share menu. You'll get an app icon, full-screen mode, and offline charts.
+          On iPad and iPhone, setlists.md installs through Safari's share menu. You'll get an app icon, full-screen mode, and offline charts.
         </p>
 
         <ol className="flex flex-col gap-3 m-0 p-0 list-none">

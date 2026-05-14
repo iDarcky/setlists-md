@@ -204,7 +204,7 @@ export const DEFAULT_SETTINGS = {
   notifications: [
     {
       id: 'welcome-help',
-      title: 'Welcome to Setlists MD!',
+      title: 'Welcome to setlists.md!',
       message: 'Learn how to use the app — tap to read the getting started guide.',
       read: false,
       action: { type: 'navigate', view: 'help' },

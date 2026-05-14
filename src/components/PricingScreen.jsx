@@ -19,7 +19,7 @@ function buildPersonalHook({ instruments = [], useCase }) {
     return 'Paste from ChordPro, OpenSong, or chord-over-lyric text and your songbook imports in minutes.';
   }
   if (instruments.includes('piano') || instruments.includes('keys')) {
-    return 'ChordPro and plain-text scores convert into clean Setlists.md charts automatically.';
+    return 'ChordPro and plain-text scores convert into clean setlists.md charts automatically.';
   }
   if (instruments.includes('vocals')) {
     return 'Your transpositions sync the moment you set them — every device shows the same key.';
@@ -167,7 +167,7 @@ export default function PricingScreen({ onBack, onSignIn, settings }) {
 
   return (
     <div data-theme-variant="modes" className="h-[100dvh] flex flex-col overflow-y-auto">
-      <ScreenHeader onBack={onBack} title="Setlists.md plans" />
+      <ScreenHeader onBack={onBack} title="setlists.md plans" />
 
       <div className="flex-1 flex items-start justify-center px-4 py-6 sm:py-10 pb-20">
         <div className="w-full max-w-5xl flex flex-col gap-6">

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import ScreenHeader from '../ui/ScreenHeader';
+import BrandWordmark from '../ui/BrandWordmark';
 import { useAuth } from '../../auth/useAuth';
 
 const LAST_EMAIL_KEY = 'setlists-md:last-email';
@@ -206,6 +207,22 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
 
       <div className="flex-1 flex items-start justify-center px-4 py-6 sm:py-10">
         <div className="w-full max-w-sm flex flex-col gap-4">
+
+          <div className="flex flex-col items-center gap-3 pt-2 pb-1">
+            <img
+              src="/setlists-md-mark.svg"
+              alt=""
+              aria-hidden="true"
+              width="56"
+              height="56"
+              className="rounded-2xl shadow-md"
+            />
+            <BrandWordmark
+              height={20}
+              accent="var(--color-brand-mist)"
+              className="text-[var(--modes-text)] opacity-95"
+            />
+          </div>
 
           <div className="modes-card p-6 flex flex-col gap-3">
             <Button
