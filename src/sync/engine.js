@@ -117,13 +117,37 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal') {
             }
             // For v2 songs, merge the remote arrangement into the existing
             // arrangements rather than replacing the whole song object.
-            const targetArrId = parsed.arrangementId || localSong.defaultArrangementId;
-            const next = withArrangement(localSong, targetArrId, (a) => ({
+            // Pick the local arrangement to patch. Prefer an id match
+            // with the remote; fall back to the default arrangement when
+            // the local copy was created before arrangement ids were
+            // preserved across the wire.
+            const hasIdMatch = Array.isArray(localSong.arrangements)
+              && localSong.arrangements.some(a => a.id === parsed.arrangementId);
+            const localTargetId = hasIdMatch
+              ? parsed.arrangementId
+              : (localSong.defaultArrangementId || localSong.arrangements?.[0]?.id);
+            let next = withArrangement(localSong, localTargetId, (a) => ({
               ...a,
+              name: parsed.arrangementName || a.name,
               key: parsed.key, tempo: parsed.tempo, time: parsed.time,
               capo: parsed.capo, notes: parsed.notes,
               structure: parsed.structure, sections: parsed.sections,
             }));
+            // Migrate the local arrangement id to the remote one so the
+            // next round-trip hashes match (and `withArrangement` finds
+            // a target on every future pull). This is a one-time fix
+            // for songs synced before this preservation existed.
+            if (parsed.arrangementId && !hasIdMatch && localTargetId) {
+              next = {
+                ...next,
+                arrangements: next.arrangements.map(a => a.id === localTargetId
+                  ? { ...a, id: parsed.arrangementId }
+                  : a),
+                defaultArrangementId: next.defaultArrangementId === localTargetId
+                  ? parsed.arrangementId
+                  : next.defaultArrangementId,
+              };
+            }
             // Carry song-level fields from the remote payload.
             updatedSongs[existingIdx] = {
               ...next,

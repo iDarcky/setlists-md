@@ -115,8 +115,12 @@ export function setDefaultArrangement(song, arrangementId) {
 
 // Build a v2 song from the pre-v2 flat fields (title/artist/key/sections/...).
 // Used by Editor/import flows that still produce a single arrangement.
+// When the flat input carries `arrangementId`/`arrangementName` (e.g. a song
+// parsed from MD that already has that linkage in its frontmatter), preserve
+// them so the local arrangement's identity matches the remote — otherwise
+// every pull would mint a fresh id, defeating cross-device sync.
 export function songFromFlat(flat) {
-  const arrId = arrangementId();
+  const arrId = flat.arrangementId || arrangementId();
   return {
     id: flat.id,
     title: flat.title || 'Untitled',
@@ -129,10 +133,10 @@ export function songFromFlat(flat) {
     defaultArrangementId: arrId,
     arrangements: [{
       id: arrId,
-      name: 'Main Arrangement',
+      name: flat.arrangementName || 'Main Arrangement',
       key: flat.key || 'C',
-      tempo: flat.tempo || 120,
-      time: flat.time || '4/4',
+      tempo: flat.tempo ?? null,
+      time: flat.time ?? '',
       capo: flat.capo || 0,
       notes: flat.notes || '',
       structure: Array.isArray(flat.structure) ? flat.structure : [],
