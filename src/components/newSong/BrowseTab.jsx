@@ -10,7 +10,7 @@ export default function BrowseTab() {
         type="text"
         value={query}
         onChange={e => setQuery(e.target.value)}
-        placeholder="Search community songs…"
+        placeholder="Search public-domain songs…"
         disabled
       />
 
@@ -22,11 +22,13 @@ export default function BrowseTab() {
           </svg>
         </div>
         <div className="text-heading-16 text-[var(--ds-gray-1000)] mb-1">
-          Browse community — coming soon
+          Public-domain library — coming soon
         </div>
         <div className="text-copy-13 text-[var(--ds-gray-700)] max-w-md mx-auto">
-          Search a shared library of chord charts contributed by other worship leaders.
-          We're still wiring this up — for now, use Import or Paste to add songs.
+          Browse a built-in collection of public-domain hymns and worship
+          songs — Amazing Grace, Be Thou My Vision, How Great Thou Art and
+          more. We're still wiring this up; for now, use Import or Paste to
+          add songs.
         </div>
       </div>
     </div>

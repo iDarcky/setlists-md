@@ -33,13 +33,85 @@ const TAB_LIST = [
 ];
 
 const TIME_OPTIONS = ['4/4', '3/4', '6/8', '7/8', '12/8', '2/4', '5/4'];
+const CUSTOM_TIME = '__custom__';
+
+function TimeSignatureControl({ value, onChange }) {
+  const isCustom = value && !TIME_OPTIONS.includes(value);
+  const [customOpen, setCustomOpen] = useState(isCustom);
+  const [numerator, denominator] = (isCustom ? value.split('/') : ['', '']);
+
+  const handleSelect = (e) => {
+    const v = e.target.value;
+    if (v === CUSTOM_TIME) {
+      setCustomOpen(true);
+      // Don't clear an existing custom value; otherwise start blank.
+      if (!isCustom) onChange('');
+    } else {
+      setCustomOpen(false);
+      onChange(v);
+    }
+  };
+
+  const setPart = (idx, part) => {
+    const sanitized = part.replace(/\D/g, '').slice(0, 2);
+    const next = idx === 0
+      ? `${sanitized}/${denominator || ''}`
+      : `${numerator || ''}/${sanitized}`;
+    onChange(next === '/' ? '' : next);
+  };
+
+  if (customOpen) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          type="text"
+          inputMode="numeric"
+          value={numerator}
+          onChange={e => setPart(0, e.target.value)}
+          className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-9 text-center"
+          aria-label="Time signature beats"
+          placeholder="4"
+        />
+        <span className="text-label-11 text-[var(--ds-gray-600)]">/</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={denominator}
+          onChange={e => setPart(1, e.target.value)}
+          className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-9 text-center"
+          aria-label="Time signature unit"
+          placeholder="4"
+        />
+        <button
+          type="button"
+          onClick={() => { setCustomOpen(false); onChange(''); }}
+          aria-label="Clear custom time signature"
+          className="text-label-11 text-[var(--ds-gray-600)] bg-transparent border-none cursor-pointer px-1"
+        >
+          ✕
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      value={value || ''}
+      onChange={handleSelect}
+      className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
+      aria-label="Time signature"
+    >
+      <option value="">—</option>
+      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+      <option value={CUSTOM_TIME}>Custom…</option>
+    </select>
+  );
+}
 
 const DEFAULT_MD = `---
 title: New Song
 artist:
 key: C
-tempo: 120
-time: 4/4
 ---
 
 ## Verse 1
@@ -55,7 +127,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
   const [workingSong, setWorkingSong] = useState(() => {
     if (song && Array.isArray(song.arrangements)) return song;
     if (song) return songFromFlat(song);
-    return songFromFlat({ id: generateId(), title: 'New Song', artist: '', key: 'C', tempo: 120, time: '4/4', sections: [] });
+    return songFromFlat({ id: generateId(), title: 'New Song', artist: '', key: 'C', tempo: null, time: '', sections: [] });
   });
 
   const [activeArrangementId, setActiveArrangementId] = useState(
@@ -285,10 +357,12 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
     setMd(replaceFrontmatter(md, serializeFrontmatterFields(fields)));
   }, [md]);
 
-  // Current field values for the header
+  // Current field values for the header. We use `??` (not `||`) so a
+  // cleared tempo field doesn't snap back to 120 mid-edit, and an empty
+  // time signature stays empty instead of forcing 4/4.
   const currentKey = preview?.key || 'C';
-  const currentTempo = preview?.tempo || 120;
-  const currentTime = preview?.time || '4/4';
+  const currentTempo = preview?.tempo ?? '';
+  const currentTime = preview?.time ?? '';
 
   // Render active tab content
   const renderTab = () => {
@@ -404,16 +478,13 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
                 onChange={e => updateField('tempo', e.target.value)}
                 className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
                 min="30" max="300"
+                placeholder="bpm"
                 aria-label="Tempo"
               />
-              <select
+              <TimeSignatureControl
                 value={currentTime}
-                onChange={e => updateField('time', e.target.value)}
-                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
-                aria-label="Time signature"
-              >
-                {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+                onChange={v => updateField('time', v)}
+              />
             </div>
           </div>
 

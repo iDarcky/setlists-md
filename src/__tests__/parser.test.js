@@ -62,8 +62,10 @@ describe('parseSongMd', () => {
     expect(song.title).toBe('Untitled');
     expect(song.artist).toBe('Unknown');
     expect(song.key).toBe('C');
-    expect(song.tempo).toBe(120);
-    expect(song.time).toBe('4/4');
+    // Tempo and time signature stay absent when not in the frontmatter,
+    // so new songs don't ship with a misleading 120 bpm / 4-4 default.
+    expect(song.tempo).toBeNull();
+    expect(song.time).toBe('');
     expect(song.capo).toBe(0);
     expect(song.tags).toEqual([]);
   });

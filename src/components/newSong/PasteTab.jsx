@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
 import { smartImport, detectFormat } from '../../importer';
+import { ALL_KEYS } from '../../music';
 
 const FORMAT_OPTIONS = [
   { value: 'auto', label: 'Auto-detect' },
@@ -24,37 +26,92 @@ G       D         G
 That saved a wretch like me`;
 
 export default function PasteTab({ onSubmit }) {
+  const [title, setTitle] = useState('');
+  const [songKey, setSongKey] = useState('');
+  const [tempo, setTempo] = useState('');
   const [text, setText] = useState('');
   const [formatChoice, setFormatChoice] = useState('auto');
-  const pasteRef = useRef(null);
+  const titleRef = useRef(null);
 
   useEffect(() => {
-    pasteRef.current?.focus();
+    titleRef.current?.focus();
   }, []);
 
   const detected = useMemo(() => (text.trim() ? detectFormat(text) : null), [text]);
   const effectiveFormat = formatChoice === 'auto' ? detected : formatChoice;
 
+  const overrides = useMemo(() => ({
+    title: title.trim(),
+    key: songKey.trim(),
+    tempo: tempo.trim(),
+  }), [title, songKey, tempo]);
+
   const preview = useMemo(() => {
     if (!text.trim()) return '';
     const override = formatChoice === 'auto' ? null : formatChoice;
     try {
-      const { md } = smartImport(text, override);
+      const { md } = smartImport(text, override, overrides);
       return md;
     } catch (err) {
       return `// Conversion failed: ${err.message}`;
     }
-  }, [text, formatChoice]);
+  }, [text, formatChoice, overrides]);
 
   const handleCreate = () => {
-    if (!text.trim()) return;
+    if (!text.trim() || !title.trim()) return;
     const override = formatChoice === 'auto' ? null : formatChoice;
-    const { md } = smartImport(text, override);
+    const { md } = smartImport(text, override, overrides);
     onSubmit(md);
   };
 
+  const canSubmit = text.trim() && title.trim();
+
   return (
     <div className="flex flex-col min-h-0 flex-1">
+      <div className="px-5 py-3 border-b border-[var(--ds-gray-300)] grid grid-cols-1 sm:grid-cols-[1fr_120px_120px] gap-3">
+        <div>
+          <label className="text-label-12 text-[var(--ds-gray-600)] font-mono mb-1 block">
+            Title <span className="text-[var(--color-brand-text)]">*</span>
+          </label>
+          <Input
+            ref={titleRef}
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="Song title"
+          />
+        </div>
+        <div>
+          <label className="text-label-12 text-[var(--ds-gray-600)] font-mono mb-1 block">
+            Key
+          </label>
+          <select
+            value={songKey}
+            onChange={e => setSongKey(e.target.value)}
+            className="w-full h-9 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 text-copy-13 text-[var(--ds-gray-1000)] outline-none"
+          >
+            <option value="">—</option>
+            {ALL_KEYS.map(k => (
+              <option key={k} value={k}>{k}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-label-12 text-[var(--ds-gray-600)] font-mono mb-1 block">
+            Tempo
+          </label>
+          <Input
+            type="number"
+            inputMode="numeric"
+            min="20"
+            max="300"
+            value={tempo}
+            onChange={e => setTempo(e.target.value)}
+            placeholder="bpm"
+          />
+        </div>
+      </div>
+
       <div className="flex items-center gap-3 px-5 py-3 border-b border-[var(--ds-gray-300)]">
         <span className="text-label-12 text-[var(--ds-gray-600)] font-mono">Format:</span>
         <select
@@ -84,7 +141,6 @@ export default function PasteTab({ onSubmit }) {
         <div className="flex flex-col min-h-0 p-4">
           <label className="text-label-12 text-[var(--ds-gray-600)] font-mono mb-1.5">Paste</label>
           <textarea
-            ref={pasteRef}
             value={text}
             onChange={e => setText(e.target.value)}
             placeholder={EXAMPLE}
@@ -115,7 +171,7 @@ export default function PasteTab({ onSubmit }) {
           variant="brand"
           size="sm"
           onClick={handleCreate}
-          disabled={!text.trim()}
+          disabled={!canSubmit}
         >
           Create song
         </Button>
