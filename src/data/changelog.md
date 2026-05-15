@@ -2,6 +2,27 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.4.0-pre-alpha — Midnight theme & a tidier account drawer
+*May 2026*
+
+### Added
+- New **Midnight** theme — the legacy navy surface returns as a third theme option alongside Light and Dark, and is now the default for fresh installs.
+- The mobile hamburger menu has a **What's new** row with a brand-teal dot when a new release is waiting; tapping it lands you straight on these notes.
+- Guests now see a quiet **Compare plans →** link on both the mobile drawer and the desktop Account profile, so the marketing hook is reachable without crowding the Sign in button.
+- The Settings → About panel leads with the brand mark and the colored setlists.md wordmark; signed-in users get a friendly "Hi, ⟨name⟩." line beneath it.
+
+### Improved
+- Mobile drawer reworked: the Songs/Setlists counters are gone, the rainbow Upgrade-to-Pro pill no longer appears for guests, and Preferences / Help / Install pin to the bottom of the panel so the primary buttons up top can breathe.
+- Drawer gradient swaps its bottom-right plum spot for Vetiver (#3B5A52), keeping the wash fully inside the official Lydian Teal palette.
+- Midnight tints card hovers, the New Song dropzone, and other surface chrome with a subtle navy hue so they stop reading as cold gray on the navy page.
+- Dashboard search dropdown and "Recently Edited" dividers follow the active theme instead of the legacy dark chrome.
+- Bottom navigation drops the sliding indicator circle; the active tab is conveyed in brand teal alone.
+
+### Fixed
+- Dashboard scrolls correctly again when the team/church top bar is showing — previously the page clipped instead of scrolling under the banner.
+- Drawer "What's new" tap now opens the panel directly instead of dropping you on the Settings hub.
+- What's new release row wraps to a second line on narrow screens instead of truncating the date to "May…".
+
 ## 0.3.0-pre-alpha — New look: official brand kit
 *May 2026*
 
