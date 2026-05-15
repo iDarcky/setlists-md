@@ -2,16 +2,20 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
-## 0.4.0-pre-alpha — Midnight theme & a tidier account drawer
+## 0.4.0-pre-alpha — New look: Midnight theme, brand kit, tidier drawer
 *May 2026*
 
 ### Added
+- Official **setlists.md brand kit** is now live across the app: new app icon, favicon, and wordmark. The brand wordmark appears on the loading splash, sign-in screen, onboarding hero, and the mobile drawer footer (when signed out).
 - New **Midnight** theme — the legacy navy surface returns as a third theme option alongside Light and Dark, and is now the default for fresh installs.
 - The mobile hamburger menu has a **What's new** row with a brand-teal dot when a new release is waiting; tapping it lands you straight on these notes.
 - Guests now see a quiet **Compare plans →** link on both the mobile drawer and the desktop Account profile, so the marketing hook is reachable without crowding the Sign in button.
 - The Settings → About panel leads with the brand mark and the colored setlists.md wordmark; signed-in users get a friendly "Hi, ⟨name⟩." line beneath it.
 
 ### Improved
+- Lydian Teal is now the exact brand primary, with Mist, Vetiver, Bone, and Stage joining the palette.
+- Dark mode shifts to a warmer "Stage" black and light mode to a softer "Bone" paper, matching the brand kit.
+- App name reads as "setlists.md" everywhere in the UI, page title, and PWA install card.
 - Mobile drawer reworked: the Songs/Setlists counters are gone, the rainbow Upgrade-to-Pro pill no longer appears for guests, and Preferences / Help / Install pin to the bottom of the panel so the primary buttons up top can breathe.
 - Drawer gradient swaps its bottom-right plum spot for Vetiver (#3B5A52), keeping the wash fully inside the official Lydian Teal palette.
 - Midnight tints card hovers, the New Song dropzone, and other surface chrome with a subtle navy hue so they stop reading as cold gray on the navy page.
@@ -23,20 +27,21 @@ A running log of what's new in setlists.md. Newest releases first.
 - Drawer "What's new" tap now opens the panel directly instead of dropping you on the Settings hub.
 - What's new release row wraps to a second line on narrow screens instead of truncating the date to "May…".
 
-## 0.3.0-pre-alpha — New look: official brand kit
+## 0.3.0-pre-alpha — Cleaner chart view & arrangements modal
 *May 2026*
 
 ### Added
-- Official setlists.md brand kit is now live across the app: new app icon, favicon, and wordmark.
-- Brand wordmark now appears on the loading splash, sign-in screen, onboarding hero, and the mobile drawer footer (when signed out).
+- **Arrangements modal.** Tap the arrangement label under the song title to open a bottom sheet that switches between arrangements, renames, deletes, sets a default, or creates a new one — all in one place.
+- **Bottom-sheet panels** for layout, music, and song info in the chart view. Pull down with your finger to dismiss.
+- **Tempo, time, and artist** now live in the Song info sheet alongside capo, CCLI, tags, notes, and links.
 
 ### Improved
-- Lydian Teal is now the exact brand primary, with Mist, Vetiver, Bone, and Stage joining the palette.
-- Dark mode shifts to a warmer "Stage" black and light mode to a softer "Bone" paper, matching the brand kit.
-- App name reads as "setlists.md" everywhere in the UI, page title, and PWA install card.
+- The song-view header is pared down to just the close × and a single dot (⋮) overflow menu. Layout, music, info, print, edit, and fullscreen all live inside that menu now.
+- Bottom sheets let the chart show through under a faint dim — your music stays visible while you change settings.
 
 ### Fixed
-- Mobile bottom-nav active state no longer shows an off-centre circle behind the tab — the active tab now simply tints in brand teal.
+- Creating a new setlist now lands on the new setlist's overview instead of bouncing back to wherever the builder was opened from.
+- The font-family picker inside the Layout sheet now opens above the sheet instead of getting hidden behind it.
 
 ## 0.2.0-pre-alpha — Arrangements, key history & next-song picks
 *May 2026*
