@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { transposeChord, ALL_KEYS, semitonesBetween } from '../music';
+import { transposeChord, ALL_KEYS, semitonesBetween, normalizeSectionName } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
 import ChordDiagram from './ChordDiagram';
@@ -144,17 +144,31 @@ export default function ChartView({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [song, transpose, isPreview]);
 
-  // Resolve playback order: if `song.structure` is set, use it as the
-  // ordered list of section references (each entry maps to a section by
-  // its `type` label). Sections can repeat. When empty, fall back to
-  // document order. This is the Proclaim-style behaviour.
+  // Resolve playback order: if `song.structure` is set and the section
+  // types in the body are unique, use it as the ordered list of section
+  // references (each entry maps to a section by its `type` label,
+  // sections may repeat). When the body has duplicate section names
+  // (e.g. two `## Verse` blocks) the by-name lookup is ambiguous and
+  // would hide the duplicates, so we fall back to document order. That
+  // preserves the pre-structure-rework behaviour for legacy songs.
   const orderedSections = useMemo(() => {
-    if (!Array.isArray(song.structure) || song.structure.length === 0) {
+    const types = song.sections.map(s => normalizeSectionName(s.type));
+    const uniqueTypes = new Set(types).size === types.length;
+    if (
+      !uniqueTypes ||
+      !Array.isArray(song.structure) ||
+      song.structure.length === 0
+    ) {
       return song.sections;
     }
-    return song.structure
-      .map(name => song.sections.find(s => s.type === name))
+    const resolved = song.structure
+      .map(name => song.sections.find(s => normalizeSectionName(s.type) === normalizeSectionName(name)))
       .filter(Boolean);
+    // If the structure list doesn't fully resolve against the actual
+    // sections (typo, removed section, etc.), drop back to doc order
+    // rather than partially hiding the song.
+    if (resolved.length !== song.structure.length) return song.sections;
+    return resolved;
   }, [song.structure, song.sections]);
 
   // Cumulative modulate offsets follow playback order so a repeated
