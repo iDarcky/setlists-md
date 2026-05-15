@@ -280,12 +280,20 @@
 
 @layer base {
   /* "Midnight" — legacy navy dark surface, kept as an opt-in flavor of the
-     dark theme. Inherits the dark gray-scale + tokens from the root and
-     only overrides the page surfaces; the modes-variant wash is themed
+     dark theme. Overrides page surfaces and tints the low-end gray ramp
+     (100–400, used for card fills, hovers, input borders, dividers)
+     toward the navy hue so chrome blends with the base instead of
+     reading as cold neutral gray. Text-weight grays (500–1000) stay
+     neutral to preserve contrast. The modes-variant wash is themed
      separately via --modes-bg further down. */
   [data-theme="midnight"] {
     --ds-background-100: #14161e;
     --ds-background-200: #0e1017;
+
+    --ds-gray-100-value: 228, 16%, 14%;
+    --ds-gray-200-value: 228, 16%, 17%;
+    --ds-gray-300-value: 228, 15%, 22%;
+    --ds-gray-400-value: 228, 13%, 26%;
   }
 
   [data-theme="light"] {
