@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import changelogRaw from '../../data/changelog.md?raw';
 
 // ── Inline markdown (bold / italic / code / links) ───────────────────────
@@ -143,9 +143,17 @@ function parseChangelog(raw) {
 }
 
 // ── Panel ────────────────────────────────────────────────────────────────
-export default function WhatsNewPanel() {
+export default function WhatsNewPanel({ settings, onMarkSeen }) {
   const { pageIntro, releases } = useMemo(() => parseChangelog(changelogRaw), []);
   const currentVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '';
+
+  // Mark the current version as seen on mount so the drawer "What's new"
+  // dot clears the next time we render. Skip if we're already up-to-date.
+  useEffect(() => {
+    if (!onMarkSeen || !currentVersion) return;
+    if (settings?.lastChangelogVersion === currentVersion) return;
+    onMarkSeen(currentVersion);
+  }, [currentVersion, settings?.lastChangelogVersion, onMarkSeen]);
 
   return (
     <div className="flex flex-col gap-6">

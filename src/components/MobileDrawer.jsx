@@ -38,6 +38,12 @@ const HelpIcon = () => (
   </svg>
 );
 
+const SparkleIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2l2.39 5.96L20.5 10l-5.58 2.72L12 19l-2.92-6.28L3.5 10l6.11-2.04L12 2z" />
+  </svg>
+);
+
 const InstallIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -81,6 +87,8 @@ export default function MobileDrawer({
   onOpenSettings,
   onOpenNotifications,
   onOpenHelp,
+  onOpenWhatsNew,
+  hasNewChangelog = false,
   onUpgrade,
   onSignIn,
   onCreateAccount,
@@ -267,6 +275,16 @@ export default function MobileDrawer({
             <>
               <SignInButton onSignIn={onSignIn} />
               <CreateAccountButton onCreateAccount={onCreateAccount} />
+              {onUpgrade && (
+                <button
+                  type="button"
+                  onClick={onUpgrade}
+                  className="self-center mt-1 text-label-13 bg-transparent border-none p-0 cursor-pointer hover:underline underline-offset-4"
+                  style={{ color: 'var(--drawer-text-muted)', WebkitTapHighlightColor: 'transparent' }}
+                >
+                  Compare plans →
+                </button>
+              )}
             </>
           )}
         </div>
@@ -277,8 +295,21 @@ export default function MobileDrawer({
           {isSignedIn && team && onOpenTeam && (
             <Row icon={TeamDrawerIcon} label="Your Team" onClick={onOpenTeam} />
           )}
+          {onOpenWhatsNew && (
+            <Row
+              icon={SparkleIcon}
+              label="What's new"
+              onClick={onOpenWhatsNew}
+              accessory={hasNewChangelog ? (
+                <span
+                  aria-label="New release notes"
+                  className="w-2 h-2 rounded-full bg-[var(--color-brand)] shrink-0"
+                />
+              ) : null}
+            />
+          )}
           <Row icon={SettingsIcon} label="Preferences" onClick={onOpenSettings} />
-          <Row icon={HelpIcon} label="Help" onClick={onOpenHelp} />
+          <Row icon={HelpIcon} label="Help" onClick={onOpenHelp } />
           {!isStandalone && (canInstall || isIOS) && onInstall && (
             <Row
               icon={InstallIcon}

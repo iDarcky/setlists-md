@@ -100,6 +100,7 @@ const PORTABLE_PREF_KEYS = [
   'firstDayOfWeek',
   'clockFormat',
   'userName',
+  'lastChangelogVersion',
 ];
 
 function extractPortablePrefs(s) {
@@ -1634,6 +1635,12 @@ export default function App() {
           onOpenSettings={() => { setDrawerOpen(false); goToMainView('settings'); }}
           onOpenNotifications={() => { setDrawerOpen(false); setNotifTrayOpen(true); }}
           onOpenHelp={() => { setDrawerOpen(false); navigate('help'); }}
+          onOpenWhatsNew={() => {
+            setDrawerOpen(false);
+            goToMainView('settings');
+            setSettingsPanel('whatsnew');
+          }}
+          hasNewChangelog={settings?.lastChangelogVersion !== __APP_VERSION__}
           onSignOut={async () => { setDrawerOpen(false); await handleSignOut(); }}
           onUpgrade={() => { setDrawerOpen(false); navigate('upgrade'); }}
           onSignIn={() => { setDrawerOpen(false); setAuthStartMode('signin'); navigate('signin'); }}

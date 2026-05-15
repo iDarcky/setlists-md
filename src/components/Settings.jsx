@@ -439,7 +439,12 @@ export default function Settings({
           />
         );
       case 'whatsnew':
-        return <WhatsNewPanel />;
+        return (
+          <WhatsNewPanel
+            settings={settings}
+            onMarkSeen={version => update('lastChangelogVersion', version)}
+          />
+        );
       case 'about':
         return <AboutPanel isSignedIn={isSignedIn} displayName={displayName} />;
       default:
