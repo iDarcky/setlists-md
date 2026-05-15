@@ -2,6 +2,22 @@
 
 A running log of what's new in Setlists MD. Newest releases first.
 
+## 0.3.0-pre-alpha — Cleaner chart view & arrangements modal
+*May 2026*
+
+### Added
+- **Arrangements modal.** Tap the arrangement label under the song title to open a bottom sheet that switches between arrangements, renames, deletes, sets a default, or creates a new one — all in one place.
+- **Bottom-sheet panels** for layout, music, and song info in the chart view. Pull down with your finger to dismiss.
+- **Tempo, time, and artist** now live in the Song info sheet alongside capo, CCLI, tags, notes, and links.
+
+### Improved
+- The song-view header is pared down to just the close × and a single dot (⋮) overflow menu. Layout, music, info, print, edit, and fullscreen all live inside that menu now.
+- Bottom sheets let the chart show through under a faint dim — your music stays visible while you change settings.
+
+### Fixed
+- Creating a new setlist now lands on the new setlist's overview instead of bouncing back to wherever the builder was opened from.
+- The font-family picker inside the Layout sheet now opens above the sheet instead of getting hidden behind it.
+
 ## 0.2.0-pre-alpha — Arrangements, key history & next-song picks
 *May 2026*
 
