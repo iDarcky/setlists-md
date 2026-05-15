@@ -9,7 +9,7 @@ import BrowseTab from './newSong/BrowseTab';
 const TABS = [
   { id: 'import', label: 'Import' },
   { id: 'paste', label: 'Paste' },
-  { id: 'browse', label: 'Browse' },
+  { id: 'browse', label: 'Browse Public Domain Songs' },
 ];
 
 const MOBILE_QUERY = '(max-width: 639px)';
@@ -80,7 +80,7 @@ export default function NewSongModal({
               New song
             </div>
             <div className="text-copy-12 text-[var(--ds-gray-600)] mt-0.5">
-              Import a file, paste a chord sheet, or browse community songs.
+              Import a file, paste a chord sheet, or browse public-domain songs.
             </div>
           </div>
           <IconButton variant="ghost" size="sm" onClick={onClose} aria-label="Close">✕</IconButton>

@@ -85,6 +85,7 @@ export default function MobileDrawer({
   isSignedIn = false,
   hasUnreadNotifications = false,
   onOpenSettings,
+  onOpenPlan,
   onOpenNotifications,
   onOpenHelp,
   onOpenWhatsNew,
@@ -259,18 +260,19 @@ export default function MobileDrawer({
           </div>
         )}
 
-        {/* Plan */}
+        {/* Plan — tap to deep-link into Plan & billing settings. */}
         <div className={`px-5 ${isSignedIn ? 'mt-5' : ''}`}>
-          <PlanLabel plan={plan} tone="drawer" />
+          <PlanLabel plan={plan} tone="drawer" onClick={isSignedIn ? onOpenPlan : undefined} />
         </div>
 
         {/* Primary CTAs — guests get Sign in + Create account; signed-in
-            users see the Upgrade pill as their actual upgrade entry. The
-            pill is hidden for guests because they can't upgrade without
-            an account anyway, and it dilutes the primary Sign in action. */}
+            users on the Free plan see the Upgrade pill as their actual
+            upgrade entry. The pill is hidden for paid plans (nothing to
+            upgrade to from the user's perspective) and for guests (they
+            need an account first; the pill dilutes the Sign in CTA). */}
         <div className="px-5 mt-6 flex flex-col gap-2">
           {isSignedIn ? (
-            <UpgradePill onUpgrade={onUpgrade} />
+            plan === 'Free' && <UpgradePill onUpgrade={onUpgrade} />
           ) : (
             <>
               <SignInButton onSignIn={onSignIn} />
@@ -319,20 +321,14 @@ export default function MobileDrawer({
           )}
         </div>
 
-        {/* Footer — surfaces the signed-in account name as the primary brand
-            label; falls back to the wordmark for guests. */}
+        {/* Footer — always shows the app wordmark so the drawer reads
+            as a product surface, not an account profile. */}
         <div className="px-5 pt-6 text-center">
-          {isSignedIn ? (
-            <div className="text-label-11 text-[var(--drawer-text-faint)]">
-              {displayName}
-            </div>
-          ) : (
-            <BrandWordmark
-              height={20}
-              accent="var(--color-brand-mist)"
-              className="mx-auto text-[var(--drawer-text)] opacity-90"
-            />
-          )}
+          <BrandWordmark
+            height={20}
+            accent="var(--color-brand-mist)"
+            className="mx-auto text-[var(--drawer-text)] opacity-90"
+          />
         </div>
       </aside>
     </>

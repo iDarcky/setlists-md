@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useMediaQuery } from '../lib/useMediaQuery';
+import ChartView from './ChartView';
 import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields } from '../parser';
 import { ALL_KEYS } from '../music';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
@@ -33,13 +35,85 @@ const TAB_LIST = [
 ];
 
 const TIME_OPTIONS = ['4/4', '3/4', '6/8', '7/8', '12/8', '2/4', '5/4'];
+const CUSTOM_TIME = '__custom__';
+
+function TimeSignatureControl({ value, onChange }) {
+  const isCustom = value && !TIME_OPTIONS.includes(value);
+  const [customOpen, setCustomOpen] = useState(isCustom);
+  const [numerator, denominator] = (isCustom ? value.split('/') : ['', '']);
+
+  const handleSelect = (e) => {
+    const v = e.target.value;
+    if (v === CUSTOM_TIME) {
+      setCustomOpen(true);
+      // Don't clear an existing custom value; otherwise start blank.
+      if (!isCustom) onChange('');
+    } else {
+      setCustomOpen(false);
+      onChange(v);
+    }
+  };
+
+  const setPart = (idx, part) => {
+    const sanitized = part.replace(/\D/g, '').slice(0, 2);
+    const next = idx === 0
+      ? `${sanitized}/${denominator || ''}`
+      : `${numerator || ''}/${sanitized}`;
+    onChange(next === '/' ? '' : next);
+  };
+
+  if (customOpen) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          type="text"
+          inputMode="numeric"
+          value={numerator}
+          onChange={e => setPart(0, e.target.value)}
+          className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-9 text-center"
+          aria-label="Time signature beats"
+          placeholder="4"
+        />
+        <span className="text-label-11 text-[var(--ds-gray-600)]">/</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={denominator}
+          onChange={e => setPart(1, e.target.value)}
+          className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-9 text-center"
+          aria-label="Time signature unit"
+          placeholder="4"
+        />
+        <button
+          type="button"
+          onClick={() => { setCustomOpen(false); onChange(''); }}
+          aria-label="Clear custom time signature"
+          className="text-label-11 text-[var(--ds-gray-600)] bg-transparent border-none cursor-pointer px-1"
+        >
+          ✕
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      value={value || ''}
+      onChange={handleSelect}
+      className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
+      aria-label="Time signature"
+    >
+      <option value="">—</option>
+      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+      <option value={CUSTOM_TIME}>Custom…</option>
+    </select>
+  );
+}
 
 const DEFAULT_MD = `---
 title: New Song
 artist:
 key: C
-tempo: 120
-time: 4/4
 ---
 
 ## Verse 1
@@ -55,7 +129,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
   const [workingSong, setWorkingSong] = useState(() => {
     if (song && Array.isArray(song.arrangements)) return song;
     if (song) return songFromFlat(song);
-    return songFromFlat({ id: generateId(), title: 'New Song', artist: '', key: 'C', tempo: 120, time: '4/4', sections: [] });
+    return songFromFlat({ id: generateId(), title: 'New Song', artist: '', key: 'C', tempo: null, time: '', sections: [] });
   });
 
   const [activeArrangementId, setActiveArrangementId] = useState(
@@ -72,6 +146,9 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
   const [activeTab, setActiveTab] = useState('arrange');
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
+  const isWide = useMediaQuery('(min-width: 1024px)');
+  const [previewEnabled, setPreviewEnabled] = useState(true);
+  const showSidePreview = isWide && previewEnabled;
   const [editArrangementsOpen, setEditArrangementsOpen] = useState(false);
   const textareaRef = useRef(null);
   const isDirty = md !== savedMd;
@@ -285,10 +362,12 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
     setMd(replaceFrontmatter(md, serializeFrontmatterFields(fields)));
   }, [md]);
 
-  // Current field values for the header
+  // Current field values for the header. We use `??` (not `||`) so a
+  // cleared tempo field doesn't snap back to 120 mid-edit, and an empty
+  // time signature stays empty instead of forcing 4/4.
   const currentKey = preview?.key || 'C';
-  const currentTempo = preview?.tempo || 120;
-  const currentTime = preview?.time || '4/4';
+  const currentTempo = preview?.tempo ?? '';
+  const currentTime = preview?.time ?? '';
 
   // Render active tab content
   const renderTab = () => {
@@ -404,16 +483,13 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
                 onChange={e => updateField('tempo', e.target.value)}
                 className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
                 min="30" max="300"
+                placeholder="bpm"
                 aria-label="Tempo"
               />
-              <select
+              <TimeSignatureControl
                 value={currentTime}
-                onChange={e => updateField('time', e.target.value)}
-                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
-                aria-label="Time signature"
-              >
-                {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+                onChange={v => updateField('time', v)}
+              />
             </div>
           </div>
 
@@ -448,14 +524,47 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
                 </>
               )}
               <IconButton variant="ghost" size="xs" onClick={handleImport} aria-label="Import from clipboard">📋</IconButton>
+              {isWide && (
+                <IconButton
+                  variant={previewEnabled ? 'active' : 'ghost'}
+                  size="xs"
+                  onClick={() => setPreviewEnabled(v => !v)}
+                  aria-label={previewEnabled ? 'Hide preview' : 'Show preview'}
+                  aria-pressed={previewEnabled}
+                  title={previewEnabled ? 'Hide preview' : 'Show preview'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </IconButton>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* ─── Content Area ─── */}
-      <div className={`flex-1 min-h-0 flex flex-col a4-container w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
-        {renderTab()}
+      {/* ─── Content Area — split-screen on wide viewports so the user
+          can see the rendered chart while editing. The preview is the
+          existing ChartView in isPreview mode, fed by the parsed `preview`
+          state we already maintain for save. ─── */}
+      <div className="flex-1 min-h-0 flex w-full overflow-hidden">
+        <div className={`flex-1 min-h-0 flex flex-col a4-container w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
+          {renderTab()}
+        </div>
+        {showSidePreview && preview && (
+          <aside
+            aria-label="Live chart preview"
+            className="hidden md:flex w-[44%] max-w-[640px] border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] flex-col min-h-0 overflow-auto"
+          >
+            <div className="px-4 py-2 border-b border-[var(--ds-gray-200)] text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">
+              Preview
+            </div>
+            <div className="flex-1 min-h-0 px-4 py-4">
+              <ChartView song={preview} isPreview />
+            </div>
+          </aside>
+        )}
       </div>
 
       {/* ─── Sticky bottom action bar — Cancel + Save, mirrors SetlistBuilder ─── */}

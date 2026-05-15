@@ -113,8 +113,8 @@ export function parseSongMd(text) {
     title: meta.title || 'Untitled',
     artist: meta.artist || 'Unknown',
     key: meta.key || 'C',
-    tempo: meta.tempo || 120,
-    time: meta.time || '4/4',
+    tempo: meta.tempo || null,
+    time: meta.time || '',
     ccli: meta.ccli || '',
     tags: Array.isArray(meta.tags) ? meta.tags : [],
     spotify: meta.spotify || '',
@@ -180,21 +180,19 @@ export function songToMd(song, arrangement) {
   md += `title: ${view.title}\n`;
   md += `artist: ${view.artist}\n`;
   md += `key: ${view.key}\n`;
-  md += `tempo: ${view.tempo}\n`;
-  md += `time: ${view.time}\n`;
+  if (view.tempo) md += `tempo: ${view.tempo}\n`;
+  if (view.time) md += `time: ${view.time}\n`;
   if (view.ccli) md += `ccli: "${view.ccli}"\n`;
   if (view.tags?.length) md += `tags: [${view.tags.join(', ')}]\n`;
   if (view.spotify) md += `spotify: ${view.spotify}\n`;
   if (view.youtube) md += `youtube: ${view.youtube}\n`;
   if (view.capo) md += `capo: ${view.capo}\n`;
   if (view.notes) md += `notes: ${view.notes}\n`;
-  // Use explicit structure if present, otherwise fallback to section order
-  const structure = (view.structure && view.structure.length > 0)
-    ? view.structure
-    : view.sections.map(s => s.type);
-
-  if (structure.length) {
-    md += `structure: [${structure.join(', ')}]\n`;
+  // Only emit `structure:` when the user has explicitly set a custom
+  // section order (Proclaim-style). When empty, render falls back to
+  // document order so we don't want to bake that order into the file.
+  if (view.structure && view.structure.length > 0) {
+    md += `structure: [${view.structure.join(', ')}]\n`;
   }
   if (useArrangementIdentity) {
     md += `songId: ${view._songId}\n`;
@@ -377,7 +375,7 @@ export function replaceFrontmatter(md, newFrontmatter) {
 // Parse frontmatter text into flat field object (strings, for form editing)
 export function parseFrontmatterFields(frontmatter) {
   const fields = {
-    title: '', artist: '', key: 'C', tempo: '120', time: '4/4',
+    title: '', artist: '', key: 'C', tempo: '', time: '',
     structure: '', ccli: '', tags: '', capo: '',
     spotify: '', youtube: '', notes: '',
     songid: '', arrangementid: '', arrangementname: '',
@@ -405,7 +403,10 @@ export function serializeFrontmatterFields(fields) {
   if (fields.key) lines.push(`key: ${fields.key}`);
   if (fields.tempo) lines.push(`tempo: ${fields.tempo}`);
   if (fields.time) lines.push(`time: ${fields.time}`);
-  // structure is auto-derived from sections in songToMd — skip here
+  // Structure is now a user-edited list (Proclaim-style). Persist
+  // verbatim through the form-editor round-trip so the chip editor
+  // can hand it back unchanged.
+  if (fields.structure) lines.push(`structure: [${fields.structure}]`);
   if (fields.ccli) lines.push(`ccli: "${fields.ccli}"`);
   if (fields.tags) lines.push(`tags: [${fields.tags}]`);
   if (fields.capo) lines.push(`capo: ${fields.capo}`);

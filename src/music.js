@@ -84,6 +84,20 @@ export function sectionStyle(type) {
   return SECTION_COLORS[key] || DEFAULT_STYLE;
 }
 
+// Normalize a section name for matching across the structure list and
+// the actual section headers in the body. People (and older code paths)
+// sometimes write `Verse 1` in the structure but `## Verse 1:` in the
+// body, or pad with stray spaces. We strip trailing punctuation and
+// collapse whitespace so the two match.
+export function normalizeSectionName(name) {
+  if (!name) return '';
+  return String(name)
+    .replace(/[\s:.,;]+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 // Compact label for live mode (e.g. "Chorus 1" → "C1", "Pre Chorus" → "Pc")
 export function compactLabel(name) {
   const num = name.match(/(\d+)$/)?.[1] || '';

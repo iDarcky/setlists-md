@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { transposeChord, ALL_KEYS, semitonesBetween } from '../music';
-import { resolveSongView, addArrangement, renameArrangement, deleteArrangement, setDefaultArrangement } from '../arrangements';
+import { transposeChord, ALL_KEYS, semitonesBetween, normalizeSectionName } from '../music';
+import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
 import ChordDiagram from './ChordDiagram';
 import { Button } from './ui/Button';
@@ -76,7 +76,6 @@ export default function ChartView({
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [notesPeekOpen, setNotesPeekOpen] = useState(notesPeekDefaultOpen);
-  const [editingArrId, setEditingArrId] = useState(null);
 
   const scrollContainerRef = useRef(null);
   const menuTriggerRef = useRef(null);
@@ -98,32 +97,6 @@ export default function ChartView({
   const handleSwitchArrangement = (id) => {
     setInternalArrId(id);
     onArrangementChange?.(id);
-  };
-  const handleAddArrangement = () => {
-    if (!songInput || !onSongChange) return;
-    const { song: nextSong, arrangementId: newId } = addArrangement(songInput);
-    onSongChange(nextSong);
-    handleSwitchArrangement(newId);
-    setEditingArrId(newId);
-  };
-  const handleRenameArrangement = (id, name) => {
-    if (!songInput || !onSongChange) return;
-    const trimmed = (name || '').trim();
-    if (!trimmed) return;
-    onSongChange(renameArrangement(songInput, id, trimmed));
-  };
-  const handleDeleteArrangement = (id) => {
-    if (!songInput || !onSongChange) return;
-    if ((songInput.arrangements?.length || 0) <= 1) return;
-    const next = deleteArrangement(songInput, id);
-    onSongChange(next);
-    if (id === activeArrId) {
-      handleSwitchArrangement(next.defaultArrangementId || next.arrangements[0].id);
-    }
-  };
-  const handleSetDefaultArrangement = (id) => {
-    if (!songInput || !onSongChange) return;
-    onSongChange(setDefaultArrangement(songInput, id));
   };
 
   // Close the kebab menu on outside click and Escape.
@@ -171,10 +144,38 @@ export default function ChartView({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [song, transpose, isPreview]);
 
-  // Compute cumulative modulate offsets per section
+  // Resolve playback order: if `song.structure` is set and the section
+  // types in the body are unique, use it as the ordered list of section
+  // references (each entry maps to a section by its `type` label,
+  // sections may repeat). When the body has duplicate section names
+  // (e.g. two `## Verse` blocks) the by-name lookup is ambiguous and
+  // would hide the duplicates, so we fall back to document order. That
+  // preserves the pre-structure-rework behaviour for legacy songs.
+  const orderedSections = useMemo(() => {
+    const types = song.sections.map(s => normalizeSectionName(s.type));
+    const uniqueTypes = new Set(types).size === types.length;
+    if (
+      !uniqueTypes ||
+      !Array.isArray(song.structure) ||
+      song.structure.length === 0
+    ) {
+      return song.sections;
+    }
+    const resolved = song.structure
+      .map(name => song.sections.find(s => normalizeSectionName(s.type) === normalizeSectionName(name)))
+      .filter(Boolean);
+    // If the structure list doesn't fully resolve against the actual
+    // sections (typo, removed section, etc.), drop back to doc order
+    // rather than partially hiding the song.
+    if (resolved.length !== song.structure.length) return song.sections;
+    return resolved;
+  }, [song.structure, song.sections]);
+
+  // Cumulative modulate offsets follow playback order so a repeated
+  // section after a `{modulate}` block plays back in the new key.
   const sectionModOffsets = useMemo(() => {
     const acc = { total: 0 };
-    return song.sections.map(section => {
+    return orderedSections.map(section => {
       const offset = acc.total;
       (section.lines || []).forEach(line => {
         if (typeof line === 'object' && line.type === 'modulate') {
@@ -183,7 +184,7 @@ export default function ChartView({
       });
       return offset;
     });
-  }, [song.sections]);
+  }, [orderedSections]);
 
   // Extract all unique chords for diagrams
   const allChords = Array.from(new Set(
@@ -255,15 +256,6 @@ export default function ChartView({
                       icon={<span className="text-label-12 font-semibold">Aa</span>}
                     />
                     <MenuItem
-                      onClick={() => openSheet('music')}
-                      label="Music"
-                      icon={(
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
-                        </svg>
-                      )}
-                    />
-                    <MenuItem
                       onClick={() => openSheet('info')}
                       label="Song info"
                       icon={(
@@ -332,20 +324,33 @@ export default function ChartView({
             "a4-container flex flex-wrap items-center gap-3 transition-all duration-200 overflow-hidden",
             scrolled ? "max-h-0 opacity-0 pb-0" : "max-h-12 opacity-100 pb-1.5"
           )}>
-            {song._arrangementId ? (
+            {song._arrangementId && (song._allArrangements?.length || 0) > 1 ? (
               <>
-                <button
-                  type="button"
-                  onClick={() => setActiveSheet('arrangements')}
-                  className="inline-flex items-center gap-1.5 bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)] border border-[var(--ds-gray-400)] rounded-md px-2 py-1 text-label-12 font-semibold text-[var(--ds-gray-1000)] cursor-pointer shrink-0 transition-colors"
-                  aria-label="Manage arrangements"
-                  title="Manage arrangements"
-                >
+                <Select value={activeArrId} onValueChange={handleSwitchArrangement}>
+                  <SelectTrigger
+                    className="h-7 px-2 bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)] border border-[var(--ds-gray-400)] text-label-12 font-semibold text-[var(--ds-gray-1000)] gap-1.5 max-w-[200px] w-auto"
+                    aria-label="Switch arrangement"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {song._allArrangements.map(a => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name || 'Untitled arrangement'}
+                        {a.id === song._defaultArrangementId && (
+                          <span className="ml-1.5 text-label-10 text-[var(--ds-gray-600)]">default</span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="w-px h-3.5 bg-[var(--border-1)]" />
+              </>
+            ) : song._arrangementId ? (
+              <>
+                <span className="inline-flex items-center bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 py-1 text-label-12 font-semibold text-[var(--ds-gray-1000)] shrink-0">
                   <span className="truncate max-w-[180px]">{song._arrangementName}</span>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </button>
+                </span>
                 <div className="w-px h-3.5 bg-[var(--border-1)]" />
               </>
             ) : null}
@@ -379,7 +384,7 @@ export default function ChartView({
           {/* Structure ribbon — always visible */}
           <div className="a4-container pb-2">
             <StructureRibbon
-              structure={song.sections.map(s => s.type)}
+              structure={orderedSections.map(s => s.type)}
               compact
               onSelect={(i) => {
                 const el = document.getElementById(`section-${i}`);
@@ -477,66 +482,31 @@ export default function ChartView({
                   </SelectContent>
                 </Select>
               </SheetField>
+              <SheetField label="Display">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={nns ? 'brand' : 'secondary'}
+                    size="sm"
+                    onClick={() => setNns(!nns)}
+                  >NUMBERS</Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowChords(!showChords)}
+                    className={cn(!showChords && "opacity-40")}
+                  >CHORDS</Button>
+                  <Button
+                    variant={showDiagrams ? 'brand' : 'secondary'}
+                    size="sm"
+                    onClick={() => setShowDiagrams(!showDiagrams)}
+                  >DIAGRAMS</Button>
+                </div>
+              </SheetField>
             </div>
           </BottomSheet>
 
-          <BottomSheet
-            open={activeSheet === 'music'}
-            onClose={() => setActiveSheet(null)}
-            title="Music"
-          >
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={nns ? 'brand' : 'secondary'}
-                size="sm"
-                onClick={() => setNns(!nns)}
-              >NUMBERS</Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowChords(!showChords)}
-                className={cn(!showChords && "opacity-40")}
-              >CHORDS</Button>
-              <Button
-                variant={showDiagrams ? 'brand' : 'secondary'}
-                size="sm"
-                onClick={() => setShowDiagrams(!showDiagrams)}
-              >DIAGRAMS</Button>
-            </div>
-          </BottomSheet>
-
-          <BottomSheet
-            open={activeSheet === 'arrangements'}
-            onClose={() => { setActiveSheet(null); setEditingArrId(null); }}
-            title="Arrangements"
-          >
-            <div className="flex flex-col gap-1">
-              {song._allArrangements?.map(a => (
-                <ArrangementRow
-                  key={a.id}
-                  arrangement={a}
-                  isActive={a.id === activeArrId}
-                  isDefault={a.id === song._defaultArrangementId}
-                  isOnly={(song._allArrangements?.length || 0) <= 1}
-                  isEditing={editingArrId === a.id}
-                  canMutate={!!onSongChange}
-                  onSwitch={() => { handleSwitchArrangement(a.id); setActiveSheet(null); }}
-                  onStartRename={() => setEditingArrId(a.id)}
-                  onCommitRename={(name) => { handleRenameArrangement(a.id, name); setEditingArrId(null); }}
-                  onCancelRename={() => setEditingArrId(null)}
-                  onDelete={() => handleDeleteArrangement(a.id)}
-                  onSetDefault={() => handleSetDefaultArrangement(a.id)}
-                />
-              ))}
-            </div>
-            {onSongChange && (
-              <div className="mt-3 pt-3 border-t border-[var(--ds-gray-300)]">
-                <Button variant="secondary" size="md" onClick={handleAddArrangement}>
-                  + New arrangement
-                </Button>
-              </div>
-            )}
-          </BottomSheet>
+          {/* Arrangement add/rename/delete now lives in the editor only.
+              The chart view's dropdown above handles read-only switching. */}
 
           <BottomSheet
             open={activeSheet === 'info'}
@@ -618,8 +588,12 @@ export default function ChartView({
             ...(chartLayout !== 'rows' || columns !== 2 ? { columnCount: columns, columnGap: '3rem' } : {}),
           }}
         >
-          {song.sections.map((section, idx) => (
-            <div key={section.id || idx} id={`section-${idx}`} style={{ scrollMarginTop: '10rem', breakInside: 'avoid' }}>
+          {orderedSections.map((section, idx) => (
+            <div
+              key={`${section.id || section.type}-${idx}`}
+              id={`section-${idx}`}
+              style={{ scrollMarginTop: '10rem', breakInside: 'avoid' }}
+            >
               <SectionBlock
                 section={section}
                 transpose={transpose}
@@ -651,105 +625,6 @@ function MenuItem({ onClick, icon, label }) {
       </span>
       <span className="flex-1">{label}</span>
     </button>
-  );
-}
-
-function RenameInput({ initial, onCommit, onCancel }) {
-  const [draft, setDraft] = useState(initial);
-  return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)]">
-      <input
-        autoFocus
-        type="text"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') onCommit(draft);
-          else if (e.key === 'Escape') onCancel();
-        }}
-        className="flex-1 min-w-0 bg-transparent border-0 outline-none text-copy-14 text-[var(--ds-gray-1000)]"
-      />
-      <Button variant="secondary" size="xs" onClick={onCancel}>Cancel</Button>
-      <Button variant="brand" size="xs" onClick={() => onCommit(draft)}>Save</Button>
-    </div>
-  );
-}
-
-function ArrangementRow({
-  arrangement, isActive, isDefault, isOnly, isEditing, canMutate,
-  onSwitch, onStartRename, onCommitRename, onCancelRename, onDelete, onSetDefault,
-}) {
-  if (isEditing) {
-    return (
-      <RenameInput
-        initial={arrangement.name}
-        onCommit={onCommitRename}
-        onCancel={onCancelRename}
-      />
-    );
-  }
-
-  return (
-    <div
-      className={cn(
-        "flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors",
-        isActive
-          ? "border-[var(--color-brand-border)] bg-[var(--color-brand-soft)]"
-          : "border-transparent hover:bg-[var(--ds-gray-100)]"
-      )}
-    >
-      <button
-        type="button"
-        onClick={onSwitch}
-        className="flex-1 min-w-0 flex items-center gap-2 text-left cursor-pointer bg-transparent border-0 p-0"
-      >
-        <span
-          className={cn(
-            "inline-flex items-center justify-center w-4 h-4 rounded-full border-2 shrink-0",
-            isActive ? "border-[var(--color-brand-text)]" : "border-[var(--ds-gray-600)]"
-          )}
-          aria-hidden="true"
-        >
-          {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-text)]" />}
-        </span>
-        <span className={cn(
-          "truncate text-copy-14",
-          isActive ? "font-semibold text-[var(--color-brand-text)]" : "text-[var(--ds-gray-1000)]"
-        )}>
-          {arrangement.name}
-        </span>
-        {isDefault && (
-          <span className="text-label-10-mono uppercase tracking-wide text-[var(--ds-gray-700)] shrink-0">
-            default
-          </span>
-        )}
-      </button>
-      {canMutate && (
-        <div className="flex items-center gap-1 shrink-0">
-          {!isDefault && (
-            <IconButton variant="ghost" size="xs" onClick={onSetDefault} aria-label="Set as default" title="Set as default">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
-            </IconButton>
-          )}
-          <IconButton variant="ghost" size="xs" onClick={onStartRename} aria-label="Rename arrangement" title="Rename">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-            </svg>
-          </IconButton>
-          <IconButton variant="error" size="xs" onClick={onDelete} disabled={isOnly} aria-label="Delete arrangement" title={isOnly ? 'Cannot delete the only arrangement' : 'Delete'}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-              <path d="M10 11v6" />
-              <path d="M14 11v6" />
-              <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-            </svg>
-          </IconButton>
-        </div>
-      )}
-    </div>
   );
 }
 

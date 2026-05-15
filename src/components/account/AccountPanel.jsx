@@ -80,10 +80,10 @@ export function AccountSummary({ isSignedIn, displayEmail, onSignOut, tone = 'mo
   );
 }
 
-export function PlanLabel({ plan, tone = 'modes' }) {
+export function PlanLabel({ plan, tone = 'modes', onClick }) {
   const v = tokens(tone);
-  return (
-    <div>
+  const body = (
+    <>
       <div
         className="text-label-11 uppercase tracking-[0.15em] mb-1.5"
         style={{ color: v.textDim }}
@@ -93,7 +93,27 @@ export function PlanLabel({ plan, tone = 'modes' }) {
       <div className="text-copy-16" style={{ color: v.text }}>
         {plan} Plan
       </div>
-    </div>
+    </>
+  );
+  if (!onClick) return <div>{body}</div>;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Open ${plan} plan settings`}
+      className="w-full flex items-center justify-between gap-3 bg-transparent border-none p-0 cursor-pointer text-left"
+      style={{ WebkitTapHighlightColor: 'transparent' }}
+    >
+      <div className="flex flex-col">{body}</div>
+      <svg
+        width="18" height="18" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        style={{ color: v.textDim }}
+        aria-hidden="true"
+      >
+        <path d="m9 6 6 6-6 6" />
+      </svg>
+    </button>
   );
 }
 

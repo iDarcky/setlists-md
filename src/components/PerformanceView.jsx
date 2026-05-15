@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { transposeKey, ALL_KEYS, semitonesBetween } from '../music';
+import { transposeKey, ALL_KEYS, semitonesBetween, normalizeSectionName } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
 import { StructureRibbon } from './StructureRibbon';
@@ -260,9 +260,31 @@ function SongChart({ song, selectedKey, capo, fontSize, columns }) {
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   const [notesOpen, setNotesOpen] = useState(false);
 
+  // Playback order honours an explicit `structure` (Proclaim-style)
+  // only when the body's section names are unique and the structure
+  // list resolves cleanly. Otherwise we fall back to document order so
+  // a song with two `## Verse` blocks (legacy data) doesn't silently
+  // collapse to one.
+  const orderedSections = useMemo(() => {
+    const types = song.sections.map(s => normalizeSectionName(s.type));
+    const uniqueTypes = new Set(types).size === types.length;
+    if (
+      !uniqueTypes ||
+      !Array.isArray(song.structure) ||
+      song.structure.length === 0
+    ) {
+      return song.sections;
+    }
+    const resolved = song.structure
+      .map(name => song.sections.find(s => normalizeSectionName(s.type) === normalizeSectionName(name)))
+      .filter(Boolean);
+    if (resolved.length !== song.structure.length) return song.sections;
+    return resolved;
+  }, [song.structure, song.sections]);
+
   const sectionModOffsets = useMemo(() => {
     const acc = { total: 0 };
-    return song.sections.map(section => {
+    return orderedSections.map(section => {
       const offset = acc.total;
       (section.lines || []).forEach(line => {
         if (typeof line === 'object' && line.type === 'modulate') {
@@ -271,7 +293,7 @@ function SongChart({ song, selectedKey, capo, fontSize, columns }) {
       });
       return offset;
     });
-  }, [song.sections]);
+  }, [orderedSections]);
 
   return (
     <div
@@ -326,8 +348,12 @@ function SongChart({ song, selectedKey, capo, fontSize, columns }) {
           )}
         </div>
       )}
-      {song.sections.map((section, i) => (
-        <div key={section.id || i} id={`perf-section-${i}`} style={{ breakInside: 'avoid', scrollMarginTop: '7rem' }}>
+      {orderedSections.map((section, i) => (
+        <div
+          key={`${section.id || section.type}-${i}`}
+          id={`perf-section-${i}`}
+          style={{ breakInside: 'avoid', scrollMarginTop: '7rem' }}
+        >
           <SectionBlock
             section={section}
             transpose={transpose}

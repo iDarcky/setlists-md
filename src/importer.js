@@ -298,9 +298,9 @@ export function convertChordPro(text) {
   return frontmatter({
     title: meta.title || 'Untitled',
     artist: meta.artist || '',
-    key: meta.key || 'C',
-    tempo: meta.tempo || 120,
-    time: meta.time || '4/4',
+    key: meta.key || '',
+    tempo: meta.tempo || '',
+    time: meta.time || '',
     capo: meta.capo,
     ccli: meta.ccli,
   }) + body;
@@ -393,9 +393,6 @@ export function convertUltimateGuitar(text) {
   return frontmatter({
     title: meta.title || 'Untitled',
     artist: meta.artist || '',
-    key: 'C',
-    tempo: 120,
-    time: '4/4',
   }) + bodyText;
 }
 
@@ -451,9 +448,6 @@ export function convertPlain(text) {
   return frontmatter({
     title: meta.title || 'Untitled',
     artist: meta.artist || '',
-    key: 'C',
-    tempo: 120,
-    time: '4/4',
   }) + bodyText;
 }
 
@@ -595,9 +589,9 @@ export function convertOpenSong(text) {
   return frontmatter({
     title: meta.title || 'Untitled',
     artist: meta.artist || '',
-    key: meta.key || 'C',
-    tempo: meta.tempo || 120,
-    time: meta.time || '4/4',
+    key: meta.key || '',
+    tempo: meta.tempo || '',
+    time: meta.time || '',
     capo: meta.capo,
     ccli: meta.ccli,
   }) + bodyText;
@@ -605,7 +599,25 @@ export function convertOpenSong(text) {
 
 // ─── Entry point ───────────────────────────────────────────────────
 
-export function smartImport(text, formatOverride = null) {
+// Apply user-supplied metadata overrides on top of converter output.
+// Overrides win when non-empty; empty values are ignored (don't erase
+// metadata the converter detected from the source).
+function applyMetadataOverrides(md, overrides) {
+  if (!overrides) return md;
+  let out = md;
+  for (const [k, v] of Object.entries(overrides)) {
+    if (v == null || String(v).trim() === '') continue;
+    const re = new RegExp(`^${k}:.*$`, 'm');
+    if (re.test(out)) {
+      out = out.replace(re, `${k}: ${v}`);
+    } else {
+      out = out.replace(/^---\n/, `---\n${k}: ${v}\n`);
+    }
+  }
+  return out;
+}
+
+export function smartImport(text, formatOverride = null, overrides = null) {
   const format = formatOverride || detectFormat(text);
   const warnings = [];
 
@@ -614,6 +626,8 @@ export function smartImport(text, formatOverride = null) {
   else if (format === 'opensong') md = convertOpenSong(text);
   else if (format === 'ultimate-guitar') md = convertUltimateGuitar(text);
   else md = convertPlain(text);
+
+  md = applyMetadataOverrides(md, overrides);
 
   if (!text.trim()) warnings.push('Input was empty.');
 

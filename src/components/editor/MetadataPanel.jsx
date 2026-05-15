@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields } from '../../parser';
 import ArrangementMenu from './ArrangementMenu';
+import StructureEditor from './StructureEditor';
 
 const FIELDS = [
   { key: 'title', label: 'Title', placeholder: 'Song title', span: 2 },
@@ -41,6 +42,26 @@ export default function MetadataPanel({
     });
   }, [md, onChange]);
 
+  // Section labels available for the structure picker, parsed from the
+  // body of the md. We re-derive on every md change so newly added
+  // sections show up in the picker immediately.
+  const availableSections = useMemo(() => {
+    const body = splitMd(md).body || '';
+    const labels = [];
+    const seen = new Set();
+    for (const line of body.split('\n')) {
+      const m = line.match(/^##\s+(.+?)\s*$/);
+      if (m) {
+        const name = m[1].trim();
+        if (name && !seen.has(name)) {
+          seen.add(name);
+          labels.push(name);
+        }
+      }
+    }
+    return labels;
+  }, [md]);
+
   // The toggle button now lives on the controls row in Editor.jsx so the
   // header stays compact. We only render the expanded body here.
   return (
@@ -64,6 +85,13 @@ export default function MetadataPanel({
               />
             </div>
           )}
+          <div className="col-span-2">
+            <StructureEditor
+              value={fields.structure}
+              availableSections={availableSections}
+              onChange={(next) => handleChange('structure', next)}
+            />
+          </div>
           {FIELDS.map(f => (
             <label
               key={f.key}
