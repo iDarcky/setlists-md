@@ -41,7 +41,7 @@ export default function SetlistCard({ setlist, onPlay, onView, selected = false,
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       {/* Left gradient panel */}
-      <div className="w-full md:w-1/3 bg-gradient-to-br from-[var(--color-brand)] to-[#3a1a3b] h-28 md:h-full relative overflow-hidden shrink-0">
+      <div className="w-full md:w-1/3 bg-gradient-to-br from-[var(--color-brand)] to-[var(--color-brand-vetiver)] h-28 md:h-full relative overflow-hidden shrink-0">
         <div className="absolute inset-0 bg-black/10"></div>
       </div>
 

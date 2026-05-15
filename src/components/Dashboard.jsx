@@ -270,7 +270,7 @@ export default function Dashboard({
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 {/* Left part (Branded Gradient) */}
-                <div className="w-full md:w-1/3 bg-gradient-to-br from-[var(--color-brand)] to-[#3a1a3b] h-28 md:h-full relative overflow-hidden">
+                <div className="w-full md:w-1/3 bg-gradient-to-br from-[var(--color-brand)] to-[var(--color-brand-vetiver)] h-28 md:h-full relative overflow-hidden">
                    <div className="absolute inset-0 bg-black/10"></div>
                 </div>
 

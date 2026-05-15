@@ -186,7 +186,7 @@ export async function saveSetlists(setlists, libraryId = 'personal') {
 }
 
 export const DEFAULT_SETTINGS = {
-  theme: 'dark',
+  theme: 'midnight',
   userName: '',
   defaultColumns: 'auto',
   defaultFontSize: 'M',
