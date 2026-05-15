@@ -281,14 +281,11 @@
 @layer base {
   /* "Midnight" — legacy navy dark surface, kept as an opt-in flavor of the
      dark theme. Inherits the dark gray-scale + tokens from the root and
-     only overrides the page surfaces and the modes-variant wash. */
+     only overrides the page surfaces; the modes-variant wash is themed
+     separately via --modes-bg further down. */
   [data-theme="midnight"] {
     --ds-background-100: #14161e;
     --ds-background-200: #0e1017;
-  }
-
-  [data-theme="midnight"] [data-theme-variant="modes"] {
-    background: #14161e;
   }
 
   [data-theme="light"] {
@@ -688,9 +685,24 @@
   --modes-text: #ffffff;
   --modes-text-muted: rgba(255, 255, 255, 0.6);
   --modes-text-dim: rgba(255, 255, 255, 0.45);
+  --modes-bg: #0a0807;
 
-  background: #0a0807;
+  background: var(--modes-bg);
   color: var(--modes-text);
+}
+
+[data-theme="midnight"] [data-theme-variant="modes"] {
+  --modes-bg: #14161e;
+}
+
+[data-theme="light"] [data-theme-variant="modes"] {
+  --modes-bg: var(--ds-background-100);
+  --modes-surface: rgba(0, 0, 0, 0.04);
+  --modes-surface-strong: rgba(0, 0, 0, 0.06);
+  --modes-border: rgba(0, 0, 0, 0.09);
+  --modes-text: var(--ds-gray-1000);
+  --modes-text-muted: var(--ds-gray-700);
+  --modes-text-dim: var(--ds-gray-600);
 }
 
 [data-theme-variant="modes"] .modes-card {
