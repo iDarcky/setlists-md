@@ -136,7 +136,7 @@ export default function Dashboard({
               onFocus={() => setSearchFocused(true)}
             />
             {searchFocused && searchQuery.trim().length > 0 && (
-              <div className="absolute top-full right-0 left-0 sm:left-auto sm:w-80 mt-2 rounded-xl border border-white/10 bg-[rgba(20,16,28,0.95)] backdrop-blur-md shadow-xl z-50 overflow-hidden divide-y divide-white/10 max-h-[400px] overflow-y-auto">
+              <div className="absolute top-full right-0 left-0 sm:left-auto sm:w-80 mt-2 rounded-xl border border-[var(--modes-border)] bg-[rgba(10,8,7,0.95)] backdrop-blur-md shadow-xl z-50 overflow-hidden divide-y divide-[var(--modes-border)] max-h-[400px] overflow-y-auto">
                 {searchResults.length > 0 ? (
                   searchResults.map(song => (
                     <div key={song.id} className="hover:bg-white/5 cursor-pointer">
