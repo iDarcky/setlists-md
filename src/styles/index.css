@@ -761,7 +761,7 @@
 .drawer-panel {
   background:
     radial-gradient(130% 70% at 8% 0%, rgba(92, 138, 128, 0.55) 0%, rgba(22, 18, 32, 0.92) 38%, #0b0910 100%),
-    radial-gradient(90% 60% at 100% 100%, rgba(130, 50, 90, 0.35) 0%, rgba(11, 9, 16, 0) 60%);
+    radial-gradient(90% 60% at 100% 100%, rgba(59, 90, 82, 0.55) 0%, rgba(11, 9, 16, 0) 60%);
   background-blend-mode: screen, normal;
   color: #ffffff;
   --drawer-surface: rgba(255, 255, 255, 0.05);

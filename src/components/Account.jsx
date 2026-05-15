@@ -6,7 +6,6 @@ import {
   UpgradePill,
   SignInButton,
   CreateAccountButton,
-  StatCards,
 } from './account/AccountPanel';
 import { useAuth } from '../auth/useAuth';
 import { useTeam } from '../auth/useTeam';
@@ -32,8 +31,6 @@ export default function Account({
   displayName = 'Guest',
   displayEmail = '',
   plan = 'Free',
-  songCount = 0,
-  setlistCount = 0,
   onUpgrade,
   onSignIn,
   onCreateAccount,
@@ -345,15 +342,25 @@ export default function Account({
           style={{ background: 'var(--drawer-surface)', borderColor: 'var(--drawer-border)' }}
         >
           <PlanLabel plan={plan} tone="drawer" />
-          <UpgradePill onUpgrade={onUpgrade} />
-          {!isSignedIn && (
+          {isSignedIn ? (
+            <UpgradePill onUpgrade={onUpgrade} />
+          ) : (
             <>
               <SignInButton onSignIn={onSignIn} />
               <CreateAccountButton onCreateAccount={onCreateAccount} />
+              {onUpgrade && (
+                <button
+                  type="button"
+                  onClick={onUpgrade}
+                  className="self-start text-label-13 bg-transparent border-none p-0 cursor-pointer hover:underline underline-offset-4"
+                  style={{ color: 'var(--drawer-text-muted)' }}
+                >
+                  Compare plans →
+                </button>
+              )}
             </>
           )}
         </div>
-        <StatCards songCount={songCount} setlistCount={setlistCount} tone="drawer" />
 
         {isSignedIn && (
           <div

@@ -6,7 +6,6 @@ import {
   UpgradePill,
   SignInButton,
   CreateAccountButton,
-  StatCards,
 } from './account/AccountPanel';
 import BrandWordmark from './ui/BrandWordmark';
 
@@ -78,8 +77,6 @@ export default function MobileDrawer({
   email,
   plan = 'Free',
   isSignedIn = false,
-  songCount = 0,
-  setlistCount = 0,
   hasUnreadNotifications = false,
   onOpenSettings,
   onOpenNotifications,
@@ -259,11 +256,14 @@ export default function MobileDrawer({
           <PlanLabel plan={plan} tone="drawer" />
         </div>
 
-        {/* Sign-in CTA stack for guests — big brand Sign in, smaller
-            Create account below. Upgrade pill sits above for context. */}
+        {/* Primary CTAs — guests get Sign in + Create account; signed-in
+            users see the Upgrade pill as their actual upgrade entry. The
+            pill is hidden for guests because they can't upgrade without
+            an account anyway, and it dilutes the primary Sign in action. */}
         <div className="px-5 mt-6 flex flex-col gap-2">
-          <UpgradePill onUpgrade={onUpgrade} />
-          {!isSignedIn && (
+          {isSignedIn ? (
+            <UpgradePill onUpgrade={onUpgrade} />
+          ) : (
             <>
               <SignInButton onSignIn={onSignIn} />
               <CreateAccountButton onCreateAccount={onCreateAccount} />
@@ -271,13 +271,9 @@ export default function MobileDrawer({
           )}
         </div>
 
-        {/* Library stats */}
-        <div className="px-5 mt-6">
-          <StatCards songCount={songCount} setlistCount={setlistCount} tone="drawer" />
-        </div>
-
-        {/* Nav rows */}
-        <div className="px-5 mt-6 flex flex-col gap-2">
+        {/* Nav rows — utility actions sit at the bottom of the panel,
+            just above the wordmark, so primary CTAs at top can breathe. */}
+        <div className="mt-auto px-5 pt-8 flex flex-col gap-2">
           {isSignedIn && team && onOpenTeam && (
             <Row icon={TeamDrawerIcon} label="Your Team" onClick={onOpenTeam} />
           )}
@@ -294,7 +290,7 @@ export default function MobileDrawer({
 
         {/* Footer — surfaces the signed-in account name as the primary brand
             label; falls back to the wordmark for guests. */}
-        <div className="mt-auto px-5 pt-8 text-center">
+        <div className="px-5 pt-6 text-center">
           {isSignedIn ? (
             <div className="text-label-11 text-[var(--drawer-text-faint)]">
               {displayName}

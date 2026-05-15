@@ -1588,8 +1588,6 @@ export default function App() {
               displayName={displayName}
               displayEmail={displayEmail}
               plan={plan}
-              songCount={songs.length}
-              setlistCount={setlists.length}
               onUpgrade={() => navigate('upgrade')}
               onSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
               onCreateAccount={() => { setAuthStartMode('signup'); navigate('signin'); }}
@@ -1632,8 +1630,6 @@ export default function App() {
           email={displayEmail}
           plan={plan}
           isSignedIn={isSignedIn}
-          songCount={songs.length}
-          setlistCount={setlists.length}
           hasUnreadNotifications={hasUnreadNotifications}
           onOpenSettings={() => { setDrawerOpen(false); goToMainView('settings'); }}
           onOpenNotifications={() => { setDrawerOpen(false); setNotifTrayOpen(true); }}
