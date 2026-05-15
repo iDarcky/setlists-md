@@ -344,7 +344,7 @@ export default function Dashboard({
             </Button>
           </div>
 
-          <div className="modes-card overflow-hidden divide-y" style={{ borderColor: 'var(--modes-border)' }}>
+          <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
             {latestSongs.map(song => (
               <SongCard
                 key={song.id}
