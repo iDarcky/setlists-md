@@ -145,6 +145,7 @@ function AppearancePanel({ settings, update, isSignedIn }) {
             { key: 'default', label: 'System' },
             { key: 'light', label: 'Light' },
             { key: 'dark', label: 'Dark' },
+            { key: 'midnight', label: 'Midnight' },
           ].map(({ key, label }) => (
             <Button
               key={key}
@@ -363,7 +364,7 @@ function AboutPanel({ isSignedIn, displayName }) {
 // ─── Hub summaries — show the current value next to each row ─────────────
 
 function appearanceSummary(s) {
-  const theme = s?.theme === 'light' ? 'Light' : s?.theme === 'dark' ? 'Dark' : 'System';
+  const theme = s?.theme === 'light' ? 'Light' : s?.theme === 'dark' ? 'Dark' : s?.theme === 'midnight' ? 'Midnight' : 'System';
   const cols = s?.defaultColumns === 'auto' ? 'Auto' : `${s?.defaultColumns || 1}-col`;
   const week = s?.firstDayOfWeek === 'monday' ? 'Mon-start' : 'Sun-start';
   const clock = s?.clockFormat === '24h' ? '24h' : '12h';

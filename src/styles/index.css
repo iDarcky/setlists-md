@@ -279,6 +279,18 @@
 }
 
 @layer base {
+  /* "Midnight" — legacy navy dark surface, kept as an opt-in flavor of the
+     dark theme. Inherits the dark gray-scale + tokens from the root and
+     only overrides the page surfaces and the modes-variant wash. */
+  [data-theme="midnight"] {
+    --ds-background-100: #14161e;
+    --ds-background-200: #0e1017;
+  }
+
+  [data-theme="midnight"] [data-theme-variant="modes"] {
+    background: #14161e;
+  }
+
   [data-theme="light"] {
     --ds-background-100: #F6F4EF;
     --ds-background-200: #EFEDE6;
