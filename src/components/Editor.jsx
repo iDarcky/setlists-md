@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useMediaQuery } from '../lib/useMediaQuery';
+import ChartView from './ChartView';
 import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields } from '../parser';
 import { ALL_KEYS } from '../music';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
@@ -144,6 +146,9 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
   const [activeTab, setActiveTab] = useState('arrange');
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
+  const isWide = useMediaQuery('(min-width: 1024px)');
+  const [previewEnabled, setPreviewEnabled] = useState(true);
+  const showSidePreview = isWide && previewEnabled;
   const [editArrangementsOpen, setEditArrangementsOpen] = useState(false);
   const textareaRef = useRef(null);
   const isDirty = md !== savedMd;
@@ -519,14 +524,47 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
                 </>
               )}
               <IconButton variant="ghost" size="xs" onClick={handleImport} aria-label="Import from clipboard">📋</IconButton>
+              {isWide && (
+                <IconButton
+                  variant={previewEnabled ? 'active' : 'ghost'}
+                  size="xs"
+                  onClick={() => setPreviewEnabled(v => !v)}
+                  aria-label={previewEnabled ? 'Hide preview' : 'Show preview'}
+                  aria-pressed={previewEnabled}
+                  title={previewEnabled ? 'Hide preview' : 'Show preview'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </IconButton>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* ─── Content Area ─── */}
-      <div className={`flex-1 min-h-0 flex flex-col a4-container w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
-        {renderTab()}
+      {/* ─── Content Area — split-screen on wide viewports so the user
+          can see the rendered chart while editing. The preview is the
+          existing ChartView in isPreview mode, fed by the parsed `preview`
+          state we already maintain for save. ─── */}
+      <div className="flex-1 min-h-0 flex w-full overflow-hidden">
+        <div className={`flex-1 min-h-0 flex flex-col a4-container w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
+          {renderTab()}
+        </div>
+        {showSidePreview && preview && (
+          <aside
+            aria-label="Live chart preview"
+            className="hidden md:flex w-[44%] max-w-[640px] border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] flex-col min-h-0 overflow-auto"
+          >
+            <div className="px-4 py-2 border-b border-[var(--ds-gray-200)] text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">
+              Preview
+            </div>
+            <div className="flex-1 min-h-0 px-4 py-4">
+              <ChartView song={preview} isPreview />
+            </div>
+          </aside>
+        )}
       </div>
 
       {/* ─── Sticky bottom action bar — Cancel + Save, mirrors SetlistBuilder ─── */}

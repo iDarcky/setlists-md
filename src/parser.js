@@ -403,7 +403,10 @@ export function serializeFrontmatterFields(fields) {
   if (fields.key) lines.push(`key: ${fields.key}`);
   if (fields.tempo) lines.push(`tempo: ${fields.tempo}`);
   if (fields.time) lines.push(`time: ${fields.time}`);
-  // structure is auto-derived from sections in songToMd — skip here
+  // Structure is now a user-edited list (Proclaim-style). Persist
+  // verbatim through the form-editor round-trip so the chip editor
+  // can hand it back unchanged.
+  if (fields.structure) lines.push(`structure: [${fields.structure}]`);
   if (fields.ccli) lines.push(`ccli: "${fields.ccli}"`);
   if (fields.tags) lines.push(`tags: [${fields.tags}]`);
   if (fields.capo) lines.push(`capo: ${fields.capo}`);

@@ -144,10 +144,24 @@ export default function ChartView({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [song, transpose, isPreview]);
 
-  // Compute cumulative modulate offsets per section
+  // Resolve playback order: if `song.structure` is set, use it as the
+  // ordered list of section references (each entry maps to a section by
+  // its `type` label). Sections can repeat. When empty, fall back to
+  // document order. This is the Proclaim-style behaviour.
+  const orderedSections = useMemo(() => {
+    if (!Array.isArray(song.structure) || song.structure.length === 0) {
+      return song.sections;
+    }
+    return song.structure
+      .map(name => song.sections.find(s => s.type === name))
+      .filter(Boolean);
+  }, [song.structure, song.sections]);
+
+  // Cumulative modulate offsets follow playback order so a repeated
+  // section after a `{modulate}` block plays back in the new key.
   const sectionModOffsets = useMemo(() => {
     const acc = { total: 0 };
-    return song.sections.map(section => {
+    return orderedSections.map(section => {
       const offset = acc.total;
       (section.lines || []).forEach(line => {
         if (typeof line === 'object' && line.type === 'modulate') {
@@ -156,7 +170,7 @@ export default function ChartView({
       });
       return offset;
     });
-  }, [song.sections]);
+  }, [orderedSections]);
 
   // Extract all unique chords for diagrams
   const allChords = Array.from(new Set(
@@ -356,7 +370,7 @@ export default function ChartView({
           {/* Structure ribbon — always visible */}
           <div className="a4-container pb-2">
             <StructureRibbon
-              structure={song.sections.map(s => s.type)}
+              structure={orderedSections.map(s => s.type)}
               compact
               onSelect={(i) => {
                 const el = document.getElementById(`section-${i}`);
@@ -560,8 +574,12 @@ export default function ChartView({
             ...(chartLayout !== 'rows' || columns !== 2 ? { columnCount: columns, columnGap: '3rem' } : {}),
           }}
         >
-          {song.sections.map((section, idx) => (
-            <div key={section.id || idx} id={`section-${idx}`} style={{ scrollMarginTop: '10rem', breakInside: 'avoid' }}>
+          {orderedSections.map((section, idx) => (
+            <div
+              key={`${section.id || section.type}-${idx}`}
+              id={`section-${idx}`}
+              style={{ scrollMarginTop: '10rem', breakInside: 'avoid' }}
+            >
               <SectionBlock
                 section={section}
                 transpose={transpose}

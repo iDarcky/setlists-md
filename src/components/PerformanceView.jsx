@@ -260,9 +260,20 @@ function SongChart({ song, selectedKey, capo, fontSize, columns }) {
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   const [notesOpen, setNotesOpen] = useState(false);
 
+  // Playback order honours an explicit `structure` (Proclaim-style) when
+  // present, otherwise renders sections in document order.
+  const orderedSections = useMemo(() => {
+    if (!Array.isArray(song.structure) || song.structure.length === 0) {
+      return song.sections;
+    }
+    return song.structure
+      .map(name => song.sections.find(s => s.type === name))
+      .filter(Boolean);
+  }, [song.structure, song.sections]);
+
   const sectionModOffsets = useMemo(() => {
     const acc = { total: 0 };
-    return song.sections.map(section => {
+    return orderedSections.map(section => {
       const offset = acc.total;
       (section.lines || []).forEach(line => {
         if (typeof line === 'object' && line.type === 'modulate') {
@@ -271,7 +282,7 @@ function SongChart({ song, selectedKey, capo, fontSize, columns }) {
       });
       return offset;
     });
-  }, [song.sections]);
+  }, [orderedSections]);
 
   return (
     <div
@@ -326,8 +337,12 @@ function SongChart({ song, selectedKey, capo, fontSize, columns }) {
           )}
         </div>
       )}
-      {song.sections.map((section, i) => (
-        <div key={section.id || i} id={`perf-section-${i}`} style={{ breakInside: 'avoid', scrollMarginTop: '7rem' }}>
+      {orderedSections.map((section, i) => (
+        <div
+          key={`${section.id || section.type}-${i}`}
+          id={`perf-section-${i}`}
+          style={{ breakInside: 'avoid', scrollMarginTop: '7rem' }}
+        >
           <SectionBlock
             section={section}
             transpose={transpose}
