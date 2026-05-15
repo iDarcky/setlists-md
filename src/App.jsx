@@ -1586,6 +1586,8 @@ export default function App() {
               onSyncStateChange={setSyncState}
               onSyncNow={triggerSync}
               onRequestSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
+              onUpgrade={() => navigate('upgrade')}
+              plan={plan}
               isSignedIn={isSignedIn}
               displayName={displayName}
               activeLibrary={activeLibrary}
@@ -1644,6 +1646,7 @@ export default function App() {
           isSignedIn={isSignedIn}
           hasUnreadNotifications={hasUnreadNotifications}
           onOpenSettings={() => { setDrawerOpen(false); goToMainView('settings'); }}
+          onOpenPlan={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'plan' }); }}
           onOpenNotifications={() => { setDrawerOpen(false); setNotifTrayOpen(true); }}
           onOpenHelp={() => { setDrawerOpen(false); navigate('help'); }}
           onOpenWhatsNew={() => {

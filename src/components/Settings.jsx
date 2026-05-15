@@ -38,6 +38,12 @@ const DataIcon = () => (
   </svg>
 );
 
+const PlanIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2l2.39 5.96L20.5 10l-5.58 2.72L12 19l-2.92-6.28L3.5 10l6.11-2.04L12 2z" />
+  </svg>
+);
+
 const AboutIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10" />
@@ -126,10 +132,20 @@ const PANEL_TITLES = {
   appearance: 'Appearance',
   chart: 'Chart Defaults',
   sync: 'Cloud Sync',
+  plan: 'Plan & billing',
   data: 'Data',
   whatsnew: "What's New",
   about: 'About',
 };
+
+const PLAN_DESCRIPTIONS = {
+  free: 'The basics — songs and setlists on this device, no cloud sync.',
+  sync: 'Personal cloud sync, smart import, multi-device.',
+  team: 'Team library, member roles, shared setlists. Up to 10 seats.',
+  church: 'Everything in Team plus multi-service scheduling. Up to 30 seats.',
+};
+
+const PLAN_LABELS = { free: 'Free', sync: 'Sync', team: 'Team', church: 'Church' };
 
 // ─── Sub-panel renderers — pure, just take what they need ────────────────
 
@@ -306,6 +322,63 @@ function DataPanel({ songCount, setlistCount, onDownloadSongs, onClearAll }) {
   );
 }
 
+function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn }) {
+  const planKey = (plan || 'free').toLowerCase();
+  const label = PLAN_LABELS[planKey] || 'Free';
+  const description = PLAN_DESCRIPTIONS[planKey] || PLAN_DESCRIPTIONS.free;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="modes-card p-5 flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-label-11 uppercase tracking-[0.15em] text-[var(--modes-text-dim)] mb-1">
+              Current plan
+            </div>
+            <div className="text-heading-20 font-semibold text-[var(--modes-text)]">
+              {label}
+            </div>
+          </div>
+          {!isSignedIn ? (
+            <Button variant="brand" size="sm" onClick={onRequestSignIn}>Sign in</Button>
+          ) : planKey === 'free' ? (
+            <Button variant="brand" size="sm" onClick={onUpgrade}>Upgrade</Button>
+          ) : (
+            <span className="text-label-11 uppercase tracking-wider text-[var(--modes-text-muted)]">
+              Active
+            </span>
+          )}
+        </div>
+        <p className="text-copy-13 text-[var(--modes-text-muted)] m-0">
+          {description}
+        </p>
+      </div>
+
+      <Section>
+        {isSignedIn && planKey !== 'free' && (
+          <Row
+            label="Manage billing"
+            description="Update your payment method, cancel, or switch plans."
+          >
+            <Button variant="secondary" size="sm" onClick={onUpgrade}>Open</Button>
+          </Row>
+        )}
+        <Row
+          label="Compare plans"
+          description="See everything Sync, Team, and Church add on top of Free."
+        >
+          <Button variant="secondary" size="sm" onClick={onUpgrade}>View plans</Button>
+        </Row>
+      </Section>
+    </div>
+  );
+}
+
+function planSummary(plan) {
+  const label = PLAN_LABELS[(plan || 'free').toLowerCase()] || 'Free';
+  return `${label} plan`;
+}
+
 function AboutPanel({ isSignedIn, displayName }) {
   const linkClass = 'hover:text-[var(--modes-text)] transition-colors underline-offset-4 underline decoration-[var(--modes-border)]';
   const docBase = 'https://github.com/iDarcky/setlists-md/blob/master/docs';
@@ -419,6 +492,8 @@ export default function Settings({
   onSyncStateChange,
   onSyncNow,
   onRequestSignIn,
+  onUpgrade,
+  plan = 'Free',
   isSignedIn = false,
   displayName = '',
   // Sub-panel state lives in App.jsx so it participates in the back stack.
@@ -445,6 +520,15 @@ export default function Settings({
             onRequestSignIn={onRequestSignIn}
             activeLibrary={activeLibrary}
             team={team}
+          />
+        );
+      case 'plan':
+        return (
+          <PlanPanel
+            plan={plan}
+            isSignedIn={isSignedIn}
+            onUpgrade={onUpgrade}
+            onRequestSignIn={onRequestSignIn}
           />
         );
       case 'data':
@@ -477,6 +561,7 @@ export default function Settings({
       { key: 'appearance', label: 'Appearance', icon: AppearanceIcon, summary: appearanceSummary(settings) },
       { key: 'chart', label: 'Chart Defaults', icon: ChartIcon, summary: chartSummary(settings) },
       { key: 'sync', label: 'Cloud Sync', icon: CloudIcon, summary: syncSummary(syncState) },
+      { key: 'plan', label: 'Plan & billing', icon: PlanIcon, summary: planSummary(plan) },
       { key: 'data', label: 'Data', icon: DataIcon, summary: `${songCount} songs · ${setlistCount} setlists` },
       { key: 'whatsnew', label: "What's New", icon: SparkleIcon, summary: `v${__APP_VERSION__}` },
       { key: 'about', label: 'About', icon: AboutIcon, summary: `v${__APP_VERSION__}` },
@@ -572,6 +657,12 @@ export default function Settings({
               label="Cloud Sync"
               value={syncSummary(syncState)}
               onClick={() => onChangePanel('sync')}
+            />
+            <HubRow
+              icon={PlanIcon}
+              label="Plan & billing"
+              value={planSummary(plan)}
+              onClick={() => onChangePanel('plan')}
             />
             <HubRow
               icon={DataIcon}

@@ -85,6 +85,7 @@ export default function MobileDrawer({
   isSignedIn = false,
   hasUnreadNotifications = false,
   onOpenSettings,
+  onOpenPlan,
   onOpenNotifications,
   onOpenHelp,
   onOpenWhatsNew,
@@ -259,9 +260,9 @@ export default function MobileDrawer({
           </div>
         )}
 
-        {/* Plan */}
+        {/* Plan — tap to deep-link into Plan & billing settings. */}
         <div className={`px-5 ${isSignedIn ? 'mt-5' : ''}`}>
-          <PlanLabel plan={plan} tone="drawer" />
+          <PlanLabel plan={plan} tone="drawer" onClick={isSignedIn ? onOpenPlan : undefined} />
         </div>
 
         {/* Primary CTAs — guests get Sign in + Create account; signed-in
