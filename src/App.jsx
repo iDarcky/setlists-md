@@ -659,15 +659,18 @@ export default function App() {
   // Switch a top-level page (Home / Library / Setlists / Settings / Account /
   // Help / Design). Now pushes history so hardware Back navigates within the
   // app instead of exiting the PWA.
-  const goToMainView = (viewName) => {
-    if (view === viewName) return;
+  const goToMainView = (viewName, { settingsPanel: targetPanel } = {}) => {
+    const samePanel = !targetPanel || targetPanel === settingsPanel;
+    if (view === viewName && samePanel) return;
     pushHistory(snapshot());
     const apply = () => {
       setView(viewName);
       setCurrentSong(null);
       setCurrentSetlist(null);
       setIsFullscreen(false);
-      if (viewName === 'settings') setSettingsPanel('hub');
+      if (viewName === 'settings') {
+        setSettingsPanel(targetPanel || 'hub');
+      }
     };
     if (typeof document !== 'undefined' && typeof document.startViewTransition === 'function') {
       document.startViewTransition(apply);
@@ -1637,8 +1640,7 @@ export default function App() {
           onOpenHelp={() => { setDrawerOpen(false); navigate('help'); }}
           onOpenWhatsNew={() => {
             setDrawerOpen(false);
-            goToMainView('settings');
-            setSettingsPanel('whatsnew');
+            goToMainView('settings', { settingsPanel: 'whatsnew' });
           }}
           hasNewChangelog={settings?.lastChangelogVersion !== __APP_VERSION__}
           onSignOut={async () => { setDrawerOpen(false); await handleSignOut(); }}
