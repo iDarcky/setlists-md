@@ -2,6 +2,15 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.4.1-pre-alpha — Team sync fixes
+*May 2026*
+
+### Fixed
+- Band cues, key changes, and other edits made by one teammate now reach everyone else. Previously they were uploaded but silently dropped when other devices pulled them in.
+- Songs with repeated section names in the body (e.g. two `Verse` blocks, three `Chorus` blocks) no longer collapse to a single block in the chart view — every section renders again in its original order.
+- The "Synced — uploaded 30 songs" toast no longer fires on every sync cycle. Round-trips through the team library now leave file contents stable, so an idle library stays quiet.
+- Structure entries that don't exactly match a section header (e.g. `Verse 1` vs `## Verse 1:`) still line up — trailing punctuation and casing are ignored when matching.
+
 ## 0.4.0-pre-alpha — New look: Midnight theme, brand kit, tidier drawer
 *May 2026*
 
