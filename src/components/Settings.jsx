@@ -1,6 +1,7 @@
 import SyncSettings from './settings/SyncSettings';
 import WhatsNewPanel from './settings/WhatsNewPanel';
 import ScreenHeader from './ui/ScreenHeader';
+import BrandWordmark from './ui/BrandWordmark';
 import { Button } from './ui/Button';
 import { useConfirm } from './ui/useConfirmHook';
 import { Dialog } from './ui/Dialog';
@@ -310,14 +311,31 @@ function AboutPanel({ isSignedIn, displayName }) {
   const docBase = 'https://github.com/iDarcky/setlists-md/blob/master/docs';
   return (
     <div className="flex flex-col gap-4">
-      <div className="modes-card p-5 flex flex-col gap-2">
-        <h2 className="text-heading-20 text-[var(--modes-text)] m-0">
-          {isSignedIn && displayName ? displayName : 'setlists.md'}
-        </h2>
-        <p className="text-copy-14 text-[var(--modes-text-muted)] leading-relaxed">
+      <div className="modes-card p-5 flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <img
+            src="/setlists-md-mark.svg"
+            alt=""
+            aria-hidden="true"
+            width="44"
+            height="44"
+            className="rounded-xl shadow-sm shrink-0"
+          />
+          <BrandWordmark
+            height={22}
+            accent="var(--color-brand-mist)"
+            className="text-[var(--modes-text)]"
+          />
+        </div>
+        {isSignedIn && displayName && (
+          <p className="text-copy-15 text-[var(--modes-text)] font-medium m-0">
+            Hi, {displayName}.
+          </p>
+        )}
+        <p className="text-copy-14 text-[var(--modes-text-muted)] leading-relaxed m-0">
           A workspace for music teams. Your songs belong to you as plain Markdown files — open them in any text editor, forever.
         </p>
-        <div className="mt-3 flex items-center gap-3 text-label-12 text-[var(--modes-text-muted)] font-medium">
+        <div className="mt-2 flex items-center gap-3 text-label-12 text-[var(--modes-text-muted)] font-medium">
           <span>v{__APP_VERSION__}</span>
           <span className="text-[var(--modes-text-dim)]">·</span>
           <a
