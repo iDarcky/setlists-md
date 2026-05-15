@@ -19,7 +19,7 @@ const Button = React.forwardRef(({
     ghost: "bg-transparent text-[var(--text-1)] hover:bg-[var(--bg-2)] focus:ring-[var(--bg-2)]",
     error: "bg-[var(--ds-red-100)] text-[var(--ds-red-1000)] border border-[var(--ds-red-400)] hover:bg-[var(--ds-red-200)] focus:ring-[var(--ds-red-400)]",
     warning: "bg-[var(--ds-amber-100)] text-[var(--ds-amber-1000)] border border-[var(--ds-amber-400)] hover:bg-[var(--ds-amber-200)] focus:ring-[var(--ds-amber-400)]",
-    brand: "bg-[var(--ds-teal-900)] text-white hover:opacity-90 focus:ring-[var(--ds-teal-900)]",
+    brand: "bg-[var(--color-brand)] text-white hover:opacity-90 focus:ring-[var(--color-brand)]",
   };
 
   const sizes = {
