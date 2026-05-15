@@ -100,6 +100,7 @@ const PORTABLE_PREF_KEYS = [
   'firstDayOfWeek',
   'clockFormat',
   'userName',
+  'lastChangelogVersion',
 ];
 
 function extractPortablePrefs(s) {
@@ -517,7 +518,7 @@ export default function App() {
     const theme = settings.theme;
 
     const setThemeColor = (mode) => {
-      const color = mode === 'light' ? '#ffffff' : '#14161e';
+      const color = mode === 'light' ? '#f6f4ef' : mode === 'midnight' ? '#14161e' : '#0a0807';
       // Remove the media-scoped tags so the single active tag wins everywhere.
       document.querySelectorAll('meta[name="theme-color"][media]').forEach(m => m.remove());
       let tag = document.querySelector('meta[name="theme-color"]:not([media])');
@@ -658,15 +659,18 @@ export default function App() {
   // Switch a top-level page (Home / Library / Setlists / Settings / Account /
   // Help / Design). Now pushes history so hardware Back navigates within the
   // app instead of exiting the PWA.
-  const goToMainView = (viewName) => {
-    if (view === viewName) return;
+  const goToMainView = (viewName, { settingsPanel: targetPanel } = {}) => {
+    const samePanel = !targetPanel || targetPanel === settingsPanel;
+    if (view === viewName && samePanel) return;
     pushHistory(snapshot());
     const apply = () => {
       setView(viewName);
       setCurrentSong(null);
       setCurrentSetlist(null);
       setIsFullscreen(false);
-      if (viewName === 'settings') setSettingsPanel('hub');
+      if (viewName === 'settings') {
+        setSettingsPanel(targetPanel || 'hub');
+      }
     };
     if (typeof document !== 'undefined' && typeof document.startViewTransition === 'function') {
       document.startViewTransition(apply);
@@ -1204,9 +1208,10 @@ export default function App() {
 
   if (!loaded) {
     return (
-      <div className="min-h-screen bg-[var(--ds-background-200)] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--ds-background-200)] flex flex-col items-center justify-center gap-6">
+        <img src="/setlists-md-mark.svg" alt="setlists.md" width="80" height="80" className="rounded-2xl" />
         <div className="text-copy-14 text-[var(--text-2)]">
-          Loading Setlists MD...
+          Loading setlists.md…
         </div>
       </div>
     );
@@ -1595,8 +1600,6 @@ export default function App() {
               displayName={displayName}
               displayEmail={displayEmail}
               plan={plan}
-              songCount={songs.length}
-              setlistCount={setlists.length}
               onUpgrade={() => navigate('upgrade')}
               onSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
               onCreateAccount={() => { setAuthStartMode('signup'); navigate('signin'); }}
@@ -1639,12 +1642,15 @@ export default function App() {
           email={displayEmail}
           plan={plan}
           isSignedIn={isSignedIn}
-          songCount={songs.length}
-          setlistCount={setlists.length}
           hasUnreadNotifications={hasUnreadNotifications}
           onOpenSettings={() => { setDrawerOpen(false); goToMainView('settings'); }}
           onOpenNotifications={() => { setDrawerOpen(false); setNotifTrayOpen(true); }}
           onOpenHelp={() => { setDrawerOpen(false); navigate('help'); }}
+          onOpenWhatsNew={() => {
+            setDrawerOpen(false);
+            goToMainView('settings', { settingsPanel: 'whatsnew' });
+          }}
+          hasNewChangelog={settings?.lastChangelogVersion !== __APP_VERSION__}
           onSignOut={async () => { setDrawerOpen(false); await handleSignOut(); }}
           onUpgrade={() => { setDrawerOpen(false); navigate('upgrade'); }}
           onSignIn={() => { setDrawerOpen(false); setAuthStartMode('signin'); navigate('signin'); }}

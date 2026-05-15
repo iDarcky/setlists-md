@@ -1,6 +1,7 @@
 import SyncSettings from './settings/SyncSettings';
 import WhatsNewPanel from './settings/WhatsNewPanel';
 import ScreenHeader from './ui/ScreenHeader';
+import BrandWordmark from './ui/BrandWordmark';
 import { Button } from './ui/Button';
 import { useConfirm } from './ui/useConfirmHook';
 import { Dialog } from './ui/Dialog';
@@ -145,6 +146,7 @@ function AppearancePanel({ settings, update, isSignedIn }) {
             { key: 'default', label: 'System' },
             { key: 'light', label: 'Light' },
             { key: 'dark', label: 'Dark' },
+            { key: 'midnight', label: 'Midnight' },
           ].map(({ key, label }) => (
             <Button
               key={key}
@@ -309,14 +311,31 @@ function AboutPanel({ isSignedIn, displayName }) {
   const docBase = 'https://github.com/iDarcky/setlists-md/blob/master/docs';
   return (
     <div className="flex flex-col gap-4">
-      <div className="modes-card p-5 flex flex-col gap-2">
-        <h2 className="text-heading-20 text-[var(--modes-text)] m-0">
-          {isSignedIn && displayName ? displayName : 'Setlists.md'}
-        </h2>
-        <p className="text-copy-14 text-[var(--modes-text-muted)] leading-relaxed">
+      <div className="modes-card p-5 flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <img
+            src="/setlists-md-mark.svg"
+            alt=""
+            aria-hidden="true"
+            width="44"
+            height="44"
+            className="rounded-xl shadow-sm shrink-0"
+          />
+          <BrandWordmark
+            height={22}
+            accent="var(--color-brand-mist)"
+            className="text-[var(--modes-text)]"
+          />
+        </div>
+        {isSignedIn && displayName && (
+          <p className="text-copy-15 text-[var(--modes-text)] font-medium m-0">
+            Hi, {displayName}.
+          </p>
+        )}
+        <p className="text-copy-14 text-[var(--modes-text-muted)] leading-relaxed m-0">
           A workspace for music teams. Your songs belong to you as plain Markdown files — open them in any text editor, forever.
         </p>
-        <div className="mt-3 flex items-center gap-3 text-label-12 text-[var(--modes-text-muted)] font-medium">
+        <div className="mt-2 flex items-center gap-3 text-label-12 text-[var(--modes-text-muted)] font-medium">
           <span>v{__APP_VERSION__}</span>
           <span className="text-[var(--modes-text-dim)]">·</span>
           <a
@@ -335,7 +354,7 @@ function AboutPanel({ isSignedIn, displayName }) {
           Legal &amp; Copyright
         </h3>
         <p className="text-copy-13 text-[var(--modes-text-muted)] leading-relaxed m-0">
-          Setlists.md is a private workspace; you are responsible for licensing
+          setlists.md is a private workspace; you are responsible for licensing
           the content you import. We act on valid copyright takedown notices.
         </p>
         <div className="flex flex-col gap-2 mt-1 text-copy-14">
@@ -363,7 +382,7 @@ function AboutPanel({ isSignedIn, displayName }) {
 // ─── Hub summaries — show the current value next to each row ─────────────
 
 function appearanceSummary(s) {
-  const theme = s?.theme === 'light' ? 'Light' : s?.theme === 'dark' ? 'Dark' : 'System';
+  const theme = s?.theme === 'light' ? 'Light' : s?.theme === 'dark' ? 'Dark' : s?.theme === 'midnight' ? 'Midnight' : 'System';
   const cols = s?.defaultColumns === 'auto' ? 'Auto' : `${s?.defaultColumns || 1}-col`;
   const week = s?.firstDayOfWeek === 'monday' ? 'Mon-start' : 'Sun-start';
   const clock = s?.clockFormat === '24h' ? '24h' : '12h';
@@ -438,7 +457,12 @@ export default function Settings({
           />
         );
       case 'whatsnew':
-        return <WhatsNewPanel />;
+        return (
+          <WhatsNewPanel
+            settings={settings}
+            onMarkSeen={version => update('lastChangelogVersion', version)}
+          />
+        );
       case 'about':
         return <AboutPanel isSignedIn={isSignedIn} displayName={displayName} />;
       default:

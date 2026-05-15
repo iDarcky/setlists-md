@@ -6,8 +6,8 @@ import {
   UpgradePill,
   SignInButton,
   CreateAccountButton,
-  StatCards,
 } from './account/AccountPanel';
+import BrandWordmark from './ui/BrandWordmark';
 
 const CloseIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -35,6 +35,12 @@ const HelpIcon = () => (
     <circle cx="12" cy="12" r="10" />
     <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
     <line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+);
+
+const SparkleIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2l2.39 5.96L20.5 10l-5.58 2.72L12 19l-2.92-6.28L3.5 10l6.11-2.04L12 2z" />
   </svg>
 );
 
@@ -77,12 +83,12 @@ export default function MobileDrawer({
   email,
   plan = 'Free',
   isSignedIn = false,
-  songCount = 0,
-  setlistCount = 0,
   hasUnreadNotifications = false,
   onOpenSettings,
   onOpenNotifications,
   onOpenHelp,
+  onOpenWhatsNew,
+  hasNewChangelog = false,
   onUpgrade,
   onSignIn,
   onCreateAccount,
@@ -258,30 +264,52 @@ export default function MobileDrawer({
           <PlanLabel plan={plan} tone="drawer" />
         </div>
 
-        {/* Sign-in CTA stack for guests — big brand Sign in, smaller
-            Create account below. Upgrade pill sits above for context. */}
+        {/* Primary CTAs — guests get Sign in + Create account; signed-in
+            users see the Upgrade pill as their actual upgrade entry. The
+            pill is hidden for guests because they can't upgrade without
+            an account anyway, and it dilutes the primary Sign in action. */}
         <div className="px-5 mt-6 flex flex-col gap-2">
-          <UpgradePill onUpgrade={onUpgrade} />
-          {!isSignedIn && (
+          {isSignedIn ? (
+            <UpgradePill onUpgrade={onUpgrade} />
+          ) : (
             <>
               <SignInButton onSignIn={onSignIn} />
               <CreateAccountButton onCreateAccount={onCreateAccount} />
+              {onUpgrade && (
+                <button
+                  type="button"
+                  onClick={onUpgrade}
+                  className="self-center mt-1 text-label-13 bg-transparent border-none p-0 cursor-pointer hover:underline underline-offset-4"
+                  style={{ color: 'var(--drawer-text-muted)', WebkitTapHighlightColor: 'transparent' }}
+                >
+                  Compare plans →
+                </button>
+              )}
             </>
           )}
         </div>
 
-        {/* Library stats */}
-        <div className="px-5 mt-6">
-          <StatCards songCount={songCount} setlistCount={setlistCount} tone="drawer" />
-        </div>
-
-        {/* Nav rows */}
-        <div className="px-5 mt-6 flex flex-col gap-2">
+        {/* Nav rows — utility actions sit at the bottom of the panel,
+            just above the wordmark, so primary CTAs at top can breathe. */}
+        <div className="mt-auto px-5 pt-8 flex flex-col gap-2">
           {isSignedIn && team && onOpenTeam && (
             <Row icon={TeamDrawerIcon} label="Your Team" onClick={onOpenTeam} />
           )}
+          {onOpenWhatsNew && (
+            <Row
+              icon={SparkleIcon}
+              label="What's new"
+              onClick={onOpenWhatsNew}
+              accessory={hasNewChangelog ? (
+                <span
+                  aria-label="New release notes"
+                  className="w-2 h-2 rounded-full bg-[var(--color-brand)] shrink-0"
+                />
+              ) : null}
+            />
+          )}
           <Row icon={SettingsIcon} label="Preferences" onClick={onOpenSettings} />
-          <Row icon={HelpIcon} label="Help" onClick={onOpenHelp} />
+          <Row icon={HelpIcon} label="Help" onClick={onOpenHelp } />
           {!isStandalone && (canInstall || isIOS) && onInstall && (
             <Row
               icon={InstallIcon}
@@ -292,11 +320,19 @@ export default function MobileDrawer({
         </div>
 
         {/* Footer — surfaces the signed-in account name as the primary brand
-            label; falls back to the app name for guests. */}
-        <div className="mt-auto px-5 pt-8 text-center">
-          <div className="text-label-11 text-[var(--drawer-text-faint)]">
-            {isSignedIn ? displayName : 'Setlists MD'}
-          </div>
+            label; falls back to the wordmark for guests. */}
+        <div className="px-5 pt-6 text-center">
+          {isSignedIn ? (
+            <div className="text-label-11 text-[var(--drawer-text-faint)]">
+              {displayName}
+            </div>
+          ) : (
+            <BrandWordmark
+              height={20}
+              accent="var(--color-brand-mist)"
+              className="mx-auto text-[var(--drawer-text)] opacity-90"
+            />
+          )}
         </div>
       </aside>
     </>

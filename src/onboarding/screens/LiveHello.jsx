@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '../../components/ui/Button';
+import BrandWordmark from '../../components/ui/BrandWordmark';
 import { transposeChord, transposeKey, ALL_KEYS, semitonesBetween } from '../../music';
 import ChordLine from '../ChordLine';
 
@@ -72,20 +73,19 @@ export default function LiveHello({ onContinue, onSkip, onSignIn, onInteract }) 
       )}
 
       <div className="relative z-10 w-full max-w-md flex flex-col items-center mt-6">
-        {/* Logo mark */}
-        <div
-          className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-5 shadow-lg"
-          style={{
-            background: 'linear-gradient(135deg, var(--color-brand), #6b9e91)',
-            boxShadow: '0 8px 24px var(--color-brand-border)',
-          }}
-        >
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 18V5l12-2v13" />
-            <circle cx="6" cy="18" r="3" />
-            <circle cx="18" cy="16" r="3" />
-          </svg>
-        </div>
+        {/* Brand mark */}
+        <img
+          src="/setlists-md-mark.svg"
+          alt="setlists.md"
+          width="64"
+          height="64"
+          className="mb-3 rounded-2xl shadow-lg"
+          style={{ boxShadow: '0 8px 24px var(--color-brand-border)' }}
+        />
+        <BrandWordmark
+          height={22}
+          className="mb-5 text-[var(--ds-gray-1000)]"
+        />
 
         {/* Headline */}
         <h1 className="text-heading-32 text-[var(--ds-gray-1000)] text-center m-0 leading-tight">

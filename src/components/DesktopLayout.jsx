@@ -58,7 +58,7 @@ export default function DesktopLayout({
         />
       )}
 
-      <div className={cn('flex-1 w-full grid overflow-hidden', cols)}>
+      <div className={cn('flex-1 w-full grid overflow-hidden [grid-template-rows:minmax(0,1fr)]', cols)}>
         {!isFullscreen && (
           <Sidebar 
             activeView={activeView} 

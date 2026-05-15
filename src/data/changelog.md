@@ -1,6 +1,31 @@
 # Release Notes
 
-A running log of what's new in Setlists MD. Newest releases first.
+A running log of what's new in setlists.md. Newest releases first.
+
+## 0.4.0-pre-alpha — New look: Midnight theme, brand kit, tidier drawer
+*May 2026*
+
+### Added
+- Official **setlists.md brand kit** is now live across the app: new app icon, favicon, and wordmark. The brand wordmark appears on the loading splash, sign-in screen, onboarding hero, and the mobile drawer footer (when signed out).
+- New **Midnight** theme — the legacy navy surface returns as a third theme option alongside Light and Dark, and is now the default for fresh installs.
+- The mobile hamburger menu has a **What's new** row with a brand-teal dot when a new release is waiting; tapping it lands you straight on these notes.
+- Guests now see a quiet **Compare plans →** link on both the mobile drawer and the desktop Account profile, so the marketing hook is reachable without crowding the Sign in button.
+- The Settings → About panel leads with the brand mark and the colored setlists.md wordmark; signed-in users get a friendly "Hi, ⟨name⟩." line beneath it.
+
+### Improved
+- Lydian Teal is now the exact brand primary, with Mist, Vetiver, Bone, and Stage joining the palette.
+- Dark mode shifts to a warmer "Stage" black and light mode to a softer "Bone" paper, matching the brand kit.
+- App name reads as "setlists.md" everywhere in the UI, page title, and PWA install card.
+- Mobile drawer reworked: the Songs/Setlists counters are gone, the rainbow Upgrade-to-Pro pill no longer appears for guests, and Preferences / Help / Install pin to the bottom of the panel so the primary buttons up top can breathe.
+- Drawer gradient swaps its bottom-right plum spot for Vetiver (#3B5A52), keeping the wash fully inside the official Lydian Teal palette.
+- Midnight tints card hovers, the New Song dropzone, and other surface chrome with a subtle navy hue so they stop reading as cold gray on the navy page.
+- Dashboard search dropdown and "Recently Edited" dividers follow the active theme instead of the legacy dark chrome.
+- Bottom navigation drops the sliding indicator circle; the active tab is conveyed in brand teal alone.
+
+### Fixed
+- Dashboard scrolls correctly again when the team/church top bar is showing — previously the page clipped instead of scrolling under the banner.
+- Drawer "What's new" tap now opens the panel directly instead of dropping you on the Settings hub.
+- What's new release row wraps to a second line on narrow screens instead of truncating the date to "May…".
 
 ## 0.3.0-pre-alpha — Cleaner chart view & arrangements modal
 *May 2026*

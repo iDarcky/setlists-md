@@ -18,17 +18,22 @@
 }
 
 @theme {
-  --color-brand: hsl(164, 19%, 40%);
-  --color-brand-soft: hsla(164, 19%, 40%, 0.15);
-  --color-brand-text: hsl(164, 19%, 40%);
-  --color-brand-border: hsla(164, 19%, 40%, 0.3);
+  /* Setlists.md brand palette */
+  --color-brand: #53796F;          /* Lydian Teal — primary */
+  --color-brand-soft: rgba(83, 121, 111, 0.15);
+  --color-brand-text: #53796F;
+  --color-brand-border: rgba(83, 121, 111, 0.3);
+  --color-brand-mist: #7AA89C;     /* tint */
+  --color-brand-vetiver: #3B5A52;  /* shade */
+  --color-brand-bone: #F6F4EF;     /* paper */
+  --color-brand-stage: #0A0807;    /* ink */
 
   --font-sans: 'Geist Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Roboto Mono, Menlo, Monaco, Libration Mono, Courier New, monospace;
 
   /* Page Backgrounds (Dark Mode fallback) */
-  --ds-background-100: #14161e;
-  --ds-background-200: #0e1017;
+  --ds-background-100: #0a0807;
+  --ds-background-200: #050403;
 
     /* Geist Gray Scale (Dark Mode) */
   --ds-gray-100-value: 0, 0%, 10%;
@@ -274,9 +279,26 @@
 }
 
 @layer base {
+  /* "Midnight" — legacy navy dark surface, kept as an opt-in flavor of the
+     dark theme. Overrides page surfaces and tints the low-end gray ramp
+     (100–400, used for card fills, hovers, input borders, dividers)
+     toward the navy hue so chrome blends with the base instead of
+     reading as cold neutral gray. Text-weight grays (500–1000) stay
+     neutral to preserve contrast. The modes-variant wash is themed
+     separately via --modes-bg further down. */
+  [data-theme="midnight"] {
+    --ds-background-100: #14161e;
+    --ds-background-200: #0e1017;
+
+    --ds-gray-100-value: 228, 16%, 14%;
+    --ds-gray-200-value: 228, 16%, 17%;
+    --ds-gray-300-value: 228, 15%, 22%;
+    --ds-gray-400-value: 228, 13%, 26%;
+  }
+
   [data-theme="light"] {
-    --ds-background-100: #ffffff;
-    --ds-background-200: #F9FAFB;
+    --ds-background-100: #F6F4EF;
+    --ds-background-200: #EFEDE6;
 
     /* Dashboard Surfaces (Light Mode) */
     --dashboard-hero-bg: hsl(0, 0%, 100%);
@@ -671,9 +693,24 @@
   --modes-text: #ffffff;
   --modes-text-muted: rgba(255, 255, 255, 0.6);
   --modes-text-dim: rgba(255, 255, 255, 0.45);
+  --modes-bg: #0a0807;
 
-  background: #14161e;
+  background: var(--modes-bg);
   color: var(--modes-text);
+}
+
+[data-theme="midnight"] [data-theme-variant="modes"] {
+  --modes-bg: #14161e;
+}
+
+[data-theme="light"] [data-theme-variant="modes"] {
+  --modes-bg: var(--ds-background-100);
+  --modes-surface: rgba(0, 0, 0, 0.04);
+  --modes-surface-strong: rgba(0, 0, 0, 0.06);
+  --modes-border: rgba(0, 0, 0, 0.09);
+  --modes-text: var(--ds-gray-1000);
+  --modes-text-muted: var(--ds-gray-700);
+  --modes-text-dim: var(--ds-gray-600);
 }
 
 [data-theme-variant="modes"] .modes-card {
@@ -724,7 +761,7 @@
 .drawer-panel {
   background:
     radial-gradient(130% 70% at 8% 0%, rgba(92, 138, 128, 0.55) 0%, rgba(22, 18, 32, 0.92) 38%, #0b0910 100%),
-    radial-gradient(90% 60% at 100% 100%, rgba(130, 50, 90, 0.35) 0%, rgba(11, 9, 16, 0) 60%);
+    radial-gradient(90% 60% at 100% 100%, rgba(59, 90, 82, 0.55) 0%, rgba(11, 9, 16, 0) 60%);
   background-blend-mode: screen, normal;
   color: #ffffff;
   --drawer-surface: rgba(255, 255, 255, 0.05);

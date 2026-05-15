@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import changelogRaw from '../../data/changelog.md?raw';
 
 // ── Inline markdown (bold / italic / code / links) ───────────────────────
@@ -143,9 +143,17 @@ function parseChangelog(raw) {
 }
 
 // ── Panel ────────────────────────────────────────────────────────────────
-export default function WhatsNewPanel() {
+export default function WhatsNewPanel({ settings, onMarkSeen }) {
   const { pageIntro, releases } = useMemo(() => parseChangelog(changelogRaw), []);
   const currentVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '';
+
+  // Mark the current version as seen on mount so the drawer "What's new"
+  // dot clears the next time we render. Skip if we're already up-to-date.
+  useEffect(() => {
+    if (!onMarkSeen || !currentVersion) return;
+    if (settings?.lastChangelogVersion === currentVersion) return;
+    onMarkSeen(currentVersion);
+  }, [currentVersion, settings?.lastChangelogVersion, onMarkSeen]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -166,7 +174,7 @@ export default function WhatsNewPanel() {
             >
               {/* ── Header strip ── */}
               <header className="flex items-center justify-between gap-3 px-5 pt-5 pb-3">
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-x-3 gap-y-1 flex-wrap min-w-0">
                   <span
                     className="font-mono text-label-13 font-semibold px-2.5 py-1 rounded-md shrink-0"
                     style={{
@@ -177,12 +185,12 @@ export default function WhatsNewPanel() {
                     v{release.version}
                   </span>
                   {isCurrent && (
-                    <span className="text-label-11 font-semibold tracking-wide uppercase text-[var(--color-brand, #2dd4bf)]">
+                    <span className="text-label-11 font-semibold tracking-wide uppercase text-[var(--color-brand, #2dd4bf)] shrink-0">
                       Current
                     </span>
                   )}
                   {release.date && (
-                    <span className="text-label-12 text-[var(--modes-text-dim)] truncate">
+                    <span className="text-label-12 text-[var(--modes-text-dim)]">
                       {release.date}
                     </span>
                   )}

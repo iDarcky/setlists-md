@@ -172,7 +172,7 @@ export default function ImportTab({ onImportSongs, onImportSetlistFile, isMobile
       )}
 
       <ul className="mt-5 text-copy-12 text-[var(--ds-gray-600)] list-disc pl-5 space-y-1">
-        <li><code>.md</code> — Setlists MD native format.</li>
+        <li><code>.md</code> — setlists.md native format.</li>
         <li><code>.cho</code> / <code>.chopro</code> / <code>.crd</code> / <code>.pro</code> / <code>.onsong</code> — ChordPro / OnSong.</li>
         <li><code>.xml</code> — OpenSong song.</li>
         <li><code>.zip</code> — exported setlist bundle. Adds the setlist plus any new songs.</li>
