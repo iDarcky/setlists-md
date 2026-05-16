@@ -85,7 +85,10 @@ export default function SectionBlock({
             return (
               <span key={i} className="inline-flex flex-col justify-end">
                 {chord && (
-                  <span className="font-bold text-[var(--chord)] text-[0.95em] leading-none select-none whitespace-nowrap" style={{ paddingBottom: hasLyrics ? 3 : 0 }}>
+                  <span
+                    className="font-bold text-[var(--chord)] text-[0.95em] leading-none select-none whitespace-nowrap"
+                    style={{ paddingBottom: hasLyrics ? 3 : 0, fontFamily: 'var(--chart-font-chord, var(--font-mono))' }}
+                  >
                     {chord}{'\u2003'}
                   </span>
                 )}

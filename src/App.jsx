@@ -30,6 +30,7 @@ import { exportSetlistPdf } from './pdf/exportSetlistPdf';
 import { usePWAUpdate } from './hooks/usePWAUpdate';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import { useTeamRealtime } from './hooks/useTeamRealtime';
+import { useChartTheme } from './hooks/useChartTheme';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 
@@ -99,6 +100,12 @@ const PORTABLE_PREF_KEYS = [
   'displayRole',
   'duplicateSections',
   'chartLayout',
+  'chartTheme',
+  'chartBg',
+  'chartText',
+  'chartChordColor',
+  'chartChordFont',
+  'chartLyricFont',
   'firstDayOfWeek',
   'clockFormat',
   'userName',
@@ -152,6 +159,7 @@ export default function App() {
   const [currentSong, setCurrentSong] = useState(null);
   const [currentSetlist, setCurrentSetlist] = useState(null);
   const [settings, setSettings] = useState(null);
+  useChartTheme(settings);
   const [loaded, setLoaded] = useState(false);
   const [syncState, setSyncState] = useState({ state: 'idle', lastSync: null, provider: null });
   const [previewSongId, setPreviewSongId] = useState(null);

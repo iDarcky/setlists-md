@@ -22,6 +22,16 @@ const FONT_FAMILIES = {
   'JetBrains Mono': "'JetBrains Mono', monospace",
 };
 
+// Tokens written by useChartTheme (App.jsx) live on :root and decide the
+// chart's bg/text/chord colours plus the chord and lyric font stacks.
+// Falling back to the existing Geist tokens means free-plan users see no
+// visual change until they pick a theme.
+const CHART_THEME_STYLE = {
+  background: 'var(--chart-bg, var(--ds-background-100))',
+  color: 'var(--chart-text, var(--ds-gray-1000))',
+  fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
+};
+
 export default function ChartView({
   song: songInput, onBack, onEdit, isPreview,
   defaultColumns = 1, defaultFontSize = 16,
@@ -202,8 +212,9 @@ export default function ChartView({
   return (
     <div
       ref={scrollContainerRef}
+      style={isPreview ? undefined : CHART_THEME_STYLE}
       className={cn(
-        "h-screen overflow-y-auto overflow-x-hidden bg-[var(--ds-background-100)]",
+        "h-screen overflow-y-auto overflow-x-hidden",
         isPreview && "h-auto overflow-visible bg-transparent"
       )}
     >

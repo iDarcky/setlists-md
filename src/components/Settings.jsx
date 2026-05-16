@@ -1,5 +1,7 @@
 import SyncSettings from './settings/SyncSettings';
 import WhatsNewPanel from './settings/WhatsNewPanel';
+import ChartStylePanel from './settings/ChartStylePanel';
+import { CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '../data/chartThemes';
 import ScreenHeader from './ui/ScreenHeader';
 import BrandWordmark from './ui/BrandWordmark';
 import { Button } from './ui/Button';
@@ -131,6 +133,7 @@ const PANEL_TITLES = {
   hub: 'Preferences',
   appearance: 'Appearance',
   chart: 'Chart Defaults',
+  'chart-style': 'Chart Style',
   sync: 'Cloud Sync',
   plan: 'Plan & billing',
   data: 'Data',
@@ -470,6 +473,13 @@ function chartSummary(s) {
   return `${flow} · ${role}`;
 }
 
+function chartStyleSummary(s) {
+  const id = s?.chartTheme || DEFAULT_CHART_THEME_ID;
+  const name = CHART_THEME_MAP[id]?.name || 'Custom';
+  const overrides = (s?.chartBg ? 1 : 0) + (s?.chartText ? 1 : 0) + (s?.chartChordColor ? 1 : 0);
+  return overrides ? `${name} · ${overrides} override${overrides === 1 ? '' : 's'}` : name;
+}
+
 function syncSummary(syncState) {
   if (!syncState?.provider) return 'Off';
   const provider = syncState.provider;
@@ -511,6 +521,8 @@ export default function Settings({
         return <AppearancePanel settings={settings} update={update} isSignedIn={isSignedIn} />;
       case 'chart':
         return <ChartPanel settings={settings} update={update} />;
+      case 'chart-style':
+        return <ChartStylePanel settings={settings} update={update} onUpgrade={onUpgrade} />;
       case 'sync':
         return (
           <SyncPanel
@@ -560,6 +572,7 @@ export default function Settings({
     const navItems = [
       { key: 'appearance', label: 'Appearance', icon: AppearanceIcon, summary: appearanceSummary(settings) },
       { key: 'chart', label: 'Chart Defaults', icon: ChartIcon, summary: chartSummary(settings) },
+      { key: 'chart-style', label: 'Chart Style', icon: AppearanceIcon, summary: chartStyleSummary(settings), badge: 'Pro' },
       { key: 'sync', label: 'Cloud Sync', icon: CloudIcon, summary: syncSummary(syncState) },
       { key: 'plan', label: 'Plan & billing', icon: PlanIcon, summary: planSummary(plan) },
       { key: 'data', label: 'Data', icon: DataIcon, summary: `${songCount} songs · ${setlistCount} setlists` },
@@ -651,6 +664,12 @@ export default function Settings({
               label="Chart Defaults"
               value={chartSummary(settings)}
               onClick={() => onChangePanel('chart')}
+            />
+            <HubRow
+              icon={AppearanceIcon}
+              label="Chart Style"
+              value={chartStyleSummary(settings)}
+              onClick={() => onChangePanel('chart-style')}
             />
             <HubRow
               icon={CloudIcon}
