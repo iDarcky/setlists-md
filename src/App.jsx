@@ -68,6 +68,7 @@ const SetlistOverview = lazy(() => import('./components/SetlistOverview'));
 const PerformanceView = lazy(() => import('./components/PerformanceView'));
 const PracticeView = lazy(() => import('./components/PracticeView'));
 const LegalPage = lazy(() => import('./components/LegalPage'));
+const GoogleDriveCallback = lazy(() => import('./components/auth/GoogleDriveCallback'));
 const PracticeFinale = lazy(() => import('./components/PracticeFinale'));
 const LiveFinale = lazy(() => import('./components/LiveFinale'));
 const LydianShowcase = lazy(() => import('./components/LydianShowcase'));
@@ -141,6 +142,7 @@ export default function App() {
     // anything else.
     if (typeof window !== 'undefined') {
       if (window.location.pathname === '/auth/callback') return 'auth-callback';
+      if (window.location.pathname === '/auth/google-drive') return 'google-drive-callback';
       if (window.location.pathname === '/privacy') return 'legal-privacy';
       if (window.location.pathname === '/terms') return 'legal-terms';
       if (/(type=recovery|#access_token=.*type=recovery)/.test(window.location.hash + window.location.search)) return 'recovery';
@@ -1210,6 +1212,25 @@ export default function App() {
       <ErrorBoundary>
         <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
           <AuthCallback onDone={() => goToMainView('home')} />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  if (view === 'google-drive-callback') {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
+          <GoogleDriveCallback
+            onDone={() => {
+              toast({ title: 'Google Drive connected', description: 'Your songs and setlists will sync to your Drive.' });
+              goToMainView('home');
+            }}
+            onCancel={() => {
+              window.history.replaceState({}, '', '/');
+              goToMainView('home');
+            }}
+          />
         </Suspense>
       </ErrorBoundary>
     );

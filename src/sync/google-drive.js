@@ -1,23 +1,97 @@
+// Google Drive provider — PKCE auth-code redirect flow.
+//
+// The browser never holds a refresh token. First connect redirects the
+// user to Google's consent screen with `access_type=offline`. After
+// approving, Google bounces back to /auth/google-drive?code=...&state=...
+// which App.jsx handles by calling `exchangeGoogleAuthCode` below. The
+// resulting refresh token is stored in Supabase by the Edge Function;
+// only the short-lived access token comes back to the browser.
+//
+// All later refreshes go through the Edge Function (`refresh` action),
+// so no Google popup ever appears after the initial consent. After 6+
+// months of inactivity, Google invalidates the refresh token; the Edge
+// Function returns `reconnect_required` and the user runs the connect
+// flow again.
+
 import { GOOGLE_CLIENT_ID, GOOGLE_SCOPES, FOLDER_NAME, SONGS_FOLDER, SETLISTS_FOLDER } from './constants';
+import { callEdgeFunction, generatePkcePair, generateState } from './edge';
 
-let gsiLoaded = false;
-let tokenClient = null;
+const PROVIDER = 'google-drive';
+const PKCE_KEY = 'setlists-md:google-drive-pkce';
 
-function loadGsi() {
-  return new Promise((resolve, reject) => {
-    if (gsiLoaded) { resolve(); return; }
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.onload = () => { gsiLoaded = true; resolve(); };
-    script.onerror = () => reject(new Error('Failed to load Google Identity Services'));
-    document.head.appendChild(script);
+function getRedirectUri() {
+  return `${window.location.origin}/auth/google-drive`;
+}
+
+// Called by SyncSettings → connectProvider('google-drive'). Stashes a
+// PKCE verifier in sessionStorage and navigates the browser to Google.
+// Never resolves — the page is leaving.
+export async function startGoogleAuthRedirect({ returnTo } = {}) {
+  if (!GOOGLE_CLIENT_ID) throw new Error('Google Drive is not configured. Set VITE_GOOGLE_CLIENT_ID.');
+
+  const { verifier, challenge } = await generatePkcePair();
+  const state = generateState();
+  sessionStorage.setItem(PKCE_KEY, JSON.stringify({
+    verifier,
+    state,
+    returnTo: returnTo || window.location.pathname || '/',
+    createdAt: Date.now(),
+  }));
+
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: getRedirectUri(),
+    response_type: 'code',
+    scope: GOOGLE_SCOPES,
+    access_type: 'offline',
+    // `prompt=consent` is required on Google to guarantee a refresh
+    // token comes back the *first* time the user connects; subsequent
+    // re-auths can omit it.
+    prompt: 'consent',
+    include_granted_scopes: 'true',
+    state,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
   });
+
+  window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  // Resolve a never-settling promise so callers stay paused until the
+  // browser navigates away.
+  return new Promise(() => {});
+}
+
+// Called by App.jsx when the user lands on /auth/google-drive?code=...
+// after consent. Verifies the OAuth state, exchanges the code via the
+// Edge Function, and returns { accessToken, expiresAt, returnTo }.
+export async function exchangeGoogleAuthCode({ code, state }) {
+  const raw = sessionStorage.getItem(PKCE_KEY);
+  if (!raw) throw new Error('Missing PKCE state. Please retry from Settings → Cloud Sync.');
+  let stash;
+  try { stash = JSON.parse(raw); } catch { throw new Error('Corrupt PKCE state.'); }
+  if (!stash.verifier || !stash.state) throw new Error('Corrupt PKCE state.');
+  if (stash.state !== state) throw new Error('OAuth state mismatch. Please retry.');
+  // Older than 10min? Reject — could be a stale redirect.
+  if (Date.now() - (stash.createdAt || 0) > 10 * 60 * 1000) {
+    sessionStorage.removeItem(PKCE_KEY);
+    throw new Error('OAuth session expired. Please retry.');
+  }
+
+  const result = await callEdgeFunction('cloud-token-exchange', {
+    action: 'exchange',
+    provider: PROVIDER,
+    code,
+    codeVerifier: stash.verifier,
+    redirectUri: getRedirectUri(),
+  });
+  sessionStorage.removeItem(PKCE_KEY);
+  return { ...result, returnTo: stash.returnTo || '/' };
 }
 
 export function createGoogleDriveProvider() {
   let accessToken = null;
+  let expiresAt = null;
   let rootFolderId = null;
-  let subfolderIds = {};
+  const subfolderIds = {};
 
   const api = (path, options = {}) => {
     const base = path.startsWith('https://') ? path : `https://www.googleapis.com/drive/v3${path}`;
@@ -51,73 +125,59 @@ export function createGoogleDriveProvider() {
   }
 
   return {
-    name: 'google-drive',
+    name: PROVIDER,
     displayName: 'Google Drive',
 
+    // SyncSettings.handleConnect awaits this. We start a redirect that
+    // never returns; if the browser somehow stays on the page, the
+    // function never resolves and `busy` stays true until the page
+    // navigates. The actual token landing happens in
+    // exchangeGoogleAuthCode after the redirect.
     async connect() {
-      if (!GOOGLE_CLIENT_ID) throw new Error('Google Drive is not configured. Set VITE_GOOGLE_CLIENT_ID.');
-      await loadGsi();
-      return new Promise((resolve, reject) => {
-        tokenClient = window.google.accounts.oauth2.initTokenClient({
-          client_id: GOOGLE_CLIENT_ID,
-          scope: GOOGLE_SCOPES,
-          callback: (response) => {
-            if (response.error) {
-              reject(new Error(response.error));
-              return;
-            }
-            accessToken = response.access_token;
-            const expiresAt = Date.now() + response.expires_in * 1000;
-            resolve({
-              accessToken: response.access_token,
-              expiresAt,
-            });
-          },
-        });
-        tokenClient.requestAccessToken();
-      });
+      await startGoogleAuthRedirect({ returnTo: window.location.pathname });
+      // Unreachable in practice — page has navigated away.
+      throw new Error('Redirect failed.');
     },
 
     async disconnect() {
-      if (accessToken) {
-        try {
-          await fetch(`https://oauth2.googleapis.com/revoke?token=${accessToken}`, { method: 'POST' });
-        } catch { /* ignore */ }
-      }
+      try {
+        await callEdgeFunction('cloud-token-exchange', {
+          action: 'disconnect',
+          provider: PROVIDER,
+        });
+      } catch { /* best effort */ }
       accessToken = null;
+      expiresAt = null;
       rootFolderId = null;
-      subfolderIds = {};
-      tokenClient = null;
+      Object.keys(subfolderIds).forEach((k) => delete subfolderIds[k]);
     },
 
     isConnected() {
       return !!accessToken;
     },
 
-    async refreshToken(/* tokens */) {
-      await loadGsi();
-      return new Promise((resolve, reject) => {
-        if (!tokenClient) {
-          tokenClient = window.google.accounts.oauth2.initTokenClient({
-            client_id: GOOGLE_CLIENT_ID,
-            scope: GOOGLE_SCOPES,
-            callback: (response) => {
-              if (response.error) { reject(new Error(response.error)); return; }
-              accessToken = response.access_token;
-              resolve({ accessToken: response.access_token, expiresAt: Date.now() + response.expires_in * 1000 });
-            },
-          });
-        }
-        tokenClient.requestAccessToken({ prompt: '' });
+    // Called by engine.ensureAuth when the cached token is expired.
+    // Hits the Edge Function `refresh` action — no Google popup.
+    async refreshToken() {
+      const result = await callEdgeFunction('cloud-token-exchange', {
+        action: 'refresh',
+        provider: PROVIDER,
       });
+      accessToken = result.accessToken;
+      expiresAt = result.expiresAt ? new Date(result.expiresAt).getTime() : Date.now() + 3600 * 1000;
+      return { accessToken, expiresAt };
     },
 
     setTokens(tokens) {
-      accessToken = tokens.accessToken;
+      accessToken = tokens?.accessToken || null;
+      if (tokens?.expiresAt) {
+        expiresAt = typeof tokens.expiresAt === 'string'
+          ? new Date(tokens.expiresAt).getTime()
+          : tokens.expiresAt;
+      }
     },
 
     async ensureFolder() {
-      // Create root Setlists MD folder
       const q = encodeURIComponent(`name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
       const result = await api(`/files?q=${q}&fields=files(id,name)`);
       if (result.files.length > 0) {
@@ -133,7 +193,6 @@ export function createGoogleDriveProvider() {
         });
         rootFolderId = folder.id;
       }
-      // Create Songs and Setlists subfolders
       subfolderIds[SONGS_FOLDER] = await findOrCreateFolder(SONGS_FOLDER, rootFolderId);
       subfolderIds[SETLISTS_FOLDER] = await findOrCreateFolder(SETLISTS_FOLDER, rootFolderId);
       return rootFolderId;
@@ -156,15 +215,10 @@ export function createGoogleDriveProvider() {
       if (!rootFolderId) await this.ensureFolder();
       const parentId = subfolderIds[subfolder] || rootFolderId;
 
-      // Check if file already exists
       const q = encodeURIComponent(`name='${name}' and '${parentId}' in parents and trashed=false`);
       const existing = await api(`/files?q=${q}&fields=files(id)`);
 
       const metadata = { name, parents: [parentId] };
-      // Boundary must be a valid HTTP token per RFC 7230 — no spaces, no
-      // quoted-string syntax. The previous `---Setlists MD_boundary` had a
-      // space which modern browsers refuse to send, surfacing as
-      // "Failed to fetch" before the request ever leaves the device.
       const boundary = 'setlistsmd-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
       const body = [
         `--${boundary}`,
@@ -219,4 +273,3 @@ export function createGoogleDriveProvider() {
     },
   };
 }
-
