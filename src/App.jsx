@@ -67,6 +67,7 @@ const SetlistPlayer = lazy(() => import('./components/SetlistPlayer'));
 const SetlistOverview = lazy(() => import('./components/SetlistOverview'));
 const PerformanceView = lazy(() => import('./components/PerformanceView'));
 const PracticeView = lazy(() => import('./components/PracticeView'));
+const LegalPage = lazy(() => import('./components/LegalPage'));
 const PracticeFinale = lazy(() => import('./components/PracticeFinale'));
 const LiveFinale = lazy(() => import('./components/LiveFinale'));
 const LydianShowcase = lazy(() => import('./components/LydianShowcase'));
@@ -140,6 +141,8 @@ export default function App() {
     // anything else.
     if (typeof window !== 'undefined') {
       if (window.location.pathname === '/auth/callback') return 'auth-callback';
+      if (window.location.pathname === '/privacy') return 'legal-privacy';
+      if (window.location.pathname === '/terms') return 'legal-terms';
       if (/(type=recovery|#access_token=.*type=recovery)/.test(window.location.hash + window.location.search)) return 'recovery';
     }
     return 'loading';
@@ -1182,6 +1185,25 @@ export default function App() {
       toast({ title: 'Import failed', description: 'Could not read setlist zip.', variant: 'error' });
     }
   };
+
+  if (view === 'legal-privacy' || view === 'legal-terms') {
+    const doc = view === 'legal-privacy' ? 'privacy' : 'terms';
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
+          <LegalPage
+            doc={doc}
+            onBack={() => {
+              if (typeof window !== 'undefined') {
+                window.history.pushState({}, '', '/');
+              }
+              goToMainView('home');
+            }}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
 
   if (view === 'auth-callback') {
     return (

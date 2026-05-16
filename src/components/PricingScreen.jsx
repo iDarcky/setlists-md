@@ -41,15 +41,17 @@ function buildTiers() {
     {
       id: 'pro',
       name: 'Pro',
-      price: '$29',
+      price: '$20',
       interval: '',
-      altPrice: 'one-time payment',
+      altPrice: 'one-time payment · lifetime',
       tagline: 'Your cloud, your files, forever',
       featured: false,
       badge: '⭐ Best Value',
       features: [
-        'Google Drive / Dropbox / OneDrive sync',
+        'Bring your own cloud — Google Drive, Dropbox, OneDrive',
         'Files live in your own cloud folder',
+        'Advanced layout — themes, colours, fonts',
+        'Separate fonts for chords and lyrics',
         'Smart Import — ChordPro, OpenSong, chord-over-lyric',
         'Setlist QR sharing',
         'Pay once, yours forever',
@@ -60,17 +62,18 @@ function buildTiers() {
       ctaAction: 'pro',
     },
     {
-      id: 'sync-plus',
-      name: 'Sync+',
-      price: '$7',
+      id: 'sync',
+      name: 'Sync',
+      price: '$5',
       interval: '/mo',
       altPrice: 'or $49/yr',
       tagline: 'Hosted cloud — just works',
       featured: false,
       badge: null,
       features: [
-        'Hosted cloud — zero setup',
-        'Automatic backups',
+        'Hosted cloud sync — zero setup',
+        'Automatic backups across all devices',
+        'Advanced layout — themes, colours, fonts',
         'Web access from any browser',
         'Priority support',
         '14-day free trial',
@@ -78,12 +81,12 @@ function buildTiers() {
       ],
       cta: 'Start free trial',
       ctaVariant: 'brand',
-      ctaAction: 'sync-plus',
+      ctaAction: 'sync',
     },
     {
       id: 'band',
       name: 'Band',
-      price: '$15',
+      price: '$12',
       interval: '/mo',
       altPrice: 'up to 10 members · or $120/yr',
       tagline: 'Shared library for your whole band',
@@ -95,7 +98,7 @@ function buildTiers() {
         'Rehearsal mode',
         'Admin dashboard & member roles',
         '14-day free trial',
-        'Everything in Sync+',
+        'Everything in Sync',
       ],
       cta: 'Start free trial',
       ctaVariant: 'brand',
@@ -139,7 +142,7 @@ export default function PricingScreen({ onBack, onSignIn, settings }) {
   });
 
   const handleTierAction = (action) => {
-    if (action === 'pro' || action === 'sync-plus' || action === 'band' || action === 'church') {
+    if (action === 'pro' || action === 'sync' || action === 'band' || action === 'church') {
       onSignIn?.();
       return;
     }
