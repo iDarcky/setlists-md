@@ -37,7 +37,17 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal') {
         const newTokens = await provider.refreshToken(syncState.tokens);
         await updateTokens(newTokens, libraryId);
         provider.setTokens(newTokens);
-      } catch {
+      } catch (err) {
+        // The Edge Function returns `reconnect_required` when the refresh
+        // token has been revoked or has expired from 6+ months of idle.
+        // Surface a dedicated status so the UI can show a "Reconnect"
+        // banner rather than a generic error.
+        if (err?.code === 'reconnect_required' || err?.status === 401) {
+          setStatus('needs-reconnect', { provider: syncState.activeProvider });
+          const e = new Error('Reconnect required.');
+          e.code = 'reconnect_required';
+          throw e;
+        }
         setStatus('error');
         throw new Error('Token refresh failed. Please reconnect.');
       }

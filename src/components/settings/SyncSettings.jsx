@@ -79,6 +79,7 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
   }
 
   const activeName = syncState.provider;
+  const needsReconnect = syncState.state === 'needs-reconnect';
 
   return (
     <section className="flex flex-col gap-4">
@@ -102,12 +103,43 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
             </span>
           </div>
           <div className="flex items-center gap-2 mt-2 sm:mt-0">
-            <div className={`h-2 w-2 rounded-full ${syncState.state === 'syncing' ? 'bg-amber-400 animate-pulse' : activeName ? 'bg-emerald-400' : 'bg-[var(--modes-border)]'}`} />
+            <div className={`h-2 w-2 rounded-full ${syncState.state === 'syncing' ? 'bg-amber-400 animate-pulse' : needsReconnect ? 'bg-amber-400' : activeName ? 'bg-emerald-400' : 'bg-[var(--modes-border)]'}`} />
             <span className="text-label-12 uppercase font-semibold text-[var(--modes-text-muted)]">
-              {syncState.state === 'syncing' ? 'Syncing…' : activeName ? 'Connected' : 'Disconnected'}
+              {syncState.state === 'syncing' ? 'Syncing…' : needsReconnect ? 'Reconnect needed' : activeName ? 'Connected' : 'Disconnected'}
             </span>
           </div>
         </div>
+
+        {needsReconnect && activeName && (
+          <div className="p-4 flex flex-col gap-2 bg-[var(--ds-amber-100)]" style={{ borderColor: 'var(--modes-border)' }}>
+            <p className="text-copy-13 text-[var(--ds-amber-900)] m-0 font-semibold">
+              Reconnect your cloud
+            </p>
+            <p className="text-copy-13 text-[var(--ds-amber-800)] m-0">
+              Your sign-in with {providers.find(p => p.name === activeName)?.displayName || 'your provider'} has expired
+              (this happens after long periods of inactivity, or if you revoked access). Reconnect once and you're good for
+              another six months.
+            </p>
+            <div className="flex gap-2 mt-1">
+              <Button
+                variant="brand"
+                size="sm"
+                onClick={() => handleConnect(activeName)}
+                loading={busy === activeName}
+              >
+                Reconnect {providers.find(p => p.name === activeName)?.displayName || activeName}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDisconnect}
+                loading={busy === '__disconnect'}
+              >
+                Disconnect
+              </Button>
+            </div>
+          </div>
+        )}
 
         {standalone && !activeName && (
           <div className="p-4 flex flex-col gap-2 bg-[var(--ds-amber-100)]" style={{ borderColor: 'var(--modes-border)' }}>
