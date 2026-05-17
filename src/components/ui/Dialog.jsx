@@ -43,11 +43,11 @@ export function Dialog({
       aria-modal="true"
       aria-label={ariaLabel}
       className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-150"
-      onClick={(e) => {
-        if (closeOnBackdrop && e.target === e.currentTarget) onClose?.();
-      }}
     >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={closeOnBackdrop ? () => onClose?.() : undefined}
+      />
       <div
         ref={panelRef}
         className={cn(
@@ -56,7 +56,6 @@ export function Dialog({
           widths[size] || widths.md,
           className,
         )}
-        onClick={(e) => e.stopPropagation()}
       >
         {children}
       </div>

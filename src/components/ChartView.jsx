@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { HexColorPicker } from 'react-colorful';
 import { transposeChord, ALL_KEYS, semitonesBetween, normalizeSectionName } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
@@ -13,6 +14,16 @@ import { cn } from '../lib/utils';
 import { StructureRibbon } from './StructureRibbon';
 import { exportSongPdf } from '../pdf/exportSongPdf';
 import { headerFrostStyle } from '../lib/headerFrost';
+import {
+  CHART_THEMES,
+  CHART_FONTS,
+  CHART_FONT_MAP,
+  CHART_THEME_MAP,
+  DEFAULT_CHART_THEME_ID,
+  DEFAULT_CHORD_FONT_ID,
+  DEFAULT_LYRIC_FONT_ID,
+} from '../data/chartThemes';
+import { useEntitlement } from '../hooks/useEntitlement';
 
 const FONT_SIZES = { S: 14, M: 18, L: 22 };
 
@@ -44,6 +55,8 @@ export default function ChartView({
   arrangementId,
   onArrangementChange,
   onSongChange,
+  settings,
+  onUpdateSettings,
 }) {
   const initialFontSize = FONT_SIZES[defaultFontSize] || (typeof defaultFontSize === 'number' ? defaultFontSize : 16);
 
@@ -513,6 +526,11 @@ export default function ChartView({
                   >DIAGRAMS</Button>
                 </div>
               </SheetField>
+
+              <ChartStyleControls
+                settings={settings}
+                onUpdateSettings={onUpdateSettings}
+              />
             </div>
           </BottomSheet>
 
@@ -699,9 +717,11 @@ function BottomSheet({ open, onClose, title, children }) {
       aria-modal="true"
       aria-label={title}
       className="fixed inset-0 z-[200] flex items-end justify-center animate-in fade-in duration-150"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
     >
-      <div className="absolute inset-0 bg-black/20" />
+      <div
+        className="absolute inset-0 bg-black/20"
+        onClick={() => onClose?.()}
+      />
       <div
         className="relative w-full sm:max-w-[640px] bg-[var(--ds-background-100)] border-t border-x border-[var(--ds-gray-400)] rounded-t-2xl shadow-2xl animate-in slide-in-from-bottom-8 duration-200"
         style={{
@@ -709,7 +729,6 @@ function BottomSheet({ open, onClose, title, children }) {
           transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
           transition: dragging ? 'none' : 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1)',
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         <div
           className="pt-2 pb-3 px-5 cursor-grab active:cursor-grabbing select-none"
@@ -730,5 +749,141 @@ function BottomSheet({ open, onClose, title, children }) {
       </div>
     </div>,
     document.body,
+  );
+}
+
+// ── Chart Style controls (themes / fonts / chord colour) ────────────────
+// Rendered inside the Layout bottom sheet. Gated behind the chart-style
+// entitlement so free users see a soft upgrade nudge instead of the
+// pickers themselves.
+
+function ChartStyleControls({ settings, onUpdateSettings }) {
+  const { allowed } = useEntitlement('chart-style');
+  const update = (k, v) => onUpdateSettings?.(k, v);
+
+  const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
+  const preset = CHART_THEME_MAP[themeId] || CHART_THEME_MAP[DEFAULT_CHART_THEME_ID];
+  const chordColor = settings?.chartChordColor || preset.chord;
+  const chordFontId = settings?.chartChordFont || DEFAULT_CHORD_FONT_ID;
+  const lyricFontId = settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID;
+  const chordFont = CHART_FONT_MAP[chordFontId];
+  const lyricFont = CHART_FONT_MAP[lyricFontId];
+
+  const [colorOpen, setColorOpen] = useState(false);
+
+  if (!allowed) {
+    return (
+      <SheetField label="Style (Pro)">
+        <div className="text-copy-13 text-[var(--text-2)]">
+          Upgrade to Pro to unlock themes, custom fonts for chords and lyrics, and a chord colour picker.
+        </div>
+      </SheetField>
+    );
+  }
+
+  return (
+    <>
+      <SheetField label="Theme">
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          {CHART_THEMES.map(t => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => update('chartTheme', t.id)}
+              className="shrink-0 flex flex-col items-stretch rounded-lg overflow-hidden border transition-all"
+              style={{
+                borderColor: themeId === t.id ? 'var(--color-brand)' : 'var(--border-1)',
+                boxShadow: themeId === t.id ? '0 0 0 2px var(--color-brand)' : 'none',
+                width: 96,
+              }}
+              aria-label={`Theme: ${t.name}`}
+              title={t.name}
+            >
+              <div
+                className="h-10 flex items-end justify-end px-2 py-1"
+                style={{ background: t.bg, color: t.chord, fontFamily: 'var(--font-mono)' }}
+              >
+                <span className="text-label-11 font-bold">Am</span>
+              </div>
+              <div className="px-2 py-1 text-label-11 font-medium text-[var(--text-1)] truncate" style={{ background: 'var(--bg-1)' }}>
+                {t.name}
+              </div>
+            </button>
+          ))}
+        </div>
+      </SheetField>
+
+      <SheetField label="Chord font">
+        <Select value={chordFontId} onValueChange={(v) => update('chartChordFont', v)}>
+          <SelectTrigger className="h-9 px-3 text-label-13 font-medium text-[var(--text-1)] gap-1 min-w-[200px] w-auto">
+            <SelectValue>
+              <span style={{ fontFamily: chordFont?.stack }}>{chordFont?.name || 'System'}</span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {CHART_FONTS.map(f => (
+              <SelectItem key={f.id} value={f.id}>
+                <span style={{ fontFamily: f.stack }}>{f.name}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </SheetField>
+
+      <SheetField label="Lyric font">
+        <Select value={lyricFontId} onValueChange={(v) => update('chartLyricFont', v)}>
+          <SelectTrigger className="h-9 px-3 text-label-13 font-medium text-[var(--text-1)] gap-1 min-w-[200px] w-auto">
+            <SelectValue>
+              <span style={{ fontFamily: lyricFont?.stack }}>{lyricFont?.name || 'System'}</span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {CHART_FONTS.map(f => (
+              <SelectItem key={f.id} value={f.id}>
+                <span style={{ fontFamily: f.stack }}>{f.name}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </SheetField>
+
+      <SheetField label="Chord colour">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setColorOpen(o => !o)}
+            className="h-9 w-14 rounded-lg border transition-all"
+            style={{ background: chordColor, borderColor: colorOpen ? 'var(--color-brand)' : 'var(--border-1)' }}
+            aria-label="Pick chord colour"
+          />
+          {(settings?.chartChordColor && settings.chartChordColor !== preset.chord) && (
+            <Button size="sm" variant="ghost" onClick={() => update('chartChordColor', null)}>Reset</Button>
+          )}
+        </div>
+      </SheetField>
+
+      {colorOpen && (
+        <div className="px-1 pb-1 -mt-2 flex flex-col gap-2 items-end">
+          <HexColorPicker
+            color={chordColor}
+            onChange={(v) => update('chartChordColor', v)}
+            style={{ width: '100%', height: 180 }}
+          />
+          <div className="flex items-center gap-2 self-stretch">
+            <span className="text-label-11 text-[var(--text-2)] uppercase tracking-wider">Hex</span>
+            <input
+              type="text"
+              value={chordColor}
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                if (/^#?[0-9a-fA-F]{6}$/.test(v)) update('chartChordColor', v.startsWith('#') ? v : `#${v}`);
+              }}
+              className="flex-1 h-8 px-2 rounded-md bg-[var(--bg-1)] text-copy-13 text-[var(--text-1)] border border-[var(--border-1)] font-mono"
+            />
+            <Button size="sm" variant="ghost" onClick={() => setColorOpen(false)}>Done</Button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { HexColorPicker } from 'react-colorful';
 import { Button } from '../ui/Button';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/Select';
 import UpgradeGate from '../ui/UpgradeGate';
 import {
   CHART_THEMES,
   CHART_FONTS,
+  CHART_FONT_MAP,
   CHART_THEME_MAP,
   DEFAULT_CHART_THEME_ID,
   DEFAULT_CHORD_FONT_ID,
@@ -12,8 +15,8 @@ import {
 
 // Settings → Chart Style. Gated to paid plans via UpgradeGate. Lets the
 // user pick one of the 8 curated themes, override the three key colours
-// (background, text, chord), and choose distinct fonts for chords vs
-// lyrics.
+// (background, text, chord) via a real colour wheel, and choose distinct
+// fonts for chords vs lyrics from the curated 12-font library.
 
 function ThemeSwatch({ theme, active, onSelect }) {
   return (
@@ -40,72 +43,88 @@ function ThemeSwatch({ theme, active, onSelect }) {
   );
 }
 
-function ColorRow({ label, description, value, onChange, onReset, preset }) {
+function ColorWheelRow({ label, description, value, onChange, onReset, preset }) {
+  const [open, setOpen] = useState(false);
   const showReset = value && value !== preset;
+  const current = value || preset;
+
   return (
-    <div className="flex items-start justify-between gap-3 py-3 border-b border-[var(--modes-border)] last:border-b-0">
-      <div className="flex flex-col gap-0.5 min-w-0">
-        <span className="text-copy-14 text-[var(--modes-text)] font-medium">{label}</span>
-        <span className="text-label-12 text-[var(--modes-text-muted)]">{description}</span>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {showReset && (
-          <Button size="sm" variant="ghost" onClick={onReset}>Reset</Button>
-        )}
-        <label
-          className="relative h-9 w-14 rounded-lg cursor-pointer overflow-hidden border"
-          style={{ background: value || preset, borderColor: 'var(--modes-border)' }}
-        >
-          <input
-            type="color"
-            value={value || preset}
-            onChange={(e) => onChange(e.target.value)}
-            className="absolute inset-0 opacity-0 cursor-pointer"
+    <div className="py-3 border-b border-[var(--modes-border)] last:border-b-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className="text-copy-14 text-[var(--modes-text)] font-medium">{label}</span>
+          <span className="text-label-12 text-[var(--modes-text-muted)]">{description}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {showReset && (
+            <Button size="sm" variant="ghost" onClick={onReset}>Reset</Button>
+          )}
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="h-9 w-14 rounded-lg border transition-all"
+            style={{ background: current, borderColor: open ? 'var(--color-brand)' : 'var(--modes-border)' }}
+            aria-label={`Pick ${label.toLowerCase()} colour`}
           />
-        </label>
+        </div>
       </div>
+      {open && (
+        <div className="mt-3 flex flex-col gap-2 items-end">
+          <HexColorPicker color={current} onChange={onChange} style={{ width: '100%', height: 180 }} />
+          <div className="flex items-center gap-2 self-stretch">
+            <span className="text-label-11 text-[var(--modes-text-muted)] uppercase tracking-wider">Hex</span>
+            <input
+              type="text"
+              value={current}
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                if (/^#?[0-9a-fA-F]{6}$/.test(v)) onChange(v.startsWith('#') ? v : `#${v}`);
+              }}
+              className="flex-1 h-8 px-2 rounded-md bg-[var(--modes-surface-strong)] text-copy-13 text-[var(--modes-text)] border border-[var(--modes-border)] font-mono"
+            />
+            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Done</Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function FontPicker({ label, value, onChange, defaultId, sampleText }) {
+function FontPickerRow({ label, value, onChange, defaultId }) {
+  const activeId = value || defaultId;
+  const activeFont = CHART_FONT_MAP[activeId] || CHART_FONT_MAP[defaultId];
+  const isChord = label.toLowerCase().includes('chord');
+  const sampleText = isChord ? 'Am  G/B  C  D7sus4' : 'Amazing grace, how sweet the sound';
+
   return (
     <div className="flex flex-col gap-2 py-3 border-b border-[var(--modes-border)] last:border-b-0">
       <div className="flex items-center justify-between gap-3">
         <span className="text-copy-14 text-[var(--modes-text)] font-medium">{label}</span>
-        <select
-          value={value || defaultId}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-9 px-2 rounded-lg bg-[var(--modes-surface-strong)] text-copy-13 text-[var(--modes-text)] border border-[var(--modes-border)]"
-        >
-          <optgroup label="System">
-            {CHART_FONTS.filter(f => f.category === 'system').map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </optgroup>
-          <optgroup label="Sans">
-            {CHART_FONTS.filter(f => f.category === 'sans').map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </optgroup>
-          <optgroup label="Serif">
-            {CHART_FONTS.filter(f => f.category === 'serif').map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </optgroup>
-          <optgroup label="Mono">
-            {CHART_FONTS.filter(f => f.category === 'mono').map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </optgroup>
-        </select>
+        <Select value={activeId} onValueChange={onChange}>
+          <SelectTrigger className="h-9 px-3 text-label-13 font-medium gap-1 min-w-[180px] w-auto">
+            <SelectValue>
+              <span style={{ fontFamily: activeFont?.stack }}>{activeFont?.name || 'System'}</span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {['system', 'sans', 'serif', 'mono'].map((group) => {
+              const items = CHART_FONTS.filter(f => f.category === group);
+              if (items.length === 0) return null;
+              return items.map(f => (
+                <SelectItem key={f.id} value={f.id}>
+                  <span style={{ fontFamily: f.stack }}>{f.name}</span>
+                </SelectItem>
+              ));
+            })}
+          </SelectContent>
+        </Select>
       </div>
       <div
         className="px-3 py-2 rounded-md text-copy-15"
         style={{
           background: 'var(--modes-surface)',
           color: 'var(--modes-text)',
-          fontFamily: `var(--chart-font-${label.toLowerCase().includes('chord') ? 'chord' : 'lyric'})`,
+          fontFamily: activeFont?.stack,
         }}
       >
         {sampleText}
@@ -163,7 +182,7 @@ function ChartStylePanelInner({ settings, update }) {
           Color overrides
         </h3>
         <div className="modes-card p-4">
-          <ColorRow
+          <ColorWheelRow
             label="Background"
             description="The chart page colour."
             value={settings?.chartBg}
@@ -171,7 +190,7 @@ function ChartStylePanelInner({ settings, update }) {
             onChange={(v) => update('chartBg', v)}
             onReset={() => update('chartBg', null)}
           />
-          <ColorRow
+          <ColorWheelRow
             label="Lyric text"
             description="Body copy for lyrics, section names, and notes."
             value={settings?.chartText}
@@ -179,7 +198,7 @@ function ChartStylePanelInner({ settings, update }) {
             onChange={(v) => update('chartText', v)}
             onReset={() => update('chartText', null)}
           />
-          <ColorRow
+          <ColorWheelRow
             label="Chord colour"
             description="Used for every chord above the lyrics."
             value={settings?.chartChordColor}
@@ -195,19 +214,17 @@ function ChartStylePanelInner({ settings, update }) {
           Typography
         </h3>
         <div className="modes-card p-4">
-          <FontPicker
+          <FontPickerRow
             label="Chord font"
             value={settings?.chartChordFont}
             onChange={(v) => update('chartChordFont', v)}
             defaultId={DEFAULT_CHORD_FONT_ID}
-            sampleText="Am  G/B  C  D7sus4"
           />
-          <FontPicker
+          <FontPickerRow
             label="Lyric font"
             value={settings?.chartLyricFont}
             onChange={(v) => update('chartLyricFont', v)}
             defaultId={DEFAULT_LYRIC_FONT_ID}
-            sampleText="Amazing grace, how sweet the sound"
           />
         </div>
         <p className="text-label-11 text-[var(--modes-text-dim)] px-2 mt-2">

@@ -28,6 +28,7 @@
     "idb-keyval": "^6.2.2",
     "jszip": "^3.10.1",
     "react": "^19.2.4",
+    "react-colorful": "^5.7.0",
     "react-dom": "^19.2.4",
     "svguitar": "^2.5.1",
     "tailwind-merge": "^3.5.0",

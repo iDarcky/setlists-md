@@ -1472,6 +1472,8 @@ export default function App() {
               onSongChange={(updated) => {
                 setSongs(prev => prev.map(s => s.id === updated.id ? { ...updated, updatedAt: Date.now() } : s));
               }}
+              settings={settings}
+              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               defaultColumns={settings?.defaultColumns}
               defaultFontSize={settings?.defaultFontSize}
               showInlineNotes={settings?.showInlineNotes !== false}
