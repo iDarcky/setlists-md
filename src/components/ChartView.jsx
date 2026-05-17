@@ -807,42 +807,44 @@ function ChartStyleControls({ settings, onUpdateSettings }) {
         </div>
       </SheetField>
 
-      <SheetField label="Chord font">
-        <Select value={chordFontId} onValueChange={(v) => update('chartChordFont', v)}>
-          <SelectTrigger className="h-9 px-3 text-label-13 font-medium text-[var(--text-1)] gap-1 min-w-[200px] w-auto">
-            <SelectValue>
-              <span style={{ fontFamily: chordFont?.stack }}>{chordFont?.name || 'System'}</span>
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {CHART_FONTS.map(f => (
-              <SelectItem key={f.id} value={f.id}>
-                <span style={{ fontFamily: f.stack }}>{f.name}</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </SheetField>
+      <div className="flex flex-wrap items-end gap-4">
+        <SheetField label="Chord font">
+          <Select value={chordFontId} onValueChange={(v) => update('chartChordFont', v)}>
+            <SelectTrigger className="h-9 px-3 text-label-13 font-medium text-[var(--text-1)] gap-1 min-w-[180px] w-auto">
+              <SelectValue>
+                <span style={{ fontFamily: chordFont?.stack }}>{chordFont?.name || 'System'}</span>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {CHART_FONTS.map(f => (
+                <SelectItem key={f.id} value={f.id}>
+                  <span style={{ fontFamily: f.stack }}>{f.name}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SheetField>
 
-      <SheetField label="Lyric font">
-        <Select value={lyricFontId} onValueChange={(v) => update('chartLyricFont', v)}>
-          <SelectTrigger className="h-9 px-3 text-label-13 font-medium text-[var(--text-1)] gap-1 min-w-[200px] w-auto">
-            <SelectValue>
-              <span style={{ fontFamily: lyricFont?.stack }}>{lyricFont?.name || 'System'}</span>
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {CHART_FONTS.map(f => (
-              <SelectItem key={f.id} value={f.id}>
-                <span style={{ fontFamily: f.stack }}>{f.name}</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </SheetField>
+        <SheetField label="Lyric font">
+          <Select value={lyricFontId} onValueChange={(v) => update('chartLyricFont', v)}>
+            <SelectTrigger className="h-9 px-3 text-label-13 font-medium text-[var(--text-1)] gap-1 min-w-[180px] w-auto">
+              <SelectValue>
+                <span style={{ fontFamily: lyricFont?.stack }}>{lyricFont?.name || 'System'}</span>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {CHART_FONTS.map(f => (
+                <SelectItem key={f.id} value={f.id}>
+                  <span style={{ fontFamily: f.stack }}>{f.name}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </SheetField>
+      </div>
 
       <SheetField label="Colours">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="grid grid-cols-3 gap-2">
           <ColorSwatchButton
             label="Background"
             color={bgColor}
@@ -886,21 +888,21 @@ function ChartStyleControls({ settings, onUpdateSettings }) {
 
 function ColorSwatchButton({ label, color, open, onToggle, overridden, onReset }) {
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col items-center gap-1 min-w-0">
       <button
         type="button"
         onClick={onToggle}
-        className="h-9 w-14 rounded-lg border transition-all"
+        className="h-9 w-full rounded-lg border transition-all"
         style={{ background: color, borderColor: open ? 'var(--color-brand)' : 'var(--border-1)' }}
         aria-label={`Pick ${label.toLowerCase()} colour`}
       />
-      <div className="flex items-center gap-1">
-        <span className="text-label-10 text-[var(--text-2)] uppercase tracking-wider">{label}</span>
+      <div className="flex items-center gap-1 h-4">
+        <span className="text-label-10 text-[var(--text-2)] uppercase tracking-wider truncate">{label}</span>
         {overridden && (
           <button
             type="button"
             onClick={onReset}
-            className="text-label-10 text-[var(--color-brand)] uppercase tracking-wider hover:underline"
+            className="text-label-10 text-[var(--color-brand)] uppercase tracking-wider hover:underline shrink-0"
             aria-label={`Reset ${label.toLowerCase()} colour`}
           >
             ×
