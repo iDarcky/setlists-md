@@ -183,8 +183,11 @@ function ChartStylePanelInner({ settings, update }) {
 
   const atCustomThemeLimit = customThemes.length >= MAX_CUSTOM_THEMES;
 
-  // Duplicate the currently-selected built-in preset into a new custom
-  // theme and switch to it so the colour rows start editing immediately.
+  // Duplicate the currently-selected preset into a new custom theme and
+  // switch to it so the colour rows start editing immediately. Both
+  // writes go through a single update() call — back-to-back updates with
+  // (key, value) each spread the stale settings prop and clobber each
+  // other, which is why "+ New theme" appeared to do nothing before.
   const duplicateActiveTheme = () => {
     if (atCustomThemeLimit) return;
     const name = (savingName || preset.name + ' (custom)').trim();
@@ -198,8 +201,10 @@ function ChartStylePanelInner({ settings, update }) {
       chord: preset.chord,
       subtle: preset.subtle,
     };
-    update('customChartThemes', [...customThemes, newTheme]);
-    update('chartTheme', id);
+    update({
+      customChartThemes: [...customThemes, newTheme],
+      chartTheme: id,
+    });
     setSavingName(null);
   };
 
@@ -212,8 +217,12 @@ function ChartStylePanelInner({ settings, update }) {
       variant: 'danger',
     });
     if (!ok) return;
-    update('customChartThemes', customThemes.filter(t => t.id !== id));
-    if (activeThemeId === id) update('chartTheme', DEFAULT_CHART_THEME_ID);
+    const nextThemes = customThemes.filter(t => t.id !== id);
+    if (activeThemeId === id) {
+      update({ customChartThemes: nextThemes, chartTheme: DEFAULT_CHART_THEME_ID });
+    } else {
+      update('customChartThemes', nextThemes);
+    }
   };
 
   const renameActiveCustom = (name) => patchActiveCustom({ name });

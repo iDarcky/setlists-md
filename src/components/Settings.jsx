@@ -3,9 +3,8 @@ import SyncSettings from './settings/SyncSettings';
 import WhatsNewPanel from './settings/WhatsNewPanel';
 import ChartStylePanel from './settings/ChartStylePanel';
 import SectionsPanel from './settings/SectionsPanel';
-import { CHART_THEMES, CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '../data/chartThemes';
+import { CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '../data/chartThemes';
 import { HexColorPicker } from 'react-colorful';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import ScreenHeader from './ui/ScreenHeader';
 import BrandWordmark from './ui/BrandWordmark';
 import { Button } from './ui/Button';
@@ -158,9 +157,6 @@ const PLAN_LABELS = { free: 'Free', sync: 'Sync', team: 'Team', church: 'Church'
 // ─── Sub-panel renderers — pure, just take what they need ────────────────
 
 function AppearancePanel({ settings, update, isSignedIn }) {
-  const customThemes = settings?.customChartThemes || [];
-  const allChartThemes = [...CHART_THEMES, ...customThemes];
-  const activeChartTheme = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
   const accent = settings?.accentColor || '';
   const [accentOpen, setAccentOpen] = useState(false);
 
@@ -189,33 +185,6 @@ function AppearancePanel({ settings, update, isSignedIn }) {
             </Button>
           ))}
         </div>
-      </Row>
-      <Row label="Chart theme" description="Background and chord colour applied to every chord chart.">
-        <Select value={activeChartTheme} onValueChange={(v) => update('chartTheme', v)}>
-          <SelectTrigger className="h-9 px-3 text-label-13 font-medium gap-1 min-w-[200px] w-auto">
-            <SelectValue>
-              {allChartThemes.find(t => t.id === activeChartTheme)?.name || 'Default'}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {CHART_THEMES.map(t => (
-              <SelectItem key={t.id} value={t.id}>
-                <span className="inline-flex items-center gap-2">
-                  <span className="inline-block w-3 h-3 rounded-sm" style={{ background: t.bg, border: '1px solid var(--ds-gray-400)' }} />
-                  {t.name}
-                </span>
-              </SelectItem>
-            ))}
-            {customThemes.length > 0 && customThemes.map(t => (
-              <SelectItem key={t.id} value={t.id}>
-                <span className="inline-flex items-center gap-2">
-                  <span className="inline-block w-3 h-3 rounded-sm" style={{ background: t.bg, border: '1px solid var(--ds-gray-400)' }} />
-                  {t.name}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </Row>
       <Row label="Accent colour" description="The brand colour used on buttons, selections, and active states.">
         <div className="flex flex-col items-end gap-2">
@@ -523,18 +492,18 @@ function AboutPanel({ isSignedIn, displayName }) {
 
 function appearanceSummary(s) {
   const theme = s?.theme === 'light' ? 'Light' : s?.theme === 'dark' ? 'Dark' : s?.theme === 'midnight' ? 'Midnight' : 'System';
-  const cols = s?.defaultColumns === 'auto' ? 'Auto' : `${s?.defaultColumns || 1}-col`;
   const week = s?.firstDayOfWeek === 'monday' ? 'Mon-start' : 'Sun-start';
   const clock = s?.clockFormat === '24h' ? '24h' : '12h';
-  return `${theme} · ${cols} · ${week} · ${clock}`;
+  return `${theme} · ${week} · ${clock}`;
 }
 
 function chartSummary(s) {
-  const flow = s?.chartLayout === 'rows' ? 'Left → Right' : 'Top ↓ Down';
+  const cols = s?.defaultColumns === 'auto' ? 'Auto' : `${s?.defaultColumns || 1}-col`;
+  const flow = s?.chartLayout === 'rows' ? 'L→R' : 'T↓D';
   const role = s?.displayRole === 'vocalist' ? 'Vocals'
     : s?.displayRole === 'drummer' ? 'Drums'
     : 'Full';
-  return `${flow} · ${role}`;
+  return `${cols} · ${flow} · ${role}`;
 }
 
 function chartStyleSummary(s) {
@@ -589,7 +558,18 @@ export default function Settings({
   activeLibrary = 'personal',
   team = null,
 }) {
-  const update = (key, value) => onUpdate({ ...settings, [key]: value });
+  // Accepts (key, value) for single-field tweaks or a patch object for
+  // multi-field updates done in the same render — without this, two
+  // back-to-back update('foo', ...) calls each spread the *stale*
+  // settings prop and clobber each other (e.g. creating a new theme +
+  // switching to it was losing one or the other).
+  const update = (keyOrPatch, value) => {
+    if (keyOrPatch && typeof keyOrPatch === 'object') {
+      onUpdate({ ...settings, ...keyOrPatch });
+    } else {
+      onUpdate({ ...settings, [keyOrPatch]: value });
+    }
+  };
   const isDesktop = useIsDesktop();
 
   const renderPanel = (activePanel) => {

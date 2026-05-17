@@ -512,7 +512,7 @@ export default function ChartView({
                 </div>
               </SheetField>
 
-              <div className="grid grid-cols-3 items-end gap-3">
+              <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
                 <SheetField label="Columns">
                   <SegmentedControl
                     value={columns}
