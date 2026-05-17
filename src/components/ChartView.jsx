@@ -92,6 +92,7 @@ export default function ChartView({
   }, [activeArrId, song?.key]);
   const [columns, setColumns] = useState(defaultColumns);
   const [fontSize, setFontSize] = useState(initialFontSize);
+  const [chordFontSize, setChordFontSize] = useState(() => Math.round(initialFontSize * 0.95));
   const [fontFamily, setFontFamily] = useState('Geist Mono');
   const [nns, setNns] = useState(false);
   const [showChords, setShowChords] = useState(true);
@@ -234,46 +235,51 @@ export default function ChartView({
     >
       {/* ── Sticky Header ── */}
       {/* Header stays in the app shell theme regardless of which chart
-          theme is active, so the title + chips don't render in the
-          chart's lyric colour (e.g. Sepia brown on a dark frosted bar). */}
+          theme is active. Children use the app's --text-1/--text-2
+          tokens which already follow light/dark/midnight. */}
       {!isPreview && (
         <div
           className="material-header transition-all duration-200"
           style={{
             ...headerFrostStyle,
-            color: 'var(--ds-gray-1000)',
+            color: 'var(--text-1)',
             fontFamily: 'var(--font-sans)',
           }}
         >
-          {/* Line 1: Title + meta (compact) or Title only (expanded) + buttons */}
-          <div className="a4-container flex items-center justify-between pt-3 pb-1 gap-3">
-            <div className="min-w-0 flex-1 flex items-center gap-3">
-              <h1 className={cn(
-                "text-[var(--text-1)] m-0 truncate transition-all duration-200",
-                scrolled ? "text-heading-16" : "text-heading-24"
-              )}>{song.title}</h1>
-              {/* Inline meta — visible only in compact mode */}
+          {/* Line 1: Hero title (shrinks on scroll) + close + dot menu. */}
+          <div className="a4-container flex items-center justify-between gap-3 pt-3 pb-0.5">
+            <div className="min-w-0 flex-1 flex items-baseline gap-3">
+              <h1
+                className={cn(
+                  "m-0 truncate transition-all duration-200 font-bold leading-tight",
+                  scrolled ? "text-heading-16" : "text-heading-32",
+                )}
+                style={{ color: 'var(--text-1)' }}
+              >
+                {song.title}
+              </h1>
+              {/* Inline meta — visible only in compact mode. */}
               {scrolled && (
-                <div className="flex items-center gap-2 flex-shrink-0 text-label-12 text-[var(--text-2)]">
-                  <span className="text-[var(--text-2)] text-[12px] opacity-60">•</span>
-                  <span className="font-bold text-[var(--text-1)]">{selectedKey}</span>
+                <div className="flex items-center gap-2 flex-shrink-0 text-label-12" style={{ color: 'var(--text-2)' }}>
+                  <span aria-hidden="true">·</span>
+                  <span className="font-bold" style={{ color: 'var(--text-1)' }}>{selectedKey}</span>
                   {song.tempo && <span>{song.tempo} bpm</span>}
                   {song.time && <span>{song.time}</span>}
                 </div>
               )}
             </div>
-            <div className="flex gap-1.5 items-center flex-shrink-0">
+            <div className="flex gap-0.5 items-center flex-shrink-0">
               <div className="relative">
                 <IconButton
                   ref={menuTriggerRef}
-                  variant={menuOpen ? 'active' : 'default'}
+                  variant="ghost"
                   size="sm"
                   onClick={() => setMenuOpen(o => !o)}
                   aria-label="More options"
                   aria-haspopup="menu"
                   aria-expanded={menuOpen}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <circle cx="12" cy="5" r="1.6" />
                     <circle cx="12" cy="12" r="1.6" />
                     <circle cx="12" cy="19" r="1.6" />
@@ -363,7 +369,7 @@ export default function ChartView({
               <>
                 <Select value={activeArrId} onValueChange={handleSwitchArrangement}>
                   <SelectTrigger
-                    className="h-7 px-2 bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)] border border-[var(--ds-gray-400)] text-label-12 font-semibold text-[var(--ds-gray-1000)] gap-1.5 max-w-[200px] w-auto"
+                    className="h-7 px-1.5 border-transparent bg-transparent hover:bg-[var(--bg-2)] text-label-13 font-semibold text-[var(--text-1)] gap-1.5 max-w-[200px] w-auto focus:ring-0"
                     aria-label="Switch arrangement"
                   >
                     <SelectValue />
@@ -373,20 +379,20 @@ export default function ChartView({
                       <SelectItem key={a.id} value={a.id}>
                         {a.name || 'Untitled arrangement'}
                         {a.id === song._defaultArrangementId && (
-                          <span className="ml-1.5 text-label-10 text-[var(--ds-gray-600)]">default</span>
+                          <span className="ml-1.5 text-label-10 text-[var(--text-2)]">default</span>
                         )}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <div className="w-px h-3.5 bg-[var(--border-1)]" />
+                <span className="text-label-12" style={{ color: 'var(--text-2)' }}>·</span>
               </>
             ) : song._arrangementId ? (
               <>
-                <span className="inline-flex items-center bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 py-1 text-label-12 font-semibold text-[var(--ds-gray-1000)] shrink-0">
-                  <span className="truncate max-w-[180px]">{song._arrangementName}</span>
+                <span className="text-label-13 font-semibold truncate max-w-[180px]" style={{ color: 'var(--text-1)' }}>
+                  {song._arrangementName}
                 </span>
-                <div className="w-px h-3.5 bg-[var(--border-1)]" />
+                <span className="text-label-12" style={{ color: 'var(--text-2)' }}>·</span>
               </>
             ) : null}
             <Select value={selectedKey} onValueChange={setSelectedKey}>
@@ -521,11 +527,18 @@ export default function ChartView({
                     size="sm"
                   />
                 </SheetField>
-                <SheetField label="Font size">
+                <SheetField label="Lyric size">
                   <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                    <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.max(10, prev - 2))} aria-label="Decrease font size">−</IconButton>
+                    <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.max(10, prev - 2))} aria-label="Decrease lyric size">−</IconButton>
                     <span className="px-2 text-label-12-mono text-[var(--text-1)] font-semibold">{fontSize}px</span>
-                    <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.min(30, prev + 2))} aria-label="Increase font size">+</IconButton>
+                    <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.min(30, prev + 2))} aria-label="Increase lyric size">+</IconButton>
+                  </div>
+                </SheetField>
+                <SheetField label="Chord size">
+                  <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+                    <IconButton variant="ghost" size="sm" onClick={() => setChordFontSize(prev => Math.max(8, prev - 2))} aria-label="Decrease chord size">−</IconButton>
+                    <span className="px-2 text-label-12-mono text-[var(--text-1)] font-semibold">{chordFontSize}px</span>
+                    <IconButton variant="ghost" size="sm" onClick={() => setChordFontSize(prev => Math.min(30, prev + 2))} aria-label="Increase chord size">+</IconButton>
                   </div>
                 </SheetField>
               </div>
@@ -633,6 +646,8 @@ export default function ChartView({
           className={chartLayout === 'rows' && columns === 2 ? "grid grid-cols-2 gap-x-12 items-start" : undefined}
           style={{
             fontSize,
+            ['--chart-font-size-lyric']: `${fontSize}px`,
+            ['--chart-font-size-chord']: `${chordFontSize}px`,
             fontFamily: FONT_FAMILIES[fontFamily],
             ...(chartLayout !== 'rows' || columns !== 2 ? { columnCount: columns, columnGap: '3rem' } : {}),
           }}
@@ -800,9 +815,29 @@ function ChartStyleControls({ settings, onUpdateSettings }) {
   const customThemes = settings?.customChartThemes || [];
   const allThemes = [...CHART_THEMES, ...customThemes];
   const preset = allThemes.find(t => t.id === themeId) || CHART_THEME_MAP[DEFAULT_CHART_THEME_ID];
-  const chordColor = settings?.chartChordColor || preset.chord;
-  const lyricColor = settings?.chartText || preset.text;
-  const bgColor = settings?.chartBg || preset.bg;
+  const activeCustom = customThemes.find(t => t.id === themeId);
+  const isCustom = !!activeCustom;
+
+  // Colours come straight from whichever theme record is active (preset
+  // or custom). On built-ins they're read-only; on custom we mutate the
+  // record in place so colour changes persist to the saved theme.
+  const bgColor = preset.bg;
+  const lyricColor = preset.text;
+  const chordColor = preset.chord;
+
+  const patchActive = (patch) => {
+    if (!activeCustom) return;
+    update('customChartThemes', customThemes.map(t => t.id === activeCustom.id ? { ...t, ...patch } : t));
+  };
+  const duplicateActive = () => {
+    const id = `custom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    update('customChartThemes', [
+      ...customThemes,
+      { id, name: `${preset.name} (custom)`, bg: preset.bg, text: preset.text, chord: preset.chord, subtle: preset.subtle },
+    ]);
+    update('chartTheme', id);
+  };
+
   const chordFontId = settings?.chartChordFont || DEFAULT_CHORD_FONT_ID;
   const lyricFontId = settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID;
   const chordFont = CHART_FONT_MAP[chordFontId];
@@ -890,50 +925,59 @@ function ChartStyleControls({ settings, onUpdateSettings }) {
         </SheetField>
       </div>
 
-      <SheetField label="Colours">
-        <div className="grid grid-cols-3 gap-2">
-          <ColorSwatchButton
-            label="Background"
-            color={bgColor}
-            open={openColor === 'bg'}
-            onToggle={() => setOpenColor(o => o === 'bg' ? null : 'bg')}
-            overridden={!!settings?.chartBg && settings.chartBg !== preset.bg}
-            onReset={() => update('chartBg', null)}
-          />
-          <ColorSwatchButton
-            label="Lyric"
-            color={lyricColor}
-            open={openColor === 'text'}
-            onToggle={() => setOpenColor(o => o === 'text' ? null : 'text')}
-            overridden={!!settings?.chartText && settings.chartText !== preset.text}
-            onReset={() => update('chartText', null)}
-          />
-          <ColorSwatchButton
-            label="Chord"
-            color={chordColor}
-            open={openColor === 'chord'}
-            onToggle={() => setOpenColor(o => o === 'chord' ? null : 'chord')}
-            overridden={!!settings?.chartChordColor && settings.chartChordColor !== preset.chord}
-            onReset={() => update('chartChordColor', null)}
-          />
-        </div>
-      </SheetField>
-
-      {openColor && (
-        <InlineColorPicker
-          color={openColor === 'bg' ? bgColor : openColor === 'text' ? lyricColor : chordColor}
-          onChange={(v) => update(
-            openColor === 'bg' ? 'chartBg' : openColor === 'text' ? 'chartText' : 'chartChordColor',
-            v,
+      {isCustom ? (
+        <>
+          <SheetField label="Colours">
+            <div className="grid grid-cols-3 gap-2">
+              <ColorSwatchButton
+                label="Background"
+                color={bgColor}
+                open={openColor === 'bg'}
+                onToggle={() => setOpenColor(o => o === 'bg' ? null : 'bg')}
+              />
+              <ColorSwatchButton
+                label="Lyric"
+                color={lyricColor}
+                open={openColor === 'text'}
+                onToggle={() => setOpenColor(o => o === 'text' ? null : 'text')}
+              />
+              <ColorSwatchButton
+                label="Chord"
+                color={chordColor}
+                open={openColor === 'chord'}
+                onToggle={() => setOpenColor(o => o === 'chord' ? null : 'chord')}
+              />
+            </div>
+          </SheetField>
+          {openColor && (
+            <InlineColorPicker
+              color={openColor === 'bg' ? bgColor : openColor === 'text' ? lyricColor : chordColor}
+              onChange={(v) => patchActive(
+                openColor === 'bg' ? { bg: v }
+                : openColor === 'text' ? { text: v }
+                : { chord: v }
+              )}
+              onClose={() => setOpenColor(null)}
+            />
           )}
-          onClose={() => setOpenColor(null)}
-        />
+        </>
+      ) : (
+        <SheetField label="Colours">
+          <div className="flex flex-col gap-2 items-start">
+            <span className="text-label-12 text-[var(--text-2)]">
+              Built-in themes are read-only.
+            </span>
+            <Button size="sm" variant="secondary" onClick={duplicateActive}>
+              Customise {preset.name}…
+            </Button>
+          </div>
+        </SheetField>
       )}
     </>
   );
 }
 
-function ColorSwatchButton({ label, color, open, onToggle, overridden, onReset }) {
+function ColorSwatchButton({ label, color, open, onToggle }) {
   return (
     <div className="flex flex-col items-center gap-1 min-w-0">
       <button
@@ -943,19 +987,7 @@ function ColorSwatchButton({ label, color, open, onToggle, overridden, onReset }
         style={{ background: color, borderColor: open ? 'var(--color-brand)' : 'var(--border-1)' }}
         aria-label={`Pick ${label.toLowerCase()} colour`}
       />
-      <div className="flex items-center gap-1 h-4">
-        <span className="text-label-10 text-[var(--text-2)] uppercase tracking-wider truncate">{label}</span>
-        {overridden && (
-          <button
-            type="button"
-            onClick={onReset}
-            className="text-label-10 text-[var(--color-brand)] uppercase tracking-wider hover:underline shrink-0"
-            aria-label={`Reset ${label.toLowerCase()} colour`}
-          >
-            ×
-          </button>
-        )}
-      </div>
+      <span className="text-label-10 text-[var(--text-2)] uppercase tracking-wider truncate">{label}</span>
     </div>
   );
 }

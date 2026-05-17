@@ -477,9 +477,10 @@ function chartSummary(s) {
 
 function chartStyleSummary(s) {
   const id = s?.chartTheme || DEFAULT_CHART_THEME_ID;
-  const name = CHART_THEME_MAP[id]?.name || 'Custom';
-  const overrides = (s?.chartBg ? 1 : 0) + (s?.chartText ? 1 : 0) + (s?.chartChordColor ? 1 : 0);
-  return overrides ? `${name} · ${overrides} override${overrides === 1 ? '' : 's'}` : name;
+  const builtIn = CHART_THEME_MAP[id]?.name;
+  if (builtIn) return builtIn;
+  const custom = (s?.customChartThemes || []).find(t => t.id === id);
+  return custom?.name || 'Custom';
 }
 
 function sectionsSummary(s) {

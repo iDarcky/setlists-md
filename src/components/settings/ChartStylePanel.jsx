@@ -161,32 +161,35 @@ function ChartStylePanelInner({ settings, update }) {
   const [openPicker, setOpenPicker] = useState(null);
   const [savingName, setSavingName] = useState(null); // string when input shown, null when hidden
 
-  const hasOverrides =
-    !!(settings?.chartBg || settings?.chartText || settings?.chartChordColor);
+  // Built-in presets are read-only — to tweak colours, the user has to
+  // duplicate the preset into a custom theme first.
+  const isCustom = customThemes.some(t => t.id === activeThemeId);
+  const activeCustom = isCustom ? customThemes.find(t => t.id === activeThemeId) : null;
 
-  const resetAll = () => {
-    update('chartBg', null);
-    update('chartText', null);
-    update('chartChordColor', null);
+  // Mutate a single field on the active custom theme.
+  const patchActiveCustom = (patch) => {
+    if (!activeCustom) return;
+    update(
+      'customChartThemes',
+      customThemes.map(t => t.id === activeCustom.id ? { ...t, ...patch } : t),
+    );
   };
 
-  const saveCustomTheme = () => {
-    const name = (savingName || '').trim();
+  // Duplicate the currently-selected built-in preset into a new custom
+  // theme and switch to it so the colour rows start editing immediately.
+  const duplicateActiveTheme = () => {
+    const name = (savingName || preset.name + ' (custom)').trim();
     if (!name) return;
     const id = `custom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
     const newTheme = {
       id,
       name,
-      bg: settings?.chartBg || preset.bg,
-      text: settings?.chartText || preset.text,
-      chord: settings?.chartChordColor || preset.chord,
+      bg: preset.bg,
+      text: preset.text,
+      chord: preset.chord,
       subtle: preset.subtle,
     };
     update('customChartThemes', [...customThemes, newTheme]);
-    // Clear overrides + switch to the new theme so the saved values stick.
-    update('chartBg', null);
-    update('chartText', null);
-    update('chartChordColor', null);
     update('chartTheme', id);
     setSavingName(null);
   };
@@ -196,6 +199,8 @@ function ChartStylePanelInner({ settings, update }) {
     if (activeThemeId === id) update('chartTheme', DEFAULT_CHART_THEME_ID);
   };
 
+  const renameActiveCustom = (name) => patchActiveCustom({ name });
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
@@ -203,9 +208,6 @@ function ChartStylePanelInner({ settings, update }) {
           <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">
             Theme preset
           </h3>
-          {hasOverrides && (
-            <Button size="sm" variant="ghost" onClick={resetAll}>Clear overrides</Button>
-          )}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {CHART_THEMES.map(t => (
@@ -229,58 +231,76 @@ function ChartStylePanelInner({ settings, update }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold px-2 mb-2">
-          Color overrides
-        </h3>
-        <div className="modes-card p-4">
-          <ColorWheelRow
-            label="Background"
-            description="The chart page colour."
-            value={settings?.chartBg}
-            preset={preset.bg}
-            onChange={(v) => update('chartBg', v)}
-            onReset={() => update('chartBg', null)}
-            open={openPicker === 'Background'}
-            onOpenChange={setOpenPicker}
-          />
-          <ColorWheelRow
-            label="Lyric text"
-            description="Body copy for lyrics, section names, and notes."
-            value={settings?.chartText}
-            preset={preset.text}
-            onChange={(v) => update('chartText', v)}
-            onReset={() => update('chartText', null)}
-            open={openPicker === 'Lyric text'}
-            onOpenChange={setOpenPicker}
-          />
-          <ColorWheelRow
-            label="Chord colour"
-            description="Used for every chord above the lyrics."
-            value={settings?.chartChordColor}
-            preset={preset.chord}
-            onChange={(v) => update('chartChordColor', v)}
-            onReset={() => update('chartChordColor', null)}
-            open={openPicker === 'Chord colour'}
-            onOpenChange={setOpenPicker}
-          />
+        <div className="flex items-center justify-between px-2 mb-2">
+          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">
+            {isCustom ? 'Customise your theme' : 'Colours'}
+          </h3>
         </div>
-        {hasOverrides && (
-          <div className="modes-card p-3 mt-3 flex flex-col gap-2">
+        {isCustom ? (
+          <>
+            <div className="modes-card p-4">
+              <div className="flex items-center gap-3 pb-3 mb-3 border-b border-[var(--modes-border)]">
+                <span className="text-label-11 text-[var(--modes-text-dim)] uppercase tracking-wider shrink-0">Name</span>
+                <Input
+                  value={activeCustom?.name || ''}
+                  onChange={(e) => renameActiveCustom(e.target.value)}
+                  className="flex-1 h-8 px-2 text-copy-13"
+                />
+                <Button size="sm" variant="ghost" onClick={() => deleteCustomTheme(activeCustom.id)}>Delete</Button>
+              </div>
+              <ColorWheelRow
+                label="Background"
+                description="The chart page colour."
+                value={activeCustom?.bg}
+                preset={activeCustom?.bg}
+                onChange={(v) => patchActiveCustom({ bg: v })}
+                onReset={() => {}}
+                open={openPicker === 'Background'}
+                onOpenChange={setOpenPicker}
+              />
+              <ColorWheelRow
+                label="Lyric text"
+                description="Body copy for lyrics, section names, and notes."
+                value={activeCustom?.text}
+                preset={activeCustom?.text}
+                onChange={(v) => patchActiveCustom({ text: v })}
+                onReset={() => {}}
+                open={openPicker === 'Lyric text'}
+                onOpenChange={setOpenPicker}
+              />
+              <ColorWheelRow
+                label="Chord colour"
+                description="Used for every chord above the lyrics."
+                value={activeCustom?.chord}
+                preset={activeCustom?.chord}
+                onChange={(v) => patchActiveCustom({ chord: v })}
+                onReset={() => {}}
+                open={openPicker === 'Chord colour'}
+                onOpenChange={setOpenPicker}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="modes-card p-5 flex flex-col gap-3 items-start">
+            <p className="text-copy-13 text-[var(--modes-text-muted)] m-0">
+              Built-in themes are read-only. Duplicate this one into a custom theme
+              to tweak the colours and save it for later.
+            </p>
             {savingName == null ? (
-              <Button size="sm" variant="secondary" onClick={() => setSavingName('')} className="self-start">
-                Save as new theme…
+              <Button size="sm" variant="brand" onClick={() => setSavingName(`${preset.name} (custom)`)}>
+                Customise {preset.name}…
               </Button>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex gap-2 self-stretch">
                 <Input
                   autoFocus
                   value={savingName}
                   onChange={(e) => setSavingName(e.target.value)}
                   placeholder="Theme name"
                   className="flex-1 h-9 px-3 text-copy-13"
-                  onKeyDown={(e) => { if (e.key === 'Enter') saveCustomTheme(); if (e.key === 'Escape') setSavingName(null); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') duplicateActiveTheme(); if (e.key === 'Escape') setSavingName(null); }}
                 />
-                <Button size="sm" variant="brand" onClick={saveCustomTheme} disabled={!savingName.trim()}>Save</Button>
+                <Button size="sm" variant="brand" onClick={duplicateActiveTheme} disabled={!savingName.trim()}>Create</Button>
                 <Button size="sm" variant="ghost" onClick={() => setSavingName(null)}>Cancel</Button>
               </div>
             )}

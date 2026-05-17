@@ -32,9 +32,12 @@ export function useChartTheme(settings) {
   useEffect(() => {
     const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
     const theme = chartTheme(themeId, settings?.customChartThemes);
-    const bg = settings?.chartBg || theme.bg;
-    const text = settings?.chartText || theme.text;
-    const chord = settings?.chartChordColor || theme.chord;
+    // Built-in themes are read-only — their colours come straight from
+    // the preset. Custom themes carry their bg/text/chord on the record
+    // itself, which the user edits via Chart Style → Customise.
+    const bg = theme.bg;
+    const text = theme.text;
+    const chord = theme.chord;
     const subtle = theme.subtle;
 
     const chordFontId = settings?.chartChordFont || DEFAULT_CHORD_FONT_ID;
