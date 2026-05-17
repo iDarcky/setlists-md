@@ -57,10 +57,17 @@ export default function SectionBlock({
     if (!cleanLine.includes('[') || !showChords) {
       const displayLine = !showChords ? cleanLine.replace(/\[.*?\]/g, '') : cleanLine;
       return (
-        <div key={idx} className="min-h-[1.3em] whitespace-pre-wrap text-[var(--text-1)] opacity-90">
+        <div
+          key={idx}
+          className="min-h-[1.3em] whitespace-pre-wrap opacity-90"
+          style={{ color: 'var(--chart-text, var(--text-1))' }}
+        >
           {displayLine}
           {inlineNotes && inlineNote && (
-            <span className="text-[var(--text-2)] italic text-[0.8em]">
+            <span
+              className="italic text-[0.8em]"
+              style={{ color: 'var(--chart-subtle, var(--text-2))' }}
+            >
               {NOTE_SEPARATORS[noteStyle] || NOTE_SEPARATORS.dashes}{inlineNote}
             </span>
           )}
@@ -93,7 +100,10 @@ export default function SectionBlock({
                   </span>
                 )}
                 {hasLyrics && (
-                  <span className="text-[var(--text-1)] whitespace-pre-wrap leading-tight">
+                  <span
+                    className="whitespace-pre-wrap leading-tight"
+                    style={{ color: 'var(--chart-text, var(--text-1))' }}
+                  >
                     {p.text || (chord ? '\u00A0' : '')}
                   </span>
                 )}
@@ -101,7 +111,10 @@ export default function SectionBlock({
             );
           })}
           {inlineNotes && inlineNote && (
-            <span className="text-[var(--text-2)] italic text-[0.8em] self-end">
+            <span
+              className="italic text-[0.8em] self-end"
+              style={{ color: 'var(--chart-subtle, var(--text-2))' }}
+            >
               {NOTE_SEPARATORS[noteStyle] || NOTE_SEPARATORS.dashes}{inlineNote}
             </span>
           )}
@@ -118,7 +131,10 @@ export default function SectionBlock({
             {sectionLabel}:
           </span>
           {section.note && (
-            <span className="text-label-11 italic text-[var(--text-2)] mt-1 px-1 ml-0.5 border-l-2" style={{ borderColor: s.br }}>
+            <span
+              className="text-label-11 italic mt-1 px-1 ml-0.5 border-l-2"
+              style={{ borderColor: s.br, color: 'var(--chart-subtle, var(--text-2))' }}
+            >
               {section.note}
             </span>
           )}

@@ -687,6 +687,17 @@ function BottomSheet({ open, onClose, title, children }) {
   const [dragging, setDragging] = useState(false);
   const startYRef = useRef(0);
 
+  // When the sheet reopens, reset any leftover drag offset from the previous
+  // close — otherwise dragging it down past the threshold leaves dragY > 120
+  // baked into state and the next open renders translated halfway down the
+  // screen.
+  useEffect(() => {
+    if (open) {
+      setDragY(0);
+      setDragging(false);
+    }
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
