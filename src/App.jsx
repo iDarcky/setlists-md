@@ -1474,6 +1474,7 @@ export default function App() {
               }}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              onOpenAdvancedStyle={() => goToMainView('settings', { settingsPanel: 'chart-style' })}
               defaultColumns={settings?.defaultColumns}
               defaultFontSize={settings?.defaultFontSize}
               showInlineNotes={settings?.showInlineNotes !== false}

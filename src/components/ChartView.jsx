@@ -57,6 +57,7 @@ export default function ChartView({
   onSongChange,
   settings,
   onUpdateSettings,
+  onOpenAdvancedStyle,
 }) {
   const initialFontSize = FONT_SIZES[defaultFontSize] || (typeof defaultFontSize === 'number' ? defaultFontSize : 16);
 
@@ -520,6 +521,23 @@ export default function ChartView({
                 settings={settings}
                 onUpdateSettings={onUpdateSettings}
               />
+
+              {onOpenAdvancedStyle && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveSheet(null);
+                    onOpenAdvancedStyle();
+                  }}
+                  className="mt-2 w-full h-11 rounded-xl bg-[var(--ds-background-100)] border border-[var(--border-1)] text-copy-14 font-semibold text-[var(--text-1)] flex items-center justify-center gap-2 hover:bg-[var(--bg-1)] transition-all"
+                  style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)' }}
+                >
+                  Advanced settings
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              )}
             </div>
           </BottomSheet>
 
