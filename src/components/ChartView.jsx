@@ -1,6 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { HexColorPicker } from 'react-colorful';
 import { transposeChord, ALL_KEYS, semitonesBetween, normalizeSectionName } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
@@ -814,44 +813,17 @@ function ChartStyleControls({ settings, onUpdateSettings }) {
   const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
   const customThemes = settings?.customChartThemes || [];
   const allThemes = [...CHART_THEMES, ...customThemes];
-  const preset = allThemes.find(t => t.id === themeId) || CHART_THEME_MAP[DEFAULT_CHART_THEME_ID];
-  const activeCustom = customThemes.find(t => t.id === themeId);
-  const isCustom = !!activeCustom;
-
-  // Colours come straight from whichever theme record is active (preset
-  // or custom). On built-ins they're read-only; on custom we mutate the
-  // record in place so colour changes persist to the saved theme.
-  const bgColor = preset.bg;
-  const lyricColor = preset.text;
-  const chordColor = preset.chord;
-
-  const patchActive = (patch) => {
-    if (!activeCustom) return;
-    update('customChartThemes', customThemes.map(t => t.id === activeCustom.id ? { ...t, ...patch } : t));
-  };
-  const duplicateActive = () => {
-    const id = `custom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-    update('customChartThemes', [
-      ...customThemes,
-      { id, name: `${preset.name} (custom)`, bg: preset.bg, text: preset.text, chord: preset.chord, subtle: preset.subtle },
-    ]);
-    update('chartTheme', id);
-  };
 
   const chordFontId = settings?.chartChordFont || DEFAULT_CHORD_FONT_ID;
   const lyricFontId = settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID;
   const chordFont = CHART_FONT_MAP[chordFontId];
   const lyricFont = CHART_FONT_MAP[lyricFontId];
 
-  // Only one colour picker open at a time so the sheet doesn't stretch
-  // past the viewport and trap the user above the next field.
-  const [openColor, setOpenColor] = useState(null); // 'bg' | 'text' | 'chord' | null
-
   if (!allowed) {
     return (
       <SheetField label="Style (Pro)">
         <div className="text-copy-13 text-[var(--text-2)]">
-          Upgrade to Pro to unlock themes, custom fonts for chords and lyrics, and a chord colour picker.
+          Upgrade to Pro to unlock themes and custom fonts for chords and lyrics.
         </div>
       </SheetField>
     );
@@ -924,95 +896,6 @@ function ChartStyleControls({ settings, onUpdateSettings }) {
           </Select>
         </SheetField>
       </div>
-
-      {isCustom ? (
-        <>
-          <SheetField label="Colours">
-            <div className="grid grid-cols-3 gap-2">
-              <ColorSwatchButton
-                label="Background"
-                color={bgColor}
-                open={openColor === 'bg'}
-                onToggle={() => setOpenColor(o => o === 'bg' ? null : 'bg')}
-              />
-              <ColorSwatchButton
-                label="Lyric"
-                color={lyricColor}
-                open={openColor === 'text'}
-                onToggle={() => setOpenColor(o => o === 'text' ? null : 'text')}
-              />
-              <ColorSwatchButton
-                label="Chord"
-                color={chordColor}
-                open={openColor === 'chord'}
-                onToggle={() => setOpenColor(o => o === 'chord' ? null : 'chord')}
-              />
-            </div>
-          </SheetField>
-          {openColor && (
-            <InlineColorPicker
-              color={openColor === 'bg' ? bgColor : openColor === 'text' ? lyricColor : chordColor}
-              onChange={(v) => patchActive(
-                openColor === 'bg' ? { bg: v }
-                : openColor === 'text' ? { text: v }
-                : { chord: v }
-              )}
-              onClose={() => setOpenColor(null)}
-            />
-          )}
-        </>
-      ) : (
-        <SheetField label="Colours">
-          <div className="flex flex-col gap-2 items-start">
-            <span className="text-label-12 text-[var(--text-2)]">
-              Built-in themes are read-only.
-            </span>
-            <Button size="sm" variant="secondary" onClick={duplicateActive}>
-              Customise {preset.name}…
-            </Button>
-          </div>
-        </SheetField>
-      )}
     </>
-  );
-}
-
-function ColorSwatchButton({ label, color, open, onToggle }) {
-  return (
-    <div className="flex flex-col items-center gap-1 min-w-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="h-9 w-full rounded-lg border transition-all"
-        style={{ background: color, borderColor: open ? 'var(--color-brand)' : 'var(--border-1)' }}
-        aria-label={`Pick ${label.toLowerCase()} colour`}
-      />
-      <span className="text-label-10 text-[var(--text-2)] uppercase tracking-wider truncate">{label}</span>
-    </div>
-  );
-}
-
-function InlineColorPicker({ color, onChange, onClose }) {
-  return (
-    <div className="px-1 pb-1 -mt-2 flex flex-col gap-2 items-end">
-      <HexColorPicker
-        color={color}
-        onChange={onChange}
-        style={{ width: '100%', height: 180 }}
-      />
-      <div className="flex items-center gap-2 self-stretch">
-        <span className="text-label-11 text-[var(--text-2)] uppercase tracking-wider">Hex</span>
-        <input
-          type="text"
-          value={color}
-          onChange={(e) => {
-            const v = e.target.value.trim();
-            if (/^#?[0-9a-fA-F]{6}$/.test(v)) onChange(v.startsWith('#') ? v : `#${v}`);
-          }}
-          className="flex-1 h-8 px-2 rounded-md bg-[var(--bg-1)] text-copy-13 text-[var(--text-1)] border border-[var(--border-1)] font-mono"
-        />
-        <Button size="sm" variant="ghost" onClick={onClose}>Done</Button>
-      </div>
-    </div>
   );
 }

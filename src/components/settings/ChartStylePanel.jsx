@@ -15,6 +15,10 @@ import {
   chartTheme,
 } from '../../data/chartThemes';
 
+// Cap on how many user-defined themes can exist. Keeps the picker grid
+// readable and the synced preferences payload bounded.
+const MAX_CUSTOM_THEMES = 4;
+
 // Settings → Chart Style. Gated to paid plans via UpgradeGate. Lets the
 // user pick one of the 8 curated themes, override the three key colours
 // (background, text, chord) via a real colour wheel, and choose distinct
@@ -175,9 +179,12 @@ function ChartStylePanelInner({ settings, update }) {
     );
   };
 
+  const atCustomThemeLimit = customThemes.length >= MAX_CUSTOM_THEMES;
+
   // Duplicate the currently-selected built-in preset into a new custom
   // theme and switch to it so the colour rows start editing immediately.
   const duplicateActiveTheme = () => {
+    if (atCustomThemeLimit) return;
     const name = (savingName || preset.name + ' (custom)').trim();
     if (!name) return;
     const id = `custom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -284,9 +291,13 @@ function ChartStylePanelInner({ settings, update }) {
           <div className="modes-card p-5 flex flex-col gap-3 items-start">
             <p className="text-copy-13 text-[var(--modes-text-muted)] m-0">
               Built-in themes are read-only. Duplicate this one into a custom theme
-              to tweak the colours and save it for later.
+              to tweak the colours and save it for later. Up to {MAX_CUSTOM_THEMES} custom themes.
             </p>
-            {savingName == null ? (
+            {atCustomThemeLimit ? (
+              <p className="text-copy-13 text-[var(--modes-text-muted)] m-0">
+                You have {MAX_CUSTOM_THEMES} custom themes. Delete one above to make room for another.
+              </p>
+            ) : savingName == null ? (
               <Button size="sm" variant="brand" onClick={() => setSavingName(`${preset.name} (custom)`)}>
                 Customise {preset.name}…
               </Button>
