@@ -527,14 +527,14 @@ export default function ChartView({
                 <SheetField label="Lyric size">
                   <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
                     <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.max(10, prev - 2))} aria-label="Decrease lyric size">−</IconButton>
-                    <span className="px-2 text-label-12-mono text-[var(--text-1)] font-semibold">{fontSize}px</span>
+                    <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{fontSize}</span>
                     <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.min(30, prev + 2))} aria-label="Increase lyric size">+</IconButton>
                   </div>
                 </SheetField>
                 <SheetField label="Chord size">
                   <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
                     <IconButton variant="ghost" size="sm" onClick={() => setChordFontSize(prev => Math.max(8, prev - 2))} aria-label="Decrease chord size">−</IconButton>
-                    <span className="px-2 text-label-12-mono text-[var(--text-1)] font-semibold">{chordFontSize}px</span>
+                    <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{chordFontSize}</span>
                     <IconButton variant="ghost" size="sm" onClick={() => setChordFontSize(prev => Math.min(30, prev + 2))} aria-label="Increase chord size">+</IconButton>
                   </div>
                 </SheetField>
@@ -790,7 +790,7 @@ function BottomSheet({ open, onClose, title, children }) {
           </div>
           <h2 className="text-heading-18 font-semibold text-[var(--ds-gray-1000)] m-0">{title}</h2>
         </div>
-        <div className="px-5 pb-4 overflow-y-auto flex-1 min-h-0">
+        <div className="px-5 pb-4 overflow-y-auto overflow-x-hidden flex-1 min-h-0">
           {children}
         </div>
       </div>

@@ -5,6 +5,7 @@ import ChartStylePanel from './settings/ChartStylePanel';
 import SectionsPanel from './settings/SectionsPanel';
 import { CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '../data/chartThemes';
 import { HexColorPicker } from 'react-colorful';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import ScreenHeader from './ui/ScreenHeader';
 import BrandWordmark from './ui/BrandWordmark';
 import { Button } from './ui/Button';
@@ -167,24 +168,17 @@ function AppearancePanel({ settings, update, isSignedIn }) {
         : 'Sign in to sync these preferences to every device you use.'}
     >
       <Row label="App theme" description="System follows your device preference.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {[
-            { key: 'default', label: 'System' },
-            { key: 'light', label: 'Light' },
-            { key: 'dark', label: 'Dark' },
-            { key: 'midnight', label: 'Midnight' },
-          ].map(({ key, label }) => (
-            <Button
-              key={key}
-              size="sm"
-              variant={settings.theme === key ? 'secondary' : 'ghost'}
-              onClick={() => update('theme', key)}
-              className={settings.theme === key ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
+        <Select value={settings.theme || 'default'} onValueChange={(v) => update('theme', v)}>
+          <SelectTrigger className="h-9 px-3 text-label-13 font-medium gap-1 min-w-[160px] w-auto">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">System</SelectItem>
+            <SelectItem value="light">Light</SelectItem>
+            <SelectItem value="dark">Dark</SelectItem>
+            <SelectItem value="midnight">Midnight</SelectItem>
+          </SelectContent>
+        </Select>
       </Row>
       <Row label="Accent colour" description="The brand colour used on buttons, selections, and active states.">
         <div className="flex flex-col items-end gap-2">
@@ -196,7 +190,10 @@ function AppearancePanel({ settings, update, isSignedIn }) {
               type="button"
               onClick={() => setAccentOpen((o) => !o)}
               className="h-9 w-14 rounded-lg border transition-all"
-              style={{ background: accent || 'var(--color-brand)', borderColor: accentOpen ? 'var(--color-brand)' : 'var(--ds-gray-400)' }}
+              style={{
+                background: accent || 'var(--color-brand)',
+                borderColor: accentOpen ? 'var(--color-brand)' : 'var(--modes-border)',
+              }}
               aria-label="Pick accent colour"
             />
           </div>
