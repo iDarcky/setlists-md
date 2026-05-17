@@ -1506,6 +1506,7 @@ export default function App() {
               onSave={handleSaveSong}
               onBack={importQueue ? handleSkipQueueSong : goBack}
               onDelete={currentSong ? handleDeleteSong : null}
+              customSectionTypes={settings?.customSectionTypes}
               importProgress={importQueue ? {
                 current: importQueue.total - importQueue.remaining.length + 1,
                 total: importQueue.total,

@@ -242,7 +242,13 @@ function InlineEditor({ initialValue, onSave, onCancel }) {
 
 // ─── ArrangeTab ───────────────────────────────────────────────────
 
-export default function ArrangeTab({ md, onChange }) {
+export default function ArrangeTab({ md, onChange, customSectionTypes }) {
+  const sectionTypes = useMemo(() => {
+    const custom = (customSectionTypes || [])
+      .map(t => t?.name?.trim())
+      .filter(Boolean);
+    return [...SECTION_TYPES, ...custom];
+  }, [customSectionTypes]);
   const [activeChord, setActiveChord] = useState(null);
   const [selectedExisting, setSelectedExisting] = useState(null);
   const [guidePos, setGuidePos] = useState(null);
@@ -510,7 +516,7 @@ export default function ArrangeTab({ md, onChange }) {
       {/* Scrollable sections */}
       <div className="flex-1 overflow-auto px-4 pt-2 pb-8">
         {placements.map((sec, secIdx) => {
-          const s = sectionStyle(sec.type);
+          const s = sectionStyle(sec.type, null, customSectionTypes);
           const sectionLabel = sec.type.replace(/:+$/, '');
           const baseType = sec.type.replace(/\s*\d+$/, '');
 
@@ -524,7 +530,7 @@ export default function ArrangeTab({ md, onChange }) {
                   className="bg-transparent border-none text-label-14 font-black uppercase tracking-[0.15em] cursor-pointer outline-none"
                   style={{ color: s.b }}
                 >
-                  {SECTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  {sectionTypes.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
 
                 <input

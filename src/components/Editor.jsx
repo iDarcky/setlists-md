@@ -120,7 +120,7 @@ key: C
 
 `;
 
-export default function Editor({ song, onSave, onBack, onDelete, onMove, activeLibrary, team, importProgress }) {
+export default function Editor({ song, onSave, onBack, onDelete, onMove, activeLibrary, team, importProgress, customSectionTypes }) {
   const confirm = useConfirm();
 
   // Working copy of the song we're editing. For a new song, songFromFlat
@@ -373,9 +373,9 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
   const renderTab = () => {
     switch (activeTab) {
       case 'write':
-        return <WriteTab md={md} onChange={setMd} textareaRef={textareaRef} />;
+        return <WriteTab md={md} onChange={setMd} textareaRef={textareaRef} customSectionTypes={customSectionTypes} />;
       case 'arrange':
-        return <ArrangeTab md={md} onChange={setMd} />;
+        return <ArrangeTab md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
       default:
         return <ArrangeTab md={md} onChange={setMd} />;
     }

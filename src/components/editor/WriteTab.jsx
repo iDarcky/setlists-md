@@ -10,7 +10,13 @@ const SECTION_TYPES = [
   'Instrumental', 'Interlude', 'Tag', 'Vamp', 'Outro', 'Ending', 'Refrain',
 ];
 
-export default function WriteTab({ md, onChange, textareaRef }) {
+export default function WriteTab({ md, onChange, textareaRef, customSectionTypes }) {
+  const sectionTypes = useMemo(() => {
+    const custom = (customSectionTypes || [])
+      .map(t => t?.name?.trim())
+      .filter(Boolean);
+    return [...SECTION_TYPES, ...custom];
+  }, [customSectionTypes]);
   const [showChordPicker, setShowChordPicker] = useState(false);
   const [showSectionMenu, setShowSectionMenu] = useState(false);
   const [showCueInput, setShowCueInput] = useState(false);
@@ -396,7 +402,7 @@ export default function WriteTab({ md, onChange, textareaRef }) {
       {showSectionMenu && (
         <Popup anchor={popupAnchor} onClose={() => setShowSectionMenu(false)}>
           <div className="flex flex-col gap-0.5">
-            {SECTION_TYPES.map(t => (
+            {sectionTypes.map(t => (
               <button
                 key={t}
                 onClick={() => handleSectionInsert(t)}
