@@ -43,8 +43,7 @@ function ThemeSwatch({ theme, active, onSelect }) {
   );
 }
 
-function ColorWheelRow({ label, description, value, onChange, onReset, preset }) {
-  const [open, setOpen] = useState(false);
+function ColorWheelRow({ label, description, value, onChange, onReset, preset, open, onOpenChange }) {
   const showReset = value && value !== preset;
   const current = value || preset;
 
@@ -61,7 +60,7 @@ function ColorWheelRow({ label, description, value, onChange, onReset, preset })
           )}
           <button
             type="button"
-            onClick={() => setOpen((o) => !o)}
+            onClick={() => onOpenChange(open ? null : label)}
             className="h-9 w-14 rounded-lg border transition-all"
             style={{ background: current, borderColor: open ? 'var(--color-brand)' : 'var(--modes-border)' }}
             aria-label={`Pick ${label.toLowerCase()} colour`}
@@ -82,7 +81,7 @@ function ColorWheelRow({ label, description, value, onChange, onReset, preset })
               }}
               className="flex-1 h-8 px-2 rounded-md bg-[var(--modes-surface-strong)] text-copy-13 text-[var(--modes-text)] border border-[var(--modes-border)] font-mono"
             />
-            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Done</Button>
+            <Button size="sm" variant="ghost" onClick={() => onOpenChange(null)}>Done</Button>
           </div>
         </div>
       )}
@@ -144,6 +143,7 @@ export default function ChartStylePanel({ settings, update, onUpgrade }) {
 function ChartStylePanelInner({ settings, update }) {
   const activeThemeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
   const preset = CHART_THEME_MAP[activeThemeId] || CHART_THEME_MAP[DEFAULT_CHART_THEME_ID];
+  const [openPicker, setOpenPicker] = useState(null);
 
   const hasOverrides =
     !!(settings?.chartBg || settings?.chartText || settings?.chartChordColor);
@@ -189,6 +189,8 @@ function ChartStylePanelInner({ settings, update }) {
             preset={preset.bg}
             onChange={(v) => update('chartBg', v)}
             onReset={() => update('chartBg', null)}
+            open={openPicker === 'Background'}
+            onOpenChange={setOpenPicker}
           />
           <ColorWheelRow
             label="Lyric text"
@@ -197,6 +199,8 @@ function ChartStylePanelInner({ settings, update }) {
             preset={preset.text}
             onChange={(v) => update('chartText', v)}
             onReset={() => update('chartText', null)}
+            open={openPicker === 'Lyric text'}
+            onOpenChange={setOpenPicker}
           />
           <ColorWheelRow
             label="Chord colour"
@@ -205,6 +209,8 @@ function ChartStylePanelInner({ settings, update }) {
             preset={preset.chord}
             onChange={(v) => update('chartChordColor', v)}
             onReset={() => update('chartChordColor', null)}
+            open={openPicker === 'Chord colour'}
+            onOpenChange={setOpenPicker}
           />
         </div>
       </div>

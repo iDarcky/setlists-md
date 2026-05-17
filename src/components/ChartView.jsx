@@ -474,38 +474,6 @@ export default function ChartView({
             title="Layout"
           >
             <div className="flex flex-col gap-4">
-              <SheetField label="Columns">
-                <SegmentedControl
-                  value={columns}
-                  onChange={setColumns}
-                  options={[
-                    { value: 1, label: '1 COL' },
-                    { value: 2, label: '2 COL' },
-                  ]}
-                  size="sm"
-                />
-              </SheetField>
-              <SheetField label="Font size">
-                <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                  <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.max(10, prev - 2))} aria-label="Decrease font size">−</IconButton>
-                  <span className="px-2 text-label-12-mono text-[var(--text-1)] font-semibold">{fontSize}px</span>
-                  <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.min(30, prev + 2))} aria-label="Increase font size">+</IconButton>
-                </div>
-              </SheetField>
-              <SheetField label="Font family">
-                <Select value={fontFamily} onValueChange={setFontFamily}>
-                  <SelectTrigger className="h-9 px-3 text-label-13 font-medium text-[var(--text-1)] gap-1 min-w-[200px] w-auto">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(FONT_FAMILIES).map(name => (
-                      <SelectItem key={name} value={name}>
-                        <span style={{ fontFamily: FONT_FAMILIES[name] }}>{name}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </SheetField>
               <SheetField label="Display">
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -526,6 +494,27 @@ export default function ChartView({
                   >DIAGRAMS</Button>
                 </div>
               </SheetField>
+
+              <div className="flex flex-wrap items-end gap-4">
+                <SheetField label="Columns">
+                  <SegmentedControl
+                    value={columns}
+                    onChange={setColumns}
+                    options={[
+                      { value: 1, label: '1 COL' },
+                      { value: 2, label: '2 COL' },
+                    ]}
+                    size="sm"
+                  />
+                </SheetField>
+                <SheetField label="Font size">
+                  <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+                    <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.max(10, prev - 2))} aria-label="Decrease font size">−</IconButton>
+                    <span className="px-2 text-label-12-mono text-[var(--text-1)] font-semibold">{fontSize}px</span>
+                    <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.min(30, prev + 2))} aria-label="Increase font size">+</IconButton>
+                  </div>
+                </SheetField>
+              </div>
 
               <ChartStyleControls
                 settings={settings}
@@ -723,9 +712,10 @@ function BottomSheet({ open, onClose, title, children }) {
         onClick={() => onClose?.()}
       />
       <div
-        className="relative w-full sm:max-w-[640px] bg-[var(--ds-background-100)] border-t border-x border-[var(--ds-gray-400)] rounded-t-2xl shadow-2xl animate-in slide-in-from-bottom-8 duration-200"
+        className="relative w-full sm:max-w-[640px] bg-[var(--ds-background-100)] border-t border-x border-[var(--ds-gray-400)] rounded-t-2xl shadow-2xl animate-in slide-in-from-bottom-8 duration-200 flex flex-col"
         style={{
           paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+          maxHeight: '85vh',
           transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
           transition: dragging ? 'none' : 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1)',
         }}
@@ -743,7 +733,7 @@ function BottomSheet({ open, onClose, title, children }) {
           </div>
           <h2 className="text-heading-18 font-semibold text-[var(--ds-gray-1000)] m-0">{title}</h2>
         </div>
-        <div className="px-5 pb-4">
+        <div className="px-5 pb-4 overflow-y-auto flex-1 min-h-0">
           {children}
         </div>
       </div>
@@ -764,12 +754,16 @@ function ChartStyleControls({ settings, onUpdateSettings }) {
   const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
   const preset = CHART_THEME_MAP[themeId] || CHART_THEME_MAP[DEFAULT_CHART_THEME_ID];
   const chordColor = settings?.chartChordColor || preset.chord;
+  const lyricColor = settings?.chartText || preset.text;
+  const bgColor = settings?.chartBg || preset.bg;
   const chordFontId = settings?.chartChordFont || DEFAULT_CHORD_FONT_ID;
   const lyricFontId = settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID;
   const chordFont = CHART_FONT_MAP[chordFontId];
   const lyricFont = CHART_FONT_MAP[lyricFontId];
 
-  const [colorOpen, setColorOpen] = useState(false);
+  // Only one colour picker open at a time so the sheet doesn't stretch
+  // past the viewport and trap the user above the next field.
+  const [openColor, setOpenColor] = useState(null); // 'bg' | 'text' | 'chord' | null
 
   if (!allowed) {
     return (
@@ -847,43 +841,97 @@ function ChartStyleControls({ settings, onUpdateSettings }) {
         </Select>
       </SheetField>
 
-      <SheetField label="Chord colour">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setColorOpen(o => !o)}
-            className="h-9 w-14 rounded-lg border transition-all"
-            style={{ background: chordColor, borderColor: colorOpen ? 'var(--color-brand)' : 'var(--border-1)' }}
-            aria-label="Pick chord colour"
+      <SheetField label="Colours">
+        <div className="flex flex-wrap items-center gap-3">
+          <ColorSwatchButton
+            label="Background"
+            color={bgColor}
+            open={openColor === 'bg'}
+            onToggle={() => setOpenColor(o => o === 'bg' ? null : 'bg')}
+            overridden={!!settings?.chartBg && settings.chartBg !== preset.bg}
+            onReset={() => update('chartBg', null)}
           />
-          {(settings?.chartChordColor && settings.chartChordColor !== preset.chord) && (
-            <Button size="sm" variant="ghost" onClick={() => update('chartChordColor', null)}>Reset</Button>
-          )}
+          <ColorSwatchButton
+            label="Lyric"
+            color={lyricColor}
+            open={openColor === 'text'}
+            onToggle={() => setOpenColor(o => o === 'text' ? null : 'text')}
+            overridden={!!settings?.chartText && settings.chartText !== preset.text}
+            onReset={() => update('chartText', null)}
+          />
+          <ColorSwatchButton
+            label="Chord"
+            color={chordColor}
+            open={openColor === 'chord'}
+            onToggle={() => setOpenColor(o => o === 'chord' ? null : 'chord')}
+            overridden={!!settings?.chartChordColor && settings.chartChordColor !== preset.chord}
+            onReset={() => update('chartChordColor', null)}
+          />
         </div>
       </SheetField>
 
-      {colorOpen && (
-        <div className="px-1 pb-1 -mt-2 flex flex-col gap-2 items-end">
-          <HexColorPicker
-            color={chordColor}
-            onChange={(v) => update('chartChordColor', v)}
-            style={{ width: '100%', height: 180 }}
-          />
-          <div className="flex items-center gap-2 self-stretch">
-            <span className="text-label-11 text-[var(--text-2)] uppercase tracking-wider">Hex</span>
-            <input
-              type="text"
-              value={chordColor}
-              onChange={(e) => {
-                const v = e.target.value.trim();
-                if (/^#?[0-9a-fA-F]{6}$/.test(v)) update('chartChordColor', v.startsWith('#') ? v : `#${v}`);
-              }}
-              className="flex-1 h-8 px-2 rounded-md bg-[var(--bg-1)] text-copy-13 text-[var(--text-1)] border border-[var(--border-1)] font-mono"
-            />
-            <Button size="sm" variant="ghost" onClick={() => setColorOpen(false)}>Done</Button>
-          </div>
-        </div>
+      {openColor && (
+        <InlineColorPicker
+          color={openColor === 'bg' ? bgColor : openColor === 'text' ? lyricColor : chordColor}
+          onChange={(v) => update(
+            openColor === 'bg' ? 'chartBg' : openColor === 'text' ? 'chartText' : 'chartChordColor',
+            v,
+          )}
+          onClose={() => setOpenColor(null)}
+        />
       )}
     </>
+  );
+}
+
+function ColorSwatchButton({ label, color, open, onToggle, overridden, onReset }) {
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="h-9 w-14 rounded-lg border transition-all"
+        style={{ background: color, borderColor: open ? 'var(--color-brand)' : 'var(--border-1)' }}
+        aria-label={`Pick ${label.toLowerCase()} colour`}
+      />
+      <div className="flex items-center gap-1">
+        <span className="text-label-10 text-[var(--text-2)] uppercase tracking-wider">{label}</span>
+        {overridden && (
+          <button
+            type="button"
+            onClick={onReset}
+            className="text-label-10 text-[var(--color-brand)] uppercase tracking-wider hover:underline"
+            aria-label={`Reset ${label.toLowerCase()} colour`}
+          >
+            ×
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InlineColorPicker({ color, onChange, onClose }) {
+  return (
+    <div className="px-1 pb-1 -mt-2 flex flex-col gap-2 items-end">
+      <HexColorPicker
+        color={color}
+        onChange={onChange}
+        style={{ width: '100%', height: 180 }}
+      />
+      <div className="flex items-center gap-2 self-stretch">
+        <span className="text-label-11 text-[var(--text-2)] uppercase tracking-wider">Hex</span>
+        <input
+          type="text"
+          value={color}
+          onChange={(e) => {
+            const v = e.target.value.trim();
+            if (/^#?[0-9a-fA-F]{6}$/.test(v)) onChange(v.startsWith('#') ? v : `#${v}`);
+          }}
+          className="flex-1 h-8 px-2 rounded-md bg-[var(--bg-1)] text-copy-13 text-[var(--text-1)] border border-[var(--border-1)] font-mono"
+        />
+        <Button size="sm" variant="ghost" onClick={onClose}>Done</Button>
+      </div>
+    </div>
   );
 }
