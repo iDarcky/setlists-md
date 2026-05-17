@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import SyncSettings from './settings/SyncSettings';
 import WhatsNewPanel from './settings/WhatsNewPanel';
 import ChartStylePanel from './settings/ChartStylePanel';
 import SectionsPanel from './settings/SectionsPanel';
-import { CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '../data/chartThemes';
+import { CHART_THEMES, CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '../data/chartThemes';
+import { HexColorPicker } from 'react-colorful';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import ScreenHeader from './ui/ScreenHeader';
 import BrandWordmark from './ui/BrandWordmark';
 import { Button } from './ui/Button';
@@ -155,13 +158,19 @@ const PLAN_LABELS = { free: 'Free', sync: 'Sync', team: 'Team', church: 'Church'
 // ─── Sub-panel renderers — pure, just take what they need ────────────────
 
 function AppearancePanel({ settings, update, isSignedIn }) {
+  const customThemes = settings?.customChartThemes || [];
+  const allChartThemes = [...CHART_THEMES, ...customThemes];
+  const activeChartTheme = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
+  const accent = settings?.accentColor || '';
+  const [accentOpen, setAccentOpen] = useState(false);
+
   return (
     <Section
       subtitle={isSignedIn
         ? 'Synced to your account — changes follow you across devices.'
         : 'Sign in to sync these preferences to every device you use.'}
     >
-      <Row label="Theme" description="System follows your device preference.">
+      <Row label="App theme" description="System follows your device preference.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
           {[
             { key: 'default', label: 'System' },
@@ -181,19 +190,57 @@ function AppearancePanel({ settings, update, isSignedIn }) {
           ))}
         </div>
       </Row>
-      <Row label="Library Layout" description="Number of columns for the library view.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {['auto', 1, 2].map(v => (
-            <Button
-              key={v}
-              size="sm"
-              variant={settings.defaultColumns === v ? 'secondary' : 'ghost'}
-              onClick={() => update('defaultColumns', v)}
-              className={settings.defaultColumns === v ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-            >
-              {v === 'auto' ? 'Auto' : `${v}col`}
-            </Button>
-          ))}
+      <Row label="Chart theme" description="Background and chord colour applied to every chord chart.">
+        <Select value={activeChartTheme} onValueChange={(v) => update('chartTheme', v)}>
+          <SelectTrigger className="h-9 px-3 text-label-13 font-medium gap-1 min-w-[200px] w-auto">
+            <SelectValue>
+              {allChartThemes.find(t => t.id === activeChartTheme)?.name || 'Default'}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {CHART_THEMES.map(t => (
+              <SelectItem key={t.id} value={t.id}>
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block w-3 h-3 rounded-sm" style={{ background: t.bg, border: '1px solid var(--ds-gray-400)' }} />
+                  {t.name}
+                </span>
+              </SelectItem>
+            ))}
+            {customThemes.length > 0 && customThemes.map(t => (
+              <SelectItem key={t.id} value={t.id}>
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block w-3 h-3 rounded-sm" style={{ background: t.bg, border: '1px solid var(--ds-gray-400)' }} />
+                  {t.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Row>
+      <Row label="Accent colour" description="The brand colour used on buttons, selections, and active states.">
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            {accent && (
+              <Button size="sm" variant="ghost" onClick={() => update('accentColor', null)}>Reset</Button>
+            )}
+            <button
+              type="button"
+              onClick={() => setAccentOpen((o) => !o)}
+              className="h-9 w-14 rounded-lg border transition-all"
+              style={{ background: accent || 'var(--color-brand)', borderColor: accentOpen ? 'var(--color-brand)' : 'var(--ds-gray-400)' }}
+              aria-label="Pick accent colour"
+            />
+          </div>
+          {accentOpen && (
+            <div className="w-full max-w-[260px] flex flex-col gap-2 items-end">
+              <HexColorPicker
+                color={accent || '#0070f3'}
+                onChange={(v) => update('accentColor', v)}
+                style={{ width: '100%', height: 180 }}
+              />
+              <Button size="sm" variant="ghost" onClick={() => setAccentOpen(false)}>Done</Button>
+            </div>
+          )}
         </div>
       </Row>
       <Row label="First day of week" description="Affects calendar grids and weekly schedule.">
@@ -239,7 +286,22 @@ function AppearancePanel({ settings, update, isSignedIn }) {
 function ChartPanel({ settings, update }) {
   return (
     <Section subtitle="How charts are laid out and which elements are visible by default.">
-      <Row label="Chart Flow" description="How sections fill when using 2 columns.">
+      <Row label="Library layout" description="Number of columns for the song library view.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {['auto', 1, 2].map(v => (
+            <Button
+              key={v}
+              size="sm"
+              variant={settings.defaultColumns === v ? 'secondary' : 'ghost'}
+              onClick={() => update('defaultColumns', v)}
+              className={settings.defaultColumns === v ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+            >
+              {v === 'auto' ? 'Auto' : `${v} col`}
+            </Button>
+          ))}
+        </div>
+      </Row>
+      <Row label="Chart flow" description="How sections fill when using 2 columns.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
           {[
             { key: 'columns', label: 'Top ↓ Down' },
@@ -257,7 +319,7 @@ function ChartPanel({ settings, update }) {
           ))}
         </div>
       </Row>
-      <Row label="Display Mode" description="Control which elements are visible by default.">
+      <Row label="Display mode" description="Control which elements are visible by default.">
         <div className="flex p-1 bg-[var(--ds-gray-200)] rounded-lg flex-wrap">
           {[
             { key: 'leader', label: 'Full' },

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { useConfirm } from '../ui/useConfirmHook';
 import UpgradeGate from '../ui/UpgradeGate';
 import { SECTION_TYPE_KEYS, sectionStyle } from '../../music';
 
@@ -12,8 +13,7 @@ import { SECTION_TYPE_KEYS, sectionStyle } from '../../music';
 // the canonical English names internally, only the display label and
 // colour are user-customisable.
 
-function SectionRow({ baseKey, label, color, presetColor, onLabelChange, onColorChange, onResetLabel, onResetColor, openColor, onToggleColor }) {
-  const showLabelReset = !!label && label !== baseKey;
+function SectionRow({ baseKey, color, presetColor, onColorChange, onResetColor, openColor, onToggleColor }) {
   const showColorReset = !!color && color !== presetColor;
   return (
     <div className="flex flex-col gap-2 py-3 border-b border-[var(--modes-border)] last:border-b-0">
@@ -25,23 +25,10 @@ function SectionRow({ baseKey, label, color, presetColor, onLabelChange, onColor
           style={{ background: color || presetColor, borderColor: openColor ? 'var(--color-brand)' : 'var(--modes-border)' }}
           aria-label={`Pick ${baseKey} colour`}
         />
-        <div className="flex flex-col min-w-0 flex-1">
-          <span className="text-label-11 text-[var(--modes-text-dim)] uppercase tracking-wider">{baseKey}</span>
-          <Input
-            value={label ?? ''}
-            placeholder={baseKey}
-            onChange={(e) => onLabelChange(e.target.value || null)}
-            className="h-8 px-2 text-copy-13"
-          />
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {showLabelReset && (
-            <Button size="sm" variant="ghost" onClick={onResetLabel} title="Reset label">Aa</Button>
-          )}
-          {showColorReset && (
-            <Button size="sm" variant="ghost" onClick={onResetColor} title="Reset colour">●</Button>
-          )}
-        </div>
+        <span className="text-copy-14 text-[var(--modes-text)] font-medium flex-1">{baseKey}</span>
+        {showColorReset && (
+          <Button size="sm" variant="ghost" onClick={onResetColor}>Reset</Button>
+        )}
       </div>
       {openColor && (
         <div className="flex flex-col gap-2 items-end">
@@ -116,17 +103,11 @@ export default function SectionsPanel({ settings, update, onUpgrade }) {
 }
 
 function SectionsPanelInner({ settings, update }) {
-  const labels = settings?.sectionLabels || {};
   const colors = settings?.sectionColors || {};
   const customTypes = settings?.customSectionTypes || [];
+  const confirm = useConfirm();
   const [openColor, setOpenColor] = useState(null);
 
-  const setLabel = (key, value) => update('sectionLabels', { ...labels, [key]: value });
-  const clearLabel = (key) => {
-    const next = { ...labels };
-    delete next[key];
-    update('sectionLabels', next);
-  };
   const setColor = (key, value) => update('sectionColors', { ...colors, [key]: value });
   const clearColor = (key) => {
     const next = { ...colors };
@@ -137,7 +118,15 @@ function SectionsPanelInner({ settings, update }) {
   const updateCustom = (id, next) => {
     update('customSectionTypes', customTypes.map(t => t.id === id ? { ...next, id } : t));
   };
-  const removeCustom = (id) => {
+  const removeCustom = async (id) => {
+    const target = customTypes.find(t => t.id === id);
+    const ok = await confirm({
+      title: `Delete "${target?.name || 'this section type'}"?`,
+      description: 'The custom section will be removed from your library and from your cloud preferences. Songs that already use this section name will keep the marker in their .md but lose the custom colour.',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (!ok) return;
     update('customSectionTypes', customTypes.filter(t => t.id !== id));
     if (openColor === id) setOpenColor(null);
   };
@@ -154,8 +143,9 @@ function SectionsPanelInner({ settings, update }) {
           Built-in types
         </h3>
         <p className="text-copy-13 text-[var(--modes-text-muted)] px-2 mb-2">
-          Rename or recolour the standard section types. The .md format keeps the
-          original name internally, so songs stay portable across users.
+          Recolour the standard section types. Names stay fixed so songs
+          remain portable; create a custom type below if you want a
+          different name.
         </p>
         <div className="modes-card p-4">
           {SECTION_TYPE_KEYS.map(key => {
@@ -164,12 +154,9 @@ function SectionsPanelInner({ settings, update }) {
               <SectionRow
                 key={key}
                 baseKey={key}
-                label={labels[key] || ''}
                 color={colors[key] || ''}
                 presetColor={preset.b}
-                onLabelChange={(v) => v ? setLabel(key, v) : clearLabel(key)}
                 onColorChange={(c) => setColor(key, c)}
-                onResetLabel={() => clearLabel(key)}
                 onResetColor={() => clearColor(key)}
                 openColor={openColor === key}
                 onToggleColor={() => setOpenColor(o => o === key ? null : key)}

@@ -269,6 +269,10 @@
   --chord: #e2a832;
   --header-bg: rgba(0, 0, 0, 0.92);
   --header-bg-blur: rgba(0, 0, 0, 0.45);
+  /* Solid header tone for the chart view — opaque so the lyric area
+     scrolling underneath never bleeds through. Default = dark. */
+  --chart-header-bg: #0a0807;
+  --chart-header-border: rgba(255, 255, 255, 0.06);
   --fm: var(--font-mono);
 
   /* Shared Dashboard Surfaces (Dark Default) */
@@ -294,6 +298,9 @@
     --ds-gray-200-value: 228, 16%, 17%;
     --ds-gray-300-value: 228, 15%, 22%;
     --ds-gray-400-value: 228, 13%, 26%;
+
+    --chart-header-bg: #0e1017;
+    --chart-header-border: rgba(255, 255, 255, 0.08);
   }
 
   [data-theme="light"] {
@@ -507,6 +514,8 @@
               --chord: #b45309;
     --header-bg: rgba(255, 255, 255, 0.92);
     --header-bg-blur: rgba(255, 255, 255, 0.45);
+    --chart-header-bg: #f6f4ef;
+    --chart-header-border: rgba(0, 0, 0, 0.08);
   }
 
   * {
@@ -585,8 +594,8 @@
     position: sticky;
     top: 0;
     z-index: 10;
-    background: var(--header-bg-blur);
-    border-bottom: 1px solid var(--ds-gray-200);
+    background: var(--chart-header-bg);
+    border-bottom: 1px solid var(--chart-header-border);
     padding-top: env(safe-area-inset-top, 0px);
   }
 

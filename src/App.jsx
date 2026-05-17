@@ -110,6 +110,7 @@ const PORTABLE_PREF_KEYS = [
   'sectionLabels',
   'customSectionTypes',
   'customChartThemes',
+  'accentColor',
   'firstDayOfWeek',
   'clockFormat',
   'userName',
@@ -347,6 +348,19 @@ export default function App() {
       // Settings remain global, so only load on initial mount
       if (!loaded) {
         const savedSettings = await loadSettings();
+        // First-run default for the chart theme tracks the app theme so
+        // light-mode users start on Sunday Light, dark-mode users start
+        // on Stage Black, midnight users start on Midnight, and so on.
+        if (savedSettings && !savedSettings.chartTheme) {
+          const appTheme = savedSettings.theme || 'default';
+          const defaultByTheme = {
+            light: 'sunday-light',
+            dark: 'stage-black',
+            midnight: 'midnight',
+            default: 'stage-black',
+          };
+          savedSettings.chartTheme = defaultByTheme[appTheme] || 'stage-black';
+        }
         setSettings(savedSettings);
 
         // Determine initial view based on onboarding state

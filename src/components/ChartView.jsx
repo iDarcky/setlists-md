@@ -12,7 +12,6 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import { cn } from '../lib/utils';
 import { StructureRibbon } from './StructureRibbon';
 import { exportSongPdf } from '../pdf/exportSongPdf';
-import { headerFrostStyle } from '../lib/headerFrost';
 import {
   CHART_THEMES,
   CHART_FONTS,
@@ -228,7 +227,7 @@ export default function ChartView({
       ref={scrollContainerRef}
       style={isPreview ? undefined : CHART_THEME_STYLE}
       className={cn(
-        "h-screen overflow-y-auto overflow-x-hidden",
+        "h-[100dvh] overflow-y-auto overflow-x-hidden",
         isPreview && "h-auto overflow-visible bg-transparent"
       )}
     >
@@ -240,7 +239,6 @@ export default function ChartView({
         <div
           className="material-header transition-all duration-200"
           style={{
-            ...headerFrostStyle,
             color: 'var(--text-1)',
             fontFamily: 'var(--font-sans)',
           }}
@@ -499,29 +497,29 @@ export default function ChartView({
                     variant={nns ? 'brand' : 'secondary'}
                     size="sm"
                     onClick={() => setNns(!nns)}
-                  >NUMBERS</Button>
+                  >Numbers</Button>
                   <Button
                     variant="secondary"
                     size="sm"
                     onClick={() => setShowChords(!showChords)}
                     className={cn(!showChords && "opacity-40")}
-                  >CHORDS</Button>
+                  >Chords</Button>
                   <Button
                     variant={showDiagrams ? 'brand' : 'secondary'}
                     size="sm"
                     onClick={() => setShowDiagrams(!showDiagrams)}
-                  >DIAGRAMS</Button>
+                  >Diagrams</Button>
                 </div>
               </SheetField>
 
-              <div className="flex flex-wrap items-end gap-4">
+              <div className="grid grid-cols-3 items-end gap-3">
                 <SheetField label="Columns">
                   <SegmentedControl
                     value={columns}
                     onChange={setColumns}
                     options={[
-                      { value: 1, label: '1 COL' },
-                      { value: 2, label: '2 COL' },
+                      { value: 1, label: '1 col' },
+                      { value: 2, label: '2 col' },
                     ]}
                     size="sm"
                   />
@@ -697,7 +695,7 @@ function MenuItem({ onClick, icon, label }) {
 function SheetField({ label, children }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-label-12 font-semibold uppercase tracking-wide text-[var(--text-2)]">{label}</span>
+      <span className="text-label-12 font-semibold text-[var(--text-2)]">{label}</span>
       {children}
     </div>
   );

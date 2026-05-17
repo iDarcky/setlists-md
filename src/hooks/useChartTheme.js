@@ -52,13 +52,19 @@ export function useChartTheme(settings) {
     root.style.setProperty('--chord', chord);
     root.style.setProperty('--chart-font-chord', chartFontStack(chordFontId, DEFAULT_CHORD_FONT_ID));
     root.style.setProperty('--chart-font-lyric', chartFontStack(lyricFontId, DEFAULT_LYRIC_FONT_ID));
+
+    // Accent (brand) colour — overrides --color-brand globally so Pro
+    // users can re-skin buttons, focus rings, and active highlights.
+    if (settings?.accentColor) {
+      root.style.setProperty('--color-brand', settings.accentColor);
+    } else {
+      root.style.removeProperty('--color-brand');
+    }
   }, [
     settings?.chartTheme,
-    settings?.chartBg,
-    settings?.chartText,
-    settings?.chartChordColor,
     settings?.chartChordFont,
     settings?.chartLyricFont,
     settings?.customChartThemes,
+    settings?.accentColor,
   ]);
 }
