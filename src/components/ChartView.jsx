@@ -252,19 +252,19 @@ export default function ChartView({
             fontFamily: 'var(--font-sans)',
           }}
         >
-          {/* Line 1: Hero title (shrinks on scroll) + close + dot menu. */}
+          {/* Line 1: Title + close + dot menu. Title size stays stable on
+              scroll — toggling font-size against the synchronous Line-2
+              collapse was causing the title to flicker for some users.
+              Compact "Line-2" content collapses on scroll but the title
+              itself doesn't resize. */}
           <div className="a4-container flex items-center justify-between gap-3 pt-3 pb-0.5">
             <div className="min-w-0 flex-1 flex items-baseline gap-3">
               <h1
-                className={cn(
-                  "m-0 truncate transition-all duration-200 font-bold leading-tight",
-                  scrolled ? "text-heading-16" : "text-heading-32",
-                )}
+                className="m-0 truncate font-bold leading-tight text-heading-24"
                 style={{ color: 'var(--text-1)' }}
               >
                 {song.title}
               </h1>
-              {/* Inline meta — visible only in compact mode. */}
               {scrolled && (
                 <div className="flex items-center gap-2 flex-shrink-0 text-label-12" style={{ color: 'var(--text-2)' }}>
                   <span aria-hidden="true">·</span>

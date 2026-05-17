@@ -82,7 +82,7 @@ function SkeletonRows() {
       {[1, 2, 3].map(g => (
         <div key={g} className="flex flex-col gap-3">
           <div className="h-5 w-8 bg-[var(--modes-surface-strong)] rounded animate-pulse mx-1" />
-          <div className="modes-card overflow-hidden divide-y" style={{ borderColor: 'var(--modes-border)' }}>
+          <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
             {[1, 2, 3].map(r => (
               <div key={r} className="flex items-center justify-between px-5 py-4">
                 <div className="flex flex-col gap-2 flex-1">
@@ -414,7 +414,7 @@ export default function Library({
                       {groups[groupKey].length}
                     </span>
                   </div>
-                  <div className="modes-card overflow-hidden divide-y" style={{ borderColor: 'var(--modes-border)' }}>
+                  <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
                     {groups[groupKey].map(song => (
                       <SongCard
                         key={song.id}
