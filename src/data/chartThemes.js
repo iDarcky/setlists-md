@@ -120,7 +120,12 @@ export function chartFontStack(id, fallback) {
   return CHART_FONT_MAP[DEFAULT_LYRIC_FONT_ID].stack;
 }
 
-// Resolve a theme id (or undefined) to a theme object.
-export function chartTheme(id) {
+// Resolve a theme id (or undefined) to a theme object. Accepts an optional
+// list of user-saved custom themes so they participate in the same lookup.
+export function chartTheme(id, customThemes = null) {
+  if (id && Array.isArray(customThemes)) {
+    const found = customThemes.find(t => t.id === id);
+    if (found) return found;
+  }
   return CHART_THEME_MAP[id] || CHART_THEME_MAP[DEFAULT_CHART_THEME_ID];
 }

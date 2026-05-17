@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/Select';
 import UpgradeGate from '../ui/UpgradeGate';
 import {
@@ -11,6 +12,7 @@ import {
   DEFAULT_CHART_THEME_ID,
   DEFAULT_CHORD_FONT_ID,
   DEFAULT_LYRIC_FONT_ID,
+  chartTheme,
 } from '../../data/chartThemes';
 
 // Settings → Chart Style. Gated to paid plans via UpgradeGate. Lets the
@@ -18,28 +20,40 @@ import {
 // (background, text, chord) via a real colour wheel, and choose distinct
 // fonts for chords vs lyrics from the curated 12-font library.
 
-function ThemeSwatch({ theme, active, onSelect }) {
+function ThemeSwatch({ theme, active, onSelect, onDelete }) {
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(theme.id)}
-      className="group flex flex-col items-stretch text-left rounded-xl overflow-hidden border transition-all"
-      style={{
-        borderColor: active ? 'var(--color-brand)' : 'var(--modes-border)',
-        boxShadow: active ? '0 0 0 2px var(--color-brand)' : 'none',
-      }}
-    >
-      <div
-        className="h-16 flex items-end justify-end p-2"
-        style={{ background: theme.bg, color: theme.chord, fontFamily: 'var(--font-mono)' }}
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => onSelect(theme.id)}
+        className="w-full group flex flex-col items-stretch text-left rounded-xl overflow-hidden border transition-all"
+        style={{
+          borderColor: active ? 'var(--color-brand)' : 'var(--modes-border)',
+          boxShadow: active ? '0 0 0 2px var(--color-brand)' : 'none',
+        }}
       >
-        <span className="text-label-12 font-bold">Am  G/B</span>
-      </div>
-      <div className="px-3 py-2 flex flex-col gap-0.5" style={{ background: 'var(--modes-surface)' }}>
-        <div className="text-copy-13 font-semibold text-[var(--modes-text)]">{theme.name}</div>
-        <div className="text-label-11 text-[var(--modes-text-muted)] truncate">{theme.description}</div>
-      </div>
-    </button>
+        <div
+          className="h-16 flex items-end justify-end p-2"
+          style={{ background: theme.bg, color: theme.chord, fontFamily: 'var(--font-mono)' }}
+        >
+          <span className="text-label-12 font-bold">Am  G/B</span>
+        </div>
+        <div className="px-3 py-2 flex flex-col gap-0.5" style={{ background: 'var(--modes-surface)' }}>
+          <div className="text-copy-13 font-semibold text-[var(--modes-text)]">{theme.name}</div>
+          <div className="text-label-11 text-[var(--modes-text-muted)] truncate">{theme.description || (onDelete ? 'Custom theme' : '')}</div>
+        </div>
+      </button>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(theme.id); }}
+          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 hover:bg-black/70 text-white text-label-12 flex items-center justify-center"
+          aria-label={`Delete theme ${theme.name}`}
+        >
+          ×
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -142,8 +156,10 @@ export default function ChartStylePanel({ settings, update, onUpgrade }) {
 
 function ChartStylePanelInner({ settings, update }) {
   const activeThemeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
-  const preset = CHART_THEME_MAP[activeThemeId] || CHART_THEME_MAP[DEFAULT_CHART_THEME_ID];
+  const customThemes = settings?.customChartThemes || [];
+  const preset = chartTheme(activeThemeId, customThemes);
   const [openPicker, setOpenPicker] = useState(null);
+  const [savingName, setSavingName] = useState(null); // string when input shown, null when hidden
 
   const hasOverrides =
     !!(settings?.chartBg || settings?.chartText || settings?.chartChordColor);
@@ -152,6 +168,32 @@ function ChartStylePanelInner({ settings, update }) {
     update('chartBg', null);
     update('chartText', null);
     update('chartChordColor', null);
+  };
+
+  const saveCustomTheme = () => {
+    const name = (savingName || '').trim();
+    if (!name) return;
+    const id = `custom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    const newTheme = {
+      id,
+      name,
+      bg: settings?.chartBg || preset.bg,
+      text: settings?.chartText || preset.text,
+      chord: settings?.chartChordColor || preset.chord,
+      subtle: preset.subtle,
+    };
+    update('customChartThemes', [...customThemes, newTheme]);
+    // Clear overrides + switch to the new theme so the saved values stick.
+    update('chartBg', null);
+    update('chartText', null);
+    update('chartChordColor', null);
+    update('chartTheme', id);
+    setSavingName(null);
+  };
+
+  const deleteCustomTheme = (id) => {
+    update('customChartThemes', customThemes.filter(t => t.id !== id));
+    if (activeThemeId === id) update('chartTheme', DEFAULT_CHART_THEME_ID);
   };
 
   return (
@@ -172,6 +214,15 @@ function ChartStylePanelInner({ settings, update }) {
               theme={t}
               active={activeThemeId === t.id}
               onSelect={(id) => update('chartTheme', id)}
+            />
+          ))}
+          {customThemes.map(t => (
+            <ThemeSwatch
+              key={t.id}
+              theme={t}
+              active={activeThemeId === t.id}
+              onSelect={(id) => update('chartTheme', id)}
+              onDelete={deleteCustomTheme}
             />
           ))}
         </div>
@@ -213,6 +264,28 @@ function ChartStylePanelInner({ settings, update }) {
             onOpenChange={setOpenPicker}
           />
         </div>
+        {hasOverrides && (
+          <div className="modes-card p-3 mt-3 flex flex-col gap-2">
+            {savingName == null ? (
+              <Button size="sm" variant="secondary" onClick={() => setSavingName('')} className="self-start">
+                Save as new theme…
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  autoFocus
+                  value={savingName}
+                  onChange={(e) => setSavingName(e.target.value)}
+                  placeholder="Theme name"
+                  className="flex-1 h-9 px-3 text-copy-13"
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveCustomTheme(); if (e.key === 'Escape') setSavingName(null); }}
+                />
+                <Button size="sm" variant="brand" onClick={saveCustomTheme} disabled={!savingName.trim()}>Save</Button>
+                <Button size="sm" variant="ghost" onClick={() => setSavingName(null)}>Cancel</Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-1">

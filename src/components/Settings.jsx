@@ -1,6 +1,7 @@
 import SyncSettings from './settings/SyncSettings';
 import WhatsNewPanel from './settings/WhatsNewPanel';
 import ChartStylePanel from './settings/ChartStylePanel';
+import SectionsPanel from './settings/SectionsPanel';
 import { CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '../data/chartThemes';
 import ScreenHeader from './ui/ScreenHeader';
 import BrandWordmark from './ui/BrandWordmark';
@@ -134,6 +135,7 @@ const PANEL_TITLES = {
   appearance: 'Appearance',
   chart: 'Chart Defaults',
   'chart-style': 'Chart Style',
+  sections: 'Sections',
   sync: 'Cloud Sync',
   plan: 'Plan & billing',
   data: 'Data',
@@ -480,6 +482,18 @@ function chartStyleSummary(s) {
   return overrides ? `${name} · ${overrides} override${overrides === 1 ? '' : 's'}` : name;
 }
 
+function sectionsSummary(s) {
+  const labels = Object.keys(s?.sectionLabels || {}).length;
+  const colors = Object.keys(s?.sectionColors || {}).length;
+  const custom = (s?.customSectionTypes || []).length;
+  if (labels + colors + custom === 0) return 'Defaults';
+  const parts = [];
+  if (custom) parts.push(`${custom} custom`);
+  if (labels) parts.push(`${labels} renamed`);
+  if (colors) parts.push(`${colors} recoloured`);
+  return parts.join(' · ');
+}
+
 function syncSummary(syncState) {
   if (!syncState?.provider) return 'Off';
   const provider = syncState.provider;
@@ -523,6 +537,8 @@ export default function Settings({
         return <ChartPanel settings={settings} update={update} />;
       case 'chart-style':
         return <ChartStylePanel settings={settings} update={update} onUpgrade={onUpgrade} />;
+      case 'sections':
+        return <SectionsPanel settings={settings} update={update} onUpgrade={onUpgrade} />;
       case 'sync':
         return (
           <SyncPanel
@@ -573,6 +589,7 @@ export default function Settings({
       { key: 'appearance', label: 'Appearance', icon: AppearanceIcon, summary: appearanceSummary(settings) },
       { key: 'chart', label: 'Chart Defaults', icon: ChartIcon, summary: chartSummary(settings) },
       { key: 'chart-style', label: 'Chart Style', icon: AppearanceIcon, summary: chartStyleSummary(settings), badge: 'Pro' },
+      { key: 'sections', label: 'Sections', icon: ChartIcon, summary: sectionsSummary(settings), badge: 'Pro' },
       { key: 'sync', label: 'Cloud Sync', icon: CloudIcon, summary: syncSummary(syncState) },
       { key: 'plan', label: 'Plan & billing', icon: PlanIcon, summary: planSummary(plan) },
       { key: 'data', label: 'Data', icon: DataIcon, summary: `${songCount} songs · ${setlistCount} setlists` },
@@ -670,6 +687,12 @@ export default function Settings({
               label="Chart Style"
               value={chartStyleSummary(settings)}
               onClick={() => onChangePanel('chart-style')}
+            />
+            <HubRow
+              icon={ChartIcon}
+              label="Sections"
+              value={sectionsSummary(settings)}
+              onClick={() => onChangePanel('sections')}
             />
             <HubRow
               icon={CloudIcon}

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { transposeChord, sectionStyle, getNashvilleNumber } from '../music';
+import { transposeChord, sectionStyle, sectionLabel, getNashvilleNumber } from '../music';
 import { parseLine } from '../parser';
 import TabBlock from './TabBlock';
 
@@ -11,9 +11,10 @@ const NOTE_SEPARATORS = {
 
 export default function SectionBlock({
   section, transpose, modOffset = 0, nns, songKey,
-  showChords = true, inlineNotes = true, noteStyle = 'dashes'
+  showChords = true, inlineNotes = true, noteStyle = 'dashes',
+  sectionColors, sectionLabels, customSectionTypes,
 }) {
-  const s = sectionStyle(section.type);
+  const s = sectionStyle(section.type, sectionColors, customSectionTypes);
 
   // Pre-compute per-line modulate offsets (cumulative within this section)
   const lineOffsets = useMemo(() => {
@@ -26,8 +27,9 @@ export default function SectionBlock({
     });
   }, [section.lines, modOffset]);
 
-  // Strip trailing colon from section type for display (demos may include it)
-  const sectionLabel = section.type.replace(/:+$/, '');
+  // Strip trailing colon from section type and apply user label overrides
+  // (e.g. Verse → Strofa, preserving trailing numbers).
+  const displayLabel = sectionLabel(section.type, sectionLabels);
 
   const renderLine = (line, idx) => {
     if (typeof line !== 'string') {
@@ -128,7 +130,7 @@ export default function SectionBlock({
       <div className="flex items-center gap-4 mb-2">
         <div className="flex flex-col">
           <span className="text-label-14 font-black uppercase tracking-[0.15em]" style={{ color: s.b }}>
-            {sectionLabel}:
+            {displayLabel}:
           </span>
           {section.note && (
             <span

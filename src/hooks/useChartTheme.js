@@ -31,7 +31,7 @@ function ensureGoogleFont(fontId) {
 export function useChartTheme(settings) {
   useEffect(() => {
     const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
-    const theme = chartTheme(themeId);
+    const theme = chartTheme(themeId, settings?.customChartThemes);
     const bg = settings?.chartBg || theme.bg;
     const text = settings?.chartText || theme.text;
     const chord = settings?.chartChordColor || theme.chord;
@@ -56,5 +56,6 @@ export function useChartTheme(settings) {
     settings?.chartChordColor,
     settings?.chartChordFont,
     settings?.chartLyricFont,
+    settings?.customChartThemes,
   ]);
 }

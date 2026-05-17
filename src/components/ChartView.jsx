@@ -233,8 +233,18 @@ export default function ChartView({
       )}
     >
       {/* ── Sticky Header ── */}
+      {/* Header stays in the app shell theme regardless of which chart
+          theme is active, so the title + chips don't render in the
+          chart's lyric colour (e.g. Sepia brown on a dark frosted bar). */}
       {!isPreview && (
-        <div className="material-header transition-all duration-200" style={headerFrostStyle}>
+        <div
+          className="material-header transition-all duration-200"
+          style={{
+            ...headerFrostStyle,
+            color: 'var(--ds-gray-1000)',
+            fontFamily: 'var(--font-sans)',
+          }}
+        >
           {/* Line 1: Title + meta (compact) or Title only (expanded) + buttons */}
           <div className="a4-container flex items-center justify-between pt-3 pb-1 gap-3">
             <div className="min-w-0 flex-1 flex items-center gap-3">
@@ -411,6 +421,9 @@ export default function ChartView({
             <StructureRibbon
               structure={orderedSections.map(s => s.type)}
               compact
+              sectionColors={settings?.sectionColors}
+              sectionLabels={settings?.sectionLabels}
+              customSectionTypes={settings?.customSectionTypes}
               onSelect={(i) => {
                 const el = document.getElementById(`section-${i}`);
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -639,6 +652,9 @@ export default function ChartView({
                 showChords={showChords}
                 inlineNotes={showInlineNotes}
                 noteStyle={inlineNoteStyle}
+                sectionColors={settings?.sectionColors}
+                sectionLabels={settings?.sectionLabels}
+                customSectionTypes={settings?.customSectionTypes}
               />
             </div>
           ))}
@@ -781,7 +797,9 @@ function ChartStyleControls({ settings, onUpdateSettings }) {
   const update = (k, v) => onUpdateSettings?.(k, v);
 
   const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
-  const preset = CHART_THEME_MAP[themeId] || CHART_THEME_MAP[DEFAULT_CHART_THEME_ID];
+  const customThemes = settings?.customChartThemes || [];
+  const allThemes = [...CHART_THEMES, ...customThemes];
+  const preset = allThemes.find(t => t.id === themeId) || CHART_THEME_MAP[DEFAULT_CHART_THEME_ID];
   const chordColor = settings?.chartChordColor || preset.chord;
   const lyricColor = settings?.chartText || preset.text;
   const bgColor = settings?.chartBg || preset.bg;
@@ -808,7 +826,7 @@ function ChartStyleControls({ settings, onUpdateSettings }) {
     <>
       <SheetField label="Theme">
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-          {CHART_THEMES.map(t => (
+          {allThemes.map(t => (
             <button
               key={t.id}
               type="button"
