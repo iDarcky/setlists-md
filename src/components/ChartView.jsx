@@ -144,11 +144,20 @@ export default function ChartView({
   const openSheet = (name) => { setActiveSheet(name); setMenuOpen(false); };
   const runAndClose = (fn) => { fn?.(); setMenuOpen(false); };
 
-  // Detect scroll position for collapsing header
+  // Detect scroll position for collapsing header. Uses hysteresis (a
+  // gap between the expand and collapse thresholds) so a scroll that
+  // lands right on the boundary doesn't flicker the title size.
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
-    const onScroll = () => setScrolled(el.scrollTop > 40);
+    const onScroll = () => {
+      const y = el.scrollTop;
+      setScrolled((prev) => {
+        if (prev && y < 20) return false;
+        if (!prev && y > 60) return true;
+        return prev;
+      });
+    };
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
   }, []);
@@ -830,7 +839,7 @@ function ChartStyleControls({ settings, onUpdateSettings }) {
   return (
     <>
       <SheetField label="Theme">
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        <div className="flex gap-2 overflow-x-auto py-1.5 -mx-1 px-1">
           {allThemes.map(t => (
             <button
               key={t.id}

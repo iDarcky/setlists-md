@@ -181,34 +181,45 @@ function AppearancePanel({ settings, update, isSignedIn }) {
         </Select>
       </Row>
       <Row label="Accent colour" description="The brand colour used on buttons, selections, and active states.">
-        <div className="flex flex-col items-end gap-2">
-          <div className="flex items-center gap-2">
-            {accent && (
-              <Button size="sm" variant="ghost" onClick={() => update('accentColor', null)}>Reset</Button>
-            )}
-            <button
-              type="button"
-              onClick={() => setAccentOpen((o) => !o)}
-              className="h-9 w-14 rounded-lg border transition-all"
-              style={{
-                background: accent || 'var(--color-brand)',
-                borderColor: accentOpen ? 'var(--color-brand)' : 'var(--modes-border)',
-              }}
-              aria-label="Pick accent colour"
-            />
-          </div>
-          {accentOpen && (
-            <div className="w-full max-w-[260px] flex flex-col gap-2 items-end">
-              <HexColorPicker
-                color={accent || '#0070f3'}
-                onChange={(v) => update('accentColor', v)}
-                style={{ width: '100%', height: 180 }}
-              />
-              <Button size="sm" variant="ghost" onClick={() => setAccentOpen(false)}>Done</Button>
-            </div>
+        <div className="flex items-center gap-2">
+          {accent && (
+            <Button size="sm" variant="ghost" onClick={() => update('accentColor', null)}>Reset</Button>
           )}
+          <button
+            type="button"
+            onClick={() => setAccentOpen((o) => !o)}
+            className="h-9 w-14 rounded-lg border transition-all"
+            style={{
+              background: accent || 'var(--color-brand)',
+              borderColor: accentOpen ? 'var(--color-brand)' : 'var(--modes-border)',
+            }}
+            aria-label="Pick accent colour"
+          />
         </div>
       </Row>
+      {accentOpen && (
+        <div className="modes-card p-3 flex flex-col gap-2">
+          <HexColorPicker
+            color={accent || '#0070f3'}
+            onChange={(v) => update('accentColor', v)}
+            style={{ width: '100%', height: 180 }}
+          />
+          <div className="flex items-center gap-2">
+            <span className="text-label-11 text-[var(--modes-text-dim)] uppercase tracking-wider">Hex</span>
+            <input
+              type="text"
+              value={accent || ''}
+              placeholder="#0070f3"
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                if (/^#?[0-9a-fA-F]{6}$/.test(v)) update('accentColor', v.startsWith('#') ? v : `#${v}`);
+              }}
+              className="flex-1 h-8 px-2 rounded-md bg-[var(--modes-surface-strong)] text-copy-13 text-[var(--modes-text)] border border-[var(--modes-border)] font-mono"
+            />
+            <Button size="sm" variant="ghost" onClick={() => setAccentOpen(false)}>Done</Button>
+          </div>
+        </div>
+      )}
       <Row label="First day of week" description="Affects calendar grids and weekly schedule.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
           {[
