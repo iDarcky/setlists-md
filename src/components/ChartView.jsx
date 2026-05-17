@@ -144,18 +144,25 @@ export default function ChartView({
   const openSheet = (name) => { setActiveSheet(name); setMenuOpen(false); };
   const runAndClose = (fn) => { fn?.(); setMenuOpen(false); };
 
-  // Detect scroll position for collapsing header. Uses hysteresis (a
-  // gap between the expand and collapse thresholds) so a scroll that
-  // lands right on the boundary doesn't flicker the title size.
+  // Detect scroll position for collapsing header. Uses a wide hysteresis
+  // band (must drop under 20 to expand, must climb past 140 to collapse)
+  // plus a rAF guard so iOS Safari's momentum scroll can't fire scrollTop
+  // reads back-to-back fast enough to swap the state mid-frame.
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
+    let pending = false;
     const onScroll = () => {
-      const y = el.scrollTop;
-      setScrolled((prev) => {
-        if (prev && y < 20) return false;
-        if (!prev && y > 60) return true;
-        return prev;
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => {
+        pending = false;
+        const y = el.scrollTop;
+        setScrolled((prev) => {
+          if (prev && y < 20) return false;
+          if (!prev && y > 140) return true;
+          return prev;
+        });
       });
     };
     el.addEventListener('scroll', onScroll, { passive: true });
@@ -265,14 +272,26 @@ export default function ChartView({
               >
                 {song.title}
               </h1>
-              {scrolled && (
-                <div className="flex items-center gap-2 flex-shrink-0 text-label-12" style={{ color: 'var(--text-2)' }}>
-                  <span aria-hidden="true">·</span>
-                  <span className="font-bold" style={{ color: 'var(--text-1)' }}>{selectedKey}</span>
-                  {song.tempo && <span>{song.tempo} bpm</span>}
-                  {song.time && <span>{song.time}</span>}
-                </div>
-              )}
+              {/* Always-mounted inline meta — visibility toggled via
+                  CSS so the DOM doesn't reflow on scroll. Without this
+                  the flex container reflowed at the moment `scrolled`
+                  toggled and the title's truncate point jumped. */}
+              <div
+                className="flex items-center gap-2 flex-shrink-0 text-label-12 transition-opacity duration-150"
+                style={{
+                  color: 'var(--text-2)',
+                  opacity: scrolled ? 1 : 0,
+                  pointerEvents: scrolled ? 'auto' : 'none',
+                  maxWidth: scrolled ? '100%' : 0,
+                  overflow: 'hidden',
+                }}
+                aria-hidden={!scrolled}
+              >
+                <span aria-hidden="true">·</span>
+                <span className="font-bold whitespace-nowrap" style={{ color: 'var(--text-1)' }}>{selectedKey}</span>
+                {song.tempo && <span className="whitespace-nowrap">{song.tempo} bpm</span>}
+                {song.time && <span className="whitespace-nowrap">{song.time}</span>}
+              </div>
             </div>
             <div className="flex gap-0.5 items-center flex-shrink-0">
               <div className="relative">
