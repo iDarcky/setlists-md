@@ -130,7 +130,13 @@ export default function SectionBlock({
   };
 
   return (
-    <div className="mb-6 md:mb-8 break-inside-avoid">
+    <div
+      className="break-inside-avoid"
+      style={{
+        marginBottom: 'var(--chart-section-gap, 24px)',
+        lineHeight: 'var(--chart-line-height-lyric, 1.35)',
+      }}
+    >
       <div className="flex items-center gap-4 mb-2">
         <div className="flex flex-col">
           <span className="text-label-14 font-black uppercase tracking-[0.15em]" style={{ color: s.b }}>

@@ -108,6 +108,37 @@ function ColorWheelRow({ label, description, value, onChange, onReset, preset, o
   );
 }
 
+function SpacingRow({ label, description, value, min, max, step, format, onChange, onReset, defaultValue }) {
+  const showReset = value !== defaultValue;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className="text-copy-14 text-[var(--modes-text)] font-medium">{label}</span>
+          <span className="text-label-12 text-[var(--modes-text-muted)]">{description}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {showReset && (
+            <Button size="sm" variant="ghost" onClick={onReset}>Reset</Button>
+          )}
+          <span className="text-label-12-mono text-[var(--modes-text)] font-semibold tabular-nums w-12 text-right">
+            {format(value)}
+          </span>
+        </div>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-[var(--color-brand)]"
+      />
+    </div>
+  );
+}
+
 function FontPickerRow({ label, value, onChange, defaultId }) {
   const activeId = value || defaultId;
   const activeFont = CHART_FONT_MAP[activeId] || CHART_FONT_MAP[defaultId];
@@ -357,6 +388,38 @@ function ChartStylePanelInner({ settings, update }) {
         <p className="text-label-11 text-[var(--modes-text-dim)] px-2 mt-2">
           Custom font uploads are coming with the native app.
         </p>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold px-2 mb-2">
+          Spacing
+        </h3>
+        <div className="modes-card p-4 flex flex-col gap-4">
+          <SpacingRow
+            label="Lyric line spacing"
+            description="Vertical breathing room between lyric lines."
+            value={settings?.lyricLineHeight ?? 1.35}
+            min={1.05}
+            max={2}
+            step={0.05}
+            format={(v) => v.toFixed(2)}
+            onChange={(v) => update('lyricLineHeight', v)}
+            onReset={() => update('lyricLineHeight', null)}
+            defaultValue={1.35}
+          />
+          <SpacingRow
+            label="Section spacing"
+            description="Gap between Verse, Chorus, and other section blocks."
+            value={settings?.sectionSpacing ?? 24}
+            min={8}
+            max={64}
+            step={2}
+            format={(v) => `${v}px`}
+            onChange={(v) => update('sectionSpacing', v)}
+            onReset={() => update('sectionSpacing', null)}
+            defaultValue={24}
+          />
+        </div>
       </div>
     </div>
   );

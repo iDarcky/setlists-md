@@ -24,6 +24,7 @@ import {
   DEFAULT_LYRIC_FONT_ID,
 } from '../data/chartThemes';
 import { useEntitlement } from '../hooks/useEntitlement';
+import { STAGE_MODES, STAGE_MODE_MAP } from '../data/stageModes';
 
 const FONT_SIZES = { S: 14, M: 18, L: 22 };
 
@@ -90,13 +91,32 @@ export default function ChartView({
       if (song?.key) setSelectedKey(song.key);
     }
   }, [activeArrId, song?.key]);
+  // Stage mode seeds the local visibility + size state. The user picks a
+  // role in the Layout sheet and we reapply the preset whenever that
+  // changes; the local toggles still let them fine-tune within the
+  // session without persisting back.
+  const stageMode = settings?.stageMode || 'leader';
+  const stagePreset = STAGE_MODE_MAP[stageMode]?.settings || STAGE_MODE_MAP.leader.settings;
+
   const [columns, setColumns] = useState(defaultColumns);
-  const [fontSize, setFontSize] = useState(initialFontSize);
-  const [chordFontSize, setChordFontSize] = useState(() => Math.round(initialFontSize * 0.95));
+  const [fontSize, setFontSize] = useState(stagePreset.lyricFontSize ?? initialFontSize);
+  const [chordFontSize, setChordFontSize] = useState(stagePreset.chordFontSize ?? Math.round(initialFontSize * 0.95));
   const [fontFamily, setFontFamily] = useState('Geist Mono');
-  const [nns, setNns] = useState(false);
-  const [showChords, setShowChords] = useState(true);
-  const [showDiagrams, setShowDiagrams] = useState(false);
+  const [nns, setNns] = useState(!!stagePreset.nashville);
+  const [showChords, setShowChords] = useState(stagePreset.showChords !== false);
+  const [showDiagrams, setShowDiagrams] = useState(!!stagePreset.showDiagrams);
+
+  // Reapply the stage mode preset to local state whenever the active
+  // mode changes — the picker in the Layout sheet writes settings.stageMode
+  // and we mirror that into the live toggles.
+  useEffect(() => {
+    setFontSize(stagePreset.lyricFontSize ?? initialFontSize);
+    setChordFontSize(stagePreset.chordFontSize ?? Math.round(initialFontSize * 0.95));
+    setNns(!!stagePreset.nashville);
+    setShowChords(stagePreset.showChords !== false);
+    setShowDiagrams(!!stagePreset.showDiagrams);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stageMode]);
   const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'info' | 'arrangements' | null
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -521,6 +541,30 @@ export default function ChartView({
             title="Layout"
           >
             <div className="flex flex-col gap-4">
+              <SheetField label="Role">
+                <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
+                  {STAGE_MODES.map(m => {
+                    const active = stageMode === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => onUpdateSettings?.('stageMode', m.id)}
+                        className={cn(
+                          "shrink-0 px-3 h-8 rounded-lg border transition-all text-label-12 font-semibold",
+                          active
+                            ? "border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]"
+                            : "border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]"
+                        )}
+                        title={m.description}
+                      >
+                        {m.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </SheetField>
+
               <SheetField label="Display">
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -675,6 +719,8 @@ export default function ChartView({
             fontSize,
             ['--chart-font-size-lyric']: `${fontSize}px`,
             ['--chart-font-size-chord']: `${chordFontSize}px`,
+            ['--chart-line-height-lyric']: settings?.lyricLineHeight ?? 1.35,
+            ['--chart-section-gap']: `${settings?.sectionSpacing ?? 24}px`,
             fontFamily: FONT_FAMILIES[fontFamily],
             ...(chartLayout !== 'rows' || columns !== 2 ? { columnCount: columns, columnGap: '3rem' } : {}),
           }}
