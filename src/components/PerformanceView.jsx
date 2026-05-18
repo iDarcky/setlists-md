@@ -117,8 +117,13 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   return (
     <div
       ref={scrollRef}
-      className="h-full overflow-y-auto overflow-x-hidden bg-[var(--ds-background-100)]"
-      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      className="h-full overflow-y-auto overflow-x-hidden"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        background: 'var(--chart-bg, var(--ds-background-100))',
+        color: 'var(--chart-text, var(--ds-gray-1000))',
+        fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
+      }}
     >
       {/* ── Minimal sticky header ──
           When collapsed, the structure ribbon takes the title's slot so the

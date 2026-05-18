@@ -1592,6 +1592,9 @@ export default function App() {
               onUpdateSetlist={handleUpdateSetlist}
               defaultColumns={settings?.defaultColumns}
               defaultFontSize={settings?.defaultFontSize}
+              settings={settings}
+              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              onOpenAdvancedStyle={() => goToMainView('settings', { settingsPanel: 'chart-style' })}
             />
           )}
           {view === 'practice-finale' && currentSetlist && (
