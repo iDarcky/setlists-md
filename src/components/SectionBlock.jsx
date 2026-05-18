@@ -62,7 +62,10 @@ export default function SectionBlock({
         <div
           key={idx}
           className="min-h-[1.3em] whitespace-pre-wrap opacity-90"
-          style={{ color: 'var(--chart-text, var(--text-1))' }}
+          style={{
+            color: 'var(--chart-text, var(--text-1))',
+            lineHeight: 'var(--chart-line-height-lyric, 1.35)',
+          }}
         >
           {displayLine}
           {inlineNotes && inlineNote && (
@@ -84,7 +87,14 @@ export default function SectionBlock({
     // Render each chord+text pair as inline-block so they wrap naturally
     // while keeping each chord positioned above its syllable
     return (
-      <div key={idx} className={hasLyrics ? "mb-2 last:mb-0" : "last:mb-0"} style={{ lineHeight: 1 }}>
+      <div
+        key={idx}
+        className={hasLyrics ? "last:mb-0" : "last:mb-0"}
+        style={{
+          marginBottom: hasLyrics ? 'calc(var(--chart-section-gap, 24px) / 3)' : 0,
+          lineHeight: 1,
+        }}
+      >
         <div className="flex flex-wrap items-end">
           {pairs.map((p, i) => {
             const chord = p.chord
@@ -107,8 +117,11 @@ export default function SectionBlock({
                 )}
                 {hasLyrics && (
                   <span
-                    className="whitespace-pre-wrap leading-tight"
-                    style={{ color: 'var(--chart-text, var(--text-1))' }}
+                    className="whitespace-pre-wrap"
+                    style={{
+                      color: 'var(--chart-text, var(--text-1))',
+                      lineHeight: 'var(--chart-line-height-lyric, 1.25)',
+                    }}
                   >
                     {p.text || (chord ? '\u00A0' : '')}
                   </span>
