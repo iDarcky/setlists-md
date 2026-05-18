@@ -47,13 +47,13 @@ export const STAGE_MODES = [
   {
     id: 'bassist',
     name: 'Bassist',
-    description: 'Nashville numbers + slimmed lyrics.',
+    description: 'Slimmer lyrics, chord-forward.',
     settings: {
       showChords: true,
       showInlineNotes: false,
       lyricFontSize: 16,
       chordFontSize: 19,
-      nashville: true,
+      nashville: false,
       showDiagrams: false,
     },
   },

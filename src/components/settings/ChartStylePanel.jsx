@@ -110,31 +110,42 @@ function ColorWheelRow({ label, description, value, onChange, onReset, preset, o
 
 function SpacingRow({ label, description, value, min, max, step, format, onChange, onReset, defaultValue }) {
   const showReset = value !== defaultValue;
+  const dec = () => onChange(Math.max(min, +(value - step).toFixed(2)));
+  const inc = () => onChange(Math.min(max, +(value + step).toFixed(2)));
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-0.5 min-w-0">
-          <span className="text-copy-14 text-[var(--modes-text)] font-medium">{label}</span>
-          <span className="text-label-12 text-[var(--modes-text-muted)]">{description}</span>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {showReset && (
-            <Button size="sm" variant="ghost" onClick={onReset}>Reset</Button>
-          )}
-          <span className="text-label-12-mono text-[var(--modes-text)] font-semibold tabular-nums w-12 text-right">
+    <div className="flex items-start justify-between gap-3 py-2">
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className="text-copy-14 text-[var(--modes-text)] font-medium">{label}</span>
+        <span className="text-label-12 text-[var(--modes-text-muted)]">{description}</span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {showReset && (
+          <Button size="sm" variant="ghost" onClick={onReset}>Reset</Button>
+        )}
+        <div className="flex items-center bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] rounded-lg p-0.5">
+          <button
+            type="button"
+            onClick={dec}
+            disabled={value <= min}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--modes-text)] hover:bg-[var(--modes-surface)] disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label={`Decrease ${label.toLowerCase()}`}
+          >
+            −
+          </button>
+          <span className="w-12 text-center text-label-12-mono text-[var(--modes-text)] font-semibold tabular-nums">
             {format(value)}
           </span>
+          <button
+            type="button"
+            onClick={inc}
+            disabled={value >= max}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--modes-text)] hover:bg-[var(--modes-surface)] disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label={`Increase ${label.toLowerCase()}`}
+          >
+            +
+          </button>
         </div>
       </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-[var(--color-brand)]"
-      />
     </div>
   );
 }
