@@ -616,8 +616,6 @@ const PDF_STYLES = `
   body.cards-layout .cards-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    min-height: calc(100vh - 100px);
     gap: 0;
   }
   .mini-card {
@@ -698,7 +696,6 @@ const PDF_STYLES = `
   /* In print, force the grid onto a single page. */
   @media print {
     body.cards-layout .cards-grid {
-      height: 100vh;
       page-break-inside: avoid;
       break-inside: avoid;
     }
