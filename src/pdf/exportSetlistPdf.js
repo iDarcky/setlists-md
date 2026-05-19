@@ -606,43 +606,98 @@ const PDF_STYLES = `
     background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
 
-  /* ── Cards layout: 3-column grid of cut-out cue cards ────────── */
-  body.cards-layout .set-order {
+  /* ── Cards layout: 3×3 grid of miniature setlist copies ───────── */
+  /* In cards mode, the regular set-order is hidden and a grid of 9 mini
+     copies of the full setlist appears — each one can be cut out. */
+  .cards-grid { display: none; }
+  body.cards-layout .set-order { display: none !important; }
+  body.cards-layout .cover { display: none !important; }
+  body.cards-layout .cards-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 0;
-    margin-top: 8px;
   }
-  body.cards-layout .set-order .row {
-    border: 1px dashed #ccc;
-    padding: 10px 12px;
-    flex-direction: column;
-    align-items: stretch;
+  .mini-card {
+    border: 1px dashed #bbb;
+    padding: 8px 10px;
+    overflow: hidden;
+  }
+  .mini-card-title {
+    font-size: 8pt;
+    font-weight: 700;
+    margin: 0 0 2px;
+    color: #111;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mini-card-date {
+    font-size: 6pt;
+    color: #999;
+    margin: 0 0 4px;
+  }
+  .mini-row {
+    display: flex;
+    align-items: baseline;
     gap: 4px;
+    padding: 1.5px 0;
+    font-size: 6.5pt;
+    line-height: 1.3;
   }
-  body.cards-layout .set-order .row:last-child { border-bottom: 1px dashed #ccc; }
-  body.cards-layout .set-order .num {
-    text-align: left;
-    width: auto;
-    font-size: 9pt;
+  .mini-row .mini-num {
     color: #bbb;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 6pt;
+    min-width: 1.2em;
+    text-align: right;
+    flex-shrink: 0;
   }
-  body.cards-layout .set-order .title {
-    font-size: 11pt;
+  .mini-row .mini-song-title {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    color: #111;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  body.cards-layout .set-order .tail {
-    text-align: left;
-    font-size: 9pt;
+  .mini-row .mini-key {
+    font-weight: 700;
+    color: #B07A1F;
+    flex-shrink: 0;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
   }
-  body.cards-layout .set-order .tail > div {
-    display: inline;
+  .mini-row .mini-tempo {
+    color: #999;
+    flex-shrink: 0;
+    font-size: 6pt;
   }
-  body.cards-layout .set-order .tempo {
-    display: inline;
-    margin-left: 6px;
+  .mini-row .mini-structure {
+    color: #888;
+    font-size: 5.5pt;
+    flex-shrink: 0;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    max-width: 40%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  body.cards-layout .set-order .break-banner {
-    grid-column: 1 / -1;
+  .mini-break {
+    font-size: 6pt;
+    color: #aaa;
+    text-align: center;
+    padding: 2px 0;
+    font-style: italic;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+    margin: 1px 0;
+  }
+  /* In print, force the grid onto a single page. */
+  @media print {
+    body.cards-layout .cards-grid {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
   }
 
   .brand-footer { display: none; }
@@ -775,6 +830,47 @@ function renderSongRow(item, songs, songIndex) {
     </div>`;
 }
 
+function renderMiniCard(setlist, items, songs) {
+  const titleSafe = escapeHtml(setlist.name || 'Untitled Setlist');
+  const dateSafe = escapeHtml(formatDate(setlist.date, setlist.time) || '');
+
+  let songIndex = 0;
+  const rows = items.map(item => {
+    if (item.type === 'break') {
+      const label = (item.label || 'Break').trim() || 'Break';
+      return `<div class="mini-break">${escapeHtml(label)}</div>`;
+    }
+    songIndex += 1;
+    const raw = songs.find(s => s.id === item.songId);
+    const song = raw ? resolveSongView(raw, item.arrangementId) : null;
+    if (!song) return '';
+    
+    const num = String(songIndex).padStart(2, '0');
+    const transpose = item.transpose || 0;
+    const displayKey = transposeKey(song.key, transpose);
+    const tempo = song.tempo ? `${escapeHtml(String(song.tempo))}` : '';
+    
+    const names = song.structure || song.sections?.map(s => s.type) || [];
+    const structureFlow = names.map(n => compactLabel(n)).join('·');
+
+    return `
+      <div class="mini-row">
+        <span class="mini-num">${num}</span>
+        <span class="mini-song-title">${escapeHtml(song.title || 'Untitled')}</span>
+        <span class="mini-key">${escapeHtml(displayKey || '')}</span>
+        ${tempo ? `<span class="mini-tempo">${tempo}</span>` : ''}
+        ${structureFlow ? `<span class="mini-structure">${escapeHtml(structureFlow)}</span>` : ''}
+      </div>`;
+  });
+
+  return `
+    <div class="mini-card">
+      <h3 class="mini-card-title">${titleSafe}</h3>
+      ${dateSafe ? `<div class="mini-card-date">${dateSafe}</div>` : ''}
+      <div class="mini-card-rows">${rows.join('')}</div>
+    </div>`;
+}
+
 function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
   const items = setlist.items || [];
 
@@ -788,6 +884,12 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
       return renderSongRow(item, songs, songIndex);
     });
     return `<div class="set-order">${rows.join('')}</div>`;
+  })();
+
+  const cardsGridHtml = (() => {
+    const cardHtml = renderMiniCard(setlist, items, songs);
+    const copies = Array(9).fill(cardHtml).join('');
+    return `<div class="cards-grid">${copies}</div>`;
   })();
 
   // For 'full' mode, render every song as its own article (each starts on
@@ -900,6 +1002,7 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
 
     <main>
       ${setOrderHtml}
+      ${cardsGridHtml}
     </main>
 
     ${songsHtml}
