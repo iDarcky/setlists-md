@@ -12,7 +12,19 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import { cn } from '../lib/utils';
 import { StructureRibbon } from './StructureRibbon';
 import { exportSongPdf } from '../pdf/exportSongPdf';
-import { headerFrostStyle } from '../lib/headerFrost';
+import BottomSheet, { SheetField } from './ui/BottomSheet';
+import ChartStyleControls from './ChartStyleControls';
+import {
+  CHART_THEMES,
+  CHART_FONTS,
+  CHART_FONT_MAP,
+  CHART_THEME_MAP,
+  DEFAULT_CHART_THEME_ID,
+  DEFAULT_CHORD_FONT_ID,
+  DEFAULT_LYRIC_FONT_ID,
+} from '../data/chartThemes';
+import { useEntitlement } from '../hooks/useEntitlement';
+import { STAGE_MODES, STAGE_MODE_MAP } from '../data/stageModes';
 
 const FONT_SIZES = { S: 14, M: 18, L: 22 };
 
@@ -20,6 +32,16 @@ const FONT_FAMILIES = {
   'Geist Sans': "var(--font-sans)",
   'Geist Mono': "var(--font-mono)",
   'JetBrains Mono': "'JetBrains Mono', monospace",
+};
+
+// Tokens written by useChartTheme (App.jsx) live on :root and decide the
+// chart's bg/text/chord colours plus the chord and lyric font stacks.
+// Falling back to the existing Geist tokens means free-plan users see no
+// visual change until they pick a theme.
+const CHART_THEME_STYLE = {
+  background: 'var(--chart-bg, var(--ds-background-100))',
+  color: 'var(--chart-text, var(--ds-gray-1000))',
+  fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
 };
 
 export default function ChartView({
@@ -34,6 +56,9 @@ export default function ChartView({
   arrangementId,
   onArrangementChange,
   onSongChange,
+  settings,
+  onUpdateSettings,
+  onOpenAdvancedStyle,
 }) {
   const initialFontSize = FONT_SIZES[defaultFontSize] || (typeof defaultFontSize === 'number' ? defaultFontSize : 16);
 
@@ -66,12 +91,32 @@ export default function ChartView({
       if (song?.key) setSelectedKey(song.key);
     }
   }, [activeArrId, song?.key]);
+  // Stage mode seeds the local visibility + size state. The user picks a
+  // role in the Layout sheet and we reapply the preset whenever that
+  // changes; the local toggles still let them fine-tune within the
+  // session without persisting back.
+  const stageMode = settings?.stageMode || 'leader';
+  const stagePreset = STAGE_MODE_MAP[stageMode]?.settings || STAGE_MODE_MAP.leader.settings;
+
   const [columns, setColumns] = useState(defaultColumns);
-  const [fontSize, setFontSize] = useState(initialFontSize);
+  const [fontSize, setFontSize] = useState(stagePreset.lyricFontSize ?? initialFontSize);
+  const [chordFontSize, setChordFontSize] = useState(stagePreset.chordFontSize ?? Math.round(initialFontSize * 0.95));
   const [fontFamily, setFontFamily] = useState('Geist Mono');
-  const [nns, setNns] = useState(false);
-  const [showChords, setShowChords] = useState(true);
-  const [showDiagrams, setShowDiagrams] = useState(false);
+  const [nns, setNns] = useState(!!stagePreset.nashville);
+  const [showChords, setShowChords] = useState(stagePreset.showChords !== false);
+  const [showDiagrams, setShowDiagrams] = useState(!!stagePreset.showDiagrams);
+
+  // Reapply the stage mode preset to local state whenever the active
+  // mode changes — the picker in the Layout sheet writes settings.stageMode
+  // and we mirror that into the live toggles.
+  useEffect(() => {
+    setFontSize(stagePreset.lyricFontSize ?? initialFontSize);
+    setChordFontSize(stagePreset.chordFontSize ?? Math.round(initialFontSize * 0.95));
+    setNns(!!stagePreset.nashville);
+    setShowChords(stagePreset.showChords !== false);
+    setShowDiagrams(!!stagePreset.showDiagrams);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stageMode]);
   const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'info' | 'arrangements' | null
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -121,11 +166,27 @@ export default function ChartView({
   const openSheet = (name) => { setActiveSheet(name); setMenuOpen(false); };
   const runAndClose = (fn) => { fn?.(); setMenuOpen(false); };
 
-  // Detect scroll position for collapsing header
+  // Detect scroll position for collapsing header. Uses a wide hysteresis
+  // band (must drop under 20 to expand, must climb past 140 to collapse)
+  // plus a rAF guard so iOS Safari's momentum scroll can't fire scrollTop
+  // reads back-to-back fast enough to swap the state mid-frame.
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
-    const onScroll = () => setScrolled(el.scrollTop > 40);
+    let pending = false;
+    const onScroll = () => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => {
+        pending = false;
+        const y = el.scrollTop;
+        setScrolled((prev) => {
+          if (prev && y < 20) return false;
+          if (!prev && y > 140) return true;
+          return prev;
+        });
+      });
+    };
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
   }, []);
@@ -202,43 +263,70 @@ export default function ChartView({
   return (
     <div
       ref={scrollContainerRef}
+      style={isPreview ? undefined : CHART_THEME_STYLE}
       className={cn(
-        "h-screen overflow-y-auto overflow-x-hidden bg-[var(--ds-background-100)]",
+        "h-[100dvh] overflow-y-auto overflow-x-hidden",
         isPreview && "h-auto overflow-visible bg-transparent"
       )}
     >
       {/* ── Sticky Header ── */}
+      {/* Header stays in the app shell theme regardless of which chart
+          theme is active. Children use the app's --text-1/--text-2
+          tokens which already follow light/dark/midnight. */}
       {!isPreview && (
-        <div className="material-header transition-all duration-200" style={headerFrostStyle}>
-          {/* Line 1: Title + meta (compact) or Title only (expanded) + buttons */}
-          <div className="a4-container flex items-center justify-between pt-3 pb-1 gap-3">
-            <div className="min-w-0 flex-1 flex items-center gap-3">
-              <h1 className={cn(
-                "text-[var(--text-1)] m-0 truncate transition-all duration-200",
-                scrolled ? "text-heading-16" : "text-heading-24"
-              )}>{song.title}</h1>
-              {/* Inline meta — visible only in compact mode */}
-              {scrolled && (
-                <div className="flex items-center gap-2 flex-shrink-0 text-label-12 text-[var(--text-2)]">
-                  <span className="text-[var(--text-2)] text-[12px] opacity-60">•</span>
-                  <span className="font-bold text-[var(--text-1)]">{selectedKey}</span>
-                  {song.tempo && <span>{song.tempo} bpm</span>}
-                  {song.time && <span>{song.time}</span>}
-                </div>
-              )}
+        <div
+          className="material-header transition-all duration-200"
+          style={{
+            color: 'var(--text-1)',
+            fontFamily: 'var(--font-sans)',
+          }}
+        >
+          {/* Line 1: Title + close + dot menu. Title size stays stable on
+              scroll — toggling font-size against the synchronous Line-2
+              collapse was causing the title to flicker for some users.
+              Compact "Line-2" content collapses on scroll but the title
+              itself doesn't resize. */}
+          <div className="a4-container flex items-center justify-between gap-3 pt-3 pb-0.5">
+            <div className="min-w-0 flex-1 flex items-baseline gap-3">
+              <h1
+                className="m-0 truncate font-bold leading-tight text-heading-24"
+                style={{ color: 'var(--text-1)' }}
+              >
+                {song.title}
+              </h1>
+              {/* Always-mounted inline meta — visibility toggled via
+                  CSS so the DOM doesn't reflow on scroll. Without this
+                  the flex container reflowed at the moment `scrolled`
+                  toggled and the title's truncate point jumped. */}
+              <div
+                className="flex items-center gap-2 flex-shrink-0 text-label-12 transition-opacity duration-150"
+                style={{
+                  color: 'var(--text-2)',
+                  opacity: scrolled ? 1 : 0,
+                  pointerEvents: scrolled ? 'auto' : 'none',
+                  maxWidth: scrolled ? '100%' : 0,
+                  overflow: 'hidden',
+                }}
+                aria-hidden={!scrolled}
+              >
+                <span aria-hidden="true">·</span>
+                <span className="font-bold whitespace-nowrap" style={{ color: 'var(--text-1)' }}>{selectedKey}</span>
+                {song.tempo && <span className="whitespace-nowrap">{song.tempo} bpm</span>}
+                {song.time && <span className="whitespace-nowrap">{song.time}</span>}
+              </div>
             </div>
-            <div className="flex gap-1.5 items-center flex-shrink-0">
+            <div className="flex gap-0.5 items-center flex-shrink-0">
               <div className="relative">
                 <IconButton
                   ref={menuTriggerRef}
-                  variant={menuOpen ? 'active' : 'default'}
+                  variant="ghost"
                   size="sm"
                   onClick={() => setMenuOpen(o => !o)}
                   aria-label="More options"
                   aria-haspopup="menu"
                   aria-expanded={menuOpen}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <circle cx="12" cy="5" r="1.6" />
                     <circle cx="12" cy="12" r="1.6" />
                     <circle cx="12" cy="19" r="1.6" />
@@ -328,7 +416,7 @@ export default function ChartView({
               <>
                 <Select value={activeArrId} onValueChange={handleSwitchArrangement}>
                   <SelectTrigger
-                    className="h-7 px-2 bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)] border border-[var(--ds-gray-400)] text-label-12 font-semibold text-[var(--ds-gray-1000)] gap-1.5 max-w-[200px] w-auto"
+                    className="h-7 px-1.5 border-transparent bg-transparent hover:bg-[var(--bg-2)] text-label-13 font-semibold text-[var(--text-1)] gap-1.5 max-w-[200px] w-auto focus:ring-0"
                     aria-label="Switch arrangement"
                   >
                     <SelectValue />
@@ -338,20 +426,20 @@ export default function ChartView({
                       <SelectItem key={a.id} value={a.id}>
                         {a.name || 'Untitled arrangement'}
                         {a.id === song._defaultArrangementId && (
-                          <span className="ml-1.5 text-label-10 text-[var(--ds-gray-600)]">default</span>
+                          <span className="ml-1.5 text-label-10 text-[var(--text-2)]">default</span>
                         )}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <div className="w-px h-3.5 bg-[var(--border-1)]" />
+                <span className="text-label-12" style={{ color: 'var(--text-2)' }}>·</span>
               </>
             ) : song._arrangementId ? (
               <>
-                <span className="inline-flex items-center bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 py-1 text-label-12 font-semibold text-[var(--ds-gray-1000)] shrink-0">
-                  <span className="truncate max-w-[180px]">{song._arrangementName}</span>
+                <span className="text-label-13 font-semibold truncate max-w-[180px]" style={{ color: 'var(--text-1)' }}>
+                  {song._arrangementName}
                 </span>
-                <div className="w-px h-3.5 bg-[var(--border-1)]" />
+                <span className="text-label-12" style={{ color: 'var(--text-2)' }}>·</span>
               </>
             ) : null}
             <Select value={selectedKey} onValueChange={setSelectedKey}>
@@ -386,6 +474,9 @@ export default function ChartView({
             <StructureRibbon
               structure={orderedSections.map(s => s.type)}
               compact
+              sectionColors={settings?.sectionColors}
+              sectionLabels={settings?.sectionLabels}
+              customSectionTypes={settings?.customSectionTypes}
               onSelect={(i) => {
                 const el = document.getElementById(`section-${i}`);
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -450,58 +541,100 @@ export default function ChartView({
             title="Layout"
           >
             <div className="flex flex-col gap-4">
-              <SheetField label="Columns">
-                <SegmentedControl
-                  value={columns}
-                  onChange={setColumns}
-                  options={[
-                    { value: 1, label: '1 COL' },
-                    { value: 2, label: '2 COL' },
-                  ]}
-                  size="sm"
-                />
-              </SheetField>
-              <SheetField label="Font size">
-                <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                  <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.max(10, prev - 2))} aria-label="Decrease font size">−</IconButton>
-                  <span className="px-2 text-label-12-mono text-[var(--text-1)] font-semibold">{fontSize}px</span>
-                  <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.min(30, prev + 2))} aria-label="Increase font size">+</IconButton>
+              <SheetField label="Role">
+                <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
+                  {STAGE_MODES.map(m => {
+                    const active = stageMode === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => onUpdateSettings?.('stageMode', m.id)}
+                        className={cn(
+                          "shrink-0 px-3 h-8 rounded-lg border transition-all text-label-12 font-semibold",
+                          active
+                            ? "border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]"
+                            : "border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]"
+                        )}
+                        title={m.description}
+                      >
+                        {m.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </SheetField>
-              <SheetField label="Font family">
-                <Select value={fontFamily} onValueChange={setFontFamily}>
-                  <SelectTrigger className="h-9 px-3 text-label-13 font-medium text-[var(--text-1)] gap-1 min-w-[200px] w-auto">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(FONT_FAMILIES).map(name => (
-                      <SelectItem key={name} value={name}>
-                        <span style={{ fontFamily: FONT_FAMILIES[name] }}>{name}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </SheetField>
+
               <SheetField label="Display">
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant={nns ? 'brand' : 'secondary'}
                     size="sm"
                     onClick={() => setNns(!nns)}
-                  >NUMBERS</Button>
+                  >Numbers</Button>
                   <Button
                     variant="secondary"
                     size="sm"
                     onClick={() => setShowChords(!showChords)}
                     className={cn(!showChords && "opacity-40")}
-                  >CHORDS</Button>
+                  >Chords</Button>
                   <Button
                     variant={showDiagrams ? 'brand' : 'secondary'}
                     size="sm"
                     onClick={() => setShowDiagrams(!showDiagrams)}
-                  >DIAGRAMS</Button>
+                  >Diagrams</Button>
                 </div>
               </SheetField>
+
+              <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+                <SheetField label="Columns">
+                  <SegmentedControl
+                    value={columns}
+                    onChange={setColumns}
+                    options={[
+                      { value: 1, label: '1 col' },
+                      { value: 2, label: '2 col' },
+                    ]}
+                    size="sm"
+                  />
+                </SheetField>
+                <SheetField label="Lyric size">
+                  <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+                    <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.max(10, prev - 2))} aria-label="Decrease lyric size">−</IconButton>
+                    <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{fontSize}</span>
+                    <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.min(30, prev + 2))} aria-label="Increase lyric size">+</IconButton>
+                  </div>
+                </SheetField>
+                <SheetField label="Chord size">
+                  <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+                    <IconButton variant="ghost" size="sm" onClick={() => setChordFontSize(prev => Math.max(8, prev - 2))} aria-label="Decrease chord size">−</IconButton>
+                    <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{chordFontSize}</span>
+                    <IconButton variant="ghost" size="sm" onClick={() => setChordFontSize(prev => Math.min(30, prev + 2))} aria-label="Increase chord size">+</IconButton>
+                  </div>
+                </SheetField>
+              </div>
+
+              <ChartStyleControls
+                settings={settings}
+                onUpdateSettings={onUpdateSettings}
+              />
+
+              {onOpenAdvancedStyle && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveSheet(null);
+                    onOpenAdvancedStyle();
+                  }}
+                  className="mt-2 w-full h-11 rounded-xl bg-[var(--ds-background-100)] border border-[var(--border-1)] text-copy-14 font-semibold text-[var(--text-1)] flex items-center justify-center gap-2 hover:bg-[var(--bg-1)] transition-all"
+                  style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)' }}
+                >
+                  Advanced settings
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              )}
             </div>
           </BottomSheet>
 
@@ -584,6 +717,10 @@ export default function ChartView({
           className={chartLayout === 'rows' && columns === 2 ? "grid grid-cols-2 gap-x-12 items-start" : undefined}
           style={{
             fontSize,
+            ['--chart-font-size-lyric']: `${fontSize}px`,
+            ['--chart-font-size-chord']: `${chordFontSize}px`,
+            ['--chart-line-height-lyric']: settings?.lyricLineHeight ?? 1.35,
+            ['--chart-section-gap']: `${settings?.sectionSpacing ?? 24}px`,
             fontFamily: FONT_FAMILIES[fontFamily],
             ...(chartLayout !== 'rows' || columns !== 2 ? { columnCount: columns, columnGap: '3rem' } : {}),
           }}
@@ -603,6 +740,9 @@ export default function ChartView({
                 showChords={showChords}
                 inlineNotes={showInlineNotes}
                 noteStyle={inlineNoteStyle}
+                sectionColors={settings?.sectionColors}
+                sectionLabels={settings?.sectionLabels}
+                customSectionTypes={settings?.customSectionTypes}
               />
             </div>
           ))}
@@ -628,15 +768,6 @@ function MenuItem({ onClick, icon, label }) {
   );
 }
 
-function SheetField({ label, children }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-label-12 font-semibold uppercase tracking-wide text-[var(--text-2)]">{label}</span>
-      {children}
-    </div>
-  );
-}
-
 function InfoRow({ label, children }) {
   return (
     <div className="flex gap-3">
@@ -646,78 +777,3 @@ function InfoRow({ label, children }) {
   );
 }
 
-function BottomSheet({ open, onClose, title, children }) {
-  const [dragY, setDragY] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const startYRef = useRef(0);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    document.addEventListener('keydown', onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [open, onClose]);
-
-  if (!open) return null;
-
-  const onTouchStart = (e) => {
-    startYRef.current = e.touches[0].clientY;
-    setDragging(true);
-  };
-  const onTouchMove = (e) => {
-    const dy = e.touches[0].clientY - startYRef.current;
-    setDragY(dy > 0 ? dy : 0);
-  };
-  const onTouchEnd = () => {
-    setDragging(false);
-    if (dragY > 120) {
-      onClose?.();
-    } else {
-      setDragY(0);
-    }
-  };
-
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      className="fixed inset-0 z-[200] flex items-end justify-center animate-in fade-in duration-150"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
-    >
-      <div className="absolute inset-0 bg-black/20" />
-      <div
-        className="relative w-full sm:max-w-[640px] bg-[var(--ds-background-100)] border-t border-x border-[var(--ds-gray-400)] rounded-t-2xl shadow-2xl animate-in slide-in-from-bottom-8 duration-200"
-        style={{
-          paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
-          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
-          transition: dragging ? 'none' : 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="pt-2 pb-3 px-5 cursor-grab active:cursor-grabbing select-none"
-          style={{ touchAction: 'none' }}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-          onTouchCancel={onTouchEnd}
-        >
-          <div className="flex justify-center pb-2">
-            <span className="block w-10 h-1 rounded-full bg-[var(--ds-gray-400)]" aria-hidden="true" />
-          </div>
-          <h2 className="text-heading-18 font-semibold text-[var(--ds-gray-1000)] m-0">{title}</h2>
-        </div>
-        <div className="px-5 pb-4">
-          {children}
-        </div>
-      </div>
-    </div>,
-    document.body,
-  );
-}

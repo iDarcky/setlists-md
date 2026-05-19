@@ -11,6 +11,7 @@ const FEATURE_GATES = {
   // Sync tier ($9 one-time)
   'cloud-sync':    'sync',
   'smart-import':  'sync',
+  'chart-style':   'sync',   // advanced layout: themes, colours, custom fonts
 
   // Team tier ($12/mo)
   'team-create':   'team',

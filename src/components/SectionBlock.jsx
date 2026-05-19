@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { transposeChord, sectionStyle, getNashvilleNumber } from '../music';
+import { transposeChord, sectionStyle, sectionLabel, getNashvilleNumber } from '../music';
 import { parseLine } from '../parser';
 import TabBlock from './TabBlock';
 
@@ -11,9 +11,10 @@ const NOTE_SEPARATORS = {
 
 export default function SectionBlock({
   section, transpose, modOffset = 0, nns, songKey,
-  showChords = true, inlineNotes = true, noteStyle = 'dashes'
+  showChords = true, inlineNotes = true, noteStyle = 'dashes',
+  sectionColors, sectionLabels, customSectionTypes,
 }) {
-  const s = sectionStyle(section.type);
+  const s = sectionStyle(section.type, sectionColors, customSectionTypes);
 
   // Pre-compute per-line modulate offsets (cumulative within this section)
   const lineOffsets = useMemo(() => {
@@ -26,8 +27,9 @@ export default function SectionBlock({
     });
   }, [section.lines, modOffset]);
 
-  // Strip trailing colon from section type for display (demos may include it)
-  const sectionLabel = section.type.replace(/:+$/, '');
+  // Strip trailing colon from section type and apply user label overrides
+  // (e.g. Verse → Strofa, preserving trailing numbers).
+  const displayLabel = sectionLabel(section.type, sectionLabels);
 
   const renderLine = (line, idx) => {
     if (typeof line !== 'string') {
@@ -57,10 +59,20 @@ export default function SectionBlock({
     if (!cleanLine.includes('[') || !showChords) {
       const displayLine = !showChords ? cleanLine.replace(/\[.*?\]/g, '') : cleanLine;
       return (
-        <div key={idx} className="min-h-[1.3em] whitespace-pre-wrap text-[var(--text-1)] opacity-90">
+        <div
+          key={idx}
+          className="min-h-[1.3em] whitespace-pre-wrap opacity-90"
+          style={{
+            color: 'var(--chart-text, var(--text-1))',
+            lineHeight: 'var(--chart-line-height-lyric, 1.35)',
+          }}
+        >
           {displayLine}
           {inlineNotes && inlineNote && (
-            <span className="text-[var(--text-2)] italic text-[0.8em]">
+            <span
+              className="italic text-[0.8em]"
+              style={{ color: 'var(--chart-subtle, var(--text-2))' }}
+            >
               {NOTE_SEPARATORS[noteStyle] || NOTE_SEPARATORS.dashes}{inlineNote}
             </span>
           )}
@@ -75,7 +87,14 @@ export default function SectionBlock({
     // Render each chord+text pair as inline-block so they wrap naturally
     // while keeping each chord positioned above its syllable
     return (
-      <div key={idx} className={hasLyrics ? "mb-2 last:mb-0" : "last:mb-0"} style={{ lineHeight: 1 }}>
+      <div
+        key={idx}
+        className={hasLyrics ? "last:mb-0" : "last:mb-0"}
+        style={{
+          marginBottom: hasLyrics ? 'calc(var(--chart-section-gap, 24px) / 3)' : 0,
+          lineHeight: 1,
+        }}
+      >
         <div className="flex flex-wrap items-end">
           {pairs.map((p, i) => {
             const chord = p.chord
@@ -85,12 +104,25 @@ export default function SectionBlock({
             return (
               <span key={i} className="inline-flex flex-col justify-end">
                 {chord && (
-                  <span className="font-bold text-[var(--chord)] text-[0.95em] leading-none select-none whitespace-nowrap" style={{ paddingBottom: hasLyrics ? 3 : 0 }}>
+                  <span
+                    className="font-bold text-[var(--chord)] leading-none select-none whitespace-nowrap"
+                    style={{
+                      paddingBottom: hasLyrics ? 3 : 0,
+                      fontFamily: 'var(--chart-font-chord, var(--font-mono))',
+                      fontSize: 'var(--chart-font-size-chord, 0.95em)',
+                    }}
+                  >
                     {chord}{'\u2003'}
                   </span>
                 )}
                 {hasLyrics && (
-                  <span className="text-[var(--text-1)] whitespace-pre-wrap leading-tight">
+                  <span
+                    className="whitespace-pre-wrap"
+                    style={{
+                      color: 'var(--chart-text, var(--text-1))',
+                      lineHeight: 'var(--chart-line-height-lyric, 1.25)',
+                    }}
+                  >
                     {p.text || (chord ? '\u00A0' : '')}
                   </span>
                 )}
@@ -98,7 +130,10 @@ export default function SectionBlock({
             );
           })}
           {inlineNotes && inlineNote && (
-            <span className="text-[var(--text-2)] italic text-[0.8em] self-end">
+            <span
+              className="italic text-[0.8em] self-end"
+              style={{ color: 'var(--chart-subtle, var(--text-2))' }}
+            >
               {NOTE_SEPARATORS[noteStyle] || NOTE_SEPARATORS.dashes}{inlineNote}
             </span>
           )}
@@ -108,14 +143,23 @@ export default function SectionBlock({
   };
 
   return (
-    <div className="mb-6 md:mb-8 break-inside-avoid">
+    <div
+      className="break-inside-avoid"
+      style={{
+        marginBottom: 'var(--chart-section-gap, 24px)',
+        lineHeight: 'var(--chart-line-height-lyric, 1.35)',
+      }}
+    >
       <div className="flex items-center gap-4 mb-2">
         <div className="flex flex-col">
           <span className="text-label-14 font-black uppercase tracking-[0.15em]" style={{ color: s.b }}>
-            {sectionLabel}:
+            {displayLabel}:
           </span>
           {section.note && (
-            <span className="text-label-11 italic text-[var(--text-2)] mt-1 px-1 ml-0.5 border-l-2" style={{ borderColor: s.br }}>
+            <span
+              className="text-label-11 italic mt-1 px-1 ml-0.5 border-l-2"
+              style={{ borderColor: s.br, color: 'var(--chart-subtle, var(--text-2))' }}
+            >
               {section.note}
             </span>
           )}

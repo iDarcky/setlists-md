@@ -2,6 +2,38 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.5.0-pre-alpha — Chart themes, stage modes, BYO-cloud sync
+*May 2026*
+
+### Added
+- **Chart themes** — eight hand-tuned presets (Sunday Light, Stage Black, Midnight, Sepia, Vellum, Carbon, Slate, Sanctuary). The first-time default tracks your app theme: light users start on Sunday Light, dark on Stage Black, midnight on Midnight.
+- **Custom themes** — save up to four of your own with a name and your own background / lyric / chord colours. They sync with your account and switch from the in-chart Layout sheet.
+- **Two-font typography** — pick independent fonts for chords and lyrics from a curated library (system, Inter, IBM Plex, Lora, EB Garamond, Crimson Pro, JetBrains Mono, Fira Code, Roboto Mono, and more). Google Fonts load on demand the first time you pick one.
+- **Independent chord and lyric sizes** — separate steppers in the Layout sheet replace the single font-size control.
+- **Stage modes** — Leader, Vocalist, Guitarist, Bassist, and Drummer presets at the top of the Layout sheet flip visibility and sizes to match the role in one tap.
+- **Sections panel** — recolour any built-in section type and create your own (e.g. "Strofa", "Punte") with a custom colour. Custom types show up in the editor section picker too.
+- **Accent colour picker** — pick the brand colour used on buttons, highlights, and active states across the whole app.
+- **Lyric line spacing** + **Section spacing** controls in Chart Style for fine-tuning chart density.
+- **Practice + Live views** now inherit the active chart theme background, lyric colour, and fonts. Practice view also gains the same Layout bottom sheet as the chart view.
+- **Bring-Your-Own-Cloud Pro tier** — connect Google Drive with a redirect-based PKCE auth-code flow. The refresh token lives in our backend (encrypted, service-role-only) so the Google sign-in popup only appears on first connect, not every app open.
+- **Privacy Policy + Terms of Service** pages live at /privacy and /terms.
+
+### Improved
+- Chart header is a **solid theme colour** per app theme instead of a translucent frost — no more title flicker on scroll and no more chart background bleeding through.
+- App theme picker is now a clean dropdown in Settings → Appearance.
+- Library layout (columns) moved to Settings → Chart Defaults where it belongs; Appearance now focuses on app-shell preferences only.
+- "+ New theme" sits as its own ghost button under the theme grid, separate from the colour editor.
+- Bottom sheets (Layout, Song info, Music) close cleanly on backdrop tap.
+- Library row dividers track the theme instead of painting a stark white hairline.
+
+### Fixed
+- Lyrics no longer wash out on light chart themes (Sepia, Sunday Light, Vellum) — text colour now follows the active theme everywhere.
+- Lyric line spacing + section spacing sliders now actually change the rendered text. Hardcoded line-height classes inside SectionBlock were shadowing the new CSS vars.
+- "+ New theme" now actually saves the theme it creates (two back-to-back settings updates were clobbering each other).
+- Layout bottom sheet stops reopening half-collapsed after a drag-to-close.
+- Chart header no longer slips behind iOS Safari's collapsing URL bar.
+- Header scroll-collapse no longer thrashes when a scroll lands near the threshold.
+
 ## 0.4.1-pre-alpha — Team sync fixes
 *May 2026*
 

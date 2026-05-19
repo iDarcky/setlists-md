@@ -220,7 +220,15 @@ export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaul
   );
 
   return (
-    <div style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+    <div
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        background: 'var(--chart-bg, var(--ds-background-100))',
+        color: 'var(--chart-text, var(--ds-gray-1000))',
+        fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
+        minHeight: '100dvh',
+      }}
+    >
       {/* Top row — setlist name on the left, close X on the right */}
       <div className="flex items-center gap-2.5 px-5 pt-2.5">
         <span className="text-label-13 font-semibold text-[var(--ds-gray-600)] flex-1 min-w-0 truncate">

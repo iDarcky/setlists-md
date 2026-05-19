@@ -30,6 +30,7 @@ import { exportSetlistPdf } from './pdf/exportSetlistPdf';
 import { usePWAUpdate } from './hooks/usePWAUpdate';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import { useTeamRealtime } from './hooks/useTeamRealtime';
+import { useChartTheme } from './hooks/useChartTheme';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 
@@ -67,6 +68,8 @@ const SetlistPlayer = lazy(() => import('./components/SetlistPlayer'));
 const SetlistOverview = lazy(() => import('./components/SetlistOverview'));
 const PerformanceView = lazy(() => import('./components/PerformanceView'));
 const PracticeView = lazy(() => import('./components/PracticeView'));
+const LegalPage = lazy(() => import('./components/LegalPage'));
+const GoogleDriveCallback = lazy(() => import('./components/auth/GoogleDriveCallback'));
 const PracticeFinale = lazy(() => import('./components/PracticeFinale'));
 const LiveFinale = lazy(() => import('./components/LiveFinale'));
 const LydianShowcase = lazy(() => import('./components/LydianShowcase'));
@@ -97,6 +100,20 @@ const PORTABLE_PREF_KEYS = [
   'displayRole',
   'duplicateSections',
   'chartLayout',
+  'chartTheme',
+  'chartBg',
+  'chartText',
+  'chartChordColor',
+  'chartChordFont',
+  'chartLyricFont',
+  'sectionColors',
+  'sectionLabels',
+  'customSectionTypes',
+  'customChartThemes',
+  'accentColor',
+  'stageMode',
+  'lyricLineHeight',
+  'sectionSpacing',
   'firstDayOfWeek',
   'clockFormat',
   'userName',
@@ -140,6 +157,9 @@ export default function App() {
     // anything else.
     if (typeof window !== 'undefined') {
       if (window.location.pathname === '/auth/callback') return 'auth-callback';
+      if (window.location.pathname === '/auth/google-drive') return 'google-drive-callback';
+      if (window.location.pathname === '/privacy') return 'legal-privacy';
+      if (window.location.pathname === '/terms') return 'legal-terms';
       if (/(type=recovery|#access_token=.*type=recovery)/.test(window.location.hash + window.location.search)) return 'recovery';
     }
     return 'loading';
@@ -147,6 +167,7 @@ export default function App() {
   const [currentSong, setCurrentSong] = useState(null);
   const [currentSetlist, setCurrentSetlist] = useState(null);
   const [settings, setSettings] = useState(null);
+  useChartTheme(settings);
   const [loaded, setLoaded] = useState(false);
   const [syncState, setSyncState] = useState({ state: 'idle', lastSync: null, provider: null });
   const [previewSongId, setPreviewSongId] = useState(null);
@@ -330,6 +351,19 @@ export default function App() {
       // Settings remain global, so only load on initial mount
       if (!loaded) {
         const savedSettings = await loadSettings();
+        // First-run default for the chart theme tracks the app theme so
+        // light-mode users start on Sunday Light, dark-mode users start
+        // on Stage Black, midnight users start on Midnight, and so on.
+        if (savedSettings && !savedSettings.chartTheme) {
+          const appTheme = savedSettings.theme || 'default';
+          const defaultByTheme = {
+            light: 'sunday-light',
+            dark: 'stage-black',
+            midnight: 'midnight',
+            default: 'stage-black',
+          };
+          savedSettings.chartTheme = defaultByTheme[appTheme] || 'stage-black';
+        }
         setSettings(savedSettings);
 
         // Determine initial view based on onboarding state
@@ -971,6 +1005,37 @@ export default function App() {
     }
   };
 
+  const handleCopySongToLibrary = async (songId, targetLibraryId) => {
+    try {
+      const song = songs.find(s => s.id === songId);
+      if (!song) return;
+
+      // Create a copy with a new ID so both libraries have independent items
+      const copy = { ...song, id: generateId(), updatedAt: Date.now() };
+
+      // Add to target library
+      const targetSongs = await loadSongs(targetLibraryId);
+      targetSongs.push(copy);
+      await saveSongs(targetSongs, targetLibraryId);
+
+      // Trigger a background sync on the target library so the cloud gets the file
+      if (syncEngineRef.current) {
+        const tempEngine = createSyncEngine(() => {}, targetLibraryId);
+        const targetTombstones = await loadTombstones(targetLibraryId);
+        const targetSetlists = await loadSetlists(targetLibraryId);
+        tempEngine.debouncedPush(targetSongs, targetSetlists, targetTombstones, () => {});
+      }
+
+      toast({
+        title: 'Song copied',
+        description: `A copy was added to the ${targetLibraryId === 'personal' ? 'Personal' : 'Team'} library.`,
+      });
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Copy failed', variant: 'error' });
+    }
+  };
+
   const handleDeleteSong = (id) => {
     const nextSongs = songs.filter((s) => s.id !== id);
     setSongs(nextSongs);
@@ -1183,11 +1248,49 @@ export default function App() {
     }
   };
 
+  if (view === 'legal-privacy' || view === 'legal-terms') {
+    const doc = view === 'legal-privacy' ? 'privacy' : 'terms';
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
+          <LegalPage
+            doc={doc}
+            onBack={() => {
+              if (typeof window !== 'undefined') {
+                window.history.pushState({}, '', '/');
+              }
+              goToMainView('home');
+            }}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
   if (view === 'auth-callback') {
     return (
       <ErrorBoundary>
         <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
           <AuthCallback onDone={() => goToMainView('home')} />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  if (view === 'google-drive-callback') {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
+          <GoogleDriveCallback
+            onDone={() => {
+              toast({ title: 'Google Drive connected', description: 'Your songs and setlists will sync to your Drive.' });
+              goToMainView('home');
+            }}
+            onCancel={() => {
+              window.history.replaceState({}, '', '/');
+              goToMainView('home');
+            }}
+          />
         </Suspense>
       </ErrorBoundary>
     );
@@ -1421,6 +1524,9 @@ export default function App() {
               onSongChange={(updated) => {
                 setSongs(prev => prev.map(s => s.id === updated.id ? { ...updated, updatedAt: Date.now() } : s));
               }}
+              settings={settings}
+              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              onOpenAdvancedStyle={() => goToMainView('settings', { settingsPanel: 'chart-style' })}
               defaultColumns={settings?.defaultColumns}
               defaultFontSize={settings?.defaultFontSize}
               showInlineNotes={settings?.showInlineNotes !== false}
@@ -1448,12 +1554,14 @@ export default function App() {
               onSave={handleSaveSong}
               onBack={importQueue ? handleSkipQueueSong : goBack}
               onDelete={currentSong ? handleDeleteSong : null}
+              customSectionTypes={settings?.customSectionTypes}
               importProgress={importQueue ? {
                 current: importQueue.total - importQueue.remaining.length + 1,
                 total: importQueue.total,
                 onSkip: handleSkipQueueSong,
               } : null}
               onMove={currentSong && team ? (target) => handleMoveSongToLibrary(currentSong.id, target) : null}
+              onCopy={currentSong && team ? (target) => handleCopySongToLibrary(currentSong.id, target) : null}
               activeLibrary={activeLibrary}
               team={team}
             />
@@ -1519,6 +1627,9 @@ export default function App() {
               onUpdateSetlist={handleUpdateSetlist}
               defaultColumns={settings?.defaultColumns}
               defaultFontSize={settings?.defaultFontSize}
+              settings={settings}
+              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              onOpenAdvancedStyle={() => goToMainView('settings', { settingsPanel: 'chart-style' })}
             />
           )}
           {view === 'practice-finale' && currentSetlist && (

@@ -75,13 +75,85 @@ const SECTION_COLORS = {
 
 const DEFAULT_STYLE = { b: 'var(--ds-gray-700)', d: 'var(--ds-gray-1000)', l: '?', bg: 'var(--ds-gray-100)', br: 'var(--ds-gray-400)', c: 'gray' };
 
-// Get colors for a section type (e.g. "Verse 1" → Verse colors)
-export function sectionStyle(type) {
+// All canonical section type keys, exported so settings panels can iterate
+// over them without re-declaring the list.
+export const SECTION_TYPE_KEYS = Object.keys(SECTION_COLORS);
+
+// Resolve the canonical base type for a section header (e.g. "Verse 1" →
+// "Verse", "Chorus 2" → "Chorus"). Returns null if no built-in type matches
+// — used by custom user types.
+export function sectionBaseType(type) {
+  if (!type) return null;
   const base = type.replace(/\s*\d+$/, '');
-  const key = Object.keys(SECTION_COLORS).find(
+  return Object.keys(SECTION_COLORS).find(
     k => base.toLowerCase().startsWith(k.toLowerCase())
+  ) || null;
+}
+
+// Derive a translucent bg + border colour from a hex/CSS colour so user
+// overrides still get the same washed-bg/strong-border treatment as the
+// built-in presets.
+function deriveStyleFromColor(color) {
+  // We can't compute alpha variants of CSS vars at runtime, so just reuse
+  // the same colour at lower opacity via color-mix (well-supported in
+  // modern browsers; the calling code falls back to opaque if not).
+  return {
+    b: color,
+    d: color,
+    l: '?',
+    bg: `color-mix(in srgb, ${color} 14%, transparent)`,
+    br: `color-mix(in srgb, ${color} 35%, transparent)`,
+    c: 'custom',
+  };
+}
+
+// Get colors for a section type (e.g. "Verse 1" → Verse colors). Accepts
+// optional `customColors` { Verse: '#xxx' } and `customTypes` array so
+// invented section types (e.g. "Strofa") resolve too.
+export function sectionStyle(type, customColors = null, customTypes = null) {
+  const base = type.replace(/\s*\d+$/, '');
+  const baseLower = base.toLowerCase();
+
+  // 1. Custom (invented) types — exact base match wins.
+  if (Array.isArray(customTypes)) {
+    const ct = customTypes.find(t => t?.name && t.name.toLowerCase() === baseLower);
+    if (ct) {
+      const c = customColors?.[ct.id] || ct.color || 'var(--ds-gray-700)';
+      const style = deriveStyleFromColor(c);
+      return { ...style, l: ct.label?.[0]?.toUpperCase() || '?' };
+    }
+  }
+
+  // 2. Built-in type, possibly with a user colour override.
+  const key = Object.keys(SECTION_COLORS).find(
+    k => baseLower.startsWith(k.toLowerCase())
   );
-  return SECTION_COLORS[key] || DEFAULT_STYLE;
+  if (!key) return DEFAULT_STYLE;
+
+  const override = customColors?.[key];
+  if (override) {
+    return { ...SECTION_COLORS[key], ...deriveStyleFromColor(override) };
+  }
+  return SECTION_COLORS[key];
+}
+
+// Display label for a section header. Strips trailing colons and applies
+// the user's custom label for the base type if any (e.g. Verse → Strofa).
+// Preserves trailing numbers — "Verse 1" with { Verse: "Strofa" } becomes
+// "Strofa 1".
+export function sectionLabel(type, customLabels = null) {
+  if (!type) return '';
+  const cleaned = String(type).replace(/:+$/, '').trim();
+  const numMatch = cleaned.match(/(.*?)(\s*\d+)\s*$/);
+  const base = numMatch ? numMatch[1].trim() : cleaned;
+  const suffix = numMatch ? numMatch[2] : '';
+
+  if (customLabels) {
+    const baseLower = base.toLowerCase();
+    const hit = Object.keys(customLabels).find(k => k.toLowerCase() === baseLower);
+    if (hit && customLabels[hit]) return `${customLabels[hit]}${suffix}`;
+  }
+  return cleaned;
 }
 
 // Normalize a section name for matching across the structure list and

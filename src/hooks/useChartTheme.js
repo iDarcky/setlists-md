@@ -1,0 +1,70 @@
+import { useEffect } from 'react';
+import {
+  CHART_FONT_MAP,
+  chartTheme,
+  chartFontStack,
+  DEFAULT_CHART_THEME_ID,
+  DEFAULT_CHORD_FONT_ID,
+  DEFAULT_LYRIC_FONT_ID,
+} from '../data/chartThemes';
+
+// Google Fonts links are reused across mounts via this set, so picking
+// the same font twice doesn't double-inject a <link>.
+const loadedFonts = new Set();
+
+function ensureGoogleFont(fontId) {
+  if (!fontId || loadedFonts.has(fontId)) return;
+  const font = CHART_FONT_MAP[fontId];
+  if (!font?.googleFont) return;
+  loadedFonts.add(fontId);
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${font.googleFont}&display=swap`;
+  link.dataset.chartFont = fontId;
+  document.head.appendChild(link);
+}
+
+// Apply the user's selected theme + per-swatch overrides to the document
+// root as CSS variables. ChartView and SectionBlock read these via
+// `var(--chart-bg)` etc. We also override `--chord` so the gold accent
+// inherits the user's chord-color pick everywhere.
+export function useChartTheme(settings) {
+  useEffect(() => {
+    const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
+    const theme = chartTheme(themeId, settings?.customChartThemes);
+    // Built-in themes are read-only — their colours come straight from
+    // the preset. Custom themes carry their bg/text/chord on the record
+    // itself, which the user edits via Chart Style → Customise.
+    const bg = theme.bg;
+    const text = theme.text;
+    const chord = theme.chord;
+    const subtle = theme.subtle;
+
+    const chordFontId = settings?.chartChordFont || DEFAULT_CHORD_FONT_ID;
+    const lyricFontId = settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID;
+    ensureGoogleFont(chordFontId);
+    ensureGoogleFont(lyricFontId);
+
+    const root = document.documentElement;
+    root.style.setProperty('--chart-bg', bg);
+    root.style.setProperty('--chart-text', text);
+    root.style.setProperty('--chart-subtle', subtle);
+    root.style.setProperty('--chord', chord);
+    root.style.setProperty('--chart-font-chord', chartFontStack(chordFontId, DEFAULT_CHORD_FONT_ID));
+    root.style.setProperty('--chart-font-lyric', chartFontStack(lyricFontId, DEFAULT_LYRIC_FONT_ID));
+
+    // Accent (brand) colour — overrides --color-brand globally so Pro
+    // users can re-skin buttons, focus rings, and active highlights.
+    if (settings?.accentColor) {
+      root.style.setProperty('--color-brand', settings.accentColor);
+    } else {
+      root.style.removeProperty('--color-brand');
+    }
+  }, [
+    settings?.chartTheme,
+    settings?.chartChordFont,
+    settings?.chartLyricFont,
+    settings?.customChartThemes,
+    settings?.accentColor,
+  ]);
+}

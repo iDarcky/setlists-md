@@ -1,5 +1,11 @@
+import { useState } from 'react';
 import SyncSettings from './settings/SyncSettings';
 import WhatsNewPanel from './settings/WhatsNewPanel';
+import ChartStylePanel from './settings/ChartStylePanel';
+import SectionsPanel from './settings/SectionsPanel';
+import { CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '../data/chartThemes';
+import { HexColorPicker } from 'react-colorful';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import ScreenHeader from './ui/ScreenHeader';
 import BrandWordmark from './ui/BrandWordmark';
 import { Button } from './ui/Button';
@@ -131,6 +137,8 @@ const PANEL_TITLES = {
   hub: 'Preferences',
   appearance: 'Appearance',
   chart: 'Chart Defaults',
+  'chart-style': 'Chart Style',
+  sections: 'Sections',
   sync: 'Cloud Sync',
   plan: 'Plan & billing',
   data: 'Data',
@@ -150,47 +158,68 @@ const PLAN_LABELS = { free: 'Free', sync: 'Sync', team: 'Team', church: 'Church'
 // ─── Sub-panel renderers — pure, just take what they need ────────────────
 
 function AppearancePanel({ settings, update, isSignedIn }) {
+  const accent = settings?.accentColor || '';
+  const [accentOpen, setAccentOpen] = useState(false);
+
   return (
     <Section
       subtitle={isSignedIn
         ? 'Synced to your account — changes follow you across devices.'
         : 'Sign in to sync these preferences to every device you use.'}
     >
-      <Row label="Theme" description="System follows your device preference.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {[
-            { key: 'default', label: 'System' },
-            { key: 'light', label: 'Light' },
-            { key: 'dark', label: 'Dark' },
-            { key: 'midnight', label: 'Midnight' },
-          ].map(({ key, label }) => (
-            <Button
-              key={key}
-              size="sm"
-              variant={settings.theme === key ? 'secondary' : 'ghost'}
-              onClick={() => update('theme', key)}
-              className={settings.theme === key ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-            >
-              {label}
-            </Button>
-          ))}
+      <Row label="App theme" description="System follows your device preference.">
+        <Select value={settings.theme || 'default'} onValueChange={(v) => update('theme', v)}>
+          <SelectTrigger className="h-9 px-3 text-label-13 font-medium gap-1 min-w-[160px] w-auto">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">System</SelectItem>
+            <SelectItem value="light">Light</SelectItem>
+            <SelectItem value="dark">Dark</SelectItem>
+            <SelectItem value="midnight">Midnight</SelectItem>
+          </SelectContent>
+        </Select>
+      </Row>
+      <Row label="Accent colour" description="The brand colour used on buttons, selections, and active states.">
+        <div className="flex items-center gap-2">
+          {accent && (
+            <Button size="sm" variant="ghost" onClick={() => update('accentColor', null)}>Reset</Button>
+          )}
+          <button
+            type="button"
+            onClick={() => setAccentOpen((o) => !o)}
+            className="h-9 w-14 rounded-lg border transition-all"
+            style={{
+              background: accent || 'var(--color-brand)',
+              borderColor: accentOpen ? 'var(--color-brand)' : 'var(--modes-border)',
+            }}
+            aria-label="Pick accent colour"
+          />
         </div>
       </Row>
-      <Row label="Library Layout" description="Number of columns for the library view.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {['auto', 1, 2].map(v => (
-            <Button
-              key={v}
-              size="sm"
-              variant={settings.defaultColumns === v ? 'secondary' : 'ghost'}
-              onClick={() => update('defaultColumns', v)}
-              className={settings.defaultColumns === v ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-            >
-              {v === 'auto' ? 'Auto' : `${v}col`}
-            </Button>
-          ))}
+      {accentOpen && (
+        <div className="modes-card p-3 flex flex-col gap-2">
+          <HexColorPicker
+            color={accent || '#0070f3'}
+            onChange={(v) => update('accentColor', v)}
+            style={{ width: '100%', height: 180 }}
+          />
+          <div className="flex items-center gap-2">
+            <span className="text-label-11 text-[var(--modes-text-dim)] uppercase tracking-wider">Hex</span>
+            <input
+              type="text"
+              value={accent || ''}
+              placeholder="#0070f3"
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                if (/^#?[0-9a-fA-F]{6}$/.test(v)) update('accentColor', v.startsWith('#') ? v : `#${v}`);
+              }}
+              className="flex-1 h-8 px-2 rounded-md bg-[var(--modes-surface-strong)] text-copy-13 text-[var(--modes-text)] border border-[var(--modes-border)] font-mono"
+            />
+            <Button size="sm" variant="ghost" onClick={() => setAccentOpen(false)}>Done</Button>
+          </div>
         </div>
-      </Row>
+      )}
       <Row label="First day of week" description="Affects calendar grids and weekly schedule.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
           {[
@@ -234,7 +263,22 @@ function AppearancePanel({ settings, update, isSignedIn }) {
 function ChartPanel({ settings, update }) {
   return (
     <Section subtitle="How charts are laid out and which elements are visible by default.">
-      <Row label="Chart Flow" description="How sections fill when using 2 columns.">
+      <Row label="Library layout" description="Number of columns for the song library view.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {['auto', 1, 2].map(v => (
+            <Button
+              key={v}
+              size="sm"
+              variant={settings.defaultColumns === v ? 'secondary' : 'ghost'}
+              onClick={() => update('defaultColumns', v)}
+              className={settings.defaultColumns === v ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+            >
+              {v === 'auto' ? 'Auto' : `${v} col`}
+            </Button>
+          ))}
+        </div>
+      </Row>
+      <Row label="Chart flow" description="How sections fill when using 2 columns.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
           {[
             { key: 'columns', label: 'Top ↓ Down' },
@@ -252,7 +296,7 @@ function ChartPanel({ settings, update }) {
           ))}
         </div>
       </Row>
-      <Row label="Display Mode" description="Control which elements are visible by default.">
+      <Row label="Display mode" description="Control which elements are visible by default.">
         <div className="flex p-1 bg-[var(--ds-gray-200)] rounded-lg flex-wrap">
           {[
             { key: 'leader', label: 'Full' },
@@ -456,18 +500,38 @@ function AboutPanel({ isSignedIn, displayName }) {
 
 function appearanceSummary(s) {
   const theme = s?.theme === 'light' ? 'Light' : s?.theme === 'dark' ? 'Dark' : s?.theme === 'midnight' ? 'Midnight' : 'System';
-  const cols = s?.defaultColumns === 'auto' ? 'Auto' : `${s?.defaultColumns || 1}-col`;
   const week = s?.firstDayOfWeek === 'monday' ? 'Mon-start' : 'Sun-start';
   const clock = s?.clockFormat === '24h' ? '24h' : '12h';
-  return `${theme} · ${cols} · ${week} · ${clock}`;
+  return `${theme} · ${week} · ${clock}`;
 }
 
 function chartSummary(s) {
-  const flow = s?.chartLayout === 'rows' ? 'Left → Right' : 'Top ↓ Down';
+  const cols = s?.defaultColumns === 'auto' ? 'Auto' : `${s?.defaultColumns || 1}-col`;
+  const flow = s?.chartLayout === 'rows' ? 'L→R' : 'T↓D';
   const role = s?.displayRole === 'vocalist' ? 'Vocals'
     : s?.displayRole === 'drummer' ? 'Drums'
     : 'Full';
-  return `${flow} · ${role}`;
+  return `${cols} · ${flow} · ${role}`;
+}
+
+function chartStyleSummary(s) {
+  const id = s?.chartTheme || DEFAULT_CHART_THEME_ID;
+  const builtIn = CHART_THEME_MAP[id]?.name;
+  if (builtIn) return builtIn;
+  const custom = (s?.customChartThemes || []).find(t => t.id === id);
+  return custom?.name || 'Custom';
+}
+
+function sectionsSummary(s) {
+  const labels = Object.keys(s?.sectionLabels || {}).length;
+  const colors = Object.keys(s?.sectionColors || {}).length;
+  const custom = (s?.customSectionTypes || []).length;
+  if (labels + colors + custom === 0) return 'Defaults';
+  const parts = [];
+  if (custom) parts.push(`${custom} custom`);
+  if (labels) parts.push(`${labels} renamed`);
+  if (colors) parts.push(`${colors} recoloured`);
+  return parts.join(' · ');
 }
 
 function syncSummary(syncState) {
@@ -502,7 +566,18 @@ export default function Settings({
   activeLibrary = 'personal',
   team = null,
 }) {
-  const update = (key, value) => onUpdate({ ...settings, [key]: value });
+  // Accepts (key, value) for single-field tweaks or a patch object for
+  // multi-field updates done in the same render — without this, two
+  // back-to-back update('foo', ...) calls each spread the *stale*
+  // settings prop and clobber each other (e.g. creating a new theme +
+  // switching to it was losing one or the other).
+  const update = (keyOrPatch, value) => {
+    if (keyOrPatch && typeof keyOrPatch === 'object') {
+      onUpdate({ ...settings, ...keyOrPatch });
+    } else {
+      onUpdate({ ...settings, [keyOrPatch]: value });
+    }
+  };
   const isDesktop = useIsDesktop();
 
   const renderPanel = (activePanel) => {
@@ -511,6 +586,10 @@ export default function Settings({
         return <AppearancePanel settings={settings} update={update} isSignedIn={isSignedIn} />;
       case 'chart':
         return <ChartPanel settings={settings} update={update} />;
+      case 'chart-style':
+        return <ChartStylePanel settings={settings} update={update} onUpgrade={onUpgrade} />;
+      case 'sections':
+        return <SectionsPanel settings={settings} update={update} onUpgrade={onUpgrade} />;
       case 'sync':
         return (
           <SyncPanel
@@ -560,6 +639,8 @@ export default function Settings({
     const navItems = [
       { key: 'appearance', label: 'Appearance', icon: AppearanceIcon, summary: appearanceSummary(settings) },
       { key: 'chart', label: 'Chart Defaults', icon: ChartIcon, summary: chartSummary(settings) },
+      { key: 'chart-style', label: 'Chart Style', icon: AppearanceIcon, summary: chartStyleSummary(settings), badge: 'Pro' },
+      { key: 'sections', label: 'Sections', icon: ChartIcon, summary: sectionsSummary(settings), badge: 'Pro' },
       { key: 'sync', label: 'Cloud Sync', icon: CloudIcon, summary: syncSummary(syncState) },
       { key: 'plan', label: 'Plan & billing', icon: PlanIcon, summary: planSummary(plan) },
       { key: 'data', label: 'Data', icon: DataIcon, summary: `${songCount} songs · ${setlistCount} setlists` },
@@ -651,6 +732,18 @@ export default function Settings({
               label="Chart Defaults"
               value={chartSummary(settings)}
               onClick={() => onChangePanel('chart')}
+            />
+            <HubRow
+              icon={AppearanceIcon}
+              label="Chart Style"
+              value={chartStyleSummary(settings)}
+              onClick={() => onChangePanel('chart-style')}
+            />
+            <HubRow
+              icon={ChartIcon}
+              label="Sections"
+              value={sectionsSummary(settings)}
+              onClick={() => onChangePanel('sections')}
             />
             <HubRow
               icon={CloudIcon}

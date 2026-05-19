@@ -1,7 +1,7 @@
 {
   "name": "setlists-md",
   "private": true,
-  "version": "0.4.1-pre-alpha",
+  "version": "0.5.0-pre-alpha",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -28,6 +28,7 @@
     "idb-keyval": "^6.2.2",
     "jszip": "^3.10.1",
     "react": "^19.2.4",
+    "react-colorful": "^5.7.0",
     "react-dom": "^19.2.4",
     "svguitar": "^2.5.1",
     "tailwind-merge": "^3.5.0",

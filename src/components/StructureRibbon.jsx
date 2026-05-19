@@ -1,11 +1,21 @@
-import { sectionStyle, compactLabel } from '../music';
+import { sectionStyle, sectionLabel, compactLabel } from '../music';
 import { cn } from '../lib/utils';
 
-export function StructureRibbon({ structure, compact, onSelect }) {
+export function StructureRibbon({
+  structure,
+  compact,
+  onSelect,
+  sectionColors,
+  sectionLabels,
+  customSectionTypes,
+}) {
   return (
     <div className="flex gap-1 flex-wrap py-1">
       {structure.map((name, i) => {
-        const s = sectionStyle(name.replace(/\s*\d+$/, ''));
+        const s = sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
+        const displayName = compact
+          ? compactLabel(name)
+          : sectionLabel(name, sectionLabels);
         const Tag = onSelect ? 'button' : 'span';
         return (
           <Tag
@@ -26,7 +36,7 @@ export function StructureRibbon({ structure, compact, onSelect }) {
               className={cn("rounded-full flex-shrink-0", compact ? "w-1.5 h-1.5" : "w-2 h-2")}
               style={{ background: s.b }}
             />
-            {compact ? compactLabel(name) : name}
+            {displayName}
           </Tag>
         );
       })}

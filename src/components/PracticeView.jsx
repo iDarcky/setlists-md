@@ -6,11 +6,14 @@ import { StructureRibbon } from './StructureRibbon';
 import FloatingNavPill from './ui/FloatingNavPill';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
+import BottomSheet from './ui/BottomSheet';
+import ChartStyleControls from './ChartStyleControls';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import NoteContent from './ui/NoteContent';
 import { headerFrostStyle } from '../lib/headerFrost';
 
-export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, defaultColumns }) {
+export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, defaultColumns, settings, onUpdateSettings, onOpenAdvancedStyle }) {
+  const [layoutOpen, setLayoutOpen] = useState(false);
   const [idx, setIdx] = useState(0);
   const [selectedKey, setSelectedKey] = useState(null);
   const fontSize = defaultFontSize || 18;
@@ -149,9 +152,9 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
 
   const displayKey = cur.isBreak ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
 
-  // Chevron + close X — anchored to the right end of the title row in both
-  // expanded and collapsed states. Same variant and size so they render
-  // with matching color and weight.
+  // Chevron + dot menu + close X — anchored to the right end of the title
+  // row in both expanded and collapsed states. Same variant and size so
+  // they render with matching color and weight.
   const headerControls = (
     <div className="flex items-center gap-1 shrink-0">
       <IconButton
@@ -162,6 +165,18 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
           <path d={headerCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
+        </svg>
+      </IconButton>
+      <IconButton
+        size="sm"
+        variant="ghost"
+        onClick={() => setLayoutOpen(true)}
+        aria-label="Layout"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="5" r="1.6" />
+          <circle cx="12" cy="12" r="1.6" />
+          <circle cx="12" cy="19" r="1.6" />
         </svg>
       </IconButton>
       <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close practice">
@@ -175,8 +190,13 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   return (
     <div
       ref={scrollRef}
-      className="h-full overflow-y-auto overflow-x-hidden bg-[var(--ds-background-100)]"
-      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      className="h-full overflow-y-auto overflow-x-hidden"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        background: 'var(--chart-bg, var(--ds-background-100))',
+        color: 'var(--chart-text, var(--ds-gray-1000))',
+        fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
+      }}
     >
       {/* ── Minimal sticky header ──
           The title row always renders so the chevron + X stay anchored to
@@ -344,6 +364,19 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           onClose={() => setShowStructureEditor(false)}
         />
       )}
+
+      <BottomSheet open={layoutOpen} onClose={() => setLayoutOpen(false)} title="Layout">
+        <div className="flex flex-col gap-4">
+          <ChartStyleControls
+            settings={settings}
+            onUpdateSettings={onUpdateSettings}
+            onOpenAdvanced={onOpenAdvancedStyle && (() => {
+              setLayoutOpen(false);
+              onOpenAdvancedStyle();
+            })}
+          />
+        </div>
+      </BottomSheet>
     </div>
   );
 }
