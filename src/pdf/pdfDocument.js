@@ -345,6 +345,12 @@ const BASE_STYLES = `
   }
   .sub-unit   { color: #888; font-size: 9pt; }
   .meta-shift { color: #888; font-weight: 400; font-size: 9pt; }
+  .cover-artist {
+    margin-top: 6px;
+    font-size: 10pt;
+    color: #666;
+    font-weight: 500;
+  }
 
   .structure-ribbon {
     display: flex;

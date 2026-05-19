@@ -187,9 +187,8 @@ export function buildSongBody(song, transpose, opts = {}) {
     });
   })();
 
-  // Inline subtitle parts: Artist · Key · Tempo · Time · Capo
+  // Inline subtitle parts: Key · Tempo · Time · Capo (artist moves below structure)
   const subtitleParts = [];
-  if (song.artist) subtitleParts.push(`<span class="sub-artist">${escapeHtml(song.artist)}</span>`);
   subtitleParts.push(`<span class="sub-meta"><span class="sub-label">Key</span> <strong>${displayKey}</strong>${transposeNote}</span>`);
   if (song.tempo) subtitleParts.push(`<span class="sub-meta"><span class="sub-label">Tempo</span> <strong>${escapeHtml(String(song.tempo))}</strong> <span class="sub-unit">bpm</span></span>`);
   if (song.time)  subtitleParts.push(`<span class="sub-meta"><span class="sub-label">Time</span> <strong>${escapeHtml(song.time)}</strong></span>`);
@@ -197,8 +196,27 @@ export function buildSongBody(song, transpose, opts = {}) {
   if (extraSubtitle) subtitleParts.push(`<span class="sub-meta">${extraSubtitle}</span>`);
   const subtitleHtml = subtitleParts.join('<span class="sub-sep">·</span>');
 
+  // Track which section types we've already rendered so repeated ones can
+  // be collapsed when the user toggles "Repeats" off. Each <section> gets
+  // a data-section-type and optionally a `section-repeat` class.
+  const seenTypes = new Set();
   const sectionsHtml = orderedSections
-    .map((s, i) => renderSection(s, transpose, modOffsets[i] || 0))
+    .map((s, i) => {
+      const normType = normalizeSectionName(s.type);
+      const isRepeat = seenTypes.has(normType);
+      seenTypes.add(normType);
+      const repeatAttr = isRepeat ? ' data-repeat="true"' : '';
+      const label = (s.type || '').replace(/:+$/, '');
+      const accent = accentForSection(s.type);
+      const sectionHtml = renderSection(s, transpose, modOffsets[i] || 0);
+      // Wrap so we can hide the full body and show a reference pill instead.
+      return `<div class="section-wrap"${repeatAttr} data-section-label="${escapeHtml(label)}" style="--accent:${accent}">
+        ${sectionHtml}
+        <div class="repeat-ref" aria-hidden="true">
+          <span class="repeat-ref-pill" style="--accent:${accent}">↩ ${escapeHtml(label)}</span>
+        </div>
+      </div>`;
+    })
     .join('');
 
   const tagsHtml = song.tags && song.tags.length
@@ -219,6 +237,7 @@ export function buildSongBody(song, transpose, opts = {}) {
       <h1>${titleSafe}</h1>
       <div class="subtitle">${subtitleHtml}</div>
       ${renderStructureRibbon(orderedSections.map(s => s.type))}
+      ${artistSafe ? `<div class="cover-artist">${artistSafe}</div>` : ''}
       ${tagsHtml}
       ${ccliHtml ? `<div>${ccliHtml}</div>` : ''}
       ${notesHtml}
@@ -465,6 +484,12 @@ function buildDocument(song, transpose, initialPrefs = {}) {
   }
   .sub-unit   { color: #888; font-size: 9pt; }
   .meta-shift { color: #888; font-weight: 400; font-size: 9pt; }
+  .cover-artist {
+    margin-top: 6px;
+    font-size: 10pt;
+    color: #666;
+    font-weight: 500;
+  }
 
   .structure-ribbon {
     display: flex;
@@ -659,6 +684,31 @@ function buildDocument(song, transpose, initialPrefs = {}) {
     background: #111;
     color: #fff;
   }
+
+  /* ── Collapse-repeats mode ─────────────────────────────────────── */
+  /* By default repeat-ref pills are hidden and sections render fully. */
+  .repeat-ref { display: none; }
+
+  /* When body has .collapse-repeats, repeated sections hide their inner
+     <section> and show a compact reference pill instead. */
+  body.collapse-repeats .section-wrap[data-repeat="true"] > .song-section { display: none; }
+  body.collapse-repeats .section-wrap[data-repeat="true"] > .repeat-ref {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 6px 0 14px;
+  }
+  .repeat-ref-pill {
+    font-size: 9pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 4px 12px;
+    border-radius: 999px;
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+  }
 </style>
 </head>
 <body>
@@ -701,6 +751,9 @@ function buildDocument(song, transpose, initialPrefs = {}) {
         <button type="button" class="toggle" data-control="colors">
           <span class="check"></span>Colors
         </button>
+        <button type="button" class="toggle" data-control="repeats">
+          <span class="check"></span>Repeats
+        </button>
         <div class="action-group">
           <button class="action primary" type="button" data-action="print">Print / Save as PDF</button>
           <button class="action" type="button" data-action="close">Close</button>
@@ -722,7 +775,7 @@ function buildDocument(song, transpose, initialPrefs = {}) {
   <script>
     (function () {
       var STORAGE_KEY = 'setlists-md:pdf-prefs';
-      var DEFAULTS = { cols: 1, size: 'M', font: 'sans', chords: true, colors: true };
+      var DEFAULTS = { cols: 1, size: 'M', font: 'sans', chords: true, colors: true, repeats: true };
       var SIZE = { S: '10pt', M: '11pt', L: '12.5pt', XL: '14pt' };
       var FONT = {
         sans:  'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
@@ -771,6 +824,7 @@ function buildDocument(song, transpose, initialPrefs = {}) {
         root.style.setProperty('--lyric-font', FONT[prefs.font] || FONT.sans);
         body.classList.toggle('no-chords', !prefs.chords);
         body.classList.toggle('bw', !prefs.colors);
+        body.classList.toggle('collapse-repeats', !prefs.repeats);
         // Reflect active state on the controls.
         var nodes = document.querySelectorAll('[data-control]');
         for (var i = 0; i < nodes.length; i++) {
@@ -778,11 +832,12 @@ function buildDocument(song, transpose, initialPrefs = {}) {
           var k = el.getAttribute('data-control');
           var v = el.getAttribute('data-value');
           var active = false;
-          if      (k === 'cols')   active = String(prefs.cols) === v;
-          else if (k === 'size')   active = prefs.size === v;
-          else if (k === 'font')   active = prefs.font === v;
-          else if (k === 'chords') active = !!prefs.chords;
-          else if (k === 'colors') active = !!prefs.colors;
+          if      (k === 'cols')    active = String(prefs.cols) === v;
+          else if (k === 'size')    active = prefs.size === v;
+          else if (k === 'font')    active = prefs.font === v;
+          else if (k === 'chords')  active = !!prefs.chords;
+          else if (k === 'colors')  active = !!prefs.colors;
+          else if (k === 'repeats') active = !!prefs.repeats;
           el.classList.toggle('active', active);
         }
         writeStored(prefs);
@@ -798,6 +853,7 @@ function buildDocument(song, transpose, initialPrefs = {}) {
           else if (k === 'font')   prefs.font   = v;
           else if (k === 'chords') prefs.chords = !prefs.chords;
           else if (k === 'colors') prefs.colors = !prefs.colors;
+          else if (k === 'repeats') prefs.repeats = !prefs.repeats;
           apply();
           return;
         }

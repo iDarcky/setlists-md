@@ -174,13 +174,13 @@ export function renderSongCover(song, transpose) {
     : '';
 
   const subtitleParts = [];
-  if (song.artist) subtitleParts.push(`<span class="sub-artist">${escapeHtml(song.artist)}</span>`);
   subtitleParts.push(`<span class="sub-meta"><span class="sub-label">Key</span> <strong>${displayKey}</strong>${transposeNote}</span>`);
   if (song.tempo) subtitleParts.push(`<span class="sub-meta"><span class="sub-label">Tempo</span> <strong>${escapeHtml(String(song.tempo))}</strong> <span class="sub-unit">bpm</span></span>`);
   if (song.time)  subtitleParts.push(`<span class="sub-meta"><span class="sub-label">Time</span> <strong>${escapeHtml(song.time)}</strong></span>`);
   if (song.capo)  subtitleParts.push(`<span class="sub-meta"><span class="sub-label">Capo</span> <strong>${escapeHtml(String(song.capo))}</strong></span>`);
   const subtitleHtml = subtitleParts.join('<span class="sub-sep">·</span>');
 
+  const artistSafe = escapeHtml(song.artist || '');
   const tagsHtml = song.tags && song.tags.length
     ? `<div class="cover-tags">${song.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>`
     : '';
@@ -193,6 +193,7 @@ export function renderSongCover(song, transpose) {
     <h1>${escapeHtml(song.title || 'Untitled')}</h1>
     <div class="subtitle">${subtitleHtml}</div>
     ${renderStructureRibbon(resolveOrderedSections(song).map(s => s.type))}
+    ${artistSafe ? `<div class="cover-artist">${artistSafe}</div>` : ''}
     ${tagsHtml}
     ${ccliHtml ? `<div>${ccliHtml}</div>` : ''}
     ${notesHtml}`;
