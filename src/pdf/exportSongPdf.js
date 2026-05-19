@@ -232,11 +232,16 @@ export function buildSongBody(song, transpose, opts = {}) {
   const titleSafe = escapeHtml(song.title || 'Untitled');
   const artistSafe = escapeHtml(song.artist || '');
 
+  const structureFlow = orderedSections.map(s => (s.type || '').replace(/:+$/, '')).join(' · ');
+  const structureHtml = structureFlow
+    ? `<div class="cover-structure">${escapeHtml(structureFlow)}</div>`
+    : '';
+
   const coverHtml = `
     <header class="cover">
       <h1>${titleSafe}</h1>
       <div class="subtitle">${subtitleHtml}</div>
-      ${renderStructureRibbon(orderedSections.map(s => s.type))}
+      ${structureHtml}
       ${artistSafe ? `<div class="cover-artist">${artistSafe}</div>` : ''}
       ${tagsHtml}
       ${ccliHtml ? `<div>${ccliHtml}</div>` : ''}
@@ -489,6 +494,12 @@ function buildDocument(song, transpose, initialPrefs = {}) {
     font-size: 10pt;
     color: #666;
     font-weight: 500;
+  }
+  .cover-structure {
+    margin-top: 6px;
+    font-size: 9.5pt;
+    color: #555;
+    line-height: 1.5;
   }
 
   .structure-ribbon {

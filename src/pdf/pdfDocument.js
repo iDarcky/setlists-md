@@ -351,6 +351,12 @@ const BASE_STYLES = `
     color: #666;
     font-weight: 500;
   }
+  .cover-structure {
+    margin-top: 6px;
+    font-size: 9.5pt;
+    color: #555;
+    line-height: 1.5;
+  }
 
   .structure-ribbon {
     display: flex;

@@ -9,7 +9,6 @@ import RosterPanel from './setlist/RosterPanel';
 import { headerFrostStyle } from '../lib/headerFrost';
 import { formatClockTime } from '../lib/dateFormat';
 import { useConfirm } from './ui/useConfirmHook';
-import { StructureRibbon } from './StructureRibbon';
 
 export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h' }) {
   const confirm = useConfirm();
@@ -248,11 +247,11 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                   {/* Show the song's section flow instead of the artist — the
                       structure is the actionable bit in a setlist context. */}
                   {(() => {
-                    const flow = song.structure || song.sections?.map(s => s.type) || [];
-                    return flow.length > 0 ? (
-                      <div className="mt-1">
-                        <StructureRibbon structure={flow} compact />
-                      </div>
+                    const flow = (song.structure || song.sections?.map(s => s.type) || []).join(' · ');
+                    return flow ? (
+                      <p className="text-copy-12 text-[var(--ds-gray-700)] m-0 mt-0.5">
+                        {flow}
+                      </p>
                     ) : null;
                   })()}
                   {item.note && (
