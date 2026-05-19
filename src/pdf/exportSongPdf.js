@@ -9,7 +9,7 @@
 // in the desktop preview pane). A dedicated window guarantees the output is
 // just the song, regardless of where it was triggered from.
 
-import { transposeChord, transposeKey, sectionStyle } from '../music';
+import { transposeChord, transposeKey, sectionStyle, normalizeSectionName } from '../music';
 import { parseLine, serializeTabBlock } from '../parser';
 import { openPrintWindow, readInitialPrefs } from './pdfDocument';
 
@@ -160,10 +160,23 @@ export function buildSongBody(song, transpose, opts = {}) {
     ? ` <span class="meta-shift">(orig. ${escapeHtml(song.key)})</span>`
     : '';
 
+  // Resolve playback order: if `song.structure` is set and section types are
+  // unique, use it (same logic as ChartView). Otherwise fall back to doc order.
+  const orderedSections = (() => {
+    const sections = song.sections || [];
+    if (!Array.isArray(song.structure) || song.structure.length === 0) return sections;
+    const types = sections.map(s => normalizeSectionName(s.type));
+    if (new Set(types).size !== types.length) return sections;
+    const resolved = song.structure
+      .map(name => sections.find(s => normalizeSectionName(s.type) === normalizeSectionName(name)))
+      .filter(Boolean);
+    return resolved.length === song.structure.length ? resolved : sections;
+  })();
+
   // Cumulative modulate offsets per section (same logic as ChartView).
   const modOffsets = (() => {
     const acc = { total: 0 };
-    return (song.sections || []).map(section => {
+    return orderedSections.map(section => {
       const offset = acc.total;
       (section.lines || []).forEach(line => {
         if (line && typeof line === 'object' && line.type === 'modulate') {
@@ -184,7 +197,7 @@ export function buildSongBody(song, transpose, opts = {}) {
   if (extraSubtitle) subtitleParts.push(`<span class="sub-meta">${extraSubtitle}</span>`);
   const subtitleHtml = subtitleParts.join('<span class="sub-sep">·</span>');
 
-  const sectionsHtml = (song.sections || [])
+  const sectionsHtml = orderedSections
     .map((s, i) => renderSection(s, transpose, modOffsets[i] || 0))
     .join('');
 
@@ -205,7 +218,7 @@ export function buildSongBody(song, transpose, opts = {}) {
     <header class="cover">
       <h1>${titleSafe}</h1>
       <div class="subtitle">${subtitleHtml}</div>
-      ${renderStructureRibbon((song.sections || []).map(s => s.type))}
+      ${renderStructureRibbon(orderedSections.map(s => s.type))}
       ${tagsHtml}
       ${ccliHtml ? `<div>${ccliHtml}</div>` : ''}
       ${notesHtml}

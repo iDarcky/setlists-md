@@ -4,7 +4,7 @@
 // data and return a string of HTML that the document shell (pdfDocument.js)
 // stitches into a full printable page.
 
-import { transposeChord, transposeKey } from '../music';
+import { transposeChord, transposeKey, normalizeSectionName } from '../music';
 import { parseLine, serializeTabBlock } from '../parser';
 
 // Print-friendly section accent colors (CMYK-safe approximations of the Geist
@@ -138,6 +138,19 @@ export function renderStructureRibbon(structure) {
   }</div>`;
 }
 
+// Resolve playback order: if `song.structure` is set and section types are
+// unique, use it (same logic as ChartView). Otherwise fall back to doc order.
+export function resolveOrderedSections(song) {
+  const sections = song.sections || [];
+  if (!Array.isArray(song.structure) || song.structure.length === 0) return sections;
+  const types = sections.map(s => normalizeSectionName(s.type));
+  if (new Set(types).size !== types.length) return sections;
+  const resolved = song.structure
+    .map(name => sections.find(s => normalizeSectionName(s.type) === normalizeSectionName(name)))
+    .filter(Boolean);
+  return resolved.length === song.structure.length ? resolved : sections;
+}
+
 // Cumulative modulate offsets per section (same logic as ChartView).
 export function computeModOffsets(sections) {
   const acc = { total: 0 };
@@ -179,7 +192,7 @@ export function renderSongCover(song, transpose) {
   return `
     <h1>${escapeHtml(song.title || 'Untitled')}</h1>
     <div class="subtitle">${subtitleHtml}</div>
-    ${renderStructureRibbon((song.sections || []).map(s => s.type))}
+    ${renderStructureRibbon(resolveOrderedSections(song).map(s => s.type))}
     ${tagsHtml}
     ${ccliHtml ? `<div>${ccliHtml}</div>` : ''}
     ${notesHtml}`;
@@ -188,8 +201,9 @@ export function renderSongCover(song, transpose) {
 // Render the body (<main> contents) for a single song: every section, with
 // per-section transpose offsets accumulated through any {modulate} markers.
 export function renderSongBody(song, transpose) {
-  const modOffsets = computeModOffsets(song.sections);
-  return (song.sections || [])
+  const ordered = resolveOrderedSections(song);
+  const modOffsets = computeModOffsets(ordered);
+  return ordered
     .map((s, i) => renderSection(s, transpose, modOffsets[i] || 0))
     .join('');
 }
