@@ -611,10 +611,13 @@ const PDF_STYLES = `
      copies of the full setlist appears — each one can be cut out. */
   .cards-grid { display: none; }
   body.cards-layout .set-order { display: none !important; }
-  body.cards-layout .cover { display: none !important; }
+  body.cards-layout .setlist-cover { display: none !important; }
+  body.cards-layout .brand-footer { display: none !important; }
   body.cards-layout .cards-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    min-height: calc(100vh - 100px);
     gap: 0;
   }
   .mini-card {
@@ -695,6 +698,7 @@ const PDF_STYLES = `
   /* In print, force the grid onto a single page. */
   @media print {
     body.cards-layout .cards-grid {
+      height: 100vh;
       page-break-inside: avoid;
       break-inside: avoid;
     }
