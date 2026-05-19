@@ -13,7 +13,8 @@
 // so this module stays self-contained — keep it in sync with exportSongPdf
 // if either file's print styles change meaningfully.
 
-import { transposeKey } from '../music';
+
+import { transposeKey, compactLabel, normalizeSectionName } from '../music';
 import { resolveSongView } from '../arrangements';
 import {
   escapeHtml,
@@ -275,8 +276,15 @@ const PDF_STYLES = `
     border-radius: 4px;
   }
 
-  /* ── Set order list ─────────────────────────────────────────────── */
+  /* ── Set order list ───────────────────────────────────────────── */
   .set-order { margin-top: 4px; }
+  .set-order .structure {
+    font-size: 8.5pt;
+    color: #888;
+    margin: 2px 0 0;
+    font-family: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    letter-spacing: 0.03em;
+  }
   .set-order .row {
     display: flex;
     align-items: baseline;
@@ -598,6 +606,45 @@ const PDF_STYLES = `
     background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
 
+  /* ── Cards layout: 3-column grid of cut-out cue cards ────────── */
+  body.cards-layout .set-order {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    margin-top: 8px;
+  }
+  body.cards-layout .set-order .row {
+    border: 1px dashed #ccc;
+    padding: 10px 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  body.cards-layout .set-order .row:last-child { border-bottom: 1px dashed #ccc; }
+  body.cards-layout .set-order .num {
+    text-align: left;
+    width: auto;
+    font-size: 9pt;
+    color: #bbb;
+  }
+  body.cards-layout .set-order .title {
+    font-size: 11pt;
+  }
+  body.cards-layout .set-order .tail {
+    text-align: left;
+    font-size: 9pt;
+  }
+  body.cards-layout .set-order .tail > div {
+    display: inline;
+  }
+  body.cards-layout .set-order .tempo {
+    display: inline;
+    margin-left: 6px;
+  }
+  body.cards-layout .set-order .break-banner {
+    grid-column: 1 / -1;
+  }
+
   .brand-footer { display: none; }
   @media print {
     .brand-footer {
@@ -703,12 +750,19 @@ function renderSongRow(item, songs, songIndex) {
   const displayKey = transposeKey(song.key, transpose);
   const note = item.note ? `<p class="note">${escapeHtml(item.note)}</p>` : '';
 
+  // Structure flow with compact labels (V1 · C · B · C)
+  const names = song.structure || song.sections?.map(s => s.type) || [];
+  const structureFlow = names.map(n => compactLabel(n)).join(' · ');
+  const structureHtml = structureFlow
+    ? `<p class="structure">${escapeHtml(structureFlow)}</p>`
+    : '';
+
   return `
     <div class="row">
       <span class="num">${num}</span>
       <div class="body">
         <p class="title">${escapeHtml(song.title || 'Untitled')}</p>
-        ${song.artist ? `<p class="artist">${escapeHtml(song.artist)}</p>` : ''}
+        ${structureHtml}
         ${note}
       </div>
       <div class="tail">
@@ -750,6 +804,7 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
         const noteOverride = item.note ? item.note : null;
         const { coverHtml, sectionsHtml } = buildSongBody(song, transpose, {
           noteOverride,
+          hideArtist: true,
         });
         return `
           <article class="song">
@@ -801,6 +856,16 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
           <span class="check"></span>Repeats
         </button>` : '';
 
+  // Overview mode gets a Layout toggle instead of chart controls.
+  const overviewControlsHtml = !showChartControls ? `
+        <div class="control-group">
+          <span class="group-label">Layout</span>
+          <div class="seg" role="group" aria-label="Layout">
+            <button type="button" data-control="layout" data-value="list">List</button>
+            <button type="button" data-control="layout" data-value="cards">Cards</button>
+          </div>
+        </div>` : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -819,6 +884,7 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
       </div>
       <div class="toolbar-row controls">
         ${chartControlsHtml}
+        ${overviewControlsHtml}
         <div class="action-group">
           <button class="action primary" type="button" data-action="print">Print / Save as PDF</button>
           <button class="action" type="button" data-action="close">Close</button>
@@ -842,7 +908,7 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
   <script>
     (function () {
       var STORAGE_KEY = 'setlists-md:pdf-prefs';
-      var DEFAULTS = { cols: 1, size: 'M', font: 'sans', chords: true, colors: true, repeats: true };
+      var DEFAULTS = { cols: 1, size: 'M', font: 'sans', chords: true, colors: true, repeats: true, layout: 'list' };
       var SIZE = { S: '10pt', M: '11pt', L: '12.5pt', XL: '14pt' };
       var FONT = {
         sans:  'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
@@ -886,6 +952,7 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
         body.classList.toggle('no-chords', !prefs.chords);
         body.classList.toggle('bw', !prefs.colors);
         body.classList.toggle('collapse-repeats', !prefs.repeats);
+        body.classList.toggle('cards-layout', prefs.layout === 'cards');
         var nodes = document.querySelectorAll('[data-control]');
         for (var i = 0; i < nodes.length; i++) {
           var el = nodes[i];
@@ -898,6 +965,7 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
           else if (k === 'chords')  active = !!prefs.chords;
           else if (k === 'colors')  active = !!prefs.colors;
           else if (k === 'repeats') active = !!prefs.repeats;
+          else if (k === 'layout')  active = prefs.layout === v;
           el.classList.toggle('active', active);
         }
         writeStored(prefs);
@@ -914,6 +982,7 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
           else if (k === 'chords') prefs.chords = !prefs.chords;
           else if (k === 'colors') prefs.colors = !prefs.colors;
           else if (k === 'repeats') prefs.repeats = !prefs.repeats;
+          else if (k === 'layout')  prefs.layout  = v;
           apply();
           return;
         }
