@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { transposeKey } from '../music';
+import { transposeKey, compactLabel } from '../music';
 import { resolveSongView } from '../arrangements';
 import { Chip } from './ui/Chip';
 import { IconButton } from './ui/IconButton';
@@ -247,7 +247,8 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                   {/* Show the song's section flow instead of the artist — the
                       structure is the actionable bit in a setlist context. */}
                   {(() => {
-                    const flow = (song.structure || song.sections?.map(s => s.type) || []).join(' · ');
+                    const names = song.structure || song.sections?.map(s => s.type) || [];
+                    const flow = names.map(n => compactLabel(n)).join(' · ');
                     return flow ? (
                       <p className="text-copy-12 text-[var(--ds-gray-700)] m-0 mt-0.5">
                         {flow}

@@ -564,6 +564,40 @@ const PDF_STYLES = `
     color: #fff;
   }
 
+  .cover-artist {
+    margin-top: 6px;
+    font-size: 10pt;
+    color: #666;
+    font-weight: 500;
+  }
+  .cover-structure {
+    margin-top: 6px;
+    font-size: 9.5pt;
+    color: #555;
+    line-height: 1.5;
+  }
+
+  /* Collapse-repeats mode */
+  .repeat-ref { display: none; }
+  body.collapse-repeats .section-wrap[data-repeat="true"] > .song-section { display: none; }
+  body.collapse-repeats .section-wrap[data-repeat="true"] > .repeat-ref {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 6px 0 14px;
+  }
+  .repeat-ref-pill {
+    font-size: 9pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 4px 12px;
+    border-radius: 999px;
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+  }
+
   .brand-footer { display: none; }
   @media print {
     .brand-footer {
@@ -762,6 +796,9 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
         </button>
         <button type="button" class="toggle" data-control="colors">
           <span class="check"></span>Colors
+        </button>
+        <button type="button" class="toggle" data-control="repeats">
+          <span class="check"></span>Repeats
         </button>` : '';
 
   return `<!DOCTYPE html>
@@ -805,7 +842,7 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
   <script>
     (function () {
       var STORAGE_KEY = 'setlists-md:pdf-prefs';
-      var DEFAULTS = { cols: 1, size: 'M', font: 'sans', chords: true, colors: true };
+      var DEFAULTS = { cols: 1, size: 'M', font: 'sans', chords: true, colors: true, repeats: true };
       var SIZE = { S: '10pt', M: '11pt', L: '12.5pt', XL: '14pt' };
       var FONT = {
         sans:  'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
@@ -848,17 +885,19 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
         root.style.setProperty('--lyric-font', FONT[prefs.font] || FONT.sans);
         body.classList.toggle('no-chords', !prefs.chords);
         body.classList.toggle('bw', !prefs.colors);
+        body.classList.toggle('collapse-repeats', !prefs.repeats);
         var nodes = document.querySelectorAll('[data-control]');
         for (var i = 0; i < nodes.length; i++) {
           var el = nodes[i];
           var k = el.getAttribute('data-control');
           var v = el.getAttribute('data-value');
           var active = false;
-          if      (k === 'cols')   active = String(prefs.cols) === v;
-          else if (k === 'size')   active = prefs.size === v;
-          else if (k === 'font')   active = prefs.font === v;
-          else if (k === 'chords') active = !!prefs.chords;
-          else if (k === 'colors') active = !!prefs.colors;
+          if      (k === 'cols')    active = String(prefs.cols) === v;
+          else if (k === 'size')    active = prefs.size === v;
+          else if (k === 'font')    active = prefs.font === v;
+          else if (k === 'chords')  active = !!prefs.chords;
+          else if (k === 'colors')  active = !!prefs.colors;
+          else if (k === 'repeats') active = !!prefs.repeats;
           el.classList.toggle('active', active);
         }
         writeStored(prefs);
@@ -874,6 +913,7 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
           else if (k === 'font')   prefs.font   = v;
           else if (k === 'chords') prefs.chords = !prefs.chords;
           else if (k === 'colors') prefs.colors = !prefs.colors;
+          else if (k === 'repeats') prefs.repeats = !prefs.repeats;
           apply();
           return;
         }

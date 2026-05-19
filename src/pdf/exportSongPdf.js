@@ -232,16 +232,11 @@ export function buildSongBody(song, transpose, opts = {}) {
   const titleSafe = escapeHtml(song.title || 'Untitled');
   const artistSafe = escapeHtml(song.artist || '');
 
-  const structureFlow = orderedSections.map(s => (s.type || '').replace(/:+$/, '')).join(' · ');
-  const structureHtml = structureFlow
-    ? `<div class="cover-structure">${escapeHtml(structureFlow)}</div>`
-    : '';
-
   const coverHtml = `
     <header class="cover">
       <h1>${titleSafe}</h1>
       <div class="subtitle">${subtitleHtml}</div>
-      ${structureHtml}
+      ${renderStructureRibbon(orderedSections.map(s => s.type))}
       ${artistSafe ? `<div class="cover-artist">${artistSafe}</div>` : ''}
       ${tagsHtml}
       ${ccliHtml ? `<div>${ccliHtml}</div>` : ''}

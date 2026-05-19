@@ -189,16 +189,10 @@ export function renderSongCover(song, transpose) {
     ? `<div class="cover-notes"><strong>Notes</strong> ${escapeHtml(song.notes)}</div>`
     : '';
 
-  const ordered = resolveOrderedSections(song);
-  const structureFlow = ordered.map(s => (s.type || '').replace(/:+$/, '')).join(' · ');
-  const structureHtml = structureFlow
-    ? `<div class="cover-structure">${escapeHtml(structureFlow)}</div>`
-    : '';
-
   return `
     <h1>${escapeHtml(song.title || 'Untitled')}</h1>
     <div class="subtitle">${subtitleHtml}</div>
-    ${structureHtml}
+    ${renderStructureRibbon(resolveOrderedSections(song).map(s => s.type))}
     ${artistSafe ? `<div class="cover-artist">${artistSafe}</div>` : ''}
     ${tagsHtml}
     ${ccliHtml ? `<div>${ccliHtml}</div>` : ''}
