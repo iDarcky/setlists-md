@@ -120,7 +120,7 @@ key: C
 
 `;
 
-export default function Editor({ song, onSave, onBack, onDelete, onMove, activeLibrary, team, importProgress, customSectionTypes }) {
+export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy, activeLibrary, team, importProgress, customSectionTypes }) {
   const confirm = useConfirm();
 
   // Working copy of the song we're editing. For a new song, songFromFlat
@@ -406,6 +406,20 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
     if (ok) onMove(target);
   }, [song, onMove, team, activeLibrary, confirm, preview]);
 
+  const handleCopySong = useCallback(async () => {
+    if (!song || !onCopy || !team) return;
+    const target = activeLibrary === 'personal' ? team.id : 'personal';
+    const label = activeLibrary === 'personal' ? team.name : 'Personal Library';
+    const ok = await confirm({
+      title: `Copy to ${label}?`,
+      description: activeLibrary === 'personal'
+        ? `A copy of "${preview?.title || song.title || 'this song'}" will be added to ${team.name}. The original stays in your personal library.`
+        : `A copy of "${preview?.title || song.title || 'this song'}" will be added to your personal library. The original stays in ${team.name}.`,
+      confirmLabel: 'Copy',
+    });
+    if (ok) onCopy(target);
+  }, [song, onCopy, team, activeLibrary, confirm, preview]);
+
   return (
     <div className="h-screen bg-[var(--ds-background-200)] flex flex-col">
       {/* ─── Sticky Header — matches the SetlistBuilder pattern: title +
@@ -438,6 +452,11 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, activeL
             {song && onMove && team && (
               <Button variant="secondary" size="sm" onClick={handleMoveSong}>
                 Move to {activeLibrary === 'personal' ? 'Team' : 'Personal'}
+              </Button>
+            )}
+            {song && onCopy && team && (
+              <Button variant="secondary" size="sm" onClick={handleCopySong}>
+                Copy to {activeLibrary === 'personal' ? 'Team' : 'Personal'}
               </Button>
             )}
             {song && onDelete && (

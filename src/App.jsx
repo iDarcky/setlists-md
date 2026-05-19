@@ -1005,6 +1005,37 @@ export default function App() {
     }
   };
 
+  const handleCopySongToLibrary = async (songId, targetLibraryId) => {
+    try {
+      const song = songs.find(s => s.id === songId);
+      if (!song) return;
+
+      // Create a copy with a new ID so both libraries have independent items
+      const copy = { ...song, id: generateId(), updatedAt: Date.now() };
+
+      // Add to target library
+      const targetSongs = await loadSongs(targetLibraryId);
+      targetSongs.push(copy);
+      await saveSongs(targetSongs, targetLibraryId);
+
+      // Trigger a background sync on the target library so the cloud gets the file
+      if (syncEngineRef.current) {
+        const tempEngine = createSyncEngine(() => {}, targetLibraryId);
+        const targetTombstones = await loadTombstones(targetLibraryId);
+        const targetSetlists = await loadSetlists(targetLibraryId);
+        tempEngine.debouncedPush(targetSongs, targetSetlists, targetTombstones, () => {});
+      }
+
+      toast({
+        title: 'Song copied',
+        description: `A copy was added to the ${targetLibraryId === 'personal' ? 'Personal' : 'Team'} library.`,
+      });
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Copy failed', variant: 'error' });
+    }
+  };
+
   const handleDeleteSong = (id) => {
     const nextSongs = songs.filter((s) => s.id !== id);
     setSongs(nextSongs);
@@ -1530,6 +1561,7 @@ export default function App() {
                 onSkip: handleSkipQueueSong,
               } : null}
               onMove={currentSong && team ? (target) => handleMoveSongToLibrary(currentSong.id, target) : null}
+              onCopy={currentSong && team ? (target) => handleCopySongToLibrary(currentSong.id, target) : null}
               activeLibrary={activeLibrary}
               team={team}
             />

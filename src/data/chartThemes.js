@@ -3,11 +3,17 @@
 // root when a chart is on screen; users on a paid plan can override any
 // individual swatch through the Chart Style settings panel.
 
+// IDs of themes available on every plan (including free). These are the
+// defaults that track the user's app theme on first launch, so they should
+// always be selectable without an upgrade gate.
+export const FREE_CHART_THEME_IDS = new Set(['sunday-light', 'stage-black', 'midnight']);
+
 export const CHART_THEMES = [
   {
     id: 'sunday-light',
     name: 'Sunday Light',
     description: 'Classic paper-bright chart for daylight stages.',
+    free: true,
     bg: '#fbfaf6',
     text: '#1c1b1a',
     chord: '#b8860b',
@@ -17,6 +23,7 @@ export const CHART_THEMES = [
     id: 'stage-black',
     name: 'Stage Black',
     description: 'Pure black background, gold chords. Built for dim stages.',
+    free: true,
     bg: '#050505',
     text: '#fafafa',
     chord: '#f5c043',
@@ -26,6 +33,7 @@ export const CHART_THEMES = [
     id: 'midnight',
     name: 'Midnight',
     description: 'Inky blue gradient, soft cream type.',
+    free: true,
     bg: '#0d1320',
     text: '#f1ecdc',
     chord: '#7ec1ff',

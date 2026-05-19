@@ -5,6 +5,7 @@ import { Input } from '../ui/Input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/Select';
 import { useConfirm } from '../ui/useConfirmHook';
 import UpgradeGate from '../ui/UpgradeGate';
+import { useEntitlement } from '../../hooks/useEntitlement';
 import {
   CHART_THEMES,
   CHART_FONTS,
@@ -13,6 +14,7 @@ import {
   DEFAULT_CHART_THEME_ID,
   DEFAULT_CHORD_FONT_ID,
   DEFAULT_LYRIC_FONT_ID,
+  FREE_CHART_THEME_IDS,
   chartTheme,
 } from '../../data/chartThemes';
 
@@ -194,10 +196,34 @@ function FontPickerRow({ label, value, onChange, defaultId }) {
 }
 
 export default function ChartStylePanel({ settings, update, onUpgrade }) {
+  const { allowed } = useEntitlement('chart-style');
+  const activeThemeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
+  const freeThemes = CHART_THEMES.filter(t => FREE_CHART_THEME_IDS.has(t.id));
+
   return (
-    <UpgradeGate feature="chart-style" onUpgrade={onUpgrade}>
-      <ChartStylePanelInner settings={settings} update={update} />
-    </UpgradeGate>
+    <div className="flex flex-col gap-6">
+      {/* Free themes — always visible */}
+      <div className="flex flex-col gap-3">
+        <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold px-2">
+          Theme
+        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {freeThemes.map(t => (
+            <ThemeSwatch
+              key={t.id}
+              theme={t}
+              active={activeThemeId === t.id}
+              onSelect={(id) => update('chartTheme', id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Premium themes + customisation — gated */}
+      <UpgradeGate feature="chart-style" onUpgrade={onUpgrade}>
+        <ChartStylePanelInner settings={settings} update={update} />
+      </UpgradeGate>
+    </div>
   );
 }
 
@@ -274,14 +300,14 @@ function ChartStylePanelInner({ settings, update }) {
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between px-2">
           <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">
-            Theme
+            More Themes
           </h3>
           <span className="text-label-11 text-[var(--modes-text-dim)]">
             {customThemes.length}/{MAX_CUSTOM_THEMES} custom
           </span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {CHART_THEMES.map(t => (
+          {CHART_THEMES.filter(t => !FREE_CHART_THEME_IDS.has(t.id)).map(t => (
             <ThemeSwatch
               key={t.id}
               theme={t}
