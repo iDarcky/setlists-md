@@ -118,7 +118,7 @@ export default function MobileTopBar({
   const showResults = focused && q.length > 0;
   const hasAnyResults = results.songs.length > 0 || results.setlists.length > 0;
 
-  const showBanner = activeLibrary !== 'personal' && team;
+  const showBanner = true;
 
   return (
     <div
@@ -133,7 +133,8 @@ export default function MobileTopBar({
     >
       {showBanner && (
         <TeamBanner 
-          teamName={team.name} 
+          teamName={team?.name}
+          activeLibrary={activeLibrary}
           onChangeWorkspace={onChangeWorkspace}
         />
       )}

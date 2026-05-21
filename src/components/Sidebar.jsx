@@ -137,28 +137,9 @@ export default function Sidebar({
             setActiveLibrary={setActiveLibrary}
             team={team}
             showPersonalSpace={showPersonalSpace}
-            className="xl:bg-transparent bg-transparent"
+            className="xl:bg-transparent bg-transparent h-11 xl:px-3 mx-auto xl:mx-0 w-11 xl:w-full"
           />
         </div>
-
-        {/* Profile */}
-        <button
-          onClick={() => onNavigate('account')}
-          aria-label="Account"
-          className={`flex items-center justify-center xl:justify-start gap-3 mb-8 xl:px-2 shrink-0 bg-transparent border-none cursor-pointer rounded-lg py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-teal-600)] transition-colors text-left ${
-            activeView === 'account'
-              ? 'bg-[var(--ds-teal-100)]'
-              : 'hover:bg-[var(--ds-gray-200)]'
-          }`}
-        >
-          <div className="w-9 h-9 rounded-full bg-[var(--ds-gray-300)] flex items-center justify-center shrink-0">
-            <UserIcon />
-          </div>
-          <div className="hidden xl:block overflow-hidden">
-            <p className="text-label-14 font-semibold text-[var(--ds-gray-1000)] truncate">{displayName}</p>
-            <p className="text-label-12 text-[var(--ds-teal-800)] font-medium truncate uppercase tracking-widest text-[10px]">{plan} TIER</p>
-          </div>
-        </button>
 
         {/* Nav Menu */}
         <nav className="flex-1 min-h-0 flex flex-col gap-1 overflow-hidden">

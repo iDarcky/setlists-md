@@ -5,8 +5,9 @@ import { cn } from '../lib/utils';
  * A strip bar shown at the top of the screen when viewing a team workspace.
  * Minimalist, high-contrast aesthetic that matches the app's metadata style.
  */
-export default function TeamBanner({ teamName, onChangeWorkspace, className }) {
-  if (!teamName) return null;
+export default function TeamBanner({ teamName, activeLibrary, onChangeWorkspace, className }) {
+  const isPersonal = activeLibrary === 'personal';
+  const label = isPersonal ? 'Personal Space' : teamName;
 
   return (
     <div 
@@ -16,11 +17,11 @@ export default function TeamBanner({ teamName, onChangeWorkspace, className }) {
       )}
       style={{
         zIndex: 100,
-        backgroundColor: 'var(--color-brand-soft)',
+        backgroundColor: isPersonal ? 'var(--ds-gray-200)' : 'var(--color-brand-soft)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
-        color: 'var(--color-brand-text)',
-        borderBottom: '1px solid var(--color-brand-border)',
+        color: isPersonal ? 'var(--ds-gray-800)' : 'var(--color-brand-text)',
+        borderBottom: isPersonal ? '1px solid var(--ds-gray-300)' : '1px solid var(--color-brand-border)',
       }}
     >
       <div className="flex items-center gap-3 max-w-full overflow-hidden">
@@ -29,7 +30,7 @@ export default function TeamBanner({ teamName, onChangeWorkspace, className }) {
             Viewing
           </span>
           <span className="text-label-12 sm:text-label-13 font-bold truncate">
-            {teamName}
+            {label}
           </span>
         </div>
         

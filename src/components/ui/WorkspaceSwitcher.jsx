@@ -34,12 +34,12 @@ export default function WorkspaceSwitcher({
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger className={cn(
-        "group flex items-center justify-center xl:justify-start gap-2 h-11 w-11 xl:w-full xl:px-3 mx-auto xl:mx-0 rounded-lg cursor-pointer transition-colors duration-200 border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-teal-600)] data-[state=open]:bg-[var(--ds-gray-200)]",
+        "group flex items-center justify-center xl:justify-start gap-2 h-11 w-11 xl:w-full xl:px-3 mx-auto xl:mx-0 rounded-lg cursor-pointer transition-colors duration-200 border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-teal-600)] data-[state=open]:bg-[var(--ds-teal-100)] data-[state=open]:text-[var(--ds-teal-900)]",
         "xl:text-left xl:hover:bg-[var(--ds-gray-200)] xl:bg-transparent",
         "bg-transparent hover:bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]",
         className
       )}>
-        <div className="flex items-center justify-center xl:hidden w-9 h-9 rounded-full bg-[var(--ds-gray-300)] text-[var(--ds-gray-1000)] shrink-0">
+        <div className="flex items-center justify-center xl:hidden w-9 h-9 rounded-full bg-[var(--ds-gray-300)] group-hover:bg-[var(--ds-gray-400)] group-data-[state=open]:bg-[var(--ds-teal-200)] text-[var(--ds-gray-1000)] group-data-[state=open]:text-[var(--ds-teal-900)] shrink-0 transition-colors">
           {getActiveIcon()}
         </div>
         <div className="hidden xl:flex items-center justify-between w-full overflow-hidden">

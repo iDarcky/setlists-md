@@ -14,7 +14,6 @@ import OnboardingFlow from './onboarding/OnboardingFlow';
 import Dashboard from './components/Dashboard';
 import Library from './components/Library';
 import Settings from './components/Settings';
-import Account from './components/Account';
 import Setlists from './components/Setlists';
 import BottomNav from './components/BottomNav';
 import DesktopLayout from './components/DesktopLayout';
@@ -1422,7 +1421,7 @@ export default function App() {
           syncState={syncState}
           isOnline={isOnline}
           settings={settings}
-          hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view'].includes(view)}
+          hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'setlist-view'].includes(view)}
         >
           {['home', 'library', 'setlists'].includes(view) && (
             <MobileTopBar
@@ -1715,22 +1714,10 @@ export default function App() {
               plan={plan}
               isSignedIn={isSignedIn}
               displayName={displayName}
+              displayEmail={displayEmail}
+              onSignOut={handleSignOut}
               activeLibrary={activeLibrary}
               team={team}
-            />
-          )}
-          {view === "account" && settings && (
-            <Account
-              settings={settings}
-              onUpdate={setSettings}
-              isSignedIn={isSignedIn}
-              displayName={displayName}
-              displayEmail={displayEmail}
-              plan={plan}
-              onUpgrade={() => navigate('upgrade')}
-              onSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
-              onCreateAccount={() => { setAuthStartMode('signup'); navigate('signin'); }}
-              onSignOut={handleSignOut}
             />
           )}
           {view === 'team' && (
@@ -1749,7 +1736,7 @@ export default function App() {
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />
           )}
-          {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view'].includes(view) && (
+          {['home', 'library', 'setlists', 'settings', 'team', 'setlist-view'].includes(view) && (
             <BottomNav
               activeView={view === 'setlist-view' ? 'setlists' : view}
               onNavigate={goToMainView}

@@ -6,11 +6,11 @@ import {
   UpgradePill,
   SignInButton,
   CreateAccountButton,
-} from './account/AccountPanel';
-import { useAuth } from '../auth/useAuth';
-import { useTeam } from '../auth/useTeam';
-import { clearAll } from '../storage';
-import { Switch } from './ui/Switch';
+} from '../account/AccountPanel';
+import { useAuth } from '../../auth/useAuth';
+import { useTeam } from '../../auth/useTeam';
+import { clearAll } from '../../storage';
+import { Switch } from '../ui/Switch';
 
 const NAME_MAX = 15;
 
@@ -149,13 +149,8 @@ export default function Account({
   };
 
   return (
-    <div
-      className="drawer-panel min-h-screen pb-8"
-      style={{
-        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 24px)',
-      }}
-    >
-      <div className="a4-container pt-6 pb-10 flex flex-col gap-6">
+    <div className="w-full pb-24">
+      <div className="flex flex-col gap-6">
         <StageGreeting displayName={displayName} tone="drawer" />
         <AccountSummary
           isSignedIn={isSignedIn}

@@ -42,7 +42,7 @@ export default function DesktopLayout({
     ? 'grid-cols-1'
     : 'grid-cols-1 sm:grid-cols-[80px_1fr] xl:grid-cols-[280px_1fr]';
 
-  const showBanner = !hideBanner && activeLibrary !== 'personal' && team;
+  const showBanner = !hideBanner;
 
   return (
     <div className="w-full h-[100dvh] flex flex-col overflow-hidden">
@@ -53,7 +53,8 @@ export default function DesktopLayout({
       */}
       {showBanner && (
         <TeamBanner 
-          teamName={team.name} 
+          teamName={team?.name}
+          activeLibrary={activeLibrary}
           onChangeWorkspace={onChangeWorkspace}
           className="hidden sm:flex" 
         />

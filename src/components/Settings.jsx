@@ -3,6 +3,7 @@ import SyncSettings from './settings/SyncSettings';
 import WhatsNewPanel from './settings/WhatsNewPanel';
 import ChartStylePanel from './settings/ChartStylePanel';
 import SectionsPanel from './settings/SectionsPanel';
+import AccountPanelView from './settings/AccountPanelView';
 import { CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '../data/chartThemes';
 import { HexColorPicker } from 'react-colorful';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
@@ -41,6 +42,13 @@ const DataIcon = () => (
     <ellipse cx="12" cy="5" rx="9" ry="3" />
     <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
     <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" />
+  </svg>
+);
+
+const UserIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
   </svg>
 );
 
@@ -135,6 +143,7 @@ function HubRow({ icon: Icon, label, value, onClick }) {
 
 const PANEL_TITLES = {
   hub: 'Preferences',
+  account: 'Account',
   appearance: 'Appearance',
   chart: 'Chart Defaults',
   'chart-style': 'Chart Style',
@@ -560,6 +569,8 @@ export default function Settings({
   plan = 'Free',
   isSignedIn = false,
   displayName = '',
+  displayEmail = '',
+  onSignOut,
   // Sub-panel state lives in App.jsx so it participates in the back stack.
   panel = 'hub',
   onChangePanel = () => {},
@@ -582,6 +593,24 @@ export default function Settings({
 
   const renderPanel = (activePanel) => {
     switch (activePanel) {
+      case 'account':
+        return (
+          <AccountPanelView
+            settings={settings}
+            onUpdate={onUpdate}
+            isSignedIn={isSignedIn}
+            displayName={displayName}
+            displayEmail={displayEmail}
+            plan={plan}
+            onUpgrade={onUpgrade}
+            onSignIn={onRequestSignIn}
+            onCreateAccount={onRequestSignIn}
+            onSignOut={() => {
+              if (onSignOut) onSignOut();
+              if (onClose) onClose();
+            }}
+          />
+        );
       case 'appearance':
         return <AppearancePanel settings={settings} update={update} isSignedIn={isSignedIn} />;
       case 'chart':
@@ -635,8 +664,9 @@ export default function Settings({
 
   // Desktop: Notion-style modal with sidebar nav + content pane.
   if (isDesktop) {
-    const desktopPanel = panel === 'hub' ? 'appearance' : panel;
+    const desktopPanel = panel === 'hub' ? 'account' : panel;
     const navItems = [
+      { key: 'account', label: 'Account', icon: UserIcon, summary: displayName || 'Guest' },
       { key: 'appearance', label: 'Appearance', icon: AppearanceIcon, summary: appearanceSummary(settings) },
       { key: 'chart', label: 'Chart Defaults', icon: ChartIcon, summary: chartSummary(settings) },
       { key: 'chart-style', label: 'Chart Style', icon: AppearanceIcon, summary: chartStyleSummary(settings), badge: 'Pro' },
@@ -721,6 +751,12 @@ export default function Settings({
       <div className="a4-container py-6 pb-20 flex flex-col gap-6">
         {panel === 'hub' && (
           <div className="modes-card flex flex-col p-0 overflow-hidden divide-y" style={{ borderColor: 'var(--modes-border)' }}>
+            <HubRow
+              icon={UserIcon}
+              label="Account"
+              value={displayName || 'Guest'}
+              onClick={() => onChangePanel('account')}
+            />
             <HubRow
               icon={AppearanceIcon}
               label="Appearance"
