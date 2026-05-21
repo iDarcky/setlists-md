@@ -34,16 +34,23 @@ export default function WorkspaceSwitcher({
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger className={cn(
-        "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-label-14 font-medium transition-colors hover:bg-[var(--ds-gray-200)] focus:outline-none focus:ring-2 focus:ring-[var(--ds-teal-600)] data-[state=open]:bg-[var(--ds-gray-200)]",
+        "group flex items-center justify-center xl:justify-start gap-2 h-11 w-11 xl:w-full xl:px-3 mx-auto xl:mx-0 rounded-lg cursor-pointer transition-colors duration-200 border-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-teal-600)] data-[state=open]:bg-[var(--ds-gray-200)]",
+        "xl:text-left xl:hover:bg-[var(--ds-gray-200)] xl:bg-transparent",
+        "bg-transparent hover:bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]",
         className
       )}>
-        <div className="flex items-center gap-2 overflow-hidden">
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-[var(--ds-gray-300)] text-[var(--ds-gray-700)]">
-            {getActiveIcon()}
-          </div>
-          <span className="truncate text-[var(--ds-gray-1000)]">{getActiveLabel()}</span>
+        <div className="flex items-center justify-center xl:hidden w-9 h-9 rounded-full bg-[var(--ds-gray-300)] text-[var(--ds-gray-1000)] shrink-0">
+          {getActiveIcon()}
         </div>
-        <ChevronDown size={16} className="shrink-0 text-[var(--ds-gray-500)]" />
+        <div className="hidden xl:flex items-center justify-between w-full overflow-hidden">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-[var(--ds-gray-300)] text-[var(--ds-gray-700)]">
+              {getActiveIcon()}
+            </div>
+            <span className="truncate text-[var(--ds-gray-1000)] text-label-14 font-medium">{getActiveLabel()}</span>
+          </div>
+          <ChevronDown size={16} className="shrink-0 text-[var(--ds-gray-500)]" />
+        </div>
       </DropdownMenu.Trigger>
 
       <DropdownMenu.Portal>

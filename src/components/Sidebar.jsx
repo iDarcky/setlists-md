@@ -131,12 +131,13 @@ export default function Sidebar({
     <>
       <aside className="h-full hidden sm:flex flex-col bg-[var(--ds-background-200)] transition-all duration-300 w-[80px] xl:w-[280px] py-6 px-3 xl:px-4 overflow-hidden overscroll-contain">
         {/* Workspace Switcher */}
-        <div className="mb-8 hidden xl:block">
+        <div className="mb-8">
           <WorkspaceSwitcher
             activeLibrary={activeLibrary}
             setActiveLibrary={setActiveLibrary}
             team={team}
             showPersonalSpace={showPersonalSpace}
+            className="xl:bg-transparent bg-transparent"
           />
         </div>
 
