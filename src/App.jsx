@@ -1750,6 +1750,7 @@ export default function App() {
               onOpenSetlist={goSetlistView}
               clockFormat={settings?.clockFormat || '12h'}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
+              activeLibrary={activeLibrary}
             />
           )}
           {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view'].includes(view) && (

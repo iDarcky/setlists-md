@@ -9,6 +9,7 @@ import DateStatusModal from './schedule/DateStatusModal';
 import { useTeam } from '../auth/useTeam';
 import { useAuth } from '../auth/useAuth';
 import { useTeamAvailability } from '../hooks/useTeamAvailability';
+import { useTeamSetlistMap } from '../hooks/useTeamSetlistMap';
 
 function toLocalDateStr(date) {
   const y = date.getFullYear();
@@ -33,10 +34,11 @@ function useIsMobile() {
   );
 }
 
-export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
+export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat = '12h', firstDayOfWeek = 'sunday', activeLibrary }) {
   const { team, members, isAdmin } = useTeam();
   const { user } = useAuth();
   const { availability, setStatus, clearStatus } = useTeamAvailability(team?.id);
+  const { map: setlistIdMap } = useTeamSetlistMap(activeLibrary);
   const isMobile = useIsMobile();
 
   const [userPick, setUserPick] = useState(null); // null = follow screen size
@@ -154,6 +156,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
           <div className="h-full" onClick={e => e.stopPropagation()}>
             <RosterPanel
               setlistId={rosterSetlist.id}
+              teamSetlistId={setlistIdMap[rosterSetlist.id] || null}
               setlistDate={rosterSetlist.date}
               onClose={() => setRosterSetlist(null)}
               readOnly={!isAdmin}

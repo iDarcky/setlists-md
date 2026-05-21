@@ -34,7 +34,7 @@ function availabilityLabel(status) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly = false }) {
+export default function RosterPanel({ setlistId, teamSetlistId, setlistDate, onClose, readOnly = false }) {
   const confirm = useConfirm();
   const { team, members } = useTeam();
   const { schedules, createSchedule, updateSchedule, deleteSchedule, loading } = useTeamSchedules(team?.id);
@@ -44,8 +44,14 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
   const [isAdding, setIsAdding] = useState(false);
   const [instrumentFilter, setInstrumentFilter] = useState(null);
 
-  // Filter schedules for this specific setlist
-  const setlistSchedules = schedules.filter(s => s.setlist_id === setlistId);
+  // The ID used for DB operations (team_schedules.setlist_id is a UUID FK to
+  // team_setlists.id). Local setlists use base-36 IDs from generateId(), so
+  // we need the mapped UUID. Fall back to the local ID only if no mapping
+  // exists (shouldn't happen in practice for synced team setlists).
+  const dbSetlistId = teamSetlistId || setlistId;
+
+  // Filter schedules for this specific setlist (match against the DB ID)
+  const setlistSchedules = schedules.filter(s => s.setlist_id === dbSetlistId);
 
   // Members not yet on the roster
   const candidates = useMemo(() => {
@@ -85,7 +91,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
     setAddingMemberId(member.user_id);
     try {
       const defaultRole = (member.instruments && member.instruments[0]) || 'Vocals';
-      await createSchedule(setlistId, member.user_id, defaultRole, 'pending');
+      await createSchedule(dbSetlistId, member.user_id, defaultRole, 'pending');
       toast({ title: 'Added to roster', description: 'Member has been scheduled.' });
     } catch (err) {
       console.error(err);
