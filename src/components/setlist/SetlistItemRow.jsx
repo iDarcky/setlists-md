@@ -276,8 +276,9 @@ export default function SetlistItemRow({
 
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-label-14 text-[var(--ds-gray-1000)] font-semibold">{displayKey}</span>
-          <span className="text-label-11 text-[var(--ds-gray-600)] tabular-nums">{song.tempo} BPM</span>
-          <span className="text-label-11 text-[var(--ds-gray-600)]">{song.time}</span>
+          <span className="text-label-11 text-[var(--ds-gray-600)] tabular-nums">
+            {[song.tempo, song.time].filter(Boolean).join(' ')}
+          </span>
           <svg
             width="14" height="14" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" strokeWidth="2"

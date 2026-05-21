@@ -1520,6 +1520,7 @@ export default function App() {
                 }));
                 setPreviewSetlistId(null);
               }}
+              canEdit={canEdit}
             />
           )}
           {view === 'chart' && currentSong && (
