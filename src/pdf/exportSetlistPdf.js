@@ -850,9 +850,6 @@ function renderMiniCard(setlist, items, songs) {
     const transpose = item.transpose || 0;
     const displayKey = transposeKey(song.key, transpose);
     const tempo = song.tempo ? `${escapeHtml(String(song.tempo))}` : '';
-    
-    const names = song.structure || song.sections?.map(s => s.type) || [];
-    const structureFlow = names.map(n => compactLabel(n)).join('·');
 
     return `
       <div class="mini-row">
@@ -860,7 +857,6 @@ function renderMiniCard(setlist, items, songs) {
         <span class="mini-song-title">${escapeHtml(song.title || 'Untitled')}</span>
         <span class="mini-key">${escapeHtml(displayKey || '')}</span>
         ${tempo ? `<span class="mini-tempo">${tempo}</span>` : ''}
-        ${structureFlow ? `<span class="mini-structure">${escapeHtml(structureFlow)}</span>` : ''}
       </div>`;
   });
 

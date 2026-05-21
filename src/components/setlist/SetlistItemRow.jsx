@@ -215,7 +215,7 @@ export default function SetlistItemRow({
     <div className="material-card overflow-hidden">
       {/* Collapsed row — always visible */}
       <div
-        className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[var(--ds-gray-alpha-100)] transition-colors"
+        className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--ds-gray-alpha-100)] transition-colors"
         onClick={() => setExpanded(e => !e)}
       >
         {/* Drag handle + reorder buttons */}
@@ -260,7 +260,9 @@ export default function SetlistItemRow({
           </p>
           {/* Show the song's arrangement name instead of structure flow */}
           {(() => {
-            const arrangementName = rawSong?.arrangements?.find(a => a.id === (item.arrangementId || rawSong?.defaultArrangementId))?.name || 'Main Arrangement';
+            const hasMultiple = rawSong?.arrangements?.length > 1;
+            if (!hasMultiple) return null;
+            const arrangementName = rawSong.arrangements.find(a => a.id === (item.arrangementId || rawSong?.defaultArrangementId))?.name || 'Main Arrangement';
             return (
               <p className="text-copy-12 text-[var(--ds-gray-700)] m-0 mt-0.5 truncate">
                 {arrangementName}
@@ -388,9 +390,7 @@ export default function SetlistItemRow({
             onClick={() => onRemove(idx)}
             aria-label="Remove song"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
+            ✕
           </IconButton>
         </div>
       )}
