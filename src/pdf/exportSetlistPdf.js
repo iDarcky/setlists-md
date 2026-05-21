@@ -811,6 +811,8 @@ function renderSongRow(item, songs, songIndex) {
   const structureFlow = names.map(n => compactLabel(n)).join(' · ');
   const structureHtml = structureFlow
     ? `<p class="structure">${escapeHtml(structureFlow)}</p>`
+    : '';
+
   return `
     <div class="row">
       <span class="num">${num}</span>
