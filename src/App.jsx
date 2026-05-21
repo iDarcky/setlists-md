@@ -138,7 +138,7 @@ function prefsEqual(a, b) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const { team } = useTeam();
+  const { team, isAdmin: isTeamAdmin } = useTeam();
   const confirm = useConfirm();
   // PWA update prompt — toast appears when a new SW is downloaded.
   usePWAUpdate();
@@ -232,14 +232,15 @@ export default function App() {
   }, [team, activeLibrary]);
 
   // Initialize sync engine for the active library
+  const isTeamReadOnly = activeLibrary !== 'personal' && !isTeamAdmin;
   useEffect(() => {
     if (syncEngineRef.current) {
       syncEngineRef.current.cancelDebounce();
     }
     syncEngineRef.current = createSyncEngine((status) => {
       setSyncState(prev => ({ ...prev, ...status }));
-    }, activeLibrary);
-  }, [activeLibrary]);
+    }, activeLibrary, { readOnly: isTeamReadOnly });
+  }, [activeLibrary, isTeamReadOnly]);
 
   const triggerSync = useCallback(async () => {
     if (isSwitchingLibraryRef.current) return;
@@ -1431,8 +1432,8 @@ export default function App() {
               onOpenDrawer={openDrawer}
               onSelectSong={goChart}
               onSelectSetlist={goSetlistView}
-              onNewSong={() => openNewSongModal('import')}
-              onNewSetlist={() => goSetlistBuild()}
+              onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
+              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               activeLibrary={activeLibrary}
               team={team}
               onChangeWorkspace={openDrawer}
@@ -1444,8 +1445,8 @@ export default function App() {
               setlists={setlists}
               settings={settings}
               onSelectSong={goChart}
-              onNewSong={() => openNewSongModal('import')}
-              onNewSetlist={() => goSetlistBuild()}
+              onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
+              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onViewSetlist={goSetlistView}
               onPlaySetlist={goSetlistPerformance}
               onGoLibrary={goLibrary}
@@ -1469,12 +1470,13 @@ export default function App() {
               songs={songs}
               loaded={loaded}
               onSelectSong={goChart}
-              onNewSong={() => openNewSongModal('import')}
+              onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
               previewSongId={previewSongId}
               onSelectPreview={setPreviewSongId}
               isFullscreen={isFullscreen}
               onToggleFullscreen={toggleFullscreen}
-              onEditSong={(s) => goEditor(s)}
+              onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
+              readOnly={isTeamReadOnly}
               chartDefaults={{
                 defaultColumns: settings?.defaultColumns,
                 defaultFontSize: settings?.defaultFontSize,
@@ -1494,18 +1496,19 @@ export default function App() {
               onViewSetlist={goSetlistView}
               onPlaySetlist={goSetlistPerformance}
               onPracticeSetlist={(sl) => goSetlistPractice(sl)}
-              onNewSetlist={() => goSetlistBuild()}
-              onImportSetlist={handleImportSetlist}
+              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+              onImportSetlist={isTeamReadOnly ? null : handleImportSetlist}
               previewSetlistId={previewSetlistId}
               onSelectPreview={setPreviewSetlistId}
               isFullscreen={isFullscreen}
               onToggleFullscreen={toggleFullscreen}
-              onEditSetlist={(sl) => goSetlistBuild(sl)}
+              onEditSetlist={isTeamReadOnly ? null : (sl) => goSetlistBuild(sl)}
+              readOnly={isTeamReadOnly}
               clockFormat={settings?.clockFormat || '12h'}
               onExportSetlistZip={(sl) => handleExportSetlist(sl)}
               onExportSetlistPdfOverview={(sl) => exportSetlistPdf(sl, songs, { mode: 'overview' })}
               onExportSetlistPdfFull={(sl) => exportSetlistPdf(sl, songs, { mode: 'full' })}
-              onDeleteSetlist={(id) => {
+              onDeleteSetlist={isTeamReadOnly ? null : (id) => {
                 setSetlists(prev => prev.filter(s => s.id !== id));
                 setTombstones(prev => ({
                   ...prev,
@@ -1520,7 +1523,7 @@ export default function App() {
             <ChartView
               song={currentSong}
               onBack={goBack}
-              onEdit={() => goEditor(currentSong)}
+              onEdit={isTeamReadOnly ? null : () => goEditor(currentSong)}
               onSongChange={(updated) => {
                 setSongs(prev => prev.map(s => s.id === updated.id ? { ...updated, updatedAt: Date.now() } : s));
               }}
@@ -1538,8 +1541,6 @@ export default function App() {
                 if (!settings?.firstTransposed) {
                   setSettings(prev => ({ ...prev, firstTransposed: true }));
                 }
-                // Queue the founder note — surfaced the next time we land
-                // on the dashboard so it never interrupts the chart itself.
                 if (!settings?.seenFounderNote) {
                   setFounderNoteQueued(true);
                 }
@@ -1551,19 +1552,20 @@ export default function App() {
             <Editor
               key={currentSong?.id || 'new'}
               song={currentSong}
-              onSave={handleSaveSong}
+              onSave={isTeamReadOnly ? null : handleSaveSong}
               onBack={importQueue ? handleSkipQueueSong : goBack}
-              onDelete={currentSong ? handleDeleteSong : null}
+              onDelete={currentSong && !isTeamReadOnly ? handleDeleteSong : null}
               customSectionTypes={settings?.customSectionTypes}
               importProgress={importQueue ? {
                 current: importQueue.total - importQueue.remaining.length + 1,
                 total: importQueue.total,
                 onSkip: handleSkipQueueSong,
               } : null}
-              onMove={currentSong && team ? (target) => handleMoveSongToLibrary(currentSong.id, target) : null}
-              onCopy={currentSong && team ? (target) => handleCopySongToLibrary(currentSong.id, target) : null}
+              onMove={currentSong && team && isTeamAdmin ? (target) => handleMoveSongToLibrary(currentSong.id, target) : null}
+              onCopy={currentSong && team && isTeamAdmin ? (target) => handleCopySongToLibrary(currentSong.id, target) : null}
               activeLibrary={activeLibrary}
               team={team}
+              readOnly={isTeamReadOnly}
             />
           )}
           {view === 'setlist-view' && currentSetlist && (
@@ -1571,14 +1573,14 @@ export default function App() {
               setlist={currentSetlist}
               songs={songs}
               onBack={goBack}
-              onEdit={() => goSetlistBuild(currentSetlist)}
+              onEdit={isTeamReadOnly ? null : () => goSetlistBuild(currentSetlist)}
               onExportZip={() => handleExportSetlist(currentSetlist)}
               onExportPdfOverview={() => exportSetlistPdf(currentSetlist, songs, { mode: 'overview' })}
               onExportPdfFull={() => exportSetlistPdf(currentSetlist, songs, { mode: 'full' })}
               clockFormat={settings?.clockFormat || '12h'}
               onPlay={() => goSetlistPerformance(currentSetlist)}
               onPractice={() => goSetlistPractice(currentSetlist)}
-              onDelete={() => handleDeleteSetlist(currentSetlist.id)}
+              onDelete={isTeamReadOnly ? null : () => handleDeleteSetlist(currentSetlist.id)}
             />
           )}
           {view === 'setlist-build' && (
@@ -1587,7 +1589,7 @@ export default function App() {
               setlist={currentSetlist}
               onSave={handleSaveSetlist}
               onBack={goBack}
-              onDelete={currentSetlist ? handleDeleteSetlist : null}
+              onDelete={currentSetlist && !isTeamReadOnly ? handleDeleteSetlist : null}
               isTeamContext={activeLibrary !== 'personal'}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
               clockFormat={settings?.clockFormat || '12h'}

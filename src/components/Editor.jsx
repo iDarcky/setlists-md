@@ -120,7 +120,7 @@ key: C
 
 `;
 
-export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy, activeLibrary, team, importProgress, customSectionTypes }) {
+export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy, activeLibrary, team, importProgress, customSectionTypes, readOnly = false }) {
   const confirm = useConfirm();
 
   // Working copy of the song we're editing. For a new song, songFromFlat
@@ -597,8 +597,8 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
         }}
       >
         <div className="a4-container px-5 py-3 flex items-center justify-end gap-2">
-          <Button variant="ghost" size="md" onClick={handleBack}>Cancel</Button>
-          <Button variant="brand" size="md" onClick={handleSave} disabled={!preview}>Save</Button>
+          <Button variant="ghost" size="md" onClick={handleBack}>{readOnly ? 'Back' : 'Cancel'}</Button>
+          {!readOnly && <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave}>Save</Button>}
         </div>
       </div>
 

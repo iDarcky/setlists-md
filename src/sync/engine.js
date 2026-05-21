@@ -20,7 +20,7 @@ function sanitizeFilename(name) {
 }
 
 
-export function createSyncEngine(onStatusChange, libraryId = 'personal') {
+export function createSyncEngine(onStatusChange, libraryId = 'personal', { readOnly = false } = {}) {
   let syncing = false;
   let debounceTimer = null;
 
@@ -58,7 +58,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal') {
     const syncState = await getSyncState(libraryId);
     if (!syncState.activeProvider) return { songs, setlists, tombstones, changed: false };
 
-    const provider = getProvider(syncState.activeProvider);
+    const provider = getProvider(syncState.activeProvider, { readOnly });
     await ensureAuth(provider, syncState);
     await provider.ensureFolder();
 
@@ -288,7 +288,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal') {
       return { tombstones, tombstonesChanged: false, uploaded: { songs: 0, setlists: 0 }, errors: [] };
     }
 
-    const provider = getProvider(syncState.activeProvider);
+    const provider = getProvider(syncState.activeProvider, { readOnly });
     await ensureAuth(provider, syncState);
     await provider.ensureFolder();
 

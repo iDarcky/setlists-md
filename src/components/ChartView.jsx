@@ -366,6 +366,7 @@ export default function ChartView({
                         </svg>
                       )}
                     />
+                    {onEdit && (
                     <MenuItem
                       onClick={() => runAndClose(onEdit)}
                       label="Edit"
@@ -375,6 +376,7 @@ export default function ChartView({
                         </svg>
                       )}
                     />
+                    )}
                     {onToggleFullscreen && (
                       <MenuItem
                         onClick={() => runAndClose(onToggleFullscreen)}

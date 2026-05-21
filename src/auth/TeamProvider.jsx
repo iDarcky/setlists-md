@@ -81,18 +81,33 @@ export function TeamProvider({ children }) {
         let membersWithProfiles = memberRows || [];
 
         if (membersWithProfiles.length > 0) {
-          const userIds = membersWithProfiles.map(m => m.user_id);
+          // Use security-definer RPC to reliably fetch member profiles.
+          // This bypasses profiles RLS so team members can see each other's
+          // names and emails (the email falls back to auth.users).
           const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, display_name, email')
-            .in('id', userIds);
+            .rpc('get_team_member_profiles', { p_team_id: membership.team_id });
 
-          if (profiles) {
-            const profileMap = profiles.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
+          if (profiles && profiles.length > 0) {
+            const profileMap = profiles.reduce((acc, p) => ({ ...acc, [p.user_id]: p }), {});
             membersWithProfiles = membersWithProfiles.map(m => ({
               ...m,
               profile: profileMap[m.user_id] || null
             }));
+          } else {
+            // Fallback: try direct profiles query (works for own profile at least)
+            const userIds = membersWithProfiles.map(m => m.user_id);
+            const { data: fallbackProfiles } = await supabase
+              .from('profiles')
+              .select('id, display_name, email')
+              .in('id', userIds);
+
+            if (fallbackProfiles) {
+              const profileMap = fallbackProfiles.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
+              membersWithProfiles = membersWithProfiles.map(m => ({
+                ...m,
+                profile: profileMap[m.user_id] || null
+              }));
+            }
           }
         }
 

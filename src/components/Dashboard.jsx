@@ -164,8 +164,8 @@ export default function Dashboard({
           </div>
 
           <div className="flex items-center gap-2 mt-2 sm:mt-0 hidden sm:flex">
-            <Button variant="secondary" onClick={onNewSong}>New Song</Button>
-            <Button variant="brand" onClick={onNewSetlist}>New Setlist</Button>
+            {onNewSong && <Button variant="secondary" onClick={onNewSong}>New Song</Button>}
+            {onNewSetlist && <Button variant="brand" onClick={onNewSetlist}>New Setlist</Button>}
           </div>
         </div>
       </div>
@@ -361,9 +361,11 @@ export default function Dashboard({
                 <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">
                   Your library is empty.
                 </p>
-                <Button variant="brand" size="sm" onClick={onNewSong}>
-                  Add Your First Song
-                </Button>
+                {onNewSong && (
+                  <Button variant="brand" size="sm" onClick={onNewSong}>
+                    Add Your First Song
+                  </Button>
+                )}
               </div>
             )}
           </div>

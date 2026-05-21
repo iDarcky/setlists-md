@@ -164,7 +164,8 @@ export default function MobileTopBar({
             </div>
           </div>
 
-          {/* Brand + button */}
+          {/* Brand + button — hidden when no create actions available (read-only members) */}
+          {(onNewSong || onNewSetlist) && (
           <div ref={addRef} className="relative shrink-0">
             <button
               onClick={handlePlus}
@@ -176,6 +177,7 @@ export default function MobileTopBar({
             </button>
             {addOpen && (
               <div className="absolute top-full right-0 mt-2 w-52 rounded-xl border border-[var(--border-1)] bg-[var(--bg-1)] shadow-xl overflow-hidden z-50 animate-[fadeIn_120ms_ease-out]">
+                {onNewSong && (
                 <button
                   onClick={() => { setAddOpen(false); onNewSong?.(); }}
                   className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left text-copy-14 text-[var(--text-1)] cursor-pointer hover:bg-[var(--bg-2)]"
@@ -187,7 +189,9 @@ export default function MobileTopBar({
                   </svg>
                   New Song
                 </button>
-                <div className="h-px bg-[var(--border-1)]" />
+                )}
+                {onNewSong && onNewSetlist && <div className="h-px bg-[var(--border-1)]" />}
+                {onNewSetlist && (
                 <button
                   onClick={() => { setAddOpen(false); onNewSetlist?.(); }}
                   className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left text-copy-14 text-[var(--text-1)] cursor-pointer hover:bg-[var(--bg-2)]"
@@ -202,9 +206,11 @@ export default function MobileTopBar({
                   </svg>
                   New Setlist
                 </button>
+                )}
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
 

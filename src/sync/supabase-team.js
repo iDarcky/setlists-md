@@ -1,7 +1,7 @@
 import { supabase } from '../auth/supabase';
 import { SONGS_FOLDER, SETLISTS_FOLDER } from './constants';
 
-export function createSupabaseTeamProvider(teamId) {
+export function createSupabaseTeamProvider(teamId, { readOnly = false } = {}) {
   if (!teamId) throw new Error('Team ID is required for SupabaseTeamProvider');
 
   let _tokens = null;
@@ -121,6 +121,15 @@ export function createSupabaseTeamProvider(teamId) {
     },
 
     async uploadFile(folder, name, content, mimeType, existingId) {
+      // Members have read-only access — skip writes silently.
+      if (readOnly) {
+        console.log('[supabase-team] Read-only mode, skipping upload for:', name);
+        return {
+          id: existingId || 'read-only-skip',
+          name,
+          modifiedTime: new Date().toISOString()
+        };
+      }
       // engine.js passes the raw content. For setlists it's JSON, for songs it's Markdown.
       // We use existingId (the manifest's remoteId) as the primary key for updates.
       // Falls back to title/name lookup only for first-time uploads (no manifest entry yet).
@@ -277,6 +286,11 @@ export function createSupabaseTeamProvider(teamId) {
     },
 
     async deleteFile(fileId) {
+      // Members have read-only access — skip deletes silently.
+      if (readOnly) {
+        console.log('[supabase-team] Read-only mode, skipping delete for:', fileId);
+        return;
+      }
       // Try deleting from both
       await supabase.from('team_songs').delete().eq('id', fileId).eq('team_id', teamId);
       await supabase.from('team_setlists').delete().eq('id', fileId).eq('team_id', teamId);

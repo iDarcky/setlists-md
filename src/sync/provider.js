@@ -31,13 +31,19 @@ const providers = {
 
 let cachedProviders = {};
 
-export function getProvider(name) {
+export function getProvider(name, options = {}) {
   if (name.startsWith('supabase-team:')) {
-    if (!cachedProviders[name]) {
+    // Include readOnly in the cache key so switching roles invalidates the cached provider.
+    const cacheKey = options.readOnly ? `${name}:ro` : name;
+    // Also invalidate the opposite cache entry if it exists.
+    const oppositeCacheKey = options.readOnly ? name : `${name}:ro`;
+    delete cachedProviders[oppositeCacheKey];
+
+    if (!cachedProviders[cacheKey]) {
       const teamId = name.split(':')[1];
-      cachedProviders[name] = createSupabaseTeamProvider(teamId);
+      cachedProviders[cacheKey] = createSupabaseTeamProvider(teamId, { readOnly: !!options.readOnly });
     }
-    return cachedProviders[name];
+    return cachedProviders[cacheKey];
   }
 
   if (!providers[name]) {
