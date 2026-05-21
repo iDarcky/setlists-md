@@ -223,7 +223,9 @@ export default function Dashboard({
                       <div className="flex flex-col">
                         <span className="text-copy-16 font-bold">{sl.name}</span>
                         <span className="text-label-13 text-[var(--modes-text-muted)]">
-                          {new Date(sl.date + 'T' + (sl.time || '00:00')).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })} • {schedule.role}
+                          {sl.date 
+                            ? new Date(sl.date + 'T' + (sl.time || '00:00')).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) 
+                            : 'Date TBD'} {schedule.role ? `• ${schedule.role}` : ''}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
