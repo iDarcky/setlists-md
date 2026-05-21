@@ -31,6 +31,7 @@ import { usePWAUpdate } from './hooks/usePWAUpdate';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import { useTeamRealtime } from './hooks/useTeamRealtime';
 import { useChartTheme } from './hooks/useChartTheme';
+import { useTeamSchedules } from './hooks/useTeamSchedules';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 
@@ -139,6 +140,7 @@ function prefsEqual(a, b) {
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
   const { team, isAdmin, isEditor, isMember } = useTeam();
+  const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const canEdit = !team || isAdmin || isEditor;
   const isTeamAdmin = isAdmin;
   const confirm = useConfirm();
@@ -782,8 +784,6 @@ export default function App() {
   const toggleFullscreen = useCallback(() => setIsFullscreen(f => !f), []);
 
   // Notification system
-  const hasUnreadNotifications = settings?.notifications?.some(n => !n.read) ?? false;
-
   const handleMarkNotificationRead = useCallback((notifId) => {
     setSettings(prev => ({
       ...prev,
@@ -794,12 +794,35 @@ export default function App() {
   }, []);
 
   const handleNotificationAction = (action) => {
-    if (action?.type === 'navigate') {
-      navigate(action.view);
-    }
+    // Actions are usually strings like "view_setlist_123" or similar
+    // Actually the action might not have been implemented in previous iterations.
+    // If we have an actionable notification, we can handle it here if it's not handled internally by the tray
   };
 
-  // Navigation shortcuts
+  // --- Compute Virtual Notifications ---
+  // Pending schedules for the current user are merged into the local notifications array
+  const pendingSchedules = schedules?.filter(s => s.user_id === user?.id && s.availability === 'pending') || [];
+  const virtualNotifications = pendingSchedules.map(s => {
+    // Attempt to find the setlist name
+    const setlist = setlists.find(sl => sl.id === s.setlist_id) || { name: 'a setlist' };
+    return {
+      id: `schedule-${s.id}`,
+      type: 'schedule_request',
+      title: 'You have been scheduled!',
+      message: `You are scheduled for "${setlist.name}"${s.role ? ` as ${s.role}` : ''}.`,
+      read: false,
+      scheduleId: s.id,
+      setlistId: s.setlist_id,
+    };
+  });
+
+  const mergedNotifications = [
+    ...virtualNotifications,
+    ...(settings?.notifications || [])
+  ];
+
+  const hasUnreadNotifications = mergedNotifications.some(n => !n.read);
+
   const goLibrary = () => goToMainView('library');
   const goSetlists = () => goToMainView('setlists');
   const goChart = (song) => {
@@ -1411,7 +1434,7 @@ export default function App() {
           isFullscreen={view === 'setlist-performance' || view === 'setlist-play' || view === 'setlist-practice' || (isFullscreen && (view === 'library' || view === 'setlists'))}
           hideBanner={view === 'setlist-performance' || view === 'setlist-play' || view === 'setlist-practice'}
           hasUnreadNotifications={hasUnreadNotifications} 
-          notifications={settings?.notifications || []} 
+          notifications={mergedNotifications} 
           onMarkRead={handleMarkNotificationRead} 
           onNotificationAction={handleNotificationAction} 
           drawerOpen={drawerOpen} 
@@ -1807,7 +1830,8 @@ export default function App() {
         <NotificationTray
           open={notifTrayOpen}
           onClose={() => setNotifTrayOpen(false)}
-          notifications={settings?.notifications || []}
+          notifications={mergedNotifications}
+          onUpdateSchedule={updateSchedule}
           onMarkRead={handleMarkNotificationRead}
           onAction={(action) => {
             setNotifTrayOpen(false);
