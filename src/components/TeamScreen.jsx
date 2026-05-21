@@ -126,7 +126,7 @@ function CreateTeamForm({ onCreate }) {
 
 // ── Team Dashboard ──────────────────────────────────────────────────────────
 
-function MemberRow({ member, isCurrentUser, isAdmin, onRemove }) {
+function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
   const isOwner = member.role === 'admin';
   const profile = member.profile || {};
   const displayName = profile.display_name || profile.email?.split('@')[0] || member.user_id?.slice(0, 8);
@@ -158,13 +158,12 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove }) {
           )}
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
-          {isOwner && (
+          {isOwner ? (
             <span className="inline-flex items-center gap-1 text-label-11 font-semibold" style={{ color: 'var(--color-brand)' }}>
               <CrownIcon /> Admin
             </span>
-          )}
-          {!isOwner && (
-            <span className="text-label-11 text-[var(--ds-gray-500)]">Member</span>
+          ) : (
+            <span className="text-label-11 font-medium text-[var(--ds-gray-600)] capitalize">{member.role || 'Member'}</span>
           )}
           {profile.email && (
             <>
@@ -175,14 +174,25 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove }) {
         </div>
       </div>
 
-      {isAdmin && !isCurrentUser && !isOwner && (
-        <button
-          onClick={() => onRemove(member.id)}
-          className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border border-[var(--ds-gray-300)] cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-red-700)] hover:border-[var(--ds-red-400)] transition-colors"
-          title="Remove member"
-        >
-          <TrashIcon />
-        </button>
+      {isAdmin && !isCurrentUser && (
+        <div className="flex items-center gap-3">
+          <select
+            value={member.role || 'member'}
+            onChange={(e) => onRoleChange(member.id, e.target.value)}
+            className="bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md px-2 py-1 text-label-11 font-medium text-[var(--ds-gray-700)] outline-none cursor-pointer hover:border-[var(--ds-gray-400)] focus:border-[var(--color-brand)] transition-colors"
+          >
+            <option value="admin">Admin</option>
+            <option value="editor">Editor</option>
+            <option value="member">Member</option>
+          </select>
+          <button
+            onClick={() => onRemove(member.id)}
+            className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border border-[var(--ds-gray-300)] cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-red-700)] hover:border-[var(--ds-red-400)] transition-colors"
+            title="Remove member"
+          >
+            <TrashIcon />
+          </button>
+        </div>
       )}
     </div>
   );
@@ -233,6 +243,7 @@ function InviteRow({ invite, isAdmin, onCancel }) {
 
 function InviteForm({ onInvite, seatsLeft }) {
   const [userId, setUserId] = useState('');
+  const [role, setRole] = useState('member');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -242,8 +253,9 @@ function InviteForm({ onInvite, seatsLeft }) {
     setBusy(true);
     setMessage(null);
     try {
-      await onInvite(userId.trim());
+      await onInvite(userId.trim(), role);
       setUserId('');
+      setRole('member');
       setMessage({ kind: 'info', text: 'Member added successfully.' });
     } catch (err) {
       setMessage({ kind: 'error', text: err.message || 'Could not add member.' });
@@ -274,6 +286,15 @@ function InviteForm({ onInvite, seatsLeft }) {
           placeholder="Email address"
           className="flex-1"
         />
+        <select
+          value={role}
+          onChange={e => setRole(e.target.value)}
+          className="bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md px-3 text-copy-14 text-[var(--ds-gray-900)] outline-none cursor-pointer focus:border-[var(--color-brand)] transition-colors"
+        >
+          <option value="admin">Admin</option>
+          <option value="editor">Editor</option>
+          <option value="member">Member</option>
+        </select>
         <Button type="submit" variant="brand" size="md" disabled={busy || !userId.trim() || seatsLeft <= 0}>
           <PlusIcon />
           <span className="ml-1">{busy ? 'Adding…' : 'Add'}</span>
@@ -444,7 +465,7 @@ function EditTeamForm({ team, onUpdate }) {
   );
 }
 
-function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemove, onInvite, onCancelInvite, onLeave, onDelete, onUpdate }) {
+function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemove, onRoleChange, onInvite, onCancelInvite, onLeave, onDelete, onUpdate }) {
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState('members');
   const seatsLeft = (team.max_seats || 10) - members.length - (invites?.length || 0);
@@ -526,6 +547,7 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
                     isCurrentUser={member.user_id === currentUserId}
                     isAdmin={isAdmin}
                     onRemove={onRemove}
+                    onRoleChange={onRoleChange}
                   />
                 ))}
                 {invites?.map(invite => (
@@ -593,7 +615,7 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
 
 export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary }) {
   const { user } = useAuth();
-  const { team, members, invites, isAdmin, loading, createTeam, inviteMember, removeMember, cancelInvite, leaveTeam, deleteTeam, hasTeamPlan, updateTeam } = useTeam();
+  const { team, members, invites, isAdmin, loading, createTeam, inviteMember, removeMember, updateMemberRole, cancelInvite, leaveTeam, deleteTeam, hasTeamPlan, updateTeam } = useTeam();
 
   const handleCreateTeam = async (data) => {
     const newTeam = await createTeam(data);
@@ -618,6 +640,7 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary }) {
           isAdmin={isAdmin}
           currentUserId={user?.id}
           onRemove={removeMember}
+          onRoleChange={updateMemberRole}
           onInvite={inviteMember}
           onCancelInvite={cancelInvite}
           onUpdate={updateTeam}

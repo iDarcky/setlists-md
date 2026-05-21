@@ -138,7 +138,9 @@ function prefsEqual(a, b) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const { team, isAdmin: isTeamAdmin } = useTeam();
+  const { team, isAdmin, isEditor, isMember } = useTeam();
+  const canEdit = !team || isAdmin || isEditor;
+  const isTeamAdmin = isAdmin;
   const confirm = useConfirm();
   // PWA update prompt — toast appears when a new SW is downloaded.
   usePWAUpdate();
@@ -232,7 +234,7 @@ export default function App() {
   }, [team, activeLibrary]);
 
   // Initialize sync engine for the active library
-  const isTeamReadOnly = activeLibrary !== 'personal' && !isTeamAdmin;
+  const isTeamReadOnly = activeLibrary !== 'personal' && !isAdmin && !isEditor;
   useEffect(() => {
     if (syncEngineRef.current) {
       syncEngineRef.current.cancelDebounce();
@@ -1463,6 +1465,7 @@ export default function App() {
                 signIn: () => { setAuthStartMode('signin'); navigate('signin'); },
               }}
               onDismissChecklist={() => setSettings(prev => ({ ...prev, checklistDismissed: true }))}
+              canEdit={canEdit}
             />
           )}
           {view === 'library' && (
@@ -1486,6 +1489,7 @@ export default function App() {
                 duplicateSections: settings?.duplicateSections || 'full',
                 chartLayout: settings?.chartLayout || 'columns',
               }}
+              canEdit={canEdit}
             />
           )}
           {view === 'setlists' && (
@@ -1566,6 +1570,15 @@ export default function App() {
               activeLibrary={activeLibrary}
               team={team}
               readOnly={isTeamReadOnly}
+              chartDefaults={{
+                defaultColumns: settings?.defaultColumns,
+                defaultFontSize: settings?.defaultFontSize,
+                showInlineNotes: settings?.showInlineNotes !== false,
+                inlineNoteStyle: settings?.inlineNoteStyle || 'dashes',
+                displayRole: settings?.displayRole || 'leader',
+                duplicateSections: settings?.duplicateSections || 'full',
+                chartLayout: settings?.chartLayout || 'columns',
+              }}
             />
           )}
           {view === 'setlist-view' && currentSetlist && (
@@ -1581,6 +1594,7 @@ export default function App() {
               onPlay={() => goSetlistPerformance(currentSetlist)}
               onPractice={() => goSetlistPractice(currentSetlist)}
               onDelete={isTeamReadOnly ? null : () => handleDeleteSetlist(currentSetlist.id)}
+              canEdit={canEdit}
             />
           )}
           {view === 'setlist-build' && (

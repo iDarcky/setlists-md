@@ -636,6 +636,16 @@
     padding-left: 32px;
     padding-right: 32px;
   }
+
+  /* Wide Layout for Editor and Performers */
+  .wide-container {
+    width: 100%;
+    max-width: 1600px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 32px;
+    padding-right: 32px;
+  }
 }
 
 /* Responsive: phone — larger touch targets */

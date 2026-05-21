@@ -76,6 +76,32 @@ export default function StructureEditor({ value, availableSections, onChange }) 
   };
   const handleDragEnd = () => setDraggingIdx(null);
 
+  const handleTouchStart = (idx) => (e) => {
+    if (e.target.closest('button')) return;
+    setDraggingIdx(idx);
+  };
+
+  const handleTouchMove = (e) => {
+    if (draggingIdx === null) return;
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (el) {
+      const chip = el.closest('[data-drag-idx]');
+      if (chip) {
+        const hoverIdx = parseInt(chip.dataset.dragIdx, 10);
+        if (hoverIdx !== draggingIdx) {
+          const next = items.slice();
+          const [moved] = next.splice(draggingIdx, 1);
+          next.splice(hoverIdx, 0, moved);
+          setDraggingIdx(hoverIdx);
+          commit(next);
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = () => setDraggingIdx(null);
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
@@ -114,13 +140,18 @@ export default function StructureEditor({ value, availableSections, onChange }) 
         {items.map((name, idx) => (
           <span
             key={`${name}-${idx}`}
+            data-drag-idx={idx}
             draggable
             onDragStart={handleDragStart(idx)}
             onDragOver={handleDragOver(idx)}
             onDragEnd={handleDragEnd}
+            onTouchStart={handleTouchStart(idx)}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
             title={name}
             className={
-              'inline-flex items-center gap-1 px-2 py-1 rounded-md text-label-12 font-mono cursor-grab active:cursor-grabbing select-none ' +
+              'inline-flex items-center gap-1 px-2 py-1 rounded-md text-label-12 font-mono cursor-grab active:cursor-grabbing select-none touch-none ' +
               'bg-[var(--color-brand-soft)] border border-[var(--color-brand-border)] text-[var(--color-brand-text)] ' +
               (draggingIdx === idx ? 'opacity-50' : '')
             }

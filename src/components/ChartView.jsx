@@ -263,10 +263,10 @@ export default function ChartView({
   return (
     <div
       ref={scrollContainerRef}
-      style={isPreview ? undefined : CHART_THEME_STYLE}
+      style={CHART_THEME_STYLE}
       className={cn(
         "h-[100dvh] overflow-y-auto overflow-x-hidden",
-        isPreview && "h-auto overflow-visible bg-transparent"
+        isPreview && "h-full overflow-y-auto overflow-x-hidden px-4 py-4"
       )}
     >
       {/* ── Sticky Header ── */}
@@ -286,7 +286,7 @@ export default function ChartView({
               collapse was causing the title to flicker for some users.
               Compact "Line-2" content collapses on scroll but the title
               itself doesn't resize. */}
-          <div className="a4-container flex items-center justify-between gap-3 pt-3 pb-0.5">
+          <div className="wide-container flex items-center justify-between gap-3 pt-3 pb-0.5">
             <div className="min-w-0 flex-1 flex items-baseline gap-3">
               <h1
                 className="m-0 truncate font-bold leading-tight text-heading-24"
@@ -411,7 +411,7 @@ export default function ChartView({
 
           {/* Line 2: Arrangement + Key / Tempo / Time — collapses when scrolled */}
           <div className={cn(
-            "a4-container flex flex-wrap items-center gap-3 transition-all duration-200 overflow-hidden",
+            "wide-container flex flex-wrap items-center gap-3 transition-all duration-200 overflow-hidden",
             scrolled ? "max-h-0 opacity-0 pb-0" : "max-h-12 opacity-100 pb-1.5"
           )}>
             {song._arrangementId && (song._allArrangements?.length || 0) > 1 ? (
@@ -472,7 +472,7 @@ export default function ChartView({
           </div>
 
           {/* Structure ribbon — always visible */}
-          <div className="a4-container pb-2">
+          <div className="wide-container pb-2">
             <StructureRibbon
               structure={orderedSections.map(s => s.type)}
               compact
@@ -488,7 +488,7 @@ export default function ChartView({
 
           {/* Song notes peek strip — collapsible, hidden when song has no notes */}
           {song.notes && (
-            <div className="a4-container pb-2">
+            <div className="wide-container pb-2">
               {notesPeekOpen ? (
                 <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]">
                   <span className="shrink-0 mt-0.5 text-[var(--ds-gray-600)]" aria-hidden="true">
@@ -696,8 +696,8 @@ export default function ChartView({
       )}
 
       <div className={cn(
-        "pt-4 pb-24 a4-container",
-        isPreview && "px-0 pt-0 pb-0 a4-container"
+        "pt-4 pb-24 wide-container",
+        isPreview && "px-0 pt-0 pb-0 wide-container"
       )}>
         {/* ── Chord Diagrams Strip ── */}
         {showDiagrams && !isPreview && (

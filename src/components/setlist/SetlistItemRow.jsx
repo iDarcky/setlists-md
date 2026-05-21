@@ -14,6 +14,7 @@ export default function SetlistItemRow({
   dragHandleProps,
   rawSong,
   onSelectArrangement,
+  onMoveUp, onMoveDown, isFirst, isLast,
 }) {
   const [expanded, setExpanded] = useState(false);
   const [breakNotesOpen, setBreakNotesOpen] = useState(() => Boolean(item.type === 'break' && item.note));
@@ -29,14 +30,36 @@ export default function SetlistItemRow({
         aria-label="Break"
       >
         <div className="flex items-center gap-2 px-3 py-2">
-          {/* Drag handle */}
-          <span
-            {...dragHandleProps}
-            className="text-[var(--ds-gray-500)] cursor-grab active:cursor-grabbing shrink-0 select-none"
-            aria-label="Drag to reorder"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
-          </span>
+          {/* Drag handle + reorder buttons */}
+          <div className="flex flex-col items-center shrink-0 gap-0" style={{ marginRight: '-2px' }}>
+            <button
+              type="button"
+              onClick={() => onMoveUp && onMoveUp()}
+              disabled={isFirst}
+              aria-label="Move up"
+              className="p-0 border-none bg-transparent cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] disabled:opacity-25 disabled:cursor-default transition-colors"
+              style={{ lineHeight: 0 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+            </button>
+            <span
+              {...dragHandleProps}
+              className="text-[var(--ds-gray-500)] cursor-grab active:cursor-grabbing select-none"
+              aria-label="Drag to reorder"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+            </span>
+            <button
+              type="button"
+              onClick={() => onMoveDown && onMoveDown()}
+              disabled={isLast}
+              aria-label="Move down"
+              className="p-0 border-none bg-transparent cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] disabled:opacity-25 disabled:cursor-default transition-colors"
+              style={{ lineHeight: 0 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+          </div>
 
           {/* Pause icon — visual cue that this is a break, not a list item */}
           <span className="text-[var(--ds-gray-600)] shrink-0" aria-hidden="true">
@@ -102,7 +125,10 @@ export default function SetlistItemRow({
               onClick={() => onRemove(idx)}
               aria-label="Remove break"
             >
-              ✕
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
             </IconButton>
           </div>
         </div>
@@ -137,14 +163,36 @@ export default function SetlistItemRow({
     return (
       <div className="material-card overflow-hidden opacity-60">
         <div className="flex items-center gap-3 px-4 py-3 cursor-not-allowed">
-          <span
-            {...dragHandleProps}
-            className="text-[var(--ds-gray-500)] cursor-grab active:cursor-grabbing shrink-0 select-none"
-            aria-label="Drag to reorder"
-            onClick={e => e.stopPropagation()}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
-          </span>
+          <div className="flex flex-col items-center shrink-0 gap-0" style={{ marginRight: '-2px' }}>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onMoveUp && onMoveUp(); }}
+              disabled={isFirst}
+              aria-label="Move up"
+              className="p-0 border-none bg-transparent cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] disabled:opacity-25 disabled:cursor-default transition-colors"
+              style={{ lineHeight: 0 }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+            </button>
+            <span
+              {...dragHandleProps}
+              className="text-[var(--ds-gray-500)] cursor-grab active:cursor-grabbing select-none"
+              aria-label="Drag to reorder"
+              onClick={e => e.stopPropagation()}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+            </span>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onMoveDown && onMoveDown(); }}
+              disabled={isLast}
+              aria-label="Move down"
+              className="p-0 border-none bg-transparent cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] disabled:opacity-25 disabled:cursor-default transition-colors"
+              style={{ lineHeight: 0 }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+          </div>
           <span className="text-label-14 text-[var(--ds-gray-500)] tabular-nums w-7 text-center shrink-0">
             {String(songNum != null ? songNum : idx + 1).padStart(2, '0')}
           </span>
@@ -170,18 +218,40 @@ export default function SetlistItemRow({
     <div className="material-card overflow-hidden">
       {/* Collapsed row — always visible */}
       <div
-        className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[var(--ds-gray-alpha-100)] transition-colors"
+        className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--ds-gray-alpha-100)] transition-colors"
         onClick={() => setExpanded(e => !e)}
       >
-        {/* Drag handle */}
-        <span
-          {...dragHandleProps}
-          className="text-[var(--ds-gray-500)] cursor-grab active:cursor-grabbing shrink-0 select-none"
-          aria-label="Drag to reorder"
-          onClick={e => e.stopPropagation()}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
-        </span>
+        {/* Drag handle + reorder buttons */}
+        <div className="flex flex-col items-center shrink-0 gap-0" style={{ marginRight: '-2px' }}>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onMoveUp && onMoveUp(); }}
+            disabled={isFirst}
+            aria-label="Move up"
+            className="p-0 border-none bg-transparent cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] disabled:opacity-25 disabled:cursor-default transition-colors"
+            style={{ lineHeight: 0 }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+          </button>
+          <span
+            {...dragHandleProps}
+            className="text-[var(--ds-gray-500)] cursor-grab active:cursor-grabbing select-none"
+            aria-label="Drag to reorder"
+            onClick={e => e.stopPropagation()}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+          </span>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onMoveDown && onMoveDown(); }}
+            disabled={isLast}
+            aria-label="Move down"
+            className="p-0 border-none bg-transparent cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] disabled:opacity-25 disabled:cursor-default transition-colors"
+            style={{ lineHeight: 0 }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+        </div>
 
         <span className="text-label-14 text-[var(--ds-gray-500)] tabular-nums w-7 text-center shrink-0">
           {num}
@@ -191,16 +261,16 @@ export default function SetlistItemRow({
           <p className="text-heading-14 text-[var(--ds-gray-1000)] m-0 truncate">
             {song.title}
           </p>
-          {/* Show the song's section flow instead of the artist — much more
-              actionable in a setlist context. Falls back to nothing when the
-              song has no structure or sections. */}
+          {/* Show the song's arrangement name instead of structure flow */}
           {(() => {
-            const flow = (song.structure || song.sections?.map(s => s.type) || []).join(' · ');
-            return flow ? (
+            const hasMultiple = rawSong?.arrangements?.length > 1;
+            if (!hasMultiple) return null;
+            const arrangementName = rawSong.arrangements.find(a => a.id === (item.arrangementId || rawSong?.defaultArrangementId))?.name || 'Main Arrangement';
+            return (
               <p className="text-copy-12 text-[var(--ds-gray-700)] m-0 mt-0.5 truncate">
-                {flow}
+                {arrangementName}
               </p>
-            ) : null;
+            );
           })()}
         </div>
 
@@ -216,6 +286,17 @@ export default function SetlistItemRow({
           >
             <path d="m6 9 6 6 6-6" />
           </svg>
+          <IconButton
+            size="xs"
+            variant="error"
+            onClick={(e) => { e.stopPropagation(); onRemove(idx); }}
+            aria-label="Remove song"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </IconButton>
         </div>
       </div>
 
@@ -302,6 +383,20 @@ export default function SetlistItemRow({
             />
           </div>
 
+          {/* Structure (read-only) */}
+          {(() => {
+            const flow = (song.structure || song.sections?.map(s => s.type) || []).join(' · ');
+            if (!flow) return null;
+            return (
+              <div className="flex flex-col gap-0.5 w-full mt-2">
+                <span className="text-label-10 text-[var(--ds-gray-600)] uppercase">Structure</span>
+                <p className="text-copy-13 text-[var(--ds-gray-900)] m-0 font-medium whitespace-normal">
+                  {flow}
+                </p>
+              </div>
+            );
+          })()}
+
           {/* Remove */}
           <IconButton
             size="sm"
@@ -309,9 +404,7 @@ export default function SetlistItemRow({
             onClick={() => onRemove(idx)}
             aria-label="Remove song"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
+            ✕
           </IconButton>
         </div>
       )}

@@ -3,6 +3,7 @@ import { transposeKey, compactLabel } from '../music';
 import { resolveSongView } from '../arrangements';
 import { Chip } from './ui/Chip';
 import { IconButton } from './ui/IconButton';
+import { Button } from './ui/Button';
 import ExportSetlistDialog from './ExportSetlistDialog';
 import { useTeam } from '../auth/useTeam';
 import RosterPanel from './setlist/RosterPanel';
@@ -10,7 +11,7 @@ import { headerFrostStyle } from '../lib/headerFrost';
 import { formatClockTime } from '../lib/dateFormat';
 import { useConfirm } from './ui/useConfirmHook';
 
-export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h' }) {
+export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true }) {
   const confirm = useConfirm();
   const { team, isAdmin } = useTeam();
   const [showRoster, setShowRoster] = useState(false);
@@ -21,6 +22,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
   };
   const [collapsed, setCollapsed] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [showDetails, setShowDetails] = useState(true);
 
   useEffect(() => {
     const onScroll = () => setCollapsed(window.scrollY > 60);
@@ -180,7 +182,18 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
 
       {/* ── Set order ── */}
       <div className="a4-container pt-6 pb-4">
-        <p className="section-title m-0 mb-4">Set Order</p>
+        <div className="flex items-center justify-between mb-4">
+          <p className="section-title m-0">Set Order</p>
+          <label className="flex items-center gap-2 cursor-pointer text-label-12 text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] transition-colors select-none">
+            <input
+              type="checkbox"
+              checked={showDetails}
+              onChange={(e) => setShowDetails(e.target.checked)}
+              className="w-3.5 h-3.5 accent-[var(--color-brand)] cursor-pointer m-0 rounded-sm"
+            />
+            Show details
+          </label>
+        </div>
 
         <div className="flex flex-col gap-2">
           {setlist.items.map((item, idx) => {
@@ -248,7 +261,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                   </p>
                   {/* Show the song's section flow instead of the artist — the
                       structure is the actionable bit in a setlist context. */}
-                  {(() => {
+                  {showDetails && (() => {
                     const names = song.structure || song.sections?.map(s => s.type) || [];
                     const flow = names.map(n => compactLabel(n)).join(' · ');
                     return flow ? (
@@ -257,7 +270,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                       </p>
                     ) : null;
                   })()}
-                  {item.note && (
+                  {showDetails && item.note && (
                     <p className="text-copy-12 text-[var(--ds-gray-600)] italic m-0 mt-1 whitespace-pre-wrap break-words">
                       {item.note}
                     </p>
@@ -273,9 +286,11 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                     )}
                     {displayKey}
                   </span>
-                  <span className="text-label-11 text-[var(--ds-gray-600)] tabular-nums">
-                    {song.tempo} BPM
-                  </span>
+                  {showDetails && (
+                    <span className="text-label-11 text-[var(--ds-gray-600)] tabular-nums">
+                      {song.tempo} BPM
+                    </span>
+                  )}
                 </div>
               </div>
             );
@@ -284,17 +299,11 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
       </div>
 
       {/* ── Delete ── */}
-      {onDelete && (
-        <div className="a4-container flex justify-center pt-2 pb-8">
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={handleDelete}
-            onKeyDown={(e) => e.key === 'Enter' && handleDelete()}
-            className="text-label-11 text-[var(--ds-error-600)] hover:text-[var(--ds-error-900)] uppercase tracking-widest cursor-pointer transition-colors select-none"
-          >
+      {canEdit && onDelete && (
+        <div className="px-5 py-6 mt-12 mb-8 mx-auto max-w-sm flex justify-center border-t border-[var(--modes-border-dashed)] border-dashed">
+          <Button variant="danger" onClick={handleDelete} className="w-full justify-center">
             Delete Setlist
-          </span>
+          </Button>
         </div>
       )}
 
