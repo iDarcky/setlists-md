@@ -258,16 +258,14 @@ export default function SetlistItemRow({
           <p className="text-heading-14 text-[var(--ds-gray-1000)] m-0 truncate">
             {song.title}
           </p>
-          {/* Show the song's section flow instead of the artist — much more
-              actionable in a setlist context. Falls back to nothing when the
-              song has no structure or sections. */}
+          {/* Show the song's arrangement name instead of structure flow */}
           {(() => {
-            const flow = (song.structure || song.sections?.map(s => s.type) || []).join(' · ');
-            return flow ? (
+            const arrangementName = rawSong?.arrangements?.find(a => a.id === (item.arrangementId || rawSong?.defaultArrangementId))?.name || 'Main Arrangement';
+            return (
               <p className="text-copy-12 text-[var(--ds-gray-700)] m-0 mt-0.5 truncate">
-                {flow}
+                {arrangementName}
               </p>
-            ) : null;
+            );
           })()}
         </div>
 
@@ -368,6 +366,20 @@ export default function SetlistItemRow({
               maxLength={100}
             />
           </div>
+
+          {/* Structure (read-only) */}
+          {(() => {
+            const flow = (song.structure || song.sections?.map(s => s.type) || []).join(' · ');
+            if (!flow) return null;
+            return (
+              <div className="flex flex-col gap-0.5 w-full mt-2">
+                <span className="text-label-10 text-[var(--ds-gray-600)] uppercase">Structure</span>
+                <p className="text-copy-13 text-[var(--ds-gray-900)] m-0 font-medium whitespace-normal">
+                  {flow}
+                </p>
+              </div>
+            );
+          })()}
 
           {/* Remove */}
           <IconButton

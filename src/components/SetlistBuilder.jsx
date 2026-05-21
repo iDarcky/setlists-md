@@ -407,7 +407,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
           standard form pattern. Sticky (not fixed) so the bar stops at the
           edge of <main> on desktop instead of running under the sidebar. */}
       <div
-        className="sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)]"
+        className="sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)] w-full"
         style={{
           background: 'var(--header-bg-blur)',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
@@ -415,7 +415,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
           WebkitBackdropFilter: 'blur(20px)',
         }}
       >
-        <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-end gap-2">
+        <div className="w-full px-5 py-3 flex items-center justify-end gap-2">
           <Button variant="ghost" size="md" onClick={onBack}>Cancel</Button>
           <Button variant="brand" size="md" onClick={handleSave}>Save</Button>
         </div>

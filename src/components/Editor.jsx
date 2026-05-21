@@ -588,7 +588,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
 
       {/* ─── Sticky bottom action bar — Cancel + Save, mirrors SetlistBuilder ─── */}
       <div
-        className="sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)]"
+        className="sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)] w-full"
         style={{
           background: 'var(--header-bg-blur)',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
@@ -596,7 +596,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
           WebkitBackdropFilter: 'blur(20px)',
         }}
       >
-        <div className="a4-container px-5 py-3 flex items-center justify-end gap-2">
+        <div className="w-full px-5 py-3 flex items-center justify-end gap-2">
           <Button variant="ghost" size="md" onClick={handleBack}>Cancel</Button>
           <Button variant="brand" size="md" onClick={handleSave} disabled={!preview}>Save</Button>
         </div>
