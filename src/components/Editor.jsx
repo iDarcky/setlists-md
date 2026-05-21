@@ -474,7 +474,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
           collapsible metadata. The toggle and the music meta share one
           row so the header stays compact. ─── */}
       <div className="material-header border-b border-[var(--ds-gray-200)] pb-1" style={headerFrostStyle}>
-        <div className="a4-container pt-2 flex flex-col gap-1">
+        <div className="wide-container pt-2 flex flex-col gap-1">
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
@@ -568,7 +568,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
           existing ChartView in isPreview mode, fed by the parsed `preview`
           state we already maintain for save. ─── */}
       <div className="flex-1 min-h-0 flex w-full overflow-hidden">
-        <div className={`flex-1 min-h-0 flex flex-col a4-container w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
+        <div className={`flex-1 min-h-0 flex flex-col wide-container w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
           {renderTab()}
         </div>
         {showSidePreview && preview && (

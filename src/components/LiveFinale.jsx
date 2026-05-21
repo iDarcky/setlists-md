@@ -112,7 +112,7 @@ export default function LiveFinale({ setlist, sessionStats, onRunAgain, onUpdate
       }}
     >
       <div className="material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
-        <div className="a4-container flex items-center gap-2 py-3">
+        <div className="wide-container flex items-center gap-2 py-3">
           <h1 className="text-heading-16 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
             {setlist.name}
           </h1>
@@ -125,7 +125,7 @@ export default function LiveFinale({ setlist, sessionStats, onRunAgain, onUpdate
         </div>
       </div>
 
-      <div className="a4-container pt-8 pb-12 max-w-2xl mx-auto flex flex-col gap-8">
+      <div className="wide-container pt-8 pb-12 max-w-2xl mx-auto flex flex-col gap-8">
         {/* Headline */}
         <div>
           <h2 className="text-heading-32 sm:text-heading-40 font-serif text-[var(--ds-gray-1000)] m-0 tracking-tight">

@@ -223,7 +223,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
         ) : null;
         return (
           <div className="material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
-            <div className={`a4-container flex items-center gap-2 ${headerCollapsed ? 'py-1.5' : 'py-3'}`}>
+            <div className={`wide-container flex items-center gap-2 ${headerCollapsed ? 'py-1.5' : 'py-3'}`}>
               {!headerCollapsed && (
                 <>
                   {/* Title */}
@@ -283,7 +283,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
 
             {/* Dedicated structure-ribbon row — only when expanded. */}
             {!headerCollapsed && structRibbon && (
-              <div className="a4-container flex items-center gap-1 pb-2 pt-0">
+              <div className="wide-container flex items-center gap-1 pb-2 pt-0">
                 <div className="flex-1 overflow-x-auto no-scrollbar">
                   {structRibbon}
                 </div>
@@ -305,7 +305,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
       })()}
 
       {/* ── Content ── */}
-      <div className="a4-container pt-4 pb-32">
+      <div className="wide-container pt-4 pb-32">
         {cur.isBreak ? (
           <div className="flex flex-col items-center justify-center py-20 min-h-[50vh]">
             <div className="text-heading-32 text-[var(--ds-gray-1000)] mb-2">{cur.label || 'Break'}</div>
