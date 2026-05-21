@@ -283,6 +283,14 @@ export default function SetlistItemRow({
           >
             <path d="m6 9 6 6 6-6" />
           </svg>
+          <IconButton
+            size="xs"
+            variant="error"
+            onClick={(e) => { e.stopPropagation(); onRemove(idx); }}
+            aria-label="Remove song"
+          >
+            ✕
+          </IconButton>
         </div>
       </div>
 
