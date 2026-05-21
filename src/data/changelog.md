@@ -2,6 +2,16 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.5.1-pre-alpha — Role-Based Access Controls & Editor Polish
+*May 2026*
+
+### Added
+- **Team Roles**: Admins can now assign `Editor` or `Member` roles to team members. Editors can modify songs and setlists, while Members have read-only access.
+- **Editor Live Preview**: The song editor now respects your selected Chart Theme in the side-by-side preview.
+- **Song Details**: The metadata panel (Tempo, Key, Time Signature) has been integrated into a collapsing header inside the left-hand editor column.
+- **Setlist UI Polish**: Replaced the trash can icon with a clean `X`, removed structure flow from PDF exports for a cleaner layout, and adjusted setlist padding.
+
+
 ## 0.5.0-pre-alpha — Chart themes, stage modes, BYO-cloud sync
 *May 2026*
 
