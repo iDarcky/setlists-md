@@ -263,10 +263,10 @@ export default function ChartView({
   return (
     <div
       ref={scrollContainerRef}
-      style={isPreview ? undefined : CHART_THEME_STYLE}
+      style={CHART_THEME_STYLE}
       className={cn(
         "h-[100dvh] overflow-y-auto overflow-x-hidden",
-        isPreview && "h-auto overflow-visible bg-transparent"
+        isPreview && "h-full overflow-y-auto overflow-x-hidden px-4 py-4"
       )}
     >
       {/* ── Sticky Header ── */}

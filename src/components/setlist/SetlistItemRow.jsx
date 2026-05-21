@@ -14,6 +14,7 @@ export default function SetlistItemRow({
   dragHandleProps,
   rawSong,
   onSelectArrangement,
+  onMoveUp, onMoveDown, isFirst, isLast,
 }) {
   const [expanded, setExpanded] = useState(false);
   const [breakNotesOpen, setBreakNotesOpen] = useState(() => Boolean(item.type === 'break' && item.note));
@@ -29,14 +30,36 @@ export default function SetlistItemRow({
         aria-label="Break"
       >
         <div className="flex items-center gap-2 px-3 py-2">
-          {/* Drag handle */}
-          <span
-            {...dragHandleProps}
-            className="text-[var(--ds-gray-500)] cursor-grab active:cursor-grabbing shrink-0 select-none"
-            aria-label="Drag to reorder"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
-          </span>
+          {/* Drag handle + reorder buttons */}
+          <div className="flex flex-col items-center shrink-0 gap-0" style={{ marginRight: '-2px' }}>
+            <button
+              type="button"
+              onClick={() => onMoveUp && onMoveUp()}
+              disabled={isFirst}
+              aria-label="Move up"
+              className="p-0 border-none bg-transparent cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] disabled:opacity-25 disabled:cursor-default transition-colors"
+              style={{ lineHeight: 0 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+            </button>
+            <span
+              {...dragHandleProps}
+              className="text-[var(--ds-gray-500)] cursor-grab active:cursor-grabbing select-none"
+              aria-label="Drag to reorder"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+            </span>
+            <button
+              type="button"
+              onClick={() => onMoveDown && onMoveDown()}
+              disabled={isLast}
+              aria-label="Move down"
+              className="p-0 border-none bg-transparent cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] disabled:opacity-25 disabled:cursor-default transition-colors"
+              style={{ lineHeight: 0 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+          </div>
 
           {/* Pause icon — visual cue that this is a break, not a list item */}
           <span className="text-[var(--ds-gray-600)] shrink-0" aria-hidden="true">
@@ -137,14 +160,36 @@ export default function SetlistItemRow({
     return (
       <div className="material-card overflow-hidden opacity-60">
         <div className="flex items-center gap-3 px-4 py-3 cursor-not-allowed">
-          <span
-            {...dragHandleProps}
-            className="text-[var(--ds-gray-500)] cursor-grab active:cursor-grabbing shrink-0 select-none"
-            aria-label="Drag to reorder"
-            onClick={e => e.stopPropagation()}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
-          </span>
+          <div className="flex flex-col items-center shrink-0 gap-0" style={{ marginRight: '-2px' }}>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onMoveUp && onMoveUp(); }}
+              disabled={isFirst}
+              aria-label="Move up"
+              className="p-0 border-none bg-transparent cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] disabled:opacity-25 disabled:cursor-default transition-colors"
+              style={{ lineHeight: 0 }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+            </button>
+            <span
+              {...dragHandleProps}
+              className="text-[var(--ds-gray-500)] cursor-grab active:cursor-grabbing select-none"
+              aria-label="Drag to reorder"
+              onClick={e => e.stopPropagation()}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+            </span>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onMoveDown && onMoveDown(); }}
+              disabled={isLast}
+              aria-label="Move down"
+              className="p-0 border-none bg-transparent cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] disabled:opacity-25 disabled:cursor-default transition-colors"
+              style={{ lineHeight: 0 }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+          </div>
           <span className="text-label-14 text-[var(--ds-gray-500)] tabular-nums w-7 text-center shrink-0">
             {String(songNum != null ? songNum : idx + 1).padStart(2, '0')}
           </span>
@@ -173,15 +218,37 @@ export default function SetlistItemRow({
         className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[var(--ds-gray-alpha-100)] transition-colors"
         onClick={() => setExpanded(e => !e)}
       >
-        {/* Drag handle */}
-        <span
-          {...dragHandleProps}
-          className="text-[var(--ds-gray-500)] cursor-grab active:cursor-grabbing shrink-0 select-none"
-          aria-label="Drag to reorder"
-          onClick={e => e.stopPropagation()}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
-        </span>
+        {/* Drag handle + reorder buttons */}
+        <div className="flex flex-col items-center shrink-0 gap-0" style={{ marginRight: '-2px' }}>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onMoveUp && onMoveUp(); }}
+            disabled={isFirst}
+            aria-label="Move up"
+            className="p-0 border-none bg-transparent cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] disabled:opacity-25 disabled:cursor-default transition-colors"
+            style={{ lineHeight: 0 }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+          </button>
+          <span
+            {...dragHandleProps}
+            className="text-[var(--ds-gray-500)] cursor-grab active:cursor-grabbing select-none"
+            aria-label="Drag to reorder"
+            onClick={e => e.stopPropagation()}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+          </span>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onMoveDown && onMoveDown(); }}
+            disabled={isLast}
+            aria-label="Move down"
+            className="p-0 border-none bg-transparent cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] disabled:opacity-25 disabled:cursor-default transition-colors"
+            style={{ lineHeight: 0 }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+        </div>
 
         <span className="text-label-14 text-[var(--ds-gray-500)] tabular-nums w-7 text-center shrink-0">
           {num}

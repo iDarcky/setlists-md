@@ -121,6 +121,17 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     applyStructural(p => [...p, { type: 'break', label: '', note: '', duration: 0 }]);
   };
   const removeItem = (idx) => applyStructural(p => p.filter((_, i) => i !== idx));
+
+  // Move item up or down by one position (for mobile-friendly reorder buttons)
+  const moveItem = useCallback((fromIdx, toIdx) => {
+    applyStructural(prev => {
+      if (toIdx < 0 || toIdx >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  }, [applyStructural]);
   const updateNote = (idx, note) =>
     setItems(p => p.map((it, i) => i === idx ? { ...it, note } : it));
   const updateTranspose = (idx, val) =>
@@ -334,6 +345,10 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                       onUpdateTranspose={updateTranspose}
                       onUpdateCapo={updateCapo}
                       onUpdateBreakField={updateBreakField}
+                      onMoveUp={() => moveItem(idx, idx - 1)}
+                      onMoveDown={() => moveItem(idx, idx + 1)}
+                      isFirst={idx === 0}
+                      isLast={idx === items.length - 1}
                       dragHandleProps={{
                         onTouchStart: (e) => handleTouchStart(idx, e),
                         onTouchMove: handleTouchMove,

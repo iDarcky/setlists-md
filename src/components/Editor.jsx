@@ -579,7 +579,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
             <div className="px-4 py-2 border-b border-[var(--ds-gray-200)] text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">
               Preview
             </div>
-            <div className="flex-1 min-h-0 px-4 py-4">
+            <div className="flex-1 min-h-0 flex flex-col">
               <ChartView song={preview} isPreview />
             </div>
           </aside>
