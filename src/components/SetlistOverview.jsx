@@ -3,6 +3,7 @@ import { transposeKey, compactLabel } from '../music';
 import { resolveSongView } from '../arrangements';
 import { Chip } from './ui/Chip';
 import { IconButton } from './ui/IconButton';
+import { Button } from './ui/Button';
 import ExportSetlistDialog from './ExportSetlistDialog';
 import { useTeam } from '../auth/useTeam';
 import RosterPanel from './setlist/RosterPanel';
