@@ -87,6 +87,11 @@ export default function RosterPanel({ setlistId, teamSetlistId, setlistDate, onC
 
   const handleAddMember = async (member) => {
     if (!member?.user_id || isAdding) return;
+    if (!teamSetlistId) {
+      console.warn('[roster] No team setlist UUID for local id:', setlistId);
+      toast({ title: 'Sync required', description: 'This setlist needs to sync to the team library before you can manage the roster. Try switching to the team library and syncing first.', variant: 'error' });
+      return;
+    }
     setIsAdding(true);
     setAddingMemberId(member.user_id);
     try {

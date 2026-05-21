@@ -34,11 +34,11 @@ function useIsMobile() {
   );
 }
 
-export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat = '12h', firstDayOfWeek = 'sunday', activeLibrary }) {
+export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
   const { team, members, isAdmin } = useTeam();
   const { user } = useAuth();
   const { availability, setStatus, clearStatus } = useTeamAvailability(team?.id);
-  const { map: setlistIdMap } = useTeamSetlistMap(activeLibrary);
+  const { map: setlistIdMap } = useTeamSetlistMap(team?.id);
   const isMobile = useIsMobile();
 
   const [userPick, setUserPick] = useState(null); // null = follow screen size
