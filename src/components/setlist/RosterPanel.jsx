@@ -194,31 +194,46 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                     {!readOnly && (
                       <div className="flex flex-col gap-1.5">
                         <span className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold">Role</span>
-                        <div className="flex flex-wrap gap-1">
-                          <select
-                            className="w-full bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md text-copy-13 px-2 py-1 outline-none"
-                            value={PREDEFINED_ROLES.includes(schedule.role) ? schedule.role : 'custom'}
-                            onChange={(e) => {
-                              if (e.target.value !== 'custom') {
-                                handleUpdateRole(schedule.id, e.target.value);
-                              }
-                            }}
-                          >
-                            {PREDEFINED_ROLES.map(role => (
-                              <option key={role} value={role}>{role}</option>
-                            ))}
-                            <option value="custom">Custom...</option>
-                          </select>
+                        <div className="flex flex-col gap-1">
+                          {(() => {
+                            let availableRoles = (member?.instruments && member.instruments.length > 0)
+                              ? [...member.instruments]
+                              : [...PREDEFINED_ROLES];
+                            
+                            // Ensure current role is in the list if it matches a predefined one,
+                            // or it will fall into 'custom'.
+                            const isCustom = schedule.role && !availableRoles.includes(schedule.role);
+                            
+                            return (
+                              <>
+                                <select
+                                  className="w-full bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md text-copy-13 px-2 py-1 outline-none"
+                                  value={isCustom ? 'custom' : (schedule.role || '')}
+                                  onChange={(e) => {
+                                    if (e.target.value !== 'custom') {
+                                      handleUpdateRole(schedule.id, e.target.value);
+                                    }
+                                  }}
+                                >
+                                  <option value="" disabled>Select role...</option>
+                                  {availableRoles.map(role => (
+                                    <option key={role} value={role}>{role}</option>
+                                  ))}
+                                  <option value="custom">Custom...</option>
+                                </select>
 
-                          {(!PREDEFINED_ROLES.includes(schedule.role) || schedule.role === 'custom') && (
-                            <Input
-                              size="sm"
-                              placeholder="Enter custom role"
-                              value={schedule.role === 'custom' ? '' : schedule.role}
-                              onChange={(e) => handleUpdateRole(schedule.id, e.target.value)}
-                              className="mt-1"
-                            />
-                          )}
+                                {isCustom && (
+                                  <Input
+                                    size="sm"
+                                    placeholder="Enter custom role"
+                                    value={schedule.role === 'custom' ? '' : (schedule.role || '')}
+                                    onChange={(e) => handleUpdateRole(schedule.id, e.target.value)}
+                                    className="mt-1"
+                                  />
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}
