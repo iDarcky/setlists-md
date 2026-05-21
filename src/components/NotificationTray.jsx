@@ -116,14 +116,15 @@ export default function NotificationTray({ open, onClose, notifications = [], on
           ) : (
             <div className="divide-y divide-[var(--ds-gray-200)]">
               {notifications.map(notification => (
-                <button
+                <div
                   key={notification.id}
                   onClick={() => {
                     if (!notification.read) onMarkRead?.(notification.id);
                     if (notification.action) onAction?.(notification.action);
-                    onClose();
+                    // Do not close tray automatically for schedule_request so user can click buttons
+                    if (notification.type !== 'schedule_request') onClose();
                   }}
-                  className={`w-full text-left px-5 py-4 bg-transparent border-none cursor-pointer transition-colors hover:bg-[var(--ds-gray-100)] flex items-start gap-3 ${
+                  className={`w-full text-left px-5 py-4 bg-transparent border-none ${notification.type !== 'schedule_request' && notification.action ? 'cursor-pointer hover:bg-[var(--ds-gray-100)]' : ''} transition-colors flex items-start gap-3 ${
                     !notification.read ? 'bg-[var(--color-brand-soft)]' : ''
                   }`}
                 >
@@ -182,7 +183,7 @@ export default function NotificationTray({ open, onClose, notifications = [], on
                       <ArrowIcon />
                     </div>
                   )}
-                </button>
+                </div>
               ))}
             </div>
           )}
