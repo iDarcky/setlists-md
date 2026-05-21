@@ -10,7 +10,7 @@ import { headerFrostStyle } from '../lib/headerFrost';
 import { formatClockTime } from '../lib/dateFormat';
 import { useConfirm } from './ui/useConfirmHook';
 
-export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h' }) {
+export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true }) {
   const confirm = useConfirm();
   const { team, isAdmin } = useTeam();
   const [showRoster, setShowRoster] = useState(false);
@@ -84,11 +84,13 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
         </svg>
       </IconButton>
-      <IconButton variant="ghost" size="sm" onClick={onEdit} aria-label="Edit setlist">
-        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-        </svg>
-      </IconButton>
+      {canEdit && (
+        <IconButton variant="ghost" size="sm" onClick={onEdit} aria-label="Edit setlist">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </IconButton>
+      )}
       {onToggleFullscreen && (
         <IconButton
           variant={isFullscreen ? 'active' : 'ghost'}
@@ -296,17 +298,11 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
       </div>
 
       {/* ── Delete ── */}
-      {onDelete && (
-        <div className="a4-container flex justify-center pt-2 pb-8">
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={handleDelete}
-            onKeyDown={(e) => e.key === 'Enter' && handleDelete()}
-            className="text-label-11 text-[var(--ds-error-600)] hover:text-[var(--ds-error-900)] uppercase tracking-widest cursor-pointer transition-colors select-none"
-          >
+      {canEdit && onDelete && (
+        <div className="px-5 py-6 mt-12 mb-8 mx-auto max-w-sm flex justify-center border-t border-[var(--modes-border-dashed)] border-dashed">
+          <Button variant="danger" onClick={handleDelete} className="w-full justify-center">
             Delete Setlist
-          </span>
+          </Button>
         </div>
       )}
 

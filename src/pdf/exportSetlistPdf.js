@@ -811,14 +811,11 @@ function renderSongRow(item, songs, songIndex) {
   const structureFlow = names.map(n => compactLabel(n)).join(' · ');
   const structureHtml = structureFlow
     ? `<p class="structure">${escapeHtml(structureFlow)}</p>`
-    : '';
-
   return `
     <div class="row">
       <span class="num">${num}</span>
       <div class="body">
         <p class="title">${escapeHtml(song.title || 'Untitled')}</p>
-        ${structureHtml}
         ${note}
       </div>
       <div class="tail">

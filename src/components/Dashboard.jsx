@@ -26,6 +26,7 @@ export default function Dashboard({
   hasCloud,
   checklistActions,
   onDismissChecklist,
+  canEdit = true,
 }) {
   const { team } = useTeam();
   const { user } = useAuth();
@@ -163,10 +164,12 @@ export default function Dashboard({
             )}
           </div>
 
-          <div className="flex items-center gap-2 mt-2 sm:mt-0 hidden sm:flex">
-            <Button variant="secondary" onClick={onNewSong}>New Song</Button>
-            <Button variant="brand" onClick={onNewSetlist}>New Setlist</Button>
-          </div>
+          {canEdit && (
+            <div className="flex items-center gap-2 mt-2 sm:mt-0 hidden sm:flex">
+              <Button variant="secondary" onClick={onNewSong}>New Song</Button>
+              <Button variant="brand" onClick={onNewSetlist}>New Setlist</Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -361,9 +364,11 @@ export default function Dashboard({
                 <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">
                   Your library is empty.
                 </p>
-                <Button variant="brand" size="sm" onClick={onNewSong}>
-                  Add Your First Song
-                </Button>
+                {canEdit && (
+                  <Button variant="brand" size="sm" onClick={onNewSong}>
+                    Add Your First Song
+                  </Button>
+                )}
               </div>
             )}
           </div>

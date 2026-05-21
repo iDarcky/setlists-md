@@ -116,6 +116,7 @@ export default function Library({
   onToggleFullscreen,
   onEditSong,
   chartDefaults = {},
+  canEdit = true,
 }) {
   const isDesktop = useIsDesktop();
   const previewSong = useMemo(
@@ -386,14 +387,16 @@ export default function Library({
             ))}
 
             {/* Desktop-only quick action (FAB is hidden on lg+) */}
-            <div className="hidden lg:flex ml-auto items-center gap-1">
-              <IconButton variant="default" size="sm" onClick={onNewSong} aria-label="New song" title="New song">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </IconButton>
-            </div>
+            {canEdit && (
+              <div className="hidden lg:flex ml-auto items-center gap-1">
+                <IconButton variant="default" size="sm" onClick={onNewSong} aria-label="New song" title="New song">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </IconButton>
+              </div>
+            )}
           </div>
           </div>
         </div>
@@ -453,36 +456,39 @@ export default function Library({
               <p className="text-copy-14 text-[var(--modes-text-muted)] max-w-sm mb-5">
                 Create a new chord chart or import one from a .md file you already have.
               </p>
-              <div className="flex flex-wrap justify-center gap-2">
-                <Button variant="primary" onClick={onNewSong}>New song</Button>
-              </div>
+              {canEdit && (
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button variant="primary" onClick={onNewSong}>New song</Button>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* FAB — tablet only; mobile uses the top-bar +, desktop uses header button.
-          Single tap opens the unified New Song modal. */}
-      <div
-        ref={fabRef}
-        className="fixed right-6 z-[150] hidden sm:block lg:hidden"
-        style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
-      >
-        <button
-          onClick={onNewSong}
-          aria-label="New song"
-          className="w-14 h-14 rounded-full bg-[var(--color-brand)] text-white shadow-lg flex items-center justify-center cursor-pointer hover:opacity-90 transition-all duration-150 active:scale-95 border-none"
+      {/* FAB — tablet only; mobile uses top-bar +, desktop uses header button */}
+      {canEdit && (
+        <div
+          ref={fabRef}
+          className="fixed right-6 z-[150] hidden sm:block lg:hidden"
+          style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
         >
-          <svg
-            width="24" height="24" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" strokeWidth="2"
-            strokeLinecap="round" strokeLinejoin="round"
+          <button
+            onClick={onNewSong}
+            aria-label="New song"
+            className="w-14 h-14 rounded-full bg-[var(--color-brand)] text-white shadow-lg flex items-center justify-center cursor-pointer hover:opacity-90 transition-all duration-150 active:scale-95 border-none"
           >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
-      </div>
+            <svg
+              width="24" height="24" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        </div>
+      )}
       </div>
 
       {/* Preview pane — desktop only */}

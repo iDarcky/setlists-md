@@ -120,7 +120,7 @@ key: C
 
 `;
 
-export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy, activeLibrary, team, importProgress, customSectionTypes }) {
+export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy, activeLibrary, team, importProgress, customSectionTypes, chartDefaults = {} }) {
   const confirm = useConfirm();
 
   // Working copy of the song we're editing. For a new song, songFromFlat
@@ -470,117 +470,128 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
         }
       />
 
-      {/* ─── Song Details toggle + Key / tempo / time toolbar +
-          collapsible metadata. The toggle and the music meta share one
-          row so the header stays compact. ─── */}
-      <div className="material-header border-b border-[var(--ds-gray-200)] pb-1" style={headerFrostStyle}>
-        <div className="wide-container pt-2 flex flex-col gap-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setMetaPanelOpen(v => !v)}
-              aria-expanded={metaPanelOpen}
-              className="inline-flex items-center gap-1.5 bg-transparent border-none cursor-pointer px-0 py-0.5"
-            >
-              <span className="text-[10px] text-[var(--ds-gray-600)]">{metaPanelOpen ? '▾' : '▸'}</span>
-              <span className="text-label-11 font-semibold text-[var(--ds-gray-600)] uppercase tracking-wider">
-                Song Details
-              </span>
-            </button>
-            <div className="ml-auto flex items-center gap-2">
-              <select
-                value={currentKey}
-                onChange={e => updateField('key', e.target.value)}
-                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
-                aria-label="Key"
-              >
-                {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
-              </select>
-              <input
-                type="number"
-                value={currentTempo}
-                onChange={e => updateField('tempo', e.target.value)}
-                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
-                min="30" max="300"
-                placeholder="bpm"
-                aria-label="Tempo"
-              />
-              <TimeSignatureControl
-                value={currentTime}
-                onChange={v => updateField('time', v)}
-              />
-            </div>
-          </div>
-
-          {/* Collapsible metadata — Song Details now hosts the arrangement
-              picker, key history pills, and the rest of the song-level
-              fields. The picker is the single trigger Proclaim-style
-              dropdown. */}
-          <MetadataPanel
-            md={md}
-            onChange={setMd}
-            isOpen={metaPanelOpen}
-            onToggle={() => setMetaPanelOpen(v => !v)}
-            keyHistory={workingSong.keyHistory}
-            arrangements={workingSong.arrangements}
-            activeArrangementId={activeArrangementId}
-            defaultArrangementId={workingSong.defaultArrangementId}
-            onSwitchArrangement={switchArrangement}
-            onAddArrangement={handleAddArrangement}
-            onRenameArrangement={handleRenameArrangement}
-            onDeleteArrangement={handleDeleteArrangementById}
-            onEditArrangements={() => setEditArrangementsOpen(true)}
-          />
-
-          {/* Tabs + tools */}
-          <div className="flex items-center justify-between">
-            <Tabs tabs={TAB_LIST} activeTab={activeTab} onTabChange={setActiveTab} />
-            <div className="flex items-center gap-1 pb-1">
-              {activeTab === 'write' && (
-                <>
-                  <IconButton variant="ghost" size="xs" onClick={handleUndo} aria-label="Undo">↶</IconButton>
-                  <IconButton variant="ghost" size="xs" onClick={handleRedo} aria-label="Redo">↷</IconButton>
-                </>
-              )}
-              <IconButton variant="ghost" size="xs" onClick={handleImport} aria-label="Import from clipboard">📋</IconButton>
-              {isWide && (
-                <IconButton
-                  variant={previewEnabled ? 'active' : 'ghost'}
-                  size="xs"
-                  onClick={() => setPreviewEnabled(v => !v)}
-                  aria-label={previewEnabled ? 'Hide preview' : 'Show preview'}
-                  aria-pressed={previewEnabled}
-                  title={previewEnabled ? 'Hide preview' : 'Show preview'}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                </IconButton>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* ─── Content Area — split-screen on wide viewports so the user
           can see the rendered chart while editing. The preview is the
           existing ChartView in isPreview mode, fed by the parsed `preview`
           state we already maintain for save. ─── */}
       <div className="flex-1 min-h-0 flex w-full overflow-hidden">
-        <div className={`flex-1 min-h-0 flex flex-col wide-container w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
-          {renderTab()}
+        
+        {/* LEFT COLUMN */}
+        <div className="flex-1 min-h-0 flex flex-col w-full border-r border-[var(--ds-gray-300)]">
+          
+          {/* ─── Editor Toolbar & Metadata ─── */}
+          <div className="border-b border-[var(--ds-gray-200)] pb-1 bg-[var(--ds-background-200)] px-4 sm:px-6 md:px-8" style={headerFrostStyle}>
+            <div className="pt-3 flex flex-col gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setMetaPanelOpen(v => !v)}
+                  aria-expanded={metaPanelOpen}
+                  className="inline-flex items-center gap-2 bg-[var(--ds-gray-800)] hover:bg-[var(--ds-gray-900)] text-white border-none cursor-pointer px-3 py-1.5 rounded-md transition-colors"
+                >
+                  <span className="text-label-11 font-semibold uppercase tracking-wider">
+                    Song Details
+                  </span>
+                  <svg 
+                    width="12" height="12" viewBox="0 0 24 24" 
+                    fill="none" stroke="currentColor" strokeWidth="3" 
+                    strokeLinecap="round" strokeLinejoin="round"
+                    className={`transition-transform duration-200 ${metaPanelOpen ? 'rotate-180' : ''}`}
+                  >
+                    <path d="m6 9 6 6 6-6"/>
+                  </svg>
+                </button>
+                <div className="ml-auto flex items-center gap-2">
+                  <select
+                    value={currentKey}
+                    onChange={e => updateField('key', e.target.value)}
+                    className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
+                    aria-label="Key"
+                  >
+                    {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                  <input
+                    type="number"
+                    value={currentTempo}
+                    onChange={e => updateField('tempo', e.target.value)}
+                    className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
+                    min="30" max="300"
+                    placeholder="bpm"
+                    aria-label="Tempo"
+                  />
+                  <TimeSignatureControl
+                    value={currentTime}
+                    onChange={v => updateField('time', v)}
+                  />
+                </div>
+              </div>
+
+              {/* Collapsible metadata */}
+              <MetadataPanel
+                md={md}
+                onChange={setMd}
+                isOpen={metaPanelOpen}
+                onToggle={() => setMetaPanelOpen(v => !v)}
+                keyHistory={workingSong.keyHistory}
+                arrangements={workingSong.arrangements}
+                activeArrangementId={activeArrangementId}
+                defaultArrangementId={workingSong.defaultArrangementId}
+                onSwitchArrangement={switchArrangement}
+                onAddArrangement={handleAddArrangement}
+                onRenameArrangement={handleRenameArrangement}
+                onDeleteArrangement={handleDeleteArrangementById}
+                onEditArrangements={() => setEditArrangementsOpen(true)}
+              />
+
+              {/* Tabs + tools */}
+              <div className="flex items-center justify-between mt-1">
+                <Tabs tabs={TAB_LIST} activeTab={activeTab} onTabChange={setActiveTab} />
+                <div className="flex items-center gap-1 pb-1">
+                  {activeTab === 'write' && (
+                    <>
+                      <IconButton variant="ghost" size="xs" onClick={handleUndo} aria-label="Undo">↶</IconButton>
+                      <IconButton variant="ghost" size="xs" onClick={handleRedo} aria-label="Redo">↷</IconButton>
+                    </>
+                  )}
+                  <IconButton variant="ghost" size="xs" onClick={handleImport} aria-label="Import from clipboard">📋</IconButton>
+                  {isWide && (
+                    <IconButton
+                      variant={previewEnabled ? 'active' : 'ghost'}
+                      size="xs"
+                      onClick={() => setPreviewEnabled(v => !v)}
+                      aria-label={previewEnabled ? 'Hide preview' : 'Show preview'}
+                      aria-pressed={previewEnabled}
+                      title={previewEnabled ? 'Hide preview' : 'Show preview'}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    </IconButton>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── Active Tab Content ─── */}
+          <div className={`flex-1 min-h-0 flex flex-col w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
+            <div className="wide-container w-full h-full flex flex-col">
+              {renderTab()}
+            </div>
+          </div>
         </div>
+
+        {/* RIGHT COLUMN (Preview) */}
         {showSidePreview && preview && (
           <aside
-            aria-label="Live chart preview"
-            className="hidden md:flex w-[44%] max-w-[640px] border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] flex-col min-h-0 overflow-auto"
+            className="w-1/2 min-w-0 border-l border-[var(--ds-gray-300)] flex flex-col bg-[var(--ds-background-100)]"
           >
-            <div className="px-4 py-2 border-b border-[var(--ds-gray-200)] text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">
+            <div className="px-4 py-2 border-b border-[var(--ds-gray-200)] text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] sticky top-0 bg-[var(--ds-background-100)] z-10 shadow-sm">
               Preview
             </div>
             <div className="flex-1 min-h-0 flex flex-col">
-              <ChartView song={preview} isPreview />
+              <ChartView song={preview} isPreview {...chartDefaults} />
             </div>
           </aside>
         )}

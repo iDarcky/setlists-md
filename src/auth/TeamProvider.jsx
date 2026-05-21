@@ -128,12 +128,22 @@ export function TeamProvider({ children }) {
       ? members.some(m => m.user_id === user?.id && m.role === 'admin')
       : false;
 
+    const isEditor = team
+      ? members.some(m => m.user_id === user?.id && m.role === 'editor')
+      : false;
+
+    const isMember = team
+      ? members.some(m => m.user_id === user?.id && m.role === 'member')
+      : false;
+
     return {
       team,
       members,
       invites,
       loading,
       isAdmin,
+      isEditor,
+      isMember,
       hasTeamPlan,
 
       /**
@@ -192,8 +202,9 @@ export function TeamProvider({ children }) {
        * Invite a user to the team by their email.
        * Calls the secure RPC which handles both existing and new users.
        * @param {string} email
+       * @param {string} role (admin, editor, member)
        */
-      inviteMember: async (email) => {
+      inviteMember: async (email, role = 'member') => {
         guard();
         if (!team) throw new Error('No team exists.');
         if (members.length >= (team.max_seats || 10)) {
@@ -203,7 +214,7 @@ export function TeamProvider({ children }) {
         const { data, error } = await supabase.rpc('invite_user_to_team', {
           p_team_id: team.id,
           p_email: email.toLowerCase(),
-          p_role: 'member'
+          p_role: role
         });
 
         if (error) {
@@ -223,7 +234,7 @@ export function TeamProvider({ children }) {
             id: data.member_id,
             team_id: team.id,
             user_id: data.user_id,
-            role: 'member',
+            role: role,
             joined_at: new Date().toISOString(),
             profile: profile || null
           };
@@ -234,12 +245,29 @@ export function TeamProvider({ children }) {
           const newInvite = {
             id: 'temp-' + Date.now(), // Real ID is in DB, we'll refresh soon or just use this for UI
             email: data.email,
-            role: 'member',
+            role: role,
             created_at: new Date().toISOString()
           };
           setInvites(prev => [...prev, newInvite]);
           return { status: 'invited', email: data.email };
         }
+      },
+
+      /**
+       * Update a member's role
+       */
+      updateMemberRole: async (memberId, role) => {
+        guard();
+        if (!team) throw new Error('No team exists.');
+
+        const { error } = await supabase
+          .from('team_members')
+          .update({ role })
+          .eq('id', memberId)
+          .eq('team_id', team.id);
+
+        if (error) throw error;
+        setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role } : m));
       },
 
       /**

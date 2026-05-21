@@ -138,7 +138,8 @@ function prefsEqual(a, b) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const { team } = useTeam();
+  const { team, isAdmin, isEditor, isMember } = useTeam();
+  const canEdit = !team || isAdmin || isEditor;
   const confirm = useConfirm();
   // PWA update prompt — toast appears when a new SW is downloaded.
   usePWAUpdate();
@@ -1431,8 +1432,8 @@ export default function App() {
               onOpenDrawer={openDrawer}
               onSelectSong={goChart}
               onSelectSetlist={goSetlistView}
-              onNewSong={() => openNewSongModal('import')}
-              onNewSetlist={() => goSetlistBuild()}
+              onNewSong={canEdit ? () => openNewSongModal('import') : undefined}
+              onNewSetlist={canEdit ? () => goSetlistBuild() : undefined}
               activeLibrary={activeLibrary}
               team={team}
               onChangeWorkspace={openDrawer}
@@ -1444,8 +1445,8 @@ export default function App() {
               setlists={setlists}
               settings={settings}
               onSelectSong={goChart}
-              onNewSong={() => openNewSongModal('import')}
-              onNewSetlist={() => goSetlistBuild()}
+              onNewSong={canEdit ? () => openNewSongModal('import') : undefined}
+              onNewSetlist={canEdit ? () => goSetlistBuild() : undefined}
               onViewSetlist={goSetlistView}
               onPlaySetlist={goSetlistPerformance}
               onGoLibrary={goLibrary}
@@ -1462,6 +1463,7 @@ export default function App() {
                 signIn: () => { setAuthStartMode('signin'); navigate('signin'); },
               }}
               onDismissChecklist={() => setSettings(prev => ({ ...prev, checklistDismissed: true }))}
+              canEdit={canEdit}
             />
           )}
           {view === 'library' && (
@@ -1469,12 +1471,12 @@ export default function App() {
               songs={songs}
               loaded={loaded}
               onSelectSong={goChart}
-              onNewSong={() => openNewSongModal('import')}
+              onNewSong={canEdit ? () => openNewSongModal('import') : undefined}
               previewSongId={previewSongId}
               onSelectPreview={setPreviewSongId}
               isFullscreen={isFullscreen}
               onToggleFullscreen={toggleFullscreen}
-              onEditSong={(s) => goEditor(s)}
+              onEditSong={canEdit ? (s) => goEditor(s) : undefined}
               chartDefaults={{
                 defaultColumns: settings?.defaultColumns,
                 defaultFontSize: settings?.defaultFontSize,
@@ -1484,6 +1486,7 @@ export default function App() {
                 duplicateSections: settings?.duplicateSections || 'full',
                 chartLayout: settings?.chartLayout || 'columns',
               }}
+              canEdit={canEdit}
             />
           )}
           {view === 'setlists' && (
@@ -1494,7 +1497,7 @@ export default function App() {
               onViewSetlist={goSetlistView}
               onPlaySetlist={goSetlistPerformance}
               onPracticeSetlist={(sl) => goSetlistPractice(sl)}
-              onNewSetlist={() => goSetlistBuild()}
+              onNewSetlist={canEdit ? () => goSetlistBuild() : undefined}
               onImportSetlist={handleImportSetlist}
               previewSetlistId={previewSetlistId}
               onSelectPreview={setPreviewSetlistId}
@@ -1564,6 +1567,15 @@ export default function App() {
               onCopy={currentSong && team ? (target) => handleCopySongToLibrary(currentSong.id, target) : null}
               activeLibrary={activeLibrary}
               team={team}
+              chartDefaults={{
+                defaultColumns: settings?.defaultColumns,
+                defaultFontSize: settings?.defaultFontSize,
+                showInlineNotes: settings?.showInlineNotes !== false,
+                inlineNoteStyle: settings?.inlineNoteStyle || 'dashes',
+                displayRole: settings?.displayRole || 'leader',
+                duplicateSections: settings?.duplicateSections || 'full',
+                chartLayout: settings?.chartLayout || 'columns',
+              }}
             />
           )}
           {view === 'setlist-view' && currentSetlist && (
@@ -1571,14 +1583,15 @@ export default function App() {
               setlist={currentSetlist}
               songs={songs}
               onBack={goBack}
-              onEdit={() => goSetlistBuild(currentSetlist)}
+              onEdit={canEdit ? () => goSetlistBuild(currentSetlist) : undefined}
               onExportZip={() => handleExportSetlist(currentSetlist)}
               onExportPdfOverview={() => exportSetlistPdf(currentSetlist, songs, { mode: 'overview' })}
               onExportPdfFull={() => exportSetlistPdf(currentSetlist, songs, { mode: 'full' })}
               clockFormat={settings?.clockFormat || '12h'}
               onPlay={() => goSetlistPerformance(currentSetlist)}
               onPractice={() => goSetlistPractice(currentSetlist)}
-              onDelete={() => handleDeleteSetlist(currentSetlist.id)}
+              onDelete={canEdit ? () => handleDeleteSetlist(currentSetlist.id) : undefined}
+              canEdit={canEdit}
             />
           )}
           {view === 'setlist-build' && (
