@@ -1421,6 +1421,7 @@ export default function App() {
           onChangeWorkspace={goTeam}
           syncState={syncState}
           isOnline={isOnline}
+          settings={settings}
           hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view'].includes(view)}
         >
           {['home', 'library', 'setlists'].includes(view) && (
@@ -1786,6 +1787,7 @@ export default function App() {
           team={team}
           activeLibrary={activeLibrary}
           setActiveLibrary={setActiveLibrary}
+          showPersonalSpace={settings?.showPersonalSpace !== false}
           canInstall={canInstall}
           isIOS={isIOS}
           isStandalone={isStandalone}

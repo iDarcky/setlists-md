@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../auth/useAuth';
 import { useTeam } from '../auth/useTeam';
 import { clearAll } from '../storage';
+import { Switch } from './ui/Switch';
 
 const NAME_MAX = 15;
 
@@ -162,6 +163,26 @@ export default function Account({
           onSignOut={onSignOut}
           tone="drawer"
         />
+
+        {/* Workspace Preferences */}
+        <div
+          className="rounded-xl border p-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
+          style={{ background: 'var(--drawer-surface)', borderColor: 'var(--drawer-border)' }}
+        >
+          <div className="flex flex-col max-w-[280px] sm:max-w-sm">
+            <span className="text-copy-14 font-medium" style={{ color: 'var(--drawer-text)' }}>Show Personal Space</span>
+            <span className="text-copy-13" style={{ color: 'var(--drawer-text-muted)' }}>
+              If you primarily use the app for a team workspace, you can hide the "Personal Space" option from the workspace switcher.
+            </span>
+          </div>
+          <div className="mt-2 sm:mt-0 flex items-center h-9">
+            <Switch
+              checked={settings?.showPersonalSpace !== false}
+              onCheckedChange={(v) => onUpdate({ ...settings, showPersonalSpace: v })}
+            />
+          </div>
+        </div>
+
         <div
           className="rounded-xl border p-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
           style={{ background: 'var(--drawer-surface)', borderColor: 'var(--drawer-border)' }}

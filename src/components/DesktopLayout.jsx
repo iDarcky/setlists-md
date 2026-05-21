@@ -25,6 +25,7 @@ export default function DesktopLayout({
   syncState,
   isOnline,
   hideBanner = false,
+  settings,
 }) {
   const mainRef = useRef(null);
   const isMobile = useMediaQuery('(max-width: 639.98px)');
@@ -75,6 +76,7 @@ export default function DesktopLayout({
             team={team} 
             syncState={syncState}
             isOnline={isOnline}
+            showPersonalSpace={settings?.showPersonalSpace !== false}
           />
         )}
         {/*
