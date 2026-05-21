@@ -491,6 +491,7 @@ export default function Library({
           </button>
         </div>
       )}
+      </div>
 
       {/* Preview pane — desktop only */}
       <div className="hidden lg:flex lg:flex-1 lg:min-w-0 lg:h-screen lg:flex-col lg:bg-[var(--ds-background-100)]">
