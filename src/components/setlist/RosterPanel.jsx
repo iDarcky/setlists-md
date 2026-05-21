@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTeam } from '../../auth/useTeam';
 import { useTeamSchedules } from '../../hooks/useTeamSchedules';
 import { useTeamAvailability } from '../../hooks/useTeamAvailability';
+import { useTeamSetlistMap } from '../../hooks/useTeamSetlistMap';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { IconButton } from '../ui/IconButton';
@@ -34,11 +35,14 @@ function availabilityLabel(status) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-export default function RosterPanel({ setlistId, teamSetlistId, setlistDate, onClose, readOnly = false }) {
+export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly = false }) {
   const confirm = useConfirm();
   const { team, members } = useTeam();
   const { schedules, createSchedule, updateSchedule, deleteSchedule, loading } = useTeamSchedules(team?.id);
   const { availability } = useTeamAvailability(team?.id);
+  const { map: setlistIdMap } = useTeamSetlistMap(team?.id);
+
+  const teamSetlistId = setlistIdMap[setlistId] || null;
 
   const [addingMemberId, setAddingMemberId] = useState('');
   const [isAdding, setIsAdding] = useState(false);
