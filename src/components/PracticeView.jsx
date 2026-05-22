@@ -36,10 +36,10 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
         if (it.type === 'break') return { ...it, isBreak: true, _rawIdx: rawIdx };
         let raw = songs.find(s => s.id === it.songId);
         if (!raw && it.songTitle) raw = songs.find(s => s.title === it.songTitle);
+        if (!raw) return { ...it, isMissing: true, _rawIdx: rawIdx };
         const song = resolveSongView(raw, it.arrangementId);
-        return song ? { ...it, song, _rawIdx: rawIdx } : null;
-      })
-      .filter(Boolean),
+        return song ? { ...it, song, _rawIdx: rawIdx } : { ...it, isMissing: true, _rawIdx: rawIdx };
+      }),
     [setlist, songs]
   );
 
@@ -150,7 +150,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
 
   if (!cur) return null;
 
-  const displayKey = cur.isBreak ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
+  const displayKey = cur.isBreak || cur.isMissing ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
 
   // Chevron + dot menu + close X — anchored to the right end of the title
   // row in both expanded and collapsed states. Same variant and size so
@@ -206,7 +206,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           badge tuck away. The dedicated ribbon row below only renders
           when the header is expanded. */}
       {(() => {
-        const structRibbon = !cur.isBreak && cur.song.sections?.length > 0 ? (
+        const structRibbon = !cur.isBreak && !cur.isMissing && cur.song.sections?.length > 0 ? (
           <StructureRibbon
             structure={cur.song.structure || cur.song.sections.map(s => s.type)}
             compact
@@ -232,7 +232,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
                   </h1>
 
                   {/* Meta: key (saves on change) + tempo + time */}
-                  {!cur.isBreak && displayKey && (
+                  {!cur.isBreak && !cur.isMissing && displayKey && (
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Select value={displayKey} onValueChange={handleKeyChange}>
                         <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
@@ -319,6 +319,11 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
               />
             )}
           </div>
+        ) : cur.isMissing ? (
+          <div className="flex flex-col items-center justify-center py-20 min-h-[50vh]">
+            <div className="text-heading-32 text-[var(--ds-gray-1000)] mb-2 text-center">Missing Song</div>
+            <div className="text-copy-16 text-[var(--ds-gray-600)] text-center">Waiting for sync</div>
+          </div>
         ) : displayKey ? (
           <PracticeChart
             song={cur.song}
@@ -331,7 +336,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
         ) : null}
 
         {/* Setlist note card */}
-        {!cur.isBreak && (
+        {!cur.isBreak && !cur.isMissing && (
           <div className="mt-6">
             <SetlistNoteCard
               value={cur.notes || ''}

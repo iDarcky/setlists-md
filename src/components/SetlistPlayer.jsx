@@ -24,13 +24,12 @@ export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaul
         if (it.type === 'break') return { ...it, isBreak: true };
         let raw = songs.find(s => s.id === it.songId);
         if (!raw && it.songTitle) raw = songs.find(s => s.title === it.songTitle);
-        if (!raw) return null;
+        if (!raw) return { ...it, isMissing: true };
         const song = resolveSongView(raw, it.arrangementId);
-        if (!song) return null;
+        if (!song) return { ...it, isMissing: true };
         acc.count += 1;
         return { ...it, song, songNum: acc.count };
-      })
-      .filter(Boolean);
+      });
   }, [setlist, songs]);
 
   const goNext = useCallback(() => setIdx(p => {
@@ -242,7 +241,7 @@ export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaul
       </div>
       {progress}
       {songBar}
-      {cur.note && !cur.isBreak && (
+      {cur.note && !cur.isBreak && !cur.isMissing && (
         <div className="px-5 pt-1">
           <div className="px-3 py-1.5 rounded-md bg-[var(--ds-warning-soft)] border border-[var(--ds-warning-border)] text-label-12 text-[var(--ds-warning-900)]">
             {cur.note}
@@ -265,6 +264,16 @@ export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaul
               className="w-full max-w-xl mt-4 px-5 py-4 rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)] text-copy-16 text-[var(--ds-gray-900)]"
             />
           )}
+          <div className="mt-6">{nav}</div>
+        </div>
+      ) : cur.isMissing ? (
+        <div className="flex flex-col items-center justify-center px-5 py-20 min-h-[50vh]">
+          <div className="text-heading-32 text-[var(--ds-gray-1000)] mb-2 text-center">
+            Missing Song
+          </div>
+          <div className="text-copy-16 text-[var(--ds-gray-600)] text-center mb-2">
+            Waiting for sync
+          </div>
           <div className="mt-6">{nav}</div>
         </div>
       ) : (

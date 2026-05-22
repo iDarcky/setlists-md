@@ -407,6 +407,7 @@ export default function App() {
           const currentSongs = savedSongs.length > 0 ? savedSongs : [];
           const currentSetlists = savedSetlists || [];
           engine.fullSync(currentSongs, currentSetlists, savedTombstones).then(result => {
+            if (ignore) return;
             if (result.changed) {
               setSongs(prev => {
                 const next = [...prev];
@@ -1583,6 +1584,7 @@ export default function App() {
           )}
           {view === 'setlist-view' && currentSetlist && (
             <SetlistOverview
+              key={currentSetlist.id}
               setlist={currentSetlist}
               songs={songs}
               onBack={goBack}

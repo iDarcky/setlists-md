@@ -30,9 +30,8 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
         if (it.type === 'break') return { ...it, isBreak: true };
         const raw = songs.find(s => s.id === it.songId);
         const song = resolveSongView(raw, it.arrangementId);
-        return song ? { ...it, song } : null;
-      })
-      .filter(Boolean),
+        return song ? { ...it, song } : { ...it, isMissing: true };
+      }),
     [setlist, songs]
   );
 
@@ -89,7 +88,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
 
   if (!cur) return null;
 
-  const displayKey = cur.isBreak ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
+  const displayKey = cur.isBreak || cur.isMissing ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
 
   // Chevron + close X — anchored to the right end of the title row in both
   // expanded and collapsed states. Same variant and size so they render
@@ -131,7 +130,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
           dedicated ribbon row below only renders when the header is
           expanded. */}
       {(() => {
-        const structRibbon = !cur.isBreak && cur.song.sections?.length > 0 ? (
+        const structRibbon = !cur.isBreak && !cur.isMissing && cur.song.sections?.length > 0 ? (
           <StructureRibbon
             structure={cur.song.structure || cur.song.sections.map(s => s.type)}
             compact
@@ -157,7 +156,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
                   </h1>
 
                   {/* Meta: key picker + tempo + time */}
-                  {!cur.isBreak && displayKey && (
+                  {!cur.isBreak && !cur.isMissing && displayKey && (
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Select value={displayKey} onValueChange={setSelectedKey}>
                         <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
@@ -224,6 +223,11 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
                 className="w-full max-w-xl mt-4 px-5 py-4 rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)] text-copy-16 text-[var(--ds-gray-900)]"
               />
             )}
+          </div>
+        ) : cur.isMissing ? (
+          <div className="flex flex-col items-center justify-center py-20 min-h-[50vh]">
+            <div className="text-heading-32 text-[var(--ds-gray-1000)] mb-2 text-center">Missing Song</div>
+            <div className="text-copy-16 text-[var(--ds-gray-600)] text-center">Waiting for sync</div>
           </div>
         ) : displayKey ? (
           <>
