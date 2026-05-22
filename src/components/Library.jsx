@@ -285,27 +285,10 @@ export default function Library({
           <div className="w-full px-4 sm:px-8 max-w-[1400px] mx-auto pt-6 pb-4 flex flex-col gap-4">
             <div className="flex items-center justify-between gap-4">
               <h1 className="text-3xl font-bold text-[var(--ds-gray-1000)] m-0 tracking-tight">Library</h1>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => { /* import logic here or trigger a modal if there is one */ }}
-                  className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] hover:bg-[var(--ds-gray-100)] text-label-14 font-medium transition-colors border-solid"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  Import
-                </button>
-                {!readOnly && onNewSong && (
-                  <button
-                    onClick={onNewSong}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] hover:bg-[var(--ds-gray-800)] text-label-14 font-medium transition-colors border-none"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                    New Song
-                  </button>
-                )}
-              </div>
             </div>
             
-            <div className="flex gap-3 items-stretch">
+            <div className="flex gap-3 items-stretch justify-between">
+              <div className="flex gap-3 items-stretch flex-1">
               <SearchBar
                 className="flex-1 hidden sm:flex"
                 placeholder="Search songs by title, artist, key, or tag…"
@@ -406,10 +389,29 @@ export default function Library({
                   </div>
                 )}
               </div>
-            )}
-          </div>
+              
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => { /* import logic here or trigger a modal if there is one */ }}
+                  className="hidden md:flex items-center gap-2 h-11 px-4 rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] hover:bg-[var(--ds-gray-100)] text-label-14 font-medium transition-colors border-solid cursor-pointer"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Import
+                </button>
+                {!readOnly && onNewSong && (
+                  <button
+                    onClick={onNewSong}
+                    className="flex items-center gap-2 h-11 px-4 rounded-xl bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] hover:bg-[var(--ds-gray-800)] text-label-14 font-medium transition-colors border-none cursor-pointer"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    New Song
+                  </button>
+                )}
+              </div>
+            </div>
 
           {/* Sort Pills with direction toggle */}
+          {viewMode === 'card' && (
           <div className="flex items-center gap-2">
             {SORT_MODES.map(mode => (
               <button
@@ -437,8 +439,11 @@ export default function Library({
                 )}
               </button>
             ))}
+          </div>
+          )}
 
-            {/* Desktop-only quick action removed here, moved to header */}
+          {/* Desktop-only quick action removed here, moved to header */}
+          <div className="flex items-center">
             {/* View Mode Toggles */}
             {onViewModeChange && (
               <div className="hidden sm:flex bg-[var(--modes-surface)] rounded-md border border-[var(--modes-border)] p-0.5 ml-2">
@@ -467,20 +472,6 @@ export default function Library({
         </div>
 
         {/* Content */}
-        {selectedIds.size > 0 && viewMode === 'table' && (
-          <div className="w-full px-4 sm:px-8 max-w-[1400px] mx-auto py-2">
-            <div className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-300)] rounded-md px-4 py-2 flex items-center justify-between">
-              <span className="text-label-14 font-medium text-[var(--ds-gray-800)]">
-                {selectedIds.size} item{selectedIds.size > 1 ? 's' : ''} selected
-              </span>
-              <div className="flex items-center gap-2">
-                <button className="px-3 py-1.5 text-label-12 font-semibold text-[var(--ds-gray-700)] bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded hover:bg-[var(--ds-gray-200)] transition-colors cursor-pointer">
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         <div className="w-full px-4 sm:px-8 max-w-[1400px] mx-auto py-4">
           {!loaded ? (
             <SkeletonRows />
@@ -634,7 +625,7 @@ export default function Library({
         </div>
       </div>
 
-      {/* FAB — tablet only; mobile uses the top-bar +, desktop uses header button.
+      {/* FAB Cluster — tablet only; mobile uses top-bar +, desktop uses header button.
           Single tap opens the unified New Song modal. */}
       {!readOnly && onNewSong && (
         <div

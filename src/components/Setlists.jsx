@@ -182,11 +182,21 @@ export default function Setlists({
           <div className="w-full px-4 sm:px-8 max-w-[1400px] mx-auto pt-6 pb-4 flex flex-col gap-4">
             <div className="flex items-center justify-between gap-4">
               <h1 className="text-3xl font-bold text-[var(--ds-gray-1000)] m-0 tracking-tight">Setlists</h1>
-              <div className="flex items-center gap-2">
+            </div>
+            
+            <div className="flex gap-3 items-stretch justify-between">
+              <SearchBar
+                className="flex-1"
+                placeholder="Search setlists by name, location, or tag…"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+              />
+              
+              <div className="flex items-center gap-2 shrink-0">
                 {onImportSetlist && (
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] hover:bg-[var(--ds-gray-100)] text-label-14 font-medium transition-colors border-solid"
+                    className="hidden md:flex items-center gap-2 h-11 px-4 rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] hover:bg-[var(--ds-gray-100)] text-label-14 font-medium transition-colors border-solid cursor-pointer"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     Import
@@ -195,23 +205,16 @@ export default function Setlists({
                 {!readOnly && (
                   <button
                     onClick={onNewSetlist}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] hover:bg-[var(--ds-gray-800)] text-label-14 font-medium transition-colors border-none"
+                    className="flex items-center gap-2 h-11 px-4 rounded-xl bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] hover:bg-[var(--ds-gray-800)] text-label-14 font-medium transition-colors border-none cursor-pointer"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                     New Setlist
                   </button>
                 )}
               </div>
             </div>
-            
-            <div className="flex gap-3 items-stretch">
-              <SearchBar
-                className="flex-1"
-                placeholder="Search setlists by name, location, or tag…"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-              />
-              
+
+            <div className="flex gap-3 items-center">
               {/* View Mode Toggles */}
               {onViewModeChange && (
                 <div className="hidden sm:flex bg-[var(--modes-surface)] rounded-md border border-[var(--modes-border)] p-0.5 ml-2">
@@ -240,20 +243,6 @@ export default function Setlists({
         </div>
 
         {/* Content */}
-        {selectedIds.size > 0 && viewMode === 'table' && (
-          <div className="w-full px-4 sm:px-8 max-w-[1400px] mx-auto py-2">
-            <div className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-300)] rounded-md px-4 py-2 flex items-center justify-between">
-              <span className="text-label-14 font-medium text-[var(--ds-gray-800)]">
-                {selectedIds.size} item{selectedIds.size > 1 ? 's' : ''} selected
-              </span>
-              <div className="flex items-center gap-2">
-                <button className="px-3 py-1.5 text-label-12 font-semibold text-[var(--ds-gray-700)] bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded hover:bg-[var(--ds-gray-200)] transition-colors cursor-pointer">
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         <div className="w-full px-4 sm:px-8 max-w-[1400px] mx-auto py-4 flex flex-col gap-10">
           {!loaded ? (
             <SkeletonCards />
@@ -356,6 +345,44 @@ export default function Setlists({
                           {upcoming.length}
                         </span>
                       </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {upcoming.map(sl => (
+                          <SetlistCard
+                            key={sl.id}
+                            setlist={sl}
+                            selected={isDesktop && sl.id === previewSetlistId}
+                            onPlay={() => onPlaySetlist?.(sl)}
+                            onView={() => handleView(sl)}
+                            clockFormat={clockFormat}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Past Section */}
+                  {past.length > 0 && (
+                    <section className="flex flex-col gap-4 mt-8">
+                      <div className="flex items-baseline gap-2">
+                        <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">
+                          Past
+                        </h2>
+                        <span className="text-label-12 text-[var(--modes-text-dim)]">
+                          {past.length}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {past.map(sl => (
+                          <SetlistCard
+                            key={sl.id}
+                            setlist={sl}
+                            selected={isDesktop && sl.id === previewSetlistId}
+                            onPlay={() => onPlaySetlist?.(sl)}
+                            onView={() => handleView(sl)}
+                            clockFormat={clockFormat}
+                          />
+                        ))}
+                      </div>
                     </section>
                   )}
                 </>
@@ -398,6 +425,35 @@ export default function Setlists({
           )}
         </div>
       </div>
+
+      {/* Floating Selection Toast */}
+      {selectedIds.size > 0 && viewMode === 'table' && (
+        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] animate-[slideUp_200ms_ease-out]">
+          <div className="bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] rounded-full px-6 py-3 flex items-center gap-6 shadow-2xl">
+            <span className="text-label-14 font-medium whitespace-nowrap">
+              {selectedIds.size} selected
+            </span>
+            <div className="flex items-center gap-2 border-l border-[var(--ds-gray-700)] pl-6">
+              <button className="px-4 py-2 text-label-13 font-semibold text-[var(--ds-background-100)] hover:text-white bg-transparent border border-[var(--ds-gray-700)] rounded-full hover:bg-[var(--ds-gray-800)] transition-colors cursor-pointer whitespace-nowrap">
+                Copy to...
+              </button>
+              <button className="px-4 py-2 text-label-13 font-semibold text-[var(--ds-background-100)] hover:text-white bg-transparent border border-[var(--ds-gray-700)] rounded-full hover:bg-[var(--ds-gray-800)] transition-colors cursor-pointer whitespace-nowrap">
+                Move to...
+              </button>
+              <button className="px-4 py-2 text-label-13 font-semibold text-red-400 bg-transparent border border-[var(--ds-gray-700)] rounded-full hover:bg-red-500/10 hover:border-red-500/50 transition-colors cursor-pointer whitespace-nowrap">
+                Delete
+              </button>
+              <button 
+                onClick={() => setSelectedIds(new Set())}
+                className="w-8 h-8 ml-2 flex items-center justify-center rounded-full bg-transparent border-none text-[var(--ds-gray-400)] hover:text-white hover:bg-[var(--ds-gray-800)] transition-colors cursor-pointer"
+                title="Clear selection"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FAB Cluster — tablet only; mobile uses top-bar +, desktop uses header button */}
       {!readOnly && (onNewSetlist || onImportSetlist) && (
