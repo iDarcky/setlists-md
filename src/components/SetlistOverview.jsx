@@ -288,7 +288,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                   </span>
                   {showDetails && (
                     <span className="text-label-11 text-[var(--ds-gray-600)] tabular-nums">
-                      {song.tempo} BPM
+                      {[song.tempo, song.time].filter(Boolean).join(' ')}
                     </span>
                   )}
                 </div>
@@ -352,7 +352,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
       )}
 
       {showRoster && team && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/20 backdrop-blur-[2px]" onClick={() => setShowRoster(false)}>
+        <div className="fixed inset-0 z-[200] flex justify-end bg-black/20 backdrop-blur-[2px]" onClick={() => setShowRoster(false)}>
           <div className="h-full" onClick={e => e.stopPropagation()}>
             <RosterPanel
               setlistId={setlist.id}

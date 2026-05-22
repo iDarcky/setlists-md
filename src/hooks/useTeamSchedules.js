@@ -36,7 +36,8 @@ export function useTeamSchedules(teamId) {
   useEffect(() => {
     if (!teamId) return;
 
-    const channel = supabase.channel(`team_schedules_${teamId}`)
+    const channelId = `team_schedules_${teamId}_${Math.random().toString(36).substring(7)}`;
+    const channel = supabase.channel(channelId)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'team_schedules', filter: `team_id=eq.${teamId}` },

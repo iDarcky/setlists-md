@@ -21,7 +21,7 @@ const ArrowIcon = () => (
   </svg>
 );
 
-export default function NotificationTray({ open, onClose, notifications = [], onMarkRead, onAction }) {
+export default function NotificationTray({ open, onClose, notifications = [], onMarkRead, onAction, onUpdateSchedule }) {
   const trayRef = useRef(null);
 
   // Close on Escape
@@ -116,14 +116,15 @@ export default function NotificationTray({ open, onClose, notifications = [], on
           ) : (
             <div className="divide-y divide-[var(--ds-gray-200)]">
               {notifications.map(notification => (
-                <button
+                <div
                   key={notification.id}
                   onClick={() => {
                     if (!notification.read) onMarkRead?.(notification.id);
                     if (notification.action) onAction?.(notification.action);
-                    onClose();
+                    // Do not close tray automatically for schedule_request so user can click buttons
+                    if (notification.type !== 'schedule_request') onClose();
                   }}
-                  className={`w-full text-left px-5 py-4 bg-transparent border-none cursor-pointer transition-colors hover:bg-[var(--ds-gray-100)] flex items-start gap-3 ${
+                  className={`w-full text-left px-5 py-4 bg-transparent border-none ${notification.type !== 'schedule_request' && notification.action ? 'cursor-pointer hover:bg-[var(--ds-gray-100)]' : ''} transition-colors flex items-start gap-3 ${
                     !notification.read ? 'bg-[var(--color-brand-soft)]' : ''
                   }`}
                 >
@@ -136,21 +137,53 @@ export default function NotificationTray({ open, onClose, notifications = [], on
                     )}
                   </div>
 
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 flex flex-col">
                     <p className={`text-copy-14 m-0 ${!notification.read ? 'font-semibold text-[var(--ds-gray-1000)]' : 'text-[var(--ds-gray-900)]'}`}>
                       {notification.title}
                     </p>
                     <p className="text-copy-13 text-[var(--ds-gray-600)] m-0 mt-1 leading-relaxed">
                       {notification.message}
                     </p>
+                    
+                    {notification.type === 'schedule_request' && (
+                      <div className="flex gap-2 mt-3 w-full">
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-[var(--color-brand)] text-white hover:bg-[var(--color-brand-hover)] border-none"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onUpdateSchedule) {
+                              onUpdateSchedule(notification.scheduleId, { availability: 'available' });
+                            }
+                            onClose();
+                          }}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 bg-[var(--bg-1)] border-[var(--border-1)] text-[var(--text-1)] hover:bg-[var(--bg-2)]"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onUpdateSchedule) {
+                              onUpdateSchedule(notification.scheduleId, { availability: 'unavailable' });
+                            }
+                            onClose();
+                          }}
+                        >
+                          Decline
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
-                  {notification.action && (
+                  {notification.action && notification.type !== 'schedule_request' && (
                     <div className="shrink-0 pt-1 text-[var(--ds-gray-500)]">
                       <ArrowIcon />
                     </div>
                   )}
-                </button>
+                </div>
               ))}
             </div>
           )}

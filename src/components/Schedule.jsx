@@ -148,7 +148,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
 
       {rosterSetlist && (
         <div
-          className="fixed inset-0 z-50 flex justify-end bg-black/20 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[200] flex justify-end bg-black/20 backdrop-blur-[2px]"
           onClick={() => setRosterSetlist(null)}
         >
           <div className="h-full" onClick={e => e.stopPropagation()}>
