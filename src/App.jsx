@@ -1441,20 +1441,20 @@ export default function App() {
           hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view'].includes(view)}
         >
           {['home', 'library', 'setlists'].includes(view) && (
-            <MobileTopBar
-              key={view}
-              view={view}
-              songs={songs}
-              setlists={setlists}
-              onSelectSong={song => navigate('editor', { song })}
-              onSelectSetlist={sl => navigate('setlist-view', { setlist: sl })}
-              onOpenDrawer={() => setDrawerOpen(true)}
-              onNewSong={isTeamReadOnly ? null : handleNewSong}
-              onNewSetlist={isTeamReadOnly ? null : handleNewSetlist}
-              activeLibrary={activeLibrary}
-              team={team}
-              onChangeWorkspace={switchWorkspace}
-            />
+              <MobileTopBar
+                key={view}
+                view={view}
+                songs={songs}
+                setlists={setlists}
+                onOpenDrawer={openDrawer}
+                onSelectSong={goChart}
+                onSelectSetlist={goSetlistView}
+                onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
+                onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+                activeLibrary={activeLibrary}
+                team={team}
+                onChangeWorkspace={openDrawer}
+              />
           )}
           {view === 'home' && (
             <Dashboard
