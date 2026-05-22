@@ -46,8 +46,16 @@ export default function GoogleDriveCallback({ onDone, onCancel }) {
         window.history.replaceState({}, '', '/');
         onDone?.();
       } catch (err) {
+        console.error('[GoogleDriveCallback] exchange failed:', err, err?.detail);
         setStatus('error');
-        setErrorMsg(err?.message || 'Could not complete Google Drive connection.');
+        // Show Google's actual error detail if available
+        const detail = err?.detail;
+        let msg = err?.message || 'Could not complete Google Drive connection.';
+        if (detail) {
+          const googleError = detail.error || detail.error_description;
+          if (googleError) msg += ` (${typeof detail.error === 'string' ? detail.error : ''}: ${detail.error_description || JSON.stringify(detail)})`;
+        }
+        setErrorMsg(msg);
       }
     })();
   }, [onDone]);
