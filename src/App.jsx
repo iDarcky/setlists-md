@@ -32,6 +32,7 @@ import { useInstallPrompt } from './hooks/useInstallPrompt';
 import { useTeamRealtime } from './hooks/useTeamRealtime';
 import { useChartTheme } from './hooks/useChartTheme';
 import { useTeamSchedules } from './hooks/useTeamSchedules';
+import { WorkspaceProvider } from './contexts/WorkspaceContext';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 
@@ -1376,6 +1377,7 @@ export default function App() {
   };
 
   return (
+    <WorkspaceProvider activeLibrary={activeLibrary}>
     <ErrorBoundary>
     <Suspense fallback={lazyFallback}>
       <Toaster />
@@ -1912,6 +1914,7 @@ export default function App() {
       )}
     </Suspense>
     </ErrorBoundary>
+    </WorkspaceProvider>
   );
 }
 

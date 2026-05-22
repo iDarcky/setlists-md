@@ -366,10 +366,18 @@ function DataPanel({ songCount, setlistCount, onDownloadSongs, onClearAll }) {
   );
 }
 
-function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn }) {
-  const planKey = (plan || 'free').toLowerCase();
-  const label = PLAN_LABELS[planKey] || 'Free';
-  const description = PLAN_DESCRIPTIONS[planKey] || PLAN_DESCRIPTIONS.free;
+function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn, activeLibrary, team }) {
+  const isTeam = activeLibrary !== 'personal';
+  const effectivePlan = isTeam ? (team?.billing_plan || 'free') : plan;
+  const planKey = (effectivePlan || 'free').toLowerCase();
+  
+  const label = isTeam 
+    ? (team?.name || 'Team') + ' Plan' 
+    : (PLAN_LABELS[planKey] || 'Free');
+    
+  const description = isTeam
+    ? `Managed by the team owner.`
+    : (PLAN_DESCRIPTIONS[planKey] || PLAN_DESCRIPTIONS.free);
 
   return (
     <div className="flex flex-col gap-6">
@@ -385,7 +393,7 @@ function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn }) {
           </div>
           {!isSignedIn ? (
             <Button variant="brand" size="sm" onClick={onRequestSignIn}>Sign in</Button>
-          ) : planKey === 'free' ? (
+          ) : !isTeam && planKey === 'free' ? (
             <Button variant="brand" size="sm" onClick={onUpgrade}>Upgrade</Button>
           ) : (
             <span className="text-label-11 uppercase tracking-wider text-[var(--modes-text-muted)]">
@@ -399,7 +407,7 @@ function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn }) {
       </div>
 
       <Section>
-        {isSignedIn && planKey !== 'free' && (
+        {isSignedIn && !isTeam && planKey !== 'free' && (
           <Row
             label="Manage billing"
             description="Update your payment method, cancel, or switch plans."
@@ -407,12 +415,20 @@ function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn }) {
             <Button variant="secondary" size="sm" onClick={onUpgrade}>Open</Button>
           </Row>
         )}
-        <Row
-          label="Compare plans"
-          description="See everything Sync, Team, and Church add on top of Free."
-        >
-          <Button variant="secondary" size="sm" onClick={onUpgrade}>View plans</Button>
-        </Row>
+        {isSignedIn && isTeam && (
+          <Row
+            label="Team Subscription"
+            description="Only the team owner can manage this subscription."
+          />
+        )}
+        {!isTeam && (
+          <Row
+            label="Compare plans"
+            description="See everything Sync, Team, and Church add on top of Free."
+          >
+            <Button variant="secondary" size="sm" onClick={onUpgrade}>View plans</Button>
+          </Row>
+        )}
       </Section>
     </div>
   );
@@ -608,6 +624,8 @@ export default function Settings({
             isSignedIn={isSignedIn}
             onUpgrade={onUpgrade}
             onRequestSignIn={onRequestSignIn}
+            activeLibrary={activeLibrary}
+            team={team}
           />
         );
       case 'data':

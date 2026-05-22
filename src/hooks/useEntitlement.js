@@ -1,4 +1,6 @@
 import { useAuth } from '../auth/useAuth';
+import { useWorkspace } from '../contexts/WorkspaceContext';
+import { useTeam } from '../auth/useTeam';
 
 // Plan hierarchy — higher rank = more access.
 const PLAN_RANK = { free: 0, sync: 1, team: 2, church: 3 };
@@ -30,21 +32,46 @@ const FEATURE_GATES = {
  * @returns {{ allowed: boolean, requiredPlan: string, currentPlan: string }}
  */
 export function useEntitlement(feature) {
+  const { activeLibrary } = useWorkspace();
+  const { team } = useTeam();
   const { profile } = useAuth();
-  const currentPlan = (profile?.plan || 'free').toLowerCase();
+  
+  const isPersonal = activeLibrary === 'personal';
+  
+  // 1. Determine current rank based on context
+  const currentPlan = isPersonal 
+    ? (profile?.subscription_tier || 'free').toLowerCase()
+    : (team?.billing_plan || 'free').toLowerCase();
+    
   const requiredPlan = FEATURE_GATES[feature] || 'free';
-  const allowed = (PLAN_RANK[currentPlan] ?? 0) >= (PLAN_RANK[requiredPlan] ?? 0);
+  let allowed = (PLAN_RANK[currentPlan] ?? 0) >= (PLAN_RANK[requiredPlan] ?? 0);
+  
+  // 2. Special carve-outs for 'Pro' one-time purchases in Personal mode
+  if (isPersonal && profile?.is_pro) {
+    if (feature === 'chart-style' || feature === 'cloud-sync' || feature === 'smart-import') {
+      allowed = true;
+    }
+  }
+
   return { allowed, requiredPlan, currentPlan };
 }
 
 /**
  * Non-hook version for use outside of React components (e.g. in callbacks
  * where you already have the profile object).
+ * We pass isPro to allow one-time purchase overrides.
  */
-export function checkEntitlement(plan, feature) {
+export function checkEntitlement(plan, feature, isPro = false) {
   const currentPlan = (plan || 'free').toLowerCase();
   const requiredPlan = FEATURE_GATES[feature] || 'free';
-  const allowed = (PLAN_RANK[currentPlan] ?? 0) >= (PLAN_RANK[requiredPlan] ?? 0);
+  let allowed = (PLAN_RANK[currentPlan] ?? 0) >= (PLAN_RANK[requiredPlan] ?? 0);
+  
+  if (isPro) {
+    if (feature === 'chart-style' || feature === 'cloud-sync' || feature === 'smart-import') {
+      allowed = true;
+    }
+  }
+
   return { allowed, requiredPlan, currentPlan };
 }
 
