@@ -4,6 +4,7 @@ import SongCard from './SongCard';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { SearchBar } from './ui/SearchBar';
+import SidePeekOverlay from './SidePeekOverlay';
 import { cn } from '../lib/utils';
 import { useIsDesktop } from '../lib/useMediaQuery';
 
@@ -118,6 +119,8 @@ export default function Library({
   readOnly = false,
   chartDefaults = {},
   canEdit = true,
+  viewMode = 'card',
+  onViewModeChange,
 }) {
   const isDesktop = useIsDesktop();
   const previewSong = useMemo(
@@ -233,13 +236,12 @@ export default function Library({
   };
 
   return (
-    <div className="flex flex-col lg:flex-row lg:h-screen">
+    <div className="flex flex-col lg:flex-row lg:h-screen w-full relative">
       <div
         data-theme-variant="modes"
         className={cn(
-          "relative min-w-0 pb-8",
-          "lg:h-screen lg:overflow-y-auto lg:border-r lg:border-[var(--modes-border)]",
-          "flex-1 lg:flex-none lg:w-[480px] xl:w-[560px]",
+          "relative min-w-0 pb-8 flex-1 w-full",
+          "lg:h-screen lg:overflow-y-auto",
           isFullscreen && "lg:hidden",
         )}
       >
@@ -398,8 +400,32 @@ export default function Library({
                 </IconButton>
               </div>
             )}
+            
+            {/* View Mode Toggles */}
+            {onViewModeChange && (
+              <div className="hidden sm:flex bg-[var(--modes-surface)] rounded-md border border-[var(--modes-border)] p-0.5 ml-2">
+                <button
+                  onClick={() => onViewModeChange('table')}
+                  className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
+                    viewMode === 'table' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
+                  }`}
+                  title="Table view"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+                </button>
+                <button
+                  onClick={() => onViewModeChange('card')}
+                  className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
+                    viewMode === 'card' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
+                  }`}
+                  title="Card view"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="4" y="4" width="16" height="4"/><rect x="4" y="12" width="16" height="4"/></svg>
+                </button>
+              </div>
+            )}
           </div>
-          </div>
+        </div>
         </div>
 
         {/* Content */}
@@ -418,18 +444,66 @@ export default function Library({
                       {groups[groupKey].length}
                     </span>
                   </div>
-                  <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
-                    {groups[groupKey].map(song => (
-                      <SongCard
-                        key={song.id}
-                        song={song}
-                        variant="row"
-                        showTags={true}
-                        selected={isDesktop && song.id === previewSongId}
-                        onClick={() => handleRowClick(song)}
-                      />
-                    ))}
                   </div>
+                  {viewMode === 'table' ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse min-w-[500px]">
+                        <thead>
+                          <tr className="border-b border-[var(--modes-border)] text-label-12 text-[var(--modes-text-muted)]">
+                            <th className="py-2 px-4 font-semibold w-1/3">Title</th>
+                            <th className="py-2 px-4 font-semibold w-1/4">Artist</th>
+                            <th className="py-2 px-4 font-semibold w-1/6">Key</th>
+                            <th className="py-2 px-4 font-semibold flex-1">Tags</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--modes-border)]">
+                          {groups[groupKey].map(song => (
+                            <tr 
+                              key={song.id} 
+                              onClick={() => handleRowClick(song)}
+                              className="cursor-pointer hover:bg-[var(--modes-surface)] transition-colors"
+                            >
+                              <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)]">{song.title}</td>
+                              <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">{song.artist || 'Unknown'}</td>
+                              <td className="py-3 px-4">
+                                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-label-12 font-bold bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)]">
+                                  {song.key || 'C'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {(song.tags || []).slice(0, 3).map(tag => (
+                                    <span key={tag} className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
+                                      {tag}
+                                    </span>
+                                  ))}
+                                  {(song.tags || []).length > 3 && (
+                                    <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
+                                      +{(song.tags || []).length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {groups[groupKey].map(song => (
+                        <div key={song.id} className="modes-card border border-[var(--modes-border)] rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                          <SongCard
+                            song={song}
+                            variant="row"
+                            showTags={true}
+                            selected={isDesktop && song.id === previewSongId}
+                            onClick={() => handleRowClick(song)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               {hasMore && (
@@ -493,9 +567,18 @@ export default function Library({
       )}
       </div>
 
-      {/* Preview pane — desktop only */}
-      <div className="hidden lg:flex lg:flex-1 lg:min-w-0 lg:h-screen lg:flex-col lg:bg-[var(--ds-background-100)]">
-        {previewSong ? (
+      {/* Side Peek Preview */}
+      <SidePeekOverlay
+        open={!!previewSong}
+        onClose={() => onSelectPreview?.(null)}
+        onOpenFull={() => {
+          if (previewSong) {
+            onEditSong?.(previewSong);
+            onSelectPreview?.(null);
+          }
+        }}
+      >
+        {previewSong && (
           <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
             <ChartView
               key={previewSong.id}
@@ -510,21 +593,8 @@ export default function Library({
               {...chartDefaults}
             />
           </Suspense>
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center text-center gap-3 px-8 py-16">
-            <div className="w-14 h-14 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] flex items-center justify-center">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--ds-gray-700)]">
-                <path d="M9 18V5l12-2v13" />
-                <circle cx="6" cy="18" r="3" />
-                <circle cx="18" cy="16" r="3" />
-              </svg>
-            </div>
-            <p className="text-copy-14 text-[var(--ds-gray-700)] max-w-xs">
-              Select a song from the library to preview it here.
-            </p>
-          </div>
         )}
-      </div>
+      </SidePeekOverlay>
     </div>
   );
 }

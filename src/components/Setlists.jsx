@@ -4,6 +4,7 @@ import SetlistCard from './SetlistCard';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { SearchBar } from './ui/SearchBar';
+import SidePeekOverlay from './SidePeekOverlay';
 import { cn } from '../lib/utils';
 import { useIsDesktop } from '../lib/useMediaQuery';
 
@@ -55,6 +56,8 @@ export default function Setlists({
   onExportSetlistPdfFull,
   onDeleteSetlist,
   canEdit = true,
+  viewMode = 'card',
+  onViewModeChange,
 }) {
   const isDesktop = useIsDesktop();
   const previewSetlist = useMemo(
@@ -117,13 +120,12 @@ export default function Setlists({
   }, [filtered]);
 
   return (
-    <div className="flex flex-col lg:flex-row lg:h-screen">
+    <div className="flex flex-col lg:flex-row lg:h-screen w-full relative">
       <div
         data-theme-variant="modes"
         className={cn(
-          "relative min-w-0 pb-8",
-          "lg:h-screen lg:overflow-y-auto lg:border-r lg:border-[var(--modes-border)]",
-          "flex-1 lg:flex-none lg:w-[480px] xl:w-[560px]",
+          "relative min-w-0 pb-8 flex-1 w-full",
+          "lg:h-screen lg:overflow-y-auto",
           isFullscreen && "lg:hidden",
         )}
       >
@@ -155,7 +157,6 @@ export default function Setlists({
                     </svg>
                   </IconButton>
                 )}
-                {onNewSetlist && (
                   <IconButton variant="default" size="sm" onClick={onNewSetlist} aria-label="New setlist" title="New setlist">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="12" y1="5" x2="12" y2="19" />
@@ -163,6 +164,30 @@ export default function Setlists({
                     </svg>
                   </IconButton>
                 )}
+              </div>
+            )}
+            
+            {/* View Mode Toggles */}
+            {onViewModeChange && (
+              <div className="hidden sm:flex bg-[var(--modes-surface)] rounded-md border border-[var(--modes-border)] p-0.5 ml-2">
+                <button
+                  onClick={() => onViewModeChange('table')}
+                  className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
+                    viewMode === 'table' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
+                  }`}
+                  title="Table view"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+                </button>
+                <button
+                  onClick={() => onViewModeChange('card')}
+                  className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
+                    viewMode === 'card' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
+                  }`}
+                  title="Card view"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="4" y="4" width="16" height="4"/><rect x="4" y="12" width="16" height="4"/></svg>
+                </button>
               </div>
             )}
           </div>
@@ -185,18 +210,64 @@ export default function Setlists({
                       {upcoming.length}
                     </span>
                   </div>
-                  <div className="flex flex-col gap-4">
-                    {upcoming.map(sl => (
-                      <SetlistCard
-                        key={sl.id}
-                        setlist={sl}
-                        selected={isDesktop && sl.id === previewSetlistId}
-                        onPlay={() => onPlaySetlist(sl)}
-                        onView={() => handleView(sl)}
-                        clockFormat={clockFormat}
-                      />
-                    ))}
-                  </div>
+                  {viewMode === 'table' ? (
+                    <div className="overflow-x-auto modes-card border border-[var(--modes-border)] rounded-xl p-0">
+                      <table className="w-full text-left border-collapse min-w-[600px]">
+                        <thead>
+                          <tr className="border-b border-[var(--modes-border)] text-label-12 text-[var(--modes-text-muted)] bg-[var(--modes-surface-strong)]">
+                            <th className="py-3 px-4 font-semibold">Name</th>
+                            <th className="py-3 px-4 font-semibold">Date</th>
+                            <th className="py-3 px-4 font-semibold">Songs</th>
+                            <th className="py-3 px-4 font-semibold flex-1">Tags</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--modes-border)]">
+                          {upcoming.map(sl => (
+                            <tr 
+                              key={sl.id} 
+                              onClick={() => handleView(sl)}
+                              className="cursor-pointer hover:bg-[var(--modes-surface)] transition-colors"
+                            >
+                              <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)]">{sl.name || 'Untitled Setlist'}</td>
+                              <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">
+                                {new Date(sl.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                              </td>
+                              <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">
+                                {sl.items?.length || 0}
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {(sl.tags || []).slice(0, 3).map(tag => (
+                                    <span key={tag} className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
+                                      {tag}
+                                    </span>
+                                  ))}
+                                  {(sl.tags || []).length > 3 && (
+                                    <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
+                                      +{(sl.tags || []).length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      {upcoming.map(sl => (
+                        <SetlistCard
+                          key={sl.id}
+                          setlist={sl}
+                          selected={isDesktop && sl.id === previewSetlistId}
+                          onPlay={() => onPlaySetlist(sl)}
+                          onView={() => handleView(sl)}
+                          clockFormat={clockFormat}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </section>
               )}
 
@@ -211,18 +282,64 @@ export default function Setlists({
                       {past.length}
                     </span>
                   </div>
-                  <div className="flex flex-col gap-4">
-                    {past.map(sl => (
-                      <SetlistCard
-                        key={sl.id}
-                        setlist={sl}
-                        selected={isDesktop && sl.id === previewSetlistId}
-                        onPlay={() => onPlaySetlist(sl)}
-                        onView={() => handleView(sl)}
-                        clockFormat={clockFormat}
-                      />
-                    ))}
-                  </div>
+                  {viewMode === 'table' ? (
+                    <div className="overflow-x-auto modes-card border border-[var(--modes-border)] rounded-xl p-0">
+                      <table className="w-full text-left border-collapse min-w-[600px]">
+                        <thead>
+                          <tr className="border-b border-[var(--modes-border)] text-label-12 text-[var(--modes-text-muted)] bg-[var(--modes-surface-strong)]">
+                            <th className="py-3 px-4 font-semibold">Name</th>
+                            <th className="py-3 px-4 font-semibold">Date</th>
+                            <th className="py-3 px-4 font-semibold">Songs</th>
+                            <th className="py-3 px-4 font-semibold flex-1">Tags</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--modes-border)]">
+                          {past.map(sl => (
+                            <tr 
+                              key={sl.id} 
+                              onClick={() => handleView(sl)}
+                              className="cursor-pointer hover:bg-[var(--modes-surface)] transition-colors"
+                            >
+                              <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)]">{sl.name || 'Untitled Setlist'}</td>
+                              <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">
+                                {new Date(sl.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                              </td>
+                              <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">
+                                {sl.items?.length || 0}
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {(sl.tags || []).slice(0, 3).map(tag => (
+                                    <span key={tag} className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
+                                      {tag}
+                                    </span>
+                                  ))}
+                                  {(sl.tags || []).length > 3 && (
+                                    <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
+                                      +{(sl.tags || []).length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      {past.map(sl => (
+                        <SetlistCard
+                          key={sl.id}
+                          setlist={sl}
+                          selected={isDesktop && sl.id === previewSetlistId}
+                          onPlay={() => onPlaySetlist(sl)}
+                          onView={() => handleView(sl)}
+                          clockFormat={clockFormat}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </section>
               )}
 
@@ -322,9 +439,18 @@ export default function Setlists({
       />
       </div>
 
-      {/* Preview pane — desktop only */}
-      <div className="hidden lg:flex lg:flex-1 lg:min-w-0 lg:h-screen lg:flex-col lg:bg-[var(--ds-background-100)] lg:overflow-y-auto">
-        {previewSetlist ? (
+      {/* Side Peek Preview */}
+      <SidePeekOverlay
+        open={!!previewSetlist}
+        onClose={() => onSelectPreview?.(null)}
+        onOpenFull={() => {
+          if (previewSetlist) {
+            onEditSetlist?.(previewSetlist);
+            onSelectPreview?.(null);
+          }
+        }}
+      >
+        {previewSetlist && (
           <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
             <SetlistOverview
               key={previewSetlist.id}
@@ -347,24 +473,8 @@ export default function Setlists({
               canEdit={canEdit}
             />
           </Suspense>
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center text-center gap-3 px-8 py-16">
-            <div className="w-14 h-14 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] flex items-center justify-center">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--ds-gray-700)]">
-                <line x1="8" y1="6" x2="21" y2="6" />
-                <line x1="8" y1="12" x2="21" y2="12" />
-                <line x1="8" y1="18" x2="21" y2="18" />
-                <line x1="3" y1="6" x2="3.01" y2="6" />
-                <line x1="3" y1="12" x2="3.01" y2="12" />
-                <line x1="3" y1="18" x2="3.01" y2="18" />
-              </svg>
-            </div>
-            <p className="text-copy-14 text-[var(--ds-gray-700)] max-w-xs">
-              Select a setlist from the list to preview it here.
-            </p>
-          </div>
         )}
-      </div>
+      </SidePeekOverlay>
     </div>
   );
 }

@@ -16,13 +16,14 @@ import Library from './components/Library';
 import Settings from './components/Settings';
 import Account from './components/Account';
 import Setlists from './components/Setlists';
-import BottomNav from './components/BottomNav';
+import FloatingBottomNav from './components/FloatingBottomNav';
 import DesktopLayout from './components/DesktopLayout';
 import MobileTopBar from './components/MobileTopBar';
 import MobileDrawer from './components/MobileDrawer';
 import NotificationTray from './components/NotificationTray';
 import FeedbackButton from './components/FeedbackButton';
 import ErrorBoundary from './components/ErrorBoundary';
+import GlobalSearchModal from './components/GlobalSearchModal';
 import { useAuth } from './auth/useAuth';
 import { useTeam } from './auth/useTeam';
 import { exportSetlistZip, importSetlistZip, slugify } from './setlist-io';
@@ -118,6 +119,8 @@ const PORTABLE_PREF_KEYS = [
   'clockFormat',
   'userName',
   'lastChangelogVersion',
+  'libraryViewMode',
+  'setlistsViewMode',
 ];
 
 function extractPortablePrefs(s) {
@@ -185,6 +188,7 @@ export default function App() {
     setDrawerOpen(true);
   };
   const [notifTrayOpen, setNotifTrayOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   // Account-wall modal state — surfaced after the user saves their first
   // local item (song or setlist) without being signed in.
   const [accountWallTrigger, setAccountWallTrigger] = useState(null);
@@ -1313,14 +1317,12 @@ export default function App() {
   }
 
   if (!loaded) {
-    return (
-      <div className="min-h-screen bg-[var(--ds-background-200)] flex flex-col items-center justify-center gap-6">
+    return <div className="absolute inset-0 pt-[env(safe-area-inset-top,0px)] bg-[var(--ds-background-100)] flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-300 pointer-events-auto">
         <img src="/setlists-md-mark.svg" alt="setlists.md" width="80" height="80" className="rounded-2xl" />
         <div className="text-copy-14 text-[var(--text-2)]">
           Loading setlists.md…
         </div>
-      </div>
-    );
+      </div>;
   }
 
   const lazyFallback = (
@@ -1404,6 +1406,18 @@ export default function App() {
           onDone={() => setView('home')}
         />
       )}
+      {!['onboarding', 'signin', 'upgrade', 'recovery', 'setlist-performance', 'setlist-practice', 'setlist-play'].includes(view) && (
+        <FloatingBottomNav 
+          activeView={view} 
+          onNavigate={goToMainView}
+          activeLibrary={activeLibrary}
+          setActiveLibrary={setActiveLibrary}
+          team={team}
+          onStartLive={() => navigate('setlist-performance', { setlist: currentSetlist })}
+          onAddToSetlist={() => navigate('setlists')}
+          onOpenSearch={() => setSearchOpen(true)}
+        />
+      )}
       {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && (
         <DesktopLayout 
           activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
@@ -1414,6 +1428,7 @@ export default function App() {
           notifications={settings?.notifications || []} 
           onMarkRead={handleMarkNotificationRead} 
           onNotificationAction={handleNotificationAction} 
+          onOpenSearch={() => setSearchOpen(true)}
           drawerOpen={drawerOpen} 
           displayName={displayName} 
           plan={plan} 
@@ -1480,6 +1495,8 @@ export default function App() {
               onToggleFullscreen={toggleFullscreen}
               onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
               readOnly={isTeamReadOnly}
+              viewMode={settings?.libraryViewMode || 'card'}
+              onViewModeChange={m => setSettings(s => ({ ...s, libraryViewMode: m }))}
               chartDefaults={{
                 defaultColumns: settings?.defaultColumns,
                 defaultFontSize: settings?.defaultFontSize,
@@ -1508,6 +1525,8 @@ export default function App() {
               onToggleFullscreen={toggleFullscreen}
               onEditSetlist={isTeamReadOnly ? null : (sl) => goSetlistBuild(sl)}
               readOnly={isTeamReadOnly}
+              viewMode={settings?.setlistsViewMode || 'card'}
+              onViewModeChange={m => setSettings(s => ({ ...s, setlistsViewMode: m }))}
               clockFormat={settings?.clockFormat || '12h'}
               onExportSetlistZip={(sl) => handleExportSetlist(sl)}
               onExportSetlistPdfOverview={(sl) => exportSetlistPdf(sl, songs, { mode: 'overview' })}
@@ -1751,12 +1770,7 @@ export default function App() {
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />
           )}
-          {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view'].includes(view) && (
-            <BottomNav
-              activeView={view === 'setlist-view' ? 'setlists' : view}
-              onNavigate={goToMainView}
-            />
-          )}
+
         </DesktopLayout>
       )}
       {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && ['home', 'library', 'setlists'].includes(view) && !drawerOpen && (
@@ -1884,6 +1898,15 @@ export default function App() {
         />
       )}
     </Suspense>
+
+      <GlobalSearchModal 
+        open={searchOpen} 
+        onClose={() => setSearchOpen(false)} 
+        songs={songs} 
+        setlists={setlists}
+        onSelectSong={(song) => navigate('editor', { song })}
+        onSelectSetlist={(sl) => navigate('setlist-view', { setlist: sl })}
+      />
     </ErrorBoundary>
   );
 }

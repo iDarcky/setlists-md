@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import Sidebar from './Sidebar';
+import DesktopTopBar from './DesktopTopBar';
 import TeamBanner from './TeamBanner';
 import { cn } from '../lib/utils';
 import { useMediaQuery } from '../lib/useMediaQuery';
@@ -25,6 +25,7 @@ export default function DesktopLayout({
   syncState,
   isOnline,
   hideBanner = false,
+  onOpenSearch,
 }) {
   const mainRef = useRef(null);
   const isMobile = useMediaQuery('(max-width: 639.98px)');
@@ -39,7 +40,7 @@ export default function DesktopLayout({
 
   const cols = isFullscreen
     ? 'grid-cols-1'
-    : 'grid-cols-1 sm:grid-cols-[80px_1fr] xl:grid-cols-[280px_1fr]';
+    : 'grid-cols-1'; // the layout is now top-down, so it's just a 1-col grid holding the main tag
 
   const showBanner = !hideBanner && activeLibrary !== 'personal' && team;
 
@@ -58,9 +59,9 @@ export default function DesktopLayout({
         />
       )}
 
-      <div className={cn('flex-1 w-full grid overflow-hidden [grid-template-rows:minmax(0,1fr)]', cols)}>
+      <div className={cn('flex-1 w-full flex flex-col overflow-hidden', cols)}>
         {!isFullscreen && (
-          <Sidebar 
+          <DesktopTopBar 
             activeView={activeView} 
             onNavigate={onNavigate} 
             hasUnreadNotifications={hasUnreadNotifications} 
@@ -75,6 +76,7 @@ export default function DesktopLayout({
             team={team} 
             syncState={syncState}
             isOnline={isOnline}
+            onOpenSearch={onOpenSearch}
           />
         )}
         {/*
