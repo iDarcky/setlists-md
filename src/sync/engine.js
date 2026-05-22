@@ -260,6 +260,26 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
       }
     }
 
+    // Find remote deletions for songs
+    for (const [id, entry] of Object.entries(manifest)) {
+      if (!pulledSongIds.has(id) && !songTombstones.has(id)) {
+        // File is missing remotely.
+        // We drop the manifest entry so the next push() will re-upload it.
+        // In a true multi-device sync, we might want to delete it locally if unchanged,
+        // but to prevent data loss (e.g. if the remote DB was nuked), we re-upload.
+        delete manifest[id];
+        songsChanged = true;
+      }
+    }
+
+    // Find remote deletions for setlists
+    for (const [id, entry] of Object.entries(slManifest)) {
+      if (!pulledSetlistIds.has(id) && !setlistTombstones.has(id)) {
+        delete slManifest[id];
+        setlistsChanged = true;
+      }
+    }
+
     if (songsChanged) await updateSyncManifest(manifest, libraryId);
     if (setlistsChanged) await updateSetlistManifest(slManifest, libraryId);
 
