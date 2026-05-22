@@ -1362,9 +1362,12 @@ export default function App() {
   const isSignedIn = !!user;
   const displayName = profile?.display_name || settings?.userName || 'Guest';
   const displayEmail = user?.email || 'guest@setlists.md';
-  const plan = profile?.plan
-    ? profile.plan.charAt(0).toUpperCase() + profile.plan.slice(1)
-    : 'Free';
+  let plan = 'Free';
+  if (profile?.subscription_tier) {
+    plan = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
+  } else if (profile?.is_pro) {
+    plan = 'Pro';
+  }
   const handleSignOut = async () => {
     const ok = await confirm({
       title: 'Sign out?',
