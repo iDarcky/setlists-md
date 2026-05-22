@@ -32,6 +32,7 @@ import { usePWAUpdate } from './hooks/usePWAUpdate';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import { useTeamRealtime } from './hooks/useTeamRealtime';
 import { useChartTheme } from './hooks/useChartTheme';
+import { useIsDesktop } from './lib/useMediaQuery';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 
@@ -143,6 +144,7 @@ export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
   const { team, isAdmin, isEditor, isMember } = useTeam();
   const canEdit = !team || isAdmin || isEditor;
+  const isDesktop = useIsDesktop();
   const isTeamAdmin = isAdmin;
   const confirm = useConfirm();
   // PWA update prompt — toast appears when a new SW is downloaded.
@@ -1495,7 +1497,7 @@ export default function App() {
               onToggleFullscreen={toggleFullscreen}
               onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
               readOnly={isTeamReadOnly}
-              viewMode={settings?.libraryViewMode || 'card'}
+              viewMode={isDesktop ? (settings?.libraryViewMode || 'card') : 'card'}
               onViewModeChange={m => setSettings(s => ({ ...s, libraryViewMode: m }))}
               chartDefaults={{
                 defaultColumns: settings?.defaultColumns,
@@ -1525,7 +1527,7 @@ export default function App() {
               onToggleFullscreen={toggleFullscreen}
               onEditSetlist={isTeamReadOnly ? null : (sl) => goSetlistBuild(sl)}
               readOnly={isTeamReadOnly}
-              viewMode={settings?.setlistsViewMode || 'card'}
+              viewMode={isDesktop ? (settings?.setlistsViewMode || 'card') : 'card'}
               onViewModeChange={m => setSettings(s => ({ ...s, setlistsViewMode: m }))}
               clockFormat={settings?.clockFormat || '12h'}
               onExportSetlistZip={(sl) => handleExportSetlist(sl)}

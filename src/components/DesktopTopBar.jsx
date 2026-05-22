@@ -3,12 +3,7 @@ import NotificationTray from './NotificationTray';
 import { cn } from '../lib/utils';
 import { useAuth } from '../auth/useAuth';
 
-const SearchIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8" />
-    <path d="m21 21-4.3-4.3" />
-  </svg>
-);
+
 
 const SettingsIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -40,8 +35,7 @@ export default function DesktopTopBar({
   displayName = 'Guest', 
   activeLibrary, 
   setActiveLibrary, 
-  team,
-  onOpenSearch
+  team
 }) {
   const [trayOpen, setTrayOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
@@ -71,7 +65,7 @@ export default function DesktopTopBar({
     <>
       <header className="hidden sm:flex items-center justify-between h-14 px-4 bg-[var(--ds-background-200)] border-b border-[var(--ds-gray-200)] shrink-0 select-none">
         {/* Left: Navigation Tabs */}
-        <nav className="flex items-center gap-1 flex-1">
+        <nav className="flex items-center gap-1 flex-1 h-full pt-1">
           {tabs.map(({ id, label }) => {
             const active = activeView === id;
             return (
@@ -79,11 +73,12 @@ export default function DesktopTopBar({
                 key={id}
                 onClick={() => onNavigate(id)}
                 className={cn(
-                  "px-3 py-1.5 rounded-md text-label-14 font-medium transition-colors border-none cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-teal-600)]",
+                  "h-full px-4 flex items-center justify-center text-label-14 font-medium transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-teal-600)] relative border-t-2 bg-transparent",
                   active 
-                    ? "text-[var(--ds-gray-1000)]" 
-                    : "text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] bg-transparent"
+                    ? "text-[var(--ds-gray-1000)] border-[var(--color-brand)]" 
+                    : "text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] border-transparent"
                 )}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 {label}
               </button>
@@ -147,15 +142,7 @@ export default function DesktopTopBar({
 
         {/* Right: Actions */}
         <div className="flex-1 flex items-center justify-end gap-1">
-          {onOpenSearch && (
-            <button
-              onClick={onOpenSearch}
-              aria-label="Search"
-              className="w-8 h-8 rounded-md flex items-center justify-center text-[var(--ds-gray-700)] bg-transparent hover:bg-[var(--ds-gray-200)] border-none cursor-pointer transition-colors"
-            >
-              <SearchIcon />
-            </button>
-          )}
+
 
           <button
             onClick={() => setTrayOpen(true)}

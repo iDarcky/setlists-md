@@ -109,12 +109,7 @@ export default function FloatingBottomNav({
 
         {/* Floating Pill */}
         <nav
-          className="flex items-center h-16 rounded-full border border-[var(--ds-gray-300)] shadow-xl overflow-hidden px-2"
-          style={{
-            background: 'var(--header-bg-blur)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-          }}
+          className="flex items-center h-16 rounded-full border border-[var(--ds-gray-300)] shadow-xl overflow-hidden px-2 bg-white/70 dark:bg-[#1a1a1a]/70 backdrop-blur-xl"
         >
           {tabs.map(({ id, label, Icon }) => {
             const active = id === activeId;
@@ -146,11 +141,8 @@ export default function FloatingBottomNav({
         <div className="relative" ref={workspaceRef}>
           <button
             onClick={actionConfig.onClick}
-            className="w-16 h-16 rounded-full flex items-center justify-center shadow-xl border border-[var(--ds-gray-300)] transition-transform active:scale-95"
+            className="w-16 h-16 rounded-full flex items-center justify-center shadow-xl border border-[var(--ds-gray-300)] transition-transform active:scale-95 bg-white/70 dark:bg-[#1a1a1a]/70 backdrop-blur-xl"
             style={{
-              background: 'var(--header-bg-blur)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
               color: 'var(--color-brand)',
             }}
             aria-label={actionConfig.ariaLabel}

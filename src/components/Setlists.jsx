@@ -70,6 +70,9 @@ export default function Setlists({
     else onViewSetlist(sl);
   };
   const [query, setQuery] = useState('');
+  const [sortMode, setSortMode] = useState('date');
+  const [sortAsc, setSortAsc] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const [fabOpen, setFabOpen] = useState(false);
   const fabRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -100,6 +103,50 @@ export default function Setlists({
     );
   }, [setlists, query]);
 
+  const sortedFiltered = useMemo(() => {
+    const dir = sortAsc ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      if (sortMode === 'date') {
+        const da = new Date(a.date).getTime();
+        const db = new Date(b.date).getTime();
+        return (da - db) * dir;
+      }
+      if (sortMode === 'songs') {
+        const cA = a.items?.length || 0;
+        const cB = b.items?.length || 0;
+        return (cA - cB) * dir;
+      }
+      const valA = (a[sortMode] || '').toLowerCase();
+      const valB = (b[sortMode] || '').toLowerCase();
+      return valA.localeCompare(valB) * dir;
+    });
+  }, [filtered, sortMode, sortAsc]);
+
+  const toggleSelection = (e, id) => {
+    e.stopPropagation();
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === sortedFiltered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedFiltered.map(s => s.id)));
+    }
+  };
+
+  const handleSortClick = (modeKey) => {
+    if (sortMode === modeKey) {
+      setSortAsc(prev => !prev);
+    } else {
+      setSortMode(modeKey);
+      setSortAsc(modeKey !== 'date'); // Default to desc for dates, asc for others
+    }
+  };
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -129,218 +176,189 @@ export default function Setlists({
           isFullscreen && "lg:hidden",
         )}
       >
-      <div className="hidden sm:block">
-        <PageHeader title="Setlists" />
-      </div>
-
       <div className="flex flex-col gap-0">
-
-        {/* Sticky Search — hidden on mobile (global top-bar covers it) */}
-        <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)] hidden sm:block">
-          <div className="a4-container pt-6 pb-4 flex items-center gap-2">
-            <SearchBar
-              className="flex-1"
-              placeholder="Search setlists by name, location, or tag…"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-            />
-
-            {/* Desktop-only quick actions (FAB is hidden on lg+) */}
-            {!readOnly && (
-              <div className="hidden lg:flex items-center gap-1 shrink-0">
+        {/* Desktop Header & Search */}
+        <div className="hidden sm:block sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]">
+          <div className="w-full px-4 sm:px-8 max-w-[1400px] mx-auto pt-6 pb-4 flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-4">
+              <h1 className="text-3xl font-bold text-[var(--ds-gray-1000)] m-0 tracking-tight">Setlists</h1>
+              <div className="flex items-center gap-2">
                 {onImportSetlist && (
-                  <IconButton variant="default" size="sm" onClick={() => fileInputRef.current?.click()} aria-label="Import .zip" title="Import .zip">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                  </IconButton>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] hover:bg-[var(--ds-gray-100)] text-label-14 font-medium transition-colors border-solid"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Import
+                  </button>
                 )}
-                  <IconButton variant="default" size="sm" onClick={onNewSetlist} aria-label="New setlist" title="New setlist">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </IconButton>
+                {!readOnly && (
+                  <button
+                    onClick={onNewSetlist}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] hover:bg-[var(--ds-gray-800)] text-label-14 font-medium transition-colors border-none"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    New Setlist
+                  </button>
                 )}
               </div>
-            )}
+            </div>
             
-            {/* View Mode Toggles */}
-            {onViewModeChange && (
-              <div className="hidden sm:flex bg-[var(--modes-surface)] rounded-md border border-[var(--modes-border)] p-0.5 ml-2">
-                <button
-                  onClick={() => onViewModeChange('table')}
-                  className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
-                    viewMode === 'table' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
-                  }`}
-                  title="Table view"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
-                </button>
-                <button
-                  onClick={() => onViewModeChange('card')}
-                  className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
-                    viewMode === 'card' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
-                  }`}
-                  title="Card view"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="4" y="4" width="16" height="4"/><rect x="4" y="12" width="16" height="4"/></svg>
-                </button>
-              </div>
-            )}
+            <div className="flex gap-3 items-stretch">
+              <SearchBar
+                className="flex-1"
+                placeholder="Search setlists by name, location, or tag…"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+              />
+              
+              {/* View Mode Toggles */}
+              {onViewModeChange && (
+                <div className="hidden sm:flex bg-[var(--modes-surface)] rounded-md border border-[var(--modes-border)] p-0.5 ml-2">
+                  <button
+                    onClick={() => onViewModeChange('table')}
+                    className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
+                      viewMode === 'table' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
+                    }`}
+                    title="Table view"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+                  </button>
+                  <button
+                    onClick={() => onViewModeChange('card')}
+                    className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
+                      viewMode === 'card' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
+                    }`}
+                    title="Card view"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="4" y="4" width="16" height="4"/><rect x="4" y="12" width="16" height="4"/></svg>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Content */}
-        <div className="a4-container py-4 flex flex-col gap-10">
+        {selectedIds.size > 0 && viewMode === 'table' && (
+          <div className="w-full px-4 sm:px-8 max-w-[1400px] mx-auto py-2">
+            <div className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-300)] rounded-md px-4 py-2 flex items-center justify-between">
+              <span className="text-label-14 font-medium text-[var(--ds-gray-800)]">
+                {selectedIds.size} item{selectedIds.size > 1 ? 's' : ''} selected
+              </span>
+              <div className="flex items-center gap-2">
+                <button className="px-3 py-1.5 text-label-12 font-semibold text-[var(--ds-gray-700)] bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded hover:bg-[var(--ds-gray-200)] transition-colors cursor-pointer">
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="w-full px-4 sm:px-8 max-w-[1400px] mx-auto py-4 flex flex-col gap-10">
           {!loaded ? (
             <SkeletonCards />
           ) : (
             <>
-              {/* Upcoming Section */}
-              {upcoming.length > 0 && (
-                <section className="flex flex-col gap-4">
-                  <div className="flex items-baseline gap-2">
-                    <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">
-                      Upcoming
-                    </h2>
-                    <span className="text-label-12 text-[var(--modes-text-dim)]">
-                      {upcoming.length}
-                    </span>
-                  </div>
-                  {viewMode === 'table' ? (
-                    <div className="overflow-x-auto modes-card border border-[var(--modes-border)] rounded-xl p-0">
-                      <table className="w-full text-left border-collapse min-w-[600px]">
-                        <thead>
-                          <tr className="border-b border-[var(--modes-border)] text-label-12 text-[var(--modes-text-muted)] bg-[var(--modes-surface-strong)]">
-                            <th className="py-3 px-4 font-semibold">Name</th>
-                            <th className="py-3 px-4 font-semibold">Date</th>
-                            <th className="py-3 px-4 font-semibold">Songs</th>
-                            <th className="py-3 px-4 font-semibold flex-1">Tags</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[var(--modes-border)]">
-                          {upcoming.map(sl => (
-                            <tr 
-                              key={sl.id} 
-                              onClick={() => handleView(sl)}
-                              className="cursor-pointer hover:bg-[var(--modes-surface)] transition-colors"
-                            >
-                              <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)]">{sl.name || 'Untitled Setlist'}</td>
-                              <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">
-                                {new Date(sl.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                              </td>
-                              <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">
-                                {sl.items?.length || 0}
-                              </td>
-                              <td className="py-3 px-4">
-                                <div className="flex flex-wrap gap-1.5">
-                                  {(sl.tags || []).slice(0, 3).map(tag => (
-                                    <span key={tag} className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
-                                      {tag}
-                                    </span>
-                                  ))}
-                                  {(sl.tags || []).length > 3 && (
-                                    <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
-                                      +{(sl.tags || []).length - 3}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-4">
-                      {upcoming.map(sl => (
-                        <SetlistCard
-                          key={sl.id}
-                          setlist={sl}
-                          selected={isDesktop && sl.id === previewSetlistId}
-                          onPlay={() => onPlaySetlist(sl)}
-                          onView={() => handleView(sl)}
-                          clockFormat={clockFormat}
-                        />
+              {viewMode === 'table' ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                      <tr className="border-b border-[var(--modes-border)] text-label-12 text-[var(--modes-text-muted)] select-none">
+                        <th className="py-2 px-4 w-10">
+                          <input 
+                            type="checkbox" 
+                            className="w-4 h-4 rounded border-[var(--ds-gray-300)] accent-[var(--color-brand)] cursor-pointer"
+                            checked={selectedIds.size > 0 && selectedIds.size === sortedFiltered.length}
+                            onChange={toggleAll}
+                          />
+                        </th>
+                        <th className="py-2 px-4 font-semibold cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('name')}>
+                          <div className="flex items-center gap-1">
+                            Name
+                            {sortMode === 'name' && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={sortAsc ? '' : 'rotate-180'}><path d="m18 15-6-6-6 6"/></svg>
+                            )}
+                          </div>
+                        </th>
+                        <th className="py-2 px-4 font-semibold cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('date')}>
+                          <div className="flex items-center gap-1">
+                            Date
+                            {sortMode === 'date' && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={sortAsc ? '' : 'rotate-180'}><path d="m18 15-6-6-6 6"/></svg>
+                            )}
+                          </div>
+                        </th>
+                        <th className="py-2 px-4 font-semibold cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('songs')}>
+                          <div className="flex items-center gap-1">
+                            Songs
+                            {sortMode === 'songs' && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={sortAsc ? '' : 'rotate-180'}><path d="m18 15-6-6-6 6"/></svg>
+                            )}
+                          </div>
+                        </th>
+                        <th className="py-2 px-4 font-semibold flex-1">Tags</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--modes-border)]">
+                      {sortedFiltered.map(sl => (
+                        <tr 
+                          key={sl.id} 
+                          onClick={() => handleView(sl)}
+                          className={cn(
+                            "cursor-pointer transition-colors",
+                            selectedIds.has(sl.id) ? "bg-[var(--ds-gray-alpha-100)] hover:bg-[var(--ds-gray-alpha-200)]" : "hover:bg-[var(--modes-surface)]"
+                          )}
+                        >
+                          <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                            <input 
+                              type="checkbox"
+                              className="w-4 h-4 rounded border-[var(--ds-gray-300)] accent-[var(--color-brand)] cursor-pointer"
+                              checked={selectedIds.has(sl.id)}
+                              onChange={(e) => toggleSelection(e, sl.id)}
+                            />
+                          </td>
+                          <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)]">{sl.name || 'Untitled Setlist'}</td>
+                          <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">
+                            {new Date(sl.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                          </td>
+                          <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">
+                            {sl.items?.length || 0}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex flex-wrap gap-1.5">
+                              {(sl.tags || []).slice(0, 3).map(tag => (
+                                <span key={tag} className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
+                                  {tag}
+                                </span>
+                              ))}
+                              {(sl.tags || []).length > 3 && (
+                                <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
+                                  +{(sl.tags || []).length - 3}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
                       ))}
-                    </div>
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <>
+                  {/* Upcoming Section */}
+                  {upcoming.length > 0 && (
+                    <section className="flex flex-col gap-4">
+                      <div className="flex items-baseline gap-2">
+                        <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">
+                          Upcoming
+                        </h2>
+                        <span className="text-label-12 text-[var(--modes-text-dim)]">
+                          {upcoming.length}
+                        </span>
+                      </div>
+                    </section>
                   )}
-                </section>
-              )}
-
-              {/* Past Section */}
-              {past.length > 0 && (
-                <section className="flex flex-col gap-4">
-                  <div className="flex items-baseline gap-2">
-                    <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">
-                      Past
-                    </h2>
-                    <span className="text-label-12 text-[var(--modes-text-dim)]">
-                      {past.length}
-                    </span>
-                  </div>
-                  {viewMode === 'table' ? (
-                    <div className="overflow-x-auto modes-card border border-[var(--modes-border)] rounded-xl p-0">
-                      <table className="w-full text-left border-collapse min-w-[600px]">
-                        <thead>
-                          <tr className="border-b border-[var(--modes-border)] text-label-12 text-[var(--modes-text-muted)] bg-[var(--modes-surface-strong)]">
-                            <th className="py-3 px-4 font-semibold">Name</th>
-                            <th className="py-3 px-4 font-semibold">Date</th>
-                            <th className="py-3 px-4 font-semibold">Songs</th>
-                            <th className="py-3 px-4 font-semibold flex-1">Tags</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[var(--modes-border)]">
-                          {past.map(sl => (
-                            <tr 
-                              key={sl.id} 
-                              onClick={() => handleView(sl)}
-                              className="cursor-pointer hover:bg-[var(--modes-surface)] transition-colors"
-                            >
-                              <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)]">{sl.name || 'Untitled Setlist'}</td>
-                              <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">
-                                {new Date(sl.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                              </td>
-                              <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">
-                                {sl.items?.length || 0}
-                              </td>
-                              <td className="py-3 px-4">
-                                <div className="flex flex-wrap gap-1.5">
-                                  {(sl.tags || []).slice(0, 3).map(tag => (
-                                    <span key={tag} className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
-                                      {tag}
-                                    </span>
-                                  ))}
-                                  {(sl.tags || []).length > 3 && (
-                                    <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
-                                      +{(sl.tags || []).length - 3}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-4">
-                      {past.map(sl => (
-                        <SetlistCard
-                          key={sl.id}
-                          setlist={sl}
-                          selected={isDesktop && sl.id === previewSetlistId}
-                          onPlay={() => onPlaySetlist(sl)}
-                          onView={() => handleView(sl)}
-                          clockFormat={clockFormat}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </section>
+                </>
               )}
 
               {/* Empty State */}

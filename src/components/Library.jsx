@@ -143,6 +143,7 @@ export default function Library({
   const [tagsOpen, setTagsOpen] = useState(false);
   const [tagQuery, setTagQuery] = useState('');
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   const tagsRef = useRef(null);
   const fabRef = useRef(null);
@@ -189,6 +190,23 @@ export default function Library({
     return result;
   }, [songs, query, selectedTags]);
 
+  const sortedFiltered = useMemo(() => {
+    const dir = sortAsc ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      if (sortMode === 'key') {
+        const order = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+        const valA = a.key || 'C';
+        const valB = b.key || 'C';
+        const aIdx = order.findIndex(k => valA.toUpperCase().startsWith(k));
+        const bIdx = order.findIndex(k => valB.toUpperCase().startsWith(k));
+        return (aIdx - bIdx) * dir;
+      }
+      const valA = (a[sortMode] || '').toLowerCase();
+      const valB = (b[sortMode] || '').toLowerCase();
+      return valA.localeCompare(valB) * dir;
+    });
+  }, [filtered, sortMode, sortAsc]);
+
   // Reset pagination when filter criteria change so the user doesn't stay
   // scrolled into a stale reveal window.
   useEffect(() => {
@@ -196,15 +214,31 @@ export default function Library({
   }, [query, selectedTags, sortMode, sortAsc]);
 
   const truncated = useMemo(
-    () => filtered.length > visibleCount ? filtered.slice(0, visibleCount) : filtered,
-    [filtered, visibleCount]
+    () => sortedFiltered.length > visibleCount ? sortedFiltered.slice(0, visibleCount) : sortedFiltered,
+    [sortedFiltered, visibleCount]
   );
-  const hasMore = filtered.length > truncated.length;
+  const hasMore = sortedFiltered.length > truncated.length;
 
   const { groups, sortedKeys } = useMemo(
     () => groupAndSort(truncated, sortMode, sortAsc),
     [truncated, sortMode, sortAsc]
   );
+
+  const toggleSelection = (e, id) => {
+    e.stopPropagation();
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === truncated.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(truncated.map(s => s.id)));
+    }
+  };
 
   // Lazy-reveal the next page when the sentinel enters the viewport.
   useEffect(() => {
@@ -245,24 +279,39 @@ export default function Library({
           isFullscreen && "lg:hidden",
         )}
       >
-      <div className="hidden sm:block">
-        <PageHeader title="Song Library" />
-      </div>
-
       <div className="flex flex-col gap-0">
-
-        {/* Sticky Search + Tags + Filters — full-width bg */}
-        <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]">
-          <div className="a4-container pt-4 sm:pt-6 pb-4 flex flex-col gap-4">
-          {/* Search Bar + Tags */}
-          <div className="flex gap-3 items-stretch">
-            {/* Desktop text search — mobile uses the global top bar */}
-            <SearchBar
-              className="flex-1 hidden sm:flex"
-              placeholder="Search songs by title, artist, key, or tag…"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-            />
+        {/* Desktop Header & Search */}
+        <div className="hidden sm:block sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]">
+          <div className="w-full px-4 sm:px-8 max-w-[1400px] mx-auto pt-6 pb-4 flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-4">
+              <h1 className="text-3xl font-bold text-[var(--ds-gray-1000)] m-0 tracking-tight">Library</h1>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { /* import logic here or trigger a modal if there is one */ }}
+                  className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] hover:bg-[var(--ds-gray-100)] text-label-14 font-medium transition-colors border-solid"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Import
+                </button>
+                {!readOnly && onNewSong && (
+                  <button
+                    onClick={onNewSong}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] hover:bg-[var(--ds-gray-800)] text-label-14 font-medium transition-colors border-none"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    New Song
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex gap-3 items-stretch">
+              <SearchBar
+                className="flex-1 hidden sm:flex"
+                placeholder="Search songs by title, artist, key, or tag…"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+              />
 
             {/* Tags Dropdown */}
             {allTags.length > 0 && (
@@ -389,18 +438,7 @@ export default function Library({
               </button>
             ))}
 
-            {/* Desktop-only quick action (FAB is hidden on lg+) */}
-            {!readOnly && onNewSong && (
-              <div className="hidden lg:flex ml-auto items-center gap-1">
-                <IconButton variant="default" size="sm" onClick={onNewSong} aria-label="New song" title="New song">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </IconButton>
-              </div>
-            )}
-            
+            {/* Desktop-only quick action removed here, moved to header */}
             {/* View Mode Toggles */}
             {onViewModeChange && (
               <div className="hidden sm:flex bg-[var(--modes-surface)] rounded-md border border-[var(--modes-border)] p-0.5 ml-2">
@@ -429,82 +467,138 @@ export default function Library({
         </div>
 
         {/* Content */}
-        <div className="a4-container py-4">
+        {selectedIds.size > 0 && viewMode === 'table' && (
+          <div className="w-full px-4 sm:px-8 max-w-[1400px] mx-auto py-2">
+            <div className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-300)] rounded-md px-4 py-2 flex items-center justify-between">
+              <span className="text-label-14 font-medium text-[var(--ds-gray-800)]">
+                {selectedIds.size} item{selectedIds.size > 1 ? 's' : ''} selected
+              </span>
+              <div className="flex items-center gap-2">
+                <button className="px-3 py-1.5 text-label-12 font-semibold text-[var(--ds-gray-700)] bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded hover:bg-[var(--ds-gray-200)] transition-colors cursor-pointer">
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="w-full px-4 sm:px-8 max-w-[1400px] mx-auto py-4">
           {!loaded ? (
             <SkeletonRows />
-          ) : sortedKeys.length > 0 ? (
+          ) : sortedFiltered.length > 0 ? (
             <div className="flex flex-col gap-10">
-              {sortedKeys.map(groupKey => (
-                <div key={groupKey} className="flex flex-col gap-3">
-                  <div className="flex items-baseline gap-2 px-1">
-                    <h3 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">
-                      {groupKey}
-                    </h3>
-                    <span className="text-label-12 text-[var(--modes-text-dim)]">
-                      {groups[groupKey].length}
-                    </span>
-                  </div>
-                  {viewMode === 'table' ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse min-w-[500px]">
-                        <thead>
-                          <tr className="border-b border-[var(--modes-border)] text-label-12 text-[var(--modes-text-muted)]">
-                            <th className="py-2 px-4 font-semibold w-1/3">Title</th>
-                            <th className="py-2 px-4 font-semibold w-1/4">Artist</th>
-                            <th className="py-2 px-4 font-semibold w-1/6">Key</th>
-                            <th className="py-2 px-4 font-semibold flex-1">Tags</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[var(--modes-border)]">
-                          {groups[groupKey].map(song => (
-                            <tr 
-                              key={song.id} 
-                              onClick={() => handleRowClick(song)}
-                              className="cursor-pointer hover:bg-[var(--modes-surface)] transition-colors"
-                            >
-                              <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)]">{song.title}</td>
-                              <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">{song.artist || 'Unknown'}</td>
-                              <td className="py-3 px-4">
-                                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-label-12 font-bold bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)]">
-                                  {song.key || 'C'}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <div className="flex flex-wrap gap-1.5">
-                                  {(song.tags || []).slice(0, 3).map(tag => (
-                                    <span key={tag} className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
-                                      {tag}
-                                    </span>
-                                  ))}
-                                  {(song.tags || []).length > 3 && (
-                                    <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
-                                      +{(song.tags || []).length - 3}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {groups[groupKey].map(song => (
-                        <div key={song.id} className="modes-card border border-[var(--modes-border)] rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                          <SongCard
-                            song={song}
-                            variant="row"
-                            showTags={true}
-                            selected={isDesktop && song.id === previewSongId}
-                            onClick={() => handleRowClick(song)}
+              {viewMode === 'table' ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[500px]">
+                    <thead>
+                      <tr className="border-b border-[var(--modes-border)] text-label-12 text-[var(--modes-text-muted)] select-none">
+                        <th className="py-2 px-4 w-10">
+                          <input 
+                            type="checkbox" 
+                            className="w-4 h-4 rounded border-[var(--ds-gray-300)] accent-[var(--color-brand)] cursor-pointer"
+                            checked={selectedIds.size > 0 && selectedIds.size === truncated.length}
+                            onChange={toggleAll}
                           />
-                        </div>
+                        </th>
+                        <th className="py-2 px-4 font-semibold w-1/3 cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('title')}>
+                          <div className="flex items-center gap-1">
+                            Title
+                            {sortMode === 'title' && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={sortAsc ? '' : 'rotate-180'}><path d="m18 15-6-6-6 6"/></svg>
+                            )}
+                          </div>
+                        </th>
+                        <th className="py-2 px-4 font-semibold w-1/4 cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('artist')}>
+                          <div className="flex items-center gap-1">
+                            Artist
+                            {sortMode === 'artist' && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={sortAsc ? '' : 'rotate-180'}><path d="m18 15-6-6-6 6"/></svg>
+                            )}
+                          </div>
+                        </th>
+                        <th className="py-2 px-4 font-semibold w-1/6 cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('key')}>
+                          <div className="flex items-center gap-1">
+                            Key
+                            {sortMode === 'key' && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={sortAsc ? '' : 'rotate-180'}><path d="m18 15-6-6-6 6"/></svg>
+                            )}
+                          </div>
+                        </th>
+                        <th className="py-2 px-4 font-semibold flex-1">Tags</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--modes-border)]">
+                      {truncated.map(song => (
+                        <tr 
+                          key={song.id} 
+                          onClick={() => handleRowClick(song)}
+                          className={cn(
+                            "cursor-pointer transition-colors",
+                            selectedIds.has(song.id) ? "bg-[var(--ds-gray-alpha-100)] hover:bg-[var(--ds-gray-alpha-200)]" : "hover:bg-[var(--modes-surface)]"
+                          )}
+                        >
+                          <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                            <input 
+                              type="checkbox"
+                              className="w-4 h-4 rounded border-[var(--ds-gray-300)] accent-[var(--color-brand)] cursor-pointer"
+                              checked={selectedIds.has(song.id)}
+                              onChange={(e) => toggleSelection(e, song.id)}
+                            />
+                          </td>
+                          <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)]">{song.title}</td>
+                          <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">{song.artist || 'Unknown'}</td>
+                          <td className="py-3 px-4">
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-label-12 font-bold bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)]">
+                              {song.key || 'C'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex flex-wrap gap-1.5">
+                              {(song.tags || []).slice(0, 3).map(tag => (
+                                <span key={tag} className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
+                                  {tag}
+                                </span>
+                              ))}
+                              {(song.tags || []).length > 3 && (
+                                <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
+                                  +{(song.tags || []).length - 3}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
                       ))}
-                    </div>
-                  )}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
+              ) : (
+                <>
+                  {sortedKeys.map(groupKey => (
+                    <div key={groupKey} className="flex flex-col gap-3">
+                      <div className="flex items-baseline gap-2 px-1">
+                        <h3 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">
+                          {groupKey}
+                        </h3>
+                        <span className="text-label-12 text-[var(--modes-text-dim)]">
+                          {groups[groupKey].length}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {groups[groupKey].map(song => (
+                          <div key={song.id} className="modes-card border border-[var(--modes-border)] rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                            <SongCard
+                              song={song}
+                              variant="row"
+                              showTags={true}
+                              selected={isDesktop && song.id === previewSongId}
+                              onClick={() => handleRowClick(song)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
               {hasMore && (
                 <div ref={sentinelRef} className="py-6 text-center text-copy-12 text-[var(--modes-text-dim)]">
                   Loading more… ({truncated.length} of {filtered.length})
