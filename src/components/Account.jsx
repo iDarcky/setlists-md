@@ -342,7 +342,7 @@ export default function Account({
           style={{ background: 'var(--drawer-surface)', borderColor: 'var(--drawer-border)' }}
         >
           <PlanLabel plan={plan} tone="drawer" />
-          {isSignedIn ? (
+          {isSignedIn && plan === 'Free' ? (
             <UpgradePill onUpgrade={onUpgrade} />
           ) : (
             <>
