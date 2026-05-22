@@ -39,9 +39,15 @@ export default function WorkspaceSwitcher({
         "bg-transparent hover:bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]",
         className
       )}>
-        <div className="flex items-center justify-center xl:hidden w-9 h-9 rounded-full bg-[var(--ds-gray-300)] group-hover:bg-[var(--ds-gray-400)] group-data-[state=open]:bg-[var(--ds-teal-200)] text-[var(--ds-gray-1000)] group-data-[state=open]:text-[var(--ds-teal-900)] shrink-0 transition-colors">
-          {getActiveIcon()}
+        {/* Tablet / Collapsed View */}
+        <div className="flex xl:hidden items-center justify-center relative w-full h-full text-current">
+          <div className="flex items-center justify-center text-current group-data-[state=open]:text-[var(--ds-teal-900)]">
+            {getActiveIcon()}
+          </div>
+          <ChevronDown size={12} className="absolute bottom-1 right-1 opacity-50 text-[var(--ds-gray-500)] group-data-[state=open]:text-[var(--ds-teal-900)]" />
         </div>
+
+        {/* Desktop / Expanded View */}
         <div className="hidden xl:flex items-center justify-between w-full overflow-hidden">
           <div className="flex items-center gap-2 overflow-hidden">
             <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-[var(--ds-gray-300)] text-[var(--ds-gray-700)]">

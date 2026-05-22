@@ -1,4 +1,3 @@
-import WorkspaceSwitcher from "./ui/WorkspaceSwitcher";
 import React, { useEffect, useRef, useState } from 'react';
 import {
   StageGreeting,
@@ -61,6 +60,75 @@ const TeamDrawerIcon = () => (
     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 );
+
+function MobileWorkspaceAccordion({ activeLibrary, setActiveLibrary, team, showPersonalSpace }) {
+  const [expanded, setExpanded] = useState(false);
+  const isPersonal = activeLibrary === 'personal';
+  const label = isPersonal ? 'Personal Space' : team?.name || 'Workspace';
+
+  return (
+    <div className="flex flex-col gap-1 w-full">
+      <span className="text-label-12 text-[var(--drawer-text-muted)] font-semibold uppercase tracking-wider mb-1 block">
+        Workspace
+      </span>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-3 py-3 rounded-xl bg-[var(--drawer-surface)] hover:bg-[var(--drawer-surface-hover)] border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all duration-150 text-left"
+        style={{ WebkitTapHighlightColor: 'transparent' }}
+      >
+        <span className="flex items-center gap-3">
+          <span className="w-8 h-8 rounded-full bg-[var(--ds-gray-200)] flex items-center justify-center shrink-0 text-[var(--ds-gray-800)]">
+            {isPersonal ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+            ) : (
+              <TeamDrawerIcon />
+            )}
+          </span>
+          <span className="text-copy-15 font-medium text-[var(--drawer-text)] truncate">{label}</span>
+        </span>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`text-[var(--drawer-text-muted)] transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="flex flex-col gap-1 mt-1 px-2 py-2 rounded-xl bg-[var(--drawer-surface)] border border-[var(--drawer-border)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          {showPersonalSpace && (
+            <button
+              onClick={() => { setActiveLibrary('personal'); setExpanded(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-none text-left cursor-pointer transition-colors ${isPersonal ? 'bg-[var(--ds-gray-200)] text-[var(--ds-gray-1000)]' : 'bg-transparent text-[var(--drawer-text-muted)] hover:bg-[var(--drawer-surface-hover)] hover:text-[var(--drawer-text)]'}`}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+              <span className="text-copy-14 font-medium">Personal Space</span>
+              {isPersonal && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[var(--color-brand)]" />}
+            </button>
+          )}
+
+          {team && (
+            <button
+              onClick={() => { setActiveLibrary(team.id); setExpanded(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-none text-left cursor-pointer transition-colors ${!isPersonal ? 'bg-[var(--ds-gray-200)] text-[var(--ds-gray-1000)]' : 'bg-transparent text-[var(--drawer-text-muted)] hover:bg-[var(--drawer-surface-hover)] hover:text-[var(--drawer-text)]'}`}
+            >
+              <span className="shrink-0"><TeamDrawerIcon /></span>
+              <span className="text-copy-14 font-medium truncate">{team.name}</span>
+              {!isPersonal && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[var(--color-brand)]" />}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Row({ icon: Icon, label, onClick, accessory }) {
   return (
@@ -233,7 +301,7 @@ export default function MobileDrawer({
 
         {/* Workspace Switcher */}
         <div className="px-5 mt-4">
-          <WorkspaceSwitcher
+          <MobileWorkspaceAccordion
             activeLibrary={activeLibrary}
             setActiveLibrary={(lib) => { setActiveLibrary(lib); onClose(); }}
             team={team}
