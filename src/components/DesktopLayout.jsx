@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from 'react';
 import Sidebar from './Sidebar';
-import TeamBanner from './TeamBanner';
 import { cn } from '../lib/utils';
 import { useMediaQuery } from '../lib/useMediaQuery';
 
@@ -42,7 +41,7 @@ export default function DesktopLayout({
     ? 'grid-cols-1'
     : 'grid-cols-1 sm:grid-cols-[80px_1fr] xl:grid-cols-[280px_1fr]';
 
-  const showBanner = !hideBanner;
+
 
   return (
     <div className="w-full h-[100dvh] flex flex-col overflow-hidden">
@@ -51,14 +50,7 @@ export default function DesktopLayout({
         Only visible on desktop here; mobile handles it inside MobileTopBar 
         to ensure it stays above the search bar as requested.
       */}
-      {showBanner && (
-        <TeamBanner 
-          teamName={team?.name}
-          activeLibrary={activeLibrary}
-          onChangeWorkspace={onChangeWorkspace}
-          className="hidden sm:flex" 
-        />
-      )}
+
 
       <div className={cn('flex-1 w-full grid overflow-hidden [grid-template-rows:minmax(0,1fr)]', cols)}>
         {!isFullscreen && (
