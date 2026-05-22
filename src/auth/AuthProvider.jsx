@@ -52,7 +52,7 @@ export function AuthProvider({ children }) {
     (async () => {
       const withPrefs = await supabase
         .from('profiles')
-        .select('id, email, display_name, plan, preferences')
+        .select('id, email, display_name, plan, preferences, is_pro, subscription_tier')
         .eq('id', uid)
         .maybeSingle();
       if (!withPrefs.error) {
@@ -66,7 +66,7 @@ export function AuthProvider({ children }) {
       }
       const base = await supabase
         .from('profiles')
-        .select('id, email, display_name, plan')
+        .select('id, email, display_name, plan, is_pro, subscription_tier')
         .eq('id', uid)
         .maybeSingle();
       setProfile(base.data ?? null);
