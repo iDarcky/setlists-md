@@ -1452,7 +1452,7 @@ export default function App() {
               onNewSong={isTeamReadOnly ? null : handleNewSong}
               onNewSetlist={isTeamReadOnly ? null : handleNewSetlist}
               activeLibrary={activeLibrary}
-              team={activeTeam}
+              team={team}
               onChangeWorkspace={switchWorkspace}
             />
           )}
