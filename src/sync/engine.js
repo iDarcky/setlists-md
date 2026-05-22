@@ -184,6 +184,8 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
           lastSyncedTime: file.modifiedTime,
         };
         songsChanged = true;
+      }
+      if (songId) {
         pulledSongIds.add(songId);
       }
     }
@@ -253,10 +255,12 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
             lastSyncedTime: file.modifiedTime,
           };
           setlistsChanged = true;
-          pulledSetlistIds.add(setlistId);
         } catch (err) {
           console.error(`Failed to parse setlist JSON "${file.name}":`, err);
         }
+      }
+      if (setlistId) {
+        pulledSetlistIds.add(setlistId);
       }
     }
 
