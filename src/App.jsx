@@ -242,6 +242,7 @@ export default function App() {
     if (syncEngineRef.current) {
       syncEngineRef.current.cancelDebounce();
     }
+
     syncEngineRef.current = createSyncEngine((status) => {
       setSyncState(prev => ({ ...prev, ...status }));
     }, activeLibrary, { readOnly: isTeamReadOnly });
@@ -445,6 +446,8 @@ export default function App() {
             }
           }).catch(err => console.error('Startup sync failed:', err));
         }
+      } else {
+        setSyncState({ state: 'idle', lastSync: null, provider: null });
       }
       
       if (!ignore) {
@@ -1313,6 +1316,8 @@ export default function App() {
             onDone={() => {
               toast({ title: 'Google Drive connected', description: 'Your songs and setlists will sync to your Drive.' });
               goToMainView('home');
+              // Trigger a sync immediately so it pulls the cloud state into the app
+              triggerSync();
             }}
             onCancel={() => {
               window.history.replaceState({}, '', '/');
