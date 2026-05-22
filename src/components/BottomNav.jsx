@@ -1,4 +1,6 @@
 import React, { useRef, useState } from 'react';
+import WorkspaceSwitcher from './ui/WorkspaceSwitcher';
+import { cn } from '../lib/utils';
 
 const DashboardIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -36,7 +38,7 @@ const tabs = [
 
 const RIPPLE_SIZE = 64;
 
-export default function BottomNav({ activeView, onNavigate }) {
+export default function BottomNav({ activeView, onNavigate, activeLibrary, setActiveLibrary, team, showPersonalSpace }) {
   const [ripples, setRipples] = useState([]); // [{ id, tileId }]
   const nextRippleId = useRef(0);
 
@@ -51,62 +53,78 @@ export default function BottomNav({ activeView, onNavigate }) {
 
   return (
     <>
-      {/* Fade above the nav so scrolling content doesn't hard-cut at the edge */}
+      {/*
+        Dynamic Island Floating Navigation Container
+        We keep the z-index high enough so it sits above content.
+      */}
       <div
-        aria-hidden="true"
-        className="fixed left-0 right-0 z-[99] h-10 pointer-events-none sm:hidden"
+        className="fixed left-0 right-0 z-[100] sm:hidden flex flex-col items-center pointer-events-none"
         style={{
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 76px)',
-          background: 'linear-gradient(to top, var(--ds-background-100) 0%, transparent 100%)',
-        }}
-      />
-      <nav
-        className="fixed bottom-0 left-0 right-0 z-[100] sm:hidden"
-        style={{
-          background: 'var(--ds-background-100)',
-          paddingLeft: '12px',
-          paddingRight: '12px',
-          paddingTop: '10px',
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 16px) + 16px)',
         }}
       >
-        <div className="grid grid-cols-3 gap-2">
-          {tabs.map(({ id, label, Icon }) => {
-            const active = id === activeId;
-            const tileRipples = ripples.filter(r => r.tileId === id);
-            return (
-              <button
-                key={id}
-                onClick={() => handleTileClick(id)}
-                className={`relative overflow-hidden flex flex-col items-center justify-center gap-1 h-14 border-none cursor-pointer p-0 bg-transparent transition-[color,transform] duration-200 active:scale-[0.97] ${
-                  active ? 'text-[var(--color-brand)]' : 'text-[var(--ds-gray-700)]'
-                }`}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                {tileRipples.map(r => (
-                  <span
-                    key={r.id}
-                    aria-hidden="true"
-                    className="absolute left-1/2 top-1/2 rounded-full pointer-events-none"
-                    style={{
-                      width: RIPPLE_SIZE,
-                      height: RIPPLE_SIZE,
-                      marginLeft: -RIPPLE_SIZE / 2,
-                      marginTop: -RIPPLE_SIZE / 2,
-                      background: 'var(--color-brand)',
-                      animation: 'nav-tile-ripple 550ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards',
-                    }}
-                  />
-                ))}
-                <span className="relative"><Icon /></span>
-                <span className={`relative text-[11px] leading-tight ${active ? 'font-semibold' : 'font-medium'}`}>
-                  {label}
-                </span>
-              </button>
-            );
-          })}
+        <div className="w-full px-4 flex items-center justify-between gap-3 pointer-events-auto max-w-[400px]">
+
+          {/*
+            Left Side: The Floating Navigation Pill
+          */}
+          <nav
+            className="flex-1 bg-[var(--ds-background-100)]/90 backdrop-blur-xl border border-[var(--ds-gray-200)] shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-full px-2"
+          >
+            <div className="flex justify-between items-center h-16">
+              {tabs.map(({ id, label, Icon }) => {
+                const active = id === activeId;
+                const tileRipples = ripples.filter(r => r.tileId === id);
+                return (
+                  <button
+                    key={id}
+                    onClick={() => handleTileClick(id)}
+                    className={`relative overflow-hidden flex flex-1 flex-col items-center justify-center gap-1 h-full rounded-full border-none cursor-pointer bg-transparent transition-[color,transform] duration-200 active:scale-[0.95] ${
+                      active ? 'text-[var(--ds-teal-700)]' : 'text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-900)]'
+                    }`}
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                    aria-label={label}
+                  >
+                    {tileRipples.map(r => (
+                      <span
+                        key={r.id}
+                        aria-hidden="true"
+                        className="absolute left-1/2 top-1/2 rounded-full pointer-events-none"
+                        style={{
+                          width: RIPPLE_SIZE,
+                          height: RIPPLE_SIZE,
+                          marginLeft: -RIPPLE_SIZE / 2,
+                          marginTop: -RIPPLE_SIZE / 2,
+                          background: 'var(--color-brand)',
+                          animation: 'nav-tile-ripple 550ms cubic-bezier(0.25, 0.8, 0.25, 1) forwards',
+                        }}
+                      />
+                    ))}
+                    <div className={cn("relative p-2 rounded-full transition-colors", active && "bg-[var(--ds-teal-100)]")}>
+                      <Icon />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+
+          {/*
+            Right Side: Detached Workspace Switcher Button
+          */}
+          <div className="shrink-0 bg-[var(--ds-background-100)]/90 backdrop-blur-xl border border-[var(--ds-gray-200)] shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-full w-16 h-16 flex items-center justify-center">
+            <WorkspaceSwitcher
+              activeLibrary={activeLibrary}
+              setActiveLibrary={setActiveLibrary}
+              team={team}
+              showPersonalSpace={showPersonalSpace}
+              isMobileFloater={true}
+              className="bg-transparent hover:bg-transparent !w-full !h-full rounded-full p-0 flex items-center justify-center focus-visible:ring-0"
+            />
+          </div>
+
         </div>
-      </nav>
+      </div>
 
       <style>{`
         @keyframes nav-tile-ripple {
