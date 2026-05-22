@@ -389,8 +389,10 @@ export default function Library({
                   </div>
                 )}
               </div>
+            )}
+            </div>
               
-              <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => { /* import logic here or trigger a modal if there is one */ }}
                   className="hidden md:flex items-center gap-2 h-11 px-4 rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] hover:bg-[var(--ds-gray-100)] text-label-14 font-medium transition-colors border-solid cursor-pointer"
