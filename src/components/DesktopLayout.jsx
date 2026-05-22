@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
-import Sidebar from './Sidebar';
+import TopHeader from './TopHeader';
+import TeamBanner from './TeamBanner';
 import { cn } from '../lib/utils';
 import { useMediaQuery } from '../lib/useMediaQuery';
 
@@ -37,11 +38,9 @@ export default function DesktopLayout({
     }
   }, [activeView]);
 
-  const cols = isFullscreen
-    ? 'grid-cols-1'
-    : 'grid-cols-1 sm:grid-cols-[80px_1fr] xl:grid-cols-[280px_1fr]';
+  const cols = 'grid-cols-1';
 
-
+  const showBanner = !hideBanner;
 
   return (
     <div className="w-full h-[100dvh] flex flex-col overflow-hidden">
@@ -50,28 +49,31 @@ export default function DesktopLayout({
         Only visible on desktop here; mobile handles it inside MobileTopBar 
         to ensure it stays above the search bar as requested.
       */}
+      {showBanner && (
+        <TeamBanner
+          teamName={team?.name}
+          activeLibrary={activeLibrary}
+          onChangeWorkspace={onChangeWorkspace}
+          className="hidden sm:flex"
+        />
+      )}
 
-
+      {!isFullscreen && (
+        <TopHeader
+          activeView={activeView}
+          onNavigate={onNavigate}
+          hasUnreadNotifications={hasUnreadNotifications}
+          onNotificationClick={onNotificationClick}
+          notifications={notifications}
+          onMarkRead={onMarkRead}
+          onNotificationAction={onNotificationAction}
+          activeLibrary={activeLibrary}
+          setActiveLibrary={setActiveLibrary}
+          team={team}
+          showPersonalSpace={settings?.showPersonalSpace !== false}
+        />
+      )}
       <div className={cn('flex-1 w-full grid overflow-hidden [grid-template-rows:minmax(0,1fr)]', cols)}>
-        {!isFullscreen && (
-          <Sidebar 
-            activeView={activeView} 
-            onNavigate={onNavigate} 
-            hasUnreadNotifications={hasUnreadNotifications} 
-            onNotificationClick={onNotificationClick} 
-            notifications={notifications} 
-            onMarkRead={onMarkRead} 
-            onNotificationAction={onNotificationAction} 
-            displayName={displayName} 
-            plan={plan} 
-            activeLibrary={activeLibrary} 
-            setActiveLibrary={setActiveLibrary} 
-            team={team} 
-            syncState={syncState}
-            isOnline={isOnline}
-            showPersonalSpace={settings?.showPersonalSpace !== false}
-          />
-        )}
         {/*
           The main content area owns its scroll; the sidebar stays rigidly pinned
           to the viewport so iPad can't drag it. h-[100dvh] tracks iOS Safari's

@@ -1736,7 +1736,7 @@ export default function App() {
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />
           )}
-          {['home', 'library', 'setlists', 'settings', 'team', 'setlist-view', 'editor'].includes(view) && (
+          {['home', 'library', 'setlists', 'settings', 'team', 'setlist-view', 'editor', 'chart', 'schedule', 'setlist-build'].includes(view) && (
             <BottomNav
               activeView={view === 'setlist-view' ? 'setlists' : view}
               rawView={view} // pass the exact view to determine FAB context
@@ -1746,6 +1746,11 @@ export default function App() {
               team={team}
               showPersonalSpace={settings?.showPersonalSpace !== false}
               onPlay={() => currentSetlist && goSetlistPerformance(currentSetlist)}
+              onNewSong={canEdit ? () => openNewSongModal('import') : undefined}
+              onNewSetlist={canEdit ? () => goSetlistBuild() : undefined}
+              onAddToSetlist={() => alert('Add to Setlist: coming soon')}
+              onInviteMember={() => { setView('settings'); setSettingsPanel('team'); }}
+              onNewEvent={() => alert('New Event: coming soon')}
               goBack={goBack}
             />
           )}

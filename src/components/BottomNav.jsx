@@ -1,6 +1,4 @@
 import React, { useRef, useState } from 'react';
-import WorkspaceSwitcher from './ui/WorkspaceSwitcher';
-import { cn } from '../lib/utils';
 
 const DashboardIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -38,13 +36,32 @@ const tabs = [
 
 const RIPPLE_SIZE = 64;
 
-import { Play, ArrowLeft } from 'lucide-react';
+import { Play, ArrowLeft, Plus, UserPlus, CalendarPlus, Check, ListPlus, Music, ListMusic } from 'lucide-react';
+import WorkspaceSwitcher from './ui/WorkspaceSwitcher';
 
-export default function BottomNav({ activeView, rawView, onNavigate, activeLibrary, setActiveLibrary, team, showPersonalSpace, onPlay, goBack }) {
+export default function BottomNav({ activeView, rawView, onNavigate, activeLibrary, setActiveLibrary, team, showPersonalSpace, onPlay, goBack, onNewSong, onNewSetlist, onAddToSetlist, onInviteMember, onNewEvent }) {
   const [ripples, setRipples] = useState([]); // [{ id, tileId }]
   const nextRippleId = useRef(0);
 
   const activeId = tabs.some(t => t.id === activeView) ? activeView : 'home';
+
+  const longPressTimer = useRef(null);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+
+  const startLongPress = () => {
+    longPressTimer.current = setTimeout(() => {
+      setQuickAddOpen(true);
+      if (window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate(50); // haptic feedback
+      }
+    }, 500);
+  };
+
+  const endLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+    }
+  };
 
   const handleTileClick = (id) => {
     const rid = nextRippleId.current++;
@@ -55,10 +72,6 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
 
   return (
     <>
-      {/*
-        Dynamic Island Floating Navigation Container
-        We keep the z-index high enough so it sits above content.
-      */}
       <div
         className="fixed left-0 right-0 z-[100] sm:hidden flex flex-col items-center pointer-events-none"
         style={{
@@ -67,9 +80,6 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
       >
         <div className="w-full px-4 flex items-center justify-between gap-3 pointer-events-auto max-w-[400px]">
 
-          {/*
-            Left Side: The Floating Navigation Pill
-          */}
           <nav
             className="flex-1 bg-[var(--ds-background-100)]/90 backdrop-blur-xl border border-[var(--ds-gray-200)] shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-full px-2"
           >
@@ -111,11 +121,15 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
             </div>
           </nav>
 
-                    {/*
-            Right Side: Smart FAB (Transforms based on context)
-          */}
-          <div className="shrink-0 bg-[var(--ds-background-100)]/90 backdrop-blur-xl border border-[var(--ds-gray-200)] shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-full w-16 h-16 flex items-center justify-center overflow-hidden transition-all duration-300">
-            {rawView === 'setlist-view' ? (
+          <div className="relative shrink-0">
+              <div
+                className="bg-[var(--ds-background-100)]/90 backdrop-blur-xl border border-[var(--ds-gray-200)] shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-full w-16 h-16 flex items-center justify-center overflow-hidden transition-all duration-300 select-none cursor-pointer"
+                onPointerDown={startLongPress}
+                onPointerUp={endLongPress}
+                onPointerLeave={endLongPress}
+                onContextMenu={(e) => { e.preventDefault(); setQuickAddOpen(true); }}
+              >
+                {rawView === 'setlist-view' ? (
               <button
                 onClick={onPlay}
                 className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
@@ -131,6 +145,38 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
               >
                 <ArrowLeft className="w-6 h-6" />
               </button>
+            ) : rawView === 'chart' ? (
+              <button
+                onClick={onAddToSetlist}
+                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
+                aria-label="Add to Setlist"
+              >
+                <ListPlus className="w-6 h-6 ml-0.5" />
+              </button>
+            ) : rawView === 'team' ? (
+              <button
+                onClick={onInviteMember}
+                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
+                aria-label="Invite Member"
+              >
+                <UserPlus className="w-6 h-6" />
+              </button>
+            ) : rawView === 'schedule' ? (
+              <button
+                onClick={onNewEvent}
+                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
+                aria-label="New Event"
+              >
+                <CalendarPlus className="w-6 h-6" />
+              </button>
+            ) : rawView === 'setlist-build' ? (
+              <button
+                onClick={goBack}
+                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
+                aria-label="Done"
+              >
+                <Check className="w-6 h-6" />
+              </button>
             ) : (
               <WorkspaceSwitcher
                 activeLibrary={activeLibrary}
@@ -141,7 +187,41 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
                 className="bg-transparent hover:bg-[var(--ds-gray-200)] !w-full !h-full rounded-full p-0 flex items-center justify-center focus-visible:ring-0"
               />
             )}
-          </div>
+              </div>
+
+              {quickAddOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-[105]"
+                    onClick={(e) => { e.stopPropagation(); setQuickAddOpen(false); }}
+                    onTouchStart={(e) => { e.stopPropagation(); setQuickAddOpen(false); }}
+                  />
+                  <div className="absolute bottom-[80px] right-0 z-[110] min-w-[200px] overflow-hidden rounded-xl border border-[var(--ds-gray-200)] bg-[var(--ds-background-100)] p-1.5 shadow-xl animate-in fade-in slide-in-from-bottom-2">
+                    <div className="px-2 py-1.5 text-label-12 font-semibold text-[var(--ds-gray-500)] uppercase tracking-wider">
+                      Quick Add
+                    </div>
+                    <button
+                      onClick={() => { setQuickAddOpen(false); onNewSong?.(); }}
+                      className="w-full relative flex cursor-pointer select-none items-center gap-3 rounded-md px-2 py-2.5 text-label-14 text-[var(--ds-gray-700)] outline-none transition-colors hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-900)] border-none bg-transparent text-left"
+                    >
+                      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--ds-teal-100)] text-[var(--ds-teal-700)]">
+                        <Music className="w-4 h-4" />
+                      </div>
+                      <span className="font-medium">New Song</span>
+                    </button>
+                    <button
+                      onClick={() => { setQuickAddOpen(false); onNewSetlist?.(); }}
+                      className="w-full relative flex cursor-pointer select-none items-center gap-3 rounded-md px-2 py-2.5 text-label-14 text-[var(--ds-gray-700)] outline-none transition-colors hover:bg-[var(--ds-gray-100)] hover:text-[var(--ds-gray-900)] border-none bg-transparent text-left"
+                    >
+                      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--ds-teal-100)] text-[var(--ds-teal-700)]">
+                        <ListMusic className="w-4 h-4" />
+                      </div>
+                      <span className="font-medium">New Setlist</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
 
         </div>
       </div>
