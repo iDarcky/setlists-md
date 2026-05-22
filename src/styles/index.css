@@ -695,17 +695,7 @@
   color: var(--modes-text);
 }
 
-[data-theme-variant="modes"] .modes-card {
-  background: var(--modes-surface);
-  border: 1px solid var(--modes-border);
-  border-radius: 1rem;
-}
 
-[data-theme-variant="modes"] .modes-card-strong {
-  background: var(--modes-surface-strong);
-  border: 1px solid var(--modes-border);
-  border-radius: 1.25rem;
-}
 
 [data-theme-variant="modes"] .modes-label {
   color: var(--modes-text-dim);

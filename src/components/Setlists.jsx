@@ -174,10 +174,10 @@ export default function Setlists({
               {upcoming.length > 0 && (
                 <section className="flex flex-col gap-4">
                   <div className="flex items-baseline gap-2">
-                    <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">
+                    <h2 className="text-heading-20 font-bold text-[var(--notion-text-main)] m-0">
                       Upcoming
                     </h2>
-                    <span className="text-label-12 text-[var(--modes-text-dim)]">
+                    <span className="text-label-12 text-[var(--notion-text-dim)]">
                       {upcoming.length}
                     </span>
                   </div>
@@ -199,10 +199,10 @@ export default function Setlists({
               {past.length > 0 && (
                 <section className="flex flex-col gap-4">
                   <div className="flex items-baseline gap-2">
-                    <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">
+                    <h2 className="text-heading-20 font-bold text-[var(--notion-text-main)] m-0">
                       Past
                     </h2>
-                    <span className="text-label-12 text-[var(--modes-text-dim)]">
+                    <span className="text-label-12 text-[var(--notion-text-dim)]">
                       {past.length}
                     </span>
                   </div>
@@ -224,14 +224,14 @@ export default function Setlists({
               {filtered.length === 0 && (
                 query ? (
                   <div className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] py-14 text-center flex flex-col items-center gap-3 border-dashed">
-                    <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">
+                    <p className="text-copy-14 text-[var(--notion-text-dim)] font-medium">
                       No setlists matching your search.
                     </p>
                   </div>
                 ) : (
                   <div className="border border-[var(--notion-border)] rounded-lg bg-[var(--notion-bg)] py-16 px-6 flex flex-col items-center text-center border-dashed">
                     <div className="w-14 h-14 mb-4 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--modes-text-muted)]">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--notion-text-dim)]">
                         <line x1="8" y1="6" x2="21" y2="6" />
                         <line x1="8" y1="12" x2="21" y2="12" />
                         <line x1="8" y1="18" x2="21" y2="18" />
@@ -240,8 +240,8 @@ export default function Setlists({
                         <line x1="3" y1="18" x2="3.01" y2="18" />
                       </svg>
                     </div>
-                    <h2 className="text-heading-20 text-[var(--modes-text)] m-0 mb-1.5">No setlists yet</h2>
-                    <p className="text-copy-14 text-[var(--modes-text-muted)] max-w-sm mb-5">
+                    <h2 className="text-heading-20 text-[var(--notion-text-main)] m-0 mb-1.5">No setlists yet</h2>
+                    <p className="text-copy-14 text-[var(--notion-text-dim)] max-w-sm mb-5">
                       Organize your songs into setlists for rehearsals or live performances.
                     </p>
                     <div className="flex flex-wrap justify-center gap-2">

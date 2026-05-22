@@ -57,7 +57,7 @@ export function CalendarWidget({
   return (
     <div className="w-full flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-heading-20 font-bold text-[var(--modes-text)]">
+        <h2 className="text-heading-20 font-bold text-[var(--notion-text-main)]">
           My Schedule
         </h2>
         <div className="flex items-center gap-1">
