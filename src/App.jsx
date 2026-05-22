@@ -1446,14 +1446,14 @@ export default function App() {
               view={view}
               songs={songs}
               setlists={setlists}
-              onOpenDrawer={openDrawer}
-              onSelectSong={goChart}
-              onSelectSetlist={goSetlistView}
-              onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
-              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+              onSelectSong={song => navigate('editor', { song })}
+              onSelectSetlist={sl => navigate('setlist-view', { setlist: sl })}
+              onOpenDrawer={() => setDrawerOpen(true)}
+              onNewSong={isTeamReadOnly ? null : handleNewSong}
+              onNewSetlist={isTeamReadOnly ? null : handleNewSetlist}
               activeLibrary={activeLibrary}
-              team={team}
-              onChangeWorkspace={openDrawer}
+              team={activeTeam}
+              onChangeWorkspace={switchWorkspace}
             />
           )}
           {view === 'home' && (

@@ -43,12 +43,7 @@ const PlusIcon = () => (
   </svg>
 );
 
-const SearchIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8" />
-    <path d="m21 21-4.3-4.3" />
-  </svg>
-);
+
 
 const tabs = [
   { id: 'home', label: 'Home', Icon: DashboardIcon },
@@ -63,8 +58,7 @@ export default function FloatingBottomNav({
   setActiveLibrary,
   team,
   onStartLive,
-  onAddToSetlist,
-  onOpenSearch
+  onAddToSetlist
 }) {
   const { user } = useAuth();
   const activeId = tabs.some(t => t.id === activeView) ? activeView : 'home';
@@ -111,22 +105,7 @@ export default function FloatingBottomNav({
       }}
     >
       <div className="flex items-center gap-3 pointer-events-auto">
-        {/* Search button (separated from pill) */}
-        {onOpenSearch && (
-          <button
-            onClick={onOpenSearch}
-            className="w-14 h-14 rounded-full flex items-center justify-center border border-[var(--ds-gray-300)] shadow-lg transition-transform active:scale-95"
-            style={{
-              background: 'var(--header-bg-blur)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              color: 'var(--ds-gray-800)'
-            }}
-            aria-label="Search"
-          >
-            <SearchIcon />
-          </button>
-        )}
+
 
         {/* Floating Pill */}
         <nav
@@ -167,10 +146,12 @@ export default function FloatingBottomNav({
         <div className="relative" ref={workspaceRef}>
           <button
             onClick={actionConfig.onClick}
-            className="w-16 h-16 rounded-full flex items-center justify-center shadow-xl border-none transition-transform active:scale-95"
+            className="w-16 h-16 rounded-full flex items-center justify-center shadow-xl border border-[var(--ds-gray-300)] transition-transform active:scale-95"
             style={{
-              background: 'var(--color-brand)',
-              color: '#ffffff',
+              background: 'var(--header-bg-blur)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              color: 'var(--color-brand)',
             }}
             aria-label={actionConfig.ariaLabel}
           >
