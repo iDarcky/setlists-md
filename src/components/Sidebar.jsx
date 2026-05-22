@@ -93,6 +93,7 @@ export default function Sidebar({
   setActiveLibrary, 
   team,
   syncState,
+  onSyncNow,
   isOnline 
 }) {
   const [trayOpen, setTrayOpen] = useState(false);
@@ -229,13 +230,23 @@ export default function Sidebar({
 
         {/* Sync Status — expanded only */}
         <div className="hidden xl:flex flex-col gap-2 text-label-12 uppercase font-semibold shrink-0">
-          <div className={cn("flex items-center gap-2", syncColor)}>
+          <button 
+            type="button"
+            onClick={onSyncNow}
+            disabled={isSyncing || !isOnline}
+            className={cn(
+              "flex items-center gap-2 bg-transparent border-none p-1 -ml-1 rounded-md text-left transition-colors",
+              isSyncing || !isOnline ? "cursor-default opacity-80" : "cursor-pointer hover:bg-[var(--ds-gray-200)]",
+              syncColor
+            )}
+            title="Click to sync now"
+          >
             <div className={cn("shrink-0", isSyncing && "animate-spin")}>
               <CloudIcon />
             </div>
             <span>{syncLabel}</span>
-          </div>
-          <div className={cn("flex items-center gap-2", isOnline ? "text-[var(--ds-green-700)]" : "text-[var(--ds-amber-600)]")}>
+          </button>
+          <div className={cn("flex items-center gap-2 p-1 -ml-1", isOnline ? "text-[var(--ds-green-700)]" : "text-[var(--ds-amber-600)]")}>
             <div className="shrink-0">
               <CheckCircleIcon />
             </div>

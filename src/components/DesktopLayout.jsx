@@ -23,6 +23,7 @@ export default function DesktopLayout({
   team,
   onChangeWorkspace,
   syncState,
+  onSyncNow,
   isOnline,
   hideBanner = false,
 }) {
@@ -74,6 +75,7 @@ export default function DesktopLayout({
             setActiveLibrary={setActiveLibrary} 
             team={team} 
             syncState={syncState}
+            onSyncNow={onSyncNow}
             isOnline={isOnline}
           />
         )}

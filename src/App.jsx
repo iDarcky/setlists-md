@@ -1448,6 +1448,7 @@ export default function App() {
           team={team} 
           onChangeWorkspace={goTeam}
           syncState={syncState}
+          onSyncNow={triggerSync}
           isOnline={isOnline}
           hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view'].includes(view)}
         >
