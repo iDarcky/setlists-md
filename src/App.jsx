@@ -374,7 +374,7 @@ export default function App() {
         setSettings(savedSettings);
 
         // Determine initial view based on onboarding state
-        const isAuthFlow = view === 'recovery' || view === 'auth-callback';
+        const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback';
         if (isAuthFlow) {
           // Keep the current auth view
         } else if (!savedSettings.onboardingComplete && savedSongs.length === 0) {
