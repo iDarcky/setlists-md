@@ -444,7 +444,6 @@ export default function Library({
                       {groups[groupKey].length}
                     </span>
                   </div>
-                  </div>
                   {viewMode === 'table' ? (
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse min-w-[500px]">
