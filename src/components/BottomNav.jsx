@@ -38,7 +38,9 @@ const tabs = [
 
 const RIPPLE_SIZE = 64;
 
-export default function BottomNav({ activeView, onNavigate, activeLibrary, setActiveLibrary, team, showPersonalSpace }) {
+import { Play, ArrowLeft } from 'lucide-react';
+
+export default function BottomNav({ activeView, rawView, onNavigate, activeLibrary, setActiveLibrary, team, showPersonalSpace, onPlay, goBack }) {
   const [ripples, setRipples] = useState([]); // [{ id, tileId }]
   const nextRippleId = useRef(0);
 
@@ -109,18 +111,36 @@ export default function BottomNav({ activeView, onNavigate, activeLibrary, setAc
             </div>
           </nav>
 
-          {/*
-            Right Side: Detached Workspace Switcher Button
+                    {/*
+            Right Side: Smart FAB (Transforms based on context)
           */}
-          <div className="shrink-0 bg-[var(--ds-background-100)]/90 backdrop-blur-xl border border-[var(--ds-gray-200)] shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-full w-16 h-16 flex items-center justify-center">
-            <WorkspaceSwitcher
-              activeLibrary={activeLibrary}
-              setActiveLibrary={setActiveLibrary}
-              team={team}
-              showPersonalSpace={showPersonalSpace}
-              isMobileFloater={true}
-              className="bg-transparent hover:bg-transparent !w-full !h-full rounded-full p-0 flex items-center justify-center focus-visible:ring-0"
-            />
+          <div className="shrink-0 bg-[var(--ds-background-100)]/90 backdrop-blur-xl border border-[var(--ds-gray-200)] shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-full w-16 h-16 flex items-center justify-center overflow-hidden transition-all duration-300">
+            {rawView === 'setlist-view' ? (
+              <button
+                onClick={onPlay}
+                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
+                aria-label="Play Live"
+              >
+                <Play className="w-6 h-6 ml-1" fill="currentColor" />
+              </button>
+            ) : rawView === 'editor' ? (
+              <button
+                onClick={goBack}
+                className="w-full h-full flex flex-col items-center justify-center bg-transparent text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] active:scale-95 transition-transform border-none rounded-full"
+                aria-label="Back"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+            ) : (
+              <WorkspaceSwitcher
+                activeLibrary={activeLibrary}
+                setActiveLibrary={setActiveLibrary}
+                team={team}
+                showPersonalSpace={showPersonalSpace}
+                isMobileFloater={true}
+                className="bg-transparent hover:bg-[var(--ds-gray-200)] !w-full !h-full rounded-full p-0 flex items-center justify-center focus-visible:ring-0"
+              />
+            )}
           </div>
 
         </div>

@@ -1736,10 +1736,17 @@ export default function App() {
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />
           )}
-          {['home', 'library', 'setlists', 'settings', 'team', 'setlist-view'].includes(view) && (
+          {['home', 'library', 'setlists', 'settings', 'team', 'setlist-view', 'editor'].includes(view) && (
             <BottomNav
               activeView={view === 'setlist-view' ? 'setlists' : view}
+              rawView={view} // pass the exact view to determine FAB context
               onNavigate={goToMainView}
+              activeLibrary={activeLibrary}
+              setActiveLibrary={setActiveLibrary}
+              team={team}
+              showPersonalSpace={settings?.showPersonalSpace !== false}
+              onPlay={() => currentSetlist && goSetlistPerformance(currentSetlist)}
+              goBack={goBack}
             />
           )}
         </DesktopLayout>
