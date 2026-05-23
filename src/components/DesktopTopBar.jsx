@@ -73,10 +73,10 @@ export default function DesktopTopBar({
                 key={id}
                 onClick={() => onNavigate(id)}
                 className={cn(
-                  "h-full px-4 flex items-center justify-center text-label-14 font-medium transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-teal-600)] relative border-t-2 bg-transparent",
+                  "h-8 px-4 flex items-center justify-center text-label-14 font-medium transition-colors cursor-pointer rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] relative",
                   active 
-                    ? "text-[var(--ds-gray-1000)] border-[var(--ds-gray-1000)]" 
-                    : "text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] border-transparent"
+                    ? "bg-[var(--color-brand)] text-white shadow-sm" 
+                    : "text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] bg-transparent hover:bg-[var(--ds-gray-200)]"
                 )}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >

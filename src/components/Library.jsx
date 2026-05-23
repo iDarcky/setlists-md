@@ -393,6 +393,28 @@ export default function Library({
             </div>
               
             <div className="flex items-center gap-2 shrink-0">
+                {onViewModeChange && (
+                  <div className="hidden sm:flex bg-[var(--modes-surface)] rounded-md border border-[var(--modes-border)] p-0.5 mr-2">
+                    <button
+                      onClick={() => onViewModeChange('table')}
+                      className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
+                        viewMode === 'table' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
+                      }`}
+                      title="Table view"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+                    </button>
+                    <button
+                      onClick={() => onViewModeChange('card')}
+                      className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
+                        viewMode === 'card' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
+                      }`}
+                      title="Card view"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="4" y="4" width="16" height="4"/><rect x="4" y="12" width="16" height="4"/></svg>
+                    </button>
+                  </div>
+                 )}
                 <button
                   onClick={() => { /* import logic here or trigger a modal if there is one */ }}
                   className="hidden md:flex items-center gap-2 h-11 px-4 rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] hover:bg-[var(--ds-gray-100)] text-label-14 font-medium transition-colors border-solid cursor-pointer"
@@ -412,65 +434,38 @@ export default function Library({
               </div>
             </div>
 
-          {/* Sort Pills with direction toggle */}
-          {viewMode === 'card' && (
-          <div className="flex items-center gap-2">
-            {SORT_MODES.map(mode => (
-              <button
-                key={mode.key}
-                onClick={() => handleSortClick(mode.key)}
-                className={`
-                  px-4 py-2 rounded-full text-label-14 font-semibold cursor-pointer
-                  transition-all duration-150 border-none flex items-center gap-1.5
-                  ${sortMode === mode.key
-                    ? 'bg-[var(--ds-gray-100)] text-[var(--color-brand)]'
-                    : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]'
-                  }
-                `}
-              >
-                {mode.label}
-                {sortMode === mode.key && (
-                  <svg
-                    width="12" height="12" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor" strokeWidth="2.5"
-                    strokeLinecap="round" strokeLinejoin="round"
-                    className={`transition-transform duration-200 ${sortAsc ? '' : 'rotate-180'}`}
+            {/* Sort Pills Row */}
+            {viewMode === 'card' && (
+              <div className="flex items-center gap-2 w-full mt-2">
+                {SORT_MODES.map(mode => (
+                  <button
+                    key={mode.key}
+                    onClick={() => handleSortClick(mode.key)}
+                    className={`
+                      px-4 py-2 rounded-full text-label-14 font-semibold cursor-pointer
+                      transition-all duration-150 border-none flex items-center gap-1.5
+                      ${sortMode === mode.key
+                        ? 'bg-[var(--ds-gray-100)] text-[var(--color-brand)]'
+                        : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]'
+                      }
+                    `}
                   >
-                    <path d="m18 15-6-6-6 6" />
-                  </svg>
-                )}
-              </button>
-            ))}
-          </div>
-          )}
-
-          {/* Desktop-only quick action removed here, moved to header */}
-          <div className="flex items-center">
-            {/* View Mode Toggles */}
-            {onViewModeChange && (
-              <div className="hidden sm:flex bg-[var(--modes-surface)] rounded-md border border-[var(--modes-border)] p-0.5 ml-2">
-                <button
-                  onClick={() => onViewModeChange('table')}
-                  className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
-                    viewMode === 'table' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
-                  }`}
-                  title="Table view"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
-                </button>
-                <button
-                  onClick={() => onViewModeChange('card')}
-                  className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
-                    viewMode === 'card' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
-                  }`}
-                  title="Card view"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="4" y="4" width="16" height="4"/><rect x="4" y="12" width="16" height="4"/></svg>
-                </button>
+                    {mode.label}
+                    {sortMode === mode.key && (
+                      <svg
+                        width="12" height="12" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" strokeWidth="2.5"
+                        strokeLinecap="round" strokeLinejoin="round"
+                        className={`transition-transform duration-200 ${sortAsc ? '' : 'rotate-180'}`}
+                      >
+                        <path d="m18 15-6-6-6 6" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
               </div>
             )}
           </div>
-        </div>
         </div>
 
         {/* Content */}
@@ -580,7 +575,7 @@ export default function Library({
                           <div key={song.id} className="modes-card border border-[var(--modes-border)] rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                             <SongCard
                               song={song}
-                              variant="row"
+                              variant="card"
                               showTags={true}
                               selected={isDesktop && song.id === previewSongId}
                               onClick={() => handleRowClick(song)}
@@ -651,7 +646,40 @@ export default function Library({
           </button>
         </div>
       )}
+
       </div>
+
+      {/* Floating Selection Toast */}
+      {selectedIds.size > 0 && viewMode === 'table' && (
+        <div className="fixed bottom-28 sm:bottom-12 left-1/2 -translate-x-1/2 z-[150] animate-[slideUp_200ms_ease-out]">
+          <div className="bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] rounded-full px-6 py-3 flex items-center gap-6 shadow-2xl">
+            <span className="text-label-14 font-medium whitespace-nowrap">
+              {selectedIds.size} selected
+            </span>
+            <div className="flex items-center gap-2 border-l border-[var(--ds-gray-700)] pl-6">
+              <button className="px-4 py-2 text-label-13 font-semibold text-[var(--ds-background-100)] hover:text-white bg-transparent border border-[var(--ds-gray-700)] rounded-full hover:bg-[var(--ds-gray-800)] transition-colors cursor-pointer whitespace-nowrap">
+                Add to Setlist...
+              </button>
+              <button className="px-4 py-2 text-label-13 font-semibold text-[var(--ds-background-100)] hover:text-white bg-transparent border border-[var(--ds-gray-700)] rounded-full hover:bg-[var(--ds-gray-800)] transition-colors cursor-pointer whitespace-nowrap">
+                Copy to...
+              </button>
+              <button className="px-4 py-2 text-label-13 font-semibold text-[var(--ds-background-100)] hover:text-white bg-transparent border border-[var(--ds-gray-700)] rounded-full hover:bg-[var(--ds-gray-800)] transition-colors cursor-pointer whitespace-nowrap">
+                Move to...
+              </button>
+              <button className="px-4 py-2 text-label-13 font-semibold text-red-400 bg-transparent border border-[var(--ds-gray-700)] rounded-full hover:bg-red-500/10 hover:border-red-500/50 transition-colors cursor-pointer whitespace-nowrap">
+                Delete
+              </button>
+              <button 
+                onClick={() => setSelectedIds(new Set())}
+                className="w-8 h-8 ml-2 flex items-center justify-center rounded-full bg-transparent border-none text-[var(--ds-gray-400)] hover:text-white hover:bg-[var(--ds-gray-800)] transition-colors cursor-pointer"
+                title="Clear selection"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Side Peek Preview */}
       <SidePeekOverlay

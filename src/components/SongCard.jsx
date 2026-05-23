@@ -102,6 +102,23 @@ export default function SongCard({ song, onClick, variant = 'card', showTags = f
           {song.artist}
         </p>
       )}
+      {showTags && song.tags?.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-1">
+          {song.tags.slice(0, 3).map(tag => (
+            <span
+              key={tag}
+              className="text-label-11 text-[var(--text-2)] px-2 py-0.5 rounded-md border border-[var(--border-1)] bg-[var(--bg-1)]"
+            >
+              {tag}
+            </span>
+          ))}
+          {song.tags.length > 3 && (
+            <span className="text-label-11 text-[var(--text-2)] px-2 py-0.5 rounded-md border border-[var(--border-1)] bg-[var(--bg-1)]">
+              +{song.tags.length - 3}
+            </span>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

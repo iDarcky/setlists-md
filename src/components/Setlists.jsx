@@ -193,6 +193,29 @@ export default function Setlists({
               />
               
               <div className="flex items-center gap-2 shrink-0">
+                {/* View Mode Toggles */}
+                {onViewModeChange && (
+                  <div className="hidden sm:flex bg-[var(--modes-surface)] rounded-md border border-[var(--modes-border)] p-0.5 mr-2">
+                    <button
+                      onClick={() => onViewModeChange('table')}
+                      className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
+                        viewMode === 'table' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
+                      }`}
+                      title="Table view"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+                    </button>
+                    <button
+                      onClick={() => onViewModeChange('card')}
+                      className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
+                        viewMode === 'card' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
+                      }`}
+                      title="Card view"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="4" y="4" width="16" height="4"/><rect x="4" y="12" width="16" height="4"/></svg>
+                    </button>
+                  </div>
+                )}
                 {onImportSetlist && (
                   <button
                     onClick={() => fileInputRef.current?.click()}
@@ -214,31 +237,7 @@ export default function Setlists({
               </div>
             </div>
 
-            <div className="flex gap-3 items-center">
-              {/* View Mode Toggles */}
-              {onViewModeChange && (
-                <div className="hidden sm:flex bg-[var(--modes-surface)] rounded-md border border-[var(--modes-border)] p-0.5 ml-2">
-                  <button
-                    onClick={() => onViewModeChange('table')}
-                    className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
-                      viewMode === 'table' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
-                    }`}
-                    title="Table view"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
-                  </button>
-                  <button
-                    onClick={() => onViewModeChange('card')}
-                    className={`w-8 h-8 flex items-center justify-center rounded-sm transition-colors border-none cursor-pointer ${
-                      viewMode === 'card' ? 'bg-[var(--modes-surface-strong)] shadow-sm text-[var(--modes-text)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]'
-                    }`}
-                    title="Card view"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="4" y="4" width="16" height="4"/><rect x="4" y="12" width="16" height="4"/></svg>
-                  </button>
-                </div>
-              )}
-            </div>
+
           </div>
         </div>
 
@@ -428,7 +427,7 @@ export default function Setlists({
 
       {/* Floating Selection Toast */}
       {selectedIds.size > 0 && viewMode === 'table' && (
-        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] animate-[slideUp_200ms_ease-out]">
+        <div className="fixed bottom-28 sm:bottom-12 left-1/2 -translate-x-1/2 z-[150] animate-[slideUp_200ms_ease-out]">
           <div className="bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] rounded-full px-6 py-3 flex items-center gap-6 shadow-2xl">
             <span className="text-label-14 font-medium whitespace-nowrap">
               {selectedIds.size} selected

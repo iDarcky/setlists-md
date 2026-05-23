@@ -809,3 +809,15 @@
   --drawer-text-faint: var(--ds-gray-600);
 }
 
+@keyframes slideUp {
+  from {
+    transform: translate(-50%, 12px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+
