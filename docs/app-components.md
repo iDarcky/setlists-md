@@ -63,3 +63,21 @@ The system is divided into these distinct domains to separate UI/UX responsibili
 - **Workspace Manager:** Toggles between the isolated "Personal Space" (local data) and "Team/Church Workspaces" (cloud data).
 - **Role Management (Simulate Viewer Role):** Global state that controls read/write access, dynamically hiding editing/creation UI elements for standard viewers.
 - **Onboarding Flow:** Welcomes users, introduces the application features, and handles the initial injection of Public Domain Templates.
+
+## 9. Scheduling & Team Management
+*Purpose: Manages the collaborative aspect of the application, including coordinating with others and planning events.*
+- **Schedule:** Interface for planning services, assigning roles, and linking setlists to specific dates.
+- **Team Screen:** Dedicated UI for inviting members to a workspace, managing roles/permissions, and adjusting church/team settings.
+
+## 10. System Infrastructure & UX Utilities
+*Purpose: Technical components that ensure the app runs smoothly, handles errors gracefully, and provides clear feedback to the user.*
+- **Notifications & System Alerts:** Includes `NotificationTray`, `SyncStatus` indicators, and global toast messages for user feedback.
+- **Error Boundaries:** Fallback UI screens (like `ErrorBoundary`) that catch and display crashes without breaking the entire application.
+- **PWA & Offline Utilities:** Components managing device integrations, such as `WakeLockExplainer` (preventing screens from sleeping during performance) and `IOSInstallHint` (prompting users to install the web app to their homescreen).
+
+## 11. Support, Feedback & Legal
+*Purpose: Administrative and user-support pages that exist outside the core workflow of the app.*
+- **Support & Help:** `HelpPage` providing documentation or FAQs.
+- **User Feedback:** Mechanisms like the `FeedbackButton` to capture user requests and bug reports directly within the app.
+- **Pricing & Upgrades:** Interfaces like `PricingScreen` for managing subscriptions and tier limits.
+- **Information Pages:** Includes `FounderNote`, and `LegalPage` (Terms & Privacy).
