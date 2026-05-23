@@ -95,7 +95,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
         <div className="w-full px-4 flex items-center justify-between gap-3 pointer-events-auto max-w-[400px]">
 
           <nav
-            className="flex-1 bg-[var(--ds-background-100)]/90 backdrop-blur-xl border border-[var(--ds-gray-200)] shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-full px-2"
+            className="flex-1 bg-[var(--ds-background-100)]/60 backdrop-blur-3xl border border-[var(--ds-gray-200)] shadow-[0_16px_40px_rgb(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.15)] rounded-full px-2"
           >
             <div className="flex justify-between items-center h-16">
               {tabs.map(({ id, label, Icon }) => {
@@ -105,7 +105,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
                   <button
                     key={id}
                     onClick={() => handleTileClick(id)}
-                    className={`relative overflow-hidden flex flex-1 flex-col items-center justify-center gap-1 h-full rounded-full border-none cursor-pointer bg-transparent transition-[color,transform] duration-200 active:scale-[0.95] ${
+                    className={`relative overflow-hidden flex flex-1 flex-col items-center justify-center gap-1 h-full rounded-full border-none cursor-pointer bg-transparent transition-all duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] active:scale-90 ${
                       active ? 'text-[var(--ds-teal-700)]' : 'text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-900)]'
                     }`}
                     style={{ WebkitTapHighlightColor: 'transparent' }}
@@ -137,7 +137,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
 
           <div className="relative shrink-0">
               <div
-                className="bg-[var(--ds-background-100)]/90 backdrop-blur-xl border border-[var(--ds-gray-200)] shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-full w-16 h-16 flex items-center justify-center overflow-hidden transition-all duration-300 select-none cursor-pointer"
+                className="bg-[var(--ds-background-100)]/60 backdrop-blur-3xl border border-[var(--ds-gray-200)] shadow-[0_16px_40px_rgb(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.15)] rounded-full w-16 h-16 flex items-center justify-center overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] active:scale-90 select-none cursor-pointer"
                 onPointerDown={startLongPress}
                 onPointerUp={endLongPress}
                 onPointerLeave={endLongPress}
@@ -146,7 +146,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
                 {rawView === 'setlist-view' ? (
               <button
                 onClick={(e) => handleFabClick(e, onPlay)}
-                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
+                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] transition-transform border-none rounded-full"
                 aria-label="Play Live"
               >
                 <Play className="w-6 h-6 ml-1" fill="currentColor" />
@@ -154,7 +154,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
             ) : rawView === 'editor' ? (
               <button
                 onClick={(e) => handleFabClick(e, goBack)}
-                className="w-full h-full flex flex-col items-center justify-center bg-transparent text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] active:scale-95 transition-transform border-none rounded-full"
+                className="w-full h-full flex flex-col items-center justify-center bg-transparent text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] transition-transform border-none rounded-full"
                 aria-label="Back"
               >
                 <ArrowLeft className="w-6 h-6" />
@@ -162,7 +162,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
             ) : rawView === 'chart' ? (
               <button
                 onClick={(e) => handleFabClick(e, onAddToSetlist)}
-                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
+                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] transition-transform border-none rounded-full"
                 aria-label="Add to Setlist"
               >
                 <ListPlus className="w-6 h-6 ml-0.5" />
@@ -170,7 +170,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
             ) : rawView === 'team' ? (
               <button
                 onClick={(e) => handleFabClick(e, onInviteMember)}
-                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
+                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] transition-transform border-none rounded-full"
                 aria-label="Invite Member"
               >
                 <UserPlus className="w-6 h-6" />
@@ -178,7 +178,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
             ) : rawView === 'schedule' ? (
               <button
                 onClick={(e) => handleFabClick(e, onNewEvent)}
-                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
+                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] transition-transform border-none rounded-full"
                 aria-label="New Event"
               >
                 <CalendarPlus className="w-6 h-6" />
@@ -186,7 +186,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
             ) : rawView === 'setlist-build' ? (
               <button
                 onClick={(e) => handleFabClick(e, goBack)}
-                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
+                className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] transition-transform border-none rounded-full"
                 aria-label="Done"
               >
                 <Check className="w-6 h-6" />
