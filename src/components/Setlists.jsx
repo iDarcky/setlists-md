@@ -72,7 +72,7 @@ export default function Setlists({
       else next.add(sl.id);
       setSelectedIds(next);
     } else {
-      onEditSetlist?.(sl);
+      onViewSetlist?.(sl);
     }
   };
   const [query, setQuery] = useState('');
@@ -316,10 +316,14 @@ export default function Setlists({
                             <div className="flex items-center gap-2 group/title relative">
                               <span className="truncate">{sl.name || 'Untitled Setlist'}</span>
                               <button 
-                                onClick={(e) => { e.stopPropagation(); setPreviewSetlistId(sl.id); }}
-                                className="hidden sm:flex opacity-0 group-hover/title:opacity-100 transition-opacity px-2 py-1 bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] rounded-md text-label-12 font-semibold absolute left-[calc(100%+8px)] whitespace-nowrap shadow-sm border-none cursor-pointer hover:scale-105 z-10"
+                                onClick={(e) => { e.stopPropagation(); onSelectPreview?.(sl.id); }}
+                                className="hidden sm:flex opacity-0 group-hover/title:opacity-100 transition-opacity p-1.5 bg-transparent text-[var(--ds-gray-500)] hover:text-[var(--text-1)] rounded-md absolute left-[calc(100%+8px)] cursor-pointer hover:bg-[var(--ds-gray-200)] z-10 border-none"
+                                title="Open in side peek"
                               >
-                                Open in side peek
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                  <line x1="15" y1="3" x2="15" y2="21" />
+                                </svg>
                               </button>
                             </div>
                           </td>

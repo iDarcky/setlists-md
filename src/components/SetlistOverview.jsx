@@ -100,22 +100,20 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
 
   const sidePeekRightContent = isSidePeek && sidePeekRightTarget ? createPortal(
     <>
-      <Button variant="ghost" size="sm" onClick={() => setExportOpen(true)} className="hidden sm:flex text-label-13 font-semibold text-[var(--text-1)] gap-1.5 px-2.5 bg-transparent hover:bg-[var(--ds-gray-200)] border-none">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <IconButton variant="ghost" size="sm" onClick={() => setExportOpen(true)} title="Print" className="hidden sm:flex">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="6 9 6 2 18 2 18 9" />
           <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
           <rect x="6" y="14" width="12" height="8" />
         </svg>
-        Print
-      </Button>
+      </IconButton>
       {onEdit && (
-        <Button variant="ghost" size="sm" onClick={onEdit} className="hidden sm:flex text-label-13 font-semibold text-[var(--text-1)] gap-1.5 px-2.5 bg-transparent hover:bg-[var(--ds-gray-200)] border-none">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <IconButton variant="ghost" size="sm" onClick={onEdit} title="Edit setlist" className="hidden sm:flex">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
           </svg>
-          Edit
-        </Button>
+        </IconButton>
       )}
       <div className="sm:hidden flex items-center gap-1">
         <IconButton variant="ghost" size="sm" onClick={() => setExportOpen(true)}>

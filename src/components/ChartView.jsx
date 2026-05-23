@@ -294,33 +294,30 @@ export default function ChartView({
   const sidePeekRightContent = isSidePeek && sidePeekRightTarget ? createPortal(
     <>
       <div className="hidden sm:flex items-center gap-1">
-        <Button variant="ghost" size="sm" onClick={() => openSheet('info')} className="text-label-13 font-semibold text-[var(--text-1)] gap-1.5 px-2.5 bg-transparent hover:bg-[var(--ds-gray-200)] border-none">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <IconButton variant="ghost" size="sm" onClick={() => openSheet('info')} title="Song info">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" />
             <path d="M12 16v-4" />
             <path d="M12 8h.01" />
           </svg>
-          Song info
-        </Button>
-        <Button variant="ghost" size="sm" onClick={() => runAndClose(() => exportSongPdf(song, { transpose }))} className="text-label-13 font-semibold text-[var(--text-1)] gap-1.5 px-2.5 bg-transparent hover:bg-[var(--ds-gray-200)] border-none">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        </IconButton>
+        <IconButton variant="ghost" size="sm" onClick={() => runAndClose(() => exportSongPdf(song, { transpose }))} title="Print / Save PDF">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="6 9 6 2 18 2 18 9" />
             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
             <rect x="6" y="14" width="12" height="8" />
           </svg>
-          Print
-        </Button>
+        </IconButton>
         {onEdit && (
-          <Button variant="ghost" size="sm" onClick={onEdit} className="text-label-13 font-semibold text-[var(--text-1)] gap-1.5 px-2.5 bg-transparent hover:bg-[var(--ds-gray-200)] border-none">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <IconButton variant="ghost" size="sm" onClick={onEdit} title="Edit song">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 20h9" />
               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
             </svg>
-            Edit
-          </Button>
+          </IconButton>
         )}
-        <Button variant="ghost" size="sm" onClick={() => openSheet('layout')} className="text-label-13 font-semibold text-[var(--ds-background-100)] gap-1.5 px-3 bg-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-900)] border-none rounded-md ml-1 shadow-sm">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <IconButton variant="ghost" size="sm" onClick={() => openSheet('layout')} title="Customize">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="4" y1="21" x2="4" y2="14" />
             <line x1="4" y1="10" x2="4" y2="3" />
             <line x1="12" y1="21" x2="12" y2="12" />
@@ -331,8 +328,7 @@ export default function ChartView({
             <line x1="9" y1="8" x2="15" y2="8" />
             <line x1="17" y1="16" x2="23" y2="16" />
           </svg>
-          Customize
-        </Button>
+        </IconButton>
       </div>
       
       {/* Mobile fallback menu for side peek */}

@@ -88,9 +88,13 @@ export default function SongCard({ song, onClick, onOpenSidePeek, variant = 'car
       {onOpenSidePeek && (
         <button
           onClick={(e) => { e.stopPropagation(); onOpenSidePeek(); }}
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] px-2.5 py-1 rounded-md text-label-12 font-semibold z-10 hover:scale-105 shadow-sm border-none cursor-pointer hidden sm:block"
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 bg-[var(--ds-background-100)] text-[var(--ds-gray-500)] hover:text-[var(--text-1)] rounded-md z-10 hover:bg-[var(--ds-gray-200)] shadow-sm border border-[var(--ds-gray-200)] cursor-pointer hidden sm:block"
+          title="Open in side peek"
         >
-          Open in side peek
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <line x1="15" y1="3" x2="15" y2="21" />
+          </svg>
         </button>
       )}
       {arrCount > 1 && (
