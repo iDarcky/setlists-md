@@ -129,10 +129,13 @@ export default function Library({
   );
 
   const handleRowClick = (song) => {
-    if (isDesktop && onSelectPreview) {
-      onSelectPreview(song.id);
+    if (selectedIds.size > 0) {
+      const next = new Set(selectedIds);
+      if (next.has(song.id)) next.delete(song.id);
+      else next.add(song.id);
+      setSelectedIds(next);
     } else {
-      onSelectSong(song);
+      onSelectSong?.(song);
     }
   };
 
@@ -477,10 +480,10 @@ export default function Library({
             <div className="flex flex-col gap-10">
               {viewMode === 'table' ? (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[500px]">
+                  <table className="w-full text-left border-collapse min-w-[600px] border-x border-[var(--modes-border)]">
                     <thead>
-                      <tr className="border-b border-[var(--modes-border)] text-label-12 text-[var(--modes-text-muted)] select-none">
-                        <th className="py-2 px-4 w-10">
+                      <tr className="border-b border-t border-[var(--modes-border)] text-label-12 text-[var(--modes-text-muted)] select-none divide-x divide-[var(--modes-border)] bg-[var(--modes-surface-strong)]">
+                        <th className="py-2.5 px-4 w-10">
                           <input 
                             type="checkbox" 
                             className="w-4 h-4 rounded border-[var(--ds-gray-300)] accent-[var(--color-brand)] cursor-pointer"
@@ -488,15 +491,15 @@ export default function Library({
                             onChange={toggleAll}
                           />
                         </th>
-                        <th className="py-2 px-4 font-semibold w-1/3 cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('title')}>
+                        <th className="py-2.5 px-4 font-semibold cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('title')}>
                           <div className="flex items-center gap-1">
-                            Title
+                            Name
                             {sortMode === 'title' && (
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={sortAsc ? '' : 'rotate-180'}><path d="m18 15-6-6-6 6"/></svg>
                             )}
                           </div>
                         </th>
-                        <th className="py-2 px-4 font-semibold w-1/4 cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('artist')}>
+                        <th className="py-2.5 px-4 font-semibold w-1/4 cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('artist')}>
                           <div className="flex items-center gap-1">
                             Artist
                             {sortMode === 'artist' && (
@@ -504,7 +507,7 @@ export default function Library({
                             )}
                           </div>
                         </th>
-                        <th className="py-2 px-4 font-semibold w-1/6 cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('key')}>
+                        <th className="py-2.5 px-4 font-semibold w-1/6 cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('key')}>
                           <div className="flex items-center gap-1">
                             Key
                             {sortMode === 'key' && (
@@ -512,7 +515,7 @@ export default function Library({
                             )}
                           </div>
                         </th>
-                        <th className="py-2 px-4 font-semibold flex-1">Tags</th>
+                        <th className="py-2.5 px-4 font-semibold flex-1">Tags</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--modes-border)]">
@@ -525,7 +528,7 @@ export default function Library({
                             selectedIds.has(song.id) ? "bg-[var(--ds-gray-alpha-100)] hover:bg-[var(--ds-gray-alpha-200)]" : "hover:bg-[var(--modes-surface)]"
                           )}
                         >
-                          <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                          <td className="py-3 px-4 border-r border-[var(--modes-border)]" onClick={(e) => e.stopPropagation()}>
                             <input 
                               type="checkbox"
                               className="w-4 h-4 rounded border-[var(--ds-gray-300)] accent-[var(--color-brand)] cursor-pointer"
@@ -533,17 +536,22 @@ export default function Library({
                               onChange={(e) => toggleSelection(e, song.id)}
                             />
                           </td>
-                          <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)]">
+                          <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)] border-r border-[var(--modes-border)]">
                             <div className="flex items-center gap-2 group/title relative">
                               <span className="truncate">{song.title}</span>
                               {(song.arrangements?.length > 1) && (
-                                <span className="px-1.5 py-0.5 rounded bg-[var(--ds-gray-200)] text-[10px] font-bold text-[var(--ds-gray-600)] uppercase tracking-wider shrink-0 transition-opacity group-hover/title:opacity-0 sm:group-hover/title:opacity-100">
-                                  {song.arrangements.length} ARR
-                                </span>
+                                <div 
+                                  title={`Arrangements:\n${song.arrangements.map(a => '• ' + (a.name || 'Default')).join('\n')}`}
+                                  className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--color-brand-muted)] text-[var(--color-brand)] border border-[var(--color-brand)]/20 text-[10px] font-bold uppercase tracking-wider shrink-0 transition-opacity group-hover/title:opacity-0 sm:group-hover/title:opacity-100 cursor-help"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                                  {song.arrangements.length}
+                                </div>
                               )}
                               <button 
                                 onClick={(e) => { e.stopPropagation(); setPreviewSongId(song.id); }}
-                                className="hidden sm:flex opacity-0 group-hover/title:opacity-100 transition-opacity p-1.5 bg-transparent text-[var(--ds-gray-500)] hover:text-[var(--text-1)] rounded-md absolute left-[calc(100%+8px)] cursor-pointer hover:bg-[var(--ds-gray-200)] z-10 border-none"
+                                className="hidden sm:flex opacity-0 group-hover/title:opacity-100 transition-opacity p-1 bg-transparent text-[var(--ds-gray-500)] hover:text-[var(--text-1)] rounded-md absolute right-0 cursor-pointer hover:bg-[var(--ds-gray-200)] z-10 border-none"
                                 title="Open in side peek"
                               >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -553,15 +561,15 @@ export default function Library({
                               </button>
                             </div>
                           </td>
-                          <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">
+                          <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)] border-r border-[var(--modes-border)]">
                             <span className="truncate block">{song.artist || 'Unknown'}</span>
                           </td>
-                          <td className="py-3 px-4">
+                          <td className="py-3 px-4 border-r border-[var(--modes-border)]">
                             <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-label-12 font-bold bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)]">
                               {song.key || 'C'}
                             </span>
                           </td>
-                          <td className="py-3 px-4">
+                          <td className="py-3 px-4 border-r border-[var(--modes-border)]">
                             <div className="flex flex-wrap gap-1.5">
                               {(song.tags || []).slice(0, 3).map(tag => (
                                 <span key={tag} className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
@@ -727,7 +735,10 @@ export default function Library({
               }}
               onEdit={onEditSong ? () => onEditSong(previewSong) : null}
               isFullscreen={isFullscreen}
-              onToggleFullscreen={onToggleFullscreen}
+              onToggleFullscreen={() => {
+                onSelectSong?.(previewSong);
+                onSelectPreview?.(null);
+              }}
               {...chartDefaults}
             />
           </Suspense>
