@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from 'react';
 import TopHeader from './TopHeader';
-import TeamBanner from './TeamBanner';
 import { cn } from '../lib/utils';
 import { useMediaQuery } from '../lib/useMediaQuery';
 
@@ -26,6 +25,8 @@ export default function DesktopLayout({
   isOnline,
   hideBanner = false,
   settings,
+  searchQuery,
+  setSearchQuery,
 }) {
   const mainRef = useRef(null);
   const isMobile = useMediaQuery('(max-width: 639.98px)');
@@ -40,7 +41,7 @@ export default function DesktopLayout({
 
   const cols = 'grid-cols-1';
 
-  const showBanner = !hideBanner;
+
 
   return (
     <div className="w-full h-[100dvh] flex flex-col overflow-hidden">
@@ -49,29 +50,24 @@ export default function DesktopLayout({
         Only visible on desktop here; mobile handles it inside MobileTopBar 
         to ensure it stays above the search bar as requested.
       */}
-      {showBanner && (
-        <TeamBanner
-          teamName={team?.name}
-          activeLibrary={activeLibrary}
-          onChangeWorkspace={onChangeWorkspace}
-          className="hidden sm:flex"
-        />
-      )}
+
 
       {!isFullscreen && (
         <TopHeader
-          activeView={activeView}
-          onNavigate={onNavigate}
-          hasUnreadNotifications={hasUnreadNotifications}
-          onNotificationClick={onNotificationClick}
-          notifications={notifications}
-          onMarkRead={onMarkRead}
-          onNotificationAction={onNotificationAction}
-          activeLibrary={activeLibrary}
-          setActiveLibrary={setActiveLibrary}
-          team={team}
-          showPersonalSpace={settings?.showPersonalSpace !== false}
-        />
+            activeView={activeView}
+            onNavigate={onNavigate}
+            hasUnreadNotifications={hasUnreadNotifications}
+            onNotificationClick={onNotificationClick}
+            notifications={notifications}
+            onMarkRead={onMarkRead}
+            onNotificationAction={onNotificationAction}
+            activeLibrary={activeLibrary}
+            setActiveLibrary={setActiveLibrary}
+            team={team}
+            showPersonalSpace={settings?.showPersonalSpace !== false}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+          />
       )}
       <div className={cn('flex-1 w-full grid overflow-hidden [grid-template-rows:minmax(0,1fr)]', cols)}>
         {/*

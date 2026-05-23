@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import SongCard from './SongCard';
-import TeamBanner from './TeamBanner';
 
 const HamburgerIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -118,7 +117,7 @@ export default function MobileTopBar({
   const showResults = focused && q.length > 0;
   const hasAnyResults = results.songs.length > 0 || results.setlists.length > 0;
 
-  const showBanner = true;
+
 
   return (
     <div
@@ -131,13 +130,7 @@ export default function MobileTopBar({
         paddingTop: 'env(safe-area-inset-top, 0px)',
       }}
     >
-      {showBanner && (
-        <TeamBanner
-          teamName={team?.name}
-          activeLibrary={activeLibrary}
-          onChangeWorkspace={onChangeWorkspace}
-        />
-      )}
+
       <div>
         <div className="flex items-center gap-2 px-3 py-3">
           {/* Search card — hamburger lives inside on the left */}

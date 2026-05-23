@@ -38,6 +38,7 @@ const RIPPLE_SIZE = 64;
 
 import { Play, ArrowLeft, Plus, UserPlus, CalendarPlus, Check, ListPlus, Music, ListMusic } from 'lucide-react';
 import WorkspaceSwitcher from './ui/WorkspaceSwitcher';
+import { cn } from '../lib/utils';
 
 export default function BottomNav({ activeView, rawView, onNavigate, activeLibrary, setActiveLibrary, team, showPersonalSpace, onPlay, goBack, onNewSong, onNewSetlist, onAddToSetlist, onInviteMember, onNewEvent }) {
   const [ripples, setRipples] = useState([]); // [{ id, tileId }]
@@ -48,8 +49,12 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
   const longPressTimer = useRef(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
+  const longPressTriggered = useRef(false);
+
   const startLongPress = () => {
+    longPressTriggered.current = false;
     longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true;
       setQuickAddOpen(true);
       if (window.navigator && window.navigator.vibrate) {
         window.navigator.vibrate(50); // haptic feedback
@@ -61,6 +66,15 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
     }
+  };
+
+  const handleFabClick = (e, action) => {
+    if (longPressTriggered.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (action) action(e);
   };
 
   const handleTileClick = (id) => {
@@ -131,7 +145,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
               >
                 {rawView === 'setlist-view' ? (
               <button
-                onClick={onPlay}
+                onClick={(e) => handleFabClick(e, onPlay)}
                 className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
                 aria-label="Play Live"
               >
@@ -139,7 +153,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
               </button>
             ) : rawView === 'editor' ? (
               <button
-                onClick={goBack}
+                onClick={(e) => handleFabClick(e, goBack)}
                 className="w-full h-full flex flex-col items-center justify-center bg-transparent text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] active:scale-95 transition-transform border-none rounded-full"
                 aria-label="Back"
               >
@@ -147,7 +161,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
               </button>
             ) : rawView === 'chart' ? (
               <button
-                onClick={onAddToSetlist}
+                onClick={(e) => handleFabClick(e, onAddToSetlist)}
                 className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
                 aria-label="Add to Setlist"
               >
@@ -155,7 +169,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
               </button>
             ) : rawView === 'team' ? (
               <button
-                onClick={onInviteMember}
+                onClick={(e) => handleFabClick(e, onInviteMember)}
                 className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
                 aria-label="Invite Member"
               >
@@ -163,7 +177,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
               </button>
             ) : rawView === 'schedule' ? (
               <button
-                onClick={onNewEvent}
+                onClick={(e) => handleFabClick(e, onNewEvent)}
                 className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
                 aria-label="New Event"
               >
@@ -171,7 +185,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
               </button>
             ) : rawView === 'setlist-build' ? (
               <button
-                onClick={goBack}
+                onClick={(e) => handleFabClick(e, goBack)}
                 className="w-full h-full flex flex-col items-center justify-center bg-[var(--ds-teal-600)] text-white hover:bg-[var(--ds-teal-700)] active:scale-95 transition-transform border-none rounded-full"
                 aria-label="Done"
               >

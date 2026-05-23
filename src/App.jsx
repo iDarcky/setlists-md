@@ -1422,6 +1422,8 @@ export default function App() {
           isOnline={isOnline}
           settings={settings}
           hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'setlist-view'].includes(view)}
+          searchQuery={settings?.globalSearchQuery}
+          setSearchQuery={(val) => setSettings(prev => ({ ...prev, globalSearchQuery: val }))}
         >
           {['home', 'library', 'setlists'].includes(view) && (
             <MobileTopBar
@@ -1432,8 +1434,8 @@ export default function App() {
               onOpenDrawer={openDrawer}
               onSelectSong={goChart}
               onSelectSetlist={goSetlistView}
-              onNewSong={canEdit ? () => openNewSongModal('import') : undefined}
-              onNewSetlist={canEdit ? () => goSetlistBuild() : undefined}
+              onNewSong={canEdit ? () => { setNewSongModal({ initialTab: 'import' }); } : undefined}
+              onNewSetlist={canEdit ? () => navigate('setlist-build', { setlist: null }) : undefined}
               activeLibrary={activeLibrary}
               team={team}
               onChangeWorkspace={openDrawer}
@@ -1745,7 +1747,7 @@ export default function App() {
               setActiveLibrary={setActiveLibrary}
               team={team}
               showPersonalSpace={settings?.showPersonalSpace !== false}
-              onPlay={() => currentSetlist && goSetlistPerformance(currentSetlist)}
+              onPlay={() => currentSetlist && navigate('setlist-performance', { setlist: currentSetlist })}
               onNewSong={canEdit ? () => openNewSongModal('import') : undefined}
               onNewSetlist={canEdit ? () => goSetlistBuild() : undefined}
               onAddToSetlist={() => alert('Add to Setlist: coming soon')}
