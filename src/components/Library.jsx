@@ -142,6 +142,7 @@ export default function Library({
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState('title');
   const [sortAsc, setSortAsc] = useState(true);
+  const [activeArrPopupId, setActiveArrPopupId] = useState(null);
   const [selectedTags, setSelectedTags] = useState([]);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [tagQuery, setTagQuery] = useState('');
@@ -540,17 +541,37 @@ export default function Library({
                             <div className="flex items-center gap-2 group/title relative">
                               <span className="truncate">{song.title}</span>
                               {(song.arrangements?.length > 1) && (
-                                <div 
-                                  title={`Arrangements:\n${song.arrangements.map(a => '• ' + (a.name || 'Default')).join('\n')}`}
-                                  className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--color-brand-muted)] text-[var(--color-brand)] border border-[var(--color-brand)]/20 text-[10px] font-bold uppercase tracking-wider shrink-0 transition-opacity group-hover/title:opacity-0 sm:group-hover/title:opacity-100 cursor-help"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
-                                  {song.arrangements.length}
+                                <div className="relative">
+                                  <div 
+                                    title={`Arrangements:\n${song.arrangements.map(a => '• ' + (a.name || 'Default')).join('\n')}`}
+                                    className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--color-brand-muted)] text-[var(--color-brand)] border border-[var(--color-brand)]/20 text-[10px] font-bold uppercase tracking-wider shrink-0 transition-opacity group-hover/title:opacity-0 sm:group-hover/title:opacity-100 cursor-pointer hover:bg-[var(--color-brand)] hover:text-white"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveArrPopupId(activeArrPopupId === song.id ? null : song.id);
+                                    }}
+                                  >
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                                    {song.arrangements.length}
+                                  </div>
+                                  {activeArrPopupId === song.id && (
+                                    <>
+                                      <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setActiveArrPopupId(null); }} />
+                                      <div className="absolute top-full left-0 mt-1 bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] rounded-md shadow-lg p-2 z-50 min-w-[150px]">
+                                        <div className="text-label-11 text-[var(--modes-text-muted)] font-semibold mb-1 uppercase tracking-wider">Arrangements</div>
+                                        <div className="flex flex-col gap-1">
+                                          {song.arrangements.map(a => (
+                                            <div key={a.id} className="text-label-13 text-[var(--modes-text)] py-1 px-2 hover:bg-[var(--ds-gray-200)] rounded">
+                                              {a.name || 'Default'} <span className="text-[var(--modes-text-dim)] ml-1">({a.key || song.key || 'C'})</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               )}
                               <button 
-                                onClick={(e) => { e.stopPropagation(); setPreviewSongId(song.id); }}
+                                onClick={(e) => { e.stopPropagation(); onSelectPreview?.(song.id); }}
                                 className="hidden sm:flex opacity-0 group-hover/title:opacity-100 transition-opacity p-1 bg-transparent text-[var(--ds-gray-500)] hover:text-[var(--text-1)] rounded-md absolute right-0 cursor-pointer hover:bg-[var(--ds-gray-200)] z-10 border-none"
                                 title="Open in side peek"
                               >
@@ -609,7 +630,7 @@ export default function Library({
                               showTags={true}
                               selected={isDesktop && song.id === previewSongId}
                               onClick={() => handleRowClick(song)}
-                              onOpenSidePeek={() => setPreviewSongId(song.id)}
+                              onOpenSidePeek={() => onSelectPreview?.(song.id)}
                             />
                           </div>
                         ))}
