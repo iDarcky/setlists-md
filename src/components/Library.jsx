@@ -481,10 +481,10 @@ export default function Library({
             <div className="flex flex-col gap-10">
               {viewMode === 'table' ? (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[600px] border-x border-[var(--modes-border)]">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
                     <thead>
-                      <tr className="border-b border-t border-[var(--modes-border)] text-label-12 text-[var(--modes-text-muted)] select-none divide-x divide-[var(--modes-border)] bg-[var(--modes-surface-strong)]">
-                        <th className="py-2.5 px-4 w-10">
+                      <tr className="border-b border-[var(--modes-border)] text-label-11 uppercase tracking-wider text-[var(--modes-text-muted)] select-none">
+                        <th className="py-3 px-4 w-10">
                           <input 
                             type="checkbox" 
                             className="w-4 h-4 rounded border-[var(--ds-gray-300)] accent-[var(--color-brand)] cursor-pointer"
@@ -492,7 +492,7 @@ export default function Library({
                             onChange={toggleAll}
                           />
                         </th>
-                        <th className="py-2.5 px-4 font-semibold cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('title')}>
+                        <th className="py-3 px-4 font-semibold cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('title')}>
                           <div className="flex items-center gap-1">
                             Name
                             {sortMode === 'title' && (
@@ -500,7 +500,7 @@ export default function Library({
                             )}
                           </div>
                         </th>
-                        <th className="py-2.5 px-4 font-semibold w-1/4 cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('artist')}>
+                        <th className="py-3 px-4 font-semibold w-1/4 cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('artist')}>
                           <div className="flex items-center gap-1">
                             Artist
                             {sortMode === 'artist' && (
@@ -508,7 +508,7 @@ export default function Library({
                             )}
                           </div>
                         </th>
-                        <th className="py-2.5 px-4 font-semibold w-1/6 cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('key')}>
+                        <th className="py-3 px-4 font-semibold w-1/6 cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('key')}>
                           <div className="flex items-center gap-1">
                             Key
                             {sortMode === 'key' && (
@@ -516,10 +516,10 @@ export default function Library({
                             )}
                           </div>
                         </th>
-                        <th className="py-2.5 px-4 font-semibold flex-1">Tags</th>
+                        <th className="py-3 px-4 font-semibold flex-1">Tags</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[var(--modes-border)]">
+                    <tbody className="divide-y divide-[var(--modes-border)]/50">
                       {truncated.map(song => (
                         <tr 
                           key={song.id} 
@@ -529,7 +529,7 @@ export default function Library({
                             selectedIds.has(song.id) ? "bg-[var(--ds-gray-alpha-100)] hover:bg-[var(--ds-gray-alpha-200)]" : "hover:bg-[var(--modes-surface)]"
                           )}
                         >
-                          <td className="py-3 px-4 border-r border-[var(--modes-border)]" onClick={(e) => e.stopPropagation()}>
+                          <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
                             <input 
                               type="checkbox"
                               className="w-4 h-4 rounded border-[var(--ds-gray-300)] accent-[var(--color-brand)] cursor-pointer"
@@ -537,8 +537,8 @@ export default function Library({
                               onChange={(e) => toggleSelection(e, song.id)}
                             />
                           </td>
-                          <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)] border-r border-[var(--modes-border)]">
-                            <div className={cn("flex items-center gap-2 group/title relative", activeArrPopupId === song.id ? "z-50" : "")}>
+                          <td className="py-3.5 px-4 text-copy-15 font-medium text-[var(--modes-text)]">
+                            <div className={cn("flex items-center gap-3 group/title relative", activeArrPopupId === song.id ? "z-50" : "")}>
                               <span className="truncate">{song.title}</span>
                               {(song.arrangements?.length > 1) && (
                                 <div className={cn("relative", activeArrPopupId === song.id ? "z-50" : "")}>
@@ -572,25 +572,25 @@ export default function Library({
                               )}
                               <button 
                                 onClick={(e) => { e.stopPropagation(); onSelectPreview?.(song.id); }}
-                                className="hidden sm:flex opacity-0 group-hover/title:opacity-100 transition-opacity p-1 bg-transparent text-[var(--ds-gray-500)] hover:text-[var(--text-1)] rounded-md absolute right-0 cursor-pointer hover:bg-[var(--ds-gray-200)] z-10 border-none"
+                                className="hidden sm:flex opacity-0 group-hover/title:opacity-100 transition-opacity p-1.5 bg-transparent text-[var(--ds-gray-500)] hover:text-[var(--text-1)] rounded-md absolute right-0 cursor-pointer hover:bg-[var(--ds-gray-200)] z-10 border-none"
                                 title="Open in side peek"
                               >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                                   <line x1="15" y1="3" x2="15" y2="21" />
                                 </svg>
                               </button>
                             </div>
                           </td>
-                          <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)] border-r border-[var(--modes-border)]">
+                          <td className="py-3.5 px-4 text-copy-14 text-[var(--modes-text-muted)]">
                             <span className="truncate block">{song.artist || 'Unknown'}</span>
                           </td>
-                          <td className="py-3 px-4 border-r border-[var(--modes-border)]">
+                          <td className="py-3.5 px-4">
                             <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-label-12 font-bold bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)]">
                               {song.key || 'C'}
                             </span>
                           </td>
-                          <td className="py-3 px-4 border-r border-[var(--modes-border)]">
+                          <td className="py-3.5 px-4">
                             <div className="flex flex-wrap gap-1.5">
                               {(song.tags || []).slice(0, 3).map(tag => (
                                 <span key={tag} className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">

@@ -256,10 +256,10 @@ export default function Setlists({
             <>
               {viewMode === 'table' ? (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[600px] border-x border-[var(--modes-border)]">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
                     <thead>
-                      <tr className="border-b border-t border-[var(--modes-border)] text-label-12 text-[var(--modes-text-muted)] select-none divide-x divide-[var(--modes-border)] bg-[var(--modes-surface-strong)]">
-                        <th className="py-2.5 px-4 w-10">
+                      <tr className="border-b border-[var(--modes-border)] text-label-11 uppercase tracking-wider text-[var(--modes-text-muted)] select-none">
+                        <th className="py-3 px-4 w-10">
                           <input 
                             type="checkbox" 
                             className="w-4 h-4 rounded border-[var(--ds-gray-300)] accent-[var(--color-brand)] cursor-pointer"
@@ -267,7 +267,7 @@ export default function Setlists({
                             onChange={toggleAll}
                           />
                         </th>
-                        <th className="py-2.5 px-4 font-semibold cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('name')}>
+                        <th className="py-3 px-4 font-semibold cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('name')}>
                           <div className="flex items-center gap-1">
                             Name
                             {sortMode === 'name' && (
@@ -275,7 +275,7 @@ export default function Setlists({
                             )}
                           </div>
                         </th>
-                        <th className="py-2.5 px-4 font-semibold cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('date')}>
+                        <th className="py-3 px-4 font-semibold cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('date')}>
                           <div className="flex items-center gap-1">
                             Date
                             {sortMode === 'date' && (
@@ -283,7 +283,7 @@ export default function Setlists({
                             )}
                           </div>
                         </th>
-                        <th className="py-2.5 px-4 font-semibold cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('songs')}>
+                        <th className="py-3 px-4 font-semibold cursor-pointer hover:text-[var(--modes-text)]" onClick={() => handleSortClick('songs')}>
                           <div className="flex items-center gap-1">
                             Songs
                             {sortMode === 'songs' && (
@@ -291,10 +291,10 @@ export default function Setlists({
                             )}
                           </div>
                         </th>
-                        <th className="py-2.5 px-4 font-semibold flex-1">Tags</th>
+                        <th className="py-3 px-4 font-semibold flex-1">Tags</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[var(--modes-border)]">
+                    <tbody className="divide-y divide-[var(--modes-border)]/50">
                       {sortedFiltered.map(sl => (
                         <tr 
                           key={sl.id} 
@@ -304,7 +304,7 @@ export default function Setlists({
                             selectedIds.has(sl.id) ? "bg-[var(--ds-gray-alpha-100)] hover:bg-[var(--ds-gray-alpha-200)]" : "hover:bg-[var(--modes-surface)]"
                           )}
                         >
-                          <td className="py-3 px-4 border-r border-[var(--modes-border)]" onClick={(e) => e.stopPropagation()}>
+                          <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
                             <input 
                               type="checkbox"
                               className="w-4 h-4 rounded border-[var(--ds-gray-300)] accent-[var(--color-brand)] cursor-pointer"
@@ -312,28 +312,28 @@ export default function Setlists({
                               onChange={(e) => toggleSelection(e, sl.id)}
                             />
                           </td>
-                          <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)] border-r border-[var(--modes-border)]">
-                            <div className="flex items-center gap-2 group/title relative">
+                          <td className="py-3.5 px-4 text-copy-15 font-medium text-[var(--modes-text)]">
+                            <div className="flex items-center gap-3 group/title relative">
                               <span className="truncate">{sl.name || 'Untitled Setlist'}</span>
                               <button 
                                 onClick={(e) => { e.stopPropagation(); onSelectPreview?.(sl.id); }}
-                                className="hidden sm:flex opacity-0 group-hover/title:opacity-100 transition-opacity p-1 bg-transparent text-[var(--ds-gray-500)] hover:text-[var(--text-1)] rounded-md absolute right-0 cursor-pointer hover:bg-[var(--ds-gray-200)] z-10 border-none"
+                                className="hidden sm:flex opacity-0 group-hover/title:opacity-100 transition-opacity p-1.5 bg-transparent text-[var(--ds-gray-500)] hover:text-[var(--text-1)] rounded-md absolute right-0 cursor-pointer hover:bg-[var(--ds-gray-200)] z-10 border-none"
                                 title="Open in side peek"
                               >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                                   <line x1="15" y1="3" x2="15" y2="21" />
                                 </svg>
                               </button>
                             </div>
                           </td>
-                          <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)] border-r border-[var(--modes-border)]">
+                          <td className="py-3.5 px-4 text-copy-14 text-[var(--modes-text-muted)]">
                             {new Date(sl.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                           </td>
-                          <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)] border-r border-[var(--modes-border)]">
+                          <td className="py-3.5 px-4 text-copy-14 text-[var(--modes-text-muted)]">
                             {sl.items?.length || 0}
                           </td>
-                          <td className="py-3 px-4 border-r border-[var(--modes-border)]">
+                          <td className="py-3.5 px-4">
                             <div className="flex flex-wrap gap-1.5">
                               {(sl.tags || []).slice(0, 3).map(tag => (
                                 <span key={tag} className="px-2 py-0.5 rounded text-[11px] font-medium bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
