@@ -232,6 +232,7 @@ export default function Library({
     setSelectedIds(next);
   };
 
+
   const toggleAll = () => {
     if (selectedIds.size === truncated.length) {
       setSelectedIds(new Set());
@@ -532,8 +533,25 @@ export default function Library({
                               onChange={(e) => toggleSelection(e, song.id)}
                             />
                           </td>
-                          <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)]">{song.title}</td>
-                          <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">{song.artist || 'Unknown'}</td>
+                          <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)]">
+                            <div className="flex items-center gap-2 group/title relative">
+                              <span className="truncate">{song.title}</span>
+                              {(song.arrangements?.length > 1) && (
+                                <span className="px-1.5 py-0.5 rounded bg-[var(--ds-gray-200)] text-[10px] font-bold text-[var(--ds-gray-600)] uppercase tracking-wider shrink-0 transition-opacity group-hover/title:opacity-0 sm:group-hover/title:opacity-100">
+                                  {song.arrangements.length} ARR
+                                </span>
+                              )}
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); setPreviewSongId(song.id); }}
+                                className="hidden sm:flex opacity-0 group-hover/title:opacity-100 transition-opacity px-2 py-1 bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] rounded-md text-label-12 font-semibold absolute left-[calc(100%+8px)] whitespace-nowrap shadow-sm border-none cursor-pointer hover:scale-105 z-10"
+                              >
+                                Open in side peek
+                              </button>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">
+                            <span className="truncate block">{song.artist || 'Unknown'}</span>
+                          </td>
                           <td className="py-3 px-4">
                             <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-label-12 font-bold bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)]">
                               {song.key || 'C'}
@@ -579,6 +597,7 @@ export default function Library({
                               showTags={true}
                               selected={isDesktop && song.id === previewSongId}
                               onClick={() => handleRowClick(song)}
+                              onOpenSidePeek={() => setPreviewSongId(song.id)}
                             />
                           </div>
                         ))}
@@ -697,6 +716,7 @@ export default function Library({
             <ChartView
               key={previewSong.id}
               song={previewSong}
+              isSidePeek={true}
               onBack={() => {
                 if (isFullscreen) onToggleFullscreen?.();
                 onSelectPreview?.(null);

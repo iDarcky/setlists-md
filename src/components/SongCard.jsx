@@ -20,7 +20,7 @@ function formatRelativeTime(ts) {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function SongCard({ song, onClick, variant = 'card', showTags = false, selected = false }) {
+export default function SongCard({ song, onClick, onOpenSidePeek, variant = 'card', showTags = false, selected = false }) {
   const arr = defaultArr(song);
   const songKey = arr?.key || song?.key || 'C';
   const songTempo = arr?.tempo ?? song?.tempo;
@@ -83,10 +83,30 @@ export default function SongCard({ song, onClick, variant = 'card', showTags = f
   return (
     <Card
       onClick={onClick}
-      className="cursor-pointer flex flex-col gap-2"
+      className="cursor-pointer flex flex-col gap-2 relative group"
     >
-      <h3 className="text-heading-18 text-[var(--text-1)] m-0 leading-tight truncate">
+      {onOpenSidePeek && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onOpenSidePeek(); }}
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] px-2.5 py-1 rounded-md text-label-12 font-semibold z-10 hover:scale-105 shadow-sm border-none cursor-pointer hidden sm:block"
+        >
+          Open in side peek
+        </button>
+      )}
+      {arrCount > 1 && (
+        <div className={cn("absolute top-2 right-2 transition-opacity", onOpenSidePeek ? "group-hover:opacity-0 hidden sm:block" : "")}>
+           <span className="px-1.5 py-0.5 rounded bg-[var(--ds-gray-200)] text-[10px] font-bold text-[var(--ds-gray-600)] uppercase tracking-wider">
+             {arrCount} ARR
+           </span>
+        </div>
+      )}
+      <h3 className="text-heading-18 text-[var(--text-1)] m-0 leading-tight pr-6 line-clamp-2">
         {song.title}
+        {arrCount > 1 && (
+           <span className="sm:hidden ml-2 px-1.5 py-0.5 rounded bg-[var(--ds-gray-200)] text-[10px] font-bold text-[var(--ds-gray-600)] uppercase tracking-wider align-middle">
+             {arrCount} ARR
+           </span>
+        )}
       </h3>
       <div className="flex items-center gap-2">
         <span className="text-label-12 text-[var(--text-2)] uppercase font-semibold">

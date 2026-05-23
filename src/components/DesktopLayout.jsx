@@ -89,7 +89,7 @@ export default function DesktopLayout({
         */}
         <main
           ref={mainRef}
-          className="h-full overflow-y-auto overscroll-contain bg-[var(--ds-background-100)] relative w-full transition-transform duration-300 ease-out"
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-[var(--ds-background-100)] relative w-full transition-transform duration-300 ease-out"
           style={{
             transform: applyDrawerTransform ? 'translateX(72%) scale(0.92)' : undefined,
             transformOrigin: 'left center',

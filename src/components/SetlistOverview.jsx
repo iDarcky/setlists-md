@@ -11,7 +11,7 @@ import { headerFrostStyle } from '../lib/headerFrost';
 import { formatClockTime } from '../lib/dateFormat';
 import { useConfirm } from './ui/useConfirmHook';
 
-export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true }) {
+export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, isSidePeek = false }) {
   const confirm = useConfirm();
   const { team, isAdmin } = useTeam();
   const [showRoster, setShowRoster] = useState(false);
@@ -65,7 +65,62 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
     if (ok) onDelete?.();
   };
 
-  const actionIcons = (
+  const sidePeekLeftActions = isSidePeek && (
+    <div className="flex items-center gap-1 shrink-0 -ml-2 mr-2">
+      <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close side peek">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="13 17 18 12 13 7" />
+          <polyline points="6 17 11 12 6 7" />
+        </svg>
+      </IconButton>
+      {onToggleFullscreen && (
+        <IconButton variant="ghost" size="sm" onClick={onToggleFullscreen} aria-label="Fullscreen">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 8V3h5" />
+            <path d="M21 8V3h-5" />
+            <path d="M3 16v5h5" />
+            <path d="M21 16v5h-5" />
+          </svg>
+        </IconButton>
+      )}
+    </div>
+  );
+
+  const actionIcons = isSidePeek ? (
+    <div className="flex gap-1 items-center flex-shrink-0">
+      <Button variant="ghost" size="sm" onClick={() => setExportOpen(true)} className="hidden sm:flex text-label-13 font-semibold text-[var(--text-1)] gap-1.5 px-2.5 bg-transparent hover:bg-[var(--ds-gray-200)] border-none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="6 9 6 2 18 2 18 9" />
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+          <rect x="6" y="14" width="12" height="8" />
+        </svg>
+        Print
+      </Button>
+      {onEdit && (
+        <Button variant="ghost" size="sm" onClick={onEdit} className="hidden sm:flex text-label-13 font-semibold text-[var(--text-1)] gap-1.5 px-2.5 bg-transparent hover:bg-[var(--ds-gray-200)] border-none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+          </svg>
+          Edit
+        </Button>
+      )}
+      <div className="sm:hidden flex items-center gap-1">
+        <IconButton variant="ghost" size="sm" onClick={() => setExportOpen(true)}>
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+        </IconButton>
+        {onEdit && (
+          <IconButton variant="ghost" size="sm" onClick={onEdit}>
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </IconButton>
+        )}
+      </div>
+    </div>
+  ) : (
     <div className="flex items-center gap-1 shrink-0">
       {team && (
         <IconButton
@@ -135,7 +190,8 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           {collapsed ? (
             /* ── Collapsed: title + actions in one row ── */
             <div className="flex items-center justify-between gap-3 py-2.5">
-              <h1 className="text-heading-16 text-[var(--ds-gray-1000)] m-0 truncate flex-1 min-w-0">
+              {sidePeekLeftActions}
+              <h1 className={cn("text-heading-16 text-[var(--ds-gray-1000)] m-0 truncate min-w-0 flex-1", !isSidePeek && "pl-1")}>
                 {setlist.name || 'Untitled Setlist'}
               </h1>
               {actionIcons}
@@ -145,9 +201,12 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
             <>
               {/* Row 1: date + actions */}
               <div className="flex items-center justify-between pt-3 pb-1">
-                <span className="text-label-11 text-[var(--ds-gray-700)] uppercase tracking-widest">
-                  {dateStr} {timeStr && `• ${timeStr}`}
-                </span>
+                <div className="flex items-center gap-2">
+                  {sidePeekLeftActions}
+                  <span className="text-label-11 text-[var(--ds-gray-700)] uppercase tracking-widest">
+                    {dateStr} {timeStr && `• ${timeStr}`}
+                  </span>
+                </div>
                 {actionIcons}
               </div>
 

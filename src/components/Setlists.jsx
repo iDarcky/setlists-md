@@ -66,8 +66,14 @@ export default function Setlists({
   );
 
   const handleView = (sl) => {
-    if (isDesktop && onSelectPreview) onSelectPreview(sl.id);
-    else onViewSetlist(sl);
+    if (selectedIds.size > 0) {
+      const next = new Set(selectedIds);
+      if (next.has(sl.id)) next.delete(sl.id);
+      else next.add(sl.id);
+      setSelectedIds(next);
+    } else {
+      onEditSetlist?.(sl);
+    }
   };
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState('date');
@@ -121,6 +127,7 @@ export default function Setlists({
       return valA.localeCompare(valB) * dir;
     });
   }, [filtered, sortMode, sortAsc]);
+
 
   const toggleSelection = (e, id) => {
     e.stopPropagation();
@@ -305,7 +312,17 @@ export default function Setlists({
                               onChange={(e) => toggleSelection(e, sl.id)}
                             />
                           </td>
-                          <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)]">{sl.name || 'Untitled Setlist'}</td>
+                          <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)]">
+                            <div className="flex items-center gap-2 group/title relative">
+                              <span className="truncate">{sl.name || 'Untitled Setlist'}</span>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); setPreviewSetlistId(sl.id); }}
+                                className="hidden sm:flex opacity-0 group-hover/title:opacity-100 transition-opacity px-2 py-1 bg-[var(--ds-gray-1000)] text-[var(--ds-background-100)] rounded-md text-label-12 font-semibold absolute left-[calc(100%+8px)] whitespace-nowrap shadow-sm border-none cursor-pointer hover:scale-105 z-10"
+                              >
+                                Open in side peek
+                              </button>
+                            </div>
+                          </td>
                           <td className="py-3 px-4 text-copy-14 text-[var(--modes-text-muted)]">
                             {new Date(sl.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                           </td>
@@ -530,6 +547,7 @@ export default function Setlists({
               setlist={previewSetlist}
               songs={songs}
               clockFormat={clockFormat}
+              isSidePeek={true}
               onBack={() => {
                 if (isFullscreen) onToggleFullscreen?.();
                 onSelectPreview?.(null);
