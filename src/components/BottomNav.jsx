@@ -95,7 +95,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
         <div className="w-full px-4 flex items-center justify-between gap-3 pointer-events-auto max-w-[400px]">
 
           <nav
-            className="flex-1 bg-[var(--ds-background-100)]/60 backdrop-blur-3xl border border-[var(--ds-gray-200)] shadow-[0_16px_40px_rgb(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.15)] rounded-full px-2"
+            className="flex-1 bg-[var(--ds-background-100)]/40 backdrop-blur-3xl backdrop-saturate-[180%] border border-[var(--ds-gray-200)]/30 shadow-[0_16px_40px_rgb(0,0,0,0.25),inset_0_1px_1px_rgba(255,255,255,0.25),inset_0_-1px_1px_rgba(255,255,255,0.1)] rounded-full px-2"
           >
             <div className="flex justify-between items-center h-16">
               {tabs.map(({ id, label, Icon }) => {
@@ -105,7 +105,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
                   <button
                     key={id}
                     onClick={() => handleTileClick(id)}
-                    className={`relative overflow-hidden flex flex-1 flex-col items-center justify-center gap-1 h-full rounded-full border-none cursor-pointer bg-transparent transition-all duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] active:scale-90 ${
+                    className={`relative overflow-hidden flex flex-1 flex-col items-center justify-center gap-1 h-full rounded-full border-none cursor-pointer bg-transparent transition-all duration-[600ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] active:scale-[0.85] ${
                       active ? 'text-[var(--ds-teal-700)]' : 'text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-900)]'
                     }`}
                     style={{ WebkitTapHighlightColor: 'transparent' }}
@@ -137,7 +137,7 @@ export default function BottomNav({ activeView, rawView, onNavigate, activeLibra
 
           <div className="relative shrink-0">
               <div
-                className="bg-[var(--ds-background-100)]/60 backdrop-blur-3xl border border-[var(--ds-gray-200)] shadow-[0_16px_40px_rgb(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.15)] rounded-full w-16 h-16 flex items-center justify-center overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] active:scale-90 select-none cursor-pointer"
+                className="bg-[var(--ds-background-100)]/40 backdrop-blur-3xl backdrop-saturate-[180%] border border-[var(--ds-gray-200)]/30 shadow-[0_16px_40px_rgb(0,0,0,0.25),inset_0_1px_1px_rgba(255,255,255,0.25),inset_0_-1px_1px_rgba(255,255,255,0.1)] rounded-full w-16 h-16 flex items-center justify-center overflow-hidden transition-all duration-[600ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] active:scale-[0.85] select-none cursor-pointer"
                 onPointerDown={startLongPress}
                 onPointerUp={endLongPress}
                 onPointerLeave={endLongPress}
