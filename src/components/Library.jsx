@@ -538,10 +538,10 @@ export default function Library({
                             />
                           </td>
                           <td className="py-3 px-4 text-copy-15 font-medium text-[var(--modes-text)] border-r border-[var(--modes-border)]">
-                            <div className="flex items-center gap-2 group/title relative">
+                            <div className={cn("flex items-center gap-2 group/title relative", activeArrPopupId === song.id ? "z-50" : "")}>
                               <span className="truncate">{song.title}</span>
                               {(song.arrangements?.length > 1) && (
-                                <div className="relative">
+                                <div className={cn("relative", activeArrPopupId === song.id ? "z-50" : "")}>
                                   <div 
                                     title={`Arrangements:\n${song.arrangements.map(a => '• ' + (a.name || 'Default')).join('\n')}`}
                                     className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--color-brand-muted)] text-[var(--color-brand)] border border-[var(--color-brand)]/20 text-[10px] font-bold uppercase tracking-wider shrink-0 transition-opacity group-hover/title:opacity-0 sm:group-hover/title:opacity-100 cursor-pointer hover:bg-[var(--color-brand)] hover:text-white"
@@ -556,12 +556,12 @@ export default function Library({
                                   {activeArrPopupId === song.id && (
                                     <>
                                       <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setActiveArrPopupId(null); }} />
-                                      <div className="absolute top-full left-0 mt-1 bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] rounded-md shadow-lg p-2 z-50 min-w-[150px]">
-                                        <div className="text-label-11 text-[var(--modes-text-muted)] font-semibold mb-1 uppercase tracking-wider">Arrangements</div>
-                                        <div className="flex flex-col gap-1">
+                                      <div className="absolute top-full left-0 mt-2 bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg shadow-xl p-2 z-50 min-w-[180px]">
+                                        <div className="text-[10px] text-[var(--text-2)] font-bold mb-1.5 uppercase tracking-wider px-1">Arrangements</div>
+                                        <div className="flex flex-col gap-0.5">
                                           {song.arrangements.map(a => (
-                                            <div key={a.id} className="text-label-13 text-[var(--modes-text)] py-1 px-2 hover:bg-[var(--ds-gray-200)] rounded">
-                                              {a.name || 'Default'} <span className="text-[var(--modes-text-dim)] ml-1">({a.key || song.key || 'C'})</span>
+                                            <div key={a.id} className="text-label-13 text-[var(--text-1)] py-1.5 px-2 hover:bg-[var(--bg-2)] rounded-md cursor-default">
+                                              {a.name || 'Default'} <span className="text-[var(--text-2)] ml-1 font-mono text-[11px]">({a.key || song.key || 'C'})</span>
                                             </div>
                                           ))}
                                         </div>
