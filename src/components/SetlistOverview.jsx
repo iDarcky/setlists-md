@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { transposeKey, compactLabel } from '../music';
 import { resolveSongView } from '../arrangements';
 import { Chip } from './ui/Chip';
@@ -65,8 +66,18 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
     if (ok) onDelete?.();
   };
 
-  const sidePeekLeftActions = isSidePeek && (
-    <div className="flex items-center gap-1 shrink-0 -ml-2 mr-2">
+  const [sidePeekLeftTarget, setSidePeekLeftTarget] = useState(null);
+  const [sidePeekRightTarget, setSidePeekRightTarget] = useState(null);
+
+  useEffect(() => {
+    if (isSidePeek) {
+      setSidePeekLeftTarget(document.getElementById('side-peek-left'));
+      setSidePeekRightTarget(document.getElementById('side-peek-right'));
+    }
+  }, [isSidePeek]);
+
+  const sidePeekLeftContent = isSidePeek && sidePeekLeftTarget ? createPortal(
+    <>
       <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close side peek">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="13 17 18 12 13 7" />
@@ -83,11 +94,12 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           </svg>
         </IconButton>
       )}
-    </div>
-  );
+    </>,
+    sidePeekLeftTarget
+  ) : null;
 
-  const actionIcons = isSidePeek ? (
-    <div className="flex gap-1 items-center flex-shrink-0">
+  const sidePeekRightContent = isSidePeek && sidePeekRightTarget ? createPortal(
+    <>
       <Button variant="ghost" size="sm" onClick={() => setExportOpen(true)} className="hidden sm:flex text-label-13 font-semibold text-[var(--text-1)] gap-1.5 px-2.5 bg-transparent hover:bg-[var(--ds-gray-200)] border-none">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="6 9 6 2 18 2 18 9" />
@@ -119,8 +131,11 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           </IconButton>
         )}
       </div>
-    </div>
-  ) : (
+    </>,
+    sidePeekRightTarget
+  ) : null;
+
+  const actionIcons = (
     <div className="flex items-center gap-1 shrink-0">
       {team && (
         <IconButton
@@ -182,6 +197,8 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
 
   return (
     <div className="min-h-screen material-page pb-8">
+      {sidePeekLeftContent}
+      {sidePeekRightContent}
 
       {/* ── Sticky header ── */}
       <div className="material-header transition-all duration-200" style={headerFrostStyle}>
@@ -190,11 +207,10 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           {collapsed ? (
             /* ── Collapsed: title + actions in one row ── */
             <div className="flex items-center justify-between gap-3 py-2.5">
-              {sidePeekLeftActions}
               <h1 className={cn("text-heading-16 text-[var(--ds-gray-1000)] m-0 truncate min-w-0 flex-1", !isSidePeek && "pl-1")}>
                 {setlist.name || 'Untitled Setlist'}
               </h1>
-              {actionIcons}
+              {!isSidePeek && actionIcons}
             </div>
           ) : (
             /* ── Expanded: date row, title, chip row ── */
@@ -202,12 +218,11 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
               {/* Row 1: date + actions */}
               <div className="flex items-center justify-between pt-3 pb-1">
                 <div className="flex items-center gap-2">
-                  {sidePeekLeftActions}
                   <span className="text-label-11 text-[var(--ds-gray-700)] uppercase tracking-widest">
                     {dateStr} {timeStr && `• ${timeStr}`}
                   </span>
                 </div>
-                {actionIcons}
+                {!isSidePeek && actionIcons}
               </div>
 
               {/* Row 2: setlist name */}

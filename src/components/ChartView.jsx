@@ -257,8 +257,108 @@ export default function ChartView({
       })
   ));
 
-  // Check if any metadata exists
   const hasMetadata = !!song.artist || song.capo > 0 || !!song.ccli || (song.tags?.length > 0) || !!song.notes || !!song.spotify || !!song.youtube;
+
+  const [sidePeekLeftTarget, setSidePeekLeftTarget] = useState(null);
+  const [sidePeekRightTarget, setSidePeekRightTarget] = useState(null);
+
+  useEffect(() => {
+    if (isSidePeek) {
+      setSidePeekLeftTarget(document.getElementById('side-peek-left'));
+      setSidePeekRightTarget(document.getElementById('side-peek-right'));
+    }
+  }, [isSidePeek]);
+
+  const sidePeekLeftContent = isSidePeek && sidePeekLeftTarget ? createPortal(
+    <>
+      <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close side peek">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="13 17 18 12 13 7" />
+          <polyline points="6 17 11 12 6 7" />
+        </svg>
+      </IconButton>
+      {onToggleFullscreen && (
+        <IconButton variant="ghost" size="sm" onClick={onToggleFullscreen} aria-label="Fullscreen">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 8V3h5" />
+            <path d="M21 8V3h-5" />
+            <path d="M3 16v5h5" />
+            <path d="M21 16v5h-5" />
+          </svg>
+        </IconButton>
+      )}
+    </>,
+    sidePeekLeftTarget
+  ) : null;
+
+  const sidePeekRightContent = isSidePeek && sidePeekRightTarget ? createPortal(
+    <>
+      <div className="hidden sm:flex items-center gap-1">
+        <Button variant="ghost" size="sm" onClick={() => openSheet('info')} className="text-label-13 font-semibold text-[var(--text-1)] gap-1.5 px-2.5 bg-transparent hover:bg-[var(--ds-gray-200)] border-none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 16v-4" />
+            <path d="M12 8h.01" />
+          </svg>
+          Song info
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => runAndClose(() => exportSongPdf(song, { transpose }))} className="text-label-13 font-semibold text-[var(--text-1)] gap-1.5 px-2.5 bg-transparent hover:bg-[var(--ds-gray-200)] border-none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 6 2 18 2 18 9" />
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            <rect x="6" y="14" width="12" height="8" />
+          </svg>
+          Print
+        </Button>
+        {onEdit && (
+          <Button variant="ghost" size="sm" onClick={onEdit} className="text-label-13 font-semibold text-[var(--text-1)] gap-1.5 px-2.5 bg-transparent hover:bg-[var(--ds-gray-200)] border-none">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+            Edit
+          </Button>
+        )}
+        <Button variant="ghost" size="sm" onClick={() => openSheet('layout')} className="text-label-13 font-semibold text-[var(--ds-background-100)] gap-1.5 px-3 bg-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-900)] border-none rounded-md ml-1 shadow-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14" />
+            <line x1="4" y1="10" x2="4" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12" y2="3" />
+            <line x1="20" y1="21" x2="20" y2="16" />
+            <line x1="20" y1="12" x2="20" y2="3" />
+            <line x1="1" y1="14" x2="7" y2="14" />
+            <line x1="9" y1="8" x2="15" y2="8" />
+            <line x1="17" y1="16" x2="23" y2="16" />
+          </svg>
+          Customize
+        </Button>
+      </div>
+      
+      {/* Mobile fallback menu for side peek */}
+      <div className="sm:hidden relative">
+        <IconButton variant="ghost" size="sm" onClick={() => setMenuOpen(o => !o)} aria-label="More options">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="12" cy="5" r="1.6" />
+            <circle cx="12" cy="12" r="1.6" />
+            <circle cx="12" cy="19" r="1.6" />
+          </svg>
+        </IconButton>
+        {menuOpen && (
+          <div
+            role="menu"
+            className="absolute z-40 right-0 mt-1 min-w-[220px] rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-150"
+          >
+            <MenuItem onClick={() => openSheet('layout')} label="Customize" icon={(<span className="text-label-12 font-semibold">Aa</span>)} />
+            <MenuItem onClick={() => openSheet('info')} label="Song info" />
+            <MenuItem onClick={() => runAndClose(() => exportSongPdf(song, { transpose }))} label="Print / Save as PDF" />
+            {onEdit && <MenuItem onClick={() => runAndClose(onEdit)} label="Edit song" />}
+          </div>
+        )}
+      </div>
+    </>,
+    sidePeekRightTarget
+  ) : null;
 
   return (
     <div
@@ -273,6 +373,8 @@ export default function ChartView({
       {/* Header stays in the app shell theme regardless of which chart
           theme is active. Children use the app's --text-1/--text-2
           tokens which already follow light/dark/midnight. */}
+      {sidePeekLeftContent}
+      {sidePeekRightContent}
       {!isPreview && (
         <div
           className="material-header transition-all duration-200"
@@ -286,28 +388,8 @@ export default function ChartView({
               collapse was causing the title to flicker for some users.
               Compact "Line-2" content collapses on scroll but the title
               itself doesn't resize. */}
-          <div className={cn("wide-container flex items-center justify-between gap-3 pt-3 pb-0.5", isSidePeek ? "pb-2" : "")}>
+          <div className={cn("wide-container flex items-center justify-between gap-3 pt-3 pb-0.5", isSidePeek ? "pt-4" : "")}>
             <div className="min-w-0 flex-1 flex items-baseline gap-3">
-              {isSidePeek && (
-                <div className="flex items-center gap-1 mr-1 shrink-0 -ml-2 self-center">
-                  <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close side peek">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="13 17 18 12 13 7" />
-                      <polyline points="6 17 11 12 6 7" />
-                    </svg>
-                  </IconButton>
-                  {onToggleFullscreen && (
-                    <IconButton variant="ghost" size="sm" onClick={onToggleFullscreen} aria-label="Fullscreen">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 8V3h5" />
-                        <path d="M21 8V3h-5" />
-                        <path d="M3 16v5h5" />
-                        <path d="M21 16v5h-5" />
-                      </svg>
-                    </IconButton>
-                  )}
-                </div>
-              )}
               <h1
                 className={cn("m-0 truncate font-bold leading-tight", isSidePeek ? "text-heading-20" : "text-heading-24")}
                 style={{ color: 'var(--text-1)' }}
@@ -336,74 +418,7 @@ export default function ChartView({
               </div>
             </div>
             <div className="flex gap-1 items-center flex-shrink-0">
-              {isSidePeek ? (
-                <>
-                  <div className="hidden sm:flex items-center gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => openSheet('info')} className="text-label-13 font-semibold text-[var(--text-1)] gap-1.5 px-2.5 bg-transparent hover:bg-[var(--ds-gray-200)] border-none">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 16v-4" />
-                        <path d="M12 8h.01" />
-                      </svg>
-                      Song info
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => runAndClose(() => exportSongPdf(song, { transpose }))} className="text-label-13 font-semibold text-[var(--text-1)] gap-1.5 px-2.5 bg-transparent hover:bg-[var(--ds-gray-200)] border-none">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="6 9 6 2 18 2 18 9" />
-                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                        <rect x="6" y="14" width="12" height="8" />
-                      </svg>
-                      Print
-                    </Button>
-                    {onEdit && (
-                      <Button variant="ghost" size="sm" onClick={onEdit} className="text-label-13 font-semibold text-[var(--text-1)] gap-1.5 px-2.5 bg-transparent hover:bg-[var(--ds-gray-200)] border-none">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 20h9" />
-                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                        </svg>
-                        Edit
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="sm" onClick={() => openSheet('layout')} className="text-label-13 font-semibold text-[var(--ds-background-100)] gap-1.5 px-3 bg-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-900)] border-none rounded-md ml-1 shadow-sm">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="4" y1="21" x2="4" y2="14" />
-                        <line x1="4" y1="10" x2="4" y2="3" />
-                        <line x1="12" y1="21" x2="12" y2="12" />
-                        <line x1="12" y1="8" x2="12" y2="3" />
-                        <line x1="20" y1="21" x2="20" y2="16" />
-                        <line x1="20" y1="12" x2="20" y2="3" />
-                        <line x1="1" y1="14" x2="7" y2="14" />
-                        <line x1="9" y1="8" x2="15" y2="8" />
-                        <line x1="17" y1="16" x2="23" y2="16" />
-                      </svg>
-                      Customize
-                    </Button>
-                  </div>
-                  
-                  {/* Mobile fallback menu for side peek */}
-                  <div className="sm:hidden relative">
-                    <IconButton ref={menuTriggerRef} variant="ghost" size="sm" onClick={() => setMenuOpen(o => !o)} aria-label="More options">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <circle cx="12" cy="5" r="1.6" />
-                        <circle cx="12" cy="12" r="1.6" />
-                        <circle cx="12" cy="19" r="1.6" />
-                      </svg>
-                    </IconButton>
-                    {menuOpen && (
-                      <div
-                        ref={menuPanelRef}
-                        role="menu"
-                        className="absolute z-40 right-0 mt-1 min-w-[220px] rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-150"
-                      >
-                        <MenuItem onClick={() => openSheet('layout')} label="Customize" icon={(<span className="text-label-12 font-semibold">Aa</span>)} />
-                        <MenuItem onClick={() => openSheet('info')} label="Song info" />
-                        <MenuItem onClick={() => runAndClose(() => exportSongPdf(song, { transpose }))} label="Print / Save as PDF" />
-                        {onEdit && <MenuItem onClick={() => runAndClose(onEdit)} label="Edit song" />}
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
+              {!isSidePeek && (
                 <>
                   <div className="relative">
                     <IconButton

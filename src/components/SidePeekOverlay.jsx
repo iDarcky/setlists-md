@@ -32,7 +32,12 @@ export default function SidePeekOverlay({
         ref={overlayRef}
         className="relative w-full max-w-2xl h-full bg-[var(--ds-background-100)] shadow-2xl flex flex-col animate-[slideInRight_250ms_cubic-bezier(0.16,1,0.3,1)] overflow-hidden"
       >
-        <div className="flex-1 overflow-y-auto">
+        <div className="h-14 flex items-center justify-between px-4 border-b border-[var(--ds-gray-200)] shrink-0 bg-[var(--ds-background-100)]">
+          <div id="side-peek-left" className="flex items-center gap-2"></div>
+          <div id="side-peek-right" className="flex items-center gap-1"></div>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto relative">
           {children}
         </div>
       </div>
