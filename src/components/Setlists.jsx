@@ -223,7 +223,7 @@ export default function Setlists({
     <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
       {/* Header */}
       <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)] hidden sm:block">
-        <div className="w-full px-5 sm:px-8 pt-5 sm:pt-7 pb-4 flex flex-wrap items-center gap-3">
+        <div className="w-full max-w-[1180px] mx-auto px-5 sm:px-8 pt-5 sm:pt-7 pb-4 flex flex-wrap items-center gap-3">
           <h1 className="text-heading-32 font-bold text-[var(--modes-text)] m-0 mr-2">Setlists</h1>
           <SearchBar
             className="flex-1 min-w-[200px]"
@@ -263,7 +263,7 @@ export default function Setlists({
       </div>
 
       {/* Content */}
-      <div className="w-full px-5 sm:px-8 py-5">
+      <div className="w-full max-w-[1180px] mx-auto px-5 sm:px-8 py-5">
         {!loaded ? (
           <SkeletonRows />
         ) : filtered.length === 0 ? (
@@ -321,7 +321,7 @@ export default function Setlists({
             </table>
           </div>
         ) : (
-          <div className="max-w-[1100px] flex flex-col gap-10">
+          <div className="flex flex-col gap-10">
             {upcoming.length > 0 && (
               <section className="flex flex-col gap-4">
                 <div className="flex items-baseline gap-2">

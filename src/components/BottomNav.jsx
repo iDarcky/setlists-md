@@ -1,22 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const DashboardIcon = () => (
+const HomeIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="7" height="9" rx="1.5" />
-    <rect x="14" y="3" width="7" height="5" rx="1.5" />
-    <rect x="14" y="12" width="7" height="9" rx="1.5" />
-    <rect x="3" y="16" width="7" height="5" rx="1.5" />
+    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <polyline points="9 22 9 12 15 12 15 22" />
   </svg>
 );
-const SetlistsIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-    <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-  </svg>
+// Our app mark for Setlists (self-contained brand colors).
+const SetlistsLogo = () => (
+  <img src="/setlists-md-mark.svg" alt="" width="24" height="24" className="rounded-[6px]" draggable="false" />
 );
 const SongsIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
+    <circle cx="7" cy="18" r="3" fill="currentColor" stroke="none" />
+    <path d="M10 18V5l9 2.4" />
   </svg>
 );
 const PlusIcon = ({ open = false }) => (
@@ -43,8 +40,8 @@ const TeamGlyph = () => (
 );
 
 const tabs = [
-  { id: 'home', label: 'Home', icon: <DashboardIcon /> },
-  { id: 'setlists', label: 'Setlists', icon: <SetlistsIcon /> },
+  { id: 'home', label: 'Home', icon: <HomeIcon /> },
+  { id: 'setlists', label: 'Setlists', icon: <SetlistsLogo /> },
   { id: 'library', label: 'Songs', icon: <SongsIcon /> },
 ];
 
