@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 const DashboardIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="7" height="9" rx="1.5" />
     <rect x="14" y="3" width="7" height="5" rx="1.5" />
     <rect x="14" y="12" width="7" height="9" rx="1.5" />
@@ -9,26 +9,26 @@ const DashboardIcon = () => (
   </svg>
 );
 const SetlistsIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
     <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
     <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
   </svg>
 );
 const SongsIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
   </svg>
 );
 const PlusIcon = ({ open = false }) => (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${open ? 'rotate-45' : ''}`}>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${open ? 'rotate-45' : ''}`}>
     <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 );
 const PlayIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 5.5v13a1 1 0 0 0 1.54.84l10-6.5a1 1 0 0 0 0-1.68l-10-6.5A1 1 0 0 0 7 5.5Z" /></svg>
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 5.5v13a1 1 0 0 0 1.54.84l10-6.5a1 1 0 0 0 0-1.68l-10-6.5A1 1 0 0 0 7 5.5Z" /></svg>
 );
 const SwapIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="m17 2 4 4-4 4" /><path d="M3 6h18" /><path d="m7 22-4-4 4-4" /><path d="M21 18H3" />
   </svg>
 );
@@ -112,7 +112,7 @@ export default function BottomNav({
       style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 14px)' }}
     >
       {/* Glass tab bar */}
-      <nav className="flex items-stretch gap-1 p-1.5 rounded-full border border-white/10" style={GLASS}>
+      <nav className="flex items-stretch gap-1 p-2 rounded-full border border-white/10" style={GLASS}>
         {tabs.map(({ id, label, icon }) => {
           const active = id === activeId;
           return (
@@ -121,7 +121,7 @@ export default function BottomNav({
               onClick={() => onNavigate(id)}
               aria-label={label}
               aria-current={active ? 'page' : undefined}
-              className={`relative flex flex-col items-center justify-center gap-0.5 w-[74px] h-[52px] rounded-full border-none cursor-pointer transition-all duration-200 active:scale-[0.95] ${
+              className={`relative flex flex-col items-center justify-center gap-1 w-[84px] h-[62px] rounded-full border-none cursor-pointer transition-all duration-200 active:scale-[0.95] ${
                 active ? 'text-[var(--color-brand)]' : 'text-[var(--ds-gray-700)] bg-transparent'
               }`}
               style={{
@@ -131,7 +131,7 @@ export default function BottomNav({
               }}
             >
               {icon}
-              <span className={`text-[10px] leading-tight ${active ? 'font-semibold' : 'font-medium'}`}>{label}</span>
+              <span className={`text-[11px] leading-tight ${active ? 'font-semibold' : 'font-medium'}`}>{label}</span>
             </button>
           );
         })}
@@ -167,7 +167,7 @@ export default function BottomNav({
           <button
             onClick={onFabClick}
             aria-label={fab.label}
-            className="w-[60px] h-[60px] rounded-full flex items-center justify-center cursor-pointer active:scale-95 transition-transform border"
+            className="w-[68px] h-[68px] rounded-full flex items-center justify-center cursor-pointer active:scale-95 transition-transform border"
             style={{
               WebkitTapHighlightColor: 'transparent',
               ...(fab.accent
@@ -177,7 +177,7 @@ export default function BottomNav({
           >
             {fab.kind === 'workspace'
               ? (activeWorkspace?.id === 'personal'
-                  ? <span className="text-label-16 font-bold leading-none">{initial}</span>
+                  ? <span className="text-label-18 font-bold leading-none">{initial}</span>
                   : <SwapIcon />)
               : fab.icon}
           </button>

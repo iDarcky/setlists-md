@@ -1885,19 +1885,22 @@ export default function App() {
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />
           )}
-          {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view'].includes(view) && (
-            <BottomNav
-              activeView={view}
-              onNavigate={goToMainView}
-              onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
-              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
-              onPlay={view === 'setlist-view' && currentSetlist ? () => goSetlistPerformance(currentSetlist) : null}
-              activeLibrary={activeLibrary}
-              workspaces={[{ id: 'personal', name: 'Personal' }, ...teams.map(t => ({ id: t.id, name: t.name }))]}
-              setActiveLibrary={switchWorkspace}
-            />
-          )}
         </DesktopLayout>
+      )}
+      {/* Mobile glass nav lives at the App root (not inside <main>) so the
+          drawer's transform/will-change doesn't capture its fixed positioning
+          or break the glass backdrop-filter. */}
+      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view'].includes(view) && !drawerOpen && (
+        <BottomNav
+          activeView={view}
+          onNavigate={goToMainView}
+          onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
+          onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+          onPlay={view === 'setlist-view' && currentSetlist ? () => goSetlistPerformance(currentSetlist) : null}
+          activeLibrary={activeLibrary}
+          workspaces={[{ id: 'personal', name: 'Personal' }, ...teams.map(t => ({ id: t.id, name: t.name }))]}
+          setActiveLibrary={switchWorkspace}
+        />
       )}
       {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && ['home', 'library', 'setlists'].includes(view) && !drawerOpen && (
         <EdgeSwipeHotspot onOpen={openDrawer} />
