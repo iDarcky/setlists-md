@@ -14,6 +14,7 @@ export default function DesktopLayout({
   drawerOpen = false,
   displayName,
   plan,
+  avatarUrl,
   hideBottomSpacer = false,
   activeLibrary,
   setActiveLibrary,
@@ -51,6 +52,7 @@ export default function DesktopLayout({
           onNotificationAction={onNotificationAction}
           displayName={displayName}
           plan={plan}
+          avatarUrl={avatarUrl}
           activeLibrary={activeLibrary}
           setActiveLibrary={setActiveLibrary}
           team={team}

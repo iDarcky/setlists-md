@@ -1537,8 +1537,9 @@ export default function App() {
           onMarkRead={handleMarkNotificationRead} 
           onNotificationAction={handleNotificationAction} 
           drawerOpen={drawerOpen} 
-          displayName={displayName} 
-          plan={plan} 
+          displayName={displayName}
+          plan={plan}
+          avatarUrl={profile?.avatar_url}
           activeLibrary={activeLibrary}
           setActiveLibrary={switchWorkspace}
           team={team}
@@ -1898,7 +1899,10 @@ export default function App() {
           onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
           onPlay={view === 'setlist-view' && currentSetlist ? () => goSetlistPerformance(currentSetlist) : null}
           activeLibrary={activeLibrary}
-          workspaces={[{ id: 'personal', name: 'Personal' }, ...teams.map(t => ({ id: t.id, name: t.name }))]}
+          workspaces={[
+            { id: 'personal', name: 'Personal', avatarUrl: profile?.avatar_url || null },
+            ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null })),
+          ]}
           setActiveLibrary={switchWorkspace}
         />
       )}

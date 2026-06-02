@@ -335,12 +335,16 @@ The theme is applied by an effect in `App.jsx` that sets/clears `document.docume
 ## Supabase Schema
 
 The signed-in experience depends on a `profiles` table with columns:
-`id`, `email`, `display_name`, `plan`, `preferences` (JSONB), `updated_at`.
+`id`, `email`, `display_name`, `plan`, `preferences` (JSONB), `avatar_url`,
+`updated_at`. `avatar_url` is a public URL into the `avatars` storage bucket
+(personal profile picture).
 
 The Teams/Church tier adds these additional tables:
 
 - **`teams`** — `id`, `name`, `location`, `owner_id`, `plan` (team|church),
-  `max_seats` (10 for team, 30 for church), `created_at`, `updated_at`.
+  `max_seats` (10 for team, 30 for church), `logo_url`, `created_at`,
+  `updated_at`. `logo_url` is a public URL into the `avatars` bucket
+  (church/team logo, admin-editable).
 - **`team_members`** — `id`, `team_id`, `user_id`, `role` (admin|member),
   `invited_by`, `joined_at`, `instruments` (text[], default `{}`).
   Unique constraint on `(team_id, user_id)`. The `instruments` column is the
@@ -384,6 +388,12 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   the column is missing, so the team library still works before this
   migration is applied — but the roster picker won't see instruments and
   the dashboard calendar's availability marking is a no-op.
+- `20260602_add_avatars.sql` — adds `profiles.avatar_url` + `teams.logo_url`
+  and creates the public `avatars` storage bucket with RLS (public read;
+  users write `users/{uid}/…`; team owners/admins write `teams/{team_id}/…`).
+  Uploads go through `components/ui/AvatarUploader.jsx`; avatars render in the
+  desktop header, the mobile workspace FAB/switcher, and the Account/Team
+  settings forms.
 
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).

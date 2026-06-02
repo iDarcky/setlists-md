@@ -6,6 +6,7 @@ import ScreenHeader from './ui/ScreenHeader';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import UpgradeGate from './ui/UpgradeGate';
+import AvatarUploader from './ui/AvatarUploader';
 import { useConfirm } from './ui/useConfirmHook';
 
 const TeamIcon = () => (
@@ -448,6 +449,17 @@ function EditTeamForm({ team, onUpdate }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4 rounded-xl mt-4" style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}>
       <h3 className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider font-semibold mb-1">Team Settings</h3>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-label-12 text-[var(--ds-gray-700)]">Logo</span>
+        <AvatarUploader
+          url={team.logo_url || null}
+          fallback={(team.name || 'T').trim().charAt(0).toUpperCase()}
+          pathPrefix={`teams/${team.id}`}
+          shape="square"
+          label="logo"
+          onChange={async (logoUrl) => { await onUpdate({ logo_url: logoUrl }); }}
+        />
+      </div>
       <label className="flex flex-col gap-1">
         <span className="text-label-12 text-[var(--ds-gray-700)]">Team Name</span>
         <Input type="text" required value={name} onChange={e => setName(e.target.value)} />

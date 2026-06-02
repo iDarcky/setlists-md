@@ -162,10 +162,12 @@ export default function BottomNav({
                     onClick={() => { setMenuOpen(null); setActiveLibrary?.(w.id); }}
                     className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left cursor-pointer active:bg-white/10"
                   >
-                    <span className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center shrink-0 text-[var(--ds-gray-1000)]">
-                      {w.id === 'personal'
-                        ? <span className="text-label-13 font-bold">{(w.name || 'P').charAt(0)}</span>
-                        : <TeamGlyph />}
+                    <span className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center shrink-0 overflow-hidden text-[var(--ds-gray-1000)]">
+                      {w.avatarUrl
+                        ? <img src={w.avatarUrl} alt="" className="w-full h-full object-cover" />
+                        : w.id === 'personal'
+                          ? <span className="text-label-13 font-bold">{(w.name || 'P').charAt(0)}</span>
+                          : <TeamGlyph />}
                     </span>
                     <span className="flex-1 text-copy-15 text-[var(--ds-gray-1000)] truncate">{w.name}</span>
                     {isActive && <span className="text-[var(--color-brand)] shrink-0"><CheckIcon /></span>}
@@ -178,7 +180,7 @@ export default function BottomNav({
           <button
             onClick={onFabClick}
             aria-label={fab.label}
-            className="w-[68px] h-[68px] rounded-full flex items-center justify-center cursor-pointer active:scale-95 transition-transform border"
+            className="w-[68px] h-[68px] rounded-full flex items-center justify-center cursor-pointer active:scale-95 transition-transform border overflow-hidden"
             style={{
               WebkitTapHighlightColor: 'transparent',
               ...(fab.accent
@@ -187,9 +189,11 @@ export default function BottomNav({
             }}
           >
             {fab.kind === 'workspace'
-              ? (activeWorkspace?.id === 'personal'
-                  ? <span className="text-label-18 font-bold leading-none">{initial}</span>
-                  : <SwapIcon />)
+              ? (activeWorkspace?.avatarUrl
+                  ? <img src={activeWorkspace.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  : activeWorkspace?.id === 'personal'
+                    ? <span className="text-label-18 font-bold leading-none">{initial}</span>
+                    : <SwapIcon />)
               : fab.icon}
           </button>
         </div>
