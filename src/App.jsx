@@ -140,7 +140,7 @@ function prefsEqual(a, b) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const { team, isAdmin, isEditor, isMember } = useTeam();
+  const { team, teams, setActiveTeam, isAdmin, isEditor, isMember } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const canEdit = !team || isAdmin || isEditor;
   const isTeamAdmin = isAdmin;
@@ -227,14 +227,19 @@ export default function App() {
   const prefsPushTimerRef = useRef(null);
   const isSwitchingLibraryRef = useRef(false);
 
-  // Fallback to personal if team is deleted/left
+  // Keep TeamProvider's active team aligned with the chosen library, and fall
+  // back to personal if the selected team is no longer one the user belongs to
+  // (left/deleted). activeLibrary only becomes a team id via an explicit
+  // switch — after teams have loaded — so this never resets prematurely.
   useEffect(() => {
-    if (activeLibrary !== 'personal' && team && activeLibrary !== team.id) {
-      setActiveLibrary('personal');
-    } else if (activeLibrary !== 'personal' && !team) {
+    if (activeLibrary === 'personal') return;
+    const ids = teams.map(t => t.id);
+    if (ids.includes(activeLibrary)) {
+      setActiveTeam(activeLibrary);
+    } else {
       setActiveLibrary('personal');
     }
-  }, [team, activeLibrary]);
+  }, [teams, activeLibrary, setActiveTeam]);
 
   // Initialize sync engine for the active library
   const isTeamReadOnly = activeLibrary !== 'personal' && !isAdmin && !isEditor;
@@ -827,6 +832,14 @@ export default function App() {
   ];
 
   const hasUnreadNotifications = mergedNotifications.some(n => !n.read);
+
+  // Switch between Personal and a team/church workspace. Always lands on the
+  // Dashboard so the user gets a consistent "home" for the workspace they
+  // just entered (roadmap: swapping workspaces always goes to dashboard).
+  const switchWorkspace = (libId) => {
+    if (libId !== activeLibrary) setActiveLibrary(libId);
+    goToMainView('home');
+  };
 
   const goLibrary = () => goToMainView('library');
   const goSetlists = () => goToMainView('setlists');
@@ -1451,9 +1464,10 @@ export default function App() {
           drawerOpen={drawerOpen} 
           displayName={displayName} 
           plan={plan} 
-          activeLibrary={activeLibrary} 
-          setActiveLibrary={setActiveLibrary} 
-          team={team} 
+          activeLibrary={activeLibrary}
+          setActiveLibrary={switchWorkspace}
+          team={team}
+          teams={teams}
           onChangeWorkspace={goTeam}
           syncState={syncState}
           onSyncNow={triggerSync}
@@ -1776,7 +1790,7 @@ export default function App() {
             <TeamScreen
               onBack={goBack}
               onUpgrade={() => navigate('pricing')}
-              onSwitchLibrary={setActiveLibrary}
+              onSwitchLibrary={switchWorkspace}
             />
           )}
           {view === 'schedule' && (
@@ -1824,8 +1838,9 @@ export default function App() {
           onCreateAccount={() => { setDrawerOpen(false); setAuthStartMode('signup'); navigate('signin'); }}
           onOpenTeam={() => { setDrawerOpen(false); goTeam(); }}
           team={team}
+          teams={teams}
           activeLibrary={activeLibrary}
-          setActiveLibrary={setActiveLibrary}
+          setActiveLibrary={switchWorkspace}
           canInstall={canInstall}
           isIOS={isIOS}
           isStandalone={isStandalone}

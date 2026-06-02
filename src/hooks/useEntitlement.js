@@ -39,9 +39,12 @@ export function useEntitlement(feature) {
   const isPersonal = activeLibrary === 'personal';
   
   // 1. Determine current rank based on context
-  const currentPlan = isPersonal 
+  // Team/church workspaces gate on the team's own plan. The schema and
+  // TeamProvider expose `team.plan` (team|church) — not `billing_plan`, which
+  // never existed and silently resolved every team feature to `free`.
+  const currentPlan = isPersonal
     ? (profile?.subscription_tier || 'free').toLowerCase()
-    : (team?.billing_plan || 'free').toLowerCase();
+    : (team?.plan || 'free').toLowerCase();
     
   const requiredPlan = FEATURE_GATES[feature] || 'free';
   let allowed = (PLAN_RANK[currentPlan] ?? 0) >= (PLAN_RANK[requiredPlan] ?? 0);

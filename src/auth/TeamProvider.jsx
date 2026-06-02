@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { supabase } from './supabase';
 import { useAuth } from './useAuth';
 import { TeamContext } from './TeamContext';
@@ -7,10 +7,16 @@ import { TeamContext } from './TeamContext';
  * Provides team state to the component tree. Only fetches from Supabase when
  * the user is signed in and has a team/church plan. For free/sync users, the
  * context value is a no-op stub so consumers can safely call any method.
+ *
+ * Multi-team: a user can belong to multiple bands/churches. We load every
+ * membership into `teams[]` and expose an `activeTeamId` (defaulting to the
+ * first). `team`/`members`/`invites`/`isAdmin` are all derived from the
+ * active team, so existing single-team consumers keep working unchanged.
  */
 export function TeamProvider({ children }) {
   const { user, profile } = useAuth();
-  const [team, setTeam] = useState(null);
+  const [teams, setTeams] = useState([]);
+  const [activeTeamId, setActiveTeamId] = useState(null);
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -19,10 +25,20 @@ export function TeamProvider({ children }) {
   const plan = (profile?.plan || 'free').toLowerCase();
   const hasTeamPlan = plan === 'team' || plan === 'church';
 
-  // Load the user's team when their identity changes.
+  const team = useMemo(
+    () => teams.find(t => t.id === activeTeamId) || null,
+    [teams, activeTeamId]
+  );
+
+  const setActiveTeam = useCallback((teamId) => {
+    setActiveTeamId(prev => (prev === teamId ? prev : teamId));
+  }, []);
+
+  // Load every team the user belongs to when their identity changes.
   useEffect(() => {
     if (!supabase || !user?.id) {
-      setTeam(null);
+      setTeams([]);
+      setActiveTeamId(null);
       setMembers([]);
       setInvites([]);
       loadedForUserRef.current = null;
@@ -34,30 +50,49 @@ export function TeamProvider({ children }) {
     (async () => {
       setLoading(true);
       try {
-        // Find the user's team membership(s). For MVP, we take the first team.
-        const { data: membership } = await supabase
+        // All of the user's team memberships (no longer capped at one).
+        const { data: memberships } = await supabase
           .from('team_members')
           .select('team_id, role')
-          .eq('user_id', user.id)
-          .limit(1)
-          .maybeSingle();
+          .eq('user_id', user.id);
 
-        if (!membership) {
-          setTeam(null);
-          setMembers([]);
-          setInvites([]);
+        if (!memberships || memberships.length === 0) {
+          setTeams([]);
+          setActiveTeamId(null);
           return;
         }
 
-        // Load the team details.
-        const { data: teamRow } = await supabase
+        const teamIds = memberships.map(m => m.team_id);
+        const { data: teamRows } = await supabase
           .from('teams')
           .select('*')
-          .eq('id', membership.team_id)
-          .maybeSingle();
+          .in('id', teamIds);
 
-        if (teamRow) setTeam(teamRow);
+        const ordered = teamRows || [];
+        setTeams(ordered);
+        // Keep the current active team if it's still valid, else pick the first.
+        setActiveTeamId(prev =>
+          prev && ordered.some(t => t.id === prev) ? prev : (ordered[0]?.id || null)
+        );
+      } catch (err) {
+        console.error('[team] Failed to load teams:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [user?.id]);
 
+  // Load members + invites for the active team whenever it changes.
+  useEffect(() => {
+    if (!supabase || !user?.id || !activeTeamId) {
+      setMembers([]);
+      setInvites([]);
+      return;
+    }
+    let ignore = false;
+
+    (async () => {
+      try {
         // Load all members. The instruments column is optional — if the
         // 20260502_team_planning migration hasn't been applied yet, fall back
         // to the base select so sign-in continues to work.
@@ -66,12 +101,12 @@ export function TeamProvider({ children }) {
           const { data, error } = await supabase
             .from('team_members')
             .select('id, user_id, role, joined_at, instruments')
-            .eq('team_id', membership.team_id);
+            .eq('team_id', activeTeamId);
           if (error) {
             const fallback = await supabase
               .from('team_members')
               .select('id, user_id, role, joined_at')
-              .eq('team_id', membership.team_id);
+              .eq('team_id', activeTeamId);
             memberRows = fallback.data;
           } else {
             memberRows = data;
@@ -85,7 +120,7 @@ export function TeamProvider({ children }) {
           // This bypasses profiles RLS so team members can see each other's
           // names and emails (the email falls back to auth.users).
           const { data: profiles } = await supabase
-            .rpc('get_team_member_profiles', { p_team_id: membership.team_id });
+            .rpc('get_team_member_profiles', { p_team_id: activeTeamId });
 
           if (profiles && profiles.length > 0) {
             const profileMap = profiles.reduce((acc, p) => ({ ...acc, [p.user_id]: p }), {});
@@ -111,22 +146,24 @@ export function TeamProvider({ children }) {
           }
         }
 
+        if (ignore) return;
         setMembers(membersWithProfiles);
 
         // Load pending invites for the team (only admins/owners can see these due to RLS).
         const { data: inviteRows } = await supabase
           .from('team_invites')
           .select('id, email, role, created_at')
-          .eq('team_id', membership.team_id);
-        
+          .eq('team_id', activeTeamId);
+
+        if (ignore) return;
         setInvites(inviteRows || []);
       } catch (err) {
-        console.error('[team] Failed to load team:', err);
-      } finally {
-        setLoading(false);
+        if (!ignore) console.error('[team] Failed to load team roster:', err);
       }
     })();
-  }, [user?.id]);
+
+    return () => { ignore = true; };
+  }, [activeTeamId, user?.id]);
 
   // Reset on sign-out.
   useEffect(() => {
@@ -152,6 +189,9 @@ export function TeamProvider({ children }) {
       : false;
 
     return {
+      teams,
+      activeTeamId,
+      setActiveTeam,
       team,
       members,
       invites,
@@ -162,7 +202,8 @@ export function TeamProvider({ children }) {
       hasTeamPlan,
 
       /**
-       * Create a new team. The caller becomes the owner + admin member.
+       * Create a new team. The caller becomes the owner + admin member, and
+       * the new team becomes the active one.
        * @param {{ name: string, location?: string }} opts
        */
       createTeam: async ({ name, location }) => {
@@ -196,7 +237,7 @@ export function TeamProvider({ children }) {
         // If it failed due to unique violation (e.g. trigger already added them),
         // we can ignore it and just fetch the row.
         if (memberErr && memberErr.code !== '23505') throw memberErr;
-        
+
         let finalMemberId = memberRow?.id;
         if (!finalMemberId) {
           const { data: existing } = await supabase
@@ -208,8 +249,10 @@ export function TeamProvider({ children }) {
           finalMemberId = existing?.id;
         }
 
-        setTeam(newTeam);
+        setTeams(prev => [...prev.filter(t => t.id !== newTeam.id), newTeam]);
+        setActiveTeamId(newTeam.id);
         setMembers([{ id: finalMemberId, user_id: user.id, role: 'admin', joined_at: new Date().toISOString() }]);
+        setInvites([]);
         return newTeam;
       },
 
@@ -291,7 +334,7 @@ export function TeamProvider({ children }) {
       cancelInvite: async (inviteId) => {
         guard();
         if (!team) throw new Error('No team exists.');
-        
+
         // Skip temp IDs from optimistic updates if they haven't synced yet
         if (!String(inviteId).startsWith('temp-')) {
           const { error } = await supabase
@@ -301,7 +344,7 @@ export function TeamProvider({ children }) {
             .eq('team_id', team.id);
           if (error) throw error;
         }
-        
+
         setInvites(prev => prev.filter(i => i.id !== inviteId));
       },
 
@@ -324,7 +367,8 @@ export function TeamProvider({ children }) {
       },
 
       /**
-       * Leave the current team (as a non-owner member).
+       * Leave the current team (as a non-owner member). Drops it from the
+       * teams list and falls back to another team (or none).
        */
       leaveTeam: async () => {
         guard();
@@ -340,9 +384,14 @@ export function TeamProvider({ children }) {
           .eq('user_id', user.id);
 
         if (error) throw error;
-        setTeam(null);
+        const leftId = team.id;
+        setTeams(prev => {
+          const next = prev.filter(t => t.id !== leftId);
+          setActiveTeamId(next[0]?.id || null);
+          return next;
+        });
         setMembers([]);
-        loadedForUserRef.current = null;
+        setInvites([]);
       },
 
       /**
@@ -358,7 +407,7 @@ export function TeamProvider({ children }) {
           .select()
           .single();
         if (error) throw error;
-        setTeam(data);
+        setTeams(prev => prev.map(t => t.id === data.id ? data : t));
         return data;
       },
 
@@ -385,7 +434,8 @@ export function TeamProvider({ children }) {
       },
 
       /**
-       * Delete the team entirely. Owner only.
+       * Delete the team entirely. Owner only. Drops it from the teams list
+       * and falls back to another team (or none).
        */
       deleteTeam: async () => {
         guard();
@@ -395,12 +445,17 @@ export function TeamProvider({ children }) {
           .delete()
           .eq('id', team.id);
         if (error) throw error;
-        setTeam(null);
+        const deletedId = team.id;
+        setTeams(prev => {
+          const next = prev.filter(t => t.id !== deletedId);
+          setActiveTeamId(next[0]?.id || null);
+          return next;
+        });
         setMembers([]);
-        loadedForUserRef.current = null;
+        setInvites([]);
       },
     };
-  }, [team, members, invites, loading, user?.id, plan, hasTeamPlan]);
+  }, [teams, activeTeamId, team, members, invites, loading, user?.id, plan, hasTeamPlan, setActiveTeam]);
 
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 }
