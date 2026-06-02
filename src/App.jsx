@@ -1887,8 +1887,11 @@ export default function App() {
           )}
           {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view'].includes(view) && (
             <BottomNav
-              activeView={view === 'setlist-view' ? 'setlists' : view}
+              activeView={view}
               onNavigate={goToMainView}
+              onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
+              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+              onPlay={view === 'setlist-view' && currentSetlist ? () => goSetlistPerformance(currentSetlist) : null}
             />
           )}
         </DesktopLayout>
