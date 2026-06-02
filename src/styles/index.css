@@ -809,3 +809,16 @@
   --drawer-text-faint: var(--ds-gray-600);
 }
 
+
+/* Modal scroll-lock — freeze the real scroll container (<main>) behind any
+   open Dialog. Locking <body> alone is ignored by iOS Safari because the
+   app scrolls inside <main>, leaving the background draggable on iPad. */
+html.dialog-open,
+html.dialog-open body {
+  overflow: hidden;
+}
+html.dialog-open main {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  touch-action: none;
+}
