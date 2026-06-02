@@ -142,7 +142,7 @@ export default function TopHeader({
         className={cn(
           'w-full h-14 shrink-0 items-center gap-3 px-4 xl:px-6',
           'bg-[var(--ds-background-200)] border-b border-[var(--ds-gray-200)]',
-          'grid grid-cols-[1fr_auto_1fr]',
+          'grid-cols-[1fr_auto_1fr]',
           className
         )}
       >

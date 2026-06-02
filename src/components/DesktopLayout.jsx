@@ -46,7 +46,7 @@ export default function DesktopLayout({
       */}
       {!isFullscreen && (
         <TopHeader
-          className="hidden sm:flex"
+          className="hidden sm:grid"
           activeView={activeView}
           onNavigate={onNavigate}
           hasUnreadNotifications={hasUnreadNotifications}
