@@ -1,0 +1,272 @@
+import React, { useState, useEffect, useRef } from 'react';
+import NotificationTray from './NotificationTray';
+import { cn } from '../lib/utils';
+
+/* Icons (kept local so the header is self-contained) */
+const HomeIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <polyline points="9 22 9 12 15 12 15 22" />
+  </svg>
+);
+const SetlistsIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+    <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+  </svg>
+);
+const LibraryIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
+  </svg>
+);
+const TeamNavIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+const BellIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+  </svg>
+);
+const SettingsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+const UserIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+  </svg>
+);
+const ChevronIcon = ({ open }) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+    className={cn('transition-transform duration-150', open && 'rotate-180')}>
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);
+const CheckIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+/**
+ * Desktop / tablet top header. Replaces the left sidebar (and the old church
+ * "TeamBanner"). Left: primary nav. Center: workspace switcher (Personal +
+ * every team/church). Right: notifications, preferences, account.
+ *
+ * Mobile (< sm) keeps the bespoke MobileTopBar + BottomNav, so this is
+ * hidden below the sm breakpoint via the `hidden sm:flex` class passed by
+ * DesktopLayout.
+ */
+export default function TopHeader({
+  className,
+  activeView,
+  onNavigate,
+  activeLibrary,
+  setActiveLibrary,
+  team,
+  teams = [],
+  displayName = 'Guest',
+  plan = 'Free',
+  hasUnreadNotifications,
+  notifications,
+  onMarkRead,
+  onNotificationAction,
+  onManageTeams,
+}) {
+  const [trayOpen, setTrayOpen] = useState(false);
+  const [wsOpen, setWsOpen] = useState(false);
+  const wsRef = useRef(null);
+
+  const planLower = (plan || '').toLowerCase();
+  const hasTeamPlan = planLower === 'team' || planLower === 'church';
+
+  const tabs = [
+    { id: 'home', label: 'Home', Icon: HomeIcon },
+    { id: 'setlists', label: 'Setlists', Icon: SetlistsIcon },
+    { id: 'library', label: 'Library', Icon: LibraryIcon },
+    ...(hasTeamPlan ? [{ id: 'team', label: 'Team', Icon: TeamNavIcon }] : []),
+  ];
+
+  // Workspaces: Personal + every team the user belongs to.
+  const workspaces = [
+    { id: 'personal', name: 'Personal Workspace', isPersonal: true },
+    ...teams.map(t => ({ id: t.id, name: t.name, plan: t.plan })),
+  ];
+  const activeWorkspace =
+    workspaces.find(w => w.id === activeLibrary) || workspaces[0];
+
+  // Close the workspace menu on outside click / Escape.
+  useEffect(() => {
+    if (!wsOpen) return;
+    const onDown = (e) => {
+      if (wsRef.current && !wsRef.current.contains(e.target)) setWsOpen(false);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setWsOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [wsOpen]);
+
+  const selectWorkspace = (id) => {
+    setWsOpen(false);
+    setActiveLibrary?.(id);
+  };
+
+  const navBtn = (active) =>
+    cn(
+      'inline-flex items-center gap-2 h-9 px-3.5 rounded-full text-label-14 font-semibold',
+      'cursor-pointer border-none transition-colors duration-150 focus:outline-none',
+      'focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]',
+      active
+        ? 'bg-[color-mix(in_srgb,var(--color-brand)_16%,transparent)] text-[var(--color-brand)]'
+        : 'bg-transparent text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)]'
+    );
+
+  const iconBtn =
+    'relative inline-flex items-center justify-center w-9 h-9 rounded-lg cursor-pointer border-none ' +
+    'bg-transparent text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] ' +
+    'transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]';
+
+  return (
+    <>
+      <header
+        className={cn(
+          'w-full h-14 shrink-0 items-center gap-3 px-4 xl:px-6',
+          'bg-[var(--ds-background-200)] border-b border-[var(--ds-gray-200)]',
+          'grid grid-cols-[1fr_auto_1fr]',
+          className
+        )}
+      >
+        {/* Left — primary nav */}
+        <nav className="flex items-center gap-1 min-w-0">
+          {tabs.map(({ id, label, Icon }) => {
+            const active = activeView === id;
+            return (
+              <button key={id} onClick={() => onNavigate(id)} className={navBtn(active)}>
+                <Icon />
+                <span>{label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Center — workspace switcher */}
+        <div ref={wsRef} className="relative justify-self-center">
+          <button
+            onClick={() => setWsOpen(o => !o)}
+            className={cn(
+              'inline-flex items-center gap-2 h-9 pl-2.5 pr-3 rounded-full max-w-[260px]',
+              'text-label-14 font-medium cursor-pointer border border-[var(--ds-gray-300)]',
+              'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] hover:border-[var(--ds-gray-500)]',
+              'transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]'
+            )}
+            aria-haspopup="menu"
+            aria-expanded={wsOpen}
+          >
+            <span className="w-5 h-5 rounded-full bg-[var(--ds-gray-300)] flex items-center justify-center shrink-0 text-[var(--ds-gray-700)]">
+              {activeWorkspace?.isPersonal ? <UserIcon size={12} /> : <TeamNavIcon />}
+            </span>
+            <span className="truncate">{activeWorkspace?.name || 'Personal Workspace'}</span>
+            <ChevronIcon open={wsOpen} />
+          </button>
+
+          {wsOpen && (
+            <div
+              role="menu"
+              className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-[280px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg z-[120] overflow-hidden py-1"
+            >
+              {workspaces.map(w => {
+                const active = w.id === activeWorkspace?.id;
+                return (
+                  <button
+                    key={w.id}
+                    role="menuitem"
+                    onClick={() => selectWorkspace(w.id)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer border-none bg-transparent text-left hover:bg-[var(--ds-gray-200)] transition-colors"
+                  >
+                    <span className="w-7 h-7 rounded-full bg-[var(--ds-gray-300)] flex items-center justify-center shrink-0 text-[var(--ds-gray-700)]">
+                      {w.isPersonal ? <UserIcon size={14} /> : <TeamNavIcon />}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-label-14 font-medium text-[var(--ds-gray-1000)] truncate">{w.name}</span>
+                      {!w.isPersonal && (
+                        <span className="block text-label-12 text-[var(--ds-gray-600)] capitalize">{w.plan || 'team'} workspace</span>
+                      )}
+                    </span>
+                    {active && <span className="text-[var(--color-brand)] shrink-0"><CheckIcon /></span>}
+                  </button>
+                );
+              })}
+
+              {hasTeamPlan && onManageTeams && (
+                <>
+                  <div className="my-1 border-t border-[var(--ds-gray-200)]" />
+                  <button
+                    role="menuitem"
+                    onClick={() => { setWsOpen(false); onManageTeams(); }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer border-none bg-transparent text-left text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors"
+                  >
+                    <span className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"><TeamNavIcon /></span>
+                    <span className="text-label-14 font-medium">Manage teams</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Right — notifications, preferences, account */}
+        <div className="flex items-center gap-1 justify-self-end">
+          <button onClick={() => setTrayOpen(true)} className={iconBtn} aria-label="Notifications">
+            <BellIcon />
+            {hasUnreadNotifications && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[var(--ds-red-600)]" />
+            )}
+          </button>
+          <button
+            onClick={() => onNavigate('settings')}
+            className={cn(iconBtn, activeView === 'settings' && 'bg-[var(--ds-gray-200)] text-[var(--ds-gray-1000)]')}
+            aria-label="Preferences"
+          >
+            <SettingsIcon />
+          </button>
+          <button
+            onClick={() => onNavigate('account')}
+            className={cn(
+              'inline-flex items-center justify-center w-9 h-9 rounded-full cursor-pointer border-none ml-1',
+              'bg-[var(--ds-gray-300)] text-[var(--ds-gray-800)] hover:bg-[var(--ds-gray-400)] transition-colors',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]',
+              activeView === 'account' && 'ring-2 ring-[var(--color-brand)]'
+            )}
+            aria-label="Account"
+            title={displayName}
+          >
+            <span className="text-label-14 font-semibold leading-none">
+              {(displayName || 'G').trim().charAt(0).toUpperCase()}
+            </span>
+          </button>
+        </div>
+      </header>
+
+      <NotificationTray
+        open={trayOpen}
+        onClose={() => setTrayOpen(false)}
+        notifications={notifications || []}
+        onMarkRead={onMarkRead}
+        onAction={(action) => {
+          onNotificationAction?.(action);
+          setTrayOpen(false);
+        }}
+      />
+    </>
+  );
+}

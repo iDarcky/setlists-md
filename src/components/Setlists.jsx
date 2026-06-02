@@ -117,12 +117,12 @@ export default function Setlists({
   }, [filtered]);
 
   return (
-    <div className="flex flex-col lg:flex-row lg:h-screen">
+    <div className="flex flex-col lg:flex-row lg:h-full">
       <div
         data-theme-variant="modes"
         className={cn(
           "relative min-w-0 pb-8",
-          "lg:h-screen lg:overflow-y-auto lg:border-r lg:border-[var(--modes-border)]",
+          "lg:h-full lg:overflow-y-auto lg:border-r lg:border-[var(--modes-border)]",
           "flex-1 lg:flex-none lg:w-[480px] xl:w-[560px]",
           isFullscreen && "lg:hidden",
         )}
@@ -323,7 +323,7 @@ export default function Setlists({
       </div>
 
       {/* Preview pane — desktop only */}
-      <div className="hidden lg:flex lg:flex-1 lg:min-w-0 lg:h-screen lg:flex-col lg:bg-[var(--ds-background-100)] lg:overflow-y-auto">
+      <div className="hidden lg:flex lg:flex-1 lg:min-w-0 lg:h-full lg:flex-col lg:bg-[var(--ds-background-100)] lg:overflow-y-auto">
         {previewSetlist ? (
           <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
             <SetlistOverview
