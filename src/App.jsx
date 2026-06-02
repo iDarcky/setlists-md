@@ -1892,6 +1892,9 @@ export default function App() {
               onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
               onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onPlay={view === 'setlist-view' && currentSetlist ? () => goSetlistPerformance(currentSetlist) : null}
+              activeLibrary={activeLibrary}
+              workspaces={[{ id: 'personal', name: 'Personal' }, ...teams.map(t => ({ id: t.id, name: t.name }))]}
+              setActiveLibrary={switchWorkspace}
             />
           )}
         </DesktopLayout>

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 const DashboardIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="7" height="9" rx="1.5" />
     <rect x="14" y="3" width="7" height="5" rx="1.5" />
     <rect x="14" y="12" width="7" height="9" rx="1.5" />
@@ -9,13 +9,13 @@ const DashboardIcon = () => (
   </svg>
 );
 const SetlistsIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
     <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
     <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
   </svg>
 );
 const SongsIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
   </svg>
 );
@@ -27,15 +27,18 @@ const PlusIcon = ({ open = false }) => (
 const PlayIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 5.5v13a1 1 0 0 0 1.54.84l10-6.5a1 1 0 0 0 0-1.68l-10-6.5A1 1 0 0 0 7 5.5Z" /></svg>
 );
-const SongMenuIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
+const SwapIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m17 2 4 4-4 4" /><path d="M3 6h18" /><path d="m7 22-4-4 4-4" /><path d="M21 18H3" />
   </svg>
 );
-const SetlistMenuIcon = () => (
+const CheckIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+);
+const TeamGlyph = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-    <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 );
 
@@ -45,19 +48,27 @@ const tabs = [
   { id: 'library', label: 'Songs', icon: <SongsIcon /> },
 ];
 
+// iOS 26 "Liquid Glass": translucent fill, heavy blur+saturate, a specular
+// top highlight and hairline edge, plus a soft drop shadow.
 const GLASS = {
-  background: 'color-mix(in srgb, var(--ds-background-200) 70%, transparent)',
-  backdropFilter: 'blur(20px) saturate(180%)',
-  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+  background: 'color-mix(in srgb, var(--ds-background-200) 55%, transparent)',
+  backdropFilter: 'blur(24px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+  boxShadow:
+    'inset 0 1px 0 rgba(255,255,255,0.22), inset 0 0 0 0.5px rgba(255,255,255,0.10), 0 12px 34px rgba(0,0,0,0.38)',
 };
 
-/**
- * Mobile shell footer (iOS 26 "liquid glass"): a floating translucent tab bar
- * (Home / Setlists / Songs) plus a separate morphing action button whose
- * action changes per view — new song, new setlist, or Play Live.
- */
-export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onPlay }) {
-  const [addOpen, setAddOpen] = useState(false);
+export default function BottomNav({
+  activeView,
+  onNavigate,
+  onNewSong,
+  onNewSetlist,
+  onPlay,
+  activeLibrary = 'personal',
+  workspaces = [],
+  setActiveLibrary,
+}) {
+  const [menuOpen, setMenuOpen] = useState(null); // 'create' | 'workspace' | null
   const fabRef = useRef(null);
 
   const activeId = tabs.some(t => t.id === activeView)
@@ -65,88 +76,113 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
     : (activeView === 'setlist-view' ? 'setlists' : 'home');
 
   useEffect(() => {
-    if (!addOpen) return;
-    const handler = (e) => { if (fabRef.current && !fabRef.current.contains(e.target)) setAddOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setAddOpen(false); };
+    if (!menuOpen) return;
+    const handler = (e) => { if (fabRef.current && !fabRef.current.contains(e.target)) setMenuOpen(null); };
+    const onKey = (e) => { if (e.key === 'Escape') setMenuOpen(null); };
     document.addEventListener('mousedown', handler);
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('keydown', onKey); };
-  }, [addOpen]);
+  }, [menuOpen]);
+
+  const activeWorkspace = workspaces.find(w => w.id === activeLibrary) || workspaces[0] || { id: 'personal', name: 'Personal' };
 
   // Resolve the morphing FAB for the current view.
   let fab = null;
-  if (activeView === 'library' && onNewSong) {
-    fab = { kind: 'action', label: 'New song', onClick: onNewSong, icon: <PlusIcon /> };
+  if (activeView === 'home') {
+    fab = { kind: 'workspace', label: 'Switch workspace' };
+  } else if (activeView === 'library' && onNewSong) {
+    fab = { kind: 'action', accent: true, label: 'New song', onClick: onNewSong, icon: <PlusIcon /> };
   } else if (activeView === 'setlists' && onNewSetlist) {
-    fab = { kind: 'action', label: 'New setlist', onClick: onNewSetlist, icon: <PlusIcon /> };
-  } else if (activeView === 'home' && (onNewSong || onNewSetlist)) {
-    fab = { kind: 'menu', label: 'Create', icon: <PlusIcon open={addOpen} /> };
+    fab = { kind: 'action', accent: true, label: 'New setlist', onClick: onNewSetlist, icon: <PlusIcon /> };
   } else if (activeView === 'setlist-view' && onPlay) {
-    fab = { kind: 'action', label: 'Play live', onClick: onPlay, icon: <PlayIcon /> };
+    fab = { kind: 'action', accent: true, label: 'Play live', onClick: onPlay, icon: <PlayIcon /> };
   }
 
-  const fabBottom = 'calc(env(safe-area-inset-bottom, 0px) + 92px)';
+  const onFabClick = () => {
+    if (!fab) return;
+    if (fab.kind === 'workspace') setMenuOpen(m => (m === 'workspace' ? null : 'workspace'));
+    else fab.onClick();
+  };
+
+  const initial = (activeWorkspace?.name || 'P').trim().charAt(0).toUpperCase();
 
   return (
-    <>
-      {/* Morphing FAB */}
+    <div
+      className="fixed left-0 right-0 z-[100] sm:hidden flex items-center justify-center gap-3 px-4"
+      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 14px)' }}
+    >
+      {/* Glass tab bar */}
+      <nav className="flex items-stretch gap-1 p-1.5 rounded-full border border-white/10" style={GLASS}>
+        {tabs.map(({ id, label, icon }) => {
+          const active = id === activeId;
+          return (
+            <button
+              key={id}
+              onClick={() => onNavigate(id)}
+              aria-label={label}
+              aria-current={active ? 'page' : undefined}
+              className={`relative flex flex-col items-center justify-center gap-0.5 w-[74px] h-[52px] rounded-full border-none cursor-pointer transition-all duration-200 active:scale-[0.95] ${
+                active ? 'text-[var(--color-brand)]' : 'text-[var(--ds-gray-700)] bg-transparent'
+              }`}
+              style={{
+                WebkitTapHighlightColor: 'transparent',
+                background: active ? 'rgba(255,255,255,0.16)' : undefined,
+                boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.25)' : undefined,
+              }}
+            >
+              {icon}
+              <span className={`text-[10px] leading-tight ${active ? 'font-semibold' : 'font-medium'}`}>{label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Separate glass circle — morphing FAB, on the same level as the bar */}
       {fab && (
-        <div ref={fabRef} className="fixed right-5 z-[101] sm:hidden" style={{ bottom: fabBottom }}>
-          {fab.kind === 'menu' && addOpen && (
-            <div className="absolute bottom-full right-0 mb-3 w-52 rounded-2xl border border-white/10 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150" style={GLASS}>
-              {onNewSong && (
-                <button onClick={() => { setAddOpen(false); onNewSong(); }} className="w-full flex items-center gap-3 px-4 py-3.5 bg-transparent border-none text-left text-copy-15 text-[var(--ds-gray-1000)] cursor-pointer active:bg-white/10">
-                  <SongMenuIcon /> New Song
-                </button>
-              )}
-              {onNewSong && onNewSetlist && <div className="h-px bg-white/10" />}
-              {onNewSetlist && (
-                <button onClick={() => { setAddOpen(false); onNewSetlist(); }} className="w-full flex items-center gap-3 px-4 py-3.5 bg-transparent border-none text-left text-copy-15 text-[var(--ds-gray-1000)] cursor-pointer active:bg-white/10">
-                  <SetlistMenuIcon /> New Setlist
-                </button>
-              )}
+        <div ref={fabRef} className="relative shrink-0">
+          {/* Workspace switcher menu */}
+          {menuOpen === 'workspace' && (
+            <div className="absolute bottom-full right-0 mb-3 w-60 rounded-2xl border border-white/10 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150 py-1" style={GLASS}>
+              {workspaces.map(w => {
+                const isActive = w.id === activeWorkspace?.id;
+                return (
+                  <button
+                    key={w.id}
+                    onClick={() => { setMenuOpen(null); setActiveLibrary?.(w.id); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left cursor-pointer active:bg-white/10"
+                  >
+                    <span className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center shrink-0 text-[var(--ds-gray-1000)]">
+                      {w.id === 'personal'
+                        ? <span className="text-label-13 font-bold">{(w.name || 'P').charAt(0)}</span>
+                        : <TeamGlyph />}
+                    </span>
+                    <span className="flex-1 text-copy-15 text-[var(--ds-gray-1000)] truncate">{w.name}</span>
+                    {isActive && <span className="text-[var(--color-brand)] shrink-0"><CheckIcon /></span>}
+                  </button>
+                );
+              })}
             </div>
           )}
+
           <button
-            onClick={() => fab.kind === 'menu' ? setAddOpen(o => !o) : fab.onClick()}
+            onClick={onFabClick}
             aria-label={fab.label}
-            className="w-[60px] h-[60px] rounded-full bg-[var(--color-brand)] text-white shadow-2xl flex items-center justify-center cursor-pointer active:scale-95 transition-transform border border-white/15"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
+            className="w-[60px] h-[60px] rounded-full flex items-center justify-center cursor-pointer active:scale-95 transition-transform border"
+            style={{
+              WebkitTapHighlightColor: 'transparent',
+              ...(fab.accent
+                ? { background: 'var(--color-brand)', color: '#fff', borderColor: 'rgba(255,255,255,0.18)', boxShadow: '0 10px 28px rgba(0,0,0,0.35)' }
+                : { ...GLASS, borderColor: 'rgba(255,255,255,0.12)', color: 'var(--ds-gray-1000)' }),
+            }}
           >
-            {fab.icon}
+            {fab.kind === 'workspace'
+              ? (activeWorkspace?.id === 'personal'
+                  ? <span className="text-label-16 font-bold leading-none">{initial}</span>
+                  : <SwapIcon />)
+              : fab.icon}
           </button>
         </div>
       )}
-
-      {/* Floating glass tab bar */}
-      <div
-        className="fixed left-0 right-0 z-[100] sm:hidden flex justify-center px-5"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 14px)' }}
-      >
-        <nav
-          className="flex items-stretch gap-1 p-1.5 rounded-[24px] border border-white/10 shadow-2xl"
-          style={GLASS}
-        >
-          {tabs.map(({ id, label, icon }) => {
-            const active = id === activeId;
-            return (
-              <button
-                key={id}
-                onClick={() => onNavigate(id)}
-                aria-label={label}
-                aria-current={active ? 'page' : undefined}
-                className={`relative flex flex-col items-center justify-center gap-0.5 w-[76px] h-14 rounded-[18px] border-none cursor-pointer transition-all duration-200 active:scale-[0.95] ${
-                  active ? 'bg-[var(--color-brand)] text-white' : 'bg-transparent text-[var(--ds-gray-700)]'
-                }`}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                {icon}
-                <span className={`text-[10px] leading-tight ${active ? 'font-semibold' : 'font-medium'}`}>{label}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-    </>
+    </div>
   );
 }

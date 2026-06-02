@@ -9,6 +9,18 @@ const HamburgerIcon = () => (
   </svg>
 );
 
+const PlusIcon = ({ open = false }) => (
+  <svg
+    width="26" height="26" viewBox="0 0 24 24"
+    fill="none" stroke="white" strokeWidth="2.5"
+    strokeLinecap="round" strokeLinejoin="round"
+    className={`transition-transform duration-200 ${open ? 'rotate-45' : ''}`}
+  >
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
 function formatDateShort(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr + 'T12:00:00');
@@ -22,10 +34,14 @@ export default function MobileTopBar({
   onOpenDrawer,
   onSelectSong,
   onSelectSetlist,
+  onNewSong,
+  onNewSetlist,
 }) {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const inputRef = useRef(null);
+  const addRef = useRef(null);
   const containerRef = useRef(null);
 
   const q = query.trim().toLowerCase();
@@ -53,6 +69,9 @@ export default function MobileTopBar({
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setFocused(false);
       }
+      if (addRef.current && !addRef.current.contains(e.target)) {
+        setAddOpen(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -62,12 +81,19 @@ export default function MobileTopBar({
     const handler = (e) => {
       if (e.key === 'Escape') {
         setFocused(false);
+        setAddOpen(false);
         inputRef.current?.blur();
       }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
+
+  const handlePlus = () => {
+    if (view === 'library') onNewSong?.();
+    else if (view === 'setlists') onNewSetlist?.();
+    else setAddOpen(o => !o);
+  };
 
   const placeholder =
     view === 'setlists' ? 'Search setlists & songs…'
@@ -121,6 +147,48 @@ export default function MobileTopBar({
               />
             </div>
           </div>
+
+          {/* + button — context-aware create (mirrors the bottom FAB) */}
+          {(onNewSong || onNewSetlist) && (
+            <div ref={addRef} className="relative shrink-0">
+              <button
+                onClick={handlePlus}
+                aria-label={view === 'library' ? 'New song' : view === 'setlists' ? 'New setlist' : 'New'}
+                className="w-14 h-14 rounded-xl flex items-center justify-center bg-[var(--color-brand)] shadow-[0_1px_2px_rgba(0,0,0,0.2)] cursor-pointer active:scale-95 transition-transform border-none"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <PlusIcon open={addOpen} />
+              </button>
+              {addOpen && (
+                <div className="absolute top-full right-0 mt-2 w-52 rounded-xl border border-[var(--border-1)] bg-[var(--bg-1)] shadow-xl overflow-hidden z-50">
+                  {onNewSong && (
+                    <button
+                      onClick={() => { setAddOpen(false); onNewSong?.(); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left text-copy-14 text-[var(--text-1)] cursor-pointer hover:bg-[var(--bg-2)]"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
+                      </svg>
+                      New Song
+                    </button>
+                  )}
+                  {onNewSong && onNewSetlist && <div className="h-px bg-[var(--border-1)]" />}
+                  {onNewSetlist && (
+                    <button
+                      onClick={() => { setAddOpen(false); onNewSetlist?.(); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left text-copy-14 text-[var(--text-1)] cursor-pointer hover:bg-[var(--bg-2)]"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+                        <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+                      </svg>
+                      New Setlist
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
