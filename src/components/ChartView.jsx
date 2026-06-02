@@ -28,12 +28,6 @@ import { STAGE_MODES, STAGE_MODE_MAP } from '../data/stageModes';
 
 const FONT_SIZES = { S: 14, M: 18, L: 22 };
 
-const FONT_FAMILIES = {
-  'Geist Sans': "var(--font-sans)",
-  'Geist Mono': "var(--font-mono)",
-  'JetBrains Mono': "'JetBrains Mono', monospace",
-};
-
 // Tokens written by useChartTheme (App.jsx) live on :root and decide the
 // chart's bg/text/chord colours plus the chord and lyric font stacks.
 // Falling back to the existing Geist tokens means free-plan users see no
@@ -100,8 +94,8 @@ export default function ChartView({
 
   const [columns, setColumns] = useState(defaultColumns);
   const [fontSize, setFontSize] = useState(stagePreset.lyricFontSize ?? initialFontSize);
+  // Lyric/chord fonts come from CSS vars set by useChartTheme (--chart-font-*).
   const [chordFontSize, setChordFontSize] = useState(stagePreset.chordFontSize ?? Math.round(initialFontSize * 0.95));
-  const [fontFamily, setFontFamily] = useState('Geist Mono');
   const [nns, setNns] = useState(!!stagePreset.nashville);
   const [showChords, setShowChords] = useState(stagePreset.showChords !== false);
   const [showDiagrams, setShowDiagrams] = useState(!!stagePreset.showDiagrams);
@@ -661,7 +655,7 @@ export default function ChartView({
             ['--chart-font-size-chord']: `${chordFontSize}px`,
             ['--chart-line-height-lyric']: settings?.lyricLineHeight ?? 1.35,
             ['--chart-section-gap']: `${settings?.sectionSpacing ?? 24}px`,
-            fontFamily: FONT_FAMILIES[fontFamily],
+            fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
             ...(chartLayout !== 'rows' || columns !== 2 ? { columnCount: columns, columnGap: '3rem' } : {}),
           }}
         >
