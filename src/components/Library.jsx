@@ -206,6 +206,7 @@ export default function Library({
   const tagsRef = useRef(null);
   const fabRef = useRef(null);
   const sentinelRef = useRef(null);
+  const bulkBarRef = useRef(null);
 
   const allTags = useMemo(() => {
     const tagSet = new Set();
@@ -283,6 +284,15 @@ export default function Library({
     return () => observer.disconnect();
   }, [hasMore]);
 
+  useEffect(() => {
+    if (!bulkMenu) return;
+    const handler = (e) => {
+      if (bulkBarRef.current && !bulkBarRef.current.contains(e.target)) setBulkMenu(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [bulkMenu]);
+
   const toggleTag = (tag) => {
     setSelectedTags(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
@@ -317,6 +327,10 @@ export default function Library({
   const otherWorkspaces = workspaces.filter(w => w.id !== activeLibrary);
   const canMoveCopy = otherWorkspaces.length > 0;
 
+  // The table view, bulk selection, and side-peek are desktop-only (Phase 1).
+  // Tablet/mobile keep the grouped card list until their phases land.
+  const effectiveView = isDesktop ? viewMode : 'gallery';
+
   const runBulk = (fn, ...args) => {
     fn?.(selected, ...args);
     clearSelection();
@@ -337,8 +351,8 @@ export default function Library({
               onChange={e => setQuery(e.target.value)}
             />
 
-            {/* View switcher */}
-            <div className="hidden sm:flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
+            {/* View switcher — desktop only */}
+            <div className="hidden lg:flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
               <button
                 onClick={() => setViewMode('table')}
                 aria-label="Table view" title="Table view"
@@ -432,7 +446,7 @@ export default function Library({
             )}
           </div>
 
-          {viewMode === 'gallery' && (
+          {effectiveView === 'gallery' && (
             <div className="hidden sm:flex items-center gap-2">
               {SORT_MODES.map(mode => (
                 <button
@@ -472,7 +486,7 @@ export default function Library({
               {canEdit && <Button variant="brand" onClick={onNewSong}>New song</Button>}
             </div>
           )
-        ) : viewMode === 'table' ? (
+        ) : effectiveView === 'table' ? (
           <div className="modes-card overflow-hidden">
             <table className="w-full border-collapse">
               <thead>
@@ -590,9 +604,9 @@ export default function Library({
         </div>
       )}
 
-      {/* Bulk action bar */}
-      {!readOnly && selected.length > 0 && (
-        <div className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl">
+      {/* Bulk action bar — desktop only */}
+      {isDesktop && !readOnly && selected.length > 0 && (
+        <div ref={bulkBarRef} className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl">
           <span className="text-label-14 font-semibold text-[var(--ds-gray-1000)] whitespace-nowrap">{selected.length} selected</span>
           <span className="w-px h-5 bg-[var(--ds-gray-300)]" />
 
@@ -648,16 +662,20 @@ export default function Library({
       )}
 
       {/* Right-side peek — desktop only */}
-      <SidePeek open={isDesktop && !!previewSong} onClose={closePeek} label="Song preview">
+      <SidePeek
+        open={isDesktop && !!previewSong}
+        onClose={closePeek}
+        onExpand={onToggleFullscreen}
+        expanded={isFullscreen}
+        label="Song preview"
+      >
         {previewSong && (
           <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
             <ChartView
               key={previewSong.id}
               song={previewSong}
-              onBack={closePeek}
               onEdit={onEditSong ? () => onEditSong(previewSong) : null}
               isFullscreen={isFullscreen}
-              onToggleFullscreen={onToggleFullscreen}
               {...chartDefaults}
             />
           </Suspense>

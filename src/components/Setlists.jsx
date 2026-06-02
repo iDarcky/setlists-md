@@ -78,6 +78,7 @@ export default function Setlists({
   onExportSetlistPdfOverview,
   onExportSetlistPdfFull,
   onDeleteSetlist,
+  onDeleteSetlists,
   canEdit = true,
 }) {
   const isDesktop = useIsDesktop();
@@ -162,6 +163,9 @@ export default function Setlists({
     onSelectPreview?.(null);
   };
 
+  // Table view, bulk selection, and side-peek are desktop-only (Phase 1).
+  const effectiveView = isDesktop ? viewMode : 'gallery';
+
   // Selection
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   const visibleIds = flatRows.map(s => s.id);
@@ -169,7 +173,11 @@ export default function Setlists({
   const toggleSelect = (id, e) => { e?.stopPropagation(); setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]); };
   const toggleSelectAll = () => setSelected(allSelected ? [] : visibleIds);
   const clearSelection = () => setSelected([]);
-  const bulkDelete = () => { selected.forEach(id => onDeleteSetlist?.(id)); clearSelection(); };
+  const bulkDelete = () => {
+    if (onDeleteSetlists) onDeleteSetlists(selected);
+    else selected.forEach(id => onDeleteSetlist?.(id));
+    clearSelection();
+  };
 
   const renderRow = (sl) => {
     const isSel = selectedSet.has(sl.id);
@@ -224,7 +232,7 @@ export default function Setlists({
             onChange={e => setQuery(e.target.value)}
           />
 
-          <div className="flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
+          <div className="hidden lg:flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
             <button onClick={() => setViewMode('table')} aria-label="Table view" title="Table view"
               className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
                 viewMode === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
@@ -281,7 +289,7 @@ export default function Setlists({
               )}
             </div>
           )
-        ) : viewMode === 'table' ? (
+        ) : effectiveView === 'table' ? (
           <div className="modes-card overflow-hidden">
             <table className="w-full border-collapse">
               <thead>
@@ -367,8 +375,8 @@ export default function Setlists({
 
       <input ref={fileInputRef} type="file" accept=".zip" onChange={(e) => { const file = e.target.files[0]; if (file) onImportSetlist?.(file); e.target.value = ''; }} className="hidden" />
 
-      {/* Bulk action bar */}
-      {!readOnly && selected.length > 0 && (
+      {/* Bulk action bar — desktop only */}
+      {isDesktop && !readOnly && selected.length > 0 && (
         <div className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl">
           <span className="text-label-14 font-semibold text-[var(--ds-gray-1000)] whitespace-nowrap">{selected.length} selected</span>
           <span className="w-px h-5 bg-[var(--ds-gray-300)]" />
@@ -382,7 +390,13 @@ export default function Setlists({
       )}
 
       {/* Right-side peek — desktop only */}
-      <SidePeek open={isDesktop && !!previewSetlist} onClose={closePeek} label="Setlist preview">
+      <SidePeek
+        open={isDesktop && !!previewSetlist}
+        onClose={closePeek}
+        onExpand={onToggleFullscreen}
+        expanded={isFullscreen}
+        label="Setlist preview"
+      >
         {previewSetlist && (
           <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
             <SetlistOverview
@@ -390,7 +404,6 @@ export default function Setlists({
               setlist={previewSetlist}
               songs={songs}
               clockFormat={clockFormat}
-              onBack={closePeek}
               onEdit={canEdit ? () => onEditSetlist?.(previewSetlist) : undefined}
               onExportZip={() => onExportSetlistZip?.(previewSetlist)}
               onExportPdfOverview={() => onExportSetlistPdfOverview?.(previewSetlist)}
@@ -399,7 +412,6 @@ export default function Setlists({
               onPractice={() => onPracticeSetlist?.(previewSetlist)}
               onDelete={canEdit ? () => onDeleteSetlist?.(previewSetlist.id) : undefined}
               isFullscreen={isFullscreen}
-              onToggleFullscreen={onToggleFullscreen}
               canEdit={canEdit}
             />
           </Suspense>

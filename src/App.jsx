@@ -1304,6 +1304,24 @@ export default function App() {
     goBack();
   };
 
+  const handleDeleteSetlists = async (ids) => {
+    if (!ids || ids.length === 0) return;
+    const ok = await confirm({
+      title: `Delete ${ids.length} setlist${ids.length === 1 ? '' : 's'}?`,
+      description: 'They are removed from this workspace across all your devices.',
+      confirmLabel: 'Delete',
+    });
+    if (!ok) return;
+    const idSet = new Set(ids);
+    setSetlists(prev => prev.filter(s => !idSet.has(s.id)));
+    setTombstones(prev => ({
+      ...prev,
+      setlists: [...prev.setlists.filter(t => !idSet.has(t.id)), ...ids.map(id => ({ id, deletedAt: Date.now() }))],
+    }));
+    setPreviewSetlistId(null);
+    toast({ title: `Deleted ${ids.length} setlist${ids.length === 1 ? '' : 's'}` });
+  };
+
   const handleClearAll = async () => {
     await clearAll();
     setSongs([]);
@@ -1633,6 +1651,7 @@ export default function App() {
                 }));
                 setPreviewSetlistId(null);
               }}
+              onDeleteSetlists={isTeamReadOnly ? null : handleDeleteSetlists}
               canEdit={canEdit}
             />
           )}

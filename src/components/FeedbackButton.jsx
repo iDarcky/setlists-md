@@ -108,8 +108,18 @@ export default function FeedbackButton({ variant = 'floating' }) {
 
   return (
     <>
-      {/* Trigger — header icon (in the top bar) or a floating bubble. */}
-      {variant === 'header' ? (
+      {/* Trigger — header icon, mobile-drawer row, or a floating bubble. */}
+      {variant === 'drawer' ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-[var(--drawer-surface)] hover:bg-[var(--drawer-surface-hover)] border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all duration-150 text-left"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+          aria-label="Send feedback"
+        >
+          <span className="text-[var(--drawer-text-muted)]"><MessageIcon /></span>
+          <span className="flex-1 text-copy-15 text-[var(--drawer-text)] font-medium">Send feedback</span>
+        </button>
+      ) : variant === 'header' ? (
         <button
           onClick={() => setOpen(true)}
           className="relative inline-flex items-center justify-center w-9 h-9 rounded-lg cursor-pointer border-none bg-transparent text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
