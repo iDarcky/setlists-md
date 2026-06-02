@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import NotificationTray from './NotificationTray';
+import FeedbackButton from './FeedbackButton';
 import { cn } from '../lib/utils';
 
 /* Icons (kept local so the header is self-contained) */
@@ -207,6 +208,7 @@ export default function TopHeader({
 
         {/* Right — notifications, preferences, account */}
         <div className="flex items-center gap-1 justify-self-end">
+          <FeedbackButton variant="header" />
           <button onClick={() => setTrayOpen(true)} className={iconBtn} aria-label="Notifications">
             <BellIcon />
             {hasUnreadNotifications && (

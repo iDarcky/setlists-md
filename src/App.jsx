@@ -21,7 +21,6 @@ import DesktopLayout from './components/DesktopLayout';
 import MobileTopBar from './components/MobileTopBar';
 import MobileDrawer from './components/MobileDrawer';
 import NotificationTray from './components/NotificationTray';
-import FeedbackButton from './components/FeedbackButton';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useAuth } from './auth/useAuth';
 import { useTeam } from './auth/useTeam';
@@ -1097,6 +1096,64 @@ export default function App() {
     goBack();
   };
 
+  // ----- Bulk song actions (Library selection toolbar) -----
+  const handleDeleteSongs = async (ids) => {
+    if (!ids || ids.length === 0) return;
+    const ok = await confirm({
+      title: `Delete ${ids.length} song${ids.length === 1 ? '' : 's'}?`,
+      description: 'They are removed from this library across all your devices.',
+      confirmLabel: 'Delete',
+    });
+    if (!ok) return;
+    const idSet = new Set(ids);
+    setSongs(prev => prev.filter(s => !idSet.has(s.id)));
+    setTombstones(prev => ({
+      ...prev,
+      songs: [...prev.songs.filter(t => !idSet.has(t.id)), ...ids.map(id => ({ id, deletedAt: Date.now() }))],
+    }));
+    toast({ title: `Deleted ${ids.length} song${ids.length === 1 ? '' : 's'}` });
+  };
+
+  const handleAddSongsToSetlist = (songIds, setlistId) => {
+    const target = setlists.find(s => s.id === setlistId);
+    if (!target) return;
+    let added = 0;
+    setSetlists(prev => prev.map(sl => {
+      if (sl.id !== setlistId) return sl;
+      const existing = new Set((sl.items || []).filter(i => i.songId).map(i => i.songId));
+      const newItems = songIds
+        .filter(id => !existing.has(id))
+        .map(id => {
+          const song = songs.find(s => s.id === id);
+          if (!song) return null;
+          const arr = (song.arrangements || []).find(a => a.id === song.defaultArrangementId) || song.arrangements?.[0];
+          return {
+            songId: id,
+            songTitle: song.title,
+            arrangementId: arr?.id,
+            arrangementName: arr?.name,
+            note: '',
+            transpose: 0,
+            capo: arr?.capo || 0,
+          };
+        })
+        .filter(Boolean);
+      added = newItems.length;
+      return { ...sl, items: [...(sl.items || []), ...newItems] };
+    }));
+    toast({
+      title: 'Added to setlist',
+      description: `${added} song${added === 1 ? '' : 's'} → ${target.name || 'setlist'}`,
+    });
+  };
+
+  const handleMoveSongs = async (ids, target) => {
+    for (const id of ids) await handleMoveSongToLibrary(id, target);
+  };
+  const handleCopySongs = async (ids, target) => {
+    for (const id of ids) await handleCopySongToLibrary(id, target);
+  };
+
   const handleSmartImport = (mdText) => {
     try {
       const parsed = parseSongMd(mdText);
@@ -1529,6 +1586,13 @@ export default function App() {
               onToggleFullscreen={toggleFullscreen}
               onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
               readOnly={isTeamReadOnly}
+              setlists={setlists}
+              activeLibrary={activeLibrary}
+              workspaces={[{ id: 'personal', name: 'Personal' }, ...teams.map(t => ({ id: t.id, name: t.name }))]}
+              onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
+              onAddSongsToSetlist={isTeamReadOnly ? null : handleAddSongsToSetlist}
+              onMoveSongs={!isTeamReadOnly && teams.length > 0 ? handleMoveSongs : null}
+              onCopySongs={teams.length > 0 ? handleCopySongs : null}
               chartDefaults={{
                 defaultColumns: settings?.defaultColumns,
                 defaultFontSize: settings?.defaultFontSize,
@@ -1879,7 +1943,6 @@ export default function App() {
           />
         </Suspense>
       )}
-      {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && <FeedbackButton />}
 
       {/* One-time pre-permission explainer for stage mode — render is
           state-driven now so the modal participates in the back stack. */}

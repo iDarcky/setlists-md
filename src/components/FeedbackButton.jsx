@@ -48,7 +48,7 @@ const FEEDBACK_TYPES = [
   { key: 'general', label: 'General', ghLabel: 'feedback', Icon: MessageIcon },
 ];
 
-export default function FeedbackButton() {
+export default function FeedbackButton({ variant = 'floating' }) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState('bug');
   const [description, setDescription] = useState('');
@@ -108,17 +108,26 @@ export default function FeedbackButton() {
 
   return (
     <>
-      {/* Floating trigger button — right of sidebar on desktop, bottom-left on mobile */}
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed z-[90] w-11 h-11 rounded-full bg-[var(--ds-gray-200)] border border-[var(--ds-gray-400)] shadow-lg flex items-center justify-center cursor-pointer hover:bg-[var(--ds-gray-300)] hover:border-[var(--ds-gray-600)] transition-all duration-200 active:scale-95 text-[var(--ds-gray-900)] sm:left-[90px] xl:left-[290px] left-4"
-        style={{
-          bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
-        }}
-        aria-label="Send feedback"
-      >
-        <ChatIcon />
-      </button>
+      {/* Trigger — header icon (in the top bar) or a floating bubble. */}
+      {variant === 'header' ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="relative inline-flex items-center justify-center w-9 h-9 rounded-lg cursor-pointer border-none bg-transparent text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+          aria-label="Send feedback"
+          title="Send feedback"
+        >
+          <MessageIcon />
+        </button>
+      ) : (
+        <button
+          onClick={() => setOpen(true)}
+          className="fixed z-[90] w-11 h-11 rounded-full bg-[var(--ds-gray-200)] border border-[var(--ds-gray-400)] shadow-lg flex items-center justify-center cursor-pointer hover:bg-[var(--ds-gray-300)] hover:border-[var(--ds-gray-600)] transition-all duration-200 active:scale-95 text-[var(--ds-gray-900)] sm:left-[90px] xl:left-[290px] left-4"
+          style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
+          aria-label="Send feedback"
+        >
+          <ChatIcon />
+        </button>
+      )}
 
       {/* Modal overlay */}
       {open && (
