@@ -6,16 +6,30 @@ const HomeIcon = () => (
     <polyline points="9 22 9 12 15 12 15 22" />
   </svg>
 );
-// Our app mark for Setlists (self-contained brand colors).
+// Setlists: white outline of the mark when inactive, full colored logo when active.
+const SetlistsOutlineIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="5" />
+    <line x1="7" y1="9" x2="17" y2="9" />
+    <line x1="7" y1="13" x2="15" y2="13" />
+    <line x1="7" y1="17" x2="13" y2="17" />
+  </svg>
+);
 const SetlistsLogo = () => (
   <img src="/setlists-md-mark.svg" alt="" width="24" height="24" className="rounded-[6px]" draggable="false" />
 );
 const SongsIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="7" cy="18" r="3" fill="currentColor" stroke="none" />
-    <path d="M10 18V5l9 2.4" />
+    <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
   </svg>
 );
+
+function tabIcon(id, active) {
+  if (id === 'home') return <HomeIcon />;
+  if (id === 'library') return <SongsIcon />;
+  // setlists
+  return active ? <SetlistsLogo /> : <SetlistsOutlineIcon />;
+}
 const PlusIcon = ({ open = false }) => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${open ? 'rotate-45' : ''}`}>
     <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -40,9 +54,9 @@ const TeamGlyph = () => (
 );
 
 const tabs = [
-  { id: 'home', label: 'Home', icon: <HomeIcon /> },
-  { id: 'setlists', label: 'Setlists', icon: <SetlistsLogo /> },
-  { id: 'library', label: 'Songs', icon: <SongsIcon /> },
+  { id: 'home', label: 'Home' },
+  { id: 'setlists', label: 'Setlists' },
+  { id: 'library', label: 'Songs' },
 ];
 
 // iOS 26 "Liquid Glass": translucent fill, heavy blur+saturate, a specular
@@ -110,7 +124,7 @@ export default function BottomNav({
     >
       {/* Glass tab bar */}
       <nav className="flex items-stretch gap-1 p-2 rounded-full border border-white/10" style={GLASS}>
-        {tabs.map(({ id, label, icon }) => {
+        {tabs.map(({ id, label }) => {
           const active = id === activeId;
           return (
             <button
@@ -127,7 +141,7 @@ export default function BottomNav({
                 boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.25)' : undefined,
               }}
             >
-              {icon}
+              {tabIcon(id, active)}
               <span className={`text-[11px] leading-tight ${active ? 'font-semibold' : 'font-medium'}`}>{label}</span>
             </button>
           );
