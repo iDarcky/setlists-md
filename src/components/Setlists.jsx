@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
-import PageHeader from './PageHeader';
 import SetlistCard from './SetlistCard';
+import SidePeek from './shell/SidePeek';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { SearchBar } from './ui/SearchBar';
-import { cn } from '../lib/utils';
 import { useIsDesktop } from '../lib/useMediaQuery';
 
 const SetlistOverview = lazy(() => import('./SetlistOverview'));
@@ -105,163 +104,126 @@ export default function Setlists({
     const past = [];
     filtered.forEach(sl => {
       const slDate = new Date(sl.date + 'T12:00:00');
-      if (slDate >= today) {
-        upcoming.push(sl);
-      } else {
-        past.push(sl);
-      }
+      if (slDate >= today) upcoming.push(sl);
+      else past.push(sl);
     });
     upcoming.sort((a, b) => new Date(a.date) - new Date(b.date));
     past.sort((a, b) => new Date(b.date) - new Date(a.date));
     return { upcoming, past };
   }, [filtered]);
 
+  const closePeek = () => {
+    if (isFullscreen) onToggleFullscreen?.();
+    onSelectPreview?.(null);
+  };
+
   return (
-    <div className="flex flex-col lg:flex-row lg:h-full">
-      <div
-        data-theme-variant="modes"
-        className={cn(
-          "relative min-w-0 pb-8",
-          "lg:h-full lg:overflow-y-auto lg:border-r lg:border-[var(--modes-border)]",
-          "flex-1 lg:flex-none lg:w-[480px] xl:w-[560px]",
-          isFullscreen && "lg:hidden",
-        )}
-      >
-      <div className="hidden sm:block">
-        <PageHeader title="Setlists" />
-      </div>
-
-      <div className="flex flex-col gap-0">
-
-        {/* Sticky Search — hidden on mobile (global top-bar covers it) */}
-        <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)] hidden sm:block">
-          <div className="a4-container pt-6 pb-4 flex items-center gap-2">
-            <SearchBar
-              className="flex-1"
-              placeholder="Search setlists by name, location, or tag…"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-            />
-
-            {/* Desktop-only quick actions (FAB is hidden on lg+) */}
-            {!readOnly && (
-              <div className="hidden lg:flex items-center gap-1 shrink-0">
-                {onImportSetlist && (
-                  <IconButton variant="default" size="sm" onClick={() => fileInputRef.current?.click()} aria-label="Import .zip" title="Import .zip">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                  </IconButton>
-                )}
-                {onNewSetlist && (
-                  <IconButton variant="default" size="sm" onClick={onNewSetlist} aria-label="New setlist" title="New setlist">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </IconButton>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="a4-container py-4 flex flex-col gap-10">
-          {!loaded ? (
-            <SkeletonCards />
-          ) : (
-            <>
-              {/* Upcoming Section */}
-              {upcoming.length > 0 && (
-                <section className="flex flex-col gap-4">
-                  <div className="flex items-baseline gap-2">
-                    <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">
-                      Upcoming
-                    </h2>
-                    <span className="text-label-12 text-[var(--modes-text-dim)]">
-                      {upcoming.length}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-4">
-                    {upcoming.map(sl => (
-                      <SetlistCard
-                        key={sl.id}
-                        setlist={sl}
-                        selected={isDesktop && sl.id === previewSetlistId}
-                        onPlay={() => onPlaySetlist(sl)}
-                        onView={() => handleView(sl)}
-                        clockFormat={clockFormat}
-                      />
-                    ))}
-                  </div>
-                </section>
+    <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
+      {/* Header: title + search + actions */}
+      <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)] hidden sm:block">
+        <div className="w-full px-5 sm:px-8 pt-5 sm:pt-7 pb-4 flex flex-wrap items-center gap-3">
+          <h1 className="text-heading-32 font-bold text-[var(--modes-text)] m-0 mr-2">Setlists</h1>
+          <SearchBar
+            className="flex-1 min-w-[200px]"
+            placeholder="Search setlists by name, location, or tag…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+          />
+          {!readOnly && (
+            <div className="hidden lg:flex items-center gap-2 shrink-0">
+              {onImportSetlist && (
+                <IconButton variant="default" size="sm" onClick={() => fileInputRef.current?.click()} aria-label="Import .zip" title="Import .zip">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                </IconButton>
               )}
-
-              {/* Past Section */}
-              {past.length > 0 && (
-                <section className="flex flex-col gap-4">
-                  <div className="flex items-baseline gap-2">
-                    <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">
-                      Past
-                    </h2>
-                    <span className="text-label-12 text-[var(--modes-text-dim)]">
-                      {past.length}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-4">
-                    {past.map(sl => (
-                      <SetlistCard
-                        key={sl.id}
-                        setlist={sl}
-                        selected={isDesktop && sl.id === previewSetlistId}
-                        onPlay={() => onPlaySetlist(sl)}
-                        onView={() => handleView(sl)}
-                        clockFormat={clockFormat}
-                      />
-                    ))}
-                  </div>
-                </section>
+              {onNewSetlist && (
+                <Button variant="primary" size="sm" onClick={onNewSetlist}>+ New Setlist</Button>
               )}
-
-              {/* Empty State */}
-              {filtered.length === 0 && (
-                query ? (
-                  <div className="modes-card py-14 text-center flex flex-col items-center gap-3 border-dashed">
-                    <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">
-                      No setlists matching your search.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="modes-card py-16 px-6 flex flex-col items-center text-center border-dashed">
-                    <div className="w-14 h-14 mb-4 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--modes-text-muted)]">
-                        <line x1="8" y1="6" x2="21" y2="6" />
-                        <line x1="8" y1="12" x2="21" y2="12" />
-                        <line x1="8" y1="18" x2="21" y2="18" />
-                        <line x1="3" y1="6" x2="3.01" y2="6" />
-                        <line x1="3" y1="12" x2="3.01" y2="12" />
-                        <line x1="3" y1="18" x2="3.01" y2="18" />
-                      </svg>
-                    </div>
-                    <h2 className="text-heading-20 text-[var(--modes-text)] m-0 mb-1.5">No setlists yet</h2>
-                    <p className="text-copy-14 text-[var(--modes-text-muted)] max-w-sm mb-5">
-                      Organize your songs into setlists for rehearsals or live performances.
-                    </p>
-                    {canEdit && (
-                      <div className="flex flex-wrap justify-center gap-2">
-                        <Button variant="brand" onClick={onNewSetlist}>Create setlist</Button>
-                        <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>Import .zip</Button>
-                      </div>
-                    )}
-                  </div>
-                )
-              )}
-            </>
+            </div>
           )}
         </div>
+      </div>
+
+      {/* Content */}
+      <div className="w-full px-5 sm:px-8 py-5 max-w-[1100px] mx-auto flex flex-col gap-10">
+        {!loaded ? (
+          <SkeletonCards />
+        ) : (
+          <>
+            {upcoming.length > 0 && (
+              <section className="flex flex-col gap-4">
+                <div className="flex items-baseline gap-2">
+                  <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">Upcoming</h2>
+                  <span className="text-label-12 text-[var(--modes-text-dim)]">{upcoming.length}</span>
+                </div>
+                <div className="flex flex-col gap-4">
+                  {upcoming.map(sl => (
+                    <SetlistCard
+                      key={sl.id}
+                      setlist={sl}
+                      selected={isDesktop && sl.id === previewSetlistId}
+                      onPlay={() => onPlaySetlist(sl)}
+                      onView={() => handleView(sl)}
+                      clockFormat={clockFormat}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {past.length > 0 && (
+              <section className="flex flex-col gap-4">
+                <div className="flex items-baseline gap-2">
+                  <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">Past</h2>
+                  <span className="text-label-12 text-[var(--modes-text-dim)]">{past.length}</span>
+                </div>
+                <div className="flex flex-col gap-4">
+                  {past.map(sl => (
+                    <SetlistCard
+                      key={sl.id}
+                      setlist={sl}
+                      selected={isDesktop && sl.id === previewSetlistId}
+                      onPlay={() => onPlaySetlist(sl)}
+                      onView={() => handleView(sl)}
+                      clockFormat={clockFormat}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {filtered.length === 0 && (
+              query ? (
+                <div className="modes-card py-14 text-center flex flex-col items-center gap-3 border-dashed">
+                  <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">No setlists matching your search.</p>
+                </div>
+              ) : (
+                <div className="modes-card py-16 px-6 flex flex-col items-center text-center border-dashed">
+                  <div className="w-14 h-14 mb-4 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--modes-text-muted)]">
+                      <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+                      <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+                    </svg>
+                  </div>
+                  <h2 className="text-heading-20 text-[var(--modes-text)] m-0 mb-1.5">No setlists yet</h2>
+                  <p className="text-copy-14 text-[var(--modes-text-muted)] max-w-sm mb-5">
+                    Organize your songs into setlists for rehearsals or live performances.
+                  </p>
+                  {canEdit && (
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Button variant="brand" onClick={onNewSetlist}>Create setlist</Button>
+                      <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>Import .zip</Button>
+                    </div>
+                  )}
+                </div>
+              )
+            )}
+          </>
+        )}
       </div>
 
       {/* FAB Cluster — tablet only; mobile uses top-bar +, desktop uses header button */}
@@ -302,8 +264,7 @@ export default function Setlists({
               strokeLinecap="round" strokeLinejoin="round"
               className={`transition-transform duration-200 ${fabOpen ? 'rotate-45' : ''}`}
             >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
             </svg>
           </button>
         </div>
@@ -320,21 +281,17 @@ export default function Setlists({
         }}
         className="hidden"
       />
-      </div>
 
-      {/* Preview pane — desktop only */}
-      <div className="hidden lg:flex lg:flex-1 lg:min-w-0 lg:h-full lg:flex-col lg:bg-[var(--ds-background-100)] lg:overflow-y-auto">
-        {previewSetlist ? (
+      {/* Right-side peek — desktop only */}
+      <SidePeek open={isDesktop && !!previewSetlist} onClose={closePeek} label="Setlist preview">
+        {previewSetlist && (
           <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
             <SetlistOverview
               key={previewSetlist.id}
               setlist={previewSetlist}
               songs={songs}
               clockFormat={clockFormat}
-              onBack={() => {
-                if (isFullscreen) onToggleFullscreen?.();
-                onSelectPreview?.(null);
-              }}
+              onBack={closePeek}
               onEdit={canEdit ? () => onEditSetlist?.(previewSetlist) : undefined}
               onExportZip={() => onExportSetlistZip?.(previewSetlist)}
               onExportPdfOverview={() => onExportSetlistPdfOverview?.(previewSetlist)}
@@ -347,24 +304,8 @@ export default function Setlists({
               canEdit={canEdit}
             />
           </Suspense>
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center text-center gap-3 px-8 py-16">
-            <div className="w-14 h-14 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] flex items-center justify-center">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--ds-gray-700)]">
-                <line x1="8" y1="6" x2="21" y2="6" />
-                <line x1="8" y1="12" x2="21" y2="12" />
-                <line x1="8" y1="18" x2="21" y2="18" />
-                <line x1="3" y1="6" x2="3.01" y2="6" />
-                <line x1="3" y1="12" x2="3.01" y2="12" />
-                <line x1="3" y1="18" x2="3.01" y2="18" />
-              </svg>
-            </div>
-            <p className="text-copy-14 text-[var(--ds-gray-700)] max-w-xs">
-              Select a setlist from the list to preview it here.
-            </p>
-          </div>
         )}
-      </div>
+      </SidePeek>
     </div>
   );
 }

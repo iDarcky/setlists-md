@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
-import PageHeader from './PageHeader';
 import SongCard from './SongCard';
+import SidePeek from './shell/SidePeek';
 import { Button } from './ui/Button';
-import { IconButton } from './ui/IconButton';
 import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
 import { useIsDesktop } from '../lib/useMediaQuery';
@@ -14,19 +13,6 @@ const SORT_MODES = [
   { key: 'artist', label: 'Artist' },
   { key: 'key', label: 'Key' },
 ];
-
-function formatRelativeTime(ts) {
-  if (!ts) return null;
-  const diff = Date.now() - ts;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
 
 function defaultArrangementKey(song) {
   if (!Array.isArray(song?.arrangements)) return song?.key || 'C';
@@ -75,6 +61,19 @@ function groupAndSort(songs, sortMode, sortAsc) {
   return { groups, sortedKeys };
 }
 
+// Flat sort for the table view (no letter grouping).
+function flatSort(songs, sortMode, sortAsc) {
+  const dir = sortAsc ? 1 : -1;
+  const val = (s) =>
+    sortMode === 'artist' ? (s.artist || '') :
+    sortMode === 'key' ? defaultArrangementKey(s) :
+    (s.title || '');
+  return [...songs].sort((a, b) => {
+    const cmp = val(a).localeCompare(val(b));
+    return (cmp !== 0 ? cmp : (a.title || '').localeCompare(b.title || '')) * dir;
+  });
+}
+
 // Skeleton rows for loading state
 function SkeletonRows() {
   return (
@@ -104,6 +103,35 @@ function SkeletonRows() {
 
 const INITIAL_VISIBLE = 100;
 const VISIBLE_PAGE_SIZE = 100;
+
+const TableViewIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" />
+    <line x1="9" y1="3" x2="9" y2="21" /><rect x="3" y="3" width="18" height="18" rx="2" />
+  </svg>
+);
+const GalleryViewIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+    <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+  </svg>
+);
+
+function KeyChip({ value }) {
+  return (
+    <span className="inline-flex items-center justify-center min-w-[26px] h-6 px-1.5 rounded-md bg-[var(--modes-surface-strong)] text-[var(--color-brand)] text-label-12 font-bold">
+      {value}
+    </span>
+  );
+}
+
+function SortArrow({ asc }) {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={asc ? '' : 'rotate-180'}>
+      <path d="m18 15-6-6-6 6" />
+    </svg>
+  );
+}
 
 export default function Library({
   songs,
@@ -136,6 +164,7 @@ export default function Library({
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState('title');
   const [sortAsc, setSortAsc] = useState(true);
+  const [viewMode, setViewMode] = useState('table'); // 'table' | 'gallery'
   const [selectedTags, setSelectedTags] = useState([]);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [tagQuery, setTagQuery] = useState('');
@@ -203,6 +232,11 @@ export default function Library({
     [truncated, sortMode, sortAsc]
   );
 
+  const flatRows = useMemo(
+    () => flatSort(truncated, sortMode, sortAsc),
+    [truncated, sortMode, sortAsc]
+  );
+
   // Lazy-reveal the next page when the sentinel enters the viewport.
   useEffect(() => {
     if (!hasMore) return;
@@ -232,61 +266,70 @@ export default function Library({
     }
   };
 
+  const closePeek = () => {
+    if (isFullscreen) onToggleFullscreen?.();
+    onSelectPreview?.(null);
+  };
+
   return (
-    <div className="flex flex-col lg:flex-row lg:h-full">
-      <div
-        data-theme-variant="modes"
-        className={cn(
-          "relative min-w-0 pb-8",
-          "lg:h-full lg:overflow-y-auto lg:border-r lg:border-[var(--modes-border)]",
-          "flex-1 lg:flex-none lg:w-[480px] xl:w-[560px]",
-          isFullscreen && "lg:hidden",
-        )}
-      >
-      <div className="hidden sm:block">
-        <PageHeader title="Song Library" />
-      </div>
+    <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
+      {/* Header: title + search + view toggle + actions */}
+      <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]">
+        <div className="w-full px-5 sm:px-8 pt-5 sm:pt-7 pb-4 flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-heading-32 font-bold text-[var(--modes-text)] m-0 mr-2 hidden sm:block">Library</h1>
 
-      <div className="flex flex-col gap-0">
-
-        {/* Sticky Search + Tags + Filters — full-width bg */}
-        <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]">
-          <div className="a4-container pt-4 sm:pt-6 pb-4 flex flex-col gap-4">
-          {/* Search Bar + Tags */}
-          <div className="flex gap-3 items-stretch">
-            {/* Desktop text search — mobile uses the global top bar */}
             <SearchBar
-              className="flex-1 hidden sm:flex"
+              className="flex-1 min-w-[200px] hidden sm:flex"
               placeholder="Search songs by title, artist, key, or tag…"
               value={query}
               onChange={e => setQuery(e.target.value)}
             />
 
-            {/* Tags Dropdown */}
+            {/* View switcher (desktop) */}
+            <div className="hidden sm:flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
+              <button
+                onClick={() => setViewMode('table')}
+                aria-label="Table view"
+                title="Table view"
+                className={cn(
+                  'w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
+                  viewMode === 'table'
+                    ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]'
+                    : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]'
+                )}
+              >
+                <TableViewIcon />
+              </button>
+              <button
+                onClick={() => setViewMode('gallery')}
+                aria-label="List view"
+                title="List view"
+                className={cn(
+                  'w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
+                  viewMode === 'gallery'
+                    ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]'
+                    : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]'
+                )}
+              >
+                <GalleryViewIcon />
+              </button>
+            </div>
+
+            {/* Tags filter */}
             {allTags.length > 0 && (
-              <div ref={tagsRef} className="relative">
+              <div ref={tagsRef} className="relative hidden sm:block">
                 <button
                   onClick={() => setTagsOpen(!tagsOpen)}
-                  className={`
-                    h-11 px-4 rounded-xl border cursor-pointer
-                    flex items-center gap-2
-                    text-label-14 transition-all duration-150
-                    ${selectedTags.length > 0
+                  className={`h-9 px-4 rounded-lg border cursor-pointer flex items-center gap-2 text-label-14 transition-all duration-150 ${
+                    selectedTags.length > 0
                       ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--modes-surface)]'
                       : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]'
-                    }
-                  `}
+                  }`}
                 >
-                  {selectedTags.length > 0 && (
-                    <span className="w-2 h-2 rounded-full bg-[var(--color-brand)]" />
-                  )}
+                  {selectedTags.length > 0 && <span className="w-2 h-2 rounded-full bg-[var(--color-brand)]" />}
                   Tags{selectedTags.length > 0 ? ` (${selectedTags.length})` : ''}
-                  <svg
-                    width="14" height="14" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor"
-                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                    className={`transition-transform duration-150 ${tagsOpen ? 'rotate-180' : ''}`}
-                  >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-150 ${tagsOpen ? 'rotate-180' : ''}`}>
                     <path d="m6 9 6 6 6-6" />
                   </svg>
                 </button>
@@ -312,14 +355,11 @@ export default function Library({
                         const selected = filteredTags.filter(t => selectedTags.includes(t));
                         const unselected = filteredTags.filter(t => !selectedTags.includes(t)).slice(0, 10 - selected.length);
                         const visible = [...selected, ...unselected];
-                        const hasMore = filteredTags.length > visible.length;
+                        const more = filteredTags.length > visible.length;
                         return (
                           <>
                             {visible.map(tag => (
-                              <label
-                                key={tag}
-                                className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--bg-2)] transition-colors"
-                              >
+                              <label key={tag} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--bg-2)] transition-colors">
                                 <input
                                   type="checkbox"
                                   checked={selectedTags.includes(tag)}
@@ -332,7 +372,7 @@ export default function Library({
                             {visible.length === 0 && (
                               <div className="px-4 py-3 text-copy-13 text-[var(--text-2)]">No tags found</div>
                             )}
-                            {hasMore && (
+                            {more && (
                               <div className="px-4 py-2 text-copy-12 text-[var(--ds-gray-600)]">
                                 {filteredTags.length - visible.length} more — refine search
                               </div>
@@ -356,119 +396,160 @@ export default function Library({
                 )}
               </div>
             )}
-          </div>
 
-          {/* Sort Pills with direction toggle */}
-          <div className="flex items-center gap-2">
-            {SORT_MODES.map(mode => (
-              <button
-                key={mode.key}
-                onClick={() => handleSortClick(mode.key)}
-                className={`
-                  px-4 py-2 rounded-full text-label-14 font-semibold cursor-pointer
-                  transition-all duration-150 border-none flex items-center gap-1.5
-                  ${sortMode === mode.key
-                    ? 'bg-[var(--ds-gray-100)] text-[var(--color-brand)]'
-                    : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]'
-                  }
-                `}
-              >
-                {mode.label}
-                {sortMode === mode.key && (
-                  <svg
-                    width="12" height="12" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor" strokeWidth="2.5"
-                    strokeLinecap="round" strokeLinejoin="round"
-                    className={`transition-transform duration-200 ${sortAsc ? '' : 'rotate-180'}`}
-                  >
-                    <path d="m18 15-6-6-6 6" />
-                  </svg>
-                )}
-              </button>
-            ))}
-
-            {/* Desktop-only quick action (FAB is hidden on lg+) */}
+            {/* New song (desktop) */}
             {!readOnly && onNewSong && (
-              <div className="hidden lg:flex ml-auto items-center gap-1">
-                <IconButton variant="default" size="sm" onClick={onNewSong} aria-label="New song" title="New song">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </IconButton>
+              <div className="hidden lg:block">
+                <Button variant="primary" size="sm" onClick={onNewSong}>+ New Song</Button>
               </div>
             )}
           </div>
-          </div>
-        </div>
 
-        {/* Content */}
-        <div className="a4-container py-4">
-          {!loaded ? (
-            <SkeletonRows />
-          ) : sortedKeys.length > 0 ? (
-            <div className="flex flex-col gap-10">
-              {sortedKeys.map(groupKey => (
-                <div key={groupKey} className="flex flex-col gap-3">
-                  <div className="flex items-baseline gap-2 px-1">
-                    <h3 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">
-                      {groupKey}
-                    </h3>
-                    <span className="text-label-12 text-[var(--modes-text-dim)]">
-                      {groups[groupKey].length}
-                    </span>
-                  </div>
-                  <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
-                    {groups[groupKey].map(song => (
-                      <SongCard
-                        key={song.id}
-                        song={song}
-                        variant="row"
-                        showTags={true}
-                        selected={isDesktop && song.id === previewSongId}
-                        onClick={() => handleRowClick(song)}
-                      />
-                    ))}
-                  </div>
-                </div>
+          {/* Sort pills — only meaningful for the gallery (grouped) view */}
+          {viewMode === 'gallery' && (
+            <div className="hidden sm:flex items-center gap-2">
+              {SORT_MODES.map(mode => (
+                <button
+                  key={mode.key}
+                  onClick={() => handleSortClick(mode.key)}
+                  className={`px-4 py-2 rounded-full text-label-14 font-semibold cursor-pointer transition-all duration-150 border-none flex items-center gap-1.5 ${
+                    sortMode === mode.key
+                      ? 'bg-[var(--ds-gray-100)] text-[var(--color-brand)]'
+                      : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]'
+                  }`}
+                >
+                  {mode.label}
+                  {sortMode === mode.key && <SortArrow asc={sortAsc} />}
+                </button>
               ))}
-              {hasMore && (
-                <div ref={sentinelRef} className="py-6 text-center text-copy-12 text-[var(--modes-text-dim)]">
-                  Loading more… ({truncated.length} of {filtered.length})
-                </div>
-              )}
             </div>
-          ) : query || selectedTags.length > 0 ? (
+          )}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="w-full px-5 sm:px-8 py-5">
+        {!loaded ? (
+          <SkeletonRows />
+        ) : filtered.length === 0 ? (
+          query || selectedTags.length > 0 ? (
             <div className="modes-card py-14 text-center flex flex-col items-center gap-3 border-dashed">
-              <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">
-                No songs matching your filters.
-              </p>
+              <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">No songs matching your filters.</p>
             </div>
           ) : (
             <div className="modes-card py-16 px-6 flex flex-col items-center text-center border-dashed">
               <div className="w-14 h-14 mb-4 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--modes-text-muted)]">
-                  <path d="M9 18V5l12-2v13" />
-                  <circle cx="6" cy="18" r="3" />
-                  <circle cx="18" cy="16" r="3" />
+                  <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
                 </svg>
               </div>
               <h2 className="text-heading-20 text-[var(--modes-text)] m-0 mb-1.5">Your library is empty</h2>
               <p className="text-copy-14 text-[var(--modes-text-muted)] max-w-sm mb-5">
                 Create a new chord chart or import one from a .md file you already have.
               </p>
-              {canEdit && (
-                <div className="flex flex-wrap justify-center gap-2">
-                  <Button variant="primary" onClick={onNewSong}>New song</Button>
-                </div>
-              )}
+              {canEdit && <Button variant="primary" onClick={onNewSong}>New song</Button>}
             </div>
-          )}
-        </div>
+          )
+        ) : viewMode === 'table' ? (
+          /* ---- Table view ---- */
+          <div className="modes-card overflow-hidden">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-[var(--modes-border)]">
+                  <th className="text-left px-5 py-3">
+                    <button onClick={() => handleSortClick('title')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
+                      Name {sortMode === 'title' && <SortArrow asc={sortAsc} />}
+                    </button>
+                  </th>
+                  <th className="text-left px-5 py-3 hidden md:table-cell">
+                    <button onClick={() => handleSortClick('artist')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
+                      Artist {sortMode === 'artist' && <SortArrow asc={sortAsc} />}
+                    </button>
+                  </th>
+                  <th className="text-left px-5 py-3 w-[80px]">
+                    <button onClick={() => handleSortClick('key')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
+                      Key {sortMode === 'key' && <SortArrow asc={sortAsc} />}
+                    </button>
+                  </th>
+                  <th className="text-left px-5 py-3 hidden lg:table-cell text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>
+                </tr>
+              </thead>
+              <tbody>
+                {flatRows.map(song => {
+                  const arrCount = Array.isArray(song.arrangements) ? song.arrangements.length : 1;
+                  const selected = isDesktop && song.id === previewSongId;
+                  return (
+                    <tr
+                      key={song.id}
+                      role="button"
+                      onClick={() => handleRowClick(song)}
+                      className={cn(
+                        'cursor-pointer border-b border-[var(--modes-border)] transition-colors',
+                        selected ? 'bg-[var(--modes-surface-strong)]' : 'hover:bg-[var(--modes-surface)]'
+                      )}
+                    >
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-copy-15 font-semibold text-[var(--modes-text)] truncate">{song.title || 'Untitled'}</span>
+                          {arrCount > 1 && (
+                            <span className="shrink-0 text-label-12 px-1.5 py-0.5 rounded bg-[var(--modes-surface-strong)] text-[var(--modes-text-dim)]">{arrCount}</span>
+                          )}
+                        </div>
+                        <div className="md:hidden text-copy-13 text-[var(--modes-text-muted)] truncate mt-0.5">{song.artist}</div>
+                      </td>
+                      <td className="px-5 py-3.5 hidden md:table-cell text-copy-14 text-[var(--modes-text-muted)] truncate">{song.artist}</td>
+                      <td className="px-5 py-3.5"><KeyChip value={defaultArrangementKey(song)} /></td>
+                      <td className="px-5 py-3.5 hidden lg:table-cell">
+                        <div className="flex flex-wrap gap-1">
+                          {(song.tags || []).slice(0, 3).map(t => (
+                            <span key={t} className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface)] text-[var(--modes-text-muted)] border border-[var(--modes-border)]">{t}</span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {hasMore && (
+              <div ref={sentinelRef} className="py-5 text-center text-copy-12 text-[var(--modes-text-dim)]">
+                Loading more… ({truncated.length} of {filtered.length})
+              </div>
+            )}
+          </div>
+        ) : (
+          /* ---- Gallery (grouped list) view ---- */
+          <div className="flex flex-col gap-10">
+            {sortedKeys.map(groupKey => (
+              <div key={groupKey} className="flex flex-col gap-3">
+                <div className="flex items-baseline gap-2 px-1">
+                  <h3 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">{groupKey}</h3>
+                  <span className="text-label-12 text-[var(--modes-text-dim)]">{groups[groupKey].length}</span>
+                </div>
+                <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
+                  {groups[groupKey].map(song => (
+                    <SongCard
+                      key={song.id}
+                      song={song}
+                      variant="row"
+                      showTags={true}
+                      selected={isDesktop && song.id === previewSongId}
+                      onClick={() => handleRowClick(song)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {hasMore && (
+              <div ref={sentinelRef} className="py-6 text-center text-copy-12 text-[var(--modes-text-dim)]">
+                Loading more… ({truncated.length} of {filtered.length})
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* FAB — tablet only; mobile uses the top-bar +, desktop uses header button.
-          Single tap opens the unified New Song modal. */}
+      {/* FAB — tablet only; mobile uses the top-bar +, desktop uses header button. */}
       {!readOnly && onNewSong && (
         <div
           ref={fabRef}
@@ -480,51 +561,29 @@ export default function Library({
             aria-label="New song"
             className="w-14 h-14 rounded-full bg-[var(--color-brand)] text-white shadow-lg flex items-center justify-center cursor-pointer hover:opacity-90 transition-all duration-150 active:scale-95 border-none"
           >
-            <svg
-              width="24" height="24" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
             </svg>
           </button>
         </div>
       )}
-      </div>
 
-      {/* Preview pane — desktop only */}
-      <div className="hidden lg:flex lg:flex-1 lg:min-w-0 lg:h-full lg:flex-col lg:bg-[var(--ds-background-100)]">
-        {previewSong ? (
+      {/* Right-side peek — desktop only */}
+      <SidePeek open={isDesktop && !!previewSong} onClose={closePeek} label="Song preview">
+        {previewSong && (
           <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
             <ChartView
               key={previewSong.id}
               song={previewSong}
-              onBack={() => {
-                if (isFullscreen) onToggleFullscreen?.();
-                onSelectPreview?.(null);
-              }}
+              onBack={closePeek}
               onEdit={onEditSong ? () => onEditSong(previewSong) : null}
               isFullscreen={isFullscreen}
               onToggleFullscreen={onToggleFullscreen}
               {...chartDefaults}
             />
           </Suspense>
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center text-center gap-3 px-8 py-16">
-            <div className="w-14 h-14 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] flex items-center justify-center">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--ds-gray-700)]">
-                <path d="M9 18V5l12-2v13" />
-                <circle cx="6" cy="18" r="3" />
-                <circle cx="18" cy="16" r="3" />
-              </svg>
-            </div>
-            <p className="text-copy-14 text-[var(--ds-gray-700)] max-w-xs">
-              Select a song from the library to preview it here.
-            </p>
-          </div>
         )}
-      </div>
+      </SidePeek>
     </div>
   );
 }

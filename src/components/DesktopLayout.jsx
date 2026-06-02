@@ -8,7 +8,6 @@ export default function DesktopLayout({
   onNavigate,
   isFullscreen = false,
   hasUnreadNotifications,
-  onNotificationClick,
   notifications,
   onMarkRead,
   onNotificationAction,
@@ -21,9 +20,6 @@ export default function DesktopLayout({
   team,
   teams,
   onChangeWorkspace,
-  syncState,
-  onSyncNow,
-  isOnline,
 }) {
   const mainRef = useRef(null);
   const isMobile = useMediaQuery('(max-width: 639.98px)');

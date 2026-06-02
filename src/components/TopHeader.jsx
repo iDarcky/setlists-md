@@ -3,23 +3,6 @@ import NotificationTray from './NotificationTray';
 import { cn } from '../lib/utils';
 
 /* Icons (kept local so the header is self-contained) */
-const HomeIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-    <polyline points="9 22 9 12 15 12 15 22" />
-  </svg>
-);
-const SetlistsIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-    <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-  </svg>
-);
-const LibraryIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
-  </svg>
-);
 const TeamNavIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
@@ -69,7 +52,6 @@ export default function TopHeader({
   onNavigate,
   activeLibrary,
   setActiveLibrary,
-  team,
   teams = [],
   displayName = 'Guest',
   plan = 'Free',
@@ -87,10 +69,10 @@ export default function TopHeader({
   const hasTeamPlan = planLower === 'team' || planLower === 'church';
 
   const tabs = [
-    { id: 'home', label: 'Home', Icon: HomeIcon },
-    { id: 'setlists', label: 'Setlists', Icon: SetlistsIcon },
-    { id: 'library', label: 'Library', Icon: LibraryIcon },
-    ...(hasTeamPlan ? [{ id: 'team', label: 'Team', Icon: TeamNavIcon }] : []),
+    { id: 'home', label: 'Home' },
+    { id: 'setlists', label: 'Setlists' },
+    { id: 'library', label: 'Library' },
+    ...(hasTeamPlan ? [{ id: 'team', label: 'Team' }] : []),
   ];
 
   // Workspaces: Personal + every team the user belongs to.
@@ -127,7 +109,7 @@ export default function TopHeader({
       'cursor-pointer border-none transition-colors duration-150 focus:outline-none',
       'focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]',
       active
-        ? 'bg-[color-mix(in_srgb,var(--color-brand)_16%,transparent)] text-[var(--color-brand)]'
+        ? 'bg-[var(--color-brand)] text-white'
         : 'bg-transparent text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)]'
     );
 
@@ -148,11 +130,10 @@ export default function TopHeader({
       >
         {/* Left — primary nav */}
         <nav className="flex items-center gap-1 min-w-0">
-          {tabs.map(({ id, label, Icon }) => {
+          {tabs.map(({ id, label }) => {
             const active = activeView === id;
             return (
               <button key={id} onClick={() => onNavigate(id)} className={navBtn(active)}>
-                <Icon />
                 <span>{label}</span>
               </button>
             );
