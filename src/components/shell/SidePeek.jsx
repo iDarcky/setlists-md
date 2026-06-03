@@ -2,8 +2,10 @@ import React, { useEffect } from 'react';
 
 /**
  * Notion-style right-side "peek" panel. Slides in over a dimmed/blurred
- * backdrop; clicking the backdrop or pressing Escape closes it. Desktop only
- * (lg+) — below that, callers navigate to the full view instead.
+ * backdrop; clicking the backdrop or pressing Escape closes it. Visibility is
+ * driven entirely by the `open` prop — callers decide which breakpoints get
+ * the overlay (desktop + tablet portrait today; tablet landscape uses a pinned
+ * pane instead).
  *
  * The peek has no chrome of its own — the rendered child owns its toolbar
  * (collapse/expand on the left, actions on the right). When `expanded`, the
@@ -25,7 +27,7 @@ export default function SidePeek({ open, onClose, expanded = false, children, la
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] hidden lg:block" role="dialog" aria-modal="true" aria-label={label}>
+    <div className="fixed inset-0 z-[120]" role="dialog" aria-modal="true" aria-label={label}>
       {!expanded && (
         <div
           className="absolute inset-0 bg-black/45 backdrop-blur-sm animate-in fade-in duration-150"

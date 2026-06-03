@@ -4,7 +4,7 @@ import SidePeek from './shell/SidePeek';
 import { Button } from './ui/Button';
 import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
-import { useIsDesktop } from '../lib/useMediaQuery';
+import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 
 const ChartView = lazy(() => import('./ChartView'));
 
@@ -179,7 +179,16 @@ export default function Library({
   onCopySongs,
   onAddSongsToSetlist,
 }) {
-  const isDesktop = useIsDesktop();
+  // Responsive shell. Touch tablets (pointer: coarse) get the two-pane master-
+  // detail; true desktops (fine pointer) keep the Phase 1 overlay peek.
+  const wide = useIsDesktop();              // ≥ 1024px
+  const isTablet = useIsTablet();           // touch tablet, 768–1366px
+  const isLandscape = useIsLandscape();
+  const isDesktop = wide && !isTablet;      // mouse-driven desktop
+  const advanced = isDesktop || isTablet;   // table view + master-detail
+  // Pinned second pane: tablet in landscape with room for two columns.
+  const splitDock = isTablet && isLandscape && wide && !isFullscreen;
+
   const previewSong = useMemo(
     () => songs.find(s => s.id === previewSongId) || null,
     [songs, previewSongId],
@@ -327,9 +336,12 @@ export default function Library({
   const otherWorkspaces = workspaces.filter(w => w.id !== activeLibrary);
   const canMoveCopy = otherWorkspaces.length > 0;
 
-  // The table view, bulk selection, and side-peek are desktop-only (Phase 1).
-  // Tablet/mobile keep the grouped card list until their phases land.
-  const effectiveView = isDesktop ? viewMode : 'gallery';
+  // Table view + master-detail are available on desktop and tablet; phones keep
+  // the grouped card list.
+  const effectiveView = advanced ? viewMode : 'gallery';
+  // On tablet a row tap loads the detail pane; desktop keeps row → full chart
+  // with a dedicated pane button.
+  const onRowActivate = isTablet ? openPeek : openFull;
 
   const runBulk = (fn, ...args) => {
     fn?.(selected, ...args);
@@ -337,7 +349,9 @@ export default function Library({
   };
 
   return (
-    <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
+    <div data-theme-variant="modes" className={cn('relative h-full', splitDock ? 'flex overflow-hidden' : 'overflow-y-auto')}>
+      {/* List column — own scroller when a pane is docked beside it. */}
+      <div className={splitDock ? 'flex-1 min-w-0 h-full overflow-y-auto' : 'contents'}>
       {/* Header */}
       <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]">
         <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 pt-5 sm:pt-7 pb-4 flex flex-col gap-4">
@@ -351,8 +365,8 @@ export default function Library({
               onChange={e => setQuery(e.target.value)}
             />
 
-            {/* View switcher — desktop only */}
-            <div className="hidden lg:flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
+            {/* View switcher — desktop + tablet */}
+            <div className={cn('items-center rounded-lg border border-[var(--modes-border)] overflow-hidden', advanced ? 'flex' : 'hidden')}>
               <button
                 onClick={() => setViewMode('table')}
                 aria-label="Table view" title="Table view"
@@ -488,7 +502,7 @@ export default function Library({
           )
         ) : effectiveView === 'table' ? (
           <div className="modes-card overflow-hidden">
-            <table className="w-full border-collapse">
+            <table className="w-full border-collapse table-fixed">
               <thead>
                 <tr className="border-b border-[var(--modes-border)]">
                   <th className="w-[44px] px-4 py-3">
@@ -501,29 +515,29 @@ export default function Library({
                       Name {sortMode === 'title' && <SortArrow asc={sortAsc} />}
                     </button>
                   </th>
-                  <th className="text-left px-5 py-3 hidden md:table-cell">
+                  <th className="text-left px-5 py-3 hidden md:table-cell w-[34%]">
                     <button onClick={() => handleSortClick('artist')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
                       Artist {sortMode === 'artist' && <SortArrow asc={sortAsc} />}
                     </button>
                   </th>
-                  <th className="text-left px-5 py-3 w-[80px]">
+                  <th className="text-left px-5 py-3 w-[72px]">
                     <button onClick={() => handleSortClick('key')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
                       Key {sortMode === 'key' && <SortArrow asc={sortAsc} />}
                     </button>
                   </th>
-                  <th className="text-left px-5 py-3 hidden lg:table-cell text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>
+                  <th className="text-left px-5 py-3 hidden lg:table-cell w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>
                 </tr>
               </thead>
               <tbody>
                 {flatRows.map(song => {
                   const arrCount = Array.isArray(song.arrangements) ? song.arrangements.length : 1;
                   const isSel = selectedSet.has(song.id);
-                  const isPreview = isDesktop && song.id === previewSongId;
+                  const isPreview = advanced && song.id === previewSongId;
                   return (
                     <tr
                       key={song.id}
                       role="button"
-                      onClick={() => openFull(song)}
+                      onClick={(e) => onRowActivate(song, e)}
                       className={cn('group cursor-pointer border-b border-[var(--modes-border)] transition-colors',
                         isSel || isPreview ? 'bg-[var(--modes-surface-strong)]' : 'hover:bg-[var(--modes-surface)]')}
                     >
@@ -579,7 +593,7 @@ export default function Library({
                 </div>
                 <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
                   {groups[groupKey].map(song => (
-                    <SongCard key={song.id} song={song} variant="row" showTags={true} selected={isDesktop && song.id === previewSongId} onClick={() => openFull(song)} />
+                    <SongCard key={song.id} song={song} variant="row" showTags={true} selected={advanced && song.id === previewSongId} onClick={() => onRowActivate(song)} />
                   ))}
                 </div>
               </div>
@@ -593,6 +607,34 @@ export default function Library({
         )}
       </div>
 
+      </div>{/* /list column */}
+
+      {/* Pinned detail pane — tablet landscape (Phase 3 two-pane split) */}
+      {splitDock && (
+        <aside className="w-[42%] min-w-[420px] max-w-[760px] h-full shrink-0 border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden flex flex-col">
+          {previewSong ? (
+            <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
+              <ChartView
+                key={previewSong.id}
+                song={previewSong}
+                onBack={closePeek}
+                onEdit={onEditSong ? () => onEditSong(previewSong) : null}
+                isFullscreen={false}
+                onToggleFullscreen={onToggleFullscreen}
+                {...chartDefaults}
+              />
+            </Suspense>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-3">
+              <div className="w-12 h-12 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
+                <PaneIcon />
+              </div>
+              <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">Select a song to preview it here.</p>
+            </div>
+          )}
+        </aside>
+      )}
+
       {/* FAB — tablet only */}
       {!readOnly && onNewSong && (
         <div ref={fabRef} className="fixed right-6 z-[150] hidden sm:block lg:hidden" style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
@@ -604,8 +646,8 @@ export default function Library({
         </div>
       )}
 
-      {/* Bulk action bar — desktop only */}
-      {isDesktop && !readOnly && selected.length > 0 && (
+      {/* Bulk action bar — desktop + tablet */}
+      {advanced && !readOnly && selected.length > 0 && (
         <div ref={bulkBarRef} className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl">
           <span className="text-label-14 font-semibold text-[var(--ds-gray-1000)] whitespace-nowrap">{selected.length} selected</span>
           <span className="w-px h-5 bg-[var(--ds-gray-300)]" />
@@ -661,9 +703,9 @@ export default function Library({
         </div>
       )}
 
-      {/* Right-side peek — desktop only */}
+      {/* Right-side overlay peek — desktop + tablet portrait (landscape docks) */}
       <SidePeek
-        open={isDesktop && !!previewSong}
+        open={advanced && !!previewSong && !splitDock}
         onClose={closePeek}
         expanded={isFullscreen}
         label="Song preview"

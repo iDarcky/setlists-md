@@ -26,6 +26,24 @@ const UserIcon = ({ size = 16 }) => (
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
   </svg>
 );
+// Renders a workspace's avatar/logo, falling back to a personal/team glyph.
+const WorkspaceBadge = ({ workspace, size = 20 }) => {
+  const iconSize = Math.round(size * 0.6);
+  return (
+    <span
+      className="rounded-full bg-[var(--ds-gray-300)] flex items-center justify-center shrink-0 overflow-hidden text-[var(--ds-gray-700)]"
+      style={{ width: size, height: size }}
+    >
+      {workspace?.avatarUrl ? (
+        <img src={workspace.avatarUrl} alt="" className="w-full h-full object-cover" />
+      ) : workspace?.isPersonal ? (
+        <UserIcon size={iconSize} />
+      ) : (
+        <TeamNavIcon />
+      )}
+    </span>
+  );
+};
 const ChevronIcon = ({ open }) => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
     className={cn('transition-transform duration-150', open && 'rotate-180')}>
@@ -79,8 +97,8 @@ export default function TopHeader({
 
   // Workspaces: Personal + every team the user belongs to.
   const workspaces = [
-    { id: 'personal', name: 'Personal Workspace', isPersonal: true },
-    ...teams.map(t => ({ id: t.id, name: t.name, plan: t.plan })),
+    { id: 'personal', name: 'Personal Workspace', isPersonal: true, avatarUrl },
+    ...teams.map(t => ({ id: t.id, name: t.name, plan: t.plan, avatarUrl: t.logo_url || null })),
   ];
   const activeWorkspace =
     workspaces.find(w => w.id === activeLibrary) || workspaces[0];
@@ -155,9 +173,7 @@ export default function TopHeader({
             aria-haspopup="menu"
             aria-expanded={wsOpen}
           >
-            <span className="w-5 h-5 rounded-full bg-[var(--ds-gray-300)] flex items-center justify-center shrink-0 text-[var(--ds-gray-700)]">
-              {activeWorkspace?.isPersonal ? <UserIcon size={12} /> : <TeamNavIcon />}
-            </span>
+            <WorkspaceBadge workspace={activeWorkspace} size={20} />
             <span className="truncate">{activeWorkspace?.name || 'Personal Workspace'}</span>
             <ChevronIcon open={wsOpen} />
           </button>
@@ -176,9 +192,7 @@ export default function TopHeader({
                     onClick={() => selectWorkspace(w.id)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer border-none bg-transparent text-left hover:bg-[var(--ds-gray-200)] transition-colors"
                   >
-                    <span className="w-7 h-7 rounded-full bg-[var(--ds-gray-300)] flex items-center justify-center shrink-0 text-[var(--ds-gray-700)]">
-                      {w.isPersonal ? <UserIcon size={14} /> : <TeamNavIcon />}
-                    </span>
+                    <WorkspaceBadge workspace={w} size={28} />
                     <span className="flex-1 min-w-0">
                       <span className="block text-label-14 font-medium text-[var(--ds-gray-1000)] truncate">{w.name}</span>
                       {!w.isPersonal && (

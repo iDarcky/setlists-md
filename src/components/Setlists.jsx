@@ -5,7 +5,7 @@ import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
-import { useIsDesktop } from '../lib/useMediaQuery';
+import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 
 const SetlistOverview = lazy(() => import('./SetlistOverview'));
 
@@ -58,6 +58,44 @@ function SkeletonRows() {
   );
 }
 
+function HeaderSort({ label, modeKey, sortMode, sortAsc, onSort }) {
+  return (
+    <button onClick={() => onSort(modeKey)} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
+      {label} {sortMode === modeKey && <SortArrow asc={sortAsc} />}
+    </button>
+  );
+}
+
+// A titled table section (Upcoming / Past) sharing one column layout.
+function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onToggleAll, sortMode, sortAsc, onSort }) {
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-baseline gap-2 px-1">
+        <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">{title}</h2>
+        <span className="text-label-12 text-[var(--modes-text-dim)]">{count}</span>
+      </div>
+      <div className="modes-card overflow-hidden">
+        <table className="w-full border-collapse table-fixed">
+          <thead>
+            <tr className="border-b border-[var(--modes-border)]">
+              <th className="w-[44px] px-4 py-3">
+                {!readOnly && <input type="checkbox" checked={allChecked} onChange={onToggleAll} aria-label={`Select all ${title.toLowerCase()}`} className="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer align-middle" />}
+              </th>
+              <th className="text-left px-5 py-3"><HeaderSort label="Name" modeKey="name" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
+              <th className="text-left px-5 py-3 w-[180px]"><HeaderSort label="Date" modeKey="date" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
+              <th className="text-left px-5 py-3 hidden md:table-cell w-[90px]"><HeaderSort label="Songs" modeKey="songs" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
+              <th className="text-left px-5 py-3 hidden lg:table-cell w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(renderRow)}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 export default function Setlists({
   songs,
   setlists,
@@ -81,7 +119,14 @@ export default function Setlists({
   onDeleteSetlists,
   canEdit = true,
 }) {
-  const isDesktop = useIsDesktop();
+  // Responsive shell — see Library.jsx for the breakpoint rationale.
+  const wide = useIsDesktop();
+  const isTablet = useIsTablet();
+  const isLandscape = useIsLandscape();
+  const isDesktop = wide && !isTablet;
+  const advanced = isDesktop || isTablet;
+  const splitDock = isTablet && isLandscape && wide && !isFullscreen;
+
   const previewSetlist = useMemo(
     () => setlists.find(s => s.id === previewSetlistId) || null,
     [setlists, previewSetlistId],
@@ -89,6 +134,7 @@ export default function Setlists({
 
   const openFull = (sl) => onViewSetlist?.(sl);
   const openPeek = (sl, e) => { e?.stopPropagation(); onSelectPreview?.(sl.id); };
+  const onRowActivate = isTablet ? openPeek : openFull;
 
   const [query, setQuery] = useState('');
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'gallery'
@@ -153,6 +199,17 @@ export default function Setlists({
     });
   }, [filtered, sortMode, sortAsc]);
 
+  // Table view splits the (sorted) rows into Upcoming / Past, preserving the
+  // active column sort within each group. Undated setlists fall into Past.
+  const { tableUpcoming, tablePast } = useMemo(() => {
+    const up = [], pa = [];
+    flatRows.forEach(sl => {
+      const d = new Date((sl.date || '') + 'T12:00:00');
+      if (!isNaN(d) && d >= today) up.push(sl); else pa.push(sl);
+    });
+    return { tableUpcoming: up, tablePast: pa };
+  }, [flatRows, today]);
+
   const handleSortClick = (modeKey) => {
     if (sortMode === modeKey) setSortAsc(p => !p);
     else { setSortMode(modeKey); setSortAsc(modeKey === 'name'); }
@@ -163,15 +220,17 @@ export default function Setlists({
     onSelectPreview?.(null);
   };
 
-  // Table view, bulk selection, and side-peek are desktop-only (Phase 1).
-  const effectiveView = isDesktop ? viewMode : 'gallery';
+  // Table view + master-detail on desktop and tablet; phones keep the gallery.
+  const effectiveView = advanced ? viewMode : 'gallery';
 
   // Selection
   const selectedSet = useMemo(() => new Set(selected), [selected]);
-  const visibleIds = flatRows.map(s => s.id);
-  const allSelected = visibleIds.length > 0 && visibleIds.every(id => selectedSet.has(id));
   const toggleSelect = (id, e) => { e?.stopPropagation(); setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]); };
-  const toggleSelectAll = () => setSelected(allSelected ? [] : visibleIds);
+  const toggleSelectGroup = (rows) => {
+    const ids = rows.map(r => r.id);
+    const allIn = ids.every(id => selectedSet.has(id));
+    setSelected(prev => allIn ? prev.filter(id => !ids.includes(id)) : [...new Set([...prev, ...ids])]);
+  };
   const clearSelection = () => setSelected([]);
   const bulkDelete = () => {
     if (onDeleteSetlists) onDeleteSetlists(selected);
@@ -181,12 +240,12 @@ export default function Setlists({
 
   const renderRow = (sl) => {
     const isSel = selectedSet.has(sl.id);
-    const isPreview = isDesktop && sl.id === previewSetlistId;
+    const isPreview = advanced && sl.id === previewSetlistId;
     return (
       <tr
         key={sl.id}
         role="button"
-        onClick={() => openFull(sl)}
+        onClick={(e) => onRowActivate(sl, e)}
         className={cn('group cursor-pointer border-b border-[var(--modes-border)] transition-colors',
           isSel || isPreview ? 'bg-[var(--modes-surface-strong)]' : 'hover:bg-[var(--modes-surface)]')}
       >
@@ -220,7 +279,9 @@ export default function Setlists({
   };
 
   return (
-    <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
+    <div data-theme-variant="modes" className={cn('relative h-full', splitDock ? 'flex overflow-hidden' : 'overflow-y-auto')}>
+      {/* List column — own scroller when a pane is docked beside it. */}
+      <div className={splitDock ? 'flex-1 min-w-0 h-full overflow-y-auto' : 'contents'}>
       {/* Header */}
       <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)] hidden sm:block">
         <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 pt-5 sm:pt-7 pb-4 flex flex-wrap items-center gap-3">
@@ -232,7 +293,7 @@ export default function Setlists({
             onChange={e => setQuery(e.target.value)}
           />
 
-          <div className="hidden lg:flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
+          <div className={cn('items-center rounded-lg border border-[var(--modes-border)] overflow-hidden', advanced ? 'flex' : 'hidden')}>
             <button onClick={() => setViewMode('table')} aria-label="Table view" title="Table view"
               className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
                 viewMode === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
@@ -290,35 +351,35 @@ export default function Setlists({
             </div>
           )
         ) : effectiveView === 'table' ? (
-          <div className="modes-card overflow-hidden">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-[var(--modes-border)]">
-                  <th className="w-[44px] px-4 py-3">
-                    {!readOnly && <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label="Select all" className="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer align-middle" />}
-                  </th>
-                  <th className="text-left px-5 py-3">
-                    <button onClick={() => handleSortClick('name')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
-                      Name {sortMode === 'name' && <SortArrow asc={sortAsc} />}
-                    </button>
-                  </th>
-                  <th className="text-left px-5 py-3">
-                    <button onClick={() => handleSortClick('date')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
-                      Date {sortMode === 'date' && <SortArrow asc={sortAsc} />}
-                    </button>
-                  </th>
-                  <th className="text-left px-5 py-3 hidden md:table-cell">
-                    <button onClick={() => handleSortClick('songs')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
-                      Songs {sortMode === 'songs' && <SortArrow asc={sortAsc} />}
-                    </button>
-                  </th>
-                  <th className="text-left px-5 py-3 hidden lg:table-cell text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>
-                </tr>
-              </thead>
-              <tbody>
-                {flatRows.map(renderRow)}
-              </tbody>
-            </table>
+          <div className="flex flex-col gap-8">
+            {tableUpcoming.length > 0 && (
+              <TableGroup
+                title="Upcoming"
+                count={tableUpcoming.length}
+                rows={tableUpcoming}
+                renderRow={renderRow}
+                readOnly={readOnly}
+                allChecked={tableUpcoming.every(s => selectedSet.has(s.id))}
+                onToggleAll={() => toggleSelectGroup(tableUpcoming)}
+                sortMode={sortMode}
+                sortAsc={sortAsc}
+                onSort={handleSortClick}
+              />
+            )}
+            {tablePast.length > 0 && (
+              <TableGroup
+                title="Past"
+                count={tablePast.length}
+                rows={tablePast}
+                renderRow={renderRow}
+                readOnly={readOnly}
+                allChecked={tablePast.every(s => selectedSet.has(s.id))}
+                onToggleAll={() => toggleSelectGroup(tablePast)}
+                sortMode={sortMode}
+                sortAsc={sortAsc}
+                onSort={handleSortClick}
+              />
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-10">
@@ -330,7 +391,7 @@ export default function Setlists({
                 </div>
                 <div className="flex flex-col gap-4">
                   {upcoming.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} selected={isDesktop && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => openFull(sl)} clockFormat={clockFormat} />
+                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} />
                   ))}
                 </div>
               </section>
@@ -343,7 +404,7 @@ export default function Setlists({
                 </div>
                 <div className="flex flex-col gap-4">
                   {past.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} selected={isDesktop && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => openFull(sl)} clockFormat={clockFormat} />
+                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} />
                   ))}
                 </div>
               </section>
@@ -351,6 +412,42 @@ export default function Setlists({
           </div>
         )}
       </div>
+
+      </div>{/* /list column */}
+
+      {/* Pinned detail pane — tablet landscape (Phase 3 two-pane split) */}
+      {splitDock && (
+        <aside className="w-[42%] min-w-[420px] max-w-[760px] h-full shrink-0 border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden flex flex-col">
+          {previewSetlist ? (
+            <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
+              <SetlistOverview
+                key={previewSetlist.id}
+                setlist={previewSetlist}
+                songs={songs}
+                clockFormat={clockFormat}
+                onBack={closePeek}
+                onToggleFullscreen={onToggleFullscreen}
+                onEdit={canEdit ? () => onEditSetlist?.(previewSetlist) : undefined}
+                onExportZip={() => onExportSetlistZip?.(previewSetlist)}
+                onExportPdfOverview={() => onExportSetlistPdfOverview?.(previewSetlist)}
+                onExportPdfFull={() => onExportSetlistPdfFull?.(previewSetlist)}
+                onPlay={() => onPlaySetlist(previewSetlist)}
+                onPractice={() => onPracticeSetlist?.(previewSetlist)}
+                onDelete={canEdit ? () => onDeleteSetlist?.(previewSetlist.id) : undefined}
+                isFullscreen={false}
+                canEdit={canEdit}
+              />
+            </Suspense>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-3">
+              <div className="w-12 h-12 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
+                <PaneIcon />
+              </div>
+              <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">Select a setlist to preview it here.</p>
+            </div>
+          )}
+        </aside>
+      )}
 
       {/* FAB — tablet only */}
       {!readOnly && (onNewSetlist || onImportSetlist) && (
@@ -375,8 +472,8 @@ export default function Setlists({
 
       <input ref={fileInputRef} type="file" accept=".zip" onChange={(e) => { const file = e.target.files[0]; if (file) onImportSetlist?.(file); e.target.value = ''; }} className="hidden" />
 
-      {/* Bulk action bar — desktop only */}
-      {isDesktop && !readOnly && selected.length > 0 && (
+      {/* Bulk action bar — desktop + tablet */}
+      {advanced && !readOnly && selected.length > 0 && (
         <div className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl">
           <span className="text-label-14 font-semibold text-[var(--ds-gray-1000)] whitespace-nowrap">{selected.length} selected</span>
           <span className="w-px h-5 bg-[var(--ds-gray-300)]" />
@@ -389,9 +486,9 @@ export default function Setlists({
         </div>
       )}
 
-      {/* Right-side peek — desktop only */}
+      {/* Right-side overlay peek — desktop + tablet portrait (landscape docks) */}
       <SidePeek
-        open={isDesktop && !!previewSetlist}
+        open={advanced && !!previewSetlist && !splitDock}
         onClose={closePeek}
         expanded={isFullscreen}
         label="Setlist preview"

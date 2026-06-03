@@ -123,12 +123,28 @@ hides the header.
   (Exact top-area treatment finalized at Phase 2 kickoff.)
 - `MobileDrawer` slimmed to secondary nav only.
 
-## Phase 3 — Tablet (two-pane split view)
+## Phase 3 — Tablet (two-pane split view)  ✅ shipped
 
 - Persistent **master list (left) + detail (right)**, top header on top.
 - The desktop side-peek becomes a **pinned second pane** in landscape;
   portrait can fall back to overlay peek.
 - 44px+ touch targets throughout.
+
+**Implementation notes:**
+- Touch tablets are detected with `useIsTablet()` (`pointer: coarse` +
+  768–1366px) in `src/lib/useMediaQuery.js`, so the two-pane shell never leaks
+  onto mouse-driven desktops — `isDesktop` is now derived as
+  `wide && !isTablet`. `advanced = isDesktop || isTablet` gates the database
+  table view, master-detail peek and bulk actions.
+- `Library.jsx` / `Setlists.jsx`: in tablet **landscape** (`splitDock`), the
+  list becomes its own scroller (`flex-1`) and the detail renders as a pinned
+  `<aside>` (ChartView / SetlistOverview) with an empty-state prompt. Tablet
+  **portrait** and desktop keep the overlay `SidePeek` (its hard-coded
+  `hidden lg:block` was removed so portrait tablets can show it).
+- Row tap on tablet loads the detail pane (`onRowActivate = openPeek`);
+  desktop keeps row → full view with the dedicated pane button.
+- Tablet fullscreen (`isFullscreen`) collapses `splitDock` so the detail
+  expands to the overlay full-screen path, matching desktop.
 
 ---
 

@@ -15,3 +15,14 @@ export function useMediaQuery(query) {
 export function useIsDesktop() {
   return useMediaQuery('(min-width: 1024px)');
 }
+
+// Touch tablets (iPad portrait & landscape). `pointer: coarse` keeps this from
+// matching desktop browsers at the same widths, so the two-pane tablet shell
+// never leaks onto mouse-driven desktops.
+export function useIsTablet() {
+  return useMediaQuery('(min-width: 768px) and (max-width: 1366px) and (pointer: coarse)');
+}
+
+export function useIsLandscape() {
+  return useMediaQuery('(orientation: landscape)');
+}
