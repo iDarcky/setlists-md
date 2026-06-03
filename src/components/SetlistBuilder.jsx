@@ -35,6 +35,25 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   const [service, setService] = useState(setlist?.service || '');
   const [showRoster, setShowRoster] = useState(false);
 
+  // Snapshot the form on first render so Cancel/back can warn about unsaved
+  // changes (only when something actually changed — no nag on a pristine form).
+  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, location, tags, items, service }));
+  const isDirty = JSON.stringify({ name, date, time, location, tags, items, service }) !== initialSnapshot;
+
+  const handleCancel = async () => {
+    if (isDirty) {
+      const ok = await confirm({
+        title: 'Discard changes?',
+        description: 'You have unsaved changes to this setlist. They will be lost.',
+        confirmLabel: 'Discard',
+        cancelLabel: 'Keep editing',
+        variant: 'danger',
+      });
+      if (!ok) return;
+    }
+    onBack();
+  };
+
   // Per-item song numbers (1-based, breaks excluded). Computed once per
   // items change so SetlistItemRow can render "01", "02", … on songs only.
   const songNumberFor = useMemo(() => {
@@ -416,7 +435,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
         }}
       >
         <div className="w-full px-5 py-3 flex items-center justify-end gap-2">
-          <Button variant="ghost" size="md" onClick={onBack}>Cancel</Button>
+          <Button variant="ghost" size="md" onClick={handleCancel}>Cancel</Button>
           <Button variant="brand" size="md" onClick={handleSave}>Save</Button>
         </div>
       </div>

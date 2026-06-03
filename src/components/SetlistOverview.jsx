@@ -1,7 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { transposeKey, compactLabel, sectionStyle } from '../music';
+import { transposeKey, compactLabel } from '../music';
 import { resolveSongView } from '../arrangements';
-import { cn } from '../lib/utils';
 import { Chip } from './ui/Chip';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
@@ -11,18 +10,6 @@ import RosterPanel from './setlist/RosterPanel';
 import { headerFrostStyle } from '../lib/headerFrost';
 import { formatClockTime } from '../lib/dateFormat';
 import { useConfirm } from './ui/useConfirmHook';
-
-// TEMPORARY: row-surface design options for the song/break rows. Pick one via
-// the switcher above the Set Order list, then we keep the winner and delete
-// the rest (plus the .slrow-* CSS and this switcher).
-const ROW_STYLES = [
-  { id: 'elevate', label: '1 · Elevation' },
-  { id: 'translucent', label: '2 · Translucent' },
-  { id: 'brand', label: '3 · Brand tint' },
-  { id: 'outline', label: '4 · Outline' },
-  { id: 'accent', label: '5 · Accent' },
-  { id: 'soft', label: '1+2 · Soft' },
-];
 
 export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false }) {
   const confirm = useConfirm();
@@ -36,7 +23,6 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
   const [collapsed, setCollapsed] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [showDetails, setShowDetails] = useState(true);
-  const [rowStyle, setRowStyle] = useState('soft');
   const scrollRef = useRef(null);
 
   // Own scroll container (not window) so the overview scrolls correctly when
@@ -90,6 +76,18 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
 
   const actionIcons = (
     <div className="flex items-center gap-1 shrink-0">
+      {/* Practice — mobile only; desktop/tablet use the floating Practice pill.
+          (Play live on mobile is the BottomNav morphing FAB.) */}
+      {onPractice && (
+        <span className="sm:hidden">
+          <IconButton variant="ghost" size="sm" onClick={onPractice} aria-label="Practice setlist" title="Practice">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </IconButton>
+        </span>
+      )}
       {team && (
         <IconButton
           variant={showRoster ? 'active' : 'ghost'}
@@ -185,7 +183,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
               <div className="flex items-center justify-between gap-3 pb-4">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {(setlist.tags?.length ? setlist.tags : setlist.service ? [setlist.service] : []).map((tag, i) => (
-                    <Chip key={i} variant="success">{tag}</Chip>
+                    <Chip key={i} variant="success" className="normal-case tracking-normal">{tag}</Chip>
                   ))}
                   {setlist.location && (
                     <span className="flex items-center gap-1 text-label-13 text-[var(--ds-gray-700)] ml-2">
@@ -220,26 +218,6 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           </label>
         </div>
 
-        {/* TEMPORARY row-style switcher — pick a look, then tell me which to keep. */}
-        <div className="flex flex-wrap items-center gap-1.5 mb-4">
-          <span className="text-label-11 uppercase tracking-wide text-[var(--ds-gray-600)] mr-1">Row style</span>
-          {ROW_STYLES.map(s => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setRowStyle(s.id)}
-              className={cn(
-                'px-2.5 h-7 rounded-md text-label-12 border cursor-pointer transition-colors',
-                rowStyle === s.id
-                  ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
-                  : 'border-[var(--ds-gray-400)] text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)]'
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-
         <div className="flex flex-col gap-2">
           {setlist.items.map((item, idx) => {
 
@@ -252,8 +230,8 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                     aria-label="Break"
                   >
                     <span className="flex-1 border-t border-dashed border-[var(--ds-gray-400)]" aria-hidden="true" />
-                    <span className={cn('inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--ds-gray-400)] slrow-pill', `slrow-v-${rowStyle}`)}>
-                      <span className="text-label-11 uppercase tracking-[0.18em] font-semibold text-[var(--ds-gray-1000)]">
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--ds-gray-400)] slrow-pill slrow-v-soft">
+                      <span className="text-label-13 font-semibold text-[var(--ds-gray-1000)]">
                         {item.label || 'Break'}
                       </span>
                       {(item.duration || 0) > 0 && (
@@ -276,7 +254,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
 
               if (!song) {
                 return (
-                  <div key={idx} className={cn('material-card flex items-center gap-3 px-4 py-3 opacity-60', `slrow-v-${rowStyle}`)}>
+                  <div key={idx} className="material-card flex items-center gap-3 px-4 py-3 opacity-60 slrow-v-soft">
                     <span className="text-label-14 text-[var(--ds-gray-500)] tabular-nums w-7 text-center shrink-0">
                       {num}
                     </span>
@@ -290,16 +268,11 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
               }
 
               const displayKey = transposeKey(song.key, item.transpose);
-              // Variant 5 ("Accent"): a colored left strip from the song's first
-              // section type. Other variants ignore this.
-              const firstSection = (song.structure && song.structure[0]) || song.sections?.[0]?.type || 'Verse';
-              const accentColor = sectionStyle(firstSection).b;
 
               return (
                 <div
                   key={idx}
-                  className={cn('material-card flex items-center gap-3 px-4 py-3', `slrow-v-${rowStyle}`)}
-                  style={rowStyle === 'accent' ? { borderLeft: `3px solid ${accentColor}` } : undefined}
+                  className="material-card flex items-center gap-3 px-4 py-3 slrow-v-soft"
                 >
                   <span className="text-label-14 text-[var(--ds-gray-500)] tabular-nums w-7 text-center shrink-0">
                     {num}
@@ -357,9 +330,11 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
         </div>
       )}
 
-      {/* ── FAB buttons: Practice + Play ── */}
+      {/* ── Floating Practice + Play — desktop/tablet only. On mobile the
+          BottomNav morphing FAB owns "Play live", and Practice lives in the
+          header action row, so this block would duplicate them. ── */}
       <div
-        className="fixed right-6 z-[150] flex flex-col items-end gap-2"
+        className="fixed right-6 z-[150] hidden sm:flex flex-col items-end gap-2"
         style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
       >
         {onPractice && (

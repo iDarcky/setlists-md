@@ -101,8 +101,6 @@ export default function MobileDrawer({
   isStandalone = false,
   onInstall,
   team,
-  activeLibrary,
-  setActiveLibrary,
 }) {
   const panelRef = useRef(null);
   const [dragX, setDragX] = useState(0);
@@ -230,36 +228,7 @@ export default function MobileDrawer({
           </div>
         )}
 
-        {/* Workspace Switcher */}
-        {team && (
-          <div className="px-5 mt-4">
-            <span className="text-label-12 text-[var(--drawer-text-muted)] font-semibold uppercase tracking-wider mb-2 block">
-              Workspace
-            </span>
-            <div className="flex bg-[var(--drawer-close-bg)] rounded-xl p-1">
-              <button
-                onClick={() => { setActiveLibrary('personal'); onClose(); }}
-                className={`flex-1 py-2 text-label-14 rounded-lg transition-colors ${
-                  activeLibrary === 'personal'
-                    ? 'bg-white text-[var(--ds-gray-900)] shadow-sm'
-                    : 'text-[var(--drawer-text-muted)]'
-                }`}
-              >
-                Personal
-              </button>
-              <button
-                onClick={() => { setActiveLibrary(team.id); onClose(); }}
-                className={`flex-1 py-2 text-label-14 rounded-lg transition-colors ${
-                  activeLibrary === team.id
-                    ? 'bg-[var(--color-brand)] text-white shadow-sm'
-                    : 'text-[var(--drawer-text-muted)]'
-                }`}
-              >
-                {team.name}
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Workspace switching now lives in the mobile top bar, not here. */}
 
         {/* Plan — tap to deep-link into Plan & billing settings. */}
         <div className={`px-5 ${isSignedIn ? 'mt-5' : ''}`}>

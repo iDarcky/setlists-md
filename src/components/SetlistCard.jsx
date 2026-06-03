@@ -51,7 +51,7 @@ export default function SetlistCard({ setlist, onPlay, onView, selected = false,
         {displayTags.length > 0 && (
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             {displayTags.slice(0, 2).map(tag => (
-              <Chip key={tag} variant="success" size="sm">{tag}</Chip>
+              <Chip key={tag} variant="success" size="sm" className="normal-case tracking-normal">{tag}</Chip>
             ))}
           </div>
         )}
