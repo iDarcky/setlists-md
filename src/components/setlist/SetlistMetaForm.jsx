@@ -1,10 +1,55 @@
 import { useState } from 'react';
 import { Input } from '../ui/Input';
+import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
 import { TimePicker } from '../ui/TimePicker';
 import { useEntitlement } from '../../hooks/useEntitlement';
 
 const MAX_TAGS = 3;
+
+// Service picker — a real dropdown of known services + an "Add new" flow.
+function ServiceField({ value, options, onChange }) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState('');
+  const list = [...new Set([...(options || []), value].filter(Boolean))];
+  const commit = () => { const v = draft.trim(); if (v) onChange(v); setAdding(false); setDraft(''); };
+
+  if (adding) {
+    return (
+      <div className="flex items-center gap-2">
+        <Input
+          autoFocus
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); commit(); }
+            if (e.key === 'Escape') { setAdding(false); setDraft(''); }
+          }}
+          placeholder="New service name"
+        />
+        <Button size="sm" variant="brand" onClick={commit}>Add</Button>
+        <Button size="sm" variant="ghost" onClick={() => { setAdding(false); setDraft(''); }}>Cancel</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <select
+        value={value || ''}
+        onChange={e => { const v = e.target.value; if (v === '__add__') setAdding(true); else onChange(v); }}
+        className="w-full h-10 px-3 pr-9 rounded-lg appearance-none cursor-pointer bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] text-copy-14 text-[var(--ds-gray-1000)] outline-none focus:border-[var(--ds-gray-600)] transition-colors"
+      >
+        <option value="">No service</option>
+        {list.map(s => <option key={s} value={s}>{s}</option>)}
+        <option value="__add__">+ Add new service…</option>
+      </select>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ds-gray-600)]">
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </div>
+  );
+}
 
 /**
  * Setlist metadata form — name, date, freeform tags, and (Church tier only) service.
@@ -90,17 +135,11 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
               Church
             </span>
           </label>
-          <Input
+          <ServiceField
             value={service}
-            onChange={e => onServiceChange(e.target.value)}
-            placeholder="e.g. 9am Traditional, 11am Contemporary"
-            list="setlist-service-options"
+            options={knownServices}
+            onChange={onServiceChange}
           />
-          {knownServices.length > 0 && (
-            <datalist id="setlist-service-options">
-              {knownServices.map(s => <option key={s} value={s} />)}
-            </datalist>
-          )}
         </div>
       )}
 

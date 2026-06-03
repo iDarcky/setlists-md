@@ -35,15 +35,18 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
     if (embedded) return;
     const node = scrollRef.current;
     if (!node) return;
-    // Hysteresis: collapse past 96px, only expand again below 24px. The wide
-    // dead-band stops the header flip-flopping ("spasming") when collapsing
-    // shifts the content and nudges scrollTop back across a single threshold.
+    // Full-page: the page scrolls on <main> (or the window), NOT this element —
+    // making this element a scroller too would nest a second scrollbar. Listen
+    // on that ancestor so the header still collapses. Hysteresis (collapse >96,
+    // expand <24) stops the header flip-flopping as the collapse shifts content.
+    const scroller = node.closest('main') || window;
+    const getY = () => (scroller === window ? window.scrollY : scroller.scrollTop);
     const onScroll = () => {
-      const y = node.scrollTop;
+      const y = getY();
       setCollapsed(prev => (prev ? y > 24 : y > 96));
     };
-    node.addEventListener('scroll', onScroll, { passive: true });
-    return () => node.removeEventListener('scroll', onScroll);
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    return () => scroller.removeEventListener('scroll', onScroll);
   }, [embedded]);
 
   // Open practice; `i` is the item index to start on (tapping a song row),
@@ -146,7 +149,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
   );
 
   return (
-    <div ref={scrollRef} className="h-full overflow-y-auto overflow-x-hidden material-page pb-8">
+    <div ref={scrollRef} className={embedded ? 'h-full overflow-y-auto overflow-x-hidden material-page pb-8' : 'material-page pb-8'}>
 
       {/* ── Sticky header ── */}
       <div className="material-header transition-all duration-200" style={headerFrostStyle}>
