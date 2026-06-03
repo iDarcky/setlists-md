@@ -18,7 +18,7 @@ import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RecommendedNextPanel from './setlist/RecommendedNextPanel';
 import RosterPanel from './setlist/RosterPanel';
 
-export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, workspaceName = '', onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
+export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, workspaceName = '', knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
   const confirm = useConfirm();
   const [name, setName] = useState(setlist?.name || '');
   // New setlists default to the upcoming Sunday at 10:00 — the most common
@@ -339,6 +339,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               onLocationChange={setLocation}
               onTagsChange={setTags}
               onServiceChange={setService}
+              knownServices={knownServices}
             />
 
             {/* Divider */}

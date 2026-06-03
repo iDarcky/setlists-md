@@ -9,7 +9,7 @@ const MAX_TAGS = 3;
 /**
  * Setlist metadata form — name, date, freeform tags, and (Church tier only) service.
  */
-export default function SetlistMetaForm({ name, date, time = '20:00', location = '', tags, service = '', firstDayOfWeek = 'sunday', clockFormat = '12h', onNameChange, onDateChange, onTimeChange, onLocationChange, onTagsChange, onServiceChange }) {
+export default function SetlistMetaForm({ name, date, time = '20:00', location = '', tags, service = '', knownServices = [], firstDayOfWeek = 'sunday', clockFormat = '12h', onNameChange, onDateChange, onTimeChange, onLocationChange, onTagsChange, onServiceChange }) {
   const [tagInput, setTagInput] = useState('');
 
   const addTag = () => {
@@ -94,7 +94,13 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
             value={service}
             onChange={e => onServiceChange(e.target.value)}
             placeholder="e.g. 9am Traditional, 11am Contemporary"
+            list="setlist-service-options"
           />
+          {knownServices.length > 0 && (
+            <datalist id="setlist-service-options">
+              {knownServices.map(s => <option key={s} value={s} />)}
+            </datalist>
+          )}
         </div>
       )}
 

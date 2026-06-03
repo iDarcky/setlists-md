@@ -1528,6 +1528,10 @@ export default function App() {
   const currentWorkspaceName = activeLibrary === 'personal'
     ? 'Personal'
     : (teams.find(t => t.id === activeLibrary)?.name || team?.name || 'Team');
+  // Service suggestions for the builder dropdown — distinct service names
+  // already used across this workspace's setlists (foundation for per-service
+  // stats; a canonical team_services table can replace this source later).
+  const knownServices = [...new Set(setlists.map(s => s.service).filter(Boolean))].sort();
   let plan = 'Free';
   if (profile?.subscription_tier) {
     plan = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
@@ -1820,6 +1824,7 @@ export default function App() {
               onDelete={currentSetlist && !isTeamReadOnly ? handleDeleteSetlist : null}
               isTeamContext={activeLibrary !== 'personal'}
               workspaceName={currentWorkspaceName}
+              knownServices={knownServices}
               onDirtyChange={markSetlistDirty}
               onUpdateSong={handleUpdateSong}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
