@@ -2,6 +2,35 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.7.0-pre-alpha — Tablet two-pane & setlist management overhaul
+*June 2026*
+
+### Added
+- **Tablet two-pane view** — on iPad the Library and Setlists become a master list with a detail pane: pinned side-by-side in landscape, an overlay in portrait. Tap a row to preview it.
+- **Set order / Roster tabs** — team setlists now split into tabs in the overview and the builder, replacing the old roster icon and slide-over.
+- **Tap a song → Practice** — tapping a song in a setlist drops you straight into Practice positioned on that song; Back returns to the setlist.
+- **Song length** — set a duration per arrangement (e.g. `3:45`) in the song editor, and the setlist overview shows the **total set length** (songs + breaks).
+- **Draft / Ready setlists** — new setlists start as a Draft; mark them Ready when they're locked in. A "Draft" badge shows on cards, the table, and the overview.
+- **Edit tempo & structure from the builder** — tweak a song's tempo and section structure right from the setlist's expanded row (it updates the song everywhere).
+- **Service picker** — the Church-tier Service field is now a dropdown of your existing services with an "Add new" option.
+- **Workspace & authorship** — team setlists show which workspace they belong to, plus who created and last edited them.
+
+### Improved
+- **Clearer setlist rows** — song and break rows read as proper cards; the builder rows are more compact with edit (pencil) and delete (trash) icons and at-a-glance capo/note hints.
+- **Unsaved-changes guard** — leaving the setlist builder with unsaved edits (Cancel, header nav, or Back) now asks before discarding.
+- **Preferences** open on your Account first; the separate profile button is gone (it lives in the gear), and notifications drop down from the bell.
+- **Sentence case** across the setlist editor — no more shouty ALL-CAPS labels.
+- **Workspace icons** — your avatar / church logo now show in the desktop workspace switcher; the duplicate switcher was removed from the mobile drawer.
+
+### Fixed
+- **No more double scrollbars** in the chart view and the setlist overview.
+- **Tablet scrolling** — the split-view list and detail pane scroll correctly, and the setlist header no longer jitters while scrolling.
+- **Wide tables** no longer overflow and clip the Key column.
+- **Delete buttons** in confirmation dialogs are now solid red.
+- The **Account panel** outline and the Preferences dividers use the theme color instead of a stray white line.
+- Saving a brand-new setlist while signed out no longer bounces you to an empty builder.
+
+
 ## 0.6.0-pre-alpha — App shell redesign, mobile glass nav & profile pictures
 *June 2026*
 
