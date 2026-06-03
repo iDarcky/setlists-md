@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { transposeKey, compactLabel } from '../music';
 import { resolveSongView } from '../arrangements';
+import { durationToSeconds, formatTotalDuration } from '../lib/duration';
 import { Chip } from './ui/Chip';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
@@ -49,13 +50,24 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
   // omitted/non-numeric (e.g. from a button's event) starts at the top.
   const practiceAt = (i) => onPractice?.(Number.isInteger(i) ? i : 0);
 
-  const { songCount, breakCount } = useMemo(() => {
-    let sc = 0, bc = 0;
+  const { songCount, breakCount, totalSeconds, anyEstimated } = useMemo(() => {
+    let sc = 0, bc = 0, total = 0, est = false;
+    const DEFAULT_SONG_SECONDS = 240; // 4 min fallback when a song has no length
     for (const it of setlist.items) {
-      if (it.type === 'break') bc++;
-      else sc++;
+      if (it.type === 'break') {
+        bc++;
+        total += (it.duration || 0) * 60;
+        continue;
+      }
+      sc++;
+      let raw = songs.find(s => s.id === it.songId);
+      if (!raw && it.songTitle) raw = songs.find(s => s.title === it.songTitle);
+      const view = raw ? resolveSongView(raw, it.arrangementId) : null;
+      const secs = durationToSeconds(view?.duration);
+      if (secs > 0) total += secs;
+      else { total += DEFAULT_SONG_SECONDS; est = true; }
     }
-    return { songCount: sc, breakCount: bc };
+    return { songCount: sc, breakCount: bc, totalSeconds: total, anyEstimated: est };
   }, [setlist, songs]);
 
   // Per-row song number (skips breaks). Lookup table keeps the running
@@ -200,6 +212,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                 <span className="text-label-12 text-[var(--ds-gray-700)] shrink-0">
                   {songCount} song{songCount !== 1 ? 's' : ''}
                   {breakCount > 0 && ` + ${breakCount} break${breakCount !== 1 ? 's' : ''}`}
+                  {totalSeconds > 0 && ` · ${anyEstimated ? '~' : ''}${formatTotalDuration(totalSeconds)}`}
                 </span>
               </div>
             </>

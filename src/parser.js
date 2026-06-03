@@ -115,6 +115,7 @@ export function parseSongMd(text) {
     key: meta.key || 'C',
     tempo: meta.tempo || null,
     time: meta.time || '',
+    duration: meta.duration || '',
     ccli: meta.ccli || '',
     tags: Array.isArray(meta.tags) ? meta.tags : [],
     spotify: meta.spotify || '',
@@ -182,6 +183,7 @@ export function songToMd(song, arrangement) {
   md += `key: ${view.key}\n`;
   if (view.tempo) md += `tempo: ${view.tempo}\n`;
   if (view.time) md += `time: ${view.time}\n`;
+  if (view.duration) md += `duration: ${view.duration}\n`;
   if (view.ccli) md += `ccli: "${view.ccli}"\n`;
   if (view.tags?.length) md += `tags: [${view.tags.join(', ')}]\n`;
   if (view.spotify) md += `spotify: ${view.spotify}\n`;
@@ -375,7 +377,7 @@ export function replaceFrontmatter(md, newFrontmatter) {
 // Parse frontmatter text into flat field object (strings, for form editing)
 export function parseFrontmatterFields(frontmatter) {
   const fields = {
-    title: '', artist: '', key: 'C', tempo: '', time: '',
+    title: '', artist: '', key: 'C', tempo: '', time: '', duration: '',
     structure: '', ccli: '', tags: '', capo: '',
     spotify: '', youtube: '', notes: '',
     songid: '', arrangementid: '', arrangementname: '',
@@ -403,6 +405,7 @@ export function serializeFrontmatterFields(fields) {
   if (fields.key) lines.push(`key: ${fields.key}`);
   if (fields.tempo) lines.push(`tempo: ${fields.tempo}`);
   if (fields.time) lines.push(`time: ${fields.time}`);
+  if (fields.duration) lines.push(`duration: ${fields.duration}`);
   // Structure is now a user-edited list (Proclaim-style). Persist
   // verbatim through the form-editor round-trip so the chip editor
   // can hand it back unchanged.

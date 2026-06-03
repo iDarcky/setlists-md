@@ -7,6 +7,7 @@ const FIELDS = [
   { key: 'title', label: 'Title', placeholder: 'Song title', span: 2 },
   { key: 'artist', label: 'Artist', placeholder: 'Artist / band', span: 2 },
   { key: 'capo', label: 'Capo', placeholder: '0', span: 1 },
+  { key: 'duration', label: 'Length', placeholder: '3:45', span: 1 },
   { key: 'ccli', label: 'CCLI', placeholder: 'CCLI number', span: 1 },
   { key: 'tags', label: 'Tags', placeholder: 'worship, hymn, fast', span: 2 },
   { key: 'spotify', label: 'Spotify', placeholder: 'https://…', span: 2 },
