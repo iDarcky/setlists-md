@@ -21,7 +21,6 @@ import DesktopLayout from './components/DesktopLayout';
 import MobileTopBar from './components/MobileTopBar';
 import MobileDrawer from './components/MobileDrawer';
 import NotificationTray from './components/NotificationTray';
-import FeedbackButton from './components/FeedbackButton';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useAuth } from './auth/useAuth';
 import { useTeam } from './auth/useTeam';
@@ -140,7 +139,7 @@ function prefsEqual(a, b) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const { team, isAdmin, isEditor, isMember } = useTeam();
+  const { team, teams, setActiveTeam, isAdmin, isEditor, isMember } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const canEdit = !team || isAdmin || isEditor;
   const isTeamAdmin = isAdmin;
@@ -227,14 +226,19 @@ export default function App() {
   const prefsPushTimerRef = useRef(null);
   const isSwitchingLibraryRef = useRef(false);
 
-  // Fallback to personal if team is deleted/left
+  // Keep TeamProvider's active team aligned with the chosen library, and fall
+  // back to personal if the selected team is no longer one the user belongs to
+  // (left/deleted). activeLibrary only becomes a team id via an explicit
+  // switch — after teams have loaded — so this never resets prematurely.
   useEffect(() => {
-    if (activeLibrary !== 'personal' && team && activeLibrary !== team.id) {
-      setActiveLibrary('personal');
-    } else if (activeLibrary !== 'personal' && !team) {
+    if (activeLibrary === 'personal') return;
+    const ids = teams.map(t => t.id);
+    if (ids.includes(activeLibrary)) {
+      setActiveTeam(activeLibrary);
+    } else {
       setActiveLibrary('personal');
     }
-  }, [team, activeLibrary]);
+  }, [teams, activeLibrary, setActiveTeam]);
 
   // Initialize sync engine for the active library
   const isTeamReadOnly = activeLibrary !== 'personal' && !isAdmin && !isEditor;
@@ -828,6 +832,14 @@ export default function App() {
 
   const hasUnreadNotifications = mergedNotifications.some(n => !n.read);
 
+  // Switch between Personal and a team/church workspace. Always lands on the
+  // Dashboard so the user gets a consistent "home" for the workspace they
+  // just entered (roadmap: swapping workspaces always goes to dashboard).
+  const switchWorkspace = (libId) => {
+    if (libId !== activeLibrary) setActiveLibrary(libId);
+    goToMainView('home');
+  };
+
   const goLibrary = () => goToMainView('library');
   const goSetlists = () => goToMainView('setlists');
   const goChart = (song) => {
@@ -1084,6 +1096,64 @@ export default function App() {
     goBack();
   };
 
+  // ----- Bulk song actions (Library selection toolbar) -----
+  const handleDeleteSongs = async (ids) => {
+    if (!ids || ids.length === 0) return;
+    const ok = await confirm({
+      title: `Delete ${ids.length} song${ids.length === 1 ? '' : 's'}?`,
+      description: 'They are removed from this library across all your devices.',
+      confirmLabel: 'Delete',
+    });
+    if (!ok) return;
+    const idSet = new Set(ids);
+    setSongs(prev => prev.filter(s => !idSet.has(s.id)));
+    setTombstones(prev => ({
+      ...prev,
+      songs: [...prev.songs.filter(t => !idSet.has(t.id)), ...ids.map(id => ({ id, deletedAt: Date.now() }))],
+    }));
+    toast({ title: `Deleted ${ids.length} song${ids.length === 1 ? '' : 's'}` });
+  };
+
+  const handleAddSongsToSetlist = (songIds, setlistId) => {
+    const target = setlists.find(s => s.id === setlistId);
+    if (!target) return;
+    let added = 0;
+    setSetlists(prev => prev.map(sl => {
+      if (sl.id !== setlistId) return sl;
+      const existing = new Set((sl.items || []).filter(i => i.songId).map(i => i.songId));
+      const newItems = songIds
+        .filter(id => !existing.has(id))
+        .map(id => {
+          const song = songs.find(s => s.id === id);
+          if (!song) return null;
+          const arr = (song.arrangements || []).find(a => a.id === song.defaultArrangementId) || song.arrangements?.[0];
+          return {
+            songId: id,
+            songTitle: song.title,
+            arrangementId: arr?.id,
+            arrangementName: arr?.name,
+            note: '',
+            transpose: 0,
+            capo: arr?.capo || 0,
+          };
+        })
+        .filter(Boolean);
+      added = newItems.length;
+      return { ...sl, items: [...(sl.items || []), ...newItems] };
+    }));
+    toast({
+      title: 'Added to setlist',
+      description: `${added} song${added === 1 ? '' : 's'} → ${target.name || 'setlist'}`,
+    });
+  };
+
+  const handleMoveSongs = async (ids, target) => {
+    for (const id of ids) await handleMoveSongToLibrary(id, target);
+  };
+  const handleCopySongs = async (ids, target) => {
+    for (const id of ids) await handleCopySongToLibrary(id, target);
+  };
+
   const handleSmartImport = (mdText) => {
     try {
       const parsed = parseSongMd(mdText);
@@ -1232,6 +1302,24 @@ export default function App() {
       historyRef.current.pop();
     }
     goBack();
+  };
+
+  const handleDeleteSetlists = async (ids) => {
+    if (!ids || ids.length === 0) return;
+    const ok = await confirm({
+      title: `Delete ${ids.length} setlist${ids.length === 1 ? '' : 's'}?`,
+      description: 'They are removed from this workspace across all your devices.',
+      confirmLabel: 'Delete',
+    });
+    if (!ok) return;
+    const idSet = new Set(ids);
+    setSetlists(prev => prev.filter(s => !idSet.has(s.id)));
+    setTombstones(prev => ({
+      ...prev,
+      setlists: [...prev.setlists.filter(t => !idSet.has(t.id)), ...ids.map(id => ({ id, deletedAt: Date.now() }))],
+    }));
+    setPreviewSetlistId(null);
+    toast({ title: `Deleted ${ids.length} setlist${ids.length === 1 ? '' : 's'}` });
   };
 
   const handleClearAll = async () => {
@@ -1449,11 +1537,13 @@ export default function App() {
           onMarkRead={handleMarkNotificationRead} 
           onNotificationAction={handleNotificationAction} 
           drawerOpen={drawerOpen} 
-          displayName={displayName} 
-          plan={plan} 
-          activeLibrary={activeLibrary} 
-          setActiveLibrary={setActiveLibrary} 
-          team={team} 
+          displayName={displayName}
+          plan={plan}
+          avatarUrl={profile?.avatar_url}
+          activeLibrary={activeLibrary}
+          setActiveLibrary={switchWorkspace}
+          team={team}
+          teams={teams}
           onChangeWorkspace={goTeam}
           syncState={syncState}
           onSyncNow={triggerSync}
@@ -1469,11 +1559,12 @@ export default function App() {
               onOpenDrawer={openDrawer}
               onSelectSong={goChart}
               onSelectSetlist={goSetlistView}
-              onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
-              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               activeLibrary={activeLibrary}
-              team={team}
-              onChangeWorkspace={openDrawer}
+              workspaces={[
+                { id: 'personal', name: 'Personal', avatarUrl: profile?.avatar_url || null },
+                ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null })),
+              ]}
+              setActiveLibrary={switchWorkspace}
             />
           )}
           {view === 'home' && (
@@ -1515,6 +1606,13 @@ export default function App() {
               onToggleFullscreen={toggleFullscreen}
               onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
               readOnly={isTeamReadOnly}
+              setlists={setlists}
+              activeLibrary={activeLibrary}
+              workspaces={[{ id: 'personal', name: 'Personal' }, ...teams.map(t => ({ id: t.id, name: t.name }))]}
+              onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
+              onAddSongsToSetlist={isTeamReadOnly ? null : handleAddSongsToSetlist}
+              onMoveSongs={!isTeamReadOnly && teams.length > 0 ? handleMoveSongs : null}
+              onCopySongs={teams.length > 0 ? handleCopySongs : null}
               chartDefaults={{
                 defaultColumns: settings?.defaultColumns,
                 defaultFontSize: settings?.defaultFontSize,
@@ -1555,6 +1653,7 @@ export default function App() {
                 }));
                 setPreviewSetlistId(null);
               }}
+              onDeleteSetlists={isTeamReadOnly ? null : handleDeleteSetlists}
               canEdit={canEdit}
             />
           )}
@@ -1754,6 +1853,10 @@ export default function App() {
               plan={plan}
               isSignedIn={isSignedIn}
               displayName={displayName}
+              displayEmail={displayEmail}
+              onSignOut={handleSignOut}
+              onSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
+              onCreateAccount={() => { setAuthStartMode('signup'); navigate('signin'); }}
               activeLibrary={activeLibrary}
               team={team}
             />
@@ -1776,7 +1879,7 @@ export default function App() {
             <TeamScreen
               onBack={goBack}
               onUpgrade={() => navigate('pricing')}
-              onSwitchLibrary={setActiveLibrary}
+              onSwitchLibrary={switchWorkspace}
             />
           )}
           {view === 'schedule' && (
@@ -1788,13 +1891,19 @@ export default function App() {
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />
           )}
-          {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view'].includes(view) && (
-            <BottomNav
-              activeView={view === 'setlist-view' ? 'setlists' : view}
-              onNavigate={goToMainView}
-            />
-          )}
         </DesktopLayout>
+      )}
+      {/* Mobile glass nav lives at the App root (not inside <main>) so the
+          drawer's transform/will-change doesn't capture its fixed positioning
+          or break the glass backdrop-filter. */}
+      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view'].includes(view) && !drawerOpen && (
+        <BottomNav
+          activeView={view}
+          onNavigate={goToMainView}
+          onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
+          onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+          onPlay={view === 'setlist-view' && currentSetlist ? () => goSetlistPerformance(currentSetlist) : null}
+        />
       )}
       {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && ['home', 'library', 'setlists'].includes(view) && !drawerOpen && (
         <EdgeSwipeHotspot onOpen={openDrawer} />
@@ -1824,8 +1933,9 @@ export default function App() {
           onCreateAccount={() => { setDrawerOpen(false); setAuthStartMode('signup'); navigate('signin'); }}
           onOpenTeam={() => { setDrawerOpen(false); goTeam(); }}
           team={team}
+          teams={teams}
           activeLibrary={activeLibrary}
-          setActiveLibrary={setActiveLibrary}
+          setActiveLibrary={switchWorkspace}
           canInstall={canInstall}
           isIOS={isIOS}
           isStandalone={isStandalone}
@@ -1864,7 +1974,6 @@ export default function App() {
           />
         </Suspense>
       )}
-      {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && <FeedbackButton />}
 
       {/* One-time pre-permission explainer for stage mode — render is
           state-driven now so the modal participates in the back stack. */}

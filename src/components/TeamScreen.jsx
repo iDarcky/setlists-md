@@ -6,6 +6,7 @@ import ScreenHeader from './ui/ScreenHeader';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import UpgradeGate from './ui/UpgradeGate';
+import AvatarUploader from './ui/AvatarUploader';
 import { useConfirm } from './ui/useConfirmHook';
 
 const TeamIcon = () => (
@@ -137,15 +138,17 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
       className="flex items-center gap-3 px-4 py-3 rounded-xl"
       style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}
     >
-      {/* Avatar placeholder */}
+      {/* Avatar */}
       <div
-        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-label-14 font-bold"
+        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 overflow-hidden text-label-14 font-bold"
         style={{
           background: isOwner ? 'var(--color-brand-soft)' : 'var(--ds-gray-200)',
           color: isOwner ? 'var(--color-brand)' : 'var(--ds-gray-700)',
         }}
       >
-        {initial}
+        {profile.avatar_url
+          ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+          : initial}
       </div>
 
       <div className="flex-1 min-w-0">
@@ -448,6 +451,17 @@ function EditTeamForm({ team, onUpdate }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4 rounded-xl mt-4" style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}>
       <h3 className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider font-semibold mb-1">Team Settings</h3>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-label-12 text-[var(--ds-gray-700)]">Logo</span>
+        <AvatarUploader
+          url={team.logo_url || null}
+          fallback={(team.name || 'T').trim().charAt(0).toUpperCase()}
+          pathPrefix={`teams/${team.id}`}
+          shape="square"
+          label="logo"
+          onChange={async (logoUrl) => { await onUpdate({ logo_url: logoUrl }); }}
+        />
+      </div>
       <label className="flex flex-col gap-1">
         <span className="text-label-12 text-[var(--ds-gray-700)]">Team Name</span>
         <Input type="text" required value={name} onChange={e => setName(e.target.value)} />

@@ -175,7 +175,8 @@ supabase/
 
 - **No router** — App.jsx manages views via `view` state (`library`, `chart`, `editor`, `setlist-build`, `setlist-play`, `setlist-performance`, `signin`, `recovery`, `auth-callback`, …)
 - **No server for song data** — songs/setlists stored client-side in IndexedDB via idb-keyval. Supabase only handles auth + account-level preferences.
-- **Songs** are stored as parsed objects (title, artist, key, tempo, sections, etc.)
+- **Songs** are stored as parsed objects on a **v2 multi-arrangement schema** (`src/arrangements.js`): top-level identity (`id`, `title`, `artist`, `ccli`, `tags`, `keyHistory`, `defaultArrangementId`) plus an `arrangements[]` array. Each arrangement carries its own `key`, `tempo`, `time`, `capo`, `notes`, `structure[]`, and `sections[]`. The `.md` format flattens to a single arrangement; multi-arrangement state is app-internal.
+- **Notes live at three levels** — per-arrangement `arrangement.notes` (markdown, shared across setlists), per-setlist-item `items[i].note` (100-char cue), and per-break `items[i].note` (500-char markdown). There is **no per-setlist or per-user note scope yet** (planned).
 - **The .md format** is the interchange format — YAML frontmatter + `## Section` headers + `[Chord]lyrics` inline chords + `> notes` for band cues + `{tab}...{/tab}` for guitar tabs
 - **Section types** each have a color scheme defined in `music.js` (Intro, Verse, Chorus, Bridge, etc.)
 - **Transpose** is applied at render time via `transposeChord()` — stored data is always in the original key
@@ -334,12 +335,16 @@ The theme is applied by an effect in `App.jsx` that sets/clears `document.docume
 ## Supabase Schema
 
 The signed-in experience depends on a `profiles` table with columns:
-`id`, `email`, `display_name`, `plan`, `preferences` (JSONB), `updated_at`.
+`id`, `email`, `display_name`, `plan`, `preferences` (JSONB), `avatar_url`,
+`updated_at`. `avatar_url` is a public URL into the `avatars` storage bucket
+(personal profile picture).
 
 The Teams/Church tier adds these additional tables:
 
 - **`teams`** — `id`, `name`, `location`, `owner_id`, `plan` (team|church),
-  `max_seats` (10 for team, 30 for church), `created_at`, `updated_at`.
+  `max_seats` (10 for team, 30 for church), `logo_url`, `created_at`,
+  `updated_at`. `logo_url` is a public URL into the `avatars` bucket
+  (church/team logo, admin-editable).
 - **`team_members`** — `id`, `team_id`, `user_id`, `role` (admin|member),
   `invited_by`, `joined_at`, `instruments` (text[], default `{}`).
   Unique constraint on `(team_id, user_id)`. The `instruments` column is the
@@ -383,6 +388,12 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   the column is missing, so the team library still works before this
   migration is applied — but the roster picker won't see instruments and
   the dashboard calendar's availability marking is a no-op.
+- `20260602_add_avatars.sql` — adds `profiles.avatar_url` + `teams.logo_url`
+  and creates the public `avatars` storage bucket with RLS (public read;
+  users write `users/{uid}/…`; team owners/admins write `teams/{team_id}/…`).
+  Uploads go through `components/ui/AvatarUploader.jsx`; avatars render in the
+  desktop header, the mobile workspace FAB/switcher, and the Account/Team
+  settings forms.
 
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).
@@ -429,4 +440,32 @@ The provider only fetches from Supabase when the user has a `team` or
 - `RecoveryScreen.handleBack` calls `signOut()` *before* invoking the parent `onBack`. If you ever route away from it through another path, make sure that path also ends the recovery session.
 - PDF export uses `window.open('about:blank', '_blank', ...)` followed by `document.write(...)` (see `src/pdf/exportSongPdf.js` and `src/pdf/exportSetlistPdf.js`). This is unreliable inside iOS PWAs launched from the Home Screen (manifest declares `display: 'standalone'`) — the popup handle often comes back `null` or bounces out to Safari, breaking the `window.opener.localStorage` pref-sync hook. There is no popup-permission setting in an installed PWA, so the user can't recover. The roadmap (`docs/roadmap.md` §7) tracks an inline-iframe fallback path; until that ships, expect the feature to feel broken on iPad standalone mode.
 - `SetlistOverview` is rendered in **two places**: (1) the dedicated `setlist-view` route in `App.jsx`, and (2) the desktop preview pane inside `Setlists.jsx`. Both wire its export callbacks (`onExportZip`, `onExportPdfOverview`, `onExportPdfFull`) — when you add or rename one, update *both* call sites or the desktop preview will silently no-op.
+
+## Known Correctness Issues (verify before promoting the Church/Team tier)
+
+These are real defects found during a roadmap audit. They are not yet fixed —
+treat them as the first work item if the paid tier is ever demoed.
+
+- **Entitlement gate falls back to free for teams** — `src/hooks/useEntitlement.js`
+  reads `team?.billing_plan`, but the schema/`TeamProvider` expose `team.plan`.
+  The undefined field makes every team feature silently resolve to `free`.
+- **Members can edit songs in read-only team libraries** — `App.jsx` computes
+  `isTeamReadOnly` (non-admin/non-editor in a team library), but the editor
+  entry points aren't all gated by it, so members reach the editor anyway.
+- **Preference cloud-sync push misses ~11 keys** — the push effect's dependency
+  array in `App.jsx` lists only a subset of `PORTABLE_PREF_KEYS`, so changes to
+  `chartTheme`, `chartBg`, `accentColor`, `sectionColors`, `customSectionTypes`,
+  etc. never trigger a debounced push. Team song/setlist sync also has **no
+  optimistic locking** — concurrent edits overwrite silently.
+
+## Current Focus & Roadmap
+
+Active direction (solo, occasional cadence): **App Shell redesign, shipped as
+independently-mergeable slices** — never a long-lived big-bang branch. Order:
+(1) settings-modal backdrop-close + scroll-lock and top-bar/iPad-scroll fixes,
+(2) Dashboard + Schedule redesign, (3) chart/performance display options
+(Lyrics-only / Chords-only / Song-map, Nashville + Do-Re-Mi notation, condensed
+sections), (4) setlist + notes rework, (5) Church/Team hardening (the bugs
+above). TypeScript migration is deferred and done incrementally per touched
+file, not as a phase. `docs/roadmap.md` holds the longer-horizon list.
 

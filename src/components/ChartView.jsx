@@ -28,12 +28,6 @@ import { STAGE_MODES, STAGE_MODE_MAP } from '../data/stageModes';
 
 const FONT_SIZES = { S: 14, M: 18, L: 22 };
 
-const FONT_FAMILIES = {
-  'Geist Sans': "var(--font-sans)",
-  'Geist Mono': "var(--font-mono)",
-  'JetBrains Mono': "'JetBrains Mono', monospace",
-};
-
 // Tokens written by useChartTheme (App.jsx) live on :root and decide the
 // chart's bg/text/chord colours plus the chord and lyric font stacks.
 // Falling back to the existing Geist tokens means free-plan users see no
@@ -100,8 +94,8 @@ export default function ChartView({
 
   const [columns, setColumns] = useState(defaultColumns);
   const [fontSize, setFontSize] = useState(stagePreset.lyricFontSize ?? initialFontSize);
+  // Lyric/chord fonts come from CSS vars set by useChartTheme (--chart-font-*).
   const [chordFontSize, setChordFontSize] = useState(stagePreset.chordFontSize ?? Math.round(initialFontSize * 0.95));
-  const [fontFamily, setFontFamily] = useState('Geist Mono');
   const [nns, setNns] = useState(!!stagePreset.nashville);
   const [showChords, setShowChords] = useState(stagePreset.showChords !== false);
   const [showDiagrams, setShowDiagrams] = useState(!!stagePreset.showDiagrams);
@@ -118,13 +112,10 @@ export default function ChartView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stageMode]);
   const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'info' | 'arrangements' | null
-  const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [notesPeekOpen, setNotesPeekOpen] = useState(notesPeekDefaultOpen);
 
   const scrollContainerRef = useRef(null);
-  const menuTriggerRef = useRef(null);
-  const menuPanelRef = useRef(null);
 
   const transpose = semitonesBetween(song.key, selectedKey);
 
@@ -144,27 +135,7 @@ export default function ChartView({
     onArrangementChange?.(id);
   };
 
-  // Close the kebab menu on outside click and Escape.
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onPointerDown = (e) => {
-      const t = menuTriggerRef.current;
-      const p = menuPanelRef.current;
-      if (t && t.contains(e.target)) return;
-      if (p && p.contains(e.target)) return;
-      setMenuOpen(false);
-    };
-    const onKey = (e) => { if (e.key === 'Escape') setMenuOpen(false); };
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [menuOpen]);
-
-  const openSheet = (name) => { setActiveSheet(name); setMenuOpen(false); };
-  const runAndClose = (fn) => { fn?.(); setMenuOpen(false); };
+  const openSheet = (name) => setActiveSheet(name);
 
   // Detect scroll position for collapsing header. Uses a wide hysteresis
   // band (must drop under 20 to expand, must climb past 140 to collapse)
@@ -287,6 +258,30 @@ export default function ChartView({
               Compact "Line-2" content collapses on scroll but the title
               itself doesn't resize. */}
           <div className="wide-container flex items-center justify-between gap-3 pt-3 pb-0.5">
+            {(onBack || onToggleFullscreen) && (
+              <div className="flex gap-0.5 items-center flex-shrink-0">
+                {onBack && (
+                  <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m6 17 5-5-5-5" /><path d="m13 17 5-5-5-5" />
+                    </svg>
+                  </IconButton>
+                )}
+                {onToggleFullscreen && (
+                  <IconButton variant="ghost" size="sm" onClick={onToggleFullscreen} aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+                    {isFullscreen ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M8 3v4a1 1 0 0 1-1 1H3" /><path d="M21 8h-4a1 1 0 0 1-1-1V3" /><path d="M3 16h4a1 1 0 0 1 1 1v4" /><path d="M16 21v-4a1 1 0 0 1 1-1h4" />
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 8V3h5" /><path d="M21 8V3h-5" /><path d="M3 16v5h5" /><path d="M21 16v5h-5" />
+                      </svg>
+                    )}
+                  </IconButton>
+                )}
+              </div>
+            )}
             <div className="min-w-0 flex-1 flex items-baseline gap-3">
               <h1
                 className="m-0 truncate font-bold leading-tight text-heading-24"
@@ -316,94 +311,31 @@ export default function ChartView({
               </div>
             </div>
             <div className="flex gap-0.5 items-center flex-shrink-0">
-              <div className="relative">
-                <IconButton
-                  ref={menuTriggerRef}
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setMenuOpen(o => !o)}
-                  aria-label="More options"
-                  aria-haspopup="menu"
-                  aria-expanded={menuOpen}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <circle cx="12" cy="5" r="1.6" />
-                    <circle cx="12" cy="12" r="1.6" />
-                    <circle cx="12" cy="19" r="1.6" />
+              <IconButton variant="ghost" size="sm" onClick={() => openSheet('info')} aria-label="Song info" title="Song info">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
+                </svg>
+              </IconButton>
+              <IconButton variant="ghost" size="sm" onClick={() => exportSongPdf(song, { transpose })} aria-label="Print / Save as PDF" title="Print / Save as PDF">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9" />
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                  <rect x="6" y="14" width="12" height="8" />
+                </svg>
+              </IconButton>
+              {onEdit && (
+                <IconButton variant="ghost" size="sm" onClick={onEdit} aria-label="Edit" title="Edit">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                   </svg>
                 </IconButton>
-                {menuOpen && (
-                  <div
-                    ref={menuPanelRef}
-                    role="menu"
-                    className="absolute z-40 right-0 mt-1 min-w-[220px] rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-150"
-                  >
-                    <MenuItem
-                      onClick={() => openSheet('layout')}
-                      label="Layout"
-                      icon={<span className="text-label-12 font-semibold">Aa</span>}
-                    />
-                    <MenuItem
-                      onClick={() => openSheet('info')}
-                      label="Song info"
-                      icon={(
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M12 16v-4" />
-                          <path d="M12 8h.01" />
-                        </svg>
-                      )}
-                    />
-                    <div className="my-1 h-px bg-[var(--border-1)]" />
-                    <MenuItem
-                      onClick={() => runAndClose(() => exportSongPdf(song, { transpose }))}
-                      label="Print / Save as PDF"
-                      icon={(
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="6 9 6 2 18 2 18 9" />
-                          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                          <rect x="6" y="14" width="12" height="8" />
-                        </svg>
-                      )}
-                    />
-                    {onEdit && (
-                    <MenuItem
-                      onClick={() => runAndClose(onEdit)}
-                      label="Edit"
-                      icon={(
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                        </svg>
-                      )}
-                    />
-                    )}
-                    {onToggleFullscreen && (
-                      <MenuItem
-                        onClick={() => runAndClose(onToggleFullscreen)}
-                        label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-                        icon={isFullscreen ? (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M8 3v4a1 1 0 0 1-1 1H3" />
-                            <path d="M21 8h-4a1 1 0 0 1-1-1V3" />
-                            <path d="M3 16h4a1 1 0 0 1 1 1v4" />
-                            <path d="M16 21v-4a1 1 0 0 1 1-1h4" />
-                          </svg>
-                        ) : (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 8V3h5" />
-                            <path d="M21 8V3h-5" />
-                            <path d="M3 16v5h5" />
-                            <path d="M21 16v5h-5" />
-                          </svg>
-                        )}
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-              <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              )}
+              <IconButton variant="ghost" size="sm" onClick={() => openSheet('layout')} aria-label="Display options" title="Display options">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
+                  <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
+                  <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
+                  <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
                 </svg>
               </IconButton>
             </div>
@@ -723,7 +655,7 @@ export default function ChartView({
             ['--chart-font-size-chord']: `${chordFontSize}px`,
             ['--chart-line-height-lyric']: settings?.lyricLineHeight ?? 1.35,
             ['--chart-section-gap']: `${settings?.sectionSpacing ?? 24}px`,
-            fontFamily: FONT_FAMILIES[fontFamily],
+            fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
             ...(chartLayout !== 'rows' || columns !== 2 ? { columnCount: columns, columnGap: '3rem' } : {}),
           }}
         >
@@ -751,22 +683,6 @@ export default function ChartView({
         </div>
       </div>
     </div>
-  );
-}
-
-function MenuItem({ onClick, icon, label }) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={onClick}
-      className="w-full flex items-center gap-3 px-3 py-2 text-left text-copy-14 text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] transition-colors"
-    >
-      <span className="inline-flex items-center justify-center w-5 text-[var(--ds-gray-700)]" aria-hidden="true">
-        {icon}
-      </span>
-      <span className="flex-1">{label}</span>
-    </button>
   );
 }
 

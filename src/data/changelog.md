@@ -2,6 +2,28 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.6.0-pre-alpha — App shell redesign, mobile glass nav & profile pictures
+*June 2026*
+
+### Added
+- **Multiple workspaces** — belong to several bands/churches and switch between them from the header (desktop) or the search bar (mobile). Switching always drops you back on the dashboard.
+- **Profile pictures & church logos** — upload a personal avatar in Account, or a team/church logo in Team settings. They show in the header, the workspace switcher, and the team roster.
+- **New desktop top header** — Home / Setlists / Library nav, a centered workspace switcher, and notifications · preferences · your avatar on the right. Replaces the old left sidebar and the church banner.
+- **Notion-style Library & Setlists** — a sortable table (Name / Artist / Key / Tags, with an arrangement-count badge) and a table/list toggle, plus a slide-over **side-peek** to preview a song or setlist without leaving the list.
+- **Bulk actions** — multi-select songs to add to a setlist, copy or move between workspaces, or delete.
+- **iOS-style mobile bar** — a floating translucent tab bar (Home / Setlists / Songs) and a morphing action button (create on a tab, Play Live on a setlist), with the workspace switcher tucked into the search bar.
+- **Account in Preferences** — your profile now lives as a panel inside Settings.
+
+### Improved
+- **Side-peek toolbar** — collapse, full-screen, info, print, edit, and display options are now clear individual buttons.
+- **Feedback** moved into the header (desktop) and the menu drawer (mobile) instead of a floating bubble.
+
+### Fixed
+- **Chart fonts now actually change** when you pick a different lyric font — on every platform.
+- **iPad Settings** no longer lets the page scroll/drift behind the dialog, and tapping outside closes it.
+- **Team features** no longer silently fall back to the free tier (entitlement bug).
+
+
 ## 0.5.1-pre-alpha — Role-Based Access Controls & Editor Polish
 *May 2026*
 

@@ -165,12 +165,19 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
               {setlistSchedules.map(schedule => {
                 const member = members.find(m => m.user_id === schedule.user_id);
                 const displayName = member?.profile?.display_name || member?.profile?.email || 'Unknown User';
+                const avatarUrl = member?.profile?.avatar_url;
 
                 return (
                   <div key={schedule.id} className="p-3 rounded-xl bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] flex flex-col gap-2">
                     <div className="flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-copy-14 font-bold">{displayName}</span>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-[var(--ds-gray-200)] flex items-center justify-center text-label-12 font-bold shrink-0 overflow-hidden">
+                          {avatarUrl
+                            ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                            : (displayName.slice(0, 2).toUpperCase() || '?')}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                        <span className="text-copy-14 font-bold truncate">{displayName}</span>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className={`text-label-11 px-2 py-0.5 rounded-full ${availabilityBadgeClasses(schedule.availability)}`}>
                             {availabilityLabel(schedule.availability)}
@@ -180,6 +187,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                               {schedule.role}
                             </span>
                           )}
+                        </div>
                         </div>
                       </div>
                       {!readOnly && (
@@ -292,8 +300,10 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                         onClick={() => handleAddMember(member)}
                       >
                         <div className="flex items-start gap-2 min-w-0 flex-1">
-                          <div className="w-8 h-8 rounded-full bg-[var(--ds-gray-200)] flex items-center justify-center text-label-12 font-bold shrink-0">
-                            {member.profile?.display_name?.slice(0, 2).toUpperCase() || '?'}
+                          <div className="w-8 h-8 rounded-full bg-[var(--ds-gray-200)] flex items-center justify-center text-label-12 font-bold shrink-0 overflow-hidden">
+                            {member.profile?.avatar_url
+                              ? <img src={member.profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                              : (member.profile?.display_name?.slice(0, 2).toUpperCase() || '?')}
                           </div>
                           <div className="flex flex-col min-w-0 flex-1">
                             <div className="flex items-center gap-2">

@@ -20,11 +20,16 @@ export function Dialog({
       if (e.key === 'Escape') onClose?.();
     };
     document.addEventListener('keydown', onKey);
+    // Scroll-lock. The app's real scroll container is <main> (not <body>), so
+    // locking body alone leaves the background draggable on iPad/iOS Safari.
+    // The `dialog-open` class on <html> freezes <main> too (see index.css).
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    document.documentElement.classList.add('dialog-open');
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
+      document.documentElement.classList.remove('dialog-open');
     };
   }, [open, onClose]);
 

@@ -8,6 +8,7 @@ import {
   CreateAccountButton,
 } from './account/AccountPanel';
 import BrandWordmark from './ui/BrandWordmark';
+import FeedbackButton from './FeedbackButton';
 
 const CloseIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -312,6 +313,7 @@ export default function MobileDrawer({
           )}
           <Row icon={SettingsIcon} label="Preferences" onClick={onOpenSettings} />
           <Row icon={HelpIcon} label="Help" onClick={onOpenHelp } />
+          <FeedbackButton variant="drawer" />
           {!isStandalone && (canInstall || isIOS) && onInstall && (
             <Row
               icon={InstallIcon}

@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../auth/useAuth';
 import { useTeam } from '../auth/useTeam';
 import { clearAll } from '../storage';
+import AvatarUploader from './ui/AvatarUploader';
 
 const NAME_MAX = 15;
 
@@ -35,6 +36,7 @@ export default function Account({
   onSignIn,
   onCreateAccount,
   onSignOut,
+  embedded = false,
 }) {
   const { profile, updateProfile, updatePassword, deleteAccount, user } = useAuth();
   const { team, members, updateMyInstruments } = useTeam();
@@ -149,19 +151,36 @@ export default function Account({
 
   return (
     <div
-      className="drawer-panel min-h-screen pb-8"
-      style={{
-        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 24px)',
-      }}
+      className={embedded ? '' : 'drawer-panel min-h-screen pb-8'}
+      style={embedded ? undefined : { paddingTop: 'calc(env(safe-area-inset-top, 0px) + 24px)' }}
     >
-      <div className="a4-container pt-6 pb-10 flex flex-col gap-6">
-        <StageGreeting displayName={displayName} tone="drawer" />
+      <div className={embedded ? 'flex flex-col gap-6' : 'a4-container pt-6 pb-10 flex flex-col gap-6'}>
+        {!embedded && <StageGreeting displayName={displayName} tone="drawer" />}
         <AccountSummary
           isSignedIn={isSignedIn}
           displayEmail={displayEmail}
           onSignOut={onSignOut}
           tone="drawer"
         />
+        {isSignedIn && user && (
+          <div
+            className="rounded-xl border p-4 flex flex-col gap-3"
+            style={{ background: 'var(--drawer-surface)', borderColor: 'var(--drawer-border)' }}
+          >
+            <div className="flex flex-col">
+              <span className="text-copy-14 font-medium" style={{ color: 'var(--drawer-text)' }}>Profile photo</span>
+              <span className="text-copy-13" style={{ color: 'var(--drawer-text-muted)' }}>
+                Shown in the header, drawer, and your workspace switcher.
+              </span>
+            </div>
+            <AvatarUploader
+              url={profile?.avatar_url || null}
+              fallback={(displayName || 'G').trim().charAt(0).toUpperCase()}
+              pathPrefix={`users/${user.id}`}
+              onChange={async (avatarUrl) => { await updateProfile({ avatar_url: avatarUrl }); }}
+            />
+          </div>
+        )}
         <div
           className="rounded-xl border p-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
           style={{ background: 'var(--drawer-surface)', borderColor: 'var(--drawer-border)' }}
