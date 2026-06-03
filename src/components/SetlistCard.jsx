@@ -57,8 +57,11 @@ export default function SetlistCard({ setlist, onPlay, onView, selected = false,
         )}
 
         {/* Setlist Name */}
-        <h3 className="text-heading-20 md:text-heading-24 font-bold text-[var(--modes-text)] m-0 mb-3 tracking-tight truncate">
-          {setlist.name || 'Untitled Setlist'}
+        <h3 className="text-heading-20 md:text-heading-24 font-bold text-[var(--modes-text)] m-0 mb-3 tracking-tight truncate flex items-center gap-2">
+          <span className="truncate">{setlist.name || 'Untitled Setlist'}</span>
+          {setlist.status === 'draft' && (
+            <span className="shrink-0 text-label-11 font-semibold px-1.5 py-0.5 rounded bg-[var(--ds-amber-100)] text-[var(--ds-amber-1000)] border border-[var(--ds-amber-400)]">Draft</span>
+          )}
         </h3>
 
         {/* Date & Location */}

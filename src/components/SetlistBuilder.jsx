@@ -8,6 +8,7 @@ import { IconButton } from './ui/IconButton';
 import { toast } from './ui/use-toast';
 import { useConfirm } from './ui/useConfirmHook';
 import ScreenHeader from './ui/ScreenHeader';
+import { SegmentedControl } from './ui/SegmentedControl';
 import { nextSundayDateStr } from '../lib/dateFormat';
 
 const UNDO_STACK_LIMIT = 50;
@@ -33,13 +34,16 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   });
   const [items, setItems] = useState(setlist?.items || []);
   const [service, setService] = useState(setlist?.service || '');
+  // New setlists start as drafts; existing ones without a status are treated as
+  // ready (don't surprise-demote a legacy setlist to draft on edit).
+  const [status, setStatus] = useState(setlist?.status || (setlist ? 'ready' : 'draft'));
   // Builder tabs — Roster only available once the setlist has been saved.
   const [tab, setTab] = useState('setlist'); // 'setlist' | 'roster'
 
   // Snapshot the form on first render so Cancel/back can warn about unsaved
   // changes (only when something actually changed — no nag on a pristine form).
-  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, location, tags, items, service }));
-  const isDirty = JSON.stringify({ name, date, time, location, tags, items, service }) !== initialSnapshot;
+  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, location, tags, items, service, status }));
+  const isDirty = JSON.stringify({ name, date, time, location, tags, items, service, status }) !== initialSnapshot;
 
   // Report dirty state up so App can guard header nav / browser back. Reset on
   // unmount so a stale flag never blocks navigation after we leave.
@@ -227,7 +231,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     onSave({
       ...setlist, // preserve fields the builder doesn't edit (workspace/authorship/etc.)
       id: setlist?.id || generateId(),
-      name: name.trim(), date, time, location, tags, items, service,
+      name: name.trim(), date, time, location, tags, items, service, status,
       createdAt: setlist?.createdAt || Date.now(),
     });
   };
@@ -268,15 +272,28 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
           all available space so the Save/Cancel bar below pins to the
           bottom of <main> even when the form is short. ── */}
       <div className="flex-1 w-full max-w-5xl mx-auto px-5 pt-6 pb-12">
-        {/* Which workspace this setlist is being created in / saved to. */}
-        {workspaceName && (
-          <div className="flex items-center gap-2 mb-4 text-label-12 text-[var(--ds-gray-600)]">
-            <span className="inline-flex items-center px-2 py-1 rounded-md bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] text-[var(--ds-gray-900)] font-medium">
-              {workspaceName}
-            </span>
-            <span>This setlist will be saved here.</span>
+        {/* Workspace target + draft/ready status. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-4">
+          {workspaceName && (
+            <div className="flex items-center gap-2 text-label-12 text-[var(--ds-gray-600)]">
+              <span className="inline-flex items-center px-2 py-1 rounded-md bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] text-[var(--ds-gray-900)] font-medium">
+                {workspaceName}
+              </span>
+              <span className="hidden sm:inline">This setlist will be saved here.</span>
+            </div>
+          )}
+          <div className="sm:ml-auto">
+            <SegmentedControl
+              value={status}
+              onChange={setStatus}
+              size="sm"
+              options={[
+                { value: 'draft', label: 'Draft' },
+                { value: 'ready', label: 'Ready' },
+              ]}
+            />
           </div>
-        )}
+        </div>
 
         {/* Tabs — team setlists, once saved, can manage the roster here. */}
         {isTeamContext && setlist && (

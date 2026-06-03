@@ -257,6 +257,9 @@ export default function Setlists({
         <td className="px-5 py-3.5">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-copy-15 font-semibold text-[var(--modes-text)] truncate">{sl.name || 'Untitled'}</span>
+            {sl.status === 'draft' && (
+              <span className="shrink-0 text-label-11 font-semibold px-1.5 py-0.5 rounded bg-[var(--ds-amber-100)] text-[var(--ds-amber-1000)] border border-[var(--ds-amber-400)]">Draft</span>
+            )}
             {onSelectPreview && !isTablet && (
               <button onClick={(e) => openPeek(sl, e)} aria-label="Open in pane" title="Open in pane"
                 className="hidden lg:inline-flex ml-auto items-center justify-center w-7 h-7 rounded-md border-none bg-transparent text-[var(--modes-text-muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--modes-surface-strong)] hover:text-[var(--modes-text)] transition-all cursor-pointer">

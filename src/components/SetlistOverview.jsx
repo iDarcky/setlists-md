@@ -172,8 +172,11 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
               </div>
 
               {/* Row 2: setlist name */}
-              <h1 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 mb-2 truncate">
-                {setlist.name || 'Untitled Setlist'}
+              <h1 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 mb-2 truncate flex items-center gap-2">
+                <span className="truncate">{setlist.name || 'Untitled Setlist'}</span>
+                {setlist.status === 'draft' && (
+                  <span className="shrink-0 text-label-11 font-semibold px-1.5 py-0.5 rounded bg-[var(--ds-amber-100)] text-[var(--ds-amber-1000)] border border-[var(--ds-amber-400)]">Draft</span>
+                )}
               </h1>
 
               {/* Row 2b: workspace + authorship — team workspaces only. */}
