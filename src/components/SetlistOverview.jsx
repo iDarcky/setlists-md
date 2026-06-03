@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { transposeKey, compactLabel } from '../music';
+import { transposeKey, compactLabel, sectionStyle } from '../music';
 import { resolveSongView } from '../arrangements';
+import { cn } from '../lib/utils';
 import { Chip } from './ui/Chip';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
@@ -10,6 +11,18 @@ import RosterPanel from './setlist/RosterPanel';
 import { headerFrostStyle } from '../lib/headerFrost';
 import { formatClockTime } from '../lib/dateFormat';
 import { useConfirm } from './ui/useConfirmHook';
+
+// TEMPORARY: row-surface design options for the song/break rows. Pick one via
+// the switcher above the Set Order list, then we keep the winner and delete
+// the rest (plus the .slrow-* CSS and this switcher).
+const ROW_STYLES = [
+  { id: 'elevate', label: '1 · Elevation' },
+  { id: 'translucent', label: '2 · Translucent' },
+  { id: 'brand', label: '3 · Brand tint' },
+  { id: 'outline', label: '4 · Outline' },
+  { id: 'accent', label: '5 · Accent' },
+  { id: 'soft', label: '1+2 · Soft' },
+];
 
 export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false }) {
   const confirm = useConfirm();
@@ -23,6 +36,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
   const [collapsed, setCollapsed] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [showDetails, setShowDetails] = useState(true);
+  const [rowStyle, setRowStyle] = useState('soft');
   const scrollRef = useRef(null);
 
   // Own scroll container (not window) so the overview scrolls correctly when
@@ -206,6 +220,26 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           </label>
         </div>
 
+        {/* TEMPORARY row-style switcher — pick a look, then tell me which to keep. */}
+        <div className="flex flex-wrap items-center gap-1.5 mb-4">
+          <span className="text-label-11 uppercase tracking-wide text-[var(--ds-gray-600)] mr-1">Row style</span>
+          {ROW_STYLES.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setRowStyle(s.id)}
+              className={cn(
+                'px-2.5 h-7 rounded-md text-label-12 border cursor-pointer transition-colors',
+                rowStyle === s.id
+                  ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                  : 'border-[var(--ds-gray-400)] text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)]'
+              )}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex flex-col gap-2">
           {setlist.items.map((item, idx) => {
 
@@ -218,7 +252,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                     aria-label="Break"
                   >
                     <span className="flex-1 border-t border-dashed border-[var(--ds-gray-400)]" aria-hidden="true" />
-                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--ds-gray-200)] border border-[var(--ds-gray-400)]">
+                    <span className={cn('inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--ds-gray-400)] slrow-pill', `slrow-v-${rowStyle}`)}>
                       <span className="text-label-11 uppercase tracking-[0.18em] font-semibold text-[var(--ds-gray-1000)]">
                         {item.label || 'Break'}
                       </span>
@@ -242,7 +276,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
 
               if (!song) {
                 return (
-                  <div key={idx} className="material-card flex items-center gap-3 px-4 py-3 opacity-60" style={{ backgroundColor: 'var(--ds-gray-200)' }}>
+                  <div key={idx} className={cn('material-card flex items-center gap-3 px-4 py-3 opacity-60', `slrow-v-${rowStyle}`)}>
                     <span className="text-label-14 text-[var(--ds-gray-500)] tabular-nums w-7 text-center shrink-0">
                       {num}
                     </span>
@@ -256,12 +290,16 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
               }
 
               const displayKey = transposeKey(song.key, item.transpose);
+              // Variant 5 ("Accent"): a colored left strip from the song's first
+              // section type. Other variants ignore this.
+              const firstSection = (song.structure && song.structure[0]) || song.sections?.[0]?.type || 'Verse';
+              const accentColor = sectionStyle(firstSection).b;
 
               return (
                 <div
                   key={idx}
-                  className="material-card flex items-center gap-3 px-4 py-3"
-                  style={{ backgroundColor: 'var(--ds-gray-200)' }}
+                  className={cn('material-card flex items-center gap-3 px-4 py-3', `slrow-v-${rowStyle}`)}
+                  style={rowStyle === 'accent' ? { borderLeft: `3px solid ${accentColor}` } : undefined}
                 >
                   <span className="text-label-14 text-[var(--ds-gray-500)] tabular-nums w-7 text-center shrink-0">
                     {num}

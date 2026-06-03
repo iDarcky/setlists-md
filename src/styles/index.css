@@ -837,3 +837,34 @@ html.dialog-open main {
   overscroll-behavior: none;
   touch-action: none;
 }
+
+/* ───────────────────────────────────────────────────────────────────────
+   Setlist row style preview variants — TEMPORARY design-selection switcher
+   in SetlistOverview. Unlayered on purpose so they override material-card
+   and Tailwind background utilities regardless of source order. Each variant
+   sets only background / border-color / box-shadow so the element keeps its
+   own border-radius (material-card for songs, rounded-full for the break pill).
+   ─────────────────────────────────────────────────────────────────────── */
+.slrow-pill { background: var(--ds-background-100); }
+
+/* 1 — Elevation: same fill as the page, lifted with a soft shadow. */
+.slrow-v-elevate { box-shadow: 0 1px 2px rgba(0,0,0,0.22), 0 8px 22px rgba(0,0,0,0.16); }
+[data-theme="light"] .slrow-v-elevate { box-shadow: 0 1px 2px rgba(0,0,0,0.05), 0 10px 24px rgba(0,0,0,0.08); }
+
+/* 2 — Translucent surface (matches the Library/Setlists card lists). */
+.slrow-v-translucent { background: rgba(255,255,255,0.055); border-color: rgba(255,255,255,0.11); }
+[data-theme="light"] .slrow-v-translucent { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.09); }
+
+/* 3 — Brand-tinted wash. */
+.slrow-v-brand { background: color-mix(in srgb, var(--color-brand) 8%, var(--ds-background-100)); border-color: color-mix(in srgb, var(--color-brand) 24%, var(--ds-gray-400)); }
+
+/* 4 — Outline-led: page fill, a stronger border does the separating. */
+.slrow-v-outline { border-color: var(--ds-gray-500); }
+
+/* 5 — Accent: quiet translucent base + a per-section colored strip (inline). */
+.slrow-v-accent { background: rgba(255,255,255,0.035); border-color: rgba(255,255,255,0.08); }
+[data-theme="light"] .slrow-v-accent { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.07); }
+
+/* 1+2 — Translucent + elevation. */
+.slrow-v-soft { background: rgba(255,255,255,0.055); border-color: rgba(255,255,255,0.09); box-shadow: 0 1px 2px rgba(0,0,0,0.18), 0 8px 22px rgba(0,0,0,0.13); }
+[data-theme="light"] .slrow-v-soft { background: rgba(0,0,0,0.038); border-color: rgba(0,0,0,0.06); box-shadow: 0 1px 2px rgba(0,0,0,0.05), 0 10px 24px rgba(0,0,0,0.08); }
