@@ -1821,6 +1821,7 @@ export default function App() {
               isTeamContext={activeLibrary !== 'personal'}
               workspaceName={currentWorkspaceName}
               onDirtyChange={markSetlistDirty}
+              onUpdateSong={handleUpdateSong}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
               clockFormat={settings?.clockFormat || '12h'}
             />

@@ -9,7 +9,7 @@ import { Input } from '../ui/Input';
  */
 export default function SetlistItemRow({
   item, idx, song, songNum,
-  onRemove, onUpdateNote, onUpdateTranspose, onUpdateCapo,
+  onRemove, onUpdateNote, onUpdateTranspose, onUpdateCapo, onUpdateSong,
   onUpdateBreakField,
   dragHandleProps,
   rawSong,
@@ -17,6 +17,10 @@ export default function SetlistItemRow({
   onMoveUp, onMoveDown, isFirst, isLast,
 }) {
   const [expanded, setExpanded] = useState(false);
+  // Drafts for the arrangement-level fields (tempo / structure) so typing
+  // doesn't persist on every keystroke; null = show the canonical value.
+  const [tempoDraft, setTempoDraft] = useState(null);
+  const [structDraft, setStructDraft] = useState(null);
   const [breakNotesOpen, setBreakNotesOpen] = useState(() => Boolean(item.type === 'break' && item.note));
 
   /* ── Break row: slim dashed-border divider, no number ── */
@@ -379,6 +383,30 @@ export default function SetlistItemRow({
             </select>
           </div>
 
+          {/* Tempo — edits the arrangement (applies to the song everywhere) */}
+          {onUpdateSong && (
+            <div className="flex flex-col gap-0.5">
+              <span className="text-label-10 text-[var(--ds-gray-600)]">Tempo</span>
+              <input
+                type="number"
+                min="0"
+                inputMode="numeric"
+                value={tempoDraft != null ? tempoDraft : (song.tempo ?? '')}
+                onChange={e => setTempoDraft(e.target.value)}
+                onBlur={() => {
+                  if (tempoDraft == null) return;
+                  const v = tempoDraft.trim() === '' ? null : parseInt(tempoDraft, 10);
+                  onUpdateSong({ ...song, tempo: Number.isFinite(v) ? v : null });
+                  setTempoDraft(null);
+                }}
+                placeholder="120"
+                aria-label="Tempo (BPM)"
+                className="w-16 px-2 py-1 rounded-md text-label-13-mono font-bold outline-none bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] text-[var(--ds-gray-1000)] focus:border-[var(--ds-gray-600)] transition-colors"
+                style={{ minHeight: 'auto' }}
+              />
+            </div>
+          )}
+
           {/* Note — capped at 100 chars so it stays a one-liner cue and
               never overflows the row in the setlist viewer. */}
           <div className="flex flex-col gap-0.5 flex-1 min-w-[120px]">
@@ -404,8 +432,27 @@ export default function SetlistItemRow({
             />
           </div>
 
-          {/* Structure (read-only) */}
-          {(() => {
+          {/* Structure — editable; writes to the arrangement (song-wide). */}
+          {onUpdateSong ? (
+            <div className="flex flex-col gap-0.5 w-full mt-2">
+              <span className="text-label-10 text-[var(--ds-gray-600)]">Structure</span>
+              <Input
+                value={structDraft != null ? structDraft : (song.structure || song.sections?.map(s => s.type) || []).join(', ')}
+                onChange={e => setStructDraft(e.target.value)}
+                onBlur={() => {
+                  if (structDraft == null) return;
+                  onUpdateSong({ ...song, structure: structDraft.split(',').map(s => s.trim()).filter(Boolean) });
+                  setStructDraft(null);
+                }}
+                placeholder="Verse, Chorus, Bridge…"
+                size="sm"
+                variant="ghost"
+              />
+              <span className="text-label-10 text-[var(--ds-gray-500)] mt-0.5">
+                Tempo & structure apply to this song everywhere.
+              </span>
+            </div>
+          ) : (() => {
             const flow = (song.structure || song.sections?.map(s => s.type) || []).join(' · ');
             if (!flow) return null;
             return (
