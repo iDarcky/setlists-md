@@ -45,6 +45,10 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
     return () => node.removeEventListener('scroll', onScroll);
   }, [embedded]);
 
+  // Open practice; `i` is the item index to start on (tapping a song row),
+  // omitted/non-numeric (e.g. from a button's event) starts at the top.
+  const practiceAt = (i) => onPractice?.(Number.isInteger(i) ? i : 0);
+
   const { songCount, breakCount } = useMemo(() => {
     let sc = 0, bc = 0;
     for (const it of setlist.items) {
@@ -201,6 +205,27 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
             </>
           )}
 
+          {/* Tabs (team workspaces only) live in the header so they stay put
+              while the body switches between Set order and Roster. */}
+          {team && (
+            <div className="inline-flex p-0.5 mt-1 mb-3 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)]">
+              {[['setlist', 'Set order'], ['roster', 'Roster']].map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTab(id)}
+                  className={`px-3.5 h-8 rounded-md text-label-13 font-semibold transition-colors border-none cursor-pointer ${
+                    tab === id
+                      ? 'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] shadow-sm'
+                      : 'bg-transparent text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
         </div>
       </div>
 
@@ -210,7 +235,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
         <div className="sm:hidden a4-container pt-4">
           <button
             type="button"
-            onClick={onPractice}
+            onClick={() => practiceAt()}
             className="w-full h-11 rounded-xl bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] flex items-center justify-center gap-2 text-label-14 font-semibold text-[var(--ds-gray-1000)] cursor-pointer active:scale-[0.99] transition"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -219,28 +244,6 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
             </svg>
             Practice this set
           </button>
-        </div>
-      )}
-
-      {/* ── Tabs (team workspaces only): Set order / Roster ── */}
-      {team && (
-        <div className="a4-container pt-5">
-          <div className="inline-flex p-0.5 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)]">
-            {[['setlist', 'Set order'], ['roster', 'Roster']].map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTab(id)}
-                className={`px-3.5 h-8 rounded-md text-label-13 font-semibold transition-colors border-none cursor-pointer ${
-                  tab === id
-                    ? 'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] shadow-sm'
-                    : 'bg-transparent text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
       )}
 
@@ -315,7 +318,14 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
               return (
                 <div
                   key={idx}
-                  className="material-card flex items-center gap-3 px-4 py-3 slrow-v-soft"
+                  {...(onPractice ? {
+                    role: 'button',
+                    tabIndex: 0,
+                    onClick: () => practiceAt(idx),
+                    onKeyDown: (e) => { if (e.key === 'Enter') practiceAt(idx); },
+                    title: 'Open in practice',
+                  } : {})}
+                  className={`material-card flex items-center gap-3 px-4 py-3 slrow-v-soft ${onPractice ? 'cursor-pointer transition-transform hover:-translate-y-px active:scale-[0.995]' : ''}`}
                 >
                   <span className="text-label-14 text-[var(--ds-gray-500)] tabular-nums w-7 text-center shrink-0">
                     {num}
@@ -399,8 +409,8 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           <div
             role="button"
             tabIndex={0}
-            onClick={onPractice}
-            onKeyDown={(e) => e.key === 'Enter' && onPractice?.()}
+            onClick={() => practiceAt()}
+            onKeyDown={(e) => e.key === 'Enter' && practiceAt()}
             className="flex items-center gap-2 h-10 px-4 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] shadow-md cursor-pointer hover:bg-[var(--ds-background-100)] transition-all duration-150 active:scale-95 select-none"
             aria-label="Practice setlist"
           >

@@ -437,7 +437,7 @@ export default function Setlists({
                 onExportPdfOverview={() => onExportSetlistPdfOverview?.(previewSetlist)}
                 onExportPdfFull={() => onExportSetlistPdfFull?.(previewSetlist)}
                 onPlay={() => onPlaySetlist(previewSetlist)}
-                onPractice={() => onPracticeSetlist?.(previewSetlist)}
+                onPractice={(i) => onPracticeSetlist?.(previewSetlist, i)}
                 onDelete={canEdit ? () => onDeleteSetlist?.(previewSetlist.id) : undefined}
                 isFullscreen={false}
                 canEdit={canEdit}
@@ -513,7 +513,7 @@ export default function Setlists({
               onExportPdfOverview={() => onExportSetlistPdfOverview?.(previewSetlist)}
               onExportPdfFull={() => onExportSetlistPdfFull?.(previewSetlist)}
               onPlay={() => onPlaySetlist(previewSetlist)}
-              onPractice={() => onPracticeSetlist?.(previewSetlist)}
+              onPractice={(i) => onPracticeSetlist?.(previewSetlist, i)}
               onDelete={canEdit ? () => onDeleteSetlist?.(previewSetlist.id) : undefined}
               isFullscreen={isFullscreen}
               canEdit={canEdit}

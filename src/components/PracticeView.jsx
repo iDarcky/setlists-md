@@ -12,9 +12,14 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import NoteContent from './ui/NoteContent';
 import { headerFrostStyle } from '../lib/headerFrost';
 
-export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, defaultColumns, settings, onUpdateSettings, onOpenAdvancedStyle }) {
+export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, defaultColumns, settings, onUpdateSettings, onOpenAdvancedStyle, startIndex = 0 }) {
   const [layoutOpen, setLayoutOpen] = useState(false);
-  const [idx, setIdx] = useState(0);
+  // Start at the requested item (e.g. tapping a song in the overview) clamped
+  // into range; defaults to the top of the set.
+  const [idx, setIdx] = useState(() => {
+    const n = setlist.items?.length || 0;
+    return Number.isInteger(startIndex) && startIndex >= 0 && startIndex < n ? startIndex : 0;
+  });
   const [selectedKey, setSelectedKey] = useState(null);
   const fontSize = defaultFontSize || 18;
   const columns = defaultColumns || 1;

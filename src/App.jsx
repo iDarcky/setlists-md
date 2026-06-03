@@ -180,6 +180,8 @@ export default function App() {
   // guard on header nav + browser back (the builder reports it via callback).
   const setlistDirtyRef = useRef(false);
   const markSetlistDirty = useCallback((dirty) => { setlistDirtyRef.current = dirty; }, []);
+  // Which item to open in setlist practice (tapping a song in the overview).
+  const [practiceStartIndex, setPracticeStartIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [authStartMode, setAuthStartMode] = useState('signin');
   const [newSongModal, setNewSongModal] = useState(null);
@@ -899,7 +901,10 @@ export default function App() {
     }
     navigate('setlist-performance', { setlist: sl });
   };
-  const goSetlistPractice = (sl) => navigate('setlist-practice', { setlist: sl });
+  const goSetlistPractice = (sl, startIndex = 0) => {
+    setPracticeStartIndex(Number.isInteger(startIndex) ? startIndex : 0);
+    navigate('setlist-practice', { setlist: sl });
+  };
   const goPracticeFinale = (sl, stats) => {
     setSessionStats(stats || null);
     setSessionSource('practice');
@@ -1147,6 +1152,7 @@ export default function App() {
       title: `Delete ${ids.length} song${ids.length === 1 ? '' : 's'}?`,
       description: 'They are removed from this library across all your devices.',
       confirmLabel: 'Delete',
+      variant: 'danger',
     });
     if (!ok) return;
     const idSet = new Set(ids);
@@ -1378,6 +1384,7 @@ export default function App() {
       title: `Delete ${ids.length} setlist${ids.length === 1 ? '' : 's'}?`,
       description: 'They are removed from this workspace across all your devices.',
       confirmLabel: 'Delete',
+      variant: 'danger',
     });
     if (!ok) return;
     const idSet = new Set(ids);
@@ -1703,7 +1710,7 @@ export default function App() {
               loaded={loaded}
               onViewSetlist={goSetlistView}
               onPlaySetlist={goSetlistPerformance}
-              onPracticeSetlist={(sl) => goSetlistPractice(sl)}
+              onPracticeSetlist={(sl, startIndex) => goSetlistPractice(sl, startIndex)}
               onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onImportSetlist={isTeamReadOnly ? null : handleImportSetlist}
               previewSetlistId={previewSetlistId}
@@ -1799,7 +1806,7 @@ export default function App() {
               onExportPdfFull={() => exportSetlistPdf(currentSetlist, songs, { mode: 'full' })}
               clockFormat={settings?.clockFormat || '12h'}
               onPlay={() => goSetlistPerformance(currentSetlist)}
-              onPractice={() => goSetlistPractice(currentSetlist)}
+              onPractice={(startIndex) => goSetlistPractice(currentSetlist, startIndex)}
               onDelete={isTeamReadOnly ? null : () => handleDeleteSetlist(currentSetlist.id)}
               canEdit={canEdit}
             />
@@ -1846,6 +1853,7 @@ export default function App() {
             <PracticeView
               setlist={currentSetlist}
               songs={songs}
+              startIndex={practiceStartIndex}
               onBack={goBack}
               onFinish={(stats) => goPracticeFinale(currentSetlist, stats)}
               onUpdateSong={handleUpdateSong}
