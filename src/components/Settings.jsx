@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Account from './Account';
 import SyncSettings from './settings/SyncSettings';
 import WhatsNewPanel from './settings/WhatsNewPanel';
 import ChartStylePanel from './settings/ChartStylePanel';
@@ -14,6 +15,13 @@ import { Dialog } from './ui/Dialog';
 import { useIsDesktop } from '../lib/useMediaQuery';
 
 // ─── Icons ───────────────────────────────────────────────────────────────
+
+const AccountIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
 
 const AppearanceIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -135,6 +143,7 @@ function HubRow({ icon: Icon, label, value, onClick }) {
 
 const PANEL_TITLES = {
   hub: 'Preferences',
+  account: 'Account',
   appearance: 'Appearance',
   chart: 'Chart Defaults',
   'chart-style': 'Chart Style',
@@ -576,6 +585,10 @@ export default function Settings({
   plan = 'Free',
   isSignedIn = false,
   displayName = '',
+  displayEmail = '',
+  onSignOut,
+  onSignIn,
+  onCreateAccount,
   // Sub-panel state lives in App.jsx so it participates in the back stack.
   panel = 'hub',
   onChangePanel = () => {},
@@ -598,6 +611,22 @@ export default function Settings({
 
   const renderPanel = (activePanel) => {
     switch (activePanel) {
+      case 'account':
+        return (
+          <Account
+            embedded
+            settings={settings}
+            onUpdate={onUpdate}
+            isSignedIn={isSignedIn}
+            displayName={displayName}
+            displayEmail={displayEmail}
+            plan={plan}
+            onUpgrade={onUpgrade}
+            onSignIn={onSignIn || onRequestSignIn}
+            onCreateAccount={onCreateAccount}
+            onSignOut={onSignOut}
+          />
+        );
       case 'appearance':
         return <AppearancePanel settings={settings} update={update} isSignedIn={isSignedIn} />;
       case 'chart':
@@ -655,6 +684,7 @@ export default function Settings({
   if (isDesktop) {
     const desktopPanel = panel === 'hub' ? 'appearance' : panel;
     const navItems = [
+      { key: 'account', label: 'Account', icon: AccountIcon, summary: isSignedIn ? (displayEmail || displayName) : 'Sign in' },
       { key: 'appearance', label: 'Appearance', icon: AppearanceIcon, summary: appearanceSummary(settings) },
       { key: 'chart', label: 'Chart Defaults', icon: ChartIcon, summary: chartSummary(settings) },
       { key: 'chart-style', label: 'Chart Style', icon: AppearanceIcon, summary: chartStyleSummary(settings), badge: 'Pro' },
@@ -739,6 +769,12 @@ export default function Settings({
       <div className="a4-container py-6 pb-20 flex flex-col gap-6">
         {panel === 'hub' && (
           <div className="modes-card flex flex-col p-0 overflow-hidden divide-y" style={{ borderColor: 'var(--modes-border)' }}>
+            <HubRow
+              icon={AccountIcon}
+              label="Account"
+              value={isSignedIn ? (displayEmail || displayName) : 'Sign in'}
+              onClick={() => onChangePanel('account')}
+            />
             <HubRow
               icon={AppearanceIcon}
               label="Appearance"

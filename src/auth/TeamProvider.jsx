@@ -133,7 +133,7 @@ export function TeamProvider({ children }) {
             const userIds = membersWithProfiles.map(m => m.user_id);
             const { data: fallbackProfiles } = await supabase
               .from('profiles')
-              .select('id, display_name, email')
+              .select('id, display_name, email, avatar_url')
               .in('id', userIds);
 
             if (fallbackProfiles) {
@@ -284,7 +284,7 @@ export function TeamProvider({ children }) {
           // Fetch their profile to add to local state.
           const { data: profile } = await supabase
             .from('profiles')
-            .select('id, display_name, email')
+            .select('id, display_name, email, avatar_url')
             .eq('id', data.user_id)
             .maybeSingle();
 

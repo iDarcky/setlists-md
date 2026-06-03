@@ -36,6 +36,7 @@ export default function Account({
   onSignIn,
   onCreateAccount,
   onSignOut,
+  embedded = false,
 }) {
   const { profile, updateProfile, updatePassword, deleteAccount, user } = useAuth();
   const { team, members, updateMyInstruments } = useTeam();
@@ -150,13 +151,11 @@ export default function Account({
 
   return (
     <div
-      className="drawer-panel min-h-screen pb-8"
-      style={{
-        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 24px)',
-      }}
+      className={embedded ? '' : 'drawer-panel min-h-screen pb-8'}
+      style={embedded ? undefined : { paddingTop: 'calc(env(safe-area-inset-top, 0px) + 24px)' }}
     >
-      <div className="a4-container pt-6 pb-10 flex flex-col gap-6">
-        <StageGreeting displayName={displayName} tone="drawer" />
+      <div className={embedded ? 'flex flex-col gap-6' : 'a4-container pt-6 pb-10 flex flex-col gap-6'}>
+        {!embedded && <StageGreeting displayName={displayName} tone="drawer" />}
         <AccountSummary
           isSignedIn={isSignedIn}
           displayEmail={displayEmail}

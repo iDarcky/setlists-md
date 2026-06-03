@@ -224,7 +224,7 @@ export default function TopHeader({
             <SettingsIcon />
           </button>
           <button
-            onClick={() => onNavigate('account')}
+            onClick={() => onNavigate('settings', { settingsPanel: 'account' })}
             className={cn(
               'inline-flex items-center justify-center w-9 h-9 rounded-full cursor-pointer border-none ml-1 overflow-hidden',
               'bg-[var(--ds-gray-300)] text-[var(--ds-gray-800)] hover:bg-[var(--ds-gray-400)] transition-colors',

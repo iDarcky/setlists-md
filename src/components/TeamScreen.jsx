@@ -138,15 +138,17 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
       className="flex items-center gap-3 px-4 py-3 rounded-xl"
       style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}
     >
-      {/* Avatar placeholder */}
+      {/* Avatar */}
       <div
-        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-label-14 font-bold"
+        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 overflow-hidden text-label-14 font-bold"
         style={{
           background: isOwner ? 'var(--color-brand-soft)' : 'var(--ds-gray-200)',
           color: isOwner ? 'var(--color-brand)' : 'var(--ds-gray-700)',
         }}
       >
-        {initial}
+        {profile.avatar_url
+          ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+          : initial}
       </div>
 
       <div className="flex-1 min-w-0">

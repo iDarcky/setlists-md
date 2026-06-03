@@ -1852,6 +1852,10 @@ export default function App() {
               plan={plan}
               isSignedIn={isSignedIn}
               displayName={displayName}
+              displayEmail={displayEmail}
+              onSignOut={handleSignOut}
+              onSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
+              onCreateAccount={() => { setAuthStartMode('signup'); navigate('signin'); }}
               activeLibrary={activeLibrary}
               team={team}
             />
