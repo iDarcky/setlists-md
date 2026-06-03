@@ -38,7 +38,8 @@ function ServiceField({ value, options, onChange }) {
       <select
         value={value || ''}
         onChange={e => { const v = e.target.value; if (v === '__add__') setAdding(true); else onChange(v); }}
-        className="w-full h-10 px-3 pr-9 rounded-lg appearance-none cursor-pointer bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] text-copy-14 text-[var(--ds-gray-1000)] outline-none focus:border-[var(--ds-gray-600)] transition-colors"
+        style={{ accentColor: 'var(--color-brand)' }}
+        className="w-full h-10 px-3 pr-9 rounded-lg appearance-none cursor-pointer bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] text-copy-14 text-[var(--ds-gray-1000)] outline-none focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand-soft)] transition-colors"
       >
         <option value="">No service</option>
         {list.map(s => <option key={s} value={s}>{s}</option>)}
