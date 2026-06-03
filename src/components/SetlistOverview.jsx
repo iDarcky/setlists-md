@@ -11,7 +11,7 @@ import { headerFrostStyle } from '../lib/headerFrost';
 import { formatClockTime } from '../lib/dateFormat';
 import { useConfirm } from './ui/useConfirmHook';
 
-export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true }) {
+export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false }) {
   const confirm = useConfirm();
   const { team, isAdmin } = useTeam();
   const [showRoster, setShowRoster] = useState(false);
@@ -27,14 +27,17 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
 
   // Own scroll container (not window) so the overview scrolls correctly when
   // embedded in the tablet docked pane / side-peek, and so it presents a single
-  // scrollbar inside `<main>` rather than nesting a second one.
+  // scrollbar inside `<main>` rather than nesting a second one. In the narrow
+  // pane (embedded) we skip the scroll-collapse — the header height swap is
+  // jarring in such a small viewport.
   useEffect(() => {
+    if (embedded) return;
     const node = scrollRef.current;
     if (!node) return;
     const onScroll = () => setCollapsed(node.scrollTop > 60);
     node.addEventListener('scroll', onScroll, { passive: true });
     return () => node.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [embedded]);
 
   const { songCount, breakCount } = useMemo(() => {
     let sc = 0, bc = 0;

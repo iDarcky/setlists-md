@@ -714,6 +714,21 @@
   --modes-text-dim: rgba(255, 255, 255, 0.45);
   --modes-bg: #0a0807;
 
+  /* Drawer-styled components (e.g. Account) are also embedded inside this
+     variant (the Settings modal). Their --drawer-* tokens are otherwise only
+     defined on `.drawer-panel`, so without this map their borders fall back to
+     currentColor (a white outline). Derive them from the modes palette so they
+     flip with light/dark automatically. */
+  --drawer-surface: var(--modes-surface);
+  --drawer-surface-hover: var(--modes-surface-strong);
+  --drawer-border: var(--modes-border);
+  --drawer-close-bg: var(--modes-surface);
+  --drawer-close-bg-hover: var(--modes-surface-strong);
+  --drawer-text: var(--modes-text);
+  --drawer-text-muted: var(--modes-text-muted);
+  --drawer-text-dim: var(--modes-text-dim);
+  --drawer-text-faint: var(--modes-text-dim);
+
   background: var(--modes-bg);
   color: var(--modes-text);
 }

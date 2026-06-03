@@ -427,6 +427,7 @@ export default function Setlists({
               <SetlistOverview
                 key={previewSetlist.id}
                 setlist={previewSetlist}
+                embedded
                 songs={songs}
                 clockFormat={clockFormat}
                 onBack={closePeek}
@@ -502,6 +503,7 @@ export default function Setlists({
             <SetlistOverview
               key={previewSetlist.id}
               setlist={previewSetlist}
+              embedded
               songs={songs}
               clockFormat={clockFormat}
               onBack={closePeek}
