@@ -58,7 +58,8 @@ export default function MobileTopBar({
   const [focused, setFocused] = useState(false);
   const [wsOpen, setWsOpen] = useState(false);
   const inputRef = useRef(null);
-  const wsRef = useRef(null);
+  const avatarBtnRef = useRef(null);
+  const menuRef = useRef(null);
   const containerRef = useRef(null);
 
   const q = query.trim().toLowerCase();
@@ -84,7 +85,9 @@ export default function MobileTopBar({
   useEffect(() => {
     const handler = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) setFocused(false);
-      if (wsRef.current && !wsRef.current.contains(e.target)) setWsOpen(false);
+      const inAvatar = avatarBtnRef.current && avatarBtnRef.current.contains(e.target);
+      const inMenu = menuRef.current && menuRef.current.contains(e.target);
+      if (!inAvatar && !inMenu) setWsOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -117,51 +120,9 @@ export default function MobileTopBar({
       className="sm:hidden"
       style={{ position: 'sticky', top: 0, zIndex: 40, paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
-      {/* Workspace switcher chip */}
-      <div className="px-3 pt-3 pb-1.5">
-        <div ref={wsRef} className="relative inline-block max-w-full">
-          <button
-            onClick={() => setWsOpen(o => !o)}
-            aria-haspopup="menu"
-            aria-expanded={wsOpen}
-            className="inline-flex items-center gap-2 h-9 pl-1.5 pr-2.5 rounded-full max-w-[70vw] bg-[var(--ds-gray-100)] border-none cursor-pointer active:bg-[var(--ds-gray-200)] transition-colors"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            <WorkspaceBadge workspace={activeWorkspace} size={24} />
-            <span className="text-label-14 font-semibold text-[var(--text-1)] truncate">
-              {activeWorkspace?.name || 'Personal'}
-            </span>
-            <ChevronIcon open={wsOpen} />
-          </button>
-
-          {wsOpen && (
-            <div role="menu" className="absolute left-0 top-full mt-2 w-[260px] max-w-[80vw] rounded-2xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-xl z-50 overflow-hidden py-1">
-              {workspaces.map(w => {
-                const active = w.id === activeWorkspace?.id;
-                return (
-                  <button
-                    key={w.id}
-                    role="menuitem"
-                    onClick={() => selectWorkspace(w.id)}
-                    className="w-full flex items-center gap-3 px-3 py-3 bg-transparent border-none text-left cursor-pointer active:bg-[var(--bg-2)]"
-                  >
-                    <WorkspaceBadge workspace={w} size={28} />
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-copy-15 text-[var(--text-1)] truncate">{w.name}</span>
-                      {w.id !== 'personal' && <span className="block text-label-12 text-[var(--text-2)]">Team workspace</span>}
-                    </span>
-                    {active && <span className="text-[var(--color-brand)] shrink-0"><CheckIcon /></span>}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Search card — hamburger embedded on the left. Creating items is the
-          job of the morphing FAB in the glass bottom bar. */}
-      <div className="px-3 pb-3">
+      {/* Search card — hamburger left, workspace avatar right (opens switcher).
+          Creating items is the job of the morphing FAB in the glass bottom bar. */}
+      <div className="px-3 pt-3 pb-3 relative">
         <div className="flex items-stretch h-14 rounded-xl bg-[var(--ds-gray-100)] overflow-hidden">
           <button
             onClick={onOpenDrawer}
@@ -182,7 +143,48 @@ export default function MobileTopBar({
               className="w-full h-full px-4 bg-transparent border-none text-copy-15 text-[var(--text-1)] placeholder:text-[var(--text-2)] outline-none"
             />
           </div>
+          {/* Workspace avatar — inside the field, on the right */}
+          <div className="shrink-0 flex items-center pr-2.5 pl-0.5">
+            <span className="w-px h-7 bg-[var(--ds-gray-300)] mr-2" aria-hidden="true" />
+            <button
+              ref={avatarBtnRef}
+              onClick={() => setWsOpen(o => !o)}
+              aria-haspopup="menu"
+              aria-expanded={wsOpen}
+              aria-label="Switch workspace"
+              className="flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0 active:opacity-80"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <WorkspaceBadge workspace={activeWorkspace} size={32} />
+              <ChevronIcon open={wsOpen} />
+            </button>
+          </div>
         </div>
+
+        {/* Switcher menu — sibling of the card so the card's overflow-hidden
+            doesn't clip it. */}
+        {wsOpen && (
+          <div ref={menuRef} role="menu" className="absolute right-3 top-full mt-1 w-[260px] max-w-[80vw] rounded-2xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-xl z-50 overflow-hidden py-1">
+            {workspaces.map(w => {
+              const active = w.id === activeWorkspace?.id;
+              return (
+                <button
+                  key={w.id}
+                  role="menuitem"
+                  onClick={() => selectWorkspace(w.id)}
+                  className="w-full flex items-center gap-3 px-3 py-3 bg-transparent border-none text-left cursor-pointer active:bg-[var(--bg-2)]"
+                >
+                  <WorkspaceBadge workspace={w} size={28} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-copy-15 text-[var(--text-1)] truncate">{w.name}</span>
+                    {w.id !== 'personal' && <span className="block text-label-12 text-[var(--text-2)]">Team workspace</span>}
+                  </span>
+                  {active && <span className="text-[var(--color-brand)] shrink-0"><CheckIcon /></span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Search results dropdown */}
