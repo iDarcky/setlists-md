@@ -1559,11 +1559,12 @@ export default function App() {
               onOpenDrawer={openDrawer}
               onSelectSong={goChart}
               onSelectSetlist={goSetlistView}
-              onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
-              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               activeLibrary={activeLibrary}
-              team={team}
-              onChangeWorkspace={openDrawer}
+              workspaces={[
+                { id: 'personal', name: 'Personal', avatarUrl: profile?.avatar_url || null },
+                ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null })),
+              ]}
+              setActiveLibrary={switchWorkspace}
             />
           )}
           {view === 'home' && (
@@ -1902,12 +1903,6 @@ export default function App() {
           onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
           onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
           onPlay={view === 'setlist-view' && currentSetlist ? () => goSetlistPerformance(currentSetlist) : null}
-          activeLibrary={activeLibrary}
-          workspaces={[
-            { id: 'personal', name: 'Personal', avatarUrl: profile?.avatar_url || null },
-            ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null })),
-          ]}
-          setActiveLibrary={switchWorkspace}
         />
       )}
       {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && ['home', 'library', 'setlists'].includes(view) && !drawerOpen && (

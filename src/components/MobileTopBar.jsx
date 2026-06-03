@@ -3,21 +3,21 @@ import SongCard from './SongCard';
 
 const HamburgerIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="3" y1="7" x2="21" y2="7" />
-    <line x1="3" y1="12" x2="21" y2="12" />
-    <line x1="3" y1="17" x2="21" y2="17" />
+    <line x1="3" y1="7" x2="21" y2="7" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="17" x2="21" y2="17" />
   </svg>
 );
-
-const PlusIcon = ({ open = false }) => (
-  <svg
-    width="26" height="26" viewBox="0 0 24 24"
-    fill="none" stroke="white" strokeWidth="2.5"
-    strokeLinecap="round" strokeLinejoin="round"
-    className={`transition-transform duration-200 ${open ? 'rotate-45' : ''}`}
-  >
-    <line x1="12" y1="5" x2="12" y2="19" />
-    <line x1="5" y1="12" x2="19" y2="12" />
+const ChevronIcon = ({ open }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-150 ${open ? 'rotate-180' : ''}`}>
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);
+const CheckIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+);
+const TeamGlyph = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 );
 
@@ -27,6 +27,22 @@ function formatDateShort(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+function WorkspaceBadge({ workspace, size = 22 }) {
+  const isPersonal = workspace?.id === 'personal';
+  return (
+    <span
+      className="rounded-full bg-[var(--ds-gray-300)] flex items-center justify-center shrink-0 overflow-hidden text-[var(--ds-gray-700)]"
+      style={{ width: size, height: size }}
+    >
+      {workspace?.avatarUrl
+        ? <img src={workspace.avatarUrl} alt="" className="w-full h-full object-cover" />
+        : isPersonal
+          ? <span className="text-label-12 font-bold">{(workspace?.name || 'P').charAt(0).toUpperCase()}</span>
+          : <TeamGlyph />}
+    </span>
+  );
+}
+
 export default function MobileTopBar({
   view,
   songs,
@@ -34,14 +50,15 @@ export default function MobileTopBar({
   onOpenDrawer,
   onSelectSong,
   onSelectSetlist,
-  onNewSong,
-  onNewSetlist,
+  activeLibrary = 'personal',
+  workspaces = [],
+  setActiveLibrary,
 }) {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
+  const [wsOpen, setWsOpen] = useState(false);
   const inputRef = useRef(null);
-  const addRef = useRef(null);
+  const wsRef = useRef(null);
   const containerRef = useRef(null);
 
   const q = query.trim().toLowerCase();
@@ -66,12 +83,8 @@ export default function MobileTopBar({
 
   useEffect(() => {
     const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setFocused(false);
-      }
-      if (addRef.current && !addRef.current.contains(e.target)) {
-        setAddOpen(false);
-      }
+      if (containerRef.current && !containerRef.current.contains(e.target)) setFocused(false);
+      if (wsRef.current && !wsRef.current.contains(e.target)) setWsOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -79,116 +92,96 @@ export default function MobileTopBar({
 
   useEffect(() => {
     const handler = (e) => {
-      if (e.key === 'Escape') {
-        setFocused(false);
-        setAddOpen(false);
-        inputRef.current?.blur();
-      }
+      if (e.key === 'Escape') { setFocused(false); setWsOpen(false); inputRef.current?.blur(); }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
-
-  const handlePlus = () => {
-    if (view === 'library') onNewSong?.();
-    else if (view === 'setlists') onNewSetlist?.();
-    else setAddOpen(o => !o);
-  };
 
   const placeholder =
     view === 'setlists' ? 'Search setlists & songs…'
     : view === 'library' ? 'Search songs & setlists…'
     : 'Search my library…';
 
-  const closeSearch = () => {
-    setQuery('');
-    setFocused(false);
-    inputRef.current?.blur();
-  };
+  const closeSearch = () => { setQuery(''); setFocused(false); inputRef.current?.blur(); };
 
   const showResults = focused && q.length > 0;
   const hasAnyResults = results.songs.length > 0 || results.setlists.length > 0;
+
+  const activeWorkspace = workspaces.find(w => w.id === activeLibrary) || workspaces[0] || { id: 'personal', name: 'Personal' };
+  const selectWorkspace = (id) => { setWsOpen(false); setActiveLibrary?.(id); };
 
   return (
     <div
       ref={containerRef}
       className="sm:hidden"
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 40,
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-      }}
+      style={{ position: 'sticky', top: 0, zIndex: 40, paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
-      <div>
-        <div className="flex items-center gap-2 px-3 py-3">
-          {/* Search card — hamburger lives inside on the left. Creating items
-              is handled by the morphing FAB in the glass bottom bar. */}
-          <div className="flex-1 flex items-stretch h-14 rounded-xl bg-[var(--ds-gray-100)] overflow-hidden">
-            {/* Hamburger as an embedded card */}
-            <button
-              onClick={onOpenDrawer}
-              aria-label="Open menu"
-              className="shrink-0 w-12 flex items-center justify-center bg-transparent text-[var(--text-1)] cursor-pointer active:bg-[var(--ds-gray-200)] transition-colors border-none"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <HamburgerIcon />
-            </button>
-            {/* Search input */}
-            <div className="relative flex-1 min-w-0 flex items-center">
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                onFocus={() => setFocused(true)}
-                placeholder={placeholder}
-                className="w-full h-full px-4 bg-transparent border-none text-copy-15 text-[var(--text-1)] placeholder:text-[var(--text-2)] outline-none"
-              />
-            </div>
-          </div>
+      {/* Workspace switcher chip */}
+      <div className="px-3 pt-3 pb-1.5">
+        <div ref={wsRef} className="relative inline-block max-w-full">
+          <button
+            onClick={() => setWsOpen(o => !o)}
+            aria-haspopup="menu"
+            aria-expanded={wsOpen}
+            className="inline-flex items-center gap-2 h-9 pl-1.5 pr-2.5 rounded-full max-w-[70vw] bg-[var(--ds-gray-100)] border-none cursor-pointer active:bg-[var(--ds-gray-200)] transition-colors"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            <WorkspaceBadge workspace={activeWorkspace} size={24} />
+            <span className="text-label-14 font-semibold text-[var(--text-1)] truncate">
+              {activeWorkspace?.name || 'Personal'}
+            </span>
+            <ChevronIcon open={wsOpen} />
+          </button>
 
-          {/* + button — context-aware create (mirrors the bottom FAB) */}
-          {(onNewSong || onNewSetlist) && (
-            <div ref={addRef} className="relative shrink-0">
-              <button
-                onClick={handlePlus}
-                aria-label={view === 'library' ? 'New song' : view === 'setlists' ? 'New setlist' : 'New'}
-                className="w-14 h-14 rounded-xl flex items-center justify-center bg-[var(--color-brand)] shadow-[0_1px_2px_rgba(0,0,0,0.2)] cursor-pointer active:scale-95 transition-transform border-none"
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                <PlusIcon open={addOpen} />
-              </button>
-              {addOpen && (
-                <div className="absolute top-full right-0 mt-2 w-52 rounded-xl border border-[var(--border-1)] bg-[var(--bg-1)] shadow-xl overflow-hidden z-50">
-                  {onNewSong && (
-                    <button
-                      onClick={() => { setAddOpen(false); onNewSong?.(); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left text-copy-14 text-[var(--text-1)] cursor-pointer hover:bg-[var(--bg-2)]"
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
-                      </svg>
-                      New Song
-                    </button>
-                  )}
-                  {onNewSong && onNewSetlist && <div className="h-px bg-[var(--border-1)]" />}
-                  {onNewSetlist && (
-                    <button
-                      onClick={() => { setAddOpen(false); onNewSetlist?.(); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left text-copy-14 text-[var(--text-1)] cursor-pointer hover:bg-[var(--bg-2)]"
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-                        <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-                      </svg>
-                      New Setlist
-                    </button>
-                  )}
-                </div>
-              )}
+          {wsOpen && (
+            <div role="menu" className="absolute left-0 top-full mt-2 w-[260px] max-w-[80vw] rounded-2xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-xl z-50 overflow-hidden py-1">
+              {workspaces.map(w => {
+                const active = w.id === activeWorkspace?.id;
+                return (
+                  <button
+                    key={w.id}
+                    role="menuitem"
+                    onClick={() => selectWorkspace(w.id)}
+                    className="w-full flex items-center gap-3 px-3 py-3 bg-transparent border-none text-left cursor-pointer active:bg-[var(--bg-2)]"
+                  >
+                    <WorkspaceBadge workspace={w} size={28} />
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-copy-15 text-[var(--text-1)] truncate">{w.name}</span>
+                      {w.id !== 'personal' && <span className="block text-label-12 text-[var(--text-2)]">Team workspace</span>}
+                    </span>
+                    {active && <span className="text-[var(--color-brand)] shrink-0"><CheckIcon /></span>}
+                  </button>
+                );
+              })}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Search card — hamburger embedded on the left. Creating items is the
+          job of the morphing FAB in the glass bottom bar. */}
+      <div className="px-3 pb-3">
+        <div className="flex items-stretch h-14 rounded-xl bg-[var(--ds-gray-100)] overflow-hidden">
+          <button
+            onClick={onOpenDrawer}
+            aria-label="Open menu"
+            className="shrink-0 w-12 flex items-center justify-center bg-transparent text-[var(--text-1)] cursor-pointer active:bg-[var(--ds-gray-200)] transition-colors border-none"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            <HamburgerIcon />
+          </button>
+          <div className="relative flex-1 min-w-0 flex items-center">
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onFocus={() => setFocused(true)}
+              placeholder={placeholder}
+              className="w-full h-full px-4 bg-transparent border-none text-copy-15 text-[var(--text-1)] placeholder:text-[var(--text-2)] outline-none"
+            />
+          </div>
         </div>
       </div>
 
@@ -199,19 +192,14 @@ export default function MobileTopBar({
             <div className="divide-y divide-[var(--border-1)]">
               {results.songs.length > 0 && (
                 <div>
-                  <div className="px-4 pt-3 pb-1 text-label-12 uppercase tracking-wider text-[var(--text-2)]">
-                    Songs
-                  </div>
+                  <div className="px-4 pt-3 pb-1 text-label-12 uppercase tracking-wider text-[var(--text-2)]">Songs</div>
                   <div className="divide-y divide-[var(--border-1)]">
                     {results.songs.map(song => (
                       <div key={song.id} className="active:bg-[var(--bg-2)]">
                         <SongCard
                           song={song}
                           variant="row"
-                          onClick={() => {
-                            closeSearch();
-                            onSelectSong?.(song);
-                          }}
+                          onClick={() => { closeSearch(); onSelectSong?.(song); }}
                         />
                       </div>
                     ))}
@@ -220,23 +208,16 @@ export default function MobileTopBar({
               )}
               {results.setlists.length > 0 && (
                 <div>
-                  <div className="px-4 pt-3 pb-1 text-label-12 uppercase tracking-wider text-[var(--text-2)]">
-                    Setlists
-                  </div>
+                  <div className="px-4 pt-3 pb-1 text-label-12 uppercase tracking-wider text-[var(--text-2)]">Setlists</div>
                   <div className="divide-y divide-[var(--border-1)]">
                     {results.setlists.map(sl => (
                       <button
                         key={sl.id}
-                        onClick={() => {
-                          closeSearch();
-                          onSelectSetlist?.(sl);
-                        }}
+                        onClick={() => { closeSearch(); onSelectSetlist?.(sl); }}
                         className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-transparent border-none cursor-pointer active:bg-[var(--bg-2)] text-left"
                       >
                         <div className="flex flex-col min-w-0">
-                          <span className="text-copy-14 text-[var(--text-1)] truncate">
-                            {sl.name || 'Untitled setlist'}
-                          </span>
+                          <span className="text-copy-14 text-[var(--text-1)] truncate">{sl.name || 'Untitled setlist'}</span>
                           <span className="text-label-12 text-[var(--text-2)] truncate">
                             {(sl.items?.length || 0)} songs{sl.date ? ` • ${formatDateShort(sl.date)}` : ''}
                           </span>

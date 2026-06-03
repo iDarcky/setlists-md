@@ -23,13 +23,6 @@ const SongsIcon = () => (
     <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
   </svg>
 );
-
-function tabIcon(id, active) {
-  if (id === 'home') return <HomeIcon />;
-  if (id === 'library') return <SongsIcon />;
-  // setlists
-  return active ? <SetlistsLogo /> : <SetlistsOutlineIcon />;
-}
 const PlusIcon = ({ open = false }) => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${open ? 'rotate-45' : ''}`}>
     <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -38,18 +31,15 @@ const PlusIcon = ({ open = false }) => (
 const PlayIcon = () => (
   <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 5.5v13a1 1 0 0 0 1.54.84l10-6.5a1 1 0 0 0 0-1.68l-10-6.5A1 1 0 0 0 7 5.5Z" /></svg>
 );
-const SwapIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m17 2 4 4-4 4" /><path d="M3 6h18" /><path d="m7 22-4-4 4-4" /><path d="M21 18H3" />
+const SongMenuIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
   </svg>
 );
-const CheckIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-);
-const TeamGlyph = () => (
+const SetlistMenuIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+    <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
   </svg>
 );
 
@@ -58,6 +48,12 @@ const tabs = [
   { id: 'setlists', label: 'Setlists' },
   { id: 'library', label: 'Songs' },
 ];
+
+function tabIcon(id, active) {
+  if (id === 'home') return <HomeIcon />;
+  if (id === 'library') return <SongsIcon />;
+  return active ? <SetlistsLogo /> : <SetlistsOutlineIcon />;
+}
 
 // iOS 26 "Liquid Glass": translucent fill, heavy blur+saturate, a specular
 // top highlight and hairline edge, plus a soft drop shadow.
@@ -69,17 +65,14 @@ const GLASS = {
     'inset 0 1px 0 rgba(255,255,255,0.22), inset 0 0 0 0.5px rgba(255,255,255,0.10), 0 12px 34px rgba(0,0,0,0.38)',
 };
 
-export default function BottomNav({
-  activeView,
-  onNavigate,
-  onNewSong,
-  onNewSetlist,
-  onPlay,
-  activeLibrary = 'personal',
-  workspaces = [],
-  setActiveLibrary,
-}) {
-  const [menuOpen, setMenuOpen] = useState(null); // 'create' | 'workspace' | null
+/**
+ * Mobile shell footer (iOS 26 "liquid glass"): a floating translucent tab bar
+ * (Home / Setlists / Songs) plus a separate morphing action button. The FAB is
+ * a pure primary action — a create menu on Home, + on Songs/Setlists, and Play
+ * on a setlist. Workspace switching lives in the top bar.
+ */
+export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onPlay }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const fabRef = useRef(null);
 
   const activeId = tabs.some(t => t.id === activeView)
@@ -88,34 +81,24 @@ export default function BottomNav({
 
   useEffect(() => {
     if (!menuOpen) return;
-    const handler = (e) => { if (fabRef.current && !fabRef.current.contains(e.target)) setMenuOpen(null); };
-    const onKey = (e) => { if (e.key === 'Escape') setMenuOpen(null); };
+    const handler = (e) => { if (fabRef.current && !fabRef.current.contains(e.target)) setMenuOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setMenuOpen(false); };
     document.addEventListener('mousedown', handler);
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('keydown', onKey); };
   }, [menuOpen]);
 
-  const activeWorkspace = workspaces.find(w => w.id === activeLibrary) || workspaces[0] || { id: 'personal', name: 'Personal' };
-
   // Resolve the morphing FAB for the current view.
   let fab = null;
-  if (activeView === 'home') {
-    fab = { kind: 'workspace', label: 'Switch workspace' };
+  if (activeView === 'home' && (onNewSong || onNewSetlist)) {
+    fab = { kind: 'menu', label: 'Create', icon: <PlusIcon open={menuOpen} /> };
   } else if (activeView === 'library' && onNewSong) {
-    fab = { kind: 'action', accent: true, label: 'New song', onClick: onNewSong, icon: <PlusIcon /> };
+    fab = { kind: 'action', label: 'New song', onClick: onNewSong, icon: <PlusIcon /> };
   } else if (activeView === 'setlists' && onNewSetlist) {
-    fab = { kind: 'action', accent: true, label: 'New setlist', onClick: onNewSetlist, icon: <PlusIcon /> };
+    fab = { kind: 'action', label: 'New setlist', onClick: onNewSetlist, icon: <PlusIcon /> };
   } else if (activeView === 'setlist-view' && onPlay) {
-    fab = { kind: 'action', accent: true, label: 'Play live', onClick: onPlay, icon: <PlayIcon /> };
+    fab = { kind: 'action', label: 'Play live', onClick: onPlay, icon: <PlayIcon /> };
   }
-
-  const onFabClick = () => {
-    if (!fab) return;
-    if (fab.kind === 'workspace') setMenuOpen(m => (m === 'workspace' ? null : 'workspace'));
-    else fab.onClick();
-  };
-
-  const initial = (activeWorkspace?.name || 'P').trim().charAt(0).toUpperCase();
 
   return (
     <div
@@ -151,50 +134,32 @@ export default function BottomNav({
       {/* Separate glass circle — morphing FAB, on the same level as the bar */}
       {fab && (
         <div ref={fabRef} className="relative shrink-0">
-          {/* Workspace switcher menu */}
-          {menuOpen === 'workspace' && (
-            <div className="absolute bottom-full right-0 mb-3 w-60 rounded-2xl border border-white/10 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150 py-1" style={GLASS}>
-              {workspaces.map(w => {
-                const isActive = w.id === activeWorkspace?.id;
-                return (
-                  <button
-                    key={w.id}
-                    onClick={() => { setMenuOpen(null); setActiveLibrary?.(w.id); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left cursor-pointer active:bg-white/10"
-                  >
-                    <span className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center shrink-0 overflow-hidden text-[var(--ds-gray-1000)]">
-                      {w.avatarUrl
-                        ? <img src={w.avatarUrl} alt="" className="w-full h-full object-cover" />
-                        : w.id === 'personal'
-                          ? <span className="text-label-13 font-bold">{(w.name || 'P').charAt(0)}</span>
-                          : <TeamGlyph />}
-                    </span>
-                    <span className="flex-1 text-copy-15 text-[var(--ds-gray-1000)] truncate">{w.name}</span>
-                    {isActive && <span className="text-[var(--color-brand)] shrink-0"><CheckIcon /></span>}
-                  </button>
-                );
-              })}
+          {fab.kind === 'menu' && menuOpen && (
+            <div className="absolute bottom-full right-0 mb-3 w-52 rounded-2xl border border-white/10 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150" style={GLASS}>
+              {onNewSong && (
+                <button onClick={() => { setMenuOpen(false); onNewSong(); }} className="w-full flex items-center gap-3 px-4 py-3.5 bg-transparent border-none text-left text-copy-15 text-[var(--ds-gray-1000)] cursor-pointer active:bg-white/10">
+                  <SongMenuIcon /> New Song
+                </button>
+              )}
+              {onNewSong && onNewSetlist && <div className="h-px bg-white/10" />}
+              {onNewSetlist && (
+                <button onClick={() => { setMenuOpen(false); onNewSetlist(); }} className="w-full flex items-center gap-3 px-4 py-3.5 bg-transparent border-none text-left text-copy-15 text-[var(--ds-gray-1000)] cursor-pointer active:bg-white/10">
+                  <SetlistMenuIcon /> New Setlist
+                </button>
+              )}
             </div>
           )}
-
           <button
-            onClick={onFabClick}
+            onClick={() => fab.kind === 'menu' ? setMenuOpen(o => !o) : fab.onClick()}
             aria-label={fab.label}
-            className="w-[68px] h-[68px] rounded-full flex items-center justify-center cursor-pointer active:scale-95 transition-transform border overflow-hidden"
+            className="w-[68px] h-[68px] rounded-full flex items-center justify-center cursor-pointer active:scale-95 transition-transform border border-white/15 text-white"
             style={{
               WebkitTapHighlightColor: 'transparent',
-              ...(fab.accent
-                ? { background: 'var(--color-brand)', color: '#fff', borderColor: 'rgba(255,255,255,0.18)', boxShadow: '0 10px 28px rgba(0,0,0,0.35)' }
-                : { ...GLASS, borderColor: 'rgba(255,255,255,0.12)', color: 'var(--ds-gray-1000)' }),
+              background: 'var(--color-brand)',
+              boxShadow: '0 10px 28px rgba(0,0,0,0.35)',
             }}
           >
-            {fab.kind === 'workspace'
-              ? (activeWorkspace?.avatarUrl
-                  ? <img src={activeWorkspace.avatarUrl} alt="" className="w-full h-full object-cover" />
-                  : activeWorkspace?.id === 'personal'
-                    ? <span className="text-label-18 font-bold leading-none">{initial}</span>
-                    : <SwapIcon />)
-              : fab.icon}
+            {fab.icon}
           </button>
         </div>
       )}
