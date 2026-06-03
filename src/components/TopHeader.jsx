@@ -72,7 +72,6 @@ export default function TopHeader({
   activeLibrary,
   setActiveLibrary,
   teams = [],
-  displayName = 'Guest',
   plan = 'Free',
   avatarUrl = null,
   hasUnreadNotifications,
@@ -221,7 +220,8 @@ export default function TopHeader({
           )}
         </div>
 
-        {/* Right — notifications, preferences, account */}
+        {/* Right — feedback, notifications, preferences. Account is reached
+            through Preferences (which opens on the Account panel). */}
         <div className="flex items-center gap-1 justify-self-end">
           <FeedbackButton variant="header" />
           <button onClick={() => setTrayOpen(true)} className={iconBtn} aria-label="Notifications">
@@ -232,29 +232,10 @@ export default function TopHeader({
           </button>
           <button
             onClick={() => onNavigate('settings')}
-            className={cn(iconBtn, activeView === 'settings' && 'bg-[var(--ds-gray-200)] text-[var(--ds-gray-1000)]')}
+            className={cn(iconBtn, (activeView === 'settings' || activeView === 'account') && 'bg-[var(--ds-gray-200)] text-[var(--ds-gray-1000)]')}
             aria-label="Preferences"
           >
             <SettingsIcon />
-          </button>
-          <button
-            onClick={() => onNavigate('settings', { settingsPanel: 'account' })}
-            className={cn(
-              'inline-flex items-center justify-center w-9 h-9 rounded-full cursor-pointer border-none ml-1 overflow-hidden',
-              'bg-[var(--ds-gray-300)] text-[var(--ds-gray-800)] hover:bg-[var(--ds-gray-400)] transition-colors',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]',
-              activeView === 'account' && 'ring-2 ring-[var(--color-brand)]'
-            )}
-            aria-label="Account"
-            title={displayName}
-          >
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-label-14 font-semibold leading-none">
-                {(displayName || 'G').trim().charAt(0).toUpperCase()}
-              </span>
-            )}
           </button>
         </div>
       </header>

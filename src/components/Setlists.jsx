@@ -281,9 +281,9 @@ export default function Setlists({
   };
 
   return (
-    <div data-theme-variant="modes" className={cn('relative h-full', splitDock ? 'flex overflow-hidden' : 'overflow-y-auto')}>
+    <div data-theme-variant="modes" className={cn(splitDock ? 'absolute inset-0 flex overflow-hidden' : 'relative h-full overflow-y-auto')}>
       {/* List column — own scroller when a pane is docked beside it. */}
-      <div className={splitDock ? 'flex-1 min-w-0 min-h-0 h-full overflow-y-auto' : 'contents'}>
+      <div className={splitDock ? 'flex-1 min-w-0 min-h-0 overflow-y-auto' : 'contents'}>
       {/* Header */}
       <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)] hidden sm:block">
         <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 pt-5 sm:pt-7 pb-4 flex flex-wrap items-center gap-3">

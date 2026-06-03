@@ -68,22 +68,18 @@ export default function NotificationTray({ open, onClose, notifications = [], on
         onClick={onClose}
       />
 
-      {/* The tray panel itself */}
+      {/* The tray panel itself — a dropdown anchored under the header bell
+          (top-right) on every breakpoint. */}
       <div
         ref={trayRef}
         className="
-          fixed z-[200] w-[calc(100%-2rem)] max-w-sm rounded-2xl
+          fixed z-[200] w-[calc(100%-2rem)] max-w-[360px] rounded-2xl
           bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)]
           shadow-2xl flex flex-col overflow-hidden max-h-[70vh]
-
-          /* Mobile: top-right popover near the bell icon */
-          top-[72px] right-4 left-auto translate-x-0 translate-y-0
-
-          /* Desktop: responsive positioning based on sidebar width */
-          sm:left-[80px] sm:right-auto sm:top-auto sm:bottom-20
-          sm:translate-x-3 xl:left-[280px] xl:translate-x-4
+          top-[60px] right-4 left-auto sm:right-5
         "
         style={{
+          top: 'calc(56px + env(safe-area-inset-top, 0px))',
           animation: 'notifSlideDown 0.15s ease-out'
         }}
       >

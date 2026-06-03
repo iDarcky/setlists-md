@@ -95,7 +95,7 @@ const Section = ({ title, subtitle, children }) => (
         )}
       </div>
     )}
-    <div className="modes-card flex flex-col p-0 overflow-hidden divide-y" style={{ borderColor: 'var(--modes-border)' }}>
+    <div className="modes-card flex flex-col p-0 overflow-hidden divide-y divide-[var(--modes-border)]">
       {children}
     </div>
   </section>
@@ -682,7 +682,9 @@ export default function Settings({
 
   // Desktop: Notion-style modal with sidebar nav + content pane.
   if (isDesktop) {
-    const desktopPanel = panel === 'hub' ? 'appearance' : panel;
+    // Opening Preferences fresh (panel === 'hub') lands on Account on desktop;
+    // the sidebar still exposes every other panel.
+    const desktopPanel = panel === 'hub' ? 'account' : panel;
     const navItems = [
       { key: 'account', label: 'Account', icon: AccountIcon, summary: isSignedIn ? (displayEmail || displayName) : 'Sign in' },
       { key: 'appearance', label: 'Appearance', icon: AppearanceIcon, summary: appearanceSummary(settings) },
@@ -768,7 +770,7 @@ export default function Settings({
 
       <div className="a4-container py-6 pb-20 flex flex-col gap-6">
         {panel === 'hub' && (
-          <div className="modes-card flex flex-col p-0 overflow-hidden divide-y" style={{ borderColor: 'var(--modes-border)' }}>
+          <div className="modes-card flex flex-col p-0 overflow-hidden divide-y divide-[var(--modes-border)]">
             <HubRow
               icon={AccountIcon}
               label="Account"

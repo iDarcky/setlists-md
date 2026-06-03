@@ -236,8 +236,11 @@ export default function ChartView({
       ref={scrollContainerRef}
       style={CHART_THEME_STYLE}
       className={cn(
-        "h-[100dvh] overflow-y-auto overflow-x-hidden",
-        isPreview && "h-full overflow-y-auto overflow-x-hidden px-4 py-4"
+        // h-full (not 100dvh) so the chart fills its parent slot and owns the
+        // *only* scrollbar — `<main>` already scrolls, and 100dvh overflowed it
+        // by the header's height, producing a second scrollbar.
+        "h-full overflow-y-auto overflow-x-hidden",
+        isPreview && "px-4 py-4"
       )}
     >
       {/* ── Sticky Header ── */}

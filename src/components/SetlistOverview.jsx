@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { transposeKey, compactLabel } from '../music';
 import { resolveSongView } from '../arrangements';
 import { Chip } from './ui/Chip';
@@ -23,11 +23,17 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
   const [collapsed, setCollapsed] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [showDetails, setShowDetails] = useState(true);
+  const scrollRef = useRef(null);
 
+  // Own scroll container (not window) so the overview scrolls correctly when
+  // embedded in the tablet docked pane / side-peek, and so it presents a single
+  // scrollbar inside `<main>` rather than nesting a second one.
   useEffect(() => {
-    const onScroll = () => setCollapsed(window.scrollY > 60);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    const node = scrollRef.current;
+    if (!node) return;
+    const onScroll = () => setCollapsed(node.scrollTop > 60);
+    node.addEventListener('scroll', onScroll, { passive: true });
+    return () => node.removeEventListener('scroll', onScroll);
   }, []);
 
   const { songCount, breakCount } = useMemo(() => {
@@ -128,7 +134,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
   );
 
   return (
-    <div className="min-h-screen material-page pb-8">
+    <div ref={scrollRef} className="h-full overflow-y-auto overflow-x-hidden material-page pb-8">
 
       {/* ── Sticky header ── */}
       <div className="material-header transition-all duration-200" style={headerFrostStyle}>
