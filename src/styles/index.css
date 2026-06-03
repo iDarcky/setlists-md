@@ -32,8 +32,8 @@
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Roboto Mono, Menlo, Monaco, Libration Mono, Courier New, monospace;
 
   /* Page Backgrounds (Dark Mode fallback) */
-  --ds-background-100: #0a0807;
-  --ds-background-200: #050403;
+  --ds-background-100: #0a0a0a;
+  --ds-background-200: #000000;
 
     /* Geist Gray Scale (Dark Mode) */
   --ds-gray-100-value: 0, 0%, 10%;
@@ -304,8 +304,8 @@
   }
 
   [data-theme="light"] {
-    --ds-background-100: #F6F4EF;
-    --ds-background-200: #EFEDE6;
+    --ds-background-100: #ffffff;
+    --ds-background-200: #fafafa;
 
     /* Dashboard Surfaces (Light Mode) */
     --dashboard-hero-bg: hsl(0, 0%, 100%);
