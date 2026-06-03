@@ -351,7 +351,7 @@ export default function Library({
   return (
     <div data-theme-variant="modes" className={cn('relative h-full', splitDock ? 'flex overflow-hidden' : 'overflow-y-auto')}>
       {/* List column — own scroller when a pane is docked beside it. */}
-      <div className={splitDock ? 'flex-1 min-w-0 h-full overflow-y-auto' : 'contents'}>
+      <div className={splitDock ? 'flex-1 min-w-0 min-h-0 h-full overflow-y-auto' : 'contents'}>
       {/* Header */}
       <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]">
         <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 pt-5 sm:pt-7 pb-4 flex flex-col gap-4">
@@ -515,17 +515,21 @@ export default function Library({
                       Name {sortMode === 'title' && <SortArrow asc={sortAsc} />}
                     </button>
                   </th>
-                  <th className="text-left px-5 py-3 hidden md:table-cell w-[34%]">
-                    <button onClick={() => handleSortClick('artist')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
-                      Artist {sortMode === 'artist' && <SortArrow asc={sortAsc} />}
-                    </button>
-                  </th>
+                  {!splitDock && (
+                    <th className="text-left px-5 py-3 hidden md:table-cell w-[34%]">
+                      <button onClick={() => handleSortClick('artist')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
+                        Artist {sortMode === 'artist' && <SortArrow asc={sortAsc} />}
+                      </button>
+                    </th>
+                  )}
                   <th className="text-left px-5 py-3 w-[72px]">
                     <button onClick={() => handleSortClick('key')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
                       Key {sortMode === 'key' && <SortArrow asc={sortAsc} />}
                     </button>
                   </th>
-                  <th className="text-left px-5 py-3 hidden lg:table-cell w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>
+                  {!splitDock && (
+                    <th className="text-left px-5 py-3 hidden lg:table-cell w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -550,7 +554,7 @@ export default function Library({
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="text-copy-15 font-semibold text-[var(--modes-text)] truncate">{song.title || 'Untitled'}</span>
                           <ArrangementsBadge count={arrCount} />
-                          {onSelectPreview && (
+                          {onSelectPreview && !isTablet && (
                             <button
                               onClick={(e) => openPeek(song, e)}
                               aria-label="Open in pane"
@@ -563,15 +567,19 @@ export default function Library({
                         </div>
                         <div className="md:hidden text-copy-13 text-[var(--modes-text-muted)] truncate mt-0.5">{song.artist}</div>
                       </td>
-                      <td className="px-5 py-3.5 hidden md:table-cell text-copy-14 text-[var(--modes-text-muted)] truncate">{song.artist}</td>
+                      {!splitDock && (
+                        <td className="px-5 py-3.5 hidden md:table-cell text-copy-14 text-[var(--modes-text-muted)] truncate">{song.artist}</td>
+                      )}
                       <td className="px-5 py-3.5"><KeyChip value={defaultArrangementKey(song)} /></td>
-                      <td className="px-5 py-3.5 hidden lg:table-cell">
-                        <div className="flex flex-wrap gap-1">
-                          {(song.tags || []).slice(0, 3).map(t => (
-                            <span key={t} className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface)] text-[var(--modes-text-muted)] border border-[var(--modes-border)]">{t}</span>
-                          ))}
-                        </div>
-                      </td>
+                      {!splitDock && (
+                        <td className="px-5 py-3.5 hidden lg:table-cell">
+                          <div className="flex flex-wrap gap-1">
+                            {(song.tags || []).slice(0, 3).map(t => (
+                              <span key={t} className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface)] text-[var(--modes-text-muted)] border border-[var(--modes-border)]">{t}</span>
+                            ))}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -611,7 +619,7 @@ export default function Library({
 
       {/* Pinned detail pane — tablet landscape (Phase 3 two-pane split) */}
       {splitDock && (
-        <aside className="w-[42%] min-w-[420px] max-w-[760px] h-full shrink-0 border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden flex flex-col">
+        <aside className="w-[42%] min-w-[420px] max-w-[760px] h-full min-h-0 shrink-0 border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden flex flex-col">
           {previewSong ? (
             <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
               <ChartView

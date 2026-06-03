@@ -764,8 +764,13 @@ export default function App() {
   // Modal openers — each one pushes history first so hardware Back closes
   // the modal instead of bypassing it. Modal close handlers call
   // window.history.back() which triggers popstate → goBack → modal hides.
-  const openAccountWall = (trigger) => {
-    pushHistory(snapshot());
+  const openAccountWall = (trigger, snap) => {
+    // `snap` lets callers pass the destination snapshot explicitly. snapshot()
+    // reads the *current render's* view/song/setlist, which are still stale
+    // when this fires in the same batch as a navigate() — without the override
+    // the back stack would pop to the pre-navigation screen (e.g. an empty
+    // builder) instead of the just-saved item.
+    pushHistory(snap || snapshot());
     setAccountWallTrigger(trigger);
   };
   const openFounderNote = () => {
@@ -986,7 +991,10 @@ export default function App() {
 
     navigate('chart', { song, replace: true });
     if (isNew && !user && !settings?.seenSaveAccountWall) {
-      openAccountWall({ kind: 'song', title: song.title || 'Untitled song' });
+      openAccountWall(
+        { kind: 'song', title: song.title || 'Untitled song' },
+        { ...snapshot(), view: 'chart', song },
+      );
     }
   };
 
@@ -1233,7 +1241,10 @@ export default function App() {
       setCurrentSetlist(sl);
     }
     if (isNew && !user && !settings?.seenSaveAccountWall) {
-      openAccountWall({ kind: 'setlist', title: sl.name || 'Untitled setlist' });
+      openAccountWall(
+        { kind: 'setlist', title: sl.name || 'Untitled setlist' },
+        { ...snapshot(), view: 'setlist-view', setlist: sl },
+      );
     }
   };
 
