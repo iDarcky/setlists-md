@@ -1197,16 +1197,37 @@ export default function App() {
   };
 
   // Setlist CRUD
-  const handleSaveSetlist = (sl) => {
+  const handleSaveSetlist = (incomingSl) => {
     // Determine isNew / prevSetlist synchronously from the current render's
     // setlists value. We can't read it from inside the setSetlists updater
     // because React 18 defers updaters until the next render, so any closure
     // variables they mutate are still at their initial values when the rest
     // of this function runs (the bug: new-setlist saves were taking the
     // edit branch and goBack()ing to wherever the builder was opened from).
-    const existingIdx = setlists.findIndex(s => s.id === sl.id);
+    const existingIdx = setlists.findIndex(s => s.id === incomingSl.id);
     const isNew = existingIdx < 0;
     const prevSetlist = existingIdx >= 0 ? setlists[existingIdx] : null;
+
+    // Stamp workspace + authorship metadata. Workspace and createdBy are set
+    // once (on first save) and preserved thereafter; updatedBy/At always
+    // refresh. Names are denormalized so the overview can render without a
+    // profile lookup (may go stale if a member renames — acceptable).
+    const editorName = profile?.display_name || settings?.userName || 'You';
+    const editorId = user?.id || null;
+    const wsName = activeLibrary === 'personal'
+      ? 'Personal'
+      : (teams.find(t => t.id === activeLibrary)?.name || team?.name || 'Team');
+    const sl = {
+      ...incomingSl,
+      workspaceId: prevSetlist?.workspaceId ?? activeLibrary,
+      workspaceName: prevSetlist?.workspaceName ?? wsName,
+      createdBy: prevSetlist?.createdBy ?? editorId,
+      createdByName: prevSetlist?.createdByName ?? editorName,
+      updatedBy: editorId,
+      updatedByName: editorName,
+      updatedAt: Date.now(),
+    };
+
     setSetlists(prev => {
       const idx = prev.findIndex(s => s.id === sl.id);
       if (idx >= 0) {
@@ -1461,6 +1482,9 @@ export default function App() {
   const isSignedIn = !!user;
   const displayName = profile?.display_name || settings?.userName || 'Guest';
   const displayEmail = user?.email || 'guest@setlists.md';
+  const currentWorkspaceName = activeLibrary === 'personal'
+    ? 'Personal'
+    : (teams.find(t => t.id === activeLibrary)?.name || team?.name || 'Team');
   let plan = 'Free';
   if (profile?.subscription_tier) {
     plan = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
@@ -1752,6 +1776,7 @@ export default function App() {
               onBack={goBack}
               onDelete={currentSetlist && !isTeamReadOnly ? handleDeleteSetlist : null}
               isTeamContext={activeLibrary !== 'personal'}
+              workspaceName={currentWorkspaceName}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
               clockFormat={settings?.clockFormat || '12h'}
             />

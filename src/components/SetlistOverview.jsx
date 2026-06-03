@@ -14,7 +14,7 @@ import { useConfirm } from './ui/useConfirmHook';
 export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false }) {
   const confirm = useConfirm();
   const { team, isAdmin } = useTeam();
-  const [showRoster, setShowRoster] = useState(false);
+  const [tab, setTab] = useState('setlist'); // 'setlist' | 'roster'
   const getSong = (id, title, arrangementId) => {
     let s = songs.find(s => s.id === id);
     if (!s && title) s = songs.find(s => s.title === title);
@@ -87,19 +87,6 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
             </svg>
           </IconButton>
         </span>
-      )}
-      {team && (
-        <IconButton
-          variant={showRoster ? 'active' : 'ghost'}
-          size="sm"
-          onClick={() => setShowRoster(true)}
-          aria-label="View roster"
-          title="View roster"
-        >
-          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 0 0-3-3.87M9 20H4v-2a4 4 0 0 1 3-3.87m6-2.13a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm6 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm-12 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3Z" />
-          </svg>
-        </IconButton>
       )}
       <IconButton variant="ghost" size="sm" onClick={() => setExportOpen(true)} aria-label="Export setlist">
         <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -179,6 +166,29 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                 {setlist.name || 'Untitled Setlist'}
               </h1>
 
+              {/* Row 2b: workspace + authorship — team workspaces only. */}
+              {team && (setlist.workspaceName || setlist.updatedByName) && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2.5 text-label-12 text-[var(--ds-gray-600)]">
+                  {setlist.workspaceName && (
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] text-[var(--ds-gray-900)] font-medium">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
+                      </svg>
+                      {setlist.workspaceName}
+                    </span>
+                  )}
+                  {setlist.updatedByName && (
+                    <span>
+                      Edited by {setlist.updatedByName}
+                      {setlist.updatedAt ? ` · ${new Date(setlist.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                    </span>
+                  )}
+                  {setlist.createdByName && setlist.createdByName !== setlist.updatedByName && (
+                    <span>· Created by {setlist.createdByName}</span>
+                  )}
+                </div>
+              )}
+
               {/* Row 3: tags + song count */}
               <div className="flex items-center justify-between gap-3 pb-4">
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -203,6 +213,30 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
         </div>
       </div>
 
+      {/* ── Tabs (team workspaces only): Set order / Roster ── */}
+      {team && (
+        <div className="a4-container pt-5">
+          <div className="inline-flex p-0.5 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)]">
+            {[['setlist', 'Set order'], ['roster', 'Roster']].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={`px-3.5 h-8 rounded-md text-label-13 font-semibold transition-colors border-none cursor-pointer ${
+                  tab === id
+                    ? 'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] shadow-sm'
+                    : 'bg-transparent text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(!team || tab === 'setlist') && (
+      <>
       {/* ── Set order ── */}
       <div className="a4-container pt-6 pb-4">
         <div className="flex items-center justify-between mb-4">
@@ -329,6 +363,21 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           </Button>
         </div>
       )}
+      </>
+      )}
+
+      {/* ── Roster tab ── */}
+      {team && tab === 'roster' && (
+        <div className="a4-container pt-6 pb-10">
+          <RosterPanel
+            inline
+            setlistId={setlist.id}
+            setlistDate={setlist.date}
+            readOnly={!isAdmin}
+            onClose={() => setTab('setlist')}
+          />
+        </div>
+      )}
 
       {/* ── Floating Practice + Play — desktop/tablet only. On mobile the
           BottomNav morphing FAB owns "Play live", and Practice lives in the
@@ -376,18 +425,6 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
         />
       )}
 
-      {showRoster && team && (
-        <div className="fixed inset-0 z-[200] flex justify-end bg-black/20 backdrop-blur-[2px]" onClick={() => setShowRoster(false)}>
-          <div className="h-full" onClick={e => e.stopPropagation()}>
-            <RosterPanel
-              setlistId={setlist.id}
-              setlistDate={setlist.date}
-              onClose={() => setShowRoster(false)}
-              readOnly={!isAdmin}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

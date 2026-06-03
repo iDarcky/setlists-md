@@ -25,7 +25,7 @@ export default function SetlistItemRow({
     const noteLen = note.length;
     return (
       <div
-        className="rounded-lg border border-dashed border-[var(--ds-gray-400)] bg-[var(--ds-gray-alpha-100)] overflow-hidden"
+        className="rounded-lg border border-dashed border-[var(--ds-gray-400)] overflow-hidden slrow-v-soft"
         role="separator"
         aria-label="Break"
       >
@@ -126,8 +126,9 @@ export default function SetlistItemRow({
               aria-label="Remove break"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
+                <path d="M3 6h18" /><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6" /><path d="M14 11v6" />
               </svg>
             </IconButton>
           </div>
@@ -161,7 +162,7 @@ export default function SetlistItemRow({
   /* ── Song row ── */
   if (!song) {
     return (
-      <div className="material-card overflow-hidden opacity-60">
+      <div className="material-card overflow-hidden opacity-60 slrow-v-soft">
         <div className="flex items-center gap-3 px-4 py-3 cursor-not-allowed">
           <div className="flex flex-col items-center shrink-0 gap-0" style={{ marginRight: '-2px' }}>
             <button
@@ -215,7 +216,7 @@ export default function SetlistItemRow({
   const displayKey = transposeKey(song.key, item.transpose);
 
   return (
-    <div className="material-card overflow-hidden">
+    <div className="material-card overflow-hidden slrow-v-soft">
       {/* Collapsed row — always visible */}
       <div
         className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--ds-gray-alpha-100)] transition-colors"
@@ -274,19 +275,37 @@ export default function SetlistItemRow({
           })()}
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <span className="text-label-14 text-[var(--ds-gray-1000)] font-semibold">{displayKey}</span>
-          <span className="text-label-11 text-[var(--ds-gray-600)] tabular-nums">
+        <div className="flex items-center gap-2.5 shrink-0">
+          {/* At-a-glance hints that there's more to edit on this row. */}
+          {(item.capo > 0 || (item.note && item.note.length > 0)) && (
+            <span className="hidden sm:flex items-center gap-1.5">
+              {item.capo > 0 && (
+                <span className="text-label-10 px-1.5 py-0.5 rounded bg-[var(--ds-gray-alpha-100)] text-[var(--ds-gray-700)] whitespace-nowrap">Capo {item.capo}</span>
+              )}
+              {item.note && item.note.length > 0 && (
+                <span title="Has a note" aria-label="Has a note" className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand)]" />
+              )}
+            </span>
+          )}
+          <span className={`text-label-14 font-semibold ${item.transpose ? 'text-[var(--chord)]' : 'text-[var(--ds-gray-1000)]'}`}>{displayKey}</span>
+          <span className="hidden sm:inline text-label-11 text-[var(--ds-gray-600)] tabular-nums">
             {[song.tempo, song.time].filter(Boolean).join(' ')}
           </span>
-          <svg
-            width="14" height="14" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" strokeWidth="2"
-            strokeLinecap="round" strokeLinejoin="round"
-            className={`text-[var(--ds-gray-600)] transition-transform duration-150 ${expanded ? 'rotate-180' : ''}`}
+          {/* Edit (pencil) — toggles the key/capo/note panel below. */}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
+            aria-label={expanded ? 'Hide details' : 'Edit details'}
+            aria-expanded={expanded}
+            title="Edit key, capo & notes"
+            className={`p-1 rounded-md border-none bg-transparent cursor-pointer transition-colors ${expanded ? 'text-[var(--color-brand)]' : 'text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'}`}
           >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </button>
+          {/* Delete (bin) */}
           <IconButton
             size="xs"
             variant="error"
@@ -294,8 +313,9 @@ export default function SetlistItemRow({
             aria-label="Remove song"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
+              <path d="M3 6h18" /><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6" /><path d="M14 11v6" />
             </svg>
           </IconButton>
         </div>
@@ -397,16 +417,6 @@ export default function SetlistItemRow({
               </div>
             );
           })()}
-
-          {/* Remove */}
-          <IconButton
-            size="sm"
-            variant="error"
-            onClick={() => onRemove(idx)}
-            aria-label="Remove song"
-          >
-            ✕
-          </IconButton>
         </div>
       )}
     </div>

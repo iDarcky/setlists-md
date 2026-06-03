@@ -17,7 +17,7 @@ import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RecommendedNextPanel from './setlist/RecommendedNextPanel';
 import RosterPanel from './setlist/RosterPanel';
 
-export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
+export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, workspaceName = '', firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
   const confirm = useConfirm();
   const [name, setName] = useState(setlist?.name || '');
   // New setlists default to the upcoming Sunday at 10:00 — the most common
@@ -33,7 +33,8 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   });
   const [items, setItems] = useState(setlist?.items || []);
   const [service, setService] = useState(setlist?.service || '');
-  const [showRoster, setShowRoster] = useState(false);
+  // Builder tabs — Roster only available once the setlist has been saved.
+  const [tab, setTab] = useState('setlist'); // 'setlist' | 'roster'
 
   // Snapshot the form on first render so Cancel/back can warn about unsaved
   // changes (only when something actually changed — no nag on a pristine form).
@@ -219,6 +220,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
       return;
     }
     onSave({
+      ...setlist, // preserve fields the builder doesn't edit (workspace/authorship/etc.)
       id: setlist?.id || generateId(),
       name: name.trim(), date, time, location, tags, items, service,
       createdAt: setlist?.createdAt || Date.now(),
@@ -253,28 +255,6 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                  </svg>
                </IconButton>
              )}
-             {isTeamContext && (
-               <Button
-                variant={showRoster ? "brand" : "secondary"}
-                size="sm"
-                onClick={() => {
-                  if (!setlist) {
-                    toast({
-                      title: 'Save setlist first',
-                      description: 'The setlist needs to be saved before you can manage the roster.',
-                      variant: 'error'
-                    });
-                    return;
-                  }
-                  setShowRoster(!showRoster);
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-                Roster
-              </Button>
-             )}
            </>
         }
       />
@@ -283,6 +263,42 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
           all available space so the Save/Cancel bar below pins to the
           bottom of <main> even when the form is short. ── */}
       <div className="flex-1 w-full max-w-5xl mx-auto px-5 pt-6 pb-12">
+        {/* Which workspace this setlist is being created in / saved to. */}
+        {workspaceName && (
+          <div className="flex items-center gap-2 mb-4 text-label-12 text-[var(--ds-gray-600)]">
+            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] text-[var(--ds-gray-900)] font-medium">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
+              </svg>
+              {workspaceName}
+            </span>
+            <span>This setlist will be saved here.</span>
+          </div>
+        )}
+
+        {/* Tabs — team setlists, once saved, can manage the roster here. */}
+        {isTeamContext && setlist && (
+          <div className="inline-flex p-0.5 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] mb-6">
+            {[['setlist', 'Set order'], ['roster', 'Roster']].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={`px-3.5 h-8 rounded-md text-label-13 font-semibold transition-colors border-none cursor-pointer ${
+                  tab === id
+                    ? 'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] shadow-sm'
+                    : 'bg-transparent text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {isTeamContext && setlist && tab === 'roster' ? (
+          <RosterPanel inline setlistId={setlist.id} setlistDate={date} onClose={() => setTab('setlist')} />
+        ) : (
         <div className="flex flex-col lg:flex-row gap-8">
 
           {/* Left column: meta + current set */}
@@ -418,6 +434,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
           </div>
 
         </div>
+        )}
       </div>
 
       {/* ── Sticky bottom action bar ──
@@ -439,19 +456,6 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
           <Button variant="brand" size="md" onClick={handleSave}>Save</Button>
         </div>
       </div>
-
-      {/* Roster Overlay / Side Panel */}
-      {showRoster && setlist && (
-        <div className="fixed inset-0 z-[200] flex justify-end bg-black/20 backdrop-blur-[2px]" onClick={() => setShowRoster(false)}>
-          <div className="h-full" onClick={e => e.stopPropagation()}>
-            <RosterPanel
-              setlistId={setlist.id}
-              setlistDate={date}
-              onClose={() => setShowRoster(false)}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

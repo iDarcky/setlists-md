@@ -35,7 +35,7 @@ function availabilityLabel(status) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly = false }) {
+export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly = false, inline = false }) {
   const confirm = useConfirm();
   const { team, members } = useTeam();
   const { schedules, createSchedule, updateSchedule, deleteSchedule, loading } = useTeamSchedules(team?.id);
@@ -135,17 +135,21 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
   };
 
   return (
-    <div className="flex flex-col h-full bg-[var(--ds-background-100)] border-l border-[var(--ds-gray-300)] w-[360px] max-w-full">
-      <div className="p-4 border-b border-[var(--ds-gray-300)] flex items-center justify-between">
-        <h3 className="text-heading-18 font-bold m-0">{readOnly ? 'Roster' : 'Setlist Roster'}</h3>
-        <IconButton size="sm" onClick={onClose} aria-label="Close roster">
-          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </IconButton>
-      </div>
+    <div className={inline
+      ? 'flex flex-col bg-transparent w-full'
+      : 'flex flex-col h-full bg-[var(--ds-background-100)] border-l border-[var(--ds-gray-300)] w-[360px] max-w-full'}>
+      {!inline && (
+        <div className="p-4 border-b border-[var(--ds-gray-300)] flex items-center justify-between">
+          <h3 className="text-heading-18 font-bold m-0">{readOnly ? 'Roster' : 'Setlist Roster'}</h3>
+          <IconButton size="sm" onClick={onClose} aria-label="Close roster">
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </IconButton>
+        </div>
+      )}
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
+      <div className={inline ? 'flex flex-col gap-6' : 'flex-1 overflow-y-auto p-4 flex flex-col gap-6'}>
         {loading && schedules.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <span className="text-copy-14 text-[var(--ds-gray-500)]">Loading roster...</span>
