@@ -69,7 +69,7 @@ export default function SetlistItemRow({
             </svg>
           </span>
 
-          <span className="text-label-10 text-[var(--ds-gray-600)] uppercase tracking-[0.14em] font-semibold shrink-0">
+          <span className="text-label-10 text-[var(--ds-gray-600)] font-semibold shrink-0">
             Break
           </span>
 
@@ -326,7 +326,7 @@ export default function SetlistItemRow({
         <div className="border-t border-[var(--ds-gray-300)] px-4 py-3 flex flex-wrap items-end gap-4 bg-[var(--ds-gray-alpha-100)]">
           {/* Key (transpose) */}
           <div className="flex flex-col gap-0.5">
-            <span className="text-label-10 text-[var(--ds-gray-600)] uppercase">Key</span>
+            <span className="text-label-10 text-[var(--ds-gray-600)]">Key</span>
             <select
               value={displayKey}
               onChange={e => onUpdateTranspose(idx, semitonesBetween(song.key, e.target.value))}
@@ -346,7 +346,7 @@ export default function SetlistItemRow({
           {/* Arrangement (only when the song has more than one) */}
           {rawSong && Array.isArray(rawSong.arrangements) && rawSong.arrangements.length > 1 && onSelectArrangement && (
             <div className="flex flex-col gap-0.5">
-              <span className="text-label-10 text-[var(--ds-gray-600)] uppercase">Arrangement</span>
+              <span className="text-label-10 text-[var(--ds-gray-600)]">Arrangement</span>
               <select
                 value={item.arrangementId || rawSong.defaultArrangementId}
                 onChange={e => onSelectArrangement(e.target.value)}
@@ -362,7 +362,7 @@ export default function SetlistItemRow({
 
           {/* Capo */}
           <div className="flex flex-col gap-0.5">
-            <span className="text-label-10 text-[var(--ds-gray-600)] uppercase">Capo</span>
+            <span className="text-label-10 text-[var(--ds-gray-600)]">Capo</span>
             <select
               value={item.capo || 0}
               onChange={e => onUpdateCapo(idx, parseInt(e.target.value))}
@@ -383,7 +383,7 @@ export default function SetlistItemRow({
               never overflows the row in the setlist viewer. */}
           <div className="flex flex-col gap-0.5 flex-1 min-w-[120px]">
             <div className="flex items-baseline justify-between gap-2">
-              <span className="text-label-10 text-[var(--ds-gray-600)] uppercase">Note</span>
+              <span className="text-label-10 text-[var(--ds-gray-600)]">Note</span>
               <span
                 className={`text-label-10 tabular-nums ${
                   (item.note?.length || 0) >= 100
@@ -410,7 +410,7 @@ export default function SetlistItemRow({
             if (!flow) return null;
             return (
               <div className="flex flex-col gap-0.5 w-full mt-2">
-                <span className="text-label-10 text-[var(--ds-gray-600)] uppercase">Structure</span>
+                <span className="text-label-10 text-[var(--ds-gray-600)]">Structure</span>
                 <p className="text-copy-13 text-[var(--ds-gray-900)] m-0 font-medium whitespace-normal">
                   {flow}
                 </p>

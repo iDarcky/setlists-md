@@ -43,7 +43,7 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
     <div className="flex flex-col gap-4">
       {/* Title */}
       <div className="flex flex-col gap-1">
-        <label className="section-title px-0.5">Setlist Title</label>
+        <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Setlist Title</label>
         <Input
           value={name}
           onChange={e => onNameChange(e.target.value)}
@@ -54,7 +54,7 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
       {/* Date & Time */}
       <div className="flex gap-4">
         <div className="flex-1 flex flex-col gap-1">
-          <label className="section-title px-0.5">Date</label>
+          <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Date</label>
           <DatePicker
             value={date}
             onChange={onDateChange}
@@ -62,7 +62,7 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
           />
         </div>
         <div className="w-40 flex flex-col gap-1">
-          <label className="section-title px-0.5">Time</label>
+          <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Time</label>
           <TimePicker
             value={time}
             onChange={onTimeChange}
@@ -73,7 +73,7 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
 
       {/* Location */}
       <div className="flex flex-col gap-1">
-        <label className="section-title px-0.5">Location</label>
+        <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Location</label>
         <Input
           value={location}
           onChange={e => onLocationChange(e.target.value)}
@@ -84,9 +84,9 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
       {/* Service — Church tier only */}
       {useEntitlement('multi-service').allowed && onServiceChange && (
         <div className="flex flex-col gap-1">
-          <label className="section-title px-0.5">
+          <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">
             Service
-            <span className="ml-1.5 text-label-11 font-normal uppercase tracking-wider px-1.5 py-0.5 rounded-md" style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}>
+            <span className="ml-1.5 text-label-11 font-normal px-1.5 py-0.5 rounded-md" style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}>
               Church
             </span>
           </label>
@@ -100,7 +100,7 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
 
       {/* Tags */}
       <div className="flex flex-col gap-1">
-        <label className="section-title px-0.5">
+        <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">
           Tags {tags.length > 0 && <span className="font-normal text-[var(--ds-gray-600)]">({tags.length}/{MAX_TAGS})</span>}
         </label>
         <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] min-h-[42px] focus-within:border-[var(--ds-gray-600)] transition-colors">

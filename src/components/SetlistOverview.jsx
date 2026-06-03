@@ -34,7 +34,13 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
     if (embedded) return;
     const node = scrollRef.current;
     if (!node) return;
-    const onScroll = () => setCollapsed(node.scrollTop > 60);
+    // Hysteresis: collapse past 96px, only expand again below 24px. The wide
+    // dead-band stops the header flip-flopping ("spasming") when collapsing
+    // shifts the content and nudges scrollTop back across a single threshold.
+    const onScroll = () => {
+      const y = node.scrollTop;
+      setCollapsed(prev => (prev ? y > 24 : y > 96));
+    };
     node.addEventListener('scroll', onScroll, { passive: true });
     return () => node.removeEventListener('scroll', onScroll);
   }, [embedded]);
@@ -76,18 +82,6 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
 
   const actionIcons = (
     <div className="flex items-center gap-1 shrink-0">
-      {/* Practice — mobile only; desktop/tablet use the floating Practice pill.
-          (Play live on mobile is the BottomNav morphing FAB.) */}
-      {onPractice && (
-        <span className="sm:hidden">
-          <IconButton variant="ghost" size="sm" onClick={onPractice} aria-label="Practice setlist" title="Practice">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
-          </IconButton>
-        </span>
-      )}
       <IconButton variant="ghost" size="sm" onClick={() => setExportOpen(true)} aria-label="Export setlist">
         <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -170,10 +164,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
               {team && (setlist.workspaceName || setlist.updatedByName) && (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2.5 text-label-12 text-[var(--ds-gray-600)]">
                   {setlist.workspaceName && (
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] text-[var(--ds-gray-900)] font-medium">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
-                      </svg>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] text-[var(--ds-gray-900)] font-medium">
                       {setlist.workspaceName}
                     </span>
                   )}
@@ -212,6 +203,24 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
 
         </div>
       </div>
+
+      {/* Practice — mobile only (Play live is the BottomNav FAB; desktop/tablet
+          use the floating Practice + Play pills). */}
+      {onPractice && (
+        <div className="sm:hidden a4-container pt-4">
+          <button
+            type="button"
+            onClick={onPractice}
+            className="w-full h-11 rounded-xl bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] flex items-center justify-center gap-2 text-label-14 font-semibold text-[var(--ds-gray-1000)] cursor-pointer active:scale-[0.99] transition"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+            Practice this set
+          </button>
+        </div>
+      )}
 
       {/* ── Tabs (team workspaces only): Set order / Roster ── */}
       {team && (

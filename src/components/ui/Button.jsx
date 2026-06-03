@@ -18,6 +18,7 @@ const Button = React.forwardRef(({
     secondary: "bg-[var(--bg-1)] text-[var(--text-1)] border border-[var(--border-1)] hover:bg-[var(--bg-2)] hover:border-[var(--border-2)] focus:ring-[var(--border-1)]",
     ghost: "bg-transparent text-[var(--text-1)] hover:bg-[var(--bg-2)] focus:ring-[var(--bg-2)]",
     error: "bg-[var(--ds-red-100)] text-[var(--ds-red-1000)] border border-[var(--ds-red-400)] hover:bg-[var(--ds-red-200)] focus:ring-[var(--ds-red-400)]",
+    danger: "bg-[var(--ds-red-700)] text-white border-none hover:bg-[var(--ds-red-800)] focus:ring-[var(--ds-red-700)]",
     warning: "bg-[var(--ds-amber-100)] text-[var(--ds-amber-1000)] border border-[var(--ds-amber-400)] hover:bg-[var(--ds-amber-200)] focus:ring-[var(--ds-amber-400)]",
     brand: "bg-[var(--color-brand)] text-white hover:opacity-90 focus:ring-[var(--color-brand)]",
   };
@@ -30,8 +31,8 @@ const Button = React.forwardRef(({
     icon: "h-10 w-10 p-0",
   };
 
-  // Brand variant needs inline style to guarantee white text
-  const brandStyle = variant === 'brand' ? { color: '#ffffff' } : undefined;
+  // Brand/danger variants need inline style to guarantee white text
+  const brandStyle = (variant === 'brand' || variant === 'danger') ? { color: '#ffffff' } : undefined;
 
   return (
     <button

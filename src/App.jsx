@@ -176,6 +176,10 @@ export default function App() {
   const [syncState, setSyncState] = useState({ state: 'idle', lastSync: null, provider: null });
   const [previewSongId, setPreviewSongId] = useState(null);
   const [previewSetlistId, setPreviewSetlistId] = useState(null);
+  // True while the setlist builder has unsaved edits — drives the discard
+  // guard on header nav + browser back (the builder reports it via callback).
+  const setlistDirtyRef = useRef(false);
+  const markSetlistDirty = useCallback((dirty) => { setlistDirtyRef.current = dirty; }, []);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [authStartMode, setAuthStartMode] = useState('signin');
   const [newSongModal, setNewSongModal] = useState(null);
@@ -658,16 +662,47 @@ export default function App() {
   // Browser back button support — single popstate handler for the whole app.
   // Anything that's allowed to be backed-out-of must have pushed onto
   // historyRef during its open call (see openModal / pushHistory above).
+  // Prompt before leaving the setlist builder with unsaved edits. Returns
+  // true if it's safe to navigate (not dirty, or the user chose to discard).
+  const confirmDiscardSetlist = async () => {
+    if (view === 'setlist-build' && setlistDirtyRef.current) {
+      return await confirm({
+        title: 'Discard changes?',
+        description: 'You have unsaved changes to this setlist. They will be lost.',
+        confirmLabel: 'Discard',
+        cancelLabel: 'Keep editing',
+        variant: 'danger',
+      });
+    }
+    return true;
+  };
+
   useEffect(() => {
-    const handler = (e) => {
-      if (historyRef.current.length > 0) {
-        e.preventDefault();
-        goBack();
+    const handler = () => {
+      if (historyRef.current.length === 0) return;
+      // Browser/hardware back out of a dirty builder: the back already moved
+      // one entry, so re-push to stay put while we ask. On discard we set the
+      // flag false and fire back() again, which falls through to goBack().
+      if (view === 'setlist-build' && setlistDirtyRef.current) {
+        window.history.pushState(null, '');
+        confirm({
+          title: 'Discard changes?',
+          description: 'You have unsaved changes to this setlist. They will be lost.',
+          confirmLabel: 'Discard',
+          cancelLabel: 'Keep editing',
+          variant: 'danger',
+        }).then((ok) => {
+          if (!ok) return;
+          setlistDirtyRef.current = false;
+          window.history.back();
+        });
+        return;
       }
+      goBack();
     };
     window.addEventListener('popstate', handler);
     return () => window.removeEventListener('popstate', handler);
-  }, [goBack]);
+  }, [goBack, view, confirm]);
 
   // Auto-fire: founder note when the user lands on the dashboard with a
   // queued note. openFounderNote pushes history so back closes it.
@@ -707,9 +742,10 @@ export default function App() {
   // Switch a top-level page (Home / Library / Setlists / Settings / Account /
   // Help / Design). Now pushes history so hardware Back navigates within the
   // app instead of exiting the PWA.
-  const goToMainView = (viewName, { settingsPanel: targetPanel } = {}) => {
+  const goToMainView = async (viewName, { settingsPanel: targetPanel } = {}) => {
     const samePanel = !targetPanel || targetPanel === settingsPanel;
     if (view === viewName && samePanel) return;
+    if (!(await confirmDiscardSetlist())) return;
     pushHistory(snapshot());
     const apply = () => {
       setView(viewName);
@@ -1777,6 +1813,7 @@ export default function App() {
               onDelete={currentSetlist && !isTeamReadOnly ? handleDeleteSetlist : null}
               isTeamContext={activeLibrary !== 'personal'}
               workspaceName={currentWorkspaceName}
+              onDirtyChange={markSetlistDirty}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
               clockFormat={settings?.clockFormat || '12h'}
             />

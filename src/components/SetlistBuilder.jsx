@@ -17,7 +17,7 @@ import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RecommendedNextPanel from './setlist/RecommendedNextPanel';
 import RosterPanel from './setlist/RosterPanel';
 
-export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, workspaceName = '', firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
+export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, workspaceName = '', onDirtyChange, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
   const confirm = useConfirm();
   const [name, setName] = useState(setlist?.name || '');
   // New setlists default to the upcoming Sunday at 10:00 — the most common
@@ -40,6 +40,11 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   // changes (only when something actually changed — no nag on a pristine form).
   const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, location, tags, items, service }));
   const isDirty = JSON.stringify({ name, date, time, location, tags, items, service }) !== initialSnapshot;
+
+  // Report dirty state up so App can guard header nav / browser back. Reset on
+  // unmount so a stale flag never blocks navigation after we leave.
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   const handleCancel = async () => {
     if (isDirty) {
@@ -266,10 +271,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
         {/* Which workspace this setlist is being created in / saved to. */}
         {workspaceName && (
           <div className="flex items-center gap-2 mb-4 text-label-12 text-[var(--ds-gray-600)]">
-            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] text-[var(--ds-gray-900)] font-medium">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
-              </svg>
+            <span className="inline-flex items-center px-2 py-1 rounded-md bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] text-[var(--ds-gray-900)] font-medium">
               {workspaceName}
             </span>
             <span>This setlist will be saved here.</span>
@@ -327,7 +329,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
 
             {/* Current set */}
             <div>
-              <p className="section-title m-0 mb-4">Current Set</p>
+              <p className="text-label-12 font-semibold text-[var(--ds-gray-600)] m-0 mb-4">Current Set</p>
 
               <div className="flex flex-col gap-2">
                 {items.map((item, idx) => (
