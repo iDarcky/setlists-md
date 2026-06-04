@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Setlists MD — Tablet Redesign Mockup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* App tokens (dark palette), inlined from src/styles/index.css */
+  :root {
+    --color-brand: #53796F;
+    --color-brand-mist: #7AA89C;
+    --color-brand-vetiver: #3B5A52;
+    --ds-background-100: #0a0807;
+    --ds-background-200: #050403;
+    --ds-gray-100: hsl(0,0%,10%);
+    --ds-gray-200: hsl(0,0%,12%);
+    --ds-gray-300: hsl(0,0%,16%);
+    --ds-gray-400: hsl(0,0%,18%);
+    --ds-gray-600: hsl(0,0%,53%);
+    --ds-gray-700: hsl(0,0%,56%);
+    --ds-gray-1000: hsl(0,0%,93%);
+    --chord: #C9A24B;
+    --modes-surface: rgba(255,255,255,0.04);
+    --modes-surface-strong: rgba(255,255,255,0.08);
+    --modes-border: rgba(255,255,255,0.09);
+  }
+  body {
+    background: #161618;
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    color: var(--ds-gray-1000);
+    margin: 0; padding: 40px 24px 80px;
+  }
+  /* iPad landscape frame: 1180 x 820 */
+  .tablet {
+    width: 1180px; height: 820px;
+    margin: 0 auto 56px;
+    border-radius: 28px;
+    overflow: hidden;
+    background: var(--ds-background-100);
+    box-shadow: 0 0 0 12px #000, 0 30px 80px rgba(0,0,0,0.6);
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  .label { max-width: 1180px; margin: 0 auto 12px; color: #9aa; font-size: 13px; letter-spacing: .02em; text-transform: uppercase; }
+  .glass {
+    background: color-mix(in srgb, var(--ds-background-200) 60%, transparent);
+    backdrop-filter: blur(24px) saturate(180%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), inset 0 0 0 .5px rgba(255,255,255,0.10), 0 12px 34px rgba(0,0,0,0.38);
+  }
+  .modes-card { border-radius: 14px; background: var(--modes-surface); border: 1px solid var(--modes-border); }
+  .chord { color: var(--chord); font-family: ui-monospace, monospace; font-weight: 600; }
+  .seg { background: var(--ds-gray-200); border-radius: 10px; padding: 3px; display: inline-flex; gap: 2px; }
+  .seg button { border: none; background: transparent; color: var(--ds-gray-700); font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 8px; cursor: pointer; }
+  .seg button.on { background: var(--color-brand); color: #fff; }
+  .toprow { height: 56px; background: var(--ds-background-200); border-bottom: 1px solid var(--ds-gray-200); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 20px; }
+  .ws { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--ds-gray-300); background: var(--ds-background-100); font-size: 14px; }
+  .icobtn { width: 36px; height: 36px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; color: var(--ds-gray-700); }
+  .bottomnav { position: absolute; left: 0; right: 0; bottom: 18px; display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .navpill { display: inline-flex; gap: 4px; padding: 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.10); }
+  .navtab { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 96px; height: 60px; justify-content: center; border-radius: 999px; color: var(--ds-gray-700); font-size: 12px; font-weight: 500; cursor: pointer; }
+  .navtab.on { color: var(--color-brand-mist); background: rgba(255,255,255,0.14); font-weight: 600; }
+  .fab { width: 64px; height: 64px; border-radius: 999px; background: var(--color-brand); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 28px rgba(0,0,0,.35); font-size: 30px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ds-gray-600); padding: 12px 16px; font-weight: 600; }
+  td { padding: 13px 16px; font-size: 14px; border-top: 1px solid var(--modes-border); }
+  tr.sel td { background: var(--color-brand); color: #fff; }
+  tr.sel td .sub { color: rgba(255,255,255,.8); }
+  .sub { color: var(--ds-gray-600); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<!-- ============ FRAME 1: Library + new shell ============ -->
+<div class="label">Frame 1 — Library: bottom nav + slimmed top bar + persistent browse split</div>
+<div class="tablet">
+  <!-- Top bar: workspace center + right actions only -->
+  <div class="toprow">
+    <div></div>
+    <div style="justify-self:center"><span class="ws">
+      <span style="width:20px;height:20px;border-radius:999px;background:var(--ds-gray-400);display:inline-flex;align-items:center;justify-content:center;font-size:11px">P</span>
+      Personal Workspace ▾</span></div>
+    <div style="justify-self:end;display:flex;gap:4px;align-items:center">
+      <span class="icobtn">⚑</span><span class="icobtn">🔔</span><span class="icobtn">⚙</span>
+    </div>
+  </div>
+
+  <!-- Split: list + detail pane -->
+  <div style="flex:1; display:flex; min-height:0;">
+    <!-- list column -->
+    <div style="flex:1; overflow:auto; padding:20px 22px;">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:14px">
+        <h2 style="margin:0;font-size:22px;font-weight:700">Songs</h2><span class="sub">128</span>
+        <div style="margin-left:auto" class="seg"><button class="on">Table</button><button>Gallery</button></div>
+      </div>
+      <div class="modes-card" style="overflow:hidden">
+        <table>
+          <thead><tr><th>Title</th><th style="width:90px">Key</th><th style="width:80px">Tempo</th></tr></thead>
+          <tbody>
+            <tr><td>Great Are You Lord<div class="sub">All Sons & Daughters</div></td><td><span class="chord">A</span></td><td>72</td></tr>
+            <tr class="sel"><td>Build My Life<div class="sub">Pat Barrett</div></td><td>E</td><td>68</td></tr>
+            <tr><td>Goodness of God<div class="sub">Bethel Music</div></td><td><span class="chord">Ab</span></td><td>63</td></tr>
+            <tr><td>King of Kings<div class="sub">Hillsong Worship</div></td><td><span class="chord">D</span></td><td>72</td></tr>
+            <tr><td>Holy Spirit<div class="sub">Francesca Battistelli</div></td><td><span class="chord">C</span></td><td>66</td></tr>
+            <tr><td>Tremble<div class="sub">Mosaic MSC</div></td><td><span class="chord">G</span></td><td>70</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- detail pane (persistent) -->
+    <div style="width:430px; border-left:1px solid var(--modes-border); padding:22px; overflow:auto; background:var(--ds-background-200)">
+      <div class="sub" style="margin-bottom:6px">SONG · E major · 68 BPM · 4/4</div>
+      <h3 style="margin:0 0 14px;font-size:24px;font-weight:700">Build My Life</h3>
+      <div class="modes-card" style="padding:16px;margin-bottom:14px">
+        <div class="sub" style="margin-bottom:8px">VERSE 1</div>
+        <div style="line-height:2.1"><span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span>&nbsp;&nbsp;&nbsp;<span class="chord">C#m</span><br/>Worthy of every song we could ever sing</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button style="flex:1;background:var(--color-brand);color:#fff;border:none;height:42px;border-radius:10px;font-weight:600">Open chart</button>
+        <button style="background:var(--ds-gray-200);color:var(--ds-gray-1000);border:none;height:42px;border-radius:10px;padding:0 16px">Edit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom nav -->
+  <div class="bottomnav">
+    <div class="navpill glass">
+      <div class="navtab"><span style="font-size:18px">⌂</span>Home</div>
+      <div class="navtab"><span style="font-size:18px">▦</span>Setlists</div>
+      <div class="navtab on"><span style="font-size:18px">♪</span>Songs</div>
+    </div>
+    <div class="fab glass" style="background:var(--color-brand)">+</div>
+  </div>
+</div>
+
+<!-- ============ FRAME 2: ChartView reflow + mode toggle ============ -->
+<div class="label">Frame 2 — ChartView: auto two-column landscape + promoted display/notation toggles</div>
+<div class="tablet">
+  <!-- chart header -->
+  <div style="height:64px;display:flex;align-items:center;gap:16px;padding:0 22px;border-bottom:1px solid var(--ds-gray-200);background:var(--ds-background-200)">
+    <span style="color:var(--ds-gray-700)">‹ Back</span>
+    <div><div style="font-weight:700;font-size:16px">Build My Life</div><div class="sub">Key of E</div></div>
+    <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+      <div class="seg"><button class="on">Lyrics + Chords</button><button>Lyrics</button><button>Song-map</button></div>
+      <div class="seg"><button class="on">Std</button><button>Nashville</button><button>Do-Re-Mi</button></div>
+    </div>
+  </div>
+  <!-- two columns -->
+  <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:0;overflow:hidden">
+    <div style="padding:24px 28px;overflow:auto;border-right:1px solid var(--modes-border)">
+      <div style="color:var(--color-brand-mist);font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.06em;margin-bottom:10px">Verse 1</div>
+      <div style="line-height:2.4;font-size:18px">
+        <span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">C#m</span><br/>
+        Worthy of every song we could ever sing<br/>
+        <span class="chord">A</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span><br/>
+        Worthy of all the praise we could ever bring<br/><br/>
+      </div>
+      <div style="color:var(--color-brand-mist);font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.06em;margin-bottom:10px">Verse 2</div>
+      <div style="line-height:2.4;font-size:18px">
+        <span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span><br/>
+        Jesus the name above every other name<br/>
+      </div>
+    </div>
+    <div style="padding:24px 28px;overflow:auto">
+      <div style="color:var(--color-brand-mist);font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.06em;margin-bottom:10px">Chorus</div>
+      <div style="line-height:2.4;font-size:18px">
+        <span class="chord">A</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span><br/>
+        I will build my life upon Your love<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">C#m</span>&nbsp;&nbsp;&nbsp;<span class="chord">A</span><br/>
+        It is a firm foundation<br/>
+        <span class="chord">A</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span><br/>
+        I will put my trust in You alone<br/>
+      </div>
+    </div>
+  </div>
+  <div class="bottomnav">
+    <div class="navpill glass">
+      <div class="navtab"><span style="font-size:18px">⌂</span>Home</div>
+      <div class="navtab on"><span style="font-size:18px">▦</span>Setlists</div>
+      <div class="navtab"><span style="font-size:18px">♪</span>Songs</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FRAME 3: PerformanceView parallel rail ============ -->
+<div class="label">Frame 3 — PerformanceView: persistent setlist rail (parallel browsing while playing)</div>
+<div class="tablet" style="background:#000">
+  <div style="flex:1;display:flex;min-height:0">
+    <!-- rail -->
+    <div style="width:260px;background:rgba(255,255,255,0.03);border-right:1px solid var(--modes-border);padding:16px 12px;display:flex;flex-direction:column">
+      <div class="sub" style="padding:0 8px 10px;display:flex;justify-content:space-between;align-items:center">SUNDAY AM · 7 SONGS <span>«</span></div>
+      <div style="display:flex;flex-direction:column;gap:4px;overflow:auto;flex:1">
+        <div style="padding:10px 12px;border-radius:10px;display:flex;gap:10px;color:var(--ds-gray-700)"><span>1</span> Open Up The Heavens</div>
+        <div style="padding:10px 12px;border-radius:10px;display:flex;gap:10px;color:var(--ds-gray-700)"><span>2</span> Goodness of God</div>
+        <div style="padding:10px 12px;border-radius:10px;display:flex;gap:10px;background:var(--color-brand);color:#fff;font-weight:600"><span>3</span> Great Are You Lord</div>
+        <div style="padding:10px 12px;border-radius:10px;display:flex;gap:10px;color:var(--ds-gray-700)"><span>4</span> Holy Spirit</div>
+        <div style="padding:10px 12px;border-radius:10px;display:flex;gap:10px;color:var(--ds-gray-700)"><span>5</span> Build My Life</div>
+        <div style="padding:10px 12px;border-radius:10px;display:flex;gap:10px;color:var(--ds-gray-700)"><span>6</span> King of Kings</div>
+        <div style="padding:10px 12px;border-radius:10px;display:flex;gap:10px;color:var(--ds-gray-700)"><span>7</span> Tremble</div>
+      </div>
+    </div>
+    <!-- chart -->
+    <div style="flex:1;display:flex;flex-direction:column">
+      <div style="height:56px;display:flex;align-items:center;gap:14px;padding:0 24px;color:var(--ds-gray-700)">
+        <span style="font-size:22px">‹</span><span style="font-size:22px">›</span>
+        <span class="sub">Song 3 of 7</span>
+        <span style="margin-left:auto;font-weight:700;color:var(--ds-gray-1000)">Great Are You Lord — Key A</span>
+      </div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:0;overflow:hidden">
+        <div style="padding:20px 28px;border-right:1px solid var(--modes-border)">
+          <div style="color:var(--color-brand-mist);font-weight:700;text-transform:uppercase;font-size:12px;margin-bottom:10px">Verse</div>
+          <div style="line-height:2.6;font-size:20px">
+            <span class="chord">A</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">D</span><br/>
+            You give life, You are love<br/>
+            <span class="chord">A/C#</span>&nbsp;&nbsp;<span class="chord">D</span><br/>
+            You bring light to the darkness<br/>
+          </div>
+        </div>
+        <div style="padding:20px 28px">
+          <div style="color:var(--color-brand-mist);font-weight:700;text-transform:uppercase;font-size:12px;margin-bottom:10px">Chorus</div>
+          <div style="line-height:2.6;font-size:20px">
+            <span class="chord">D</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">A</span><br/>
+            It's Your breath in our lungs<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">E</span><br/>
+            So we pour out our praise<br/>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
