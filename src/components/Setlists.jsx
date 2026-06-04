@@ -474,8 +474,9 @@ export default function Setlists({
         </aside>
       )}
 
-      {/* FAB — tablet only */}
-      {!readOnly && (onNewSetlist || onImportSetlist) && (
+      {/* FAB — narrow mouse-driven windows only. Touch tablets get the
+          bottom-nav FAB instead, so gating on !isTablet avoids a duplicate. */}
+      {!readOnly && (onNewSetlist || onImportSetlist) && !isTablet && (
         <div ref={fabRef} className="fixed right-6 z-[150] hidden sm:block lg:hidden" style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
           {fabOpen && (
             <div className="absolute bottom-full right-0 mb-3 flex flex-col gap-2">
@@ -497,9 +498,13 @@ export default function Setlists({
 
       <input ref={fileInputRef} type="file" accept=".zip" onChange={(e) => { const file = e.target.files[0]; if (file) onImportSetlist?.(file); e.target.value = ''; }} className="hidden" />
 
-      {/* Bulk action bar — desktop + tablet */}
+      {/* Bulk action bar — desktop + tablet. On touch tablets it must clear the
+          floating bottom nav, so lift it above the nav there. */}
       {advanced && !readOnly && selected.length > 0 && (
-        <div className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl">
+        <div
+          className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl"
+          style={isTablet ? { bottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' } : undefined}
+        >
           <span className="text-label-14 font-semibold text-[var(--ds-gray-1000)] whitespace-nowrap">{selected.length} selected</span>
           <span className="w-px h-5 bg-[var(--ds-gray-300)]" />
           {onDeleteSetlist && (

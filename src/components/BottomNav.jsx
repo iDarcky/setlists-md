@@ -134,7 +134,7 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
 
   return (
     <div
-      className="fixed left-0 right-0 z-[100] flex items-center justify-center gap-3 px-4"
+      className="fixed left-0 right-0 z-[130] flex items-center justify-center gap-3 px-4"
       style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 14px)' }}
     >
       {/* Glass tab bar */}
