@@ -67,7 +67,10 @@ export default function PasteTab({ onSubmit }) {
   const canSubmit = text.trim() && title.trim();
 
   return (
-    <div className="flex flex-col min-h-0 flex-1">
+    // A min height keeps the editor usable on short viewports: rather than
+    // shrinking and clipping its own labels/textareas, it holds its size and
+    // lets the modal body (overflow-y-auto) scroll.
+    <div className="flex flex-col flex-1 min-h-[440px]">
       <div className="px-5 py-3 border-b border-[var(--ds-gray-300)] grid grid-cols-1 sm:grid-cols-[1fr_120px_120px] gap-3">
         <div>
           <label className="text-label-12 text-[var(--ds-gray-600)] font-mono mb-1 block">
