@@ -119,6 +119,8 @@ const PORTABLE_PREF_KEYS = [
   'clockFormat',
   'userName',
   'lastChangelogVersion',
+  'performanceRail',
+  'navStyle',
 ];
 
 function extractPortablePrefs(s) {
@@ -1853,6 +1855,8 @@ export default function App() {
               onFinish={(stats) => goLiveFinale(currentSetlist, stats, 'performance')}
               defaultColumns={settings?.defaultColumns}
               defaultFontSize={settings?.defaultFontSize}
+              railEnabled={settings?.performanceRail !== false}
+              navStyle={settings?.navStyle || 'pill'}
             />
           )}
           {view === 'setlist-practice' && currentSetlist && (
@@ -1866,6 +1870,8 @@ export default function App() {
               onUpdateSetlist={handleUpdateSetlist}
               defaultColumns={settings?.defaultColumns}
               defaultFontSize={settings?.defaultFontSize}
+              railEnabled={settings?.performanceRail !== false}
+              navStyle={settings?.navStyle || 'pill'}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               onOpenAdvancedStyle={() => goToMainView('settings', { settingsPanel: 'chart-style' })}

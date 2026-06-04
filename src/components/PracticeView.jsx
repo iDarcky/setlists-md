@@ -15,7 +15,7 @@ import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
 
-export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, defaultColumns, settings, onUpdateSettings, onOpenAdvancedStyle, startIndex = 0 }) {
+export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, defaultColumns, railEnabled = true, navStyle = 'pill', settings, onUpdateSettings, onOpenAdvancedStyle, startIndex = 0 }) {
   const [layoutOpen, setLayoutOpen] = useState(false);
   // Start at the requested item (e.g. tapping a song in the overview) clamped
   // into range; defaults to the top of the set.
@@ -35,7 +35,10 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   // Collapsed by default; the choice is shared with Performance per device.
   const isTablet = useIsTablet();
   const isLandscape = useIsLandscape();
-  const showRail = isTablet && isLandscape;
+  const showRail = isTablet && isLandscape && railEnabled;
+
+  // Swipe left/right to advance — matches the live Performance view.
+  const touchRef = useRef(null);
   const [railOpen, setRailOpen] = useState(() => {
     try { return localStorage.getItem(RAIL_OPEN_KEY) === '1'; } catch { return false; }
   });
@@ -96,6 +99,22 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     });
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [resolved.length]);
+
+  const onTouchStart = useCallback((e) => {
+    const t = e.changedTouches[0];
+    touchRef.current = { x: t.clientX, y: t.clientY };
+  }, []);
+  const onTouchEnd = useCallback((e) => {
+    const s = touchRef.current;
+    if (!s) return;
+    touchRef.current = null;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0) goNext(); else goPrev();
+    }
+  }, [goNext, goPrev]);
 
   const handleFinish = useCallback(() => {
     onFinish?.({
@@ -182,6 +201,27 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
 
   const displayKey = cur.isBreak || cur.isMissing ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
 
+  // Optional in-header prev/next cluster — an alternative to the floating nav
+  // pill. The last step turns into Finish.
+  const atEnd = idx >= resolved.length - 1;
+  const navButtons = navStyle === 'header' ? (
+    <div className="flex items-center gap-0.5 shrink-0">
+      <IconButton size="sm" variant="ghost" onClick={goPrev} disabled={idx === 0} aria-label="Previous song">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+      </IconButton>
+      <span className="text-label-12 text-[var(--ds-gray-600)] tabular-nums px-1 select-none">{idx + 1}/{resolved.length}</span>
+      {atEnd && onFinish ? (
+        <IconButton size="sm" variant="ghost" onClick={handleFinish} aria-label="Finish set">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+        </IconButton>
+      ) : (
+        <IconButton size="sm" variant="ghost" onClick={goNext} disabled={atEnd} aria-label="Next song">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+        </IconButton>
+      )}
+    </div>
+  ) : null;
+
   // Chevron + dot menu + close X — anchored to the right end of the title
   // row in both expanded and collapsed states. Same variant and size so
   // they render with matching color and weight.
@@ -224,6 +264,8 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     >
     <div
       ref={scrollRef}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
       className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
@@ -311,6 +353,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
                   {structRibbon}
                 </div>
               )}
+              {navButtons}
               {headerControls}
             </div>
 
@@ -379,17 +422,19 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
         )}
       </div>
 
-      {/* ── Floating nav pill ── */}
-      <FloatingNavPill
-        current={idx + 1}
-        total={resolved.length}
-        nextLabel={next?.isBreak ? (next.label || 'Break') : next?.song?.title}
-        onPrev={goPrev}
-        onNext={goNext}
-        hasPrev={idx > 0}
-        hasNext={idx < resolved.length - 1}
-        onFinish={onFinish ? handleFinish : undefined}
-      />
+      {/* ── Floating nav pill (unless the leader chose header buttons) ── */}
+      {navStyle !== 'header' && (
+        <FloatingNavPill
+          current={idx + 1}
+          total={resolved.length}
+          nextLabel={next?.isBreak ? (next.label || 'Break') : next?.song?.title}
+          onPrev={goPrev}
+          onNext={goNext}
+          hasPrev={idx > 0}
+          hasNext={idx < resolved.length - 1}
+          onFinish={onFinish ? handleFinish : undefined}
+        />
+      )}
     </div>
 
     {/* ── Parallel-browsing setlist rail (tablet landscape) ── */}

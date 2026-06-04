@@ -13,7 +13,7 @@ import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
 
-export default function PerformanceView({ setlist, songs, onBack, onFinish, defaultFontSize, defaultColumns }) {
+export default function PerformanceView({ setlist, songs, onBack, onFinish, defaultFontSize, defaultColumns, railEnabled = true, navStyle = 'pill' }) {
   useWakeLock(true);
   const [idx, setIdx] = useState(0);
   const [selectedKey, setSelectedKey] = useState(null);
@@ -28,7 +28,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   // remembered per device.
   const isTablet = useIsTablet();
   const isLandscape = useIsLandscape();
-  const showRail = isTablet && isLandscape;
+  const showRail = isTablet && isLandscape && railEnabled;
   const [railOpen, setRailOpen] = useState(() => {
     try { return localStorage.getItem(RAIL_OPEN_KEY) === '1'; } catch { return false; }
   });
@@ -155,6 +155,28 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
 
   const displayKey = cur.isBreak || cur.isMissing ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
 
+  // Optional in-header prev/next cluster — an alternative to the floating nav
+  // pill. The last step turns into Finish so the leader can close out the set
+  // without the pill.
+  const atEnd = idx >= resolved.length - 1;
+  const navButtons = navStyle === 'header' ? (
+    <div className="flex items-center gap-0.5 shrink-0">
+      <IconButton size="sm" variant="ghost" onClick={goPrev} disabled={idx === 0} aria-label="Previous song">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+      </IconButton>
+      <span className="text-label-12 text-[var(--ds-gray-600)] tabular-nums px-1 select-none">{idx + 1}/{resolved.length}</span>
+      {atEnd && onFinish ? (
+        <IconButton size="sm" variant="ghost" onClick={handleFinish} aria-label="Finish set">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+        </IconButton>
+      ) : (
+        <IconButton size="sm" variant="ghost" onClick={goNext} disabled={atEnd} aria-label="Next song">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+        </IconButton>
+      )}
+    </div>
+  ) : null;
+
   // Chevron + close X — anchored to the right end of the title row in both
   // expanded and collapsed states. Same variant and size so they render
   // with matching color and weight.
@@ -264,6 +286,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
                   {structRibbon}
                 </div>
               )}
+              {navButtons}
               {headerControls}
             </div>
 
@@ -320,17 +343,19 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
         ) : null}
       </div>
 
-      {/* ── Floating nav pill ── */}
-      <FloatingNavPill
-        current={idx + 1}
-        total={resolved.length}
-        nextLabel={next?.isBreak ? (next.label || 'Break') : next?.song?.title}
-        onPrev={goPrev}
-        onNext={goNext}
-        hasPrev={idx > 0}
-        hasNext={idx < resolved.length - 1}
-        onFinish={onFinish ? handleFinish : undefined}
-      />
+      {/* ── Floating nav pill (unless the leader chose header buttons) ── */}
+      {navStyle !== 'header' && (
+        <FloatingNavPill
+          current={idx + 1}
+          total={resolved.length}
+          nextLabel={next?.isBreak ? (next.label || 'Break') : next?.song?.title}
+          onPrev={goPrev}
+          onNext={goNext}
+          hasPrev={idx > 0}
+          hasNext={idx < resolved.length - 1}
+          onFinish={onFinish ? handleFinish : undefined}
+        />
+      )}
     </div>
 
     {/* ── Parallel-browsing setlist rail (tablet landscape) ── */}

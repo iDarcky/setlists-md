@@ -324,6 +324,48 @@ function ChartPanel({ settings, update }) {
           ))}
         </div>
       </Row>
+      <Row label="Setlist rail" description="Show the setlist beside the chart in live & practice on landscape tablets.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: true, label: 'On' },
+            { key: false, label: 'Off' },
+          ].map(({ key, label }) => {
+            const active = (settings.performanceRail !== false) === key;
+            return (
+              <Button
+                key={String(key)}
+                size="sm"
+                variant={active ? 'secondary' : 'ghost'}
+                onClick={() => update('performanceRail', key)}
+                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </div>
+      </Row>
+      <Row label="Navigation controls" description="How you move between songs in live & practice.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: 'pill', label: 'Floating pill' },
+            { key: 'header', label: 'Header buttons' },
+          ].map(({ key, label }) => {
+            const active = (settings.navStyle || 'pill') === key;
+            return (
+              <Button
+                key={key}
+                size="sm"
+                variant={active ? 'secondary' : 'ghost'}
+                onClick={() => update('navStyle', key)}
+                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </div>
+      </Row>
     </Section>
   );
 }
