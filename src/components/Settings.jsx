@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import Account from './Account';
+import { useAuth } from '../auth/useAuth';
+import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '../billing/checkout';
 import SyncSettings from './settings/SyncSettings';
 import WhatsNewPanel from './settings/WhatsNewPanel';
 import ChartStylePanel from './settings/ChartStylePanel';
@@ -418,6 +420,7 @@ function DataPanel({ songCount, setlistCount, onDownloadSongs, onClearAll }) {
 }
 
 function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn, activeLibrary, team }) {
+  const { user } = useAuth();
   const isTeam = activeLibrary !== 'personal';
   // Canonical tier field is team.plan ('team' | 'church'); billing_plan is
   // deprecated. Per-workspace subscription status defaults to 'active'.
@@ -425,6 +428,21 @@ function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn, activeLibrary
   const planKey = (effectivePlan || 'free').toLowerCase();
   const teamStatus = isTeam ? (team?.subscription_status || 'active').toLowerCase() : null;
   const teamBillingOk = teamStatus === 'active' || teamStatus === 'trialing';
+  const isOwner = isTeam && !!user?.id && team?.owner_id === user.id;
+
+  const [billingBusy, setBillingBusy] = useState(false);
+  const [billingMsg, setBillingMsg] = useState(null);
+  const runBilling = async (fn) => {
+    setBillingBusy(true);
+    setBillingMsg(null);
+    try {
+      await fn();
+    } catch (err) {
+      setBillingMsg(billingError(err));
+    } finally {
+      setBillingBusy(false);
+    }
+  };
   
   const label = isTeam 
     ? (team?.name || 'Team') + ' Plan' 
@@ -474,10 +492,30 @@ function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn, activeLibrary
           </Row>
         )}
         {isSignedIn && isTeam && (
-          <Row
-            label="Team Subscription"
-            description="Only the team owner can manage this subscription."
-          />
+          isOwner && BILLING_ENABLED ? (
+            <>
+              {!teamBillingOk && (
+                <Row label="Subscribe" description="Activate this workspace’s subscription to restore paid features.">
+                  <Button variant="brand" size="sm" disabled={billingBusy} onClick={() => runBilling(() => startTeamCheckout(team.id, team.plan))}>
+                    Subscribe
+                  </Button>
+                </Row>
+              )}
+              <Row label="Manage billing" description="Update your payment method, cancel, or switch plans for this workspace.">
+                <Button variant="secondary" size="sm" disabled={billingBusy} onClick={() => runBilling(() => openBillingPortal(team.id))}>
+                  Open
+                </Button>
+              </Row>
+              {billingMsg && (
+                <p className="text-copy-13 m-0 px-1" style={{ color: 'var(--ds-red-900)' }}>{billingMsg}</p>
+              )}
+            </>
+          ) : (
+            <Row
+              label="Team Subscription"
+              description={isOwner ? 'Billing isn’t live yet — check back soon.' : 'Only the workspace owner can manage this subscription.'}
+            />
+          )
         )}
         {!isTeam && (
           <Row

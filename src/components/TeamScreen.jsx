@@ -8,6 +8,7 @@ import { Input } from './ui/Input';
 import UpgradeGate from './ui/UpgradeGate';
 import AvatarUploader from './ui/AvatarUploader';
 import { useConfirm } from './ui/useConfirmHook';
+import { BILLING_ENABLED, startTeamCheckout } from '../billing/checkout';
 
 const TeamIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -658,6 +659,18 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
   const handleCreateTeam = async (data) => {
     const newTeam = await createTeam(data);
     setCreating(false);
+    // When billing is live, send the owner straight to checkout for the new
+    // workspace (each workspace is its own subscription). Until then, just
+    // switch into it. A failed/aborted checkout still leaves a usable
+    // workspace — the webhook flips status to active once paid.
+    if (newTeam && BILLING_ENABLED) {
+      try {
+        await startTeamCheckout(newTeam.id, newTeam.plan);
+        return;
+      } catch {
+        /* fall through to switching into the (unpaid) workspace */
+      }
+    }
     if (newTeam && onSwitchLibrary) {
       onSwitchLibrary(newTeam.id);
     }

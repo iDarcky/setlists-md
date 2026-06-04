@@ -406,9 +406,9 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   `stripe_subscription_id`, `current_period_end`) and grandfathers existing
   teams to `active`. This is the data layer for "each band/church is its own
   paid subscription". The client is **status-aware but not yet status-gated in
-  practice** — everything defaults to `active` until Stripe checkout + a webhook
-  write real statuses (the remaining billing work; no Stripe integration exists
-  yet — `PricingScreen` only captures email intent).
+  practice** — everything defaults to `active` until the Stripe webhook writes
+  real statuses. The Stripe integration is **scaffolded but dormant** (see
+  "Billing" below); `PricingScreen` still only captures email intent.
 
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).
@@ -449,6 +449,27 @@ removeMember, leaveTeam, updateTeam, deleteTeam }`.
 
 The provider only fetches from Supabase when the user has a `team` or
 `church` plan. For free/sync users, the context value is a no-op stub.
+
+### Billing (per-workspace subscriptions — scaffolded, dormant)
+
+Each team/church workspace is its own Stripe subscription, paid by the team
+`owner_id`. The pieces:
+
+- **Edge Functions** (`supabase/functions/stripe-checkout`,
+  `supabase/functions/stripe-webhook`; see `STRIPE_BILLING.md`).
+  `stripe-checkout` is owner-only and serves `action: 'checkout' | 'portal'`;
+  `stripe-webhook` verifies the Stripe signature and writes
+  `subscription_status` / Stripe ids / `current_period_end` (and `plan`/
+  `max_seats`) back onto the team. Deploy the webhook with `--no-verify-jwt`.
+- **Client** — `src/billing/checkout.js` (`startTeamCheckout`,
+  `openBillingPortal`, `BILLING_ENABLED`, `billingError`). Wired into
+  `Settings.jsx` (owner-only Subscribe / Manage billing rows) and
+  `TeamScreen.jsx` (new workspace routes to checkout when enabled). App
+  handles the `?billing=success|cancel` return with a toast + URL cleanup.
+- **Dormant by default** — the functions return `503 billing_not_configured`
+  without `STRIPE_SECRET_KEY`, and the UI is hidden unless
+  `VITE_STRIPE_ENABLED=true`. Turning it on requires the Stripe secrets +
+  prices (Team/Church) and the dashboard webhook endpoint.
 
 ## Known Gotchas
 

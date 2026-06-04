@@ -510,6 +510,23 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
+  // Surface the result of a Stripe Checkout / billing-portal redirect, then
+  // strip the `?billing=` param. The workspace's subscription_status is written
+  // by the stripe-webhook function; TeamProvider re-fetches on this fresh load,
+  // so the new status is already reflected.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const billing = params.get('billing');
+    if (!billing) return;
+    if (billing === 'success') {
+      toast({ title: 'Subscription active', description: 'Your workspace is all set.' });
+    } else if (billing === 'cancel') {
+      toast({ title: 'Checkout canceled', description: 'No changes were made.' });
+    }
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }, []);
+
   // Hydrate local settings from the user's cloud preferences on sign-in —
   // once per user id. Cloud is treated as source of truth for the portable
   // subset; device-local fields stay untouched.
