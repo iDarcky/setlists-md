@@ -19,14 +19,15 @@ grouped by what's left. Tied to the `betaui` branch / v0.6.0-pre-alpha.
 - ✅ **Swap workspace → always go to dashboard.** *(L2-30)*
 - ✅ **Multiple bands/churches** — multi-team backend (`teams[]` + `activeTeamId`). *(new; underpins L1-1)*
 - ✅ **Scroll on sidebar on iPad** — sidebar removed entirely. *(L2-7)*
-- 🟡 **New UI overall** — desktop + mobile shells done; tablet pending; many inner screens unchanged. *(L2-33)*
-- 🟡 **Better nav bar on tablet** — tablet currently uses the scaled desktop header; dedicated two-pane is Phase 3. *(L1-10)*
+- 🟡 **New UI overall** — desktop + mobile shells done; tablet two-pane shipped; some inner screens unchanged. *(L2-33)*
+- ✅ **Better nav bar on tablet** — tablet now uses the bottom-nav glass shell + a resizable two-pane (master list + preview); the FAB morphs to Play when a setlist is open. *(L1-10)*
 
 ### Library & setlists
 - ✅ **Notion-style Library & Setlists** — sortable table + table/list toggle + right-side peek.
 - ✅ **Setlists same as songs (not big cards)** — table view with a gallery toggle.
 - ✅ **Arrangement count indicator** on song rows.
 - ✅ **Side-peek toolbar** — collapse / full-screen / info / print / edit / display options.
+- ✅ **Resizable preview pane** — drag the divider between the list and the detail pane in Library & Setlists; width remembered per device.
 - 🟡 **Library layout out of settings** — Library has its own in-page table/list switcher now; the settings option still exists too. *(L1-13)*
 - 🟡 **Better delete/edit for setlists** — bulk delete + peek edit/delete; the setlist *modal* rework is separate. *(L1-5, L2-12)*
 - 🟡 **Filters in library** — search + tag filter + sort; multi-filter UI not built. *(L2-39)*
@@ -48,8 +49,14 @@ grouped by what's left. Tied to the `betaui` branch / v0.6.0-pre-alpha.
 - ✅ **Accent fill on nav / active states** (ongoing). *(L2-5, partial)*
 - 🟡 **Top overflow / background scroll on iPad** — Settings case fixed; general audit pending. *(L2-4)*
 - 🟡 **Settings white-line divider** — token-based already; not specifically reworked. *(L2-10)*
-- 🟡 **Edit layout from live/practice** — display controls surfaced in the chart toolbar; live/practice-specific entry ⬜. *(L2-3)*
+- ✅ **Edit layout from live/practice** — both live and practice have a display-options button; changes persist device-wide. *(L2-3)*
 - 🟡 **Print/PDF** — print surfaced in the peek toolbar; the iOS-PWA popup bug is unfixed. *(L2-45)*
+
+### Chart & performance display
+- ✅ **Global, device-persistent chart customization** — column count, lyric/chord size, Nashville, show/hide chords & diagrams now save per device and apply to every song *and* in the live & practice views (not one-time-only). *(L2-3, part of L2-13/L2-36)*
+- ✅ **Two-column live & practice** — charts reflow to two columns on a wide screen; Practice gained real 2-col mode.
+- ✅ **Next/prev pill options** — choose a floating pill or header prev/next buttons; swipe left/right also navigates. *(L2-15)*
+- 🟡 **Different live/performance view; show current song elsewhere** — a collapsible setlist rail in live & practice lets you jump songs (toggleable); full alternate display modes still pending. *(L2-35)*
 
 ---
 
@@ -75,7 +82,7 @@ grouped by what's left. Tied to the `betaui` branch / v0.6.0-pre-alpha.
 - ⬜ Notation: Letter / Nashville / Do-Re-Mi *(L2-23)*
 - ⬜ Sections: Full / Condensed *(L2-24)*
 - ⬜ Structure scrolls (not overflow) / scroll with song *(L1-16, L2-16, L2-26)*
-- ⬜ Different live/performance view; show current song elsewhere *(L2-35)* · dots for setlist position *(L2-25)* · next/prev pill options *(L2-15)*
+- 🟡 Different live/performance view — setlist rail shipped *(L2-35)* · dots for setlist position *(L2-25)* · ✅ next/prev pill options *(L2-15)*
 - ⬜ Capo guitar-players-only / per-user *(L2-13)*
 - ⬜ Fix chord diagrams + tap-a-chord + tab builder *(L2-19)*
 - ⬜ Drag structure on mobile *(L1-8)* · structure edit from rehearsal *(L2-46)*
@@ -100,4 +107,4 @@ grouped by what's left. Tied to the `betaui` branch / v0.6.0-pre-alpha.
 - ⬜ Rehearsal mode *(L1/L2-44)* · Tasks/notes for leaders *(L2-43)* · Collaboration / planning-center *(L2-41)*
 - ⬜ Periodic optional feedback prompt *(L2-56)*
 - ⬜ TypeScript migration (incremental) *(L2-37)*
-- ⬜ Tablet two-pane (Phase 3)
+- 🟡 Tablet two-pane (Phase 3) — split pane + resizable divider + live/practice setlist rail shipped; polish ongoing
