@@ -94,6 +94,10 @@ const PORTABLE_PREF_KEYS = [
   'theme',
   'defaultColumns',
   'defaultFontSize',
+  'chordFontSize',
+  'nashville',
+  'showChords',
+  'showDiagrams',
   'pedalNext',
   'pedalPrev',
   'showInlineNotes',
@@ -1705,6 +1709,10 @@ export default function App() {
                 displayRole: settings?.displayRole || 'leader',
                 duplicateSections: settings?.duplicateSections || 'full',
                 chartLayout: settings?.chartLayout || 'columns',
+
+                settings,
+
+                onUpdateSettings: (key, value) => setSettings(prev => ({ ...prev, [key]: value })),
               }}
               canEdit={canEdit}
             />
@@ -1797,6 +1805,10 @@ export default function App() {
                 displayRole: settings?.displayRole || 'leader',
                 duplicateSections: settings?.duplicateSections || 'full',
                 chartLayout: settings?.chartLayout || 'columns',
+
+                settings,
+
+                onUpdateSettings: (key, value) => setSettings(prev => ({ ...prev, [key]: value })),
               }}
             />
           )}
@@ -1857,6 +1869,7 @@ export default function App() {
               defaultFontSize={settings?.defaultFontSize}
               railEnabled={settings?.performanceRail !== false}
               navStyle={settings?.navStyle || 'pill'}
+              settings={settings}
             />
           )}
           {view === 'setlist-practice' && currentSetlist && (

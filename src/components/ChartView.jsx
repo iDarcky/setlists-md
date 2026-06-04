@@ -26,8 +26,7 @@ import {
 } from '../data/chartThemes';
 import { useEntitlement } from '../hooks/useEntitlement';
 import { STAGE_MODES, STAGE_MODE_MAP } from '../data/stageModes';
-
-const FONT_SIZES = { S: 14, M: 18, L: 22 };
+import { resolveChartDisplay, resolveColumns, FONT_SIZES } from '../lib/chartDisplay';
 
 // Tokens written by useChartTheme (App.jsx) live on :root and decide the
 // chart's bg/text/chord colours plus the chord and lyric font stacks.
@@ -41,7 +40,7 @@ const CHART_THEME_STYLE = {
 
 export default function ChartView({
   song: songInput, onBack, onEdit, isPreview,
-  defaultColumns = 1, defaultFontSize = 16,
+  defaultFontSize = 16,
   showInlineNotes = true, inlineNoteStyle = 'dashes',
   displayRole = 'leader', duplicateSections = 'full',
   chartLayout = 'columns',
@@ -86,51 +85,71 @@ export default function ChartView({
       if (song?.key) setSelectedKey(song.key);
     }
   }, [activeArrId, song?.key]);
-  // Stage mode seeds the local visibility + size state. The user picks a
-  // role in the Layout sheet and we reapply the preset whenever that
-  // changes; the local toggles still let them fine-tune within the
-  // session without persisting back.
+  // Display options are device-global now: they live in `settings` (persisted +
+  // synced) and are resolved here, falling back to the active stage-mode preset.
+  // Every change writes straight back through onUpdateSettings, so a tweak on
+  // one song shows up on every song and in the live / practice views too. Local
+  // mirrors keep the controls snappy and re-seed when settings change.
   const stageMode = settings?.stageMode || 'leader';
-  const stagePreset = STAGE_MODE_MAP[stageMode]?.settings || STAGE_MODE_MAP.leader.settings;
+  const disp = resolveChartDisplay(settings, { fallbackLyric: initialFontSize });
 
   // Tablet adaptive reflow: a wide landscape reading area reads better in two
   // columns; a narrow one (portrait, or the embedded dock/peek preview pane)
   // stays single column. We key off the chart's *actual* width (measured
-  // below) rather than a per-call-site flag, so every reading surface —
-  // fullscreen, dock, peek, player — gets the right default automatically.
-  // We seed `columns` from this and keep following it until the user picks a
-  // column count by hand, after which we respect their choice.
+  // below). Explicit 1/2 from settings wins; 'auto'/unset uses this hint.
   const isTablet = useIsTablet();
   const isLandscape = useIsLandscape();
   const [chartWidth, setChartWidth] = useState(0);
-  const autoColumns = (isTablet && isLandscape && chartWidth >= 700) ? 2 : defaultColumns;
+  const wantTwo = isTablet && isLandscape && chartWidth >= 700;
   const userSetColumnsRef = useRef(false);
 
-  const [columns, setColumns] = useState(autoColumns);
-  const setColumnsManually = (v) => { userSetColumnsRef.current = true; setColumns(v); };
-  // Re-seed when the reading width / orientation changes, unless the user has
-  // overridden the column count by hand.
+  const [columns, setColumns] = useState(resolveColumns(disp.columns, wantTwo));
+  const setColumnsManually = (v) => {
+    userSetColumnsRef.current = true;
+    setColumns(v);
+    onUpdateSettings?.('defaultColumns', v);
+  };
+  // Re-seed when the reading width / orientation / setting changes, unless the
+  // user has overridden the column count by hand this session.
   useEffect(() => {
-    if (!userSetColumnsRef.current) setColumns(autoColumns);
-  }, [autoColumns]);
-  const [fontSize, setFontSize] = useState(stagePreset.lyricFontSize ?? initialFontSize);
-  // Lyric/chord fonts come from CSS vars set by useChartTheme (--chart-font-*).
-  const [chordFontSize, setChordFontSize] = useState(stagePreset.chordFontSize ?? Math.round(initialFontSize * 0.95));
-  const [nns, setNns] = useState(!!stagePreset.nashville);
-  const [showChords, setShowChords] = useState(stagePreset.showChords !== false);
-  const [showDiagrams, setShowDiagrams] = useState(!!stagePreset.showDiagrams);
+    if (!userSetColumnsRef.current) setColumns(resolveColumns(disp.columns, wantTwo));
+  }, [disp.columns, wantTwo]);
 
-  // Reapply the stage mode preset to local state whenever the active
-  // mode changes — the picker in the Layout sheet writes settings.stageMode
-  // and we mirror that into the live toggles.
+  const [fontSize, setFontSize] = useState(disp.lyricFontSize);
+  const [chordFontSize, setChordFontSize] = useState(disp.chordFontSize);
+  const [nns, setNns] = useState(disp.nashville);
+  const [showChords, setShowChords] = useState(disp.showChords);
+  const [showDiagrams, setShowDiagrams] = useState(disp.showDiagrams);
+
+  // Re-seed local mirrors when the persisted display settings change — another
+  // song, a role preset, or an edit made on a different surface.
   useEffect(() => {
-    setFontSize(stagePreset.lyricFontSize ?? initialFontSize);
-    setChordFontSize(stagePreset.chordFontSize ?? Math.round(initialFontSize * 0.95));
-    setNns(!!stagePreset.nashville);
-    setShowChords(stagePreset.showChords !== false);
-    setShowDiagrams(!!stagePreset.showDiagrams);
+    setFontSize(disp.lyricFontSize);
+    setChordFontSize(disp.chordFontSize);
+    setNns(disp.nashville);
+    setShowChords(disp.showChords);
+    setShowDiagrams(disp.showDiagrams);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stageMode]);
+  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.showChords, settings?.showDiagrams, settings?.stageMode]);
+
+  // Persisting helpers — update the snappy local mirror and the device setting.
+  const changeFontSize = (v) => { const n = Math.max(10, Math.min(30, v)); setFontSize(n); onUpdateSettings?.('defaultFontSize', n); };
+  const changeChordFontSize = (v) => { const n = Math.max(8, Math.min(30, v)); setChordFontSize(n); onUpdateSettings?.('chordFontSize', n); };
+  const toggleNns = () => { const v = !nns; setNns(v); onUpdateSettings?.('nashville', v); };
+  const toggleShowChords = () => { const v = !showChords; setShowChords(v); onUpdateSettings?.('showChords', v); };
+  const toggleShowDiagrams = () => { const v = !showDiagrams; setShowDiagrams(v); onUpdateSettings?.('showDiagrams', v); };
+
+  // Picking a role applies its preset by writing every value through to
+  // settings, so the role choice persists across songs and views too.
+  const applyRole = (id) => {
+    const preset = STAGE_MODE_MAP[id]?.settings || {};
+    onUpdateSettings?.('stageMode', id);
+    if (preset.lyricFontSize != null) onUpdateSettings?.('defaultFontSize', preset.lyricFontSize);
+    if (preset.chordFontSize != null) onUpdateSettings?.('chordFontSize', preset.chordFontSize);
+    onUpdateSettings?.('nashville', !!preset.nashville);
+    onUpdateSettings?.('showChords', preset.showChords !== false);
+    onUpdateSettings?.('showDiagrams', !!preset.showDiagrams);
+  };
   const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'info' | 'arrangements' | null
   const [scrolled, setScrolled] = useState(false);
   const [notesPeekOpen, setNotesPeekOpen] = useState(notesPeekDefaultOpen);
@@ -520,7 +539,7 @@ export default function ChartView({
                       <button
                         key={m.id}
                         type="button"
-                        onClick={() => onUpdateSettings?.('stageMode', m.id)}
+                        onClick={() => applyRole(m.id)}
                         className={cn(
                           "shrink-0 px-3 h-8 rounded-lg border transition-all text-label-12 font-semibold",
                           active
@@ -541,18 +560,18 @@ export default function ChartView({
                   <Button
                     variant={nns ? 'brand' : 'secondary'}
                     size="sm"
-                    onClick={() => setNns(!nns)}
+                    onClick={toggleNns}
                   >Numbers</Button>
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => setShowChords(!showChords)}
+                    onClick={toggleShowChords}
                     className={cn(!showChords && "opacity-40")}
                   >Chords</Button>
                   <Button
                     variant={showDiagrams ? 'brand' : 'secondary'}
                     size="sm"
-                    onClick={() => setShowDiagrams(!showDiagrams)}
+                    onClick={toggleShowDiagrams}
                   >Diagrams</Button>
                 </div>
               </SheetField>
@@ -571,16 +590,16 @@ export default function ChartView({
                 </SheetField>
                 <SheetField label="Lyric size">
                   <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                    <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.max(10, prev - 2))} aria-label="Decrease lyric size">−</IconButton>
+                    <IconButton variant="ghost" size="sm" onClick={() => changeFontSize(fontSize - 2)} aria-label="Decrease lyric size">−</IconButton>
                     <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{fontSize}</span>
-                    <IconButton variant="ghost" size="sm" onClick={() => setFontSize(prev => Math.min(30, prev + 2))} aria-label="Increase lyric size">+</IconButton>
+                    <IconButton variant="ghost" size="sm" onClick={() => changeFontSize(fontSize + 2)} aria-label="Increase lyric size">+</IconButton>
                   </div>
                 </SheetField>
                 <SheetField label="Chord size">
                   <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                    <IconButton variant="ghost" size="sm" onClick={() => setChordFontSize(prev => Math.max(8, prev - 2))} aria-label="Decrease chord size">−</IconButton>
+                    <IconButton variant="ghost" size="sm" onClick={() => changeChordFontSize(chordFontSize - 2)} aria-label="Decrease chord size">−</IconButton>
                     <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{chordFontSize}</span>
-                    <IconButton variant="ghost" size="sm" onClick={() => setChordFontSize(prev => Math.min(30, prev + 2))} aria-label="Increase chord size">+</IconButton>
+                    <IconButton variant="ghost" size="sm" onClick={() => changeChordFontSize(chordFontSize + 2)} aria-label="Increase chord size">+</IconButton>
                   </div>
                 </SheetField>
               </div>
