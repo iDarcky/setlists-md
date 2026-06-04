@@ -21,6 +21,7 @@ export default function DesktopLayout({
   team,
   teams,
   onChangeWorkspace,
+  onNewWorkspace,
 }) {
   const mainRef = useRef(null);
   const isMobile = useMediaQuery('(max-width: 639.98px)');
@@ -63,6 +64,7 @@ export default function DesktopLayout({
           team={team}
           teams={teams}
           onManageTeams={onChangeWorkspace}
+          onNewWorkspace={onNewWorkspace}
         />
       )}
 

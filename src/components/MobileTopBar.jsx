@@ -53,6 +53,7 @@ export default function MobileTopBar({
   activeLibrary = 'personal',
   workspaces = [],
   setActiveLibrary,
+  onNewWorkspace,
 }) {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
@@ -183,6 +184,23 @@ export default function MobileTopBar({
                 </button>
               );
             })}
+            {onNewWorkspace && (
+              <>
+                <div className="my-1 border-t border-[var(--ds-gray-200)]" />
+                <button
+                  role="menuitem"
+                  onClick={() => { setWsOpen(false); onNewWorkspace(); }}
+                  className="w-full flex items-center gap-3 px-3 py-3 bg-transparent border-none text-left cursor-pointer active:bg-[var(--bg-2)]"
+                >
+                  <span className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[var(--color-brand)]">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </span>
+                  <span className="text-copy-15 text-[var(--text-1)]">New workspace</span>
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

@@ -145,7 +145,7 @@ function prefsEqual(a, b) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const { team, teams, setActiveTeam, isAdmin, isEditor, isMember } = useTeam();
+  const { team, teams, setActiveTeam, isAdmin, isEditor, isMember, hasTeamPlan } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const canEdit = !team || isAdmin || isEditor;
   const isTeamAdmin = isAdmin;
@@ -156,6 +156,8 @@ export default function App() {
   const { canInstall, isIOS, isStandalone, promptInstall } = useInstallPrompt();
   const [showIOSHint, setShowIOSHint] = useState(false);
   const [activeLibrary, setActiveLibrary] = useState('personal');
+  // One-shot flag: open the Team screen directly in its create-workspace form.
+  const [teamCreateIntent, setTeamCreateIntent] = useState(false);
   const [songs, setSongs] = useState([]);
   const [setlists, setSetlists] = useState([]);
   const [tombstones, setTombstones] = useState({ songs: [], setlists: [] });
@@ -950,6 +952,10 @@ export default function App() {
     goToMainView('home');
   };
   const goTeam = () => goToMainView('team');
+  // Open the Team screen straight into its "create workspace" form. Used by the
+  // workspace switcher's "+ New workspace" shortcut so a user can spin up
+  // additional bands/churches without first landing on an existing team.
+  const goNewWorkspace = () => { setTeamCreateIntent(true); goTeam(); };
   const goSchedule = () => navigate('schedule');
 
   // Song CRUD
@@ -1633,6 +1639,7 @@ export default function App() {
           team={team}
           teams={teams}
           onChangeWorkspace={goTeam}
+          onNewWorkspace={hasTeamPlan ? goNewWorkspace : undefined}
           syncState={syncState}
           onSyncNow={triggerSync}
           isOnline={isOnline}
@@ -1653,6 +1660,7 @@ export default function App() {
                 ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null })),
               ]}
               setActiveLibrary={switchWorkspace}
+              onNewWorkspace={hasTeamPlan ? goNewWorkspace : undefined}
             />
           )}
           {view === 'home' && (
@@ -1986,6 +1994,8 @@ export default function App() {
               onBack={goBack}
               onUpgrade={() => navigate('pricing')}
               onSwitchLibrary={switchWorkspace}
+              initialCreate={teamCreateIntent}
+              onCreateHandled={() => setTeamCreateIntent(false)}
             />
           )}
           {view === 'schedule' && (

@@ -48,7 +48,7 @@ const LocationIcon = () => (
 
 // ── Create Team form ────────────────────────────────────────────────────────
 
-function CreateTeamForm({ onCreate }) {
+function CreateTeamForm({ onCreate, onCancel, multiple = false }) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [busy, setBusy] = useState(false);
@@ -82,9 +82,13 @@ function CreateTeamForm({ onCreate }) {
         </div>
 
         <div className="text-center">
-          <h2 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 mb-1">Create your team</h2>
+          <h2 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 mb-1">
+            {multiple ? 'Create a new workspace' : 'Create your team'}
+          </h2>
           <p className="text-copy-14 text-[var(--ds-gray-600)] m-0">
-            Set up a shared workspace for your worship band or church team.
+            {multiple
+              ? 'Spin up another shared workspace for a different band or church.'
+              : 'Set up a shared workspace for your worship band or church team.'}
           </p>
         </div>
 
@@ -117,8 +121,13 @@ function CreateTeamForm({ onCreate }) {
           )}
 
           <Button type="submit" variant="brand" size="lg" className="w-full" disabled={busy || !name.trim()}>
-            {busy ? 'Creating…' : 'Create team'}
+            {busy ? 'Creating…' : (multiple ? 'Create workspace' : 'Create team')}
           </Button>
+          {onCancel && (
+            <Button type="button" variant="secondary" size="lg" className="w-full" onClick={onCancel} disabled={busy}>
+              Cancel
+            </Button>
+          )}
         </form>
       </div>
     </div>
@@ -627,26 +636,67 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
 
 // ── Main Screen ─────────────────────────────────────────────────────────────
 
-export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary }) {
+export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initialCreate = false, onCreateHandled }) {
   const { user } = useAuth();
   const { team, members, invites, isAdmin, loading, createTeam, inviteMember, removeMember, updateMemberRole, cancelInvite, leaveTeam, deleteTeam, hasTeamPlan, updateTeam } = useTeam();
 
+  // Whether the create form is showing. A user can belong to several
+  // workspaces, so the form is reachable even when a team is already active
+  // (via the header "New" action, or an `initialCreate` intent from the
+  // workspace switcher).
+  const [creating, setCreating] = useState(false);
+  useEffect(() => {
+    if (initialCreate) {
+      setCreating(true);
+      onCreateHandled?.();
+    }
+    // Mount-only: the intent flag is consumed immediately so a later visit
+    // (e.g. via "Manage teams") doesn't re-open the form.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleCreateTeam = async (data) => {
     const newTeam = await createTeam(data);
+    setCreating(false);
     if (newTeam && onSwitchLibrary) {
       onSwitchLibrary(newTeam.id);
     }
   };
 
+  // Show the create form when explicitly creating, or when the user has no
+  // team yet (the original first-run path).
+  const showCreate = creating || !team;
+
   return (
     <div className="flex flex-col h-full">
-      <ScreenHeader onBack={onBack} title="Your Team" />
+      <ScreenHeader
+        onBack={creating && team ? () => setCreating(false) : onBack}
+        title={creating && team ? 'New workspace' : 'Your Team'}
+        actions={!creating && team && hasTeamPlan ? (
+          <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
+            <span className="flex items-center gap-1.5"><PlusIcon /> New</span>
+          </Button>
+        ) : null}
+      />
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-copy-14 text-[var(--ds-gray-600)]">Loading team…</div>
         </div>
-      ) : team ? (
+      ) : showCreate ? (
+        hasTeamPlan ? (
+          <CreateTeamForm
+            onCreate={handleCreateTeam}
+            onCancel={team ? () => setCreating(false) : null}
+            multiple={!!team}
+          />
+        ) : (
+          <UpgradeGate feature="team-create" onUpgrade={onUpgrade}>
+            {/* Never renders — UpgradeGate shows the prompt */}
+            <div />
+          </UpgradeGate>
+        )
+      ) : (
         <TeamDashboard
           team={team}
           members={members}
@@ -666,13 +716,6 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary }) {
             await deleteTeam();
           }}
         />
-      ) : !hasTeamPlan ? (
-        <UpgradeGate feature="team-create" onUpgrade={onUpgrade}>
-          {/* Never renders — UpgradeGate shows the prompt */}
-          <div />
-        </UpgradeGate>
-      ) : (
-        <CreateTeamForm onCreate={handleCreateTeam} />
       )}
     </div>
   );

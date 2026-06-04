@@ -56,6 +56,12 @@ const CheckIcon = () => (
   </svg>
 );
 
+const PlusIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
 /**
  * Desktop / tablet top header. Replaces the left sidebar (and the old church
  * "TeamBanner"). Left: primary nav. Center: workspace switcher (Personal +
@@ -79,6 +85,7 @@ export default function TopHeader({
   onMarkRead,
   onNotificationAction,
   onManageTeams,
+  onNewWorkspace,
   // On the tablet shell, primary nav moves to the bottom nav. We then show
   // the brand lockup on the left instead of the nav tabs, keeping the
   // workspace switcher centered and the right-side actions in place.
@@ -215,17 +222,29 @@ export default function TopHeader({
                 );
               })}
 
-              {hasTeamPlan && onManageTeams && (
+              {hasTeamPlan && (onManageTeams || onNewWorkspace) && (
                 <>
                   <div className="my-1 border-t border-[var(--ds-gray-200)]" />
-                  <button
-                    role="menuitem"
-                    onClick={() => { setWsOpen(false); onManageTeams(); }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer border-none bg-transparent text-left text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors"
-                  >
-                    <span className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"><TeamNavIcon /></span>
-                    <span className="text-label-14 font-medium">Manage teams</span>
-                  </button>
+                  {onNewWorkspace && (
+                    <button
+                      role="menuitem"
+                      onClick={() => { setWsOpen(false); onNewWorkspace(); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer border-none bg-transparent text-left text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors"
+                    >
+                      <span className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[var(--color-brand)]"><PlusIcon /></span>
+                      <span className="text-label-14 font-medium">New workspace</span>
+                    </button>
+                  )}
+                  {onManageTeams && (
+                    <button
+                      role="menuitem"
+                      onClick={() => { setWsOpen(false); onManageTeams(); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer border-none bg-transparent text-left text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors"
+                    >
+                      <span className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"><TeamNavIcon /></span>
+                      <span className="text-label-14 font-medium">Manage teams</span>
+                    </button>
+                  )}
                 </>
               )}
             </div>
