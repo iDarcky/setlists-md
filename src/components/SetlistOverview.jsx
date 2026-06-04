@@ -440,18 +440,23 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
             <span className="text-label-13 font-semibold text-[var(--ds-gray-900)]">Practice</span>
           </div>
         )}
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={onPlay}
-          onKeyDown={(e) => e.key === 'Enter' && onPlay?.()}
-          className="w-14 h-14 rounded-full bg-[var(--color-brand)] shadow-lg flex items-center justify-center cursor-pointer hover:opacity-90 transition-all duration-150 active:scale-95"
-          aria-label="Play setlist"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="white" className="ml-0.5">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-        </div>
+        {/* In the tablet split pane (embedded) the bottom-nav FAB owns "Play
+            live", so we drop this duplicate and keep only Practice. Elsewhere
+            (full setlist view, desktop) this is the primary play affordance. */}
+        {!embedded && (
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={onPlay}
+            onKeyDown={(e) => e.key === 'Enter' && onPlay?.()}
+            className="w-14 h-14 rounded-full bg-[var(--color-brand)] shadow-lg flex items-center justify-center cursor-pointer hover:opacity-90 transition-all duration-150 active:scale-95"
+            aria-label="Play setlist"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="white" className="ml-0.5">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        )}
       </div>
 
       {exportOpen && (

@@ -119,6 +119,10 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
     fab = { kind: 'menu', label: 'Create', icon: <PlusIcon open={menuOpen} /> };
   } else if (activeView === 'library' && onNewSong) {
     fab = { kind: 'action', label: 'New song', onClick: onNewSong, icon: <PlusIcon /> };
+  } else if (activeView === 'setlists' && onPlay) {
+    // A setlist is selected in the tablet split pane — the prominent action is
+    // to go live, not to create. (Creating still lives in the list header.)
+    fab = { kind: 'action', label: 'Play live', onClick: onPlay, icon: <PlayIcon /> };
   } else if (activeView === 'setlists' && onNewSetlist) {
     fab = { kind: 'action', label: 'New setlist', onClick: onNewSetlist, icon: <PlusIcon /> };
   } else if (activeView === 'setlist-view' && onPlay) {

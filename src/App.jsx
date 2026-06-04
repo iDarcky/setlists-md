@@ -1990,7 +1990,16 @@ export default function App() {
           plan={plan}
           onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
           onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
-          onPlay={view === 'setlist-view' && currentSetlist ? () => goSetlistPerformance(currentSetlist) : null}
+          onPlay={
+            view === 'setlist-view' && currentSetlist
+              ? () => goSetlistPerformance(currentSetlist)
+              : view === 'setlists' && previewSetlistId
+                ? () => {
+                    const sl = setlists.find(s => s.id === previewSetlistId);
+                    if (sl) goSetlistPerformance(sl);
+                  }
+                : null
+          }
         />
       )}
       {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && ['home', 'library', 'setlists'].includes(view) && !drawerOpen && (
