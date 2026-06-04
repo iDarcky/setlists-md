@@ -12,7 +12,7 @@ import { headerFrostStyle } from '../lib/headerFrost';
 import { formatClockTime } from '../lib/dateFormat';
 import { useConfirm } from './ui/useConfirmHook';
 
-export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false }) {
+export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false, hidePlay = false }) {
   const confirm = useConfirm();
   const { team, isAdmin } = useTeam();
   const [tab, setTab] = useState('setlist'); // 'setlist' | 'roster'
@@ -440,10 +440,11 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
             <span className="text-label-13 font-semibold text-[var(--ds-gray-900)]">Practice</span>
           </div>
         )}
-        {/* In the tablet split pane (embedded) the bottom-nav FAB owns "Play
-            live", so we drop this duplicate and keep only Practice. Elsewhere
-            (full setlist view, desktop) this is the primary play affordance. */}
-        {!embedded && (
+        {/* On touch tablets the bottom-nav FAB owns "Play live", so the caller
+            passes hidePlay to drop this duplicate and keep only Practice.
+            Desktop (no bottom nav) and the full setlist view keep it as the
+            primary play affordance. */}
+        {!hidePlay && (
           <div
             role="button"
             tabIndex={0}

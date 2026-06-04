@@ -448,6 +448,7 @@ export default function Setlists({
                 key={previewSetlist.id}
                 setlist={previewSetlist}
                 embedded
+                hidePlay={isTablet}
                 songs={songs}
                 clockFormat={clockFormat}
                 onBack={closePeek}
@@ -529,6 +530,7 @@ export default function Setlists({
               key={previewSetlist.id}
               setlist={previewSetlist}
               embedded
+              hidePlay={isTablet}
               songs={songs}
               clockFormat={clockFormat}
               onBack={closePeek}

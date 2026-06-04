@@ -9,7 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import NoteContent from './ui/NoteContent';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { headerFrostStyle } from '../lib/headerFrost';
-import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
+import { useIsTablet, useIsLandscape, useIsDesktop } from '../lib/useMediaQuery';
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
 
@@ -28,7 +28,10 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   // remembered per device.
   const isTablet = useIsTablet();
   const isLandscape = useIsLandscape();
-  const showRail = isTablet && isLandscape && railEnabled;
+  const isDesktop = useIsDesktop();
+  // Rail shows on a landscape tablet or any desktop-width window (where there's
+  // room beside the chart), when the user hasn't turned it off.
+  const showRail = ((isTablet && isLandscape) || isDesktop) && railEnabled;
   const [railOpen, setRailOpen] = useState(() => {
     try { return localStorage.getItem(RAIL_OPEN_KEY) === '1'; } catch { return false; }
   });

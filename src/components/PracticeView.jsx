@@ -11,7 +11,7 @@ import ChartStyleControls from './ChartStyleControls';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import NoteContent from './ui/NoteContent';
 import { headerFrostStyle } from '../lib/headerFrost';
-import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
+import { useIsTablet, useIsLandscape, useIsDesktop } from '../lib/useMediaQuery';
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
 
@@ -35,7 +35,8 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   // Collapsed by default; the choice is shared with Performance per device.
   const isTablet = useIsTablet();
   const isLandscape = useIsLandscape();
-  const showRail = isTablet && isLandscape && railEnabled;
+  const isDesktop = useIsDesktop();
+  const showRail = ((isTablet && isLandscape) || isDesktop) && railEnabled;
 
   // Swipe left/right to advance — matches the live Performance view.
   const touchRef = useRef(null);
