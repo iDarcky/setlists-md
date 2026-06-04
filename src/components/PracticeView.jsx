@@ -11,6 +11,9 @@ import ChartStyleControls from './ChartStyleControls';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import NoteContent from './ui/NoteContent';
 import { headerFrostStyle } from '../lib/headerFrost';
+import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
+
+const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
 
 export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, defaultColumns, settings, onUpdateSettings, onOpenAdvancedStyle, startIndex = 0 }) {
   const [layoutOpen, setLayoutOpen] = useState(false);
@@ -26,6 +29,19 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const [showStructureEditor, setShowStructureEditor] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const scrollRef = useRef(null);
+
+  // Parallel-browsing setlist rail — same affordance as the live Performance
+  // view, so the leader can jump songs mid-practice without leaving the chart.
+  // Collapsed by default; the choice is shared with Performance per device.
+  const isTablet = useIsTablet();
+  const isLandscape = useIsLandscape();
+  const showRail = isTablet && isLandscape;
+  const [railOpen, setRailOpen] = useState(() => {
+    try { return localStorage.getItem(RAIL_OPEN_KEY) === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(RAIL_OPEN_KEY, railOpen ? '1' : '0'); } catch { /* private mode */ }
+  }, [railOpen]);
 
   // Session metrics for the finale screen.
   const [sessionStartTime] = useState(() => Date.now());
@@ -71,6 +87,15 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     setIdx(p => Math.max(0, p - 1));
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  const goTo = useCallback((i) => {
+    setIdx(() => {
+      const clamped = Math.max(0, Math.min(resolved.length - 1, i));
+      if (clamped > farthestIdxRef.current) farthestIdxRef.current = clamped;
+      return clamped;
+    });
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [resolved.length]);
 
   const handleFinish = useCallback(() => {
     onFinish?.({
@@ -194,11 +219,14 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
 
   return (
     <div
+      className="h-full flex overflow-hidden"
+      style={{ background: 'var(--chart-bg, var(--ds-background-100))' }}
+    >
+    <div
       ref={scrollRef}
-      className="h-full overflow-y-auto overflow-x-hidden"
+      className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
-        background: 'var(--chart-bg, var(--ds-background-100))',
         color: 'var(--chart-text, var(--ds-gray-1000))',
         fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
       }}
@@ -362,31 +390,92 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
         hasNext={idx < resolved.length - 1}
         onFinish={onFinish ? handleFinish : undefined}
       />
+    </div>
 
-      {showStructureEditor && (
-        <StructureEditor
-          structure={cur.song.structure || cur.song.sections.map(s => s.type)}
-          availableSections={[...new Set(cur.song.sections.map(s => s.type))]}
-          onUpdate={(newStruct) => {
-            handleUpdateStructure(newStruct);
-            setShowStructureEditor(false);
-          }}
-          onClose={() => setShowStructureEditor(false)}
+    {/* ── Parallel-browsing setlist rail (tablet landscape) ── */}
+    {showRail && (
+      <aside
+        className="shrink-0 h-full border-l border-[var(--ds-gray-300)] flex flex-col"
+        style={{ width: railOpen ? 288 : 44, background: 'var(--ds-background-200)', transition: 'width 200ms ease' }}
+      >
+        {railOpen ? (
+          <>
+            <div className="flex items-center gap-2 px-3 py-3 border-b border-[var(--ds-gray-300)]">
+              <span className="flex-1 min-w-0 truncate text-label-11 uppercase tracking-wider font-semibold text-[var(--ds-gray-600)]">
+                {setlist.name || 'Setlist'}
+              </span>
+              <IconButton variant="ghost" size="sm" onClick={() => setRailOpen(false)} aria-label="Collapse setlist">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M13 17l5-5-5-5M6 17l5-5-5-5" />
+                </svg>
+              </IconButton>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-1">
+              {resolved.map((r, i) => {
+                const active = i === idx;
+                const title = r.isBreak ? (r.label || 'Break') : (r.isMissing ? 'Missing song' : r.song.title);
+                const k = (!r.isBreak && !r.isMissing) ? transposeKey(r.song.key, r.transpose || 0) : null;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => goTo(i)}
+                    aria-current={active ? 'true' : undefined}
+                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                      active
+                        ? 'bg-[var(--color-brand)] text-white'
+                        : 'text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)]'
+                    }`}
+                  >
+                    <span className={`text-label-11-mono shrink-0 ${active ? 'text-white/80' : 'text-[var(--ds-gray-500)]'}`}>
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <span className="flex-1 min-w-0 truncate text-copy-14">{title}</span>
+                    {k && (
+                      <span className={`text-label-11-mono shrink-0 ${active ? 'text-white/90' : 'text-[var(--chord)]'}`}>{k}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <button
+            onClick={() => setRailOpen(true)}
+            aria-label="Open setlist"
+            className="w-full flex-1 flex items-start justify-center pt-4 text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] transition-colors"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" />
+            </svg>
+          </button>
+        )}
+      </aside>
+    )}
+
+    {showStructureEditor && (
+      <StructureEditor
+        structure={cur.song.structure || cur.song.sections.map(s => s.type)}
+        availableSections={[...new Set(cur.song.sections.map(s => s.type))]}
+        onUpdate={(newStruct) => {
+          handleUpdateStructure(newStruct);
+          setShowStructureEditor(false);
+        }}
+        onClose={() => setShowStructureEditor(false)}
+      />
+    )}
+
+    <BottomSheet open={layoutOpen} onClose={() => setLayoutOpen(false)} title="Layout">
+      <div className="flex flex-col gap-4">
+        <ChartStyleControls
+          settings={settings}
+          onUpdateSettings={onUpdateSettings}
+          onOpenAdvanced={onOpenAdvancedStyle && (() => {
+            setLayoutOpen(false);
+            onOpenAdvancedStyle();
+          })}
         />
-      )}
-
-      <BottomSheet open={layoutOpen} onClose={() => setLayoutOpen(false)} title="Layout">
-        <div className="flex flex-col gap-4">
-          <ChartStyleControls
-            settings={settings}
-            onUpdateSettings={onUpdateSettings}
-            onOpenAdvanced={onOpenAdvancedStyle && (() => {
-              setLayoutOpen(false);
-              onOpenAdvancedStyle();
-            })}
-          />
-        </div>
-      </BottomSheet>
+      </div>
+    </BottomSheet>
     </div>
   );
 }
