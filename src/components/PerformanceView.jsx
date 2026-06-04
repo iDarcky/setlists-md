@@ -18,7 +18,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   const [idx, setIdx] = useState(0);
   const [selectedKey, setSelectedKey] = useState(null);
   const fontSize = defaultFontSize || 18;
-  const columns = defaultColumns || 1;
+  const baseColumns = defaultColumns || 1;
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const scrollRef = useRef(null);
 
@@ -40,6 +40,11 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   // the keyboard / pedal nav. A horizontal-dominant gesture past the threshold
   // moves songs; anything more vertical is left to the scroll container.
   const touchRef = useRef(null);
+
+  // Adaptive columns: a wide landscape reading area (incl. when the rail is
+  // collapsed) reads better two-up. Mirrors ChartView's width-based reflow.
+  const [chartWidth, setChartWidth] = useState(0);
+  const columns = (isTablet && isLandscape && chartWidth >= 700) ? 2 : baseColumns;
 
   // Session metrics for the finale screen.
   const [sessionStartTime] = useState(() => Date.now());
@@ -124,6 +129,19 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [goNext, goPrev]);
+
+  // Track the chart column's width so `columns` can react to the rail
+  // opening/closing and to rotation.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width;
+      if (w) setChartWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   if (!resolved.length) {
     return (
