@@ -10,6 +10,7 @@ import { Card } from './ui/Card';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import { cn } from '../lib/utils';
+import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { StructureRibbon } from './StructureRibbon';
 import { exportSongPdf } from '../pdf/exportSongPdf';
 import BottomSheet, { SheetField } from './ui/BottomSheet';
@@ -92,7 +93,26 @@ export default function ChartView({
   const stageMode = settings?.stageMode || 'leader';
   const stagePreset = STAGE_MODE_MAP[stageMode]?.settings || STAGE_MODE_MAP.leader.settings;
 
-  const [columns, setColumns] = useState(defaultColumns);
+  // Tablet adaptive reflow: a wide landscape reading area reads better in two
+  // columns; a narrow one (portrait, or the embedded dock/peek preview pane)
+  // stays single column. We key off the chart's *actual* width (measured
+  // below) rather than a per-call-site flag, so every reading surface —
+  // fullscreen, dock, peek, player — gets the right default automatically.
+  // We seed `columns` from this and keep following it until the user picks a
+  // column count by hand, after which we respect their choice.
+  const isTablet = useIsTablet();
+  const isLandscape = useIsLandscape();
+  const [chartWidth, setChartWidth] = useState(0);
+  const autoColumns = (isTablet && isLandscape && chartWidth >= 700) ? 2 : defaultColumns;
+  const userSetColumnsRef = useRef(false);
+
+  const [columns, setColumns] = useState(autoColumns);
+  const setColumnsManually = (v) => { userSetColumnsRef.current = true; setColumns(v); };
+  // Re-seed when the reading width / orientation changes, unless the user has
+  // overridden the column count by hand.
+  useEffect(() => {
+    if (!userSetColumnsRef.current) setColumns(autoColumns);
+  }, [autoColumns]);
   const [fontSize, setFontSize] = useState(stagePreset.lyricFontSize ?? initialFontSize);
   // Lyric/chord fonts come from CSS vars set by useChartTheme (--chart-font-*).
   const [chordFontSize, setChordFontSize] = useState(stagePreset.chordFontSize ?? Math.round(initialFontSize * 0.95));
@@ -160,6 +180,20 @@ export default function ChartView({
     };
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Track the reading area's width so the adaptive column default (above) can
+  // react to the real space available — fullscreen vs. a narrow dock pane vs.
+  // rotation — without each call site having to know.
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width;
+      if (w) setChartWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   // Intercept Cmd/Ctrl+P so the keyboard shortcut routes through the
@@ -527,7 +561,7 @@ export default function ChartView({
                 <SheetField label="Columns">
                   <SegmentedControl
                     value={columns}
-                    onChange={setColumns}
+                    onChange={setColumnsManually}
                     options={[
                       { value: 1, label: '1 col' },
                       { value: 2, label: '2 col' },
