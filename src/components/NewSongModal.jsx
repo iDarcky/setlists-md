@@ -92,7 +92,7 @@ export default function NewSongModal({
 
         {(tab === 'import' || tab === 'paste') && (
           <div
-            className="px-5 py-2 border-b border-[var(--ds-gray-300)] text-label-11 text-[var(--ds-gray-700)]"
+            className="px-5 py-2 border-b border-[var(--ds-gray-300)] text-label-11 text-[var(--ds-gray-700)] shrink-0"
             style={{ background: 'var(--ds-gray-100)' }}
           >
             You're responsible for ensuring you have a license to copy the
@@ -101,17 +101,22 @@ export default function NewSongModal({
           </div>
         )}
 
-        {tab === 'import' && (
-          <ImportTab
-            isMobile={isMobile}
-            onImportSongs={onImportSongs}
-            onImportSetlistFile={onImportSetlistFile}
-          />
-        )}
-        {tab === 'paste' && (
-          <PasteTab onSubmit={onSmartImport} />
-        )}
-        {tab === 'browse' && <BrowseTab />}
+        {/* Scrollable body — keeps the header/tabs/footer pinned while the
+            active tab's content scrolls on short viewports instead of being
+            clipped. */}
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+          {tab === 'import' && (
+            <ImportTab
+              isMobile={isMobile}
+              onImportSongs={onImportSongs}
+              onImportSetlistFile={onImportSetlistFile}
+            />
+          )}
+          {tab === 'paste' && (
+            <PasteTab onSubmit={onSmartImport} isMobile={isMobile} />
+          )}
+          {tab === 'browse' && <BrowseTab />}
+        </div>
 
         <div className="flex items-center gap-2 px-5 py-3 border-t border-[var(--ds-gray-300)]">
           <span className="text-label-11 text-[var(--ds-gray-500)] font-mono flex-1 hidden sm:inline">

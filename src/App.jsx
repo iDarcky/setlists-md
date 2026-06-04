@@ -94,6 +94,10 @@ const PORTABLE_PREF_KEYS = [
   'theme',
   'defaultColumns',
   'defaultFontSize',
+  'chordFontSize',
+  'nashville',
+  'showChords',
+  'showDiagrams',
   'pedalNext',
   'pedalPrev',
   'showInlineNotes',
@@ -119,6 +123,8 @@ const PORTABLE_PREF_KEYS = [
   'clockFormat',
   'userName',
   'lastChangelogVersion',
+  'performanceRail',
+  'navStyle',
 ];
 
 function extractPortablePrefs(s) {
@@ -1703,6 +1709,10 @@ export default function App() {
                 displayRole: settings?.displayRole || 'leader',
                 duplicateSections: settings?.duplicateSections || 'full',
                 chartLayout: settings?.chartLayout || 'columns',
+
+                settings,
+
+                onUpdateSettings: (key, value) => setSettings(prev => ({ ...prev, [key]: value })),
               }}
               canEdit={canEdit}
             />
@@ -1795,6 +1805,10 @@ export default function App() {
                 displayRole: settings?.displayRole || 'leader',
                 duplicateSections: settings?.duplicateSections || 'full',
                 chartLayout: settings?.chartLayout || 'columns',
+
+                settings,
+
+                onUpdateSettings: (key, value) => setSettings(prev => ({ ...prev, [key]: value })),
               }}
             />
           )}
@@ -1853,6 +1867,9 @@ export default function App() {
               onFinish={(stats) => goLiveFinale(currentSetlist, stats, 'performance')}
               defaultColumns={settings?.defaultColumns}
               defaultFontSize={settings?.defaultFontSize}
+              railEnabled={settings?.performanceRail !== false}
+              navStyle={settings?.navStyle || 'pill'}
+              settings={settings}
             />
           )}
           {view === 'setlist-practice' && currentSetlist && (
@@ -1866,6 +1883,8 @@ export default function App() {
               onUpdateSetlist={handleUpdateSetlist}
               defaultColumns={settings?.defaultColumns}
               defaultFontSize={settings?.defaultFontSize}
+              railEnabled={settings?.performanceRail !== false}
+              navStyle={settings?.navStyle || 'pill'}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               onOpenAdvancedStyle={() => goToMainView('settings', { settingsPanel: 'chart-style' })}
@@ -1987,9 +2006,19 @@ export default function App() {
         <BottomNav
           activeView={view}
           onNavigate={goToMainView}
+          plan={plan}
           onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
           onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
-          onPlay={view === 'setlist-view' && currentSetlist ? () => goSetlistPerformance(currentSetlist) : null}
+          onPlay={
+            view === 'setlist-view' && currentSetlist
+              ? () => goSetlistPerformance(currentSetlist)
+              : view === 'setlists' && previewSetlistId
+                ? () => {
+                    const sl = setlists.find(s => s.id === previewSetlistId);
+                    if (sl) goSetlistPerformance(sl);
+                  }
+                : null
+          }
         />
       )}
       {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && ['home', 'library', 'setlists'].includes(view) && !drawerOpen && (

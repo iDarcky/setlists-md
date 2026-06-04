@@ -2,6 +2,27 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.8.0-pre-alpha — Global chart customization, two-pane polish & live/practice rail
+*June 2026*
+
+### Added
+- **Customize once, everywhere** — column count, lyric & chord size, Nashville numbers, show/hide chords and chord diagrams now save to your device and apply to *every* song and in the live & practice views — not just the song you tweaked.
+- **Two-column live & practice** — charts reflow to two columns on a wide screen, and Practice now supports 2-column too.
+- **Setlist rail in live & practice** — a collapsible setlist sits beside the chart so you can jump between songs without leaving; on landscape tablets and desktop. Toggle it on/off in Preferences → Chart Defaults.
+- **Navigation controls** — choose a floating next/prev pill or prev/next buttons in the chart header (Preferences → Chart Defaults), and swipe left/right to move between songs.
+- **Resizable preview pane** — drag the divider between the list and the preview in Library and Setlists; the width is remembered per device.
+
+### Improved
+- **Tablet main button** — opening a setlist turns the big button into **Play** (start live); creating a setlist lives in the list header. No more duplicate "+" button on tablets.
+- **Header next/prev** moved to the far left and enlarged, well clear of the close button.
+- **Practice customize button** — the old 3-dot menu is now a clear display-options button.
+- The bottom nav stays visible and usable above the setlist preview panel, and the bulk-select bar no longer overlaps it.
+
+### Fixed
+- **New-song Paste on phones** — the paste screen no longer squeezes the text box or stacks two footers; it has a single full-width Create button.
+- **Play restored** in the desktop setlist preview (it had gone missing alongside Practice).
+
+
 ## 0.7.0-pre-alpha — Tablet two-pane & setlist management overhaul
 *June 2026*
 

@@ -12,7 +12,7 @@ import { headerFrostStyle } from '../lib/headerFrost';
 import { formatClockTime } from '../lib/dateFormat';
 import { useConfirm } from './ui/useConfirmHook';
 
-export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false }) {
+export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false, hidePlay = false }) {
   const confirm = useConfirm();
   const { team, isAdmin } = useTeam();
   const [tab, setTab] = useState('setlist'); // 'setlist' | 'roster'
@@ -440,18 +440,24 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
             <span className="text-label-13 font-semibold text-[var(--ds-gray-900)]">Practice</span>
           </div>
         )}
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={onPlay}
-          onKeyDown={(e) => e.key === 'Enter' && onPlay?.()}
-          className="w-14 h-14 rounded-full bg-[var(--color-brand)] shadow-lg flex items-center justify-center cursor-pointer hover:opacity-90 transition-all duration-150 active:scale-95"
-          aria-label="Play setlist"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="white" className="ml-0.5">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-        </div>
+        {/* On touch tablets the bottom-nav FAB owns "Play live", so the caller
+            passes hidePlay to drop this duplicate and keep only Practice.
+            Desktop (no bottom nav) and the full setlist view keep it as the
+            primary play affordance. */}
+        {!hidePlay && (
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={onPlay}
+            onKeyDown={(e) => e.key === 'Enter' && onPlay?.()}
+            className="w-14 h-14 rounded-full bg-[var(--color-brand)] shadow-lg flex items-center justify-center cursor-pointer hover:opacity-90 transition-all duration-150 active:scale-95"
+            aria-label="Play setlist"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="white" className="ml-0.5">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        )}
       </div>
 
       {exportOpen && (

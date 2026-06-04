@@ -25,7 +25,7 @@ Amazing grace, how sweet the sound
 G       D         G
 That saved a wretch like me`;
 
-export default function PasteTab({ onSubmit }) {
+export default function PasteTab({ onSubmit, isMobile = false }) {
   const [title, setTitle] = useState('');
   const [songKey, setSongKey] = useState('');
   const [tempo, setTempo] = useState('');
@@ -67,9 +67,13 @@ export default function PasteTab({ onSubmit }) {
   const canSubmit = text.trim() && title.trim();
 
   return (
-    <div className="flex flex-col min-h-0 flex-1">
-      <div className="px-5 py-3 border-b border-[var(--ds-gray-300)] grid grid-cols-1 sm:grid-cols-[1fr_120px_120px] gap-3">
-        <div>
+    // Desktop fills the tall modal (flex column with a min height so it never
+    // shrinks and clips its own labels). Mobile flows naturally and lets the
+    // modal body scroll — a fill layout would squeeze the textarea to nothing
+    // and stack a second footer against the sheet's.
+    <div className={isMobile ? 'flex flex-col' : 'flex flex-col flex-1 min-h-[440px]'}>
+      <div className="px-5 py-3 border-b border-[var(--ds-gray-300)] grid grid-cols-2 sm:grid-cols-[1fr_120px_120px] gap-3">
+        <div className="col-span-2 sm:col-span-1">
           <label className="text-label-12 text-[var(--ds-gray-600)] font-mono mb-1 block">
             Title <span className="text-[var(--color-brand-text)]">*</span>
           </label>
@@ -137,15 +141,15 @@ export default function PasteTab({ onSubmit }) {
         )}
       </div>
 
-      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-0 md:divide-x divide-[var(--ds-gray-300)] overflow-hidden">
-        <div className="flex flex-col min-h-0 p-4">
+      <div className={`grid grid-cols-1 md:grid-cols-2 gap-0 md:divide-x divide-[var(--ds-gray-300)] ${isMobile ? '' : 'flex-1 min-h-0 overflow-hidden'}`}>
+        <div className={`p-4 ${isMobile ? 'flex flex-col' : 'flex flex-col min-h-0'}`}>
           <label className="text-label-12 text-[var(--ds-gray-600)] font-mono mb-1.5">Paste</label>
           <textarea
             value={text}
             onChange={e => setText(e.target.value)}
             placeholder={EXAMPLE}
             spellCheck={false}
-            className="flex-1 min-h-[180px] w-full bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg p-3 text-copy-12 leading-relaxed text-[var(--ds-gray-1000)] resize-none outline-none font-mono whitespace-pre"
+            className={`w-full bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg p-3 text-copy-12 leading-relaxed text-[var(--ds-gray-1000)] resize-none outline-none font-mono whitespace-pre ${isMobile ? 'h-[200px]' : 'flex-1 min-h-[180px]'}`}
           />
           <div className="text-label-10 text-[var(--ds-gray-500)] mt-1.5 font-mono">
             {text.trim() ? `${text.split('\n').length} lines · ${text.length} chars` : 'Empty'}
@@ -166,12 +170,13 @@ export default function PasteTab({ onSubmit }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--ds-gray-300)]">
+      <div className={`flex items-center gap-2 px-5 py-3 ${isMobile ? '' : 'justify-end border-t border-[var(--ds-gray-300)]'}`}>
         <Button
           variant="brand"
-          size="sm"
+          size={isMobile ? 'md' : 'sm'}
           onClick={handleCreate}
           disabled={!canSubmit}
+          className={isMobile ? 'w-full' : ''}
         >
           Create song
         </Button>

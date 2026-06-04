@@ -11,8 +11,12 @@ import ChartStyleControls from './ChartStyleControls';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import NoteContent from './ui/NoteContent';
 import { headerFrostStyle } from '../lib/headerFrost';
+import { useIsTablet, useIsLandscape, useIsDesktop } from '../lib/useMediaQuery';
+import { resolveChartDisplay, resolveColumns } from '../lib/chartDisplay';
 
-export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, defaultColumns, settings, onUpdateSettings, onOpenAdvancedStyle, startIndex = 0 }) {
+const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
+
+export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, railEnabled = true, navStyle = 'pill', settings, onUpdateSettings, onOpenAdvancedStyle, startIndex = 0 }) {
   const [layoutOpen, setLayoutOpen] = useState(false);
   // Start at the requested item (e.g. tapping a song in the overview) clamped
   // into range; defaults to the top of the set.
@@ -21,11 +25,33 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     return Number.isInteger(startIndex) && startIndex >= 0 && startIndex < n ? startIndex : 0;
   });
   const [selectedKey, setSelectedKey] = useState(null);
-  const fontSize = defaultFontSize || 18;
-  const columns = defaultColumns || 1;
+  // Device-global chart display, shared with the Library chart & live view.
+  const disp = resolveChartDisplay(settings, { fallbackLyric: defaultFontSize || 18 });
+  const fontSize = disp.lyricFontSize;
   const [showStructureEditor, setShowStructureEditor] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [chartWidth, setChartWidth] = useState(0);
   const scrollRef = useRef(null);
+
+  // Parallel-browsing setlist rail — same affordance as the live Performance
+  // view, so the leader can jump songs mid-practice without leaving the chart.
+  // Collapsed by default; the choice is shared with Performance per device.
+  const isTablet = useIsTablet();
+  const isLandscape = useIsLandscape();
+  const isDesktop = useIsDesktop();
+  const showRail = ((isTablet && isLandscape) || isDesktop) && railEnabled;
+  // Explicit 1/2 from settings wins; 'auto'/unset goes two-up when the reading
+  // area is comfortably wide.
+  const columns = resolveColumns(disp.columns, chartWidth >= 700);
+
+  // Swipe left/right to advance — matches the live Performance view.
+  const touchRef = useRef(null);
+  const [railOpen, setRailOpen] = useState(() => {
+    try { return localStorage.getItem(RAIL_OPEN_KEY) === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(RAIL_OPEN_KEY, railOpen ? '1' : '0'); } catch { /* private mode */ }
+  }, [railOpen]);
 
   // Session metrics for the finale screen.
   const [sessionStartTime] = useState(() => Date.now());
@@ -72,6 +98,31 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  const goTo = useCallback((i) => {
+    setIdx(() => {
+      const clamped = Math.max(0, Math.min(resolved.length - 1, i));
+      if (clamped > farthestIdxRef.current) farthestIdxRef.current = clamped;
+      return clamped;
+    });
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [resolved.length]);
+
+  const onTouchStart = useCallback((e) => {
+    const t = e.changedTouches[0];
+    touchRef.current = { x: t.clientX, y: t.clientY };
+  }, []);
+  const onTouchEnd = useCallback((e) => {
+    const s = touchRef.current;
+    if (!s) return;
+    touchRef.current = null;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0) goNext(); else goPrev();
+    }
+  }, [goNext, goPrev]);
+
   const handleFinish = useCallback(() => {
     onFinish?.({
       startTime: startTimeRef.current,
@@ -93,6 +144,18 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [goNext, goPrev]);
+
+  // Measure the reading width so 'auto' columns can reflow two-up when wide.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width;
+      if (w) setChartWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Save key change → persists to setlist item transpose
   const handleKeyChange = useCallback((newKey) => {
@@ -157,6 +220,29 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
 
   const displayKey = cur.isBreak || cur.isMissing ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
 
+  // Optional in-header prev/next cluster — an alternative to the floating nav
+  // pill. Rendered at the far LEFT of the header (clear of the collapse / menu /
+  // close controls on the right) with comfortable tap targets. The last step
+  // turns into Finish.
+  const atEnd = idx >= resolved.length - 1;
+  const navButtons = navStyle === 'header' ? (
+    <div className="flex items-center gap-1 shrink-0 pr-2 mr-1 border-r border-[var(--ds-gray-300)]">
+      <IconButton size="md" variant="ghost" onClick={goPrev} disabled={idx === 0} aria-label="Previous song">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+      </IconButton>
+      <span className="text-label-13 text-[var(--ds-gray-700)] tabular-nums px-1 select-none min-w-[2.5rem] text-center">{idx + 1}/{resolved.length}</span>
+      {atEnd && onFinish ? (
+        <IconButton size="md" variant="ghost" onClick={handleFinish} aria-label="Finish set">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+        </IconButton>
+      ) : (
+        <IconButton size="md" variant="ghost" onClick={goNext} disabled={atEnd} aria-label="Next song">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+        </IconButton>
+      )}
+    </div>
+  ) : null;
+
   // Chevron + dot menu + close X — anchored to the right end of the title
   // row in both expanded and collapsed states. Same variant and size so
   // they render with matching color and weight.
@@ -176,12 +262,14 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
         size="sm"
         variant="ghost"
         onClick={() => setLayoutOpen(true)}
-        aria-label="Layout"
+        aria-label="Display options"
+        title="Display options"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <circle cx="12" cy="5" r="1.6" />
-          <circle cx="12" cy="12" r="1.6" />
-          <circle cx="12" cy="19" r="1.6" />
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
+          <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
+          <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
         </svg>
       </IconButton>
       <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close practice">
@@ -194,11 +282,16 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
 
   return (
     <div
+      className="h-full flex overflow-hidden"
+      style={{ background: 'var(--chart-bg, var(--ds-background-100))' }}
+    >
+    <div
       ref={scrollRef}
-      className="h-full overflow-y-auto overflow-x-hidden"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
-        background: 'var(--chart-bg, var(--ds-background-100))',
         color: 'var(--chart-text, var(--ds-gray-1000))',
         fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
       }}
@@ -229,6 +322,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
         return (
           <div className="material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
             <div className={`wide-container flex items-center gap-2 ${headerCollapsed ? 'py-1.5' : 'py-3'}`}>
+              {navButtons}
               {!headerCollapsed && (
                 <>
                   {/* Title */}
@@ -336,6 +430,9 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             capo={cur.capo || 0}
             fontSize={fontSize}
             columns={columns}
+            chordFontSize={disp.chordFontSize}
+            nashville={disp.nashville}
+            showChords={disp.showChords}
             onSaveCue={handleSaveCue}
           />
         ) : null}
@@ -351,42 +448,105 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
         )}
       </div>
 
-      {/* ── Floating nav pill ── */}
-      <FloatingNavPill
-        current={idx + 1}
-        total={resolved.length}
-        nextLabel={next?.isBreak ? (next.label || 'Break') : next?.song?.title}
-        onPrev={goPrev}
-        onNext={goNext}
-        hasPrev={idx > 0}
-        hasNext={idx < resolved.length - 1}
-        onFinish={onFinish ? handleFinish : undefined}
-      />
-
-      {showStructureEditor && (
-        <StructureEditor
-          structure={cur.song.structure || cur.song.sections.map(s => s.type)}
-          availableSections={[...new Set(cur.song.sections.map(s => s.type))]}
-          onUpdate={(newStruct) => {
-            handleUpdateStructure(newStruct);
-            setShowStructureEditor(false);
-          }}
-          onClose={() => setShowStructureEditor(false)}
+      {/* ── Floating nav pill (unless the leader chose header buttons) ── */}
+      {navStyle !== 'header' && (
+        <FloatingNavPill
+          current={idx + 1}
+          total={resolved.length}
+          nextLabel={next?.isBreak ? (next.label || 'Break') : next?.song?.title}
+          onPrev={goPrev}
+          onNext={goNext}
+          hasPrev={idx > 0}
+          hasNext={idx < resolved.length - 1}
+          onFinish={onFinish ? handleFinish : undefined}
         />
       )}
+    </div>
 
-      <BottomSheet open={layoutOpen} onClose={() => setLayoutOpen(false)} title="Layout">
-        <div className="flex flex-col gap-4">
-          <ChartStyleControls
-            settings={settings}
-            onUpdateSettings={onUpdateSettings}
-            onOpenAdvanced={onOpenAdvancedStyle && (() => {
-              setLayoutOpen(false);
-              onOpenAdvancedStyle();
-            })}
-          />
-        </div>
-      </BottomSheet>
+    {/* ── Parallel-browsing setlist rail (tablet landscape) ── */}
+    {showRail && (
+      <aside
+        className="shrink-0 h-full border-l border-[var(--ds-gray-300)] flex flex-col"
+        style={{ width: railOpen ? 288 : 44, background: 'var(--ds-background-200)', transition: 'width 200ms ease' }}
+      >
+        {railOpen ? (
+          <>
+            <div className="flex items-center gap-2 px-3 py-3 border-b border-[var(--ds-gray-300)]">
+              <span className="flex-1 min-w-0 truncate text-label-11 uppercase tracking-wider font-semibold text-[var(--ds-gray-600)]">
+                {setlist.name || 'Setlist'}
+              </span>
+              <IconButton variant="ghost" size="sm" onClick={() => setRailOpen(false)} aria-label="Collapse setlist">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M13 17l5-5-5-5M6 17l5-5-5-5" />
+                </svg>
+              </IconButton>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-1">
+              {resolved.map((r, i) => {
+                const active = i === idx;
+                const title = r.isBreak ? (r.label || 'Break') : (r.isMissing ? 'Missing song' : r.song.title);
+                const k = (!r.isBreak && !r.isMissing) ? transposeKey(r.song.key, r.transpose || 0) : null;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => goTo(i)}
+                    aria-current={active ? 'true' : undefined}
+                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                      active
+                        ? 'bg-[var(--color-brand)] text-white'
+                        : 'text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)]'
+                    }`}
+                  >
+                    <span className={`text-label-11-mono shrink-0 ${active ? 'text-white/80' : 'text-[var(--ds-gray-500)]'}`}>
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <span className="flex-1 min-w-0 truncate text-copy-14">{title}</span>
+                    {k && (
+                      <span className={`text-label-11-mono shrink-0 ${active ? 'text-white/90' : 'text-[var(--chord)]'}`}>{k}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <button
+            onClick={() => setRailOpen(true)}
+            aria-label="Open setlist"
+            className="w-full flex-1 flex items-start justify-center pt-4 text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] transition-colors"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" />
+            </svg>
+          </button>
+        )}
+      </aside>
+    )}
+
+    {showStructureEditor && (
+      <StructureEditor
+        structure={cur.song.structure || cur.song.sections.map(s => s.type)}
+        availableSections={[...new Set(cur.song.sections.map(s => s.type))]}
+        onUpdate={(newStruct) => {
+          handleUpdateStructure(newStruct);
+          setShowStructureEditor(false);
+        }}
+        onClose={() => setShowStructureEditor(false)}
+      />
+    )}
+
+    <BottomSheet open={layoutOpen} onClose={() => setLayoutOpen(false)} title="Layout">
+      <div className="flex flex-col gap-4">
+        <ChartStyleControls
+          settings={settings}
+          onUpdateSettings={onUpdateSettings}
+          onOpenAdvanced={onOpenAdvancedStyle && (() => {
+            setLayoutOpen(false);
+            onOpenAdvancedStyle();
+          })}
+        />
+      </div>
+    </BottomSheet>
     </div>
   );
 }
@@ -496,7 +656,7 @@ function StructureEditor({ structure, availableSections, onUpdate, onClose }) {
 }
 
 // Chart with editable cue cards between sections
-function PracticeChart({ song, selectedKey, capo, fontSize, columns, onSaveCue }) {
+function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, nashville = false, showChords = true, onSaveCue }) {
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
 
   const sectionModOffsets = useMemo(() => {
@@ -517,10 +677,13 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns, onSaveCue }
       style={{
         fontSize,
         fontFamily: "var(--font-mono)",
+        ['--chart-font-size-lyric']: `${fontSize}px`,
+        ...(chordFontSize ? { ['--chart-font-size-chord']: `${chordFontSize}px` } : {}),
+        ...(columns === 2 ? { columnCount: 2, columnGap: '3rem' } : {}),
       }}
     >
       {song.notes && (
-        <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]">
+        <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]" style={{ columnSpan: 'all', WebkitColumnSpan: 'all' }}>
           <span className="shrink-0 mt-0.5 text-[var(--ds-gray-600)]" aria-hidden="true">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -535,12 +698,14 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns, onSaveCue }
         </div>
       )}
       {song.sections.map((section, i) => (
-        <div key={section.id || i} id={`practice-section-${i}`} style={{ scrollMarginTop: '7rem' }}>
+        <div key={section.id || i} id={`practice-section-${i}`} style={{ scrollMarginTop: '7rem', breakInside: 'avoid' }}>
           <SectionBlock
             section={section}
             transpose={transpose}
             modOffset={sectionModOffsets[i]}
-            showChords
+            nns={nashville}
+            songKey={song.key}
+            showChords={showChords}
             inlineNotes
             noteStyle="dashes"
           />

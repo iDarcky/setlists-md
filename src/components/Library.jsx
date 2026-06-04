@@ -5,6 +5,7 @@ import { Button } from './ui/Button';
 import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
+import { useResizablePane } from '../lib/useResizablePane';
 
 const ChartView = lazy(() => import('./ChartView'));
 
@@ -188,6 +189,7 @@ export default function Library({
   const advanced = isDesktop || isTablet;   // table view + master-detail
   // Pinned second pane: tablet in landscape with room for two columns.
   const splitDock = isTablet && isLandscape && wide && !isFullscreen;
+  const { width: paneWidth, onPointerDown: onPaneResize } = useResizablePane({ storageKey: 'setlists-md:library-pane-w' });
 
   const previewSong = useMemo(
     () => songs.find(s => s.id === previewSongId) || null,
@@ -617,9 +619,25 @@ export default function Library({
 
       </div>{/* /list column */}
 
+      {/* Draggable divider — resize the pane, Spotify-style. */}
+      {splitDock && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize preview"
+          onPointerDown={onPaneResize}
+          className="shrink-0 w-1.5 self-stretch cursor-col-resize relative group"
+        >
+          <span className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-[var(--ds-gray-300)] group-hover:bg-[var(--color-brand)] transition-colors" />
+        </div>
+      )}
+
       {/* Pinned detail pane — tablet landscape (Phase 3 two-pane split) */}
       {splitDock && (
-        <aside className="w-[42%] min-w-[420px] max-w-[760px] h-full min-h-0 shrink-0 border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden flex flex-col">
+        <aside
+          style={{ width: paneWidth }}
+          className="h-full min-h-0 shrink-0 border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden flex flex-col"
+        >
           {previewSong ? (
             <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
               <ChartView
@@ -643,8 +661,9 @@ export default function Library({
         </aside>
       )}
 
-      {/* FAB — tablet only */}
-      {!readOnly && onNewSong && (
+      {/* FAB — narrow mouse-driven windows only. Touch tablets get the
+          bottom-nav FAB instead, so gating on !isTablet avoids a duplicate. */}
+      {!readOnly && onNewSong && !isTablet && (
         <div ref={fabRef} className="fixed right-6 z-[150] hidden sm:block lg:hidden" style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
           <button onClick={onNewSong} aria-label="New song" className="w-14 h-14 rounded-full bg-[var(--color-brand)] text-white shadow-lg flex items-center justify-center cursor-pointer hover:opacity-90 transition-all duration-150 active:scale-95 border-none">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -656,7 +675,11 @@ export default function Library({
 
       {/* Bulk action bar — desktop + tablet */}
       {advanced && !readOnly && selected.length > 0 && (
-        <div ref={bulkBarRef} className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl">
+        <div
+          ref={bulkBarRef}
+          className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl"
+          style={isTablet ? { bottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' } : undefined}
+        >
           <span className="text-label-14 font-semibold text-[var(--ds-gray-1000)] whitespace-nowrap">{selected.length} selected</span>
           <span className="w-px h-5 bg-[var(--ds-gray-300)]" />
 

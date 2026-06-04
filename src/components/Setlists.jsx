@@ -6,6 +6,7 @@ import { IconButton } from './ui/IconButton';
 import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
+import { useResizablePane } from '../lib/useResizablePane';
 
 const SetlistOverview = lazy(() => import('./SetlistOverview'));
 
@@ -126,6 +127,7 @@ export default function Setlists({
   const isDesktop = wide && !isTablet;
   const advanced = isDesktop || isTablet;
   const splitDock = isTablet && isLandscape && wide && !isFullscreen;
+  const { width: paneWidth, onPointerDown: onPaneResize } = useResizablePane({ storageKey: 'setlists-md:setlists-pane-w' });
 
   const previewSetlist = useMemo(
     () => setlists.find(s => s.id === previewSetlistId) || null,
@@ -424,13 +426,29 @@ export default function Setlists({
 
       {/* Pinned detail pane — tablet landscape (Phase 3 two-pane split) */}
       {splitDock && (
-        <aside className="w-[42%] min-w-[420px] max-w-[760px] h-full min-h-0 shrink-0 border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden flex flex-col">
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize preview"
+          onPointerDown={onPaneResize}
+          className="shrink-0 w-1.5 self-stretch cursor-col-resize relative group"
+        >
+          <span className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-[var(--ds-gray-300)] group-hover:bg-[var(--color-brand)] transition-colors" />
+        </div>
+      )}
+
+      {splitDock && (
+        <aside
+          style={{ width: paneWidth }}
+          className="h-full min-h-0 shrink-0 border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden flex flex-col"
+        >
           {previewSetlist ? (
             <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
               <SetlistOverview
                 key={previewSetlist.id}
                 setlist={previewSetlist}
                 embedded
+                hidePlay={isTablet}
                 songs={songs}
                 clockFormat={clockFormat}
                 onBack={closePeek}
@@ -457,8 +475,9 @@ export default function Setlists({
         </aside>
       )}
 
-      {/* FAB — tablet only */}
-      {!readOnly && (onNewSetlist || onImportSetlist) && (
+      {/* FAB — narrow mouse-driven windows only. Touch tablets get the
+          bottom-nav FAB instead, so gating on !isTablet avoids a duplicate. */}
+      {!readOnly && (onNewSetlist || onImportSetlist) && !isTablet && (
         <div ref={fabRef} className="fixed right-6 z-[150] hidden sm:block lg:hidden" style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
           {fabOpen && (
             <div className="absolute bottom-full right-0 mb-3 flex flex-col gap-2">
@@ -480,9 +499,13 @@ export default function Setlists({
 
       <input ref={fileInputRef} type="file" accept=".zip" onChange={(e) => { const file = e.target.files[0]; if (file) onImportSetlist?.(file); e.target.value = ''; }} className="hidden" />
 
-      {/* Bulk action bar — desktop + tablet */}
+      {/* Bulk action bar — desktop + tablet. On touch tablets it must clear the
+          floating bottom nav, so lift it above the nav there. */}
       {advanced && !readOnly && selected.length > 0 && (
-        <div className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl">
+        <div
+          className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl"
+          style={isTablet ? { bottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' } : undefined}
+        >
           <span className="text-label-14 font-semibold text-[var(--ds-gray-1000)] whitespace-nowrap">{selected.length} selected</span>
           <span className="w-px h-5 bg-[var(--ds-gray-300)]" />
           {onDeleteSetlist && (
@@ -507,6 +530,7 @@ export default function Setlists({
               key={previewSetlist.id}
               setlist={previewSetlist}
               embedded
+              hidePlay={isTablet}
               songs={songs}
               clockFormat={clockFormat}
               onBack={closePeek}
