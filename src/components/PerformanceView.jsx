@@ -1,6 +1,9 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { transposeKey, ALL_KEYS, semitonesBetween, normalizeSectionName } from '../music';
+import { transposeKey, transposeChord, ALL_KEYS, semitonesBetween, normalizeSectionName } from '../music';
 import { resolveSongView } from '../arrangements';
+import { resolveChartDisplay, resolveColumns } from '../lib/chartDisplay';
+import ChordDiagram from './ChordDiagram';
+import { Card } from './ui/Card';
 import SectionBlock from './SectionBlock';
 import { StructureRibbon } from './StructureRibbon';
 import FloatingNavPill from './ui/FloatingNavPill';
@@ -13,12 +16,14 @@ import { useIsTablet, useIsLandscape, useIsDesktop } from '../lib/useMediaQuery'
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
 
-export default function PerformanceView({ setlist, songs, onBack, onFinish, defaultFontSize, defaultColumns, railEnabled = true, navStyle = 'pill' }) {
+export default function PerformanceView({ setlist, songs, onBack, onFinish, defaultFontSize, railEnabled = true, navStyle = 'pill', settings }) {
   useWakeLock(true);
   const [idx, setIdx] = useState(0);
   const [selectedKey, setSelectedKey] = useState(null);
-  const fontSize = defaultFontSize || 18;
-  const baseColumns = defaultColumns || 1;
+  // Device-global chart display (size, chords, columns…) — same source the
+  // Library chart writes to, so customizing a song carries into live mode.
+  const disp = resolveChartDisplay(settings, { fallbackLyric: defaultFontSize || 18 });
+  const fontSize = disp.lyricFontSize;
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const scrollRef = useRef(null);
 
@@ -45,9 +50,9 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   const touchRef = useRef(null);
 
   // Adaptive columns: a wide landscape reading area (incl. when the rail is
-  // collapsed) reads better two-up. Mirrors ChartView's width-based reflow.
+  // collapsed) reads better two-up. Explicit 1/2 from settings wins.
   const [chartWidth, setChartWidth] = useState(0);
-  const columns = (isTablet && isLandscape && chartWidth >= 700) ? 2 : baseColumns;
+  const columns = resolveColumns(disp.columns, isTablet && isLandscape && chartWidth >= 700);
 
   // Session metrics for the finale screen.
   const [sessionStartTime] = useState(() => Date.now());
@@ -159,22 +164,23 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   const displayKey = cur.isBreak || cur.isMissing ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
 
   // Optional in-header prev/next cluster — an alternative to the floating nav
-  // pill. The last step turns into Finish so the leader can close out the set
-  // without the pill.
+  // pill. Rendered at the far LEFT of the header (well away from the collapse /
+  // close controls on the right) with comfortable tap targets. The last step
+  // turns into Finish so the leader can close out the set without the pill.
   const atEnd = idx >= resolved.length - 1;
   const navButtons = navStyle === 'header' ? (
-    <div className="flex items-center gap-0.5 shrink-0">
-      <IconButton size="sm" variant="ghost" onClick={goPrev} disabled={idx === 0} aria-label="Previous song">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+    <div className="flex items-center gap-1 shrink-0 pr-2 mr-1 border-r border-[var(--ds-gray-300)]">
+      <IconButton size="md" variant="ghost" onClick={goPrev} disabled={idx === 0} aria-label="Previous song">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
       </IconButton>
-      <span className="text-label-12 text-[var(--ds-gray-600)] tabular-nums px-1 select-none">{idx + 1}/{resolved.length}</span>
+      <span className="text-label-13 text-[var(--ds-gray-700)] tabular-nums px-1 select-none min-w-[2.5rem] text-center">{idx + 1}/{resolved.length}</span>
       {atEnd && onFinish ? (
-        <IconButton size="sm" variant="ghost" onClick={handleFinish} aria-label="Finish set">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+        <IconButton size="md" variant="ghost" onClick={handleFinish} aria-label="Finish set">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
         </IconButton>
       ) : (
-        <IconButton size="sm" variant="ghost" onClick={goNext} disabled={atEnd} aria-label="Next song">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+        <IconButton size="md" variant="ghost" onClick={goNext} disabled={atEnd} aria-label="Next song">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
         </IconButton>
       )}
     </div>
@@ -243,6 +249,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
         return (
           <div className="material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
             <div className={`wide-container flex items-center gap-2 ${headerCollapsed ? 'py-1.5' : 'py-3'}`}>
+              {navButtons}
               {!headerCollapsed && (
                 <>
                   {/* Title */}
@@ -289,7 +296,6 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
                   {structRibbon}
                 </div>
               )}
-              {navButtons}
               {headerControls}
             </div>
 
@@ -341,6 +347,10 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
               capo={cur.capo || 0}
               fontSize={fontSize}
               columns={columns}
+              chordFontSize={disp.chordFontSize}
+              nashville={disp.nashville}
+              showChords={disp.showChords}
+              showDiagrams={disp.showDiagrams}
             />
           </>
         ) : null}
@@ -424,9 +434,15 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   );
 }
 
-function SongChart({ song, selectedKey, capo, fontSize, columns }) {
+function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, nashville = false, showChords = true, showDiagrams = false }) {
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   const [notesOpen, setNotesOpen] = useState(false);
+
+  const allChords = useMemo(() => Array.from(new Set(
+    song.sections.flatMap(s => s.lines)
+      .filter(l => typeof l === 'string')
+      .flatMap(l => { const m = l.match(/\[(.*?)\]/g); return m ? m.map(x => x.slice(1, -1)) : []; })
+  )), [song.sections]);
 
   // Playback order honours an explicit `structure` (Proclaim-style)
   // only when the body's section names are unique and the structure
@@ -470,8 +486,22 @@ function SongChart({ song, selectedKey, capo, fontSize, columns }) {
         columnCount: columns,
         columnGap: '3rem',
         fontFamily: "var(--font-mono)",
+        ['--chart-font-size-lyric']: `${fontSize}px`,
+        ...(chordFontSize ? { ['--chart-font-size-chord']: `${chordFontSize}px` } : {}),
       }}
     >
+      {showDiagrams && allChords.length > 0 && (
+        <div className="flex gap-4 overflow-x-auto no-scrollbar pb-6 mb-6 border-b border-[var(--ds-gray-300)]" style={{ columnSpan: 'all', WebkitColumnSpan: 'all' }}>
+          {allChords.map(chord => (
+            <div key={chord} className="flex flex-col items-center gap-1 flex-shrink-0">
+              <div className="text-label-10-mono font-bold text-[var(--ds-gray-600)]">{transposeChord(chord, transpose)}</div>
+              <Card className="w-24 h-28 flex items-center justify-center p-2">
+                <ChordDiagram chord={transposeChord(chord, transpose)} />
+              </Card>
+            </div>
+          ))}
+        </div>
+      )}
       {song.notes && (
         <div className="mb-3" style={{ columnSpan: 'all', WebkitColumnSpan: 'all' }}>
           {notesOpen ? (
@@ -526,7 +556,9 @@ function SongChart({ song, selectedKey, capo, fontSize, columns }) {
             section={section}
             transpose={transpose}
             modOffset={sectionModOffsets[i]}
-            showChords
+            nns={nashville}
+            songKey={song.key}
+            showChords={showChords}
             inlineNotes
             noteStyle="dashes"
           />

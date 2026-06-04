@@ -12,10 +12,11 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import NoteContent from './ui/NoteContent';
 import { headerFrostStyle } from '../lib/headerFrost';
 import { useIsTablet, useIsLandscape, useIsDesktop } from '../lib/useMediaQuery';
+import { resolveChartDisplay, resolveColumns } from '../lib/chartDisplay';
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
 
-export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, defaultColumns, railEnabled = true, navStyle = 'pill', settings, onUpdateSettings, onOpenAdvancedStyle, startIndex = 0 }) {
+export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, railEnabled = true, navStyle = 'pill', settings, onUpdateSettings, onOpenAdvancedStyle, startIndex = 0 }) {
   const [layoutOpen, setLayoutOpen] = useState(false);
   // Start at the requested item (e.g. tapping a song in the overview) clamped
   // into range; defaults to the top of the set.
@@ -24,10 +25,12 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     return Number.isInteger(startIndex) && startIndex >= 0 && startIndex < n ? startIndex : 0;
   });
   const [selectedKey, setSelectedKey] = useState(null);
-  const fontSize = defaultFontSize || 18;
-  const columns = defaultColumns || 1;
+  // Device-global chart display, shared with the Library chart & live view.
+  const disp = resolveChartDisplay(settings, { fallbackLyric: defaultFontSize || 18 });
+  const fontSize = disp.lyricFontSize;
   const [showStructureEditor, setShowStructureEditor] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [chartWidth, setChartWidth] = useState(0);
   const scrollRef = useRef(null);
 
   // Parallel-browsing setlist rail — same affordance as the live Performance
@@ -37,6 +40,9 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const isLandscape = useIsLandscape();
   const isDesktop = useIsDesktop();
   const showRail = ((isTablet && isLandscape) || isDesktop) && railEnabled;
+  // Explicit 1/2 from settings wins; 'auto'/unset goes two-up when the reading
+  // area is comfortably wide.
+  const columns = resolveColumns(disp.columns, chartWidth >= 700);
 
   // Swipe left/right to advance — matches the live Performance view.
   const touchRef = useRef(null);
@@ -139,6 +145,18 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     return () => window.removeEventListener('keydown', handler);
   }, [goNext, goPrev]);
 
+  // Measure the reading width so 'auto' columns can reflow two-up when wide.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width;
+      if (w) setChartWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // Save key change → persists to setlist item transpose
   const handleKeyChange = useCallback((newKey) => {
     setSelectedKey(newKey);
@@ -203,21 +221,23 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const displayKey = cur.isBreak || cur.isMissing ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
 
   // Optional in-header prev/next cluster — an alternative to the floating nav
-  // pill. The last step turns into Finish.
+  // pill. Rendered at the far LEFT of the header (clear of the collapse / menu /
+  // close controls on the right) with comfortable tap targets. The last step
+  // turns into Finish.
   const atEnd = idx >= resolved.length - 1;
   const navButtons = navStyle === 'header' ? (
-    <div className="flex items-center gap-0.5 shrink-0">
-      <IconButton size="sm" variant="ghost" onClick={goPrev} disabled={idx === 0} aria-label="Previous song">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+    <div className="flex items-center gap-1 shrink-0 pr-2 mr-1 border-r border-[var(--ds-gray-300)]">
+      <IconButton size="md" variant="ghost" onClick={goPrev} disabled={idx === 0} aria-label="Previous song">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
       </IconButton>
-      <span className="text-label-12 text-[var(--ds-gray-600)] tabular-nums px-1 select-none">{idx + 1}/{resolved.length}</span>
+      <span className="text-label-13 text-[var(--ds-gray-700)] tabular-nums px-1 select-none min-w-[2.5rem] text-center">{idx + 1}/{resolved.length}</span>
       {atEnd && onFinish ? (
-        <IconButton size="sm" variant="ghost" onClick={handleFinish} aria-label="Finish set">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+        <IconButton size="md" variant="ghost" onClick={handleFinish} aria-label="Finish set">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
         </IconButton>
       ) : (
-        <IconButton size="sm" variant="ghost" onClick={goNext} disabled={atEnd} aria-label="Next song">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+        <IconButton size="md" variant="ghost" onClick={goNext} disabled={atEnd} aria-label="Next song">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
         </IconButton>
       )}
     </div>
@@ -300,6 +320,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
         return (
           <div className="material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
             <div className={`wide-container flex items-center gap-2 ${headerCollapsed ? 'py-1.5' : 'py-3'}`}>
+              {navButtons}
               {!headerCollapsed && (
                 <>
                   {/* Title */}
@@ -354,7 +375,6 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
                   {structRibbon}
                 </div>
               )}
-              {navButtons}
               {headerControls}
             </div>
 
@@ -408,6 +428,9 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             capo={cur.capo || 0}
             fontSize={fontSize}
             columns={columns}
+            chordFontSize={disp.chordFontSize}
+            nashville={disp.nashville}
+            showChords={disp.showChords}
             onSaveCue={handleSaveCue}
           />
         ) : null}
@@ -631,7 +654,7 @@ function StructureEditor({ structure, availableSections, onUpdate, onClose }) {
 }
 
 // Chart with editable cue cards between sections
-function PracticeChart({ song, selectedKey, capo, fontSize, columns, onSaveCue }) {
+function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, nashville = false, showChords = true, onSaveCue }) {
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
 
   const sectionModOffsets = useMemo(() => {
@@ -652,10 +675,13 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns, onSaveCue }
       style={{
         fontSize,
         fontFamily: "var(--font-mono)",
+        ['--chart-font-size-lyric']: `${fontSize}px`,
+        ...(chordFontSize ? { ['--chart-font-size-chord']: `${chordFontSize}px` } : {}),
+        ...(columns === 2 ? { columnCount: 2, columnGap: '3rem' } : {}),
       }}
     >
       {song.notes && (
-        <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]">
+        <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]" style={{ columnSpan: 'all', WebkitColumnSpan: 'all' }}>
           <span className="shrink-0 mt-0.5 text-[var(--ds-gray-600)]" aria-hidden="true">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -670,12 +696,14 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns, onSaveCue }
         </div>
       )}
       {song.sections.map((section, i) => (
-        <div key={section.id || i} id={`practice-section-${i}`} style={{ scrollMarginTop: '7rem' }}>
+        <div key={section.id || i} id={`practice-section-${i}`} style={{ scrollMarginTop: '7rem', breakInside: 'avoid' }}>
           <SectionBlock
             section={section}
             transpose={transpose}
             modOffset={sectionModOffsets[i]}
-            showChords
+            nns={nashville}
+            songKey={song.key}
+            showChords={showChords}
             inlineNotes
             noteStyle="dashes"
           />
