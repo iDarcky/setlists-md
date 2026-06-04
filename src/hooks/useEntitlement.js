@@ -48,15 +48,28 @@ export function useEntitlement(feature) {
     
   const requiredPlan = FEATURE_GATES[feature] || 'free';
   let allowed = (PLAN_RANK[currentPlan] ?? 0) >= (PLAN_RANK[requiredPlan] ?? 0);
-  
-  // 2. Special carve-outs for 'Pro' one-time purchases in Personal mode
+
+  // 2. Per-workspace billing: a team/church workspace carries its own Stripe
+  // subscription. If that subscription has lapsed the whole workspace drops to
+  // free-tier access — paid features gate off until billing is restored.
+  // Defaults to 'active' when the column is absent (pre-migration projects) so
+  // existing teams keep working.
+  const subscriptionStatus = isPersonal
+    ? null
+    : (team?.subscription_status || 'active').toLowerCase();
+  if (!isPersonal && team && requiredPlan !== 'free') {
+    const billingOk = subscriptionStatus === 'active' || subscriptionStatus === 'trialing';
+    if (!billingOk) allowed = false;
+  }
+
+  // 3. Special carve-outs for 'Pro' one-time purchases in Personal mode
   if (isPersonal && profile?.is_pro) {
     if (feature === 'chart-style' || feature === 'cloud-sync' || feature === 'smart-import') {
       allowed = true;
     }
   }
 
-  return { allowed, requiredPlan, currentPlan };
+  return { allowed, requiredPlan, currentPlan, subscriptionStatus };
 }
 
 /**

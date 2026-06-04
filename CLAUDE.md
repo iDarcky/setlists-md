@@ -343,8 +343,15 @@ The Teams/Church tier adds these additional tables:
 
 - **`teams`** — `id`, `name`, `location`, `owner_id`, `plan` (team|church),
   `max_seats` (10 for team, 30 for church), `logo_url`, `created_at`,
-  `updated_at`. `logo_url` is a public URL into the `avatars` bucket
-  (church/team logo, admin-editable).
+  `updated_at`, plus **per-workspace subscription** columns:
+  `subscription_status` (trialing|active|past_due|canceled|unpaid, default
+  `active`), `stripe_customer_id`, `stripe_subscription_id`,
+  `current_period_end`. `logo_url` is a public URL into the `avatars` bucket
+  (church/team logo, admin-editable). **Each workspace is its own billing
+  unit** — one Stripe subscription per team, the `owner_id` is the payer, and
+  a single user can own many teams (no uniqueness on `owner_id`). The canonical
+  tier field is `teams.plan`; the older `teams.billing_plan` column is
+  **deprecated** (no longer read — use `teams.plan`).
 - **`team_members`** — `id`, `team_id`, `user_id`, `role` (admin|member),
   `invited_by`, `joined_at`, `instruments` (text[], default `{}`).
   Unique constraint on `(team_id, user_id)`. The `instruments` column is the
@@ -394,6 +401,14 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   Uploads go through `components/ui/AvatarUploader.jsx`; avatars render in the
   desktop header, the mobile workspace FAB/switcher, and the Account/Team
   settings forms.
+- `20260604_team_subscriptions.sql` — adds the per-workspace subscription
+  columns to `teams` (`subscription_status`, `stripe_customer_id`,
+  `stripe_subscription_id`, `current_period_end`) and grandfathers existing
+  teams to `active`. This is the data layer for "each band/church is its own
+  paid subscription". The client is **status-aware but not yet status-gated in
+  practice** — everything defaults to `active` until Stripe checkout + a webhook
+  write real statuses (the remaining billing work; no Stripe integration exists
+  yet — `PricingScreen` only captures email intent).
 
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).
@@ -401,16 +416,26 @@ RLS must allow each user to `select`/`update` their own profile row
 ## Entitlements
 
 Feature gating uses `useEntitlement(feature)` from `hooks/useEntitlement.js`.
-It checks `profile?.plan` against a plan hierarchy (`free < sync < team < church`)
-and returns `{ allowed, requiredPlan, currentPlan }`.
+It resolves the current plan against a hierarchy (`free < sync < team < church`)
+and returns `{ allowed, requiredPlan, currentPlan, subscriptionStatus }`.
+
+The current plan is **context-aware**:
+- In the Personal workspace it reads `profile.subscription_tier` (canonical;
+  the legacy `profile.plan` column was dropped in `20260522_plans_migration`),
+  with one-time-Pro carve-outs via `profile.is_pro`.
+- In a team/church workspace it reads **`team.plan`** — the workspace's own
+  tier — *and* requires the workspace's `team.subscription_status` to be
+  `active`/`trialing`. A lapsed subscription drops the whole workspace to
+  free-tier access (gates paid features off). Status defaults to `active` when
+  the column is absent, so pre-migration projects keep working.
 
 Gated features and their minimum plan:
 - `cloud-sync`, `smart-import` → `sync`
 - `team-create`, `team-library`, `team-collab`, `team-roles` → `team`
 - `multi-service` → `church`
 
-A non-hook version `checkEntitlement(plan, feature)` is available for use
-outside React components.
+A non-hook version `checkEntitlement(plan, feature, isPro)` is available for use
+outside React components (plan-only; it has no team-subscription context).
 
 The `UpgradeGate` component (`ui/UpgradeGate.jsx`) wraps gated content
 and shows a branded upgrade prompt when the user's plan is insufficient.
@@ -435,7 +460,7 @@ The provider only fetches from Supabase when the user has a `team` or
 - ChartView computes `sectionModOffsets` via `useMemo` — uses `acc` object instead of `let` variable to satisfy React compiler immutability rules
 - Preference hydration runs **once per user id** via `prefsHydratedForUserRef` — don't re-run it on every profile change or you'll clobber a later local edit with the cloud value. The ref is cleared on sign-out.
 - Only keys in `PORTABLE_PREF_KEYS` (App.jsx) are allowed in `profile.preferences`. Adding a new portable preference? Add its key to that array or it won't follow the user across devices.
-- The `profiles.preferences` column is optional at runtime — `AuthProvider` falls back to a base `select('id, email, display_name, plan')` if the column doesn't exist, so sign-in works even before the migration is applied. The push side swallows the error.
+- The `profiles.preferences` column is optional at runtime — `AuthProvider` falls back to a base `select('id, email, display_name, is_pro, subscription_tier')` if the column doesn't exist, so sign-in works even before the migration is applied. The push side swallows the error.
 - Auth callback URL handling is split: OAuth stays on `/auth/callback` (dedicated `AuthCallback.jsx`). Magic links and recovery links land on `/` and rely on App.jsx's cleanup effect — don't add a new redirect target without wiring a matching cleanup branch.
 - `RecoveryScreen.handleBack` calls `signOut()` *before* invoking the parent `onBack`. If you ever route away from it through another path, make sure that path also ends the recovery session.
 - PDF export uses `window.open('about:blank', '_blank', ...)` followed by `document.write(...)` (see `src/pdf/exportSongPdf.js` and `src/pdf/exportSetlistPdf.js`). This is unreliable inside iOS PWAs launched from the Home Screen (manifest declares `display: 'standalone'`) — the popup handle often comes back `null` or bounces out to Safari, breaking the `window.opener.localStorage` pref-sync hook. There is no popup-permission setting in an installed PWA, so the user can't recover. The roadmap (`docs/roadmap.md` §7) tracks an inline-iframe fallback path; until that ships, expect the feature to feel broken on iPad standalone mode.
@@ -446,9 +471,13 @@ The provider only fetches from Supabase when the user has a `team` or
 These are real defects found during a roadmap audit. They are not yet fixed —
 treat them as the first work item if the paid tier is ever demoed.
 
-- **Entitlement gate falls back to free for teams** — `src/hooks/useEntitlement.js`
-  reads `team?.billing_plan`, but the schema/`TeamProvider` expose `team.plan`.
-  The undefined field makes every team feature silently resolve to `free`.
+- ~~**Entitlement gate falls back to free for teams**~~ — *Fixed.*
+  `useEntitlement` reads `team.plan` (and now also `team.subscription_status`);
+  the stray `team.billing_plan` read in `Settings.jsx` was switched to
+  `team.plan`. Separately, `TeamProvider` was reading the dropped
+  `profile.plan` for `hasTeamPlan`/`createTeam` (always undefined → team
+  creation hit the `plan in ('team','church')` check constraint); it now reads
+  `profile.subscription_tier` and stamps a valid tier on create.
 - **Members can edit songs in read-only team libraries** — `App.jsx` computes
   `isTeamReadOnly` (non-admin/non-editor in a team library), but the editor
   entry points aren't all gated by it, so members reach the editor anyway.

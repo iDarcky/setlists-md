@@ -419,8 +419,12 @@ function DataPanel({ songCount, setlistCount, onDownloadSongs, onClearAll }) {
 
 function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn, activeLibrary, team }) {
   const isTeam = activeLibrary !== 'personal';
-  const effectivePlan = isTeam ? (team?.billing_plan || 'free') : plan;
+  // Canonical tier field is team.plan ('team' | 'church'); billing_plan is
+  // deprecated. Per-workspace subscription status defaults to 'active'.
+  const effectivePlan = isTeam ? (team?.plan || 'free') : plan;
   const planKey = (effectivePlan || 'free').toLowerCase();
+  const teamStatus = isTeam ? (team?.subscription_status || 'active').toLowerCase() : null;
+  const teamBillingOk = teamStatus === 'active' || teamStatus === 'trialing';
   
   const label = isTeam 
     ? (team?.name || 'Team') + ' Plan' 
@@ -447,8 +451,11 @@ function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn, activeLibrary
           ) : !isTeam && planKey === 'free' ? (
             <Button variant="brand" size="sm" onClick={onUpgrade}>Upgrade</Button>
           ) : (
-            <span className="text-label-11 uppercase tracking-wider text-[var(--modes-text-muted)]">
-              Active
+            <span
+              className="text-label-11 uppercase tracking-wider"
+              style={{ color: isTeam && !teamBillingOk ? 'var(--ds-red-900)' : 'var(--modes-text-muted)' }}
+            >
+              {isTeam ? (teamStatus === 'past_due' ? 'Past due' : teamStatus === 'canceled' ? 'Canceled' : teamStatus === 'unpaid' ? 'Unpaid' : teamStatus === 'trialing' ? 'Trial' : 'Active') : 'Active'}
             </span>
           )}
         </div>

@@ -22,7 +22,10 @@ export function TeamProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const loadedForUserRef = useRef(null);
 
-  const plan = (profile?.plan || 'free').toLowerCase();
+  // The user's personal tier drives whether they may create/own workspaces.
+  // (The legacy `profiles.plan` column was dropped in 20260522_plans_migration;
+  // `subscription_tier` is the canonical field.)
+  const plan = (profile?.subscription_tier || 'free').toLowerCase();
   const hasTeamPlan = plan === 'team' || plan === 'church';
 
   const team = useMemo(
@@ -206,16 +209,25 @@ export function TeamProvider({ children }) {
        * the new team becomes the active one.
        * @param {{ name: string, location?: string }} opts
        */
-      createTeam: async ({ name, location }) => {
+      createTeam: async ({ name, location, plan: planArg }) => {
         guard();
-        const maxSeats = plan === 'church' ? 30 : 10;
+        // Each workspace is its own billing unit. The `teams.plan` check
+        // constraint only allows 'team' | 'church' — never 'free'/'sync' — so
+        // we resolve a valid tier: an explicit choice wins, else fall back to
+        // the owner's personal tier when it's already team/church, else 'team'.
+        // Once Stripe checkout is wired the tier comes from the selected price;
+        // subscription_status defaults to 'active' (see 20260604 migration).
+        const teamPlan = (planArg === 'church' || planArg === 'team')
+          ? planArg
+          : (plan === 'church' ? 'church' : 'team');
+        const maxSeats = teamPlan === 'church' ? 30 : 10;
         const { data: newTeam, error: teamErr } = await supabase
           .from('teams')
           .insert({
             name,
             location: location || null,
             owner_id: user.id,
-            plan,
+            plan: teamPlan,
             max_seats: maxSeats,
           })
           .select()
