@@ -113,7 +113,7 @@ export default function NewSongModal({
             />
           )}
           {tab === 'paste' && (
-            <PasteTab onSubmit={onSmartImport} />
+            <PasteTab onSubmit={onSmartImport} isMobile={isMobile} />
           )}
           {tab === 'browse' && <BrowseTab />}
         </div>
