@@ -3,10 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Setlists MD — Tablet Redesign Mockup</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<title>Setlists MD — Tablet Redesign Mockup v2</title>
 <style>
-  /* App tokens (dark palette), inlined from src/styles/index.css */
   :root {
     --color-brand: #53796F;
     --color-brand-mist: #7AA89C;
@@ -25,170 +23,155 @@
     --modes-surface-strong: rgba(255,255,255,0.08);
     --modes-border: rgba(255,255,255,0.09);
   }
+  * { box-sizing: border-box; }
   body {
     background: #161618;
     font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
     color: var(--ds-gray-1000);
     margin: 0; padding: 40px 24px 80px;
   }
-  /* iPad landscape frame: 1180 x 820 */
-  .tablet {
-    width: 1180px; height: 820px;
-    margin: 0 auto 56px;
-    border-radius: 28px;
-    overflow: hidden;
-    background: var(--ds-background-100);
-    box-shadow: 0 0 0 12px #000, 0 30px 80px rgba(0,0,0,0.6);
-    position: relative;
-    display: flex; flex-direction: column;
-  }
-  .label { max-width: 1180px; margin: 0 auto 12px; color: #9aa; font-size: 13px; letter-spacing: .02em; text-transform: uppercase; }
-  .glass {
-    background: color-mix(in srgb, var(--ds-background-200) 60%, transparent);
-    backdrop-filter: blur(24px) saturate(180%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), inset 0 0 0 .5px rgba(255,255,255,0.10), 0 12px 34px rgba(0,0,0,0.38);
-  }
+  .row { display: flex; gap: 40px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  .tablet { border-radius: 28px; overflow: hidden; background: var(--ds-background-100); box-shadow: 0 0 0 12px #000, 0 30px 80px rgba(0,0,0,0.6); position: relative; display: flex; flex-direction: column; }
+  .land { width: 1180px; height: 820px; }
+  .port { width: 820px; height: 1100px; }
+  .label { width: 100%; text-align: center; margin: 0 0 14px; color: #9aa; font-size: 13px; letter-spacing: .02em; text-transform: uppercase; }
+  .glass { background: color-mix(in srgb, var(--ds-background-200) 60%, transparent); backdrop-filter: blur(24px) saturate(180%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), inset 0 0 0 .5px rgba(255,255,255,0.10), 0 12px 34px rgba(0,0,0,0.38); }
   .modes-card { border-radius: 14px; background: var(--modes-surface); border: 1px solid var(--modes-border); }
   .chord { color: var(--chord); font-family: ui-monospace, monospace; font-weight: 600; }
-  .seg { background: var(--ds-gray-200); border-radius: 10px; padding: 3px; display: inline-flex; gap: 2px; }
-  .seg button { border: none; background: transparent; color: var(--ds-gray-700); font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 8px; cursor: pointer; }
-  .seg button.on { background: var(--color-brand); color: #fff; }
-  .toprow { height: 56px; background: var(--ds-background-200); border-bottom: 1px solid var(--ds-gray-200); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 20px; }
+  .toprow { height: 56px; background: var(--ds-background-200); border-bottom: 1px solid var(--ds-gray-200); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 18px; }
+  .brand { display: inline-flex; align-items: center; gap: 9px; font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+  .brand .mark { width: 26px; height: 26px; border-radius: 7px; background: linear-gradient(135deg, var(--color-brand-mist), var(--color-brand-vetiver)); display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; font-weight: 800; }
   .ws { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--ds-gray-300); background: var(--ds-background-100); font-size: 14px; }
+  .ws .dot { width:20px;height:20px;border-radius:999px;background:var(--ds-gray-400);display:inline-flex;align-items:center;justify-content:center;font-size:11px; }
   .icobtn { width: 36px; height: 36px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; color: var(--ds-gray-700); }
-  .bottomnav { position: absolute; left: 0; right: 0; bottom: 18px; display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .bottomnav { position: absolute; left: 0; right: 0; bottom: 18px; display: flex; align-items: center; justify-content: center; gap: 12px; z-index: 5; }
   .navpill { display: inline-flex; gap: 4px; padding: 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.10); }
-  .navtab { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 96px; height: 60px; justify-content: center; border-radius: 999px; color: var(--ds-gray-700); font-size: 12px; font-weight: 500; cursor: pointer; }
+  .navtab { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 92px; height: 58px; justify-content: center; border-radius: 999px; color: var(--ds-gray-700); font-size: 12px; font-weight: 500; }
   .navtab.on { color: var(--color-brand-mist); background: rgba(255,255,255,0.14); font-weight: 600; }
-  .fab { width: 64px; height: 64px; border-radius: 999px; background: var(--color-brand); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 28px rgba(0,0,0,.35); font-size: 30px; }
+  .navtab svg { width: 22px; height: 22px; }
+  .fab { width: 62px; height: 62px; border-radius: 999px; background: var(--color-brand); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 28px rgba(0,0,0,.35); }
   table { width: 100%; border-collapse: collapse; }
   th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ds-gray-600); padding: 12px 16px; font-weight: 600; }
   td { padding: 13px 16px; font-size: 14px; border-top: 1px solid var(--modes-border); }
   tr.sel td { background: var(--color-brand); color: #fff; }
   tr.sel td .sub { color: rgba(255,255,255,.8); }
   .sub { color: var(--ds-gray-600); font-size: 12px; }
+  .sectlabel { color: var(--color-brand-mist); font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: .06em; margin-bottom: 10px; }
+  .pagetitle { margin:0; font-size:22px; font-weight:700; }
+  .iconbtn-lg { width: 38px; height: 38px; border-radius: 10px; background: var(--ds-gray-200); color: var(--ds-gray-1000); display:inline-flex; align-items:center; justify-content:center; }
+  .modes-bg { background: radial-gradient(120% 90% at 15% 0%, rgba(122,168,156,0.16), transparent 55%), radial-gradient(120% 90% at 100% 100%, rgba(120,80,120,0.18), transparent 55%), var(--ds-background-100); }
 </style>
 </head>
 <body>
 
-<!-- ============ FRAME 1: Library + new shell ============ -->
-<div class="label">Frame 1 — Library: bottom nav + slimmed top bar + persistent browse split</div>
-<div class="tablet">
-  <!-- Top bar: workspace center + right actions only -->
-  <div class="toprow">
-    <div></div>
-    <div style="justify-self:center"><span class="ws">
-      <span style="width:20px;height:20px;border-radius:999px;background:var(--ds-gray-400);display:inline-flex;align-items:center;justify-content:center;font-size:11px">P</span>
-      Personal Workspace ▾</span></div>
-    <div style="justify-self:end;display:flex;gap:4px;align-items:center">
-      <span class="icobtn">⚑</span><span class="icobtn">🔔</span><span class="icobtn">⚙</span>
-    </div>
-  </div>
+<!-- shared svg defs -->
+<svg width="0" height="0" style="position:absolute"><defs>
+  <g id="i-home"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><polyline points="9 22 9 12 15 12 15 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <g id="i-set"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="1.7"/><line x1="7" y1="9" x2="17" y2="9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><line x1="7" y1="13" x2="15" y2="13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><line x1="7" y1="17" x2="13" y2="17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></g>
+  <g id="i-song"><path d="M9 18V5l12-2v13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="18" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/></g>
+  <g id="i-sliders"><line x1="4" y1="21" x2="4" y2="14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="4" y1="10" x2="4" y2="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="12" y1="21" x2="12" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="12" y1="8" x2="12" y2="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="20" y1="21" x2="20" y2="16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="20" y1="12" x2="20" y2="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="1" y1="14" x2="7" y2="14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="9" y1="8" x2="15" y2="8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="17" y1="16" x2="23" y2="16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></g>
+</defs></svg>
 
-  <!-- Split: list + detail pane -->
-  <div style="flex:1; display:flex; min-height:0;">
-    <!-- list column -->
-    <div style="flex:1; overflow:auto; padding:20px 22px;">
+<script>
+  // helpers to keep markup terse
+  function nav(active){
+    const tabs=[['home','Home','i-home'],['setlists','Setlists','i-set'],['library','Songs','i-song']];
+    return `<div class="navpill glass">`+tabs.map(([id,l,ic])=>`<div class="navtab ${id===active?'on':''}"><svg viewBox="0 0 24 24"><use href="#${ic}"/></svg>${l}</div>`).join('')+`</div>`;
+  }
+  function topbar(){
+    return `<div class="toprow">
+      <div class="brand"><span class="mark">S</span>Setlists MD</div>
+      <div style="justify-self:center"><span class="ws"><span class="dot">P</span>Personal Workspace ▾</span></div>
+      <div style="justify-self:end;display:flex;gap:4px;align-items:center"><span class="icobtn">⚑</span><span class="icobtn">🔔</span><span class="icobtn">⚙</span></div>
+    </div>`;
+  }
+</script>
+
+<!-- ===================== LANDSCAPE ROW 1 ===================== -->
+<div class="label">Landscape · Frame 1 — Library (bottom nav · brand top-left · master–detail preview pane)</div>
+<div class="row"><div class="tablet land" id="f1"></div></div>
+<script>document.getElementById('f1').innerHTML = topbar() + `
+  <div style="flex:1;display:flex;min-height:0">
+    <div style="flex:1;overflow:auto;padding:20px 22px">
       <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:14px">
-        <h2 style="margin:0;font-size:22px;font-weight:700">Songs</h2><span class="sub">128</span>
-        <div style="margin-left:auto" class="seg"><button class="on">Table</button><button>Gallery</button></div>
+        <h2 class="pagetitle">Songs</h2><span class="sub">128</span>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <span class="sub" style="border:1px solid var(--ds-gray-300);border-radius:8px;padding:6px 12px">Search…</span>
+        </div>
       </div>
       <div class="modes-card" style="overflow:hidden">
-        <table>
-          <thead><tr><th>Title</th><th style="width:90px">Key</th><th style="width:80px">Tempo</th></tr></thead>
-          <tbody>
-            <tr><td>Great Are You Lord<div class="sub">All Sons & Daughters</div></td><td><span class="chord">A</span></td><td>72</td></tr>
-            <tr class="sel"><td>Build My Life<div class="sub">Pat Barrett</div></td><td>E</td><td>68</td></tr>
-            <tr><td>Goodness of God<div class="sub">Bethel Music</div></td><td><span class="chord">Ab</span></td><td>63</td></tr>
-            <tr><td>King of Kings<div class="sub">Hillsong Worship</div></td><td><span class="chord">D</span></td><td>72</td></tr>
-            <tr><td>Holy Spirit<div class="sub">Francesca Battistelli</div></td><td><span class="chord">C</span></td><td>66</td></tr>
-            <tr><td>Tremble<div class="sub">Mosaic MSC</div></td><td><span class="chord">G</span></td><td>70</td></tr>
-          </tbody>
-        </table>
+        <table><thead><tr><th>Title</th><th style="width:90px">Key</th><th style="width:80px">Tempo</th></tr></thead><tbody>
+          <tr><td>Great Are You Lord<div class="sub">All Sons & Daughters</div></td><td><span class="chord">A</span></td><td>72</td></tr>
+          <tr class="sel"><td>Build My Life<div class="sub">Pat Barrett</div></td><td>E</td><td>68</td></tr>
+          <tr><td>Goodness of God<div class="sub">Bethel Music</div></td><td><span class="chord">Ab</span></td><td>63</td></tr>
+          <tr><td>King of Kings<div class="sub">Hillsong Worship</div></td><td><span class="chord">D</span></td><td>72</td></tr>
+          <tr><td>Holy Spirit<div class="sub">Francesca Battistelli</div></td><td><span class="chord">C</span></td><td>66</td></tr>
+          <tr><td>Tremble<div class="sub">Mosaic MSC</div></td><td><span class="chord">G</span></td><td>70</td></tr>
+        </tbody></table>
       </div>
     </div>
-    <!-- detail pane (persistent) -->
-    <div style="width:430px; border-left:1px solid var(--modes-border); padding:22px; overflow:auto; background:var(--ds-background-200)">
+    <div style="width:440px;border-left:1px solid var(--modes-border);padding:22px;overflow:auto;background:var(--ds-background-200)">
+      <div class="sub" style="margin-bottom:6px">PREVIEW · tap a row to inspect without leaving the list</div>
       <div class="sub" style="margin-bottom:6px">SONG · E major · 68 BPM · 4/4</div>
       <h3 style="margin:0 0 14px;font-size:24px;font-weight:700">Build My Life</h3>
       <div class="modes-card" style="padding:16px;margin-bottom:14px">
-        <div class="sub" style="margin-bottom:8px">VERSE 1</div>
+        <div class="sectlabel">Verse 1</div>
         <div style="line-height:2.1"><span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span>&nbsp;&nbsp;&nbsp;<span class="chord">C#m</span><br/>Worthy of every song we could ever sing</div>
       </div>
-      <div style="display:flex;gap:8px">
-        <button style="flex:1;background:var(--color-brand);color:#fff;border:none;height:42px;border-radius:10px;font-weight:600">Open chart</button>
-        <button style="background:var(--ds-gray-200);color:var(--ds-gray-1000);border:none;height:42px;border-radius:10px;padding:0 16px">Edit</button>
-      </div>
+      <div style="display:flex;gap:8px"><button style="flex:1;background:var(--color-brand);color:#fff;border:none;height:42px;border-radius:10px;font-weight:600">Open chart</button><button style="background:var(--ds-gray-200);color:var(--ds-gray-1000);border:none;height:42px;border-radius:10px;padding:0 16px">Edit</button></div>
     </div>
   </div>
+  <div class="bottomnav">${nav('library')}<div class="fab glass" style="background:var(--color-brand)"><svg width="28" height="28" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>`;</script>
 
-  <!-- Bottom nav -->
-  <div class="bottomnav">
-    <div class="navpill glass">
-      <div class="navtab"><span style="font-size:18px">⌂</span>Home</div>
-      <div class="navtab"><span style="font-size:18px">▦</span>Setlists</div>
-      <div class="navtab on"><span style="font-size:18px">♪</span>Songs</div>
-    </div>
-    <div class="fab glass" style="background:var(--color-brand)">+</div>
-  </div>
-</div>
-
-<!-- ============ FRAME 2: ChartView reflow + mode toggle ============ -->
-<div class="label">Frame 2 — ChartView: auto two-column landscape + promoted display/notation toggles</div>
-<div class="tablet">
-  <!-- chart header -->
+<!-- ===================== LANDSCAPE ROW 2 ===================== -->
+<div class="label">Landscape · Frame 2 — ChartView (clean header, NO top settings · two-column reflow · settings live behind the sliders icon)</div>
+<div class="row"><div class="tablet land" id="f2"></div></div>
+<script>document.getElementById('f2').innerHTML = `
   <div style="height:64px;display:flex;align-items:center;gap:16px;padding:0 22px;border-bottom:1px solid var(--ds-gray-200);background:var(--ds-background-200)">
     <span style="color:var(--ds-gray-700)">‹ Back</span>
-    <div><div style="font-weight:700;font-size:16px">Build My Life</div><div class="sub">Key of E</div></div>
-    <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
-      <div class="seg"><button class="on">Lyrics + Chords</button><button>Lyrics</button><button>Song-map</button></div>
-      <div class="seg"><button class="on">Std</button><button>Nashville</button><button>Do-Re-Mi</button></div>
+    <div><div style="font-weight:700;font-size:16px">Build My Life</div><div class="sub">Pat Barrett · Key of E</div></div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <span class="iconbtn-lg" title="Transpose">E ♯</span>
+      <span class="iconbtn-lg" title="Display options"><svg width="20" height="20" viewBox="0 0 24 24"><use href="#i-sliders"/></svg></span>
     </div>
   </div>
-  <!-- two columns -->
-  <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:0;overflow:hidden">
+  <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;overflow:hidden">
     <div style="padding:24px 28px;overflow:auto;border-right:1px solid var(--modes-border)">
-      <div style="color:var(--color-brand-mist);font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.06em;margin-bottom:10px">Verse 1</div>
-      <div style="line-height:2.4;font-size:18px">
-        <span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">C#m</span><br/>
-        Worthy of every song we could ever sing<br/>
-        <span class="chord">A</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span><br/>
-        Worthy of all the praise we could ever bring<br/><br/>
-      </div>
-      <div style="color:var(--color-brand-mist);font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.06em;margin-bottom:10px">Verse 2</div>
-      <div style="line-height:2.4;font-size:18px">
-        <span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span><br/>
-        Jesus the name above every other name<br/>
-      </div>
+      <div class="sectlabel">Verse 1</div>
+      <div style="line-height:2.4;font-size:18px"><span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">C#m</span><br/>Worthy of every song we could ever sing<br/><span class="chord">A</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span><br/>Worthy of all the praise we could ever bring<br/><br/></div>
+      <div class="sectlabel">Verse 2</div>
+      <div style="line-height:2.4;font-size:18px"><span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span><br/>Jesus the name above every other name</div>
     </div>
     <div style="padding:24px 28px;overflow:auto">
-      <div style="color:var(--color-brand-mist);font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.06em;margin-bottom:10px">Chorus</div>
-      <div style="line-height:2.4;font-size:18px">
-        <span class="chord">A</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span><br/>
-        I will build my life upon Your love<br/>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">C#m</span>&nbsp;&nbsp;&nbsp;<span class="chord">A</span><br/>
-        It is a firm foundation<br/>
-        <span class="chord">A</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span><br/>
-        I will put my trust in You alone<br/>
+      <div class="sectlabel">Chorus</div>
+      <div style="line-height:2.4;font-size:18px"><span class="chord">A</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span><br/>I will build my life upon Your love<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">C#m</span>&nbsp;&nbsp;&nbsp;<span class="chord">A</span><br/>It is a firm foundation<br/><span class="chord">A</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span><br/>I will put my trust in You alone</div>
+    </div>
+  </div>
+  <div class="bottomnav">${nav('library')}</div>`;</script>
+
+<!-- ===================== LANDSCAPE ROW 3 ===================== -->
+<div class="label">Landscape · Frame 3 — Performance / Practice (setlist rail on the RIGHT · matches dark stage design)</div>
+<div class="row"><div class="tablet land" id="f3" style="background:#000"></div></div>
+<script>document.getElementById('f3').innerHTML = `
+  <div style="flex:1;display:flex;min-height:0">
+    <div style="flex:1;display:flex;flex-direction:column">
+      <div style="height:56px;display:flex;align-items:center;gap:14px;padding:0 24px;color:var(--ds-gray-700)">
+        <span style="font-size:22px">‹</span><span style="font-size:22px">›</span><span class="sub">Song 3 of 7</span>
+        <span style="margin-left:auto;font-weight:700;color:var(--ds-gray-1000)">Great Are You Lord — Key A</span>
+      </div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;overflow:hidden">
+        <div style="padding:20px 28px;border-right:1px solid var(--modes-border)">
+          <div class="sectlabel">Verse</div>
+          <div style="line-height:2.6;font-size:20px"><span class="chord">A</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">D</span><br/>You give life, You are love<br/><span class="chord">A/C#</span>&nbsp;&nbsp;<span class="chord">D</span><br/>You bring light to the darkness</div>
+        </div>
+        <div style="padding:20px 28px">
+          <div class="sectlabel">Chorus</div>
+          <div style="line-height:2.6;font-size:20px"><span class="chord">D</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">A</span><br/>It's Your breath in our lungs<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">E</span><br/>So we pour out our praise</div>
+        </div>
       </div>
     </div>
-  </div>
-  <div class="bottomnav">
-    <div class="navpill glass">
-      <div class="navtab"><span style="font-size:18px">⌂</span>Home</div>
-      <div class="navtab on"><span style="font-size:18px">▦</span>Setlists</div>
-      <div class="navtab"><span style="font-size:18px">♪</span>Songs</div>
-    </div>
-  </div>
-</div>
-
-<!-- ============ FRAME 3: PerformanceView parallel rail ============ -->
-<div class="label">Frame 3 — PerformanceView: persistent setlist rail (parallel browsing while playing)</div>
-<div class="tablet" style="background:#000">
-  <div style="flex:1;display:flex;min-height:0">
-    <!-- rail -->
-    <div style="width:260px;background:rgba(255,255,255,0.03);border-right:1px solid var(--modes-border);padding:16px 12px;display:flex;flex-direction:column">
-      <div class="sub" style="padding:0 8px 10px;display:flex;justify-content:space-between;align-items:center">SUNDAY AM · 7 SONGS <span>«</span></div>
+    <div style="width:280px;background:rgba(255,255,255,0.03);border-left:1px solid var(--modes-border);padding:16px 12px;display:flex;flex-direction:column">
+      <div class="sub" style="padding:0 8px 10px;display:flex;justify-content:space-between;align-items:center">SUNDAY AM · 7 SONGS <span>»</span></div>
       <div style="display:flex;flex-direction:column;gap:4px;overflow:auto;flex:1">
         <div style="padding:10px 12px;border-radius:10px;display:flex;gap:10px;color:var(--ds-gray-700)"><span>1</span> Open Up The Heavens</div>
         <div style="padding:10px 12px;border-radius:10px;display:flex;gap:10px;color:var(--ds-gray-700)"><span>2</span> Goodness of God</div>
@@ -199,36 +182,93 @@
         <div style="padding:10px 12px;border-radius:10px;display:flex;gap:10px;color:var(--ds-gray-700)"><span>7</span> Tremble</div>
       </div>
     </div>
-    <!-- chart -->
-    <div style="flex:1;display:flex;flex-direction:column">
-      <div style="height:56px;display:flex;align-items:center;gap:14px;padding:0 24px;color:var(--ds-gray-700)">
-        <span style="font-size:22px">‹</span><span style="font-size:22px">›</span>
-        <span class="sub">Song 3 of 7</span>
-        <span style="margin-left:auto;font-weight:700;color:var(--ds-gray-1000)">Great Are You Lord — Key A</span>
+  </div>`;</script>
+
+<!-- ===================== LANDSCAPE ROW 4: HOME ===================== -->
+<div class="label">Landscape · Frame 4 — Home / Dashboard (modes theme variant)</div>
+<div class="row"><div class="tablet land modes-bg" id="f4"></div></div>
+<script>document.getElementById('f4').innerHTML = topbar() + `
+  <div style="flex:1;overflow:auto;padding:28px 32px">
+    <h1 style="margin:0 0 4px;font-size:30px;font-weight:700;font-family:Georgia,serif">Good morning, Daniel</h1>
+    <div class="sub" style="margin-bottom:22px">Thursday · June 4</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:18px">
+      <div class="modes-card" style="border-radius:18px;display:flex;overflow:hidden;height:230px">
+        <div style="width:34%;background:linear-gradient(150deg,var(--color-brand-mist),var(--color-brand-vetiver));padding:20px;display:flex;flex-direction:column;justify-content:flex-end"><div style="color:rgba(255,255,255,.85);font-size:12px;text-transform:uppercase;letter-spacing:.08em">Next service</div><div style="color:#fff;font-size:24px;font-weight:700">Sunday AM</div></div>
+        <div style="flex:1;padding:20px"><div class="sub">7 songs · 32 min · Sun Jun 7</div><div style="margin-top:10px;line-height:1.9">Open Up The Heavens · Goodness of God · Great Are You Lord · Holy Spirit…</div><button style="margin-top:16px;background:var(--color-brand);color:#fff;border:none;height:40px;border-radius:10px;padding:0 18px;font-weight:600">▶ Play live</button></div>
       </div>
-      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:0;overflow:hidden">
-        <div style="padding:20px 28px;border-right:1px solid var(--modes-border)">
-          <div style="color:var(--color-brand-mist);font-weight:700;text-transform:uppercase;font-size:12px;margin-bottom:10px">Verse</div>
-          <div style="line-height:2.6;font-size:20px">
-            <span class="chord">A</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">D</span><br/>
-            You give life, You are love<br/>
-            <span class="chord">A/C#</span>&nbsp;&nbsp;<span class="chord">D</span><br/>
-            You bring light to the darkness<br/>
-          </div>
-        </div>
-        <div style="padding:20px 28px">
-          <div style="color:var(--color-brand-mist);font-weight:700;text-transform:uppercase;font-size:12px;margin-bottom:10px">Chorus</div>
-          <div style="line-height:2.6;font-size:20px">
-            <span class="chord">D</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">A</span><br/>
-            It's Your breath in our lungs<br/>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">E</span><br/>
-            So we pour out our praise<br/>
-          </div>
-        </div>
+      <div class="modes-card" style="border-radius:18px;padding:20px"><div class="sectlabel">This week</div><div style="display:flex;gap:18px;margin-top:8px"><div><div style="font-size:30px;font-weight:700">128</div><div class="sub">Songs</div></div><div><div style="font-size:30px;font-weight:700">14</div><div class="sub">Setlists</div></div></div></div>
+    </div>
+    <div class="modes-card" style="border-radius:18px;padding:20px;margin-top:18px">
+      <div class="sectlabel">Recently edited</div>
+      <div style="display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 4px;border-top:1px solid var(--modes-border)"><svg width="18" height="18" viewBox="0 0 24 24" style="color:var(--ds-gray-600)"><use href="#i-song"/></svg> Build My Life <span class="sub" style="margin-left:auto">2h ago · E</span></div>
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 4px;border-top:1px solid var(--modes-border)"><svg width="18" height="18" viewBox="0 0 24 24" style="color:var(--ds-gray-600)"><use href="#i-song"/></svg> Goodness of God <span class="sub" style="margin-left:auto">yesterday · Ab</span></div>
       </div>
     </div>
   </div>
+  <div class="bottomnav">${nav('home')}<div class="fab glass" style="background:var(--color-brand)"><svg width="28" height="28" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>`;</script>
+
+<!-- ===================== LANDSCAPE ROW 5: SETLISTS ===================== -->
+<div class="label">Landscape · Frame 5 — Setlists (master–detail: list left, overview preview right)</div>
+<div class="row"><div class="tablet land" id="f5"></div></div>
+<script>document.getElementById('f5').innerHTML = topbar() + `
+  <div style="flex:1;display:flex;min-height:0">
+    <div style="flex:1;overflow:auto;padding:20px 22px">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:14px"><h2 class="pagetitle">Setlists</h2><span class="sub">14</span></div>
+      <div class="modes-card" style="overflow:hidden"><table><thead><tr><th>Name</th><th style="width:160px">Date</th><th style="width:80px">Songs</th></tr></thead><tbody>
+        <tr class="sel"><td>Sunday AM<div class="sub">Morning service</div></td><td>Sun, Jun 7</td><td>7</td></tr>
+        <tr><td>Youth Night<div class="sub">Friday</div></td><td>Fri, Jun 12</td><td>5</td></tr>
+        <tr><td>Easter Sunday<div class="sub">Special</div></td><td>Sun, Apr 5</td><td>9</td></tr>
+        <tr><td>Prayer & Worship<div class="sub">Midweek</div></td><td>Wed, Jun 10</td><td>6</td></tr>
+      </tbody></table></div>
+    </div>
+    <div style="width:440px;border-left:1px solid var(--modes-border);padding:22px;overflow:auto;background:var(--ds-background-200)">
+      <div class="sub" style="margin-bottom:6px">SETLIST · 7 songs · ~32 min</div>
+      <h3 style="margin:0 0 14px;font-size:24px;font-weight:700">Sunday AM</h3>
+      <div class="modes-card" style="overflow:hidden;margin-bottom:14px">
+        ${[['1','Open Up The Heavens','G'],['2','Goodness of God','Ab'],['3','Great Are You Lord','A'],['4','Holy Spirit','C']].map(([n,t,k])=>`<div style="display:flex;gap:12px;align-items:center;padding:11px 14px;border-top:1px solid var(--modes-border)"><span class="sub">${n}</span>${t}<span class="chord" style="margin-left:auto">${k}</span></div>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px"><button style="flex:1;background:var(--color-brand);color:#fff;border:none;height:42px;border-radius:10px;font-weight:600">▶ Play live</button><button style="background:var(--ds-gray-200);color:var(--ds-gray-1000);border:none;height:42px;border-radius:10px;padding:0 16px">Edit</button></div>
+    </div>
+  </div>
+  <div class="bottomnav">${nav('setlists')}<div class="fab glass" style="background:var(--color-brand)"><svg width="28" height="28" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>`;</script>
+
+<!-- ===================== PORTRAIT ROW ===================== -->
+<div class="label">Portrait — Library (single column, full-width detail on tap) &nbsp;·&nbsp; ChartView (single column)</div>
+<div class="row">
+  <div class="tablet port" id="p1"></div>
+  <div class="tablet port" id="p2"></div>
 </div>
+<script>
+document.getElementById('p1').innerHTML = topbar() + `
+  <div style="flex:1;overflow:auto;padding:18px 18px 0">
+    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:14px"><h2 class="pagetitle">Songs</h2><span class="sub">128</span></div>
+    <div class="sub" style="border:1px solid var(--ds-gray-300);border-radius:10px;padding:12px 14px;margin-bottom:14px">Search songs & setlists…</div>
+    <div class="modes-card" style="overflow:hidden"><table><thead><tr><th>Title</th><th style="width:70px">Key</th></tr></thead><tbody>
+      <tr><td>Great Are You Lord<div class="sub">All Sons & Daughters</div></td><td><span class="chord">A</span></td></tr>
+      <tr><td>Build My Life<div class="sub">Pat Barrett</div></td><td><span class="chord">E</span></td></tr>
+      <tr><td>Goodness of God<div class="sub">Bethel Music</div></td><td><span class="chord">Ab</span></td></tr>
+      <tr><td>King of Kings<div class="sub">Hillsong Worship</div></td><td><span class="chord">D</span></td></tr>
+      <tr><td>Holy Spirit<div class="sub">Francesca Battistelli</div></td><td><span class="chord">C</span></td></tr>
+      <tr><td>Tremble<div class="sub">Mosaic MSC</div></td><td><span class="chord">G</span></td></tr>
+    </tbody></table></div>
+  </div>
+  <div class="bottomnav">${nav('library')}<div class="fab glass" style="background:var(--color-brand)"><svg width="28" height="28" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg></div></div>`;
+
+document.getElementById('p2').innerHTML = `
+  <div style="height:64px;display:flex;align-items:center;gap:14px;padding:0 20px;border-bottom:1px solid var(--ds-gray-200);background:var(--ds-background-200)">
+    <span style="color:var(--ds-gray-700)">‹ Back</span>
+    <div><div style="font-weight:700;font-size:16px">Build My Life</div><div class="sub">Key of E</div></div>
+    <div style="margin-left:auto;display:flex;gap:8px"><span class="iconbtn-lg">E ♯</span><span class="iconbtn-lg"><svg width="20" height="20" viewBox="0 0 24 24"><use href="#i-sliders"/></svg></span></div>
+  </div>
+  <div style="flex:1;overflow:auto;padding:24px 28px">
+    <div class="sectlabel">Verse 1</div>
+    <div style="line-height:2.5;font-size:20px"><span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">C#m</span><br/>Worthy of every song we could ever sing<br/><span class="chord">A</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span><br/>Worthy of all the praise we could ever bring<br/><br/></div>
+    <div class="sectlabel">Chorus</div>
+    <div style="line-height:2.5;font-size:20px"><span class="chord">A</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">E</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">B</span><br/>I will build my life upon Your love<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="chord">C#m</span>&nbsp;&nbsp;&nbsp;<span class="chord">A</span><br/>It is a firm foundation</div>
+  </div>
+  <div class="bottomnav">${nav('library')}</div>`;
+</script>
 
 </body>
 </html>
