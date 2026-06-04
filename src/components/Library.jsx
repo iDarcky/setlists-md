@@ -5,6 +5,7 @@ import { Button } from './ui/Button';
 import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
+import { useResizablePane } from '../lib/useResizablePane';
 
 const ChartView = lazy(() => import('./ChartView'));
 
@@ -188,6 +189,7 @@ export default function Library({
   const advanced = isDesktop || isTablet;   // table view + master-detail
   // Pinned second pane: tablet in landscape with room for two columns.
   const splitDock = isTablet && isLandscape && wide && !isFullscreen;
+  const { width: paneWidth, onPointerDown: onPaneResize } = useResizablePane({ storageKey: 'setlists-md:library-pane-w' });
 
   const previewSong = useMemo(
     () => songs.find(s => s.id === previewSongId) || null,
@@ -617,9 +619,25 @@ export default function Library({
 
       </div>{/* /list column */}
 
+      {/* Draggable divider — resize the pane, Spotify-style. */}
+      {splitDock && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize preview"
+          onPointerDown={onPaneResize}
+          className="shrink-0 w-1.5 self-stretch cursor-col-resize relative group"
+        >
+          <span className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-[var(--ds-gray-300)] group-hover:bg-[var(--color-brand)] transition-colors" />
+        </div>
+      )}
+
       {/* Pinned detail pane — tablet landscape (Phase 3 two-pane split) */}
       {splitDock && (
-        <aside className="w-[42%] min-w-[420px] max-w-[760px] h-full min-h-0 shrink-0 border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden flex flex-col">
+        <aside
+          style={{ width: paneWidth }}
+          className="h-full min-h-0 shrink-0 border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden flex flex-col"
+        >
           {previewSong ? (
             <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
               <ChartView
