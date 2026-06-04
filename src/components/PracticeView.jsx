@@ -1,17 +1,22 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { transposeKey, ALL_KEYS, semitonesBetween } from '../music';
+import { transposeKey, transposeChord, ALL_KEYS, semitonesBetween } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
+import ChordDiagram from './ChordDiagram';
 import { StructureRibbon } from './StructureRibbon';
 import FloatingNavPill from './ui/FloatingNavPill';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
-import BottomSheet from './ui/BottomSheet';
+import { Card } from './ui/Card';
+import { SegmentedControl } from './ui/SegmentedControl';
+import BottomSheet, { SheetField } from './ui/BottomSheet';
 import ChartStyleControls from './ChartStyleControls';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import NoteContent from './ui/NoteContent';
 import { headerFrostStyle } from '../lib/headerFrost';
+import { cn } from '../lib/utils';
 import { useIsTablet, useIsLandscape, useIsDesktop } from '../lib/useMediaQuery';
+import { STAGE_MODES, STAGE_MODE_MAP } from '../data/stageModes';
 import { resolveChartDisplay, resolveColumns } from '../lib/chartDisplay';
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
@@ -26,8 +31,43 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   });
   const [selectedKey, setSelectedKey] = useState(null);
   // Device-global chart display, shared with the Library chart & live view.
+  // Local mirrors keep the Layout controls snappy; every change writes straight
+  // back through onUpdateSettings so a tweak here shows up on every song and in
+  // the chart / live views too. They re-seed when the persisted settings change.
   const disp = resolveChartDisplay(settings, { fallbackLyric: defaultFontSize || 18 });
-  const fontSize = disp.lyricFontSize;
+  const stageMode = settings?.stageMode || 'leader';
+  const [fontSize, setFontSize] = useState(disp.lyricFontSize);
+  const [chordFontSize, setChordFontSize] = useState(disp.chordFontSize);
+  const [nns, setNns] = useState(disp.nashville);
+  const [showChords, setShowChords] = useState(disp.showChords);
+  const [showDiagrams, setShowDiagrams] = useState(disp.showDiagrams);
+  useEffect(() => {
+    setFontSize(disp.lyricFontSize);
+    setChordFontSize(disp.chordFontSize);
+    setNns(disp.nashville);
+    setShowChords(disp.showChords);
+    setShowDiagrams(disp.showDiagrams);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.showChords, settings?.showDiagrams, settings?.stageMode]);
+
+  // Persisting helpers — update the snappy local mirror and the device setting.
+  const changeFontSize = (v) => { const n = Math.max(10, Math.min(30, v)); setFontSize(n); onUpdateSettings?.('defaultFontSize', n); };
+  const changeChordFontSize = (v) => { const n = Math.max(8, Math.min(30, v)); setChordFontSize(n); onUpdateSettings?.('chordFontSize', n); };
+  const toggleNns = () => { const v = !nns; setNns(v); onUpdateSettings?.('nashville', v); };
+  const toggleShowChords = () => { const v = !showChords; setShowChords(v); onUpdateSettings?.('showChords', v); };
+  const toggleShowDiagrams = () => { const v = !showDiagrams; setShowDiagrams(v); onUpdateSettings?.('showDiagrams', v); };
+
+  // Picking a role applies its preset by writing every value through to
+  // settings, so the role choice persists across songs and views too.
+  const applyRole = (id) => {
+    const preset = STAGE_MODE_MAP[id]?.settings || {};
+    onUpdateSettings?.('stageMode', id);
+    if (preset.lyricFontSize != null) onUpdateSettings?.('defaultFontSize', preset.lyricFontSize);
+    if (preset.chordFontSize != null) onUpdateSettings?.('chordFontSize', preset.chordFontSize);
+    onUpdateSettings?.('nashville', !!preset.nashville);
+    onUpdateSettings?.('showChords', preset.showChords !== false);
+    onUpdateSettings?.('showDiagrams', !!preset.showDiagrams);
+  };
   const [showStructureEditor, setShowStructureEditor] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const [chartWidth, setChartWidth] = useState(0);
@@ -41,8 +81,19 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const isDesktop = useIsDesktop();
   const showRail = ((isTablet && isLandscape) || isDesktop) && railEnabled;
   // Explicit 1/2 from settings wins; 'auto'/unset goes two-up when the reading
-  // area is comfortably wide.
-  const columns = resolveColumns(disp.columns, chartWidth >= 700);
+  // area is comfortably wide. A manual pick in the Layout sheet overrides for
+  // the session and persists the choice device-wide.
+  const wantTwo = chartWidth >= 700;
+  const userSetColumnsRef = useRef(false);
+  const [columns, setColumns] = useState(resolveColumns(disp.columns, wantTwo));
+  const setColumnsManually = (v) => {
+    userSetColumnsRef.current = true;
+    setColumns(v);
+    onUpdateSettings?.('defaultColumns', v);
+  };
+  useEffect(() => {
+    if (!userSetColumnsRef.current) setColumns(resolveColumns(disp.columns, wantTwo));
+  }, [disp.columns, wantTwo]);
 
   // Swipe left/right to advance — matches the live Performance view.
   const touchRef = useRef(null);
@@ -430,9 +481,10 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             capo={cur.capo || 0}
             fontSize={fontSize}
             columns={columns}
-            chordFontSize={disp.chordFontSize}
-            nashville={disp.nashville}
-            showChords={disp.showChords}
+            chordFontSize={chordFontSize}
+            nashville={nns}
+            showChords={showChords}
+            showDiagrams={showDiagrams}
             onSaveCue={handleSaveCue}
           />
         ) : null}
@@ -537,14 +589,100 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
 
     <BottomSheet open={layoutOpen} onClose={() => setLayoutOpen(false)} title="Layout">
       <div className="flex flex-col gap-4">
+        <SheetField label="Role">
+          <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
+            {STAGE_MODES.map(m => {
+              const active = stageMode === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => applyRole(m.id)}
+                  className={cn(
+                    "shrink-0 px-3 h-8 rounded-lg border transition-all text-label-12 font-semibold",
+                    active
+                      ? "border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]"
+                      : "border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]"
+                  )}
+                  title={m.description}
+                >
+                  {m.name}
+                </button>
+              );
+            })}
+          </div>
+        </SheetField>
+
+        <SheetField label="Display">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={nns ? 'brand' : 'secondary'}
+              size="sm"
+              onClick={toggleNns}
+            >Numbers</Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={toggleShowChords}
+              className={cn(!showChords && "opacity-40")}
+            >Chords</Button>
+            <Button
+              variant={showDiagrams ? 'brand' : 'secondary'}
+              size="sm"
+              onClick={toggleShowDiagrams}
+            >Diagrams</Button>
+          </div>
+        </SheetField>
+
+        <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+          <SheetField label="Columns">
+            <SegmentedControl
+              value={columns}
+              onChange={setColumnsManually}
+              options={[
+                { value: 1, label: '1 col' },
+                { value: 2, label: '2 col' },
+              ]}
+              size="sm"
+            />
+          </SheetField>
+          <SheetField label="Lyric size">
+            <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+              <IconButton variant="ghost" size="sm" onClick={() => changeFontSize(fontSize - 2)} aria-label="Decrease lyric size">−</IconButton>
+              <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{fontSize}</span>
+              <IconButton variant="ghost" size="sm" onClick={() => changeFontSize(fontSize + 2)} aria-label="Increase lyric size">+</IconButton>
+            </div>
+          </SheetField>
+          <SheetField label="Chord size">
+            <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+              <IconButton variant="ghost" size="sm" onClick={() => changeChordFontSize(chordFontSize - 2)} aria-label="Decrease chord size">−</IconButton>
+              <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{chordFontSize}</span>
+              <IconButton variant="ghost" size="sm" onClick={() => changeChordFontSize(chordFontSize + 2)} aria-label="Increase chord size">+</IconButton>
+            </div>
+          </SheetField>
+        </div>
+
         <ChartStyleControls
           settings={settings}
           onUpdateSettings={onUpdateSettings}
-          onOpenAdvanced={onOpenAdvancedStyle && (() => {
-            setLayoutOpen(false);
-            onOpenAdvancedStyle();
-          })}
         />
+
+        {onOpenAdvancedStyle && (
+          <button
+            type="button"
+            onClick={() => {
+              setLayoutOpen(false);
+              onOpenAdvancedStyle();
+            }}
+            className="mt-2 w-full h-11 rounded-xl bg-[var(--ds-background-100)] border border-[var(--border-1)] text-copy-14 font-semibold text-[var(--text-1)] flex items-center justify-center gap-2 hover:bg-[var(--bg-1)] transition-all"
+            style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)' }}
+          >
+            Advanced settings
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        )}
       </div>
     </BottomSheet>
     </div>
@@ -656,8 +794,14 @@ function StructureEditor({ structure, availableSections, onUpdate, onClose }) {
 }
 
 // Chart with editable cue cards between sections
-function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, nashville = false, showChords = true, onSaveCue }) {
+function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, nashville = false, showChords = true, showDiagrams = false, onSaveCue }) {
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
+
+  const allChords = useMemo(() => Array.from(new Set(
+    song.sections.flatMap(s => s.lines)
+      .filter(l => typeof l === 'string')
+      .flatMap(l => { const m = l.match(/\[(.*?)\]/g); return m ? m.map(x => x.slice(1, -1)) : []; })
+  )), [song.sections]);
 
   const sectionModOffsets = useMemo(() => {
     const acc = { total: 0 };
@@ -682,6 +826,18 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
         ...(columns === 2 ? { columnCount: 2, columnGap: '3rem' } : {}),
       }}
     >
+      {showDiagrams && allChords.length > 0 && (
+        <div className="flex gap-4 overflow-x-auto no-scrollbar pb-6 mb-6 border-b border-[var(--ds-gray-300)]" style={{ columnSpan: 'all', WebkitColumnSpan: 'all' }}>
+          {allChords.map(chord => (
+            <div key={chord} className="flex flex-col items-center gap-1 flex-shrink-0">
+              <div className="text-label-10-mono font-bold text-[var(--ds-gray-600)]">{transposeChord(chord, transpose)}</div>
+              <Card className="w-24 h-28 flex items-center justify-center p-2">
+                <ChordDiagram chord={transposeChord(chord, transpose)} />
+              </Card>
+            </div>
+          ))}
+        </div>
+      )}
       {song.notes && (
         <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]" style={{ columnSpan: 'all', WebkitColumnSpan: 'all' }}>
           <span className="shrink-0 mt-0.5 text-[var(--ds-gray-600)]" aria-hidden="true">
