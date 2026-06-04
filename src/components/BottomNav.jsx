@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useMediaQuery, useIsTablet } from '../lib/useMediaQuery';
 
 const HomeIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -42,8 +43,17 @@ const SetlistMenuIcon = () => (
     <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
   </svg>
 );
+// Team only appears in the tablet bottom nav (on mobile it lives in the
+// drawer). The tablet shell moves primary nav out of the top bar, so Team
+// needs a home down here when the user has a team/church plan.
+const TeamIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
 
-const tabs = [
+const BASE_TABS = [
   { id: 'home', label: 'Home' },
   { id: 'setlists', label: 'Setlists' },
   { id: 'library', label: 'Songs' },
@@ -52,6 +62,7 @@ const tabs = [
 function tabIcon(id, active) {
   if (id === 'home') return <HomeIcon />;
   if (id === 'library') return <SongsIcon />;
+  if (id === 'team') return <TeamIcon />;
   return active ? <SetlistsLogo /> : <SetlistsOutlineIcon />;
 }
 
@@ -71,9 +82,23 @@ const GLASS = {
  * a pure primary action — a create menu on Home, + on Songs/Setlists, and Play
  * on a setlist. Workspace switching lives in the top bar.
  */
-export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onPlay }) {
+export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onPlay, plan }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const fabRef = useRef(null);
+
+  // The bottom nav is the primary nav on mobile AND on touch tablets (the
+  // tablet shell moves nav out of the top bar). Hidden on mouse-driven
+  // desktops, where TopHeader owns the nav. `useIsTablet` is coarse-gated,
+  // so desktop browsers at iPad widths never trip this.
+  const isMobile = useMediaQuery('(max-width: 639.98px)');
+  const isTablet = useIsTablet();
+
+  const planLower = (plan || '').toLowerCase();
+  const hasTeamPlan = planLower === 'team' || planLower === 'church';
+  // Team gets a tab only on the tablet shell; mobile keeps it in the drawer.
+  const tabs = (isTablet && hasTeamPlan)
+    ? [...BASE_TABS, { id: 'team', label: 'Team' }]
+    : BASE_TABS;
 
   const activeId = tabs.some(t => t.id === activeView)
     ? activeView
@@ -100,9 +125,12 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
     fab = { kind: 'action', label: 'Play live', onClick: onPlay, icon: <PlayIcon /> };
   }
 
+  // Only render where the bottom nav is the primary nav.
+  if (!isMobile && !isTablet) return null;
+
   return (
     <div
-      className="fixed left-0 right-0 z-[100] sm:hidden flex items-center justify-center gap-3 px-4"
+      className="fixed left-0 right-0 z-[100] flex items-center justify-center gap-3 px-4"
       style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 14px)' }}
     >
       {/* Glass tab bar */}

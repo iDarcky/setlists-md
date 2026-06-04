@@ -79,6 +79,10 @@ export default function TopHeader({
   onMarkRead,
   onNotificationAction,
   onManageTeams,
+  // On the tablet shell, primary nav moves to the bottom nav. We then show
+  // the brand lockup on the left instead of the nav tabs, keeping the
+  // workspace switcher centered and the right-side actions in place.
+  hidePrimaryNav = false,
 }) {
   const [trayOpen, setTrayOpen] = useState(false);
   const [wsOpen, setWsOpen] = useState(false);
@@ -147,17 +151,25 @@ export default function TopHeader({
           className
         )}
       >
-        {/* Left — primary nav */}
-        <nav className="flex items-center gap-1 min-w-0">
-          {tabs.map(({ id, label }) => {
-            const active = activeView === id;
-            return (
-              <button key={id} onClick={() => onNavigate(id)} className={navBtn(active)}>
-                <span>{label}</span>
-              </button>
-            );
-          })}
-        </nav>
+        {/* Left — primary nav, or the brand lockup on the tablet shell where
+            nav has moved to the bottom bar. */}
+        {hidePrimaryNav ? (
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img src="/setlists-md-mark.svg" alt="" width="26" height="26" className="rounded-[7px]" draggable="false" />
+            <span className="text-label-14 font-bold text-[var(--ds-gray-1000)] tracking-tight truncate">Setlists MD</span>
+          </div>
+        ) : (
+          <nav className="flex items-center gap-1 min-w-0">
+            {tabs.map(({ id, label }) => {
+              const active = activeView === id;
+              return (
+                <button key={id} onClick={() => onNavigate(id)} className={navBtn(active)}>
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        )}
 
         {/* Center — workspace switcher */}
         <div ref={wsRef} className="relative justify-self-center">

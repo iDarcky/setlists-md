@@ -1987,6 +1987,7 @@ export default function App() {
         <BottomNav
           activeView={view}
           onNavigate={goToMainView}
+          plan={plan}
           onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
           onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
           onPlay={view === 'setlist-view' && currentSetlist ? () => goSetlistPerformance(currentSetlist) : null}

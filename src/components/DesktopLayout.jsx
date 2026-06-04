@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import TopHeader from './TopHeader';
-import { useMediaQuery } from '../lib/useMediaQuery';
+import { useMediaQuery, useIsTablet } from '../lib/useMediaQuery';
 
 export default function DesktopLayout({
   children,
@@ -24,7 +24,11 @@ export default function DesktopLayout({
 }) {
   const mainRef = useRef(null);
   const isMobile = useMediaQuery('(max-width: 639.98px)');
+  const isTablet = useIsTablet();
   const applyDrawerTransform = drawerOpen && isMobile;
+  // The bottom nav is present on mobile and tablet — both need scroll room so
+  // the floating bar never covers the last rows of content.
+  const showBottomSpacer = !hideBottomSpacer && (isMobile || isTablet);
 
   // Scroll to top whenever the active view changes
   useEffect(() => {
@@ -44,6 +48,7 @@ export default function DesktopLayout({
       {!isFullscreen && (
         <TopHeader
           className="hidden sm:grid"
+          hidePrimaryNav={isTablet}
           activeView={activeView}
           onNavigate={onNavigate}
           hasUnreadNotifications={hasUnreadNotifications}
@@ -81,10 +86,11 @@ export default function DesktopLayout({
         }}
       >
         {children}
-        {/* Mobile Spacer: Guaranteed scrollable space to prevent bottom-nav obstruction */}
-        {!hideBottomSpacer && (
+        {/* Spacer: guaranteed scrollable space so the floating bottom nav
+            (mobile + tablet) never obstructs the last rows of content. */}
+        {showBottomSpacer && (
           <div
-            className="shrink-0 sm:hidden"
+            className="shrink-0"
             style={{ height: 'calc(100px + env(safe-area-inset-bottom, 0px))' }}
             aria-hidden="true"
           />
