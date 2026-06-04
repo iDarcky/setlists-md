@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { supabase } from './supabase';
 import { useAuth } from './useAuth';
 import { TeamContext } from './TeamContext';
+import { BILLING_ENABLED } from '../billing/checkout';
 
 /**
  * Provides team state to the component tree. Only fetches from Supabase when
@@ -221,6 +222,12 @@ export function TeamProvider({ children }) {
           ? planArg
           : (plan === 'church' ? 'church' : 'team');
         const maxSeats = teamPlan === 'church' ? 30 : 10;
+        // When Stripe billing is live, a new workspace starts UNPAID — its paid
+        // features gate off (via useEntitlement) until the webhook confirms
+        // payment and flips it to active. This is what stops a user from
+        // spinning up free working workspaces by abandoning checkout. When
+        // billing is dormant we rely on the DB default ('active') so workspaces
+        // are usable without any Stripe wiring.
         const { data: newTeam, error: teamErr } = await supabase
           .from('teams')
           .insert({
@@ -229,6 +236,7 @@ export function TeamProvider({ children }) {
             owner_id: user.id,
             plan: teamPlan,
             max_seats: maxSeats,
+            ...(BILLING_ENABLED ? { subscription_status: 'unpaid' } : {}),
           })
           .select()
           .single();

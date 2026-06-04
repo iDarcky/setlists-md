@@ -504,10 +504,14 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
         >
           <div className="flex items-start gap-4 mb-6">
             <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
+              className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden"
               style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}
             >
-              <TeamIcon />
+              {team.logo_url ? (
+                <img src={team.logo_url} alt={`${team.name || 'Team'} logo`} className="w-full h-full object-cover" />
+              ) : (
+                <TeamIcon />
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 mb-0.5 truncate">{team.name}</h2>
