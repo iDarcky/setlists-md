@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 // Compact label for a section name. "Verse 1" -> "V1", "Pre Chorus 2"
 // -> "PC2", "Chorus" -> "C". Keep trailing numbers but strip the words.
@@ -15,29 +15,27 @@ function shortCode(name) {
   return initials + num;
 }
 
-// A draggable, Proclaim-style chip editor for `structure: [...]`.
+// A touch-first structure editor for `structure: [...]`.
+//
+// No drag-and-drop (it's unreliable inside an installed PWA on tablets).
+// Instead: tap a section in the "Add" row to append it to the order, and
+// reorder / remove each item in place with ‹ › ✕ buttons. This merges the
+// "tap-to-build" and "stepper" approaches into one tap-only interaction.
 //
 // value          — current comma-separated string from form fields
 // availableSections — list of section labels found in the song body
 // onChange(next) — fires with the next comma-separated string
-//
-// When `value` is empty and the editor has not been touched, hitting
-// "Edit order" auto-populates the list from document order so the user
-// has a real starting point rather than a blank canvas.
+// autoSeed       — when true (default) and the order is empty, populate it
+//                  from document order on first paint. The always-visible
+//                  ribbon passes false so opening a song doesn't dirty it.
 export default function StructureEditor({ value, availableSections, onChange, autoSeed = true }) {
   const items = useMemo(() => {
     if (!value) return [];
     return value.split(',').map(s => s.trim()).filter(Boolean);
   }, [value]);
 
-  const [adding, setAdding] = useState(false);
-  const [draggingIdx, setDraggingIdx] = useState(null);
   const seedRef = useRef(false);
 
-  // Auto-populate from document order on first paint when empty. Disabled
-  // (autoSeed=false) for the always-visible ribbon so merely opening a song
-  // doesn't silently rewrite its structure and mark the editor dirty; the
-  // user can still populate it on demand via "Reset to song order".
   useEffect(() => {
     if (!autoSeed) return;
     if (seedRef.current) return;
@@ -49,65 +47,20 @@ export default function StructureEditor({ value, availableSections, onChange, au
   }, []);
 
   const commit = (next) => onChange(next.join(', '));
-
-  const handleRemove = (idx) => {
+  const handleAdd = (name) => commit([...items, name]);
+  const handleRemove = (idx) => commit(items.filter((_, i) => i !== idx));
+  const handleMove = (idx, dir) => {
+    const j = idx + dir;
+    if (j < 0 || j >= items.length) return;
     const next = items.slice();
-    next.splice(idx, 1);
+    [next[idx], next[j]] = [next[j], next[idx]];
     commit(next);
   };
-
-  const handleAdd = (name) => {
-    if (!name) return;
-    commit([...items, name]);
-    setAdding(false);
-  };
-
-  const handleReset = () => {
-    commit(availableSections);
-  };
-
+  const handleReset = () => commit(availableSections);
   const handleClear = () => commit([]);
 
-  const handleDragStart = (idx) => () => setDraggingIdx(idx);
-  const handleDragOver = (idx) => (e) => {
-    e.preventDefault();
-    if (draggingIdx === null || draggingIdx === idx) return;
-    const next = items.slice();
-    const [moved] = next.splice(draggingIdx, 1);
-    next.splice(idx, 0, moved);
-    setDraggingIdx(idx);
-    commit(next);
-  };
-  const handleDragEnd = () => setDraggingIdx(null);
-
-  const handleTouchStart = (idx) => (e) => {
-    if (e.target.closest('button')) return;
-    setDraggingIdx(idx);
-  };
-
-  const handleTouchMove = (e) => {
-    if (draggingIdx === null) return;
-    const touch = e.touches[0];
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (el) {
-      const chip = el.closest('[data-drag-idx]');
-      if (chip) {
-        const hoverIdx = parseInt(chip.dataset.dragIdx, 10);
-        if (hoverIdx !== draggingIdx) {
-          const next = items.slice();
-          const [moved] = next.splice(draggingIdx, 1);
-          next.splice(hoverIdx, 0, moved);
-          setDraggingIdx(hoverIdx);
-          commit(next);
-        }
-      }
-    }
-  };
-
-  const handleTouchEnd = () => setDraggingIdx(null);
-
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">
           Structure
@@ -132,72 +85,62 @@ export default function StructureEditor({ value, availableSections, onChange, au
         </div>
       </div>
 
-      <div
-        className="flex flex-wrap gap-1.5 p-2 min-h-[44px] rounded-md border border-dashed border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)]"
-        onDragOver={(e) => e.preventDefault()}
-      >
-        {items.length === 0 && !adding && (
-          <span className="text-copy-12 text-[var(--ds-gray-600)] italic px-1 py-1">
-            No order set — sections will play in the order they appear in the song.
+      {/* Current order — reorder/remove in place, no drag */}
+      <div className="flex flex-wrap items-center gap-1.5 p-2 min-h-[40px] rounded-md border border-dashed border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)]">
+        {items.length === 0 && (
+          <span className="text-copy-12 text-[var(--ds-gray-600)] italic px-1 py-0.5">
+            No order set — sections play in the order they appear in the song.
           </span>
         )}
         {items.map((name, idx) => (
           <span
             key={`${name}-${idx}`}
-            data-drag-idx={idx}
-            draggable
-            onDragStart={handleDragStart(idx)}
-            onDragOver={handleDragOver(idx)}
-            onDragEnd={handleDragEnd}
-            onTouchStart={handleTouchStart(idx)}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handleTouchEnd}
             title={name}
-            className={
-              'inline-flex items-center gap-1 px-2 py-1 rounded-md text-label-12 font-mono cursor-grab active:cursor-grabbing select-none touch-none ' +
-              'bg-[var(--color-brand-soft)] border border-[var(--color-brand-border)] text-[var(--color-brand-text)] ' +
-              (draggingIdx === idx ? 'opacity-50' : '')
-            }
+            className="inline-flex items-center rounded-md text-label-12 font-mono bg-[var(--color-brand-soft)] border border-[var(--color-brand-border)] text-[var(--color-brand-text)] overflow-hidden"
           >
-            <span className="font-bold">{shortCode(name)}</span>
-            <button
-              type="button"
-              onClick={() => handleRemove(idx)}
-              aria-label={`Remove ${name}`}
-              className="bg-transparent border-none text-[var(--color-brand-text)] opacity-70 hover:opacity-100 cursor-pointer p-0 leading-none"
-              style={{ fontSize: '12px' }}
-            >
-              ✕
-            </button>
+            <span className="font-bold pl-2 pr-1.5 py-1">{shortCode(name)}</span>
+            <StepBtn label="‹" title="Move left" onClick={() => handleMove(idx, -1)} disabled={idx === 0} />
+            <StepBtn label="›" title="Move right" onClick={() => handleMove(idx, 1)} disabled={idx === items.length - 1} />
+            <StepBtn label="✕" title={`Remove ${name}`} onClick={() => handleRemove(idx)} />
           </span>
         ))}
+      </div>
 
-        {adding ? (
-          <select
-            autoFocus
-            value=""
-            onChange={(e) => handleAdd(e.target.value)}
-            onBlur={() => setAdding(false)}
-            className="bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] rounded-md px-2 py-1 text-label-12 font-mono text-[var(--ds-gray-1000)] outline-none"
-          >
-            <option value="" disabled>Pick a section…</option>
-            {availableSections.map((name) => (
-              <option key={name} value={name}>{shortCode(name)} — {name}</option>
-            ))}
-          </select>
-        ) : (
-          availableSections.length > 0 && (
+      {/* Add a section by tapping it */}
+      {availableSections.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-500)] pr-0.5">
+            Add
+          </span>
+          {availableSections.map((name) => (
             <button
+              key={name}
               type="button"
-              onClick={() => setAdding(true)}
+              onClick={() => handleAdd(name)}
+              title={name}
               className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-label-12 font-mono cursor-pointer bg-transparent border border-dashed border-[var(--ds-gray-400)] text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:border-[var(--ds-gray-600)]"
             >
-              + Add
+              + {shortCode(name)}
             </button>
-          )
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+function StepBtn({ label, title, onClick, disabled = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={title}
+      title={title}
+      className="px-1.5 py-1 leading-none bg-transparent border-none border-l border-[var(--color-brand-border)] text-[var(--color-brand-text)] cursor-pointer hover:bg-[var(--color-brand)]/10 disabled:opacity-30 disabled:cursor-not-allowed"
+      style={{ borderLeft: '1px solid var(--color-brand-border)' }}
+    >
+      {label}
+    </button>
   );
 }
