@@ -10,21 +10,23 @@ import MetadataPanel from './editor/MetadataPanel';
 import { EditArrangementsDialog } from './editor/ArrangementMenu';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
-import { Tabs } from './ui/Tabs';
+import { SegmentedControl } from './ui/SegmentedControl';
+import SideSheet from './ui/SideSheet';
 import { toast } from './ui/use-toast';
 import { useConfirm } from './ui/useConfirmHook';
 import { headerFrostStyle } from '../lib/headerFrost';
 import ScreenHeader from './ui/ScreenHeader';
 
-const TAB_LIST = [
-  { id: 'write', label: 'Write' },
+// The two edit modes. Arrange (visual) is the primary canvas; Source is the
+// raw-markdown power-user escape hatch — hence the compact </> label.
+const MODE_OPTIONS = [
   {
-    id: 'arrange',
+    value: 'arrange',
     label: (
-      <span className="flex items-center gap-1.5">
+      <span className="inline-flex items-center gap-1.5">
         Arrange
         <span
-          className="text-[10px] font-bold leading-none px-1.5 py-0.5 rounded-full"
+          className="text-[9px] font-bold leading-none px-1 py-0.5 rounded-full"
           style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}
         >
           BETA
@@ -32,6 +34,7 @@ const TAB_LIST = [
       </span>
     ),
   },
+  { value: 'write', label: <span className="font-mono">{'</>'} Source</span> },
 ];
 
 const TIME_OPTIONS = ['4/4', '3/4', '6/8', '7/8', '12/8', '2/4', '5/4'];
@@ -145,9 +148,16 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
   const [savedMd, setSavedMd] = useState(initialMd);
   const [activeTab, setActiveTab] = useState('arrange');
   const [preview, setPreview] = useState(null);
-  const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
+  const [metaSheetOpen, setMetaSheetOpen] = useState(!song);
   const isWide = useMediaQuery('(min-width: 1024px)');
-  const [previewEnabled, setPreviewEnabled] = useState(true);
+  // Side preview defaults ON only on roomy screens (>=1280). At 1024-1279
+  // (iPad landscape) it stays collapsed so the editor keeps full width while
+  // typing; the user can still toggle it on as a 42%-wide panel.
+  const [previewEnabled, setPreviewEnabled] = useState(
+    () => typeof window !== 'undefined'
+      ? window.matchMedia('(min-width: 1280px)').matches
+      : true,
+  );
   const showSidePreview = isWide && previewEnabled;
   const [editArrangementsOpen, setEditArrangementsOpen] = useState(false);
   const textareaRef = useRef(null);
@@ -369,6 +379,14 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
   const currentTempo = preview?.tempo ?? '';
   const currentTime = preview?.time ?? '';
 
+  // Compact summary shown inline on the "Song Details" button so the most-
+  // referenced musical facts stay visible without opening the sheet.
+  const activeArr = getArrangement(workingSong, activeArrangementId);
+  const arrLabel = (workingSong.arrangements?.length || 0) > 1 ? activeArr?.name : '';
+  const metaSummary = [arrLabel, currentKey, currentTempo ? `${currentTempo}bpm` : '', currentTime]
+    .filter(Boolean)
+    .join(' · ');
+
   // Render active tab content
   const renderTab = () => {
     switch (activeTab) {
@@ -479,98 +497,61 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
         {/* LEFT COLUMN */}
         <div className="flex-1 min-h-0 flex flex-col w-full border-r border-[var(--ds-gray-300)]">
           
-          {/* ─── Editor Toolbar & Metadata ─── */}
-          <div className="border-b border-[var(--ds-gray-200)] pb-1 bg-[var(--ds-background-200)] px-4 sm:px-6 md:px-8" style={headerFrostStyle}>
-            <div className="pt-3 flex flex-col gap-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => setMetaPanelOpen(v => !v)}
-                  aria-expanded={metaPanelOpen}
-                  className="inline-flex items-center gap-2 bg-[var(--ds-gray-800)] hover:bg-[var(--ds-gray-900)] text-white border-none cursor-pointer px-3 py-1.5 rounded-md transition-colors"
-                >
-                  <span className="text-label-11 font-semibold uppercase tracking-wider">
-                    Song Details
-                  </span>
-                  <svg 
-                    width="12" height="12" viewBox="0 0 24 24" 
-                    fill="none" stroke="currentColor" strokeWidth="3" 
-                    strokeLinecap="round" strokeLinejoin="round"
-                    className={`transition-transform duration-200 ${metaPanelOpen ? 'rotate-180' : ''}`}
-                  >
-                    <path d="m6 9 6 6 6-6"/>
-                  </svg>
-                </button>
-                <div className="ml-auto flex items-center gap-2">
-                  <select
-                    value={currentKey}
-                    onChange={e => updateField('key', e.target.value)}
-                    className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
-                    aria-label="Key"
-                  >
-                    {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
-                  </select>
-                  <input
-                    type="number"
-                    value={currentTempo}
-                    onChange={e => updateField('tempo', e.target.value)}
-                    className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
-                    min="30" max="300"
-                    placeholder="bpm"
-                    aria-label="Tempo"
-                  />
-                  <TimeSignatureControl
-                    value={currentTime}
-                    onChange={v => updateField('time', v)}
-                  />
-                </div>
-              </div>
+          {/* ─── Thin editor toolbar — Song Details opener (left) + mode
+              toggle & tools (right). All metadata now lives in the Song
+              Details side-sheet, keeping this bar to a single row. ─── */}
+          <div
+            className="flex items-center gap-2 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] px-4 sm:px-6 py-2"
+            style={headerFrostStyle}
+          >
+            <button
+              type="button"
+              onClick={() => setMetaSheetOpen(true)}
+              className="inline-flex items-center gap-2 min-w-0 bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)] text-[var(--ds-gray-1000)] border border-[var(--ds-gray-300)] cursor-pointer pl-2.5 pr-3 py-1.5 rounded-md transition-colors"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
+                <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
+                <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
+                <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+              </svg>
+              <span className="text-label-11 font-semibold uppercase tracking-wider shrink-0">Song Details</span>
+              {metaSummary && (
+                <span className="text-label-11 font-mono text-[var(--ds-gray-600)] truncate hidden sm:inline">
+                  {metaSummary}
+                </span>
+              )}
+            </button>
 
-              {/* Collapsible metadata */}
-              <MetadataPanel
-                md={md}
-                onChange={setMd}
-                isOpen={metaPanelOpen}
-                onToggle={() => setMetaPanelOpen(v => !v)}
-                keyHistory={workingSong.keyHistory}
-                arrangements={workingSong.arrangements}
-                activeArrangementId={activeArrangementId}
-                defaultArrangementId={workingSong.defaultArrangementId}
-                onSwitchArrangement={switchArrangement}
-                onAddArrangement={handleAddArrangement}
-                onRenameArrangement={handleRenameArrangement}
-                onDeleteArrangement={handleDeleteArrangementById}
-                onEditArrangements={() => setEditArrangementsOpen(true)}
+            <div className="ml-auto flex items-center gap-2">
+              <SegmentedControl
+                size="sm"
+                value={activeTab}
+                onChange={setActiveTab}
+                options={MODE_OPTIONS}
               />
-
-              {/* Tabs + tools */}
-              <div className="flex items-center justify-between mt-1">
-                <Tabs tabs={TAB_LIST} activeTab={activeTab} onTabChange={setActiveTab} />
-                <div className="flex items-center gap-1 pb-1">
-                  {activeTab === 'write' && (
-                    <>
-                      <IconButton variant="ghost" size="xs" onClick={handleUndo} aria-label="Undo">↶</IconButton>
-                      <IconButton variant="ghost" size="xs" onClick={handleRedo} aria-label="Redo">↷</IconButton>
-                    </>
-                  )}
-                  <IconButton variant="ghost" size="xs" onClick={handleImport} aria-label="Import from clipboard">📋</IconButton>
-                  {isWide && (
-                    <IconButton
-                      variant={previewEnabled ? 'active' : 'ghost'}
-                      size="xs"
-                      onClick={() => setPreviewEnabled(v => !v)}
-                      aria-label={previewEnabled ? 'Hide preview' : 'Show preview'}
-                      aria-pressed={previewEnabled}
-                      title={previewEnabled ? 'Hide preview' : 'Show preview'}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    </IconButton>
-                  )}
-                </div>
-              </div>
+              {activeTab === 'write' && (
+                <>
+                  <IconButton variant="ghost" size="xs" onClick={handleUndo} aria-label="Undo">↶</IconButton>
+                  <IconButton variant="ghost" size="xs" onClick={handleRedo} aria-label="Redo">↷</IconButton>
+                </>
+              )}
+              <IconButton variant="ghost" size="xs" onClick={handleImport} aria-label="Import from clipboard">📋</IconButton>
+              {isWide && (
+                <IconButton
+                  variant={previewEnabled ? 'active' : 'ghost'}
+                  size="xs"
+                  onClick={() => setPreviewEnabled(v => !v)}
+                  aria-label={previewEnabled ? 'Hide preview' : 'Show preview'}
+                  aria-pressed={previewEnabled}
+                  title={previewEnabled ? 'Hide preview' : 'Show preview'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </IconButton>
+              )}
             </div>
           </div>
 
@@ -585,7 +566,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
         {/* RIGHT COLUMN (Preview) */}
         {showSidePreview && preview && (
           <aside
-            className="w-1/2 min-w-0 border-l border-[var(--ds-gray-300)] flex flex-col bg-[var(--ds-background-100)]"
+            className="w-[42%] min-w-[340px] max-w-[560px] shrink-0 border-l border-[var(--ds-gray-300)] flex flex-col bg-[var(--ds-background-100)]"
           >
             <div className="px-4 py-2 border-b border-[var(--ds-gray-200)] text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] sticky top-0 bg-[var(--ds-background-100)] z-10 shadow-sm">
               Preview
@@ -612,6 +593,58 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
           {!readOnly && <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave}>Save</Button>}
         </div>
       </div>
+
+      {/* ─── Song Details — the single home for all metadata + arrangements,
+          opened from the thin toolbar. Replaces the old inline mega-header. ─── */}
+      <SideSheet open={metaSheetOpen} onClose={() => setMetaSheetOpen(false)} title="Song Details">
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <label className="block">
+            <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] block mb-0.5">Key</span>
+            <select
+              value={currentKey}
+              onChange={e => updateField('key', e.target.value)}
+              className="w-full bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 py-1.5 text-copy-13 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
+              aria-label="Key"
+            >
+              {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] block mb-0.5">Tempo</span>
+            <input
+              type="number"
+              value={currentTempo}
+              onChange={e => updateField('tempo', e.target.value)}
+              className="w-full bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 py-1.5 text-copy-13 font-mono text-[var(--ds-gray-1000)] outline-none"
+              min="30" max="300"
+              placeholder="bpm"
+              aria-label="Tempo"
+            />
+          </label>
+          <div className="block">
+            <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] block mb-0.5">Time</span>
+            <TimeSignatureControl
+              value={currentTime}
+              onChange={v => updateField('time', v)}
+            />
+          </div>
+        </div>
+
+        <MetadataPanel
+          md={md}
+          onChange={setMd}
+          isOpen
+          keyHistory={workingSong.keyHistory}
+          arrangements={workingSong.arrangements}
+          activeArrangementId={activeArrangementId}
+          defaultArrangementId={workingSong.defaultArrangementId}
+          onSwitchArrangement={switchArrangement}
+          onAddArrangement={handleAddArrangement}
+          onRenameArrangement={handleRenameArrangement}
+          onDeleteArrangement={handleDeleteArrangementById}
+          onEditArrangements={() => setEditArrangementsOpen(true)}
+        />
+      </SideSheet>
 
       <EditArrangementsDialog
         open={editArrangementsOpen}
