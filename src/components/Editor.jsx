@@ -12,6 +12,7 @@ import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { SegmentedControl } from './ui/SegmentedControl';
 import SideSheet from './ui/SideSheet';
+import PromptDialog from './ui/PromptDialog';
 import { toast } from './ui/use-toast';
 import { useConfirm } from './ui/useConfirmHook';
 import { headerFrostStyle } from '../lib/headerFrost';
@@ -34,7 +35,7 @@ const MODE_OPTIONS = [
       </span>
     ),
   },
-  { value: 'write', label: <span className="font-mono">{'</>'} Source</span> },
+  { value: 'write', label: 'Advanced' },
 ];
 
 const TIME_OPTIONS = ['4/4', '3/4', '6/8', '7/8', '12/8', '2/4', '5/4'];
@@ -160,6 +161,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
   );
   const showSidePreview = isWide && previewEnabled;
   const [editArrangementsOpen, setEditArrangementsOpen] = useState(false);
+  const [promptConfig, setPromptConfig] = useState(null);
   const textareaRef = useRef(null);
   const isDirty = md !== savedMd;
 
@@ -223,54 +225,47 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
     setSavedMd(newMd);
   }, [activeArrangementId, workingSong, preview, isDirty]);
 
-  const handleAddArrangement = useCallback(async () => {
-    const name = (typeof window !== 'undefined' && window.prompt)
-      ? window.prompt('Arrangement name:', `Arrangement ${(workingSong.arrangements?.length || 0) + 1}`)
-      : null;
-    if (!name) return;
-    const seedArr = getArrangement(workingSong, activeArrangementId);
-    const { song: nextSong, arrangementId: newId } = addArrangement(workingSong, name.trim(), seedArr);
-    setWorkingSong(nextSong);
-    const arr = getArrangement(nextSong, newId);
-    const newMd = songToMd(nextSong, arr);
-    setActiveArrangementId(newId);
-    setMd(newMd);
-    setSavedMd(newMd);
-    toast({ title: 'Arrangement added', description: name });
-  }, [workingSong, activeArrangementId]);
+  const handleAddArrangement = useCallback(() => {
+    setPromptConfig({
+      title: 'New arrangement',
+      label: 'Name',
+      placeholder: `Arrangement ${(workingSong.arrangements?.length || 0) + 1}`,
+      initialValue: '',
+      confirmLabel: 'Create',
+      onSubmit: (name) => {
+        // Seed from the main (default) arrangement so the new one starts as a
+        // full copy of the song rather than an empty shell.
+        const seedArr = getArrangement(workingSong, workingSong.defaultArrangementId);
+        const { song: nextSong, arrangementId: newId } = addArrangement(workingSong, name, seedArr);
+        setWorkingSong(nextSong);
+        const arr = getArrangement(nextSong, newId);
+        const newMd = songToMd(nextSong, arr);
+        setActiveArrangementId(newId);
+        setMd(newMd);
+        setSavedMd(newMd);
+        toast({ title: 'Arrangement added', description: name });
+      },
+    });
+  }, [workingSong]);
 
   const handleRenameArrangement = useCallback(() => {
     const current = getArrangement(workingSong, activeArrangementId);
-    const name = (typeof window !== 'undefined' && window.prompt)
-      ? window.prompt('Rename arrangement:', current?.name || '')
-      : null;
-    if (!name || !name.trim()) return;
-    const next = renameArrangement(workingSong, activeArrangementId, name.trim());
-    setWorkingSong(next);
-    // Reseed md so frontmatter shows the new name
-    const arr = getArrangement(next, activeArrangementId);
-    setMd(songToMd(next, arr));
-    setSavedMd(songToMd(next, arr));
-  }, [workingSong, activeArrangementId]);
-
-  const handleDeleteArrangement = useCallback(async () => {
-    if ((workingSong.arrangements?.length || 0) <= 1) return;
-    const current = getArrangement(workingSong, activeArrangementId);
-    const ok = await confirm({
-      title: 'Delete arrangement?',
-      description: `"${current?.name || 'This arrangement'}" will be removed from this song.`,
-      confirmLabel: 'Delete',
-      variant: 'danger',
+    setPromptConfig({
+      title: 'Rename arrangement',
+      label: 'Name',
+      placeholder: 'Arrangement name',
+      initialValue: current?.name || '',
+      confirmLabel: 'Rename',
+      onSubmit: (name) => {
+        const next = renameArrangement(workingSong, activeArrangementId, name);
+        setWorkingSong(next);
+        // Reseed md so frontmatter shows the new name
+        const arr = getArrangement(next, activeArrangementId);
+        setMd(songToMd(next, arr));
+        setSavedMd(songToMd(next, arr));
+      },
     });
-    if (!ok) return;
-    const next = deleteArrangement(workingSong, activeArrangementId);
-    setWorkingSong(next);
-    const newActive = next.defaultArrangementId;
-    const arr = getArrangement(next, newActive);
-    setActiveArrangementId(newActive);
-    setMd(songToMd(next, arr));
-    setSavedMd(songToMd(next, arr));
-  }, [workingSong, activeArrangementId, confirm]);
+  }, [workingSong, activeArrangementId]);
 
   // Delete a specific arrangement by id (the dropdown's × delete; can be a
   // non-active arrangement). If we delete the one we're currently editing,
@@ -379,19 +374,29 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
   const currentTempo = preview?.tempo ?? '';
   const currentTime = preview?.time ?? '';
 
-  // Compact summary shown inline on the "Song Details" button so the most-
-  // referenced musical facts stay visible without opening the sheet.
-  const activeArr = getArrangement(workingSong, activeArrangementId);
-  const arrLabel = (workingSong.arrangements?.length || 0) > 1 ? activeArr?.name : '';
-  const metaSummary = [arrLabel, currentKey, currentTempo ? `${currentTempo}bpm` : '', currentTime]
-    .filter(Boolean)
-    .join(' · ');
+  // The Advanced (raw) editor shows only the song body — frontmatter is owned
+  // entirely by Song Details, so IDs and metadata can't be broken by hand.
+  const setBody = useCallback((newBody) => {
+    const { frontmatter } = splitMd(md);
+    setMd(frontmatter ? `---\n${frontmatter}\n---\n\n${newBody}` : newBody);
+  }, [md]);
 
   // Render active tab content
   const renderTab = () => {
     switch (activeTab) {
       case 'write':
-        return <WriteTab md={md} onChange={setMd} textareaRef={textareaRef} customSectionTypes={customSectionTypes} />;
+        return (
+          <WriteTab
+            md={splitMd(md).body.replace(/^\n+/, '')}
+            onChange={setBody}
+            textareaRef={textareaRef}
+            customSectionTypes={customSectionTypes}
+            time={currentTime || '4/4'}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            onImport={handleImport}
+          />
+        );
       case 'arrange':
         return <ArrangeTab md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
       default:
@@ -497,17 +502,42 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
         {/* LEFT COLUMN */}
         <div className="flex-1 min-h-0 flex flex-col w-full border-r border-[var(--ds-gray-300)]">
           
-          {/* ─── Thin editor toolbar — Song Details opener (left) + mode
-              toggle & tools (right). All metadata now lives in the Song
-              Details side-sheet, keeping this bar to a single row. ─── */}
+          {/* ─── Thin editor toolbar — quick musical controls + Details
+              opener (left), mode toggle & preview (right). Descriptive
+              metadata lives in the Song Details sheet; Advanced-only tools
+              (undo/redo/paste) live inside that editor's own toolbar. ─── */}
           <div
-            className="flex items-center gap-2 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] px-4 sm:px-6 py-2"
+            className="flex items-center gap-2 flex-wrap border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] px-4 sm:px-6 py-2"
             style={headerFrostStyle}
           >
+            <div className="flex items-center gap-1.5">
+              <select
+                value={currentKey}
+                onChange={e => updateField('key', e.target.value)}
+                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-1 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
+                aria-label="Key"
+              >
+                {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
+              </select>
+              <input
+                type="number"
+                value={currentTempo}
+                onChange={e => updateField('tempo', e.target.value)}
+                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-1 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
+                min="30" max="300"
+                placeholder="bpm"
+                aria-label="Tempo"
+              />
+              <TimeSignatureControl
+                value={currentTime}
+                onChange={v => updateField('time', v)}
+              />
+            </div>
+
             <button
               type="button"
               onClick={() => setMetaSheetOpen(true)}
-              className="inline-flex items-center gap-2 min-w-0 bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)] text-[var(--ds-gray-1000)] border border-[var(--ds-gray-300)] cursor-pointer pl-2.5 pr-3 py-1.5 rounded-md transition-colors"
+              className="inline-flex items-center gap-2 bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)] text-[var(--ds-gray-1000)] border border-[var(--ds-gray-300)] cursor-pointer pl-2.5 pr-3 py-1 rounded-md transition-colors"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
                 <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
@@ -515,12 +545,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
                 <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
               </svg>
-              <span className="text-label-11 font-semibold uppercase tracking-wider shrink-0">Song Details</span>
-              {metaSummary && (
-                <span className="text-label-11 font-mono text-[var(--ds-gray-600)] truncate hidden sm:inline">
-                  {metaSummary}
-                </span>
-              )}
+              <span className="text-label-11 font-semibold uppercase tracking-wider">Details</span>
             </button>
 
             <div className="ml-auto flex items-center gap-2">
@@ -530,13 +555,6 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 onChange={setActiveTab}
                 options={MODE_OPTIONS}
               />
-              {activeTab === 'write' && (
-                <>
-                  <IconButton variant="ghost" size="xs" onClick={handleUndo} aria-label="Undo">↶</IconButton>
-                  <IconButton variant="ghost" size="xs" onClick={handleRedo} aria-label="Redo">↷</IconButton>
-                </>
-              )}
-              <IconButton variant="ghost" size="xs" onClick={handleImport} aria-label="Import from clipboard">📋</IconButton>
               {isWide && (
                 <IconButton
                   variant={previewEnabled ? 'active' : 'ghost'}
@@ -597,39 +615,6 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
       {/* ─── Song Details — the single home for all metadata + arrangements,
           opened from the thin toolbar. Replaces the old inline mega-header. ─── */}
       <SideSheet open={metaSheetOpen} onClose={() => setMetaSheetOpen(false)} title="Song Details">
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          <label className="block">
-            <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] block mb-0.5">Key</span>
-            <select
-              value={currentKey}
-              onChange={e => updateField('key', e.target.value)}
-              className="w-full bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 py-1.5 text-copy-13 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
-              aria-label="Key"
-            >
-              {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
-            </select>
-          </label>
-          <label className="block">
-            <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] block mb-0.5">Tempo</span>
-            <input
-              type="number"
-              value={currentTempo}
-              onChange={e => updateField('tempo', e.target.value)}
-              className="w-full bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 py-1.5 text-copy-13 font-mono text-[var(--ds-gray-1000)] outline-none"
-              min="30" max="300"
-              placeholder="bpm"
-              aria-label="Tempo"
-            />
-          </label>
-          <div className="block">
-            <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] block mb-0.5">Time</span>
-            <TimeSignatureControl
-              value={currentTime}
-              onChange={v => updateField('time', v)}
-            />
-          </div>
-        </div>
-
         <MetadataPanel
           md={md}
           onChange={setMd}
@@ -645,6 +630,19 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
           onEditArrangements={() => setEditArrangementsOpen(true)}
         />
       </SideSheet>
+
+      {promptConfig && (
+        <PromptDialog
+          open
+          title={promptConfig.title}
+          label={promptConfig.label}
+          placeholder={promptConfig.placeholder}
+          initialValue={promptConfig.initialValue || ''}
+          confirmLabel={promptConfig.confirmLabel}
+          onSubmit={(v) => promptConfig.onSubmit?.(v)}
+          onClose={() => setPromptConfig(null)}
+        />
+      )}
 
       <EditArrangementsDialog
         open={editArrangementsOpen}

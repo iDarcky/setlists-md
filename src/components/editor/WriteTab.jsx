@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ChordPicker from './ChordPicker';
 import TabGridEditor from './TabGridEditor';
-import { parseTabBlock, splitMd, parseFrontmatterFields } from '../../parser';
+import { parseTabBlock } from '../../parser';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 
@@ -10,7 +10,7 @@ const SECTION_TYPES = [
   'Instrumental', 'Interlude', 'Tag', 'Vamp', 'Outro', 'Ending', 'Refrain',
 ];
 
-export default function WriteTab({ md, onChange, textareaRef, customSectionTypes }) {
+export default function WriteTab({ md, onChange, textareaRef, customSectionTypes, time, onUndo, onRedo, onImport }) {
   const sectionTypes = useMemo(() => {
     const custom = (customSectionTypes || [])
       .map(t => t?.name?.trim())
@@ -215,11 +215,9 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     setter(true);
   };
 
-  // Get time sig from frontmatter for TabGridEditor
-  const getTime = () => {
-    const fields = parseFrontmatterFields(splitMd(md).frontmatter);
-    return fields.time || '4/4';
-  };
+  // Time sig for TabGridEditor — passed down from the Editor shell, since the
+  // frontmatter is no longer part of this editor's text.
+  const getTime = () => time || '4/4';
 
   // ─── Find / Replace ───
   const matches = useMemo(() => {
@@ -308,6 +306,12 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
         <ToolBtn label="↑" title="Modulate" onClick={(e) => openPopup(setShowModMenu, e)} />
         <ToolBtn label="┃" title="Tab" onClick={handleTabInsert} />
         <ToolBtn label="🔍" title="Find" onClick={() => setShowFind(true)} />
+        {(onUndo || onRedo || onImport) && (
+          <span className="w-px self-stretch bg-[var(--ds-gray-300)] mx-0.5" aria-hidden="true" />
+        )}
+        {onUndo && <ToolBtn label="↶" title="Undo" onClick={onUndo} />}
+        {onRedo && <ToolBtn label="↷" title="Redo" onClick={onRedo} />}
+        {onImport && <ToolBtn label="📋" title="Paste" onClick={onImport} />}
       </div>
 
       {/* ─── Find / Replace bar ─── */}
@@ -352,17 +356,8 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
 
       {showRef && (
         <div className="mb-2.5 p-3 rounded-lg bg-[var(--color-brand-soft)] border border-[var(--color-brand-border)] text-copy-11 text-[var(--ds-gray-600)] leading-relaxed font-mono">
-          <div className="mb-1.5">
-            <strong className="text-[var(--ds-gray-1000)]">Frontmatter</strong> (between <code>---</code> delimiters):
-          </div>
-          <div className="pl-2.5 mb-2 text-[var(--ds-gray-500)]">
-            title: Song Name<br />
-            artist: Artist Name<br />
-            key: C<br />
-            tempo: 120<br />
-            time: 4/4<br />
-            structure: [Verse 1, Chorus, Verse 2, Chorus]<br />
-            <span className="opacity-50">tags, ccli, spotify, youtube, capo, notes — optional</span>
+          <div className="mb-2 text-[var(--ds-gray-500)]">
+            Song details (key, tempo, tags…) live in the <strong className="text-[var(--ds-gray-1000)]">Details</strong> panel — this editor is just the song body.
           </div>
           <div className="mb-1.5">
             <strong className="text-[var(--ds-gray-1000)]">Sections & Chords:</strong>

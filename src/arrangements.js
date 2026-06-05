@@ -71,17 +71,22 @@ export function withArrangement(song, arrangementId, mutator) {
 export function addArrangement(song, name, base) {
   const id = arrangementId();
   const seed = base || (song.arrangements && song.arrangements.find(a => a.id === song.defaultArrangementId)) || (song.arrangements && song.arrangements[0]);
+  // A new arrangement starts as a full copy of its seed (the main arrangement
+  // by default) — same lyrics, structure and chords — so the leader tweaks a
+  // duplicate rather than rebuilding the song from an empty shell. sections and
+  // structure are deep-cloned so edits don't mutate the seed.
+  const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)));
   const arrangement = {
     id,
     name: name || `Arrangement ${(song.arrangements?.length || 0) + 1}`,
     key: seed?.key || 'C',
-    tempo: seed?.tempo || 120,
-    time: seed?.time || '4/4',
+    tempo: seed?.tempo ?? null,
+    time: seed?.time || '',
     duration: seed?.duration || '',
-    capo: 0,
-    notes: '',
-    structure: [],
-    sections: [],
+    capo: seed?.capo || 0,
+    notes: seed?.notes || '',
+    structure: Array.isArray(seed?.structure) ? clone(seed.structure) : [],
+    sections: Array.isArray(seed?.sections) ? clone(seed.sections) : [],
     updatedAt: Date.now(),
   };
   const next = {
