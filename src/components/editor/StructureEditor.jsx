@@ -24,7 +24,7 @@ function shortCode(name) {
 // When `value` is empty and the editor has not been touched, hitting
 // "Edit order" auto-populates the list from document order so the user
 // has a real starting point rather than a blank canvas.
-export default function StructureEditor({ value, availableSections, onChange }) {
+export default function StructureEditor({ value, availableSections, onChange, autoSeed = true }) {
   const items = useMemo(() => {
     if (!value) return [];
     return value.split(',').map(s => s.trim()).filter(Boolean);
@@ -34,8 +34,12 @@ export default function StructureEditor({ value, availableSections, onChange }) 
   const [draggingIdx, setDraggingIdx] = useState(null);
   const seedRef = useRef(false);
 
-  // Auto-populate from document order on first paint when empty.
+  // Auto-populate from document order on first paint when empty. Disabled
+  // (autoSeed=false) for the always-visible ribbon so merely opening a song
+  // doesn't silently rewrite its structure and mark the editor dirty; the
+  // user can still populate it on demand via "Reset to song order".
   useEffect(() => {
+    if (!autoSeed) return;
     if (seedRef.current) return;
     seedRef.current = true;
     if (items.length === 0 && availableSections.length > 0) {

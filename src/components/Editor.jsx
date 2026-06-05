@@ -7,11 +7,11 @@ import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrange
 import WriteTab from './editor/WriteTab';
 import ArrangeTab from './editor/ArrangeTab';
 import MetadataPanel from './editor/MetadataPanel';
+import StructureEditor from './editor/StructureEditor';
 import { EditArrangementsDialog } from './editor/ArrangementMenu';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { SegmentedControl } from './ui/SegmentedControl';
-import SideSheet from './ui/SideSheet';
 import PromptDialog from './ui/PromptDialog';
 import { toast } from './ui/use-toast';
 import { useConfirm } from './ui/useConfirmHook';
@@ -149,7 +149,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
   const [savedMd, setSavedMd] = useState(initialMd);
   const [activeTab, setActiveTab] = useState('arrange');
   const [preview, setPreview] = useState(null);
-  const [metaSheetOpen, setMetaSheetOpen] = useState(!song);
+  const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
   const isWide = useMediaQuery('(min-width: 1024px)');
   // Side preview defaults ON only on roomy screens (>=1280). At 1024-1279
   // (iPad landscape) it stays collapsed so the editor keeps full width while
@@ -374,6 +374,27 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
   const currentTempo = preview?.tempo ?? '';
   const currentTime = preview?.time ?? '';
 
+  // Structure ribbon data (always-visible, edited via the frontmatter
+  // `structure` field). availableSections is derived from the body's
+  // `## Section` headers so the picker offers the song's real sections.
+  const structureValue = useMemo(
+    () => parseFrontmatterFields(splitMd(md).frontmatter).structure,
+    [md],
+  );
+  const availableSections = useMemo(() => {
+    const body = splitMd(md).body || '';
+    const labels = [];
+    const seen = new Set();
+    for (const line of body.split('\n')) {
+      const m = line.match(/^##\s+(.+?)\s*$/);
+      if (m) {
+        const name = m[1].trim();
+        if (name && !seen.has(name)) { seen.add(name); labels.push(name); }
+      }
+    }
+    return labels;
+  }, [md]);
+
   // The Advanced (raw) editor shows only the song body — frontmatter is owned
   // entirely by Song Details, so IDs and metadata can't be broken by hand.
   const setBody = useCallback((newBody) => {
@@ -502,14 +523,12 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
         {/* LEFT COLUMN */}
         <div className="flex-1 min-h-0 flex flex-col w-full border-r border-[var(--ds-gray-300)]">
           
-          {/* ─── Thin editor toolbar — quick musical controls + Details
-              opener (left), mode toggle & preview (right). Descriptive
-              metadata lives in the Song Details sheet; Advanced-only tools
-              (undo/redo/paste) live inside that editor's own toolbar. ─── */}
-          <div
-            className="flex items-center gap-2 flex-wrap border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] px-4 sm:px-6 py-2"
-            style={headerFrostStyle}
-          >
+          {/* ─── Editor chrome: quick controls + mode toggle (toolbar), the
+              always-visible Structure ribbon, and the collapsible Details
+              panel. Advanced-only tools (undo/redo/paste) live in that
+              editor's own toolbar. ─── */}
+          <div className="border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]" style={headerFrostStyle}>
+          <div className="flex items-center gap-2 flex-wrap px-4 sm:px-6 py-2">
             <div className="flex items-center gap-1.5">
               <select
                 value={currentKey}
@@ -536,8 +555,9 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
 
             <button
               type="button"
-              onClick={() => setMetaSheetOpen(true)}
-              className="inline-flex items-center gap-2 bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)] text-[var(--ds-gray-1000)] border border-[var(--ds-gray-300)] cursor-pointer pl-2.5 pr-3 py-1 rounded-md transition-colors"
+              onClick={() => setMetaPanelOpen(v => !v)}
+              aria-expanded={metaPanelOpen}
+              className="inline-flex items-center gap-2 bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)] text-[var(--ds-gray-1000)] border border-[var(--ds-gray-300)] cursor-pointer pl-2.5 pr-2 py-1 rounded-md transition-colors"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
                 <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
@@ -546,6 +566,9 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
               </svg>
               <span className="text-label-11 font-semibold uppercase tracking-wider">Details</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${metaPanelOpen ? 'rotate-180' : ''}`}>
+                <path d="m6 9 6 6 6-6" />
+              </svg>
             </button>
 
             <div className="ml-auto flex items-center gap-2">
@@ -571,6 +594,37 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 </IconButton>
               )}
             </div>
+          </div>
+
+          {/* Structure ribbon — always visible */}
+          <div className="px-4 sm:px-6 pb-2">
+            <StructureEditor
+              value={structureValue}
+              availableSections={availableSections}
+              onChange={(next) => updateField('structure', next)}
+              autoSeed={false}
+            />
+          </div>
+
+          {/* Details — collapsible descriptive metadata */}
+          {metaPanelOpen && (
+            <div className="px-4 sm:px-6 pb-3">
+              <MetadataPanel
+                md={md}
+                onChange={setMd}
+                isOpen
+                keyHistory={workingSong.keyHistory}
+                arrangements={workingSong.arrangements}
+                activeArrangementId={activeArrangementId}
+                defaultArrangementId={workingSong.defaultArrangementId}
+                onSwitchArrangement={switchArrangement}
+                onAddArrangement={handleAddArrangement}
+                onRenameArrangement={handleRenameArrangement}
+                onDeleteArrangement={handleDeleteArrangementById}
+                onEditArrangements={() => setEditArrangementsOpen(true)}
+              />
+            </div>
+          )}
           </div>
 
           {/* ─── Active Tab Content ─── */}
@@ -611,25 +665,6 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
           {!readOnly && <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave}>Save</Button>}
         </div>
       </div>
-
-      {/* ─── Song Details — the single home for all metadata + arrangements,
-          opened from the thin toolbar. Replaces the old inline mega-header. ─── */}
-      <SideSheet open={metaSheetOpen} onClose={() => setMetaSheetOpen(false)} title="Song Details">
-        <MetadataPanel
-          md={md}
-          onChange={setMd}
-          isOpen
-          keyHistory={workingSong.keyHistory}
-          arrangements={workingSong.arrangements}
-          activeArrangementId={activeArrangementId}
-          defaultArrangementId={workingSong.defaultArrangementId}
-          onSwitchArrangement={switchArrangement}
-          onAddArrangement={handleAddArrangement}
-          onRenameArrangement={handleRenameArrangement}
-          onDeleteArrangement={handleDeleteArrangementById}
-          onEditArrangements={() => setEditArrangementsOpen(true)}
-        />
-      </SideSheet>
 
       {promptConfig && (
         <PromptDialog
