@@ -37,6 +37,22 @@ export async function openBillingPortal(teamId) {
 }
 
 /**
+ * Short badge label for a workspace whose subscription needs attention.
+ * Returns null for healthy states (active/trialing) so callers can skip the
+ * badge entirely.
+ * @param {string} status — teams.subscription_status
+ * @returns {string|null}
+ */
+export function workspaceStatusLabel(status) {
+  switch (String(status || 'active').toLowerCase()) {
+    case 'past_due': return 'Past due';
+    case 'unpaid': return 'Unpaid';
+    case 'canceled': return 'Canceled';
+    default: return null; // active / trialing
+  }
+}
+
+/**
  * Friendly message for the `billing_not_configured` / not-live state so call
  * sites can show consistent copy.
  */

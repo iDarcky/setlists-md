@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import NotificationTray from './NotificationTray';
 import FeedbackButton from './FeedbackButton';
 import { cn } from '../lib/utils';
+import { workspaceStatusLabel } from '../billing/checkout';
 
 /* Icons (kept local so the header is self-contained) */
 const TeamNavIcon = () => (
@@ -108,7 +109,7 @@ export default function TopHeader({
   // Workspaces: Personal + every team the user belongs to.
   const workspaces = [
     { id: 'personal', name: 'Personal Workspace', isPersonal: true, avatarUrl },
-    ...teams.map(t => ({ id: t.id, name: t.name, plan: t.plan, avatarUrl: t.logo_url || null })),
+    ...teams.map(t => ({ id: t.id, name: t.name, plan: t.plan, avatarUrl: t.logo_url || null, status: t.subscription_status })),
   ];
   const activeWorkspace =
     workspaces.find(w => w.id === activeLibrary) || workspaces[0];
@@ -212,7 +213,14 @@ export default function TopHeader({
                   >
                     <WorkspaceBadge workspace={w} size={28} />
                     <span className="flex-1 min-w-0">
-                      <span className="block text-label-14 font-medium text-[var(--ds-gray-1000)] truncate">{w.name}</span>
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <span className="block text-label-14 font-medium text-[var(--ds-gray-1000)] truncate">{w.name}</span>
+                        {workspaceStatusLabel(w.status) && (
+                          <span className="shrink-0 text-label-10 font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: 'var(--ds-red-100)', color: 'var(--ds-red-900)' }}>
+                            {workspaceStatusLabel(w.status)}
+                          </span>
+                        )}
+                      </span>
                       {!w.isPersonal && (
                         <span className="block text-label-12 text-[var(--ds-gray-600)] capitalize">{w.plan || 'team'} workspace</span>
                       )}
@@ -222,7 +230,7 @@ export default function TopHeader({
                 );
               })}
 
-              {hasTeamPlan && (onManageTeams || onNewWorkspace) && (
+              {(onNewWorkspace || (hasTeamPlan && onManageTeams)) && (
                 <>
                   <div className="my-1 border-t border-[var(--ds-gray-200)]" />
                   {onNewWorkspace && (
@@ -235,7 +243,7 @@ export default function TopHeader({
                       <span className="text-label-14 font-medium">New workspace</span>
                     </button>
                   )}
-                  {onManageTeams && (
+                  {hasTeamPlan && onManageTeams && (
                     <button
                       role="menuitem"
                       onClick={() => { setWsOpen(false); onManageTeams(); }}

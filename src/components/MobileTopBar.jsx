@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import SongCard from './SongCard';
+import { workspaceStatusLabel } from '../billing/checkout';
 
 const HamburgerIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -177,7 +178,14 @@ export default function MobileTopBar({
                 >
                   <WorkspaceBadge workspace={w} size={28} />
                   <span className="flex-1 min-w-0">
-                    <span className="block text-copy-15 text-[var(--text-1)] truncate">{w.name}</span>
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span className="block text-copy-15 text-[var(--text-1)] truncate">{w.name}</span>
+                      {workspaceStatusLabel(w.status) && (
+                        <span className="shrink-0 text-label-10 font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: 'var(--ds-red-100)', color: 'var(--ds-red-900)' }}>
+                          {workspaceStatusLabel(w.status)}
+                        </span>
+                      )}
+                    </span>
                     {w.id !== 'personal' && <span className="block text-label-12 text-[var(--text-2)]">Team workspace</span>}
                   </span>
                   {active && <span className="text-[var(--color-brand)] shrink-0"><CheckIcon /></span>}

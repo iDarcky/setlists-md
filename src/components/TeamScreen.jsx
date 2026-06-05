@@ -49,9 +49,10 @@ const LocationIcon = () => (
 
 // ── Create Team form ────────────────────────────────────────────────────────
 
-function CreateTeamForm({ onCreate, onCancel, multiple = false }) {
+function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 'team', billingLive = false }) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
+  const [plan, setPlan] = useState(defaultPlan === 'church' ? 'church' : 'team');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -61,13 +62,18 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false }) {
     setBusy(true);
     setError(null);
     try {
-      await onCreate({ name: name.trim(), location: location.trim() || null });
+      await onCreate({ name: name.trim(), location: location.trim() || null, plan });
     } catch (err) {
       setError(err.message || 'Could not create team.');
     } finally {
       setBusy(false);
     }
   };
+
+  const TIERS = [
+    { id: 'team', label: 'Team', price: '$12/mo', seats: '10 seats', blurb: 'For a worship band.' },
+    { id: 'church', label: 'Church', price: '$24/mo', seats: '30 seats', blurb: 'For a whole church.' },
+  ];
 
   return (
     <div className="flex-1 flex items-center justify-center px-6 py-12">
@@ -115,6 +121,37 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false }) {
             />
           </label>
 
+          {/* Tier picker — sets seats/features (and the price at checkout). */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider">Plan</span>
+            <div className="grid grid-cols-2 gap-2">
+              {TIERS.map(t => {
+                const active = plan === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setPlan(t.id)}
+                    className="text-left rounded-xl p-3 border transition-all"
+                    style={{
+                      borderColor: active ? 'var(--color-brand)' : 'var(--ds-gray-400)',
+                      boxShadow: active ? '0 0 0 1px var(--color-brand)' : 'none',
+                      background: active ? 'var(--color-brand-soft)' : 'var(--ds-background-200)',
+                    }}
+                    aria-pressed={active}
+                  >
+                    <div className="flex items-baseline justify-between gap-1">
+                      <span className="text-copy-14 font-semibold text-[var(--ds-gray-1000)]">{t.label}</span>
+                      {billingLive && <span className="text-label-11 font-bold text-[var(--color-brand)]">{t.price}</span>}
+                    </div>
+                    <div className="text-label-11 text-[var(--ds-gray-600)] mt-0.5">{t.seats}</div>
+                    <div className="text-label-11 text-[var(--ds-gray-500)] mt-0.5">{t.blurb}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {error && (
             <div className="text-copy-13 px-3 py-2 rounded-lg" style={{ background: 'var(--ds-red-100)', color: 'var(--ds-red-1000)' }}>
               {error}
@@ -122,7 +159,7 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false }) {
           )}
 
           <Button type="submit" variant="brand" size="lg" className="w-full" disabled={busy || !name.trim()}>
-            {busy ? 'Creating…' : (multiple ? 'Create workspace' : 'Create team')}
+            {busy ? (billingLive ? 'Starting checkout…' : 'Creating…') : (billingLive ? 'Continue to checkout' : (multiple ? 'Create workspace' : 'Create team'))}
           </Button>
           {onCancel && (
             <Button type="button" variant="secondary" size="lg" className="w-full" onClick={onCancel} disabled={busy}>
@@ -680,6 +717,14 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
     }
   };
 
+  // Who may create a workspace. With Stripe billing live, creating *is*
+  // subscribing — any signed-in user can start one (it routes to checkout and
+  // is created unpaid until the webhook confirms payment). While billing is
+  // dormant we keep the entitlement gate so team features aren't given away for
+  // free.
+  const canCreate = BILLING_ENABLED || hasTeamPlan;
+  const ownerTier = team?.owner_id === user?.id ? team?.plan : undefined;
+
   // Show the create form when explicitly creating, or when the user has no
   // team yet (the original first-run path).
   const showCreate = creating || !team;
@@ -689,7 +734,7 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
       <ScreenHeader
         onBack={creating && team ? () => setCreating(false) : onBack}
         title={creating && team ? 'New workspace' : 'Your Team'}
-        actions={!creating && team && hasTeamPlan ? (
+        actions={!creating && team && canCreate ? (
           <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
             <span className="flex items-center gap-1.5"><PlusIcon /> New</span>
           </Button>
@@ -701,11 +746,13 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
           <div className="text-copy-14 text-[var(--ds-gray-600)]">Loading team…</div>
         </div>
       ) : showCreate ? (
-        hasTeamPlan ? (
+        canCreate ? (
           <CreateTeamForm
             onCreate={handleCreateTeam}
             onCancel={team ? () => setCreating(false) : null}
             multiple={!!team}
+            defaultPlan={ownerTier || 'team'}
+            billingLive={BILLING_ENABLED}
           />
         ) : (
           <UpgradeGate feature="team-create" onUpgrade={onUpgrade}>

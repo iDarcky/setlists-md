@@ -32,6 +32,7 @@ import { useTeamRealtime } from './hooks/useTeamRealtime';
 import { useChartTheme } from './hooks/useChartTheme';
 import { useTeamSchedules } from './hooks/useTeamSchedules';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
+import { BILLING_ENABLED } from './billing/checkout';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 
@@ -1656,7 +1657,7 @@ export default function App() {
           team={team}
           teams={teams}
           onChangeWorkspace={goTeam}
-          onNewWorkspace={hasTeamPlan ? goNewWorkspace : undefined}
+          onNewWorkspace={(BILLING_ENABLED || hasTeamPlan) ? goNewWorkspace : undefined}
           syncState={syncState}
           onSyncNow={triggerSync}
           isOnline={isOnline}
@@ -1674,10 +1675,10 @@ export default function App() {
               activeLibrary={activeLibrary}
               workspaces={[
                 { id: 'personal', name: 'Personal', avatarUrl: profile?.avatar_url || null },
-                ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null })),
+                ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null, status: t.subscription_status })),
               ]}
               setActiveLibrary={switchWorkspace}
-              onNewWorkspace={hasTeamPlan ? goNewWorkspace : undefined}
+              onNewWorkspace={(BILLING_ENABLED || hasTeamPlan) ? goNewWorkspace : undefined}
             />
           )}
           {view === 'home' && (

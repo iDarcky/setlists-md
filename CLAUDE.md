@@ -462,10 +462,18 @@ Each team/church workspace is its own Stripe subscription, paid by the team
   `subscription_status` / Stripe ids / `current_period_end` (and `plan`/
   `max_seats`) back onto the team. Deploy the webhook with `--no-verify-jwt`.
 - **Client** — `src/billing/checkout.js` (`startTeamCheckout`,
-  `openBillingPortal`, `BILLING_ENABLED`, `billingError`). Wired into
-  `Settings.jsx` (owner-only Subscribe / Manage billing rows) and
-  `TeamScreen.jsx` (new workspace routes to checkout when enabled). App
-  handles the `?billing=success|cancel` return with a toast + URL cleanup.
+  `openBillingPortal`, `BILLING_ENABLED`, `billingError`,
+  `workspaceStatusLabel`). Wired into `Settings.jsx` (owner-only Subscribe /
+  Manage billing rows) and `TeamScreen.jsx` (create form has a Team/Church
+  tier picker; new workspace routes to checkout when enabled). The workspace
+  switchers (`TopHeader`, `MobileTopBar`) show a Past due / Unpaid / Canceled
+  badge per workspace. App handles the `?billing=success|cancel` return with a
+  toast + URL cleanup.
+- **Create-to-pay gating** — a user may create a workspace when
+  `BILLING_ENABLED || hasTeamPlan`. With billing live, creating *is*
+  subscribing (any signed-in user → checkout, workspace starts `unpaid` until
+  the webhook confirms); while billing is dormant the `hasTeamPlan`
+  entitlement gate stays so team features aren't given away for free.
 - **Dormant by default** — the functions return `503 billing_not_configured`
   without `STRIPE_SECRET_KEY`, and the UI is hidden unless
   `VITE_STRIPE_ENABLED=true`. Turning it on requires the Stripe secrets +
