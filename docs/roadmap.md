@@ -25,7 +25,7 @@ This document consolidates earlier specifications (`product-spec.md`) and design
 - [x] Tab block parsing & SVG interactive rendering map.
 - [x] Chord diagram engine rendering.
 - [ ] Instrument role profiles (vocalist, guitar, bass, keys, drums views).
-- [ ] Smart import from ChordPro (`.cho`), SongSelect (`.usr`), OnSong, generic Text/PDF/Word parsing contexts.
+- [~] Smart import from ChordPro (`.cho`), SongSelect (`.usr`), OnSong (`Flow:`/`Duration:`), OpenSong (`.xml`), and generic Text — all live. PDF/Word parsing still pending.
 - [ ] Enhanced playback modes: Explicit Rehearsal vs Live sub-modes.
 - [ ] Display customizations: Nashville number system toggle, Duplicate section handling rules, Chords-only/Lyrics-only displays.
 - [x] Print single song / setlist to PDF

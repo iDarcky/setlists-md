@@ -11,6 +11,8 @@ import {
   convertUltimateGuitar,
   convertPlain,
   convertOpenSong,
+  convertSongSelect,
+  parseFlow,
   smartImport,
 } from '../importer';
 import { parseSongMd } from '../parser';
@@ -347,6 +349,140 @@ describe('convertOpenSong', () => {
 
   it('throws on malformed XML', () => {
     expect(() => convertOpenSong('<song><lyrics>oops')).toThrow();
+  });
+});
+
+describe('parseFlow', () => {
+  it('expands abbreviations and full names, comma- or space-separated', () => {
+    expect(parseFlow('V1 C V2 C B C')).toEqual([
+      'Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Bridge', 'Chorus',
+    ]);
+    expect(parseFlow('Verse 1, Pre-Chorus, Chorus')).toEqual([
+      'Verse 1', 'Pre Chorus', 'Chorus',
+    ]);
+  });
+});
+
+describe('importers emit structure', () => {
+  it('ChordPro emits the ordered section list', () => {
+    const src = `{title: T}
+{start_of_verse}
+[C]one
+{end_of_verse}
+{start_of_chorus}
+[G]hook
+{end_of_chorus}
+{start_of_verse}
+[C]two
+{end_of_verse}`;
+    const song = parseSongMd(convertChordPro(src));
+    expect(song.structure).toEqual(['Verse 1', 'Chorus 1', 'Verse 2']);
+  });
+
+  it('ChordPro Flow:/Duration: override the derived structure', () => {
+    const src = `{title: T}
+Flow: V1 C V2 C
+Duration: 4:30
+{start_of_verse}
+[C]one
+{end_of_verse}
+{start_of_chorus}
+[G]hook
+{end_of_chorus}`;
+    const md = convertChordPro(src);
+    expect(md).toContain('duration: 4:30');
+    const song = parseSongMd(md);
+    expect(song.structure).toEqual(['Verse 1', 'Chorus', 'Verse 2', 'Chorus']);
+  });
+
+  it('OpenSong emits the ordered section list', () => {
+    const xml = `<song><title>T</title><lyrics>[V1]
+ line one
+[C]
+ hook
+</lyrics></song>`;
+    const song = parseSongMd(convertOpenSong(xml));
+    expect(song.structure).toEqual(['Verse 1', 'Chorus 1']);
+  });
+});
+
+describe('detectFormat — SongSelect', () => {
+  it('detects a [File]/Type=SongSelect header', () => {
+    const usr = '[File]\nType=SongSelect Import File\n[Song]\nTitle=X\n';
+    expect(detectFormat(usr)).toBe('songselect');
+  });
+
+  it('detects the Fields=/Words= block pair', () => {
+    const usr = '[File]\n[S A12345]\nFields=Verse 1/Chorus 1\nWords=line//hook\n';
+    expect(detectFormat(usr)).toBe('songselect');
+  });
+
+  it('does not mistake ChordPro or plain text for SongSelect', () => {
+    expect(detectFormat('{title: T}\n[C]hi')).toBe('chordpro');
+    expect(detectFormat('just some lyrics here')).toBe('plain');
+  });
+});
+
+describe('convertSongSelect', () => {
+  it('parses the doc-style [Song] + [Verse] variant', () => {
+    const usr = `[File]
+Type=SongSelect
+[Song]
+Title=Build My Life
+Author=Brett Younker, Karl Martin
+Copyright=2016 Bethel Music
+CCLI=7070345
+Key=E
+[Verse 1]
+Worthy of every song we could ever sing
+[Chorus 1]
+Holy there is no one like You`;
+    const song = parseSongMd(convertSongSelect(usr));
+    expect(song.title).toBe('Build My Life');
+    expect(song.artist).toBe('Brett Younker, Karl Martin');
+    expect(song.key).toBe('E');
+    expect(song.ccli).toBe('7070345');
+    expect(song.notes).toBe('2016 Bethel Music');
+    expect(song.structure).toEqual(['Verse 1', 'Chorus 1']);
+    expect(song.sections).toHaveLength(2);
+  });
+
+  it('parses the real-world [S A#]/Fields=/Words= variant', () => {
+    const usr = `[File]
+Type=SongSelect Import File
+Version=3.0
+
+[S A2025]
+Title=Amazing Grace
+Author=John Newton | William Walker
+Copyright=Public Domain
+SongNumber=22025
+Keys=
+Fields=Verse 1/Verse 2/Verse 3
+Words=Amazing grace how sweet the sound/That saved a wretch like me//T'was grace that taught/my heart to fear//When we've been there/ten thousand years`;
+    const song = parseSongMd(convertSongSelect(usr));
+    expect(song.title).toBe('Amazing Grace');
+    expect(song.artist).toBe('John Newton, William Walker');
+    expect(song.ccli).toBe('22025');
+    expect(song.structure).toEqual(['Verse 1', 'Verse 2', 'Verse 3']);
+    expect(song.sections).toHaveLength(3);
+    // Words split into per-line lyrics, no inline chords expected.
+    const allText = song.sections.flatMap(s => s.lines).join('\n');
+    expect(allText).toContain('Amazing grace how sweet the sound');
+    expect(allText).toContain('That saved a wretch like me');
+    expect(allText).not.toMatch(/\[[A-G]/);
+  });
+
+  it('throws on input that is clearly not a .usr file', () => {
+    expect(() => convertSongSelect('Amazing grace how sweet the sound')).toThrow();
+  });
+
+  it('round-trips through smartImport with a songselect override', () => {
+    const usr = '[File]\nType=SongSelect\n[Song]\nTitle=X\nKey=G\n[Verse 1]\nhello';
+    const { format, md } = smartImport(usr, 'songselect');
+    expect(format).toBe('songselect');
+    expect(md).toContain('title: X');
+    expect(parseSongMd(md).key).toBe('G');
   });
 });
 

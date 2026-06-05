@@ -5,7 +5,7 @@ import { songFromFlat } from '../../arrangements';
 import { smartImport } from '../../importer';
 
 const CHORDPRO_EXTS = ['.cho', '.chopro', '.chord', '.crd', '.pro', '.onsong'];
-const ACCEPT = ['.md', '.zip', '.xml', '.txt', ...CHORDPRO_EXTS].join(',');
+const ACCEPT = ['.md', '.zip', '.xml', '.txt', '.usr', ...CHORDPRO_EXTS].join(',');
 
 function ext(file) {
   const m = file.name.toLowerCase().match(/\.[^.]+$/);
@@ -23,6 +23,7 @@ function detectFormatForFile(file) {
   const e = ext(file);
   if (e === '.md') return 'native';
   if (e === '.xml') return 'opensong';
+  if (e === '.usr') return 'songselect';
   if (CHORDPRO_EXTS.includes(e)) return 'chordpro';
   // .txt or anything else — let smartImport's detector decide.
   return null;
@@ -57,7 +58,7 @@ export default function ImportTab({ onImportSongs, onImportSetlistFile, isMobile
     }
 
     if (songFiles.length === 0) {
-      setError('Pick .md, .cho/.chopro, .xml (OpenSong), or .zip files.');
+      setError('Pick .md, .cho/.chopro, .usr (SongSelect), .xml (OpenSong), or .zip files.');
       return;
     }
 
@@ -138,7 +139,7 @@ export default function ImportTab({ onImportSongs, onImportSetlistFile, isMobile
             Drop files here
           </div>
           <div className="text-copy-13 text-[var(--ds-gray-700)] mb-4">
-            or click to browse — .md, ChordPro, OpenSong .xml, or .zip setlists
+            or click to browse — .md, ChordPro, SongSelect .usr, OpenSong .xml, or .zip setlists
           </div>
           <Button variant="secondary" size="sm" onClick={() => inputRef.current?.click()}>
             Choose files
@@ -157,7 +158,7 @@ export default function ImportTab({ onImportSongs, onImportSetlistFile, isMobile
             Import a file
           </div>
           <div className="text-copy-13 text-[var(--ds-gray-700)] mb-4">
-            .md, ChordPro, OpenSong .xml, or .zip setlist bundles
+            .md, ChordPro, SongSelect .usr, OpenSong .xml, or .zip setlist bundles
           </div>
           <Button variant="brand" size="sm" onClick={() => inputRef.current?.click()}>
             Choose file
@@ -174,6 +175,7 @@ export default function ImportTab({ onImportSongs, onImportSetlistFile, isMobile
       <ul className="mt-5 text-copy-12 text-[var(--ds-gray-600)] list-disc pl-5 space-y-1">
         <li><code>.md</code> — setlists.md native format.</li>
         <li><code>.cho</code> / <code>.chopro</code> / <code>.crd</code> / <code>.pro</code> / <code>.onsong</code> — ChordPro / OnSong.</li>
+        <li><code>.usr</code> — CCLI SongSelect download. Brings in title, author, key, CCLI #, structure, and lyrics (add chords after).</li>
         <li><code>.xml</code> — OpenSong song.</li>
         <li><code>.zip</code> — exported setlist bundle. Adds the setlist plus any new songs.</li>
         <li><code>.txt</code> — auto-detected (chord-over-lyric, ChordPro, or plain).</li>

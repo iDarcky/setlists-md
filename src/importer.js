@@ -177,6 +177,15 @@ export function chordLineOnly(chordLine) {
 export function detectFormat(text) {
   if (!text || !text.trim()) return 'plain';
 
+  // SongSelect .usr — INI-style with a [File] header + SongSelect type marker,
+  // or the Fields=/Words= block pair of a real CCLI export.
+  if (/\[File\]/i.test(text) && /Type\s*=\s*SongSelect/i.test(text)) {
+    return 'songselect';
+  }
+  if (/^\s*Fields\s*=/im.test(text) && /^\s*Words\s*=/im.test(text)) {
+    return 'songselect';
+  }
+
   // OpenSong is XML with a <song> root and a <lyrics> child.
   if (/<song[\s>][\s\S]*<lyrics[\s>]/i.test(text)) {
     return 'opensong';
@@ -237,16 +246,30 @@ export function convertChordPro(text) {
   const meta = {};
   const bodyLines = [];
   const typeCounts = {};
+  const structure = [];
+  let flowOverride = null;
   let currentSectionType = null;
 
   const nextSectionLabel = (base) => {
     typeCounts[base] = (typeCounts[base] || 0) + 1;
     const needsNumber = ['Verse', 'Chorus', 'Bridge', 'Pre Chorus'].includes(base);
-    return needsNumber ? `${base} ${typeCounts[base]}` : base;
+    const label = needsNumber ? `${base} ${typeCounts[base]}` : base;
+    structure.push(label);
+    return label;
   };
 
   for (const raw of lines) {
     const line = raw.trim();
+
+    // OnSong metadata extensions written as plain `Key: value` lines (no braces).
+    const onsongMeta = line.match(/^(flow|duration)\s*:\s*(.+)$/i);
+    if (onsongMeta && !currentSectionType) {
+      const name = onsongMeta[1].toLowerCase();
+      const value = onsongMeta[2].trim();
+      if (name === 'flow') flowOverride = value;
+      else if (name === 'duration') meta.duration = value;
+      continue;
+    }
 
     const directive = line.match(/^\{([a-zA-Z_]+)\s*:?\s*(.*?)\}$/);
     if (directive) {
@@ -261,6 +284,8 @@ export function convertChordPro(text) {
       else if (name === 'capo') meta.capo = value;
       else if (name === 'ccli') meta.ccli = value;
       else if (name === 'composer') meta.artist = meta.artist || value;
+      else if (name === 'flow') flowOverride = value;
+      else if (name === 'duration') meta.duration = value;
       else if (name === 'comment' || name === 'c') {
         bodyLines.push(`> ${value}`);
       } else if (CHORDPRO_SECTION_MAP[name]) {
@@ -302,7 +327,9 @@ export function convertChordPro(text) {
     tempo: meta.tempo || '',
     time: meta.time || '',
     capo: meta.capo,
+    duration: meta.duration,
     ccli: meta.ccli,
+    structure: flowOverride ? parseFlow(flowOverride) : structure,
   }) + body;
 }
 
@@ -310,13 +337,16 @@ export function convertUltimateGuitar(text) {
   const lines = text.split('\n');
   const body = [];
   const typeCounts = {};
+  const structure = [];
   let currentSection = null;
   const meta = {};
 
   const nextSectionLabel = (base) => {
     typeCounts[base] = (typeCounts[base] || 0) + 1;
     const needsNumber = ['Verse', 'Chorus', 'Bridge', 'Pre Chorus'].includes(base);
-    return needsNumber ? `${base} ${typeCounts[base]}` : base;
+    const label = needsNumber ? `${base} ${typeCounts[base]}` : base;
+    structure.push(label);
+    return label;
   };
 
   const ensureSection = () => {
@@ -393,6 +423,7 @@ export function convertUltimateGuitar(text) {
   return frontmatter({
     title: meta.title || 'Untitled',
     artist: meta.artist || '',
+    structure,
   }) + bodyText;
 }
 
@@ -400,13 +431,16 @@ export function convertPlain(text) {
   const lines = text.split('\n');
   const body = [];
   const typeCounts = {};
+  const structure = [];
   let currentSection = null;
   const meta = {};
 
   const nextSectionLabel = (base) => {
     typeCounts[base] = (typeCounts[base] || 0) + 1;
     const needsNumber = ['Verse', 'Chorus', 'Bridge', 'Pre Chorus'].includes(base);
-    return needsNumber ? `${base} ${typeCounts[base]}` : base;
+    const label = needsNumber ? `${base} ${typeCounts[base]}` : base;
+    structure.push(label);
+    return label;
   };
 
   let i = 0;
@@ -448,6 +482,7 @@ export function convertPlain(text) {
   return frontmatter({
     title: meta.title || 'Untitled',
     artist: meta.artist || '',
+    structure,
   }) + bodyText;
 }
 
@@ -509,12 +544,15 @@ export function convertOpenSong(text) {
   const lines = lyricsRaw.split('\n');
   const body = [];
   const typeCounts = {};
+  const structure = [];
   let currentSection = null;
 
   const nextSectionLabel = (base) => {
     typeCounts[base] = (typeCounts[base] || 0) + 1;
     const needsNumber = ['Verse', 'Chorus', 'Bridge', 'Pre Chorus'].includes(base);
-    return needsNumber ? `${base} ${typeCounts[base]}` : base;
+    const label = needsNumber ? `${base} ${typeCounts[base]}` : base;
+    structure.push(label);
+    return label;
   };
 
   const ensureSection = () => {
@@ -594,7 +632,155 @@ export function convertOpenSong(text) {
     time: meta.time || '',
     capo: meta.capo,
     ccli: meta.ccli,
+    structure,
   }) + bodyText;
+}
+
+// ─── SongSelect (.usr) ─────────────────────────────────────────────
+
+// Common worship-flow abbreviations → canonical section base names. Used to
+// expand OnSong `Flow:` tokens and any abbreviated `.usr` field labels.
+const FLOW_ABBR = {
+  V: 'Verse', C: 'Chorus', B: 'Bridge', P: 'Pre Chorus', PC: 'Pre Chorus',
+  I: 'Intro', O: 'Outro', T: 'Tag', E: 'Ending', IN: 'Interlude', R: 'Refrain',
+};
+
+// Expand a single flow token ("V1", "C", "Verse 2", "Pre-Chorus") into a
+// canonical label. Falls back to the trimmed token when nothing matches.
+function expandFlowToken(token) {
+  const tok = token.trim();
+  if (!tok) return '';
+  // Try a full section name first (handles "Verse 2", "Pre-Chorus 1", "Chorus").
+  const full = normaliseSectionType(tok);
+  if (full) return full;
+  // Then an abbreviation with an optional trailing number ("V1", "C", "PC2").
+  const m = tok.match(/^([A-Za-z]+?)\s*(\d+)?$/);
+  if (m) {
+    const base = FLOW_ABBR[m[1].toUpperCase()];
+    if (base) return base + (m[2] ? ` ${m[2]}` : '');
+  }
+  return tok;
+}
+
+// Parse an OnSong `Flow:` value (comma- or space-separated) into a structure
+// array of canonical section labels.
+export function parseFlow(value) {
+  if (!value) return [];
+  const parts = value.includes(',') ? value.split(',') : value.split(/\s+/);
+  return parts.map(expandFlowToken).filter(Boolean);
+}
+
+// Resolve a raw `.usr` section label ("Verse 1", "Chorus", "Ending") to a
+// canonical label, keeping the original text when it isn't a known type.
+function usrSectionLabel(raw) {
+  const clean = String(raw || '').trim();
+  if (!clean) return '';
+  return detectSectionHeader(`[${clean}]`) || clean;
+}
+
+// First non-empty key from a CCLI `Key=`/`Keys=` value (often comma/slash
+// separated, and frequently empty in real exports).
+function firstKey(value) {
+  return String(value || '').split(/[,/]/).map(s => s.trim()).find(Boolean) || '';
+}
+
+// Authors may be `|`- or `/`-separated in `.usr`; join with ", ". Commas are
+// left intact (they're often part of a single "Last, First" author).
+function formatAuthors(value) {
+  return String(value || '').split(/[|/]/).map(s => s.trim()).filter(Boolean).join(', ');
+}
+
+// Convert a CCLI SongSelect `.usr` file. Handles two real-world variants:
+//  A) `[Song]` metadata block + `[Verse 1]`-delimited lyric blocks.
+//  B) `[File]`/`[S A#######]` block with slash-delimited `Fields=` labels and a
+//     `Words=` blob where `//` separates sections and `/` separates lines.
+// Brings in title, author, copyright (→ notes), CCLI #, key, structure, and
+// lyrics — but no inline chords or tempo (the format does not carry them).
+export function convertSongSelect(text) {
+  const looksUsr =
+    /\[File\]/i.test(text) ||
+    /Type\s*=\s*SongSelect/i.test(text) ||
+    /^\s*(Title|Words|Fields)\s*=/im.test(text);
+  if (!looksUsr) throw new Error('Not a SongSelect .usr file');
+
+  const meta = {};
+  let fields = null;
+  let words = null;
+  const blocks = []; // variant A: [{ label, lines: [] }]
+  let currentBlock = null;
+
+  const assignMeta = (key, value) => {
+    if (key === 'title') meta.title = value;
+    else if (key === 'author' || key === 'authors') meta.artist = formatAuthors(value);
+    else if (key === 'key' || key === 'keys') meta.key = firstKey(value);
+    else if (key === 'copyright') meta.notes = value;
+    else if (['ccli', 'songnumber', 'song number', 'ccli number', 'cclinumber'].includes(key)) {
+      meta.ccli = value;
+    } else if (key === 'fields') fields = value;
+    else if (key === 'words') words = value;
+  };
+
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) {
+      if (currentBlock) currentBlock.lines.push('');
+      continue;
+    }
+
+    const bracket = line.match(/^\[([^\]]+)\]$/);
+    if (bracket) {
+      const inner = bracket[1].trim();
+      // [File], [Song], [S A1234] are metadata containers, not lyric sections.
+      if (/^(file|song)$/i.test(inner) || /^s[\s0-9]/i.test(inner)) {
+        currentBlock = null;
+      } else {
+        currentBlock = { label: usrSectionLabel(inner), lines: [] };
+        blocks.push(currentBlock);
+      }
+      continue;
+    }
+
+    const kv = line.match(/^([A-Za-z][A-Za-z0-9 _]*?)\s*=\s*(.*)$/);
+    if (kv && !currentBlock) {
+      assignMeta(kv[1].trim().toLowerCase(), kv[2].trim());
+      continue;
+    }
+
+    // Any other line is lyric content for the current section block.
+    if (currentBlock) currentBlock.lines.push(line);
+  }
+
+  const structure = [];
+  const bodyLines = [];
+  let verseFallback = 0;
+
+  const pushSection = (rawLabel, lyricLines) => {
+    const label = usrSectionLabel(rawLabel) || `Verse ${++verseFallback}`;
+    structure.push(label);
+    bodyLines.push('', `## ${label}`, ...lyricLines);
+  };
+
+  if (blocks.length > 0) {
+    for (const block of blocks) pushSection(block.label, block.lines);
+  } else if (words != null) {
+    const fieldLabels = String(fields || '').split('/').map(s => s.trim()).filter(Boolean);
+    words.split('//').forEach((chunk, idx) => {
+      const lyricLines = chunk.split('/').map(s => s.trim());
+      pushSection(fieldLabels[idx] || '', lyricLines);
+    });
+  } else {
+    pushSection('Verse 1', []);
+  }
+
+  const body = bodyLines.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  return frontmatter({
+    title: meta.title || 'Untitled',
+    artist: meta.artist || '',
+    key: meta.key || '',
+    ccli: meta.ccli,
+    notes: meta.notes,
+    structure,
+  }) + body;
 }
 
 // ─── Entry point ───────────────────────────────────────────────────
@@ -624,6 +810,7 @@ export function smartImport(text, formatOverride = null, overrides = null) {
   let md;
   if (format === 'chordpro') md = convertChordPro(text);
   else if (format === 'opensong') md = convertOpenSong(text);
+  else if (format === 'songselect') md = convertSongSelect(text);
   else if (format === 'ultimate-guitar') md = convertUltimateGuitar(text);
   else md = convertPlain(text);
 

@@ -450,7 +450,7 @@ Two sub-modes:
 |----------|--------|-----------|--------|:----------:|
 | 1 | **Setlists MD native** | `.md` | Setlists MD | Trivial — direct parse |
 | 2 | **ChordPro** | `.cho`, `.chordpro`, `.chopro` | OnSong, SongBook, iReal Pro, many apps | Easy — near-1:1 mapping to our format |
-| 3 | **SongSelect** | `.usr` | CCLI SongSelect downloads | Easy — structured text, worship-specific |
+| 3 | **SongSelect** ✅ | `.usr` | CCLI SongSelect downloads | Easy — structured text, worship-specific |
 | 4 | **OnSong** | `.onsong` | OnSong app export | Easy — ChordPro variant with extensions |
 | 5 | **Plain text** | `.txt` | Ultimate Guitar, copy-paste, handwritten | Medium — chord-above-lyrics detection |
 | 6 | **OpenSong** | `.xml` | OpenSong app | Easy — structured XML |
@@ -493,12 +493,23 @@ Note: SongSelect files contain **lyrics without inline chords**.
 They provide structure and metadata. Chords must be added manually
 after import. Still valuable — saves typing all the lyrics.
 
+**Implemented** in `src/importer.js` (`convertSongSelect`). Handles both the
+`[Song]` + `[Verse 1]`-block variant above and the real-world
+`[File]`/`[S A#######]` export with slash-delimited `Fields=` labels and a
+`Words=` blob (`//` between sections, `/` between lines). Brings in title,
+author, copyright (→ `notes`), CCLI #, key, `structure`, and lyrics.
+
 #### OnSong Import
 OnSong uses ChordPro with proprietary extensions:
 - `Flow:` directive (maps to our `structure:` field)
 - `Duration:` directive
 - Custom metadata fields
 Handle known extensions, ignore unknown ones gracefully.
+
+**Implemented** in `convertChordPro`: a `Flow:` line (or `{flow: …}`) overrides
+the derived section order via `parseFlow()` (expands `V1 C V2 C`-style
+abbreviations); `Duration:` maps to the `duration` field. All importers now also
+emit a derived `structure:` even without an explicit `Flow:`.
 
 #### Chord-Above-Lyrics Detection (for .txt / clipboard)
 ```

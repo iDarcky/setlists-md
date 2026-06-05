@@ -120,6 +120,10 @@ src/
 ├── parser.js             # .md song format parser/serializer
 │                         #   exports: parseSongMd, songToMd, parseLine, generateId,
 │                         #            parseTabBlock, serializeTabBlock, parseTabPositions
+├── importer.js           # Smart-import engine: convert ChordPro/OnSong, SongSelect
+│                         #   (.usr), OpenSong (.xml), Ultimate-Guitar, plain text → .md.
+│                         #   detectFormat + smartImport dispatch; every converter emits
+│                         #   a derived structure:; OnSong Flow:/Duration: honored.
 ├── storage.js            # IndexedDB layer (loadSongs, saveSongs, loadSetlists, saveSetlists, clearAll)
 ├── styles/index.css      # Global styles, CSS variables, fonts
 ├── auth/
