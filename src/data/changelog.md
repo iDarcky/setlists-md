@@ -2,6 +2,22 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.9.0-pre-alpha — Spaces: multiple bands & churches
+*June 2026*
+
+### Added
+- **Multiple Spaces** — run more than one band or church from the same account. Create a new Space from the Team screen or the workspace switcher, pick a Team or Church tier, and switch between them anytime.
+- **Home Space** — members who mostly use the app for one band/church can set a Space to open into on launch instead of their Personal one. Look for "Make this my home Space" on the Team screen.
+- **Per-Space subscriptions (groundwork)** — each band/church is its own subscription, paid by its owner. Owners get Subscribe / Manage-billing controls, and the workspace switcher flags any Space that's Past due / Unpaid. (Billing switches on in a later release.)
+- **Church/band logo** now shows on the Team screen.
+
+### Improved
+- **"Space"** is the new name for a band/church workspace throughout the app.
+- The **Team** section now appears only while you're inside that Space — no more stray Team tab on your Personal one.
+
+### Fixed
+- Creating a Space no longer fails silently for team/church accounts.
+
 ## 0.8.0-pre-alpha — Global chart customization, two-pane polish & live/practice rail
 *June 2026*
 
