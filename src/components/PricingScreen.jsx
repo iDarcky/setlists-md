@@ -31,7 +31,7 @@ function buildPersonalHook({ instruments = [], useCase }) {
     return "Plan Sunday's setlist on one device, run the band rehearsal on another. Done.";
   }
   if (useCase === 'band') {
-    return "Workspaces let your whole band see the same charts in real time during rehearsals.";
+    return "Spaces let your whole band see the same charts in real time during rehearsals.";
   }
   return 'Your library follows you to every device, with end-to-end encryption.';
 }

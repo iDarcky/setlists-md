@@ -15,6 +15,16 @@ import { callEdgeFunction } from '../sync/edge';
 export const BILLING_ENABLED =
   String(import.meta.env.VITE_STRIPE_ENABLED || '').toLowerCase() === 'true';
 
+// Temporary kill-switch while multi-Space is being tested: block creating
+// ADDITIONAL Spaces and show a "contact support" label instead. Locked by
+// default (prod is locked right now) — set VITE_WORKSPACE_CREATION_LOCKED=false
+// to re-open creation. First-Space onboarding is unaffected by this flag.
+export const WORKSPACE_CREATION_LOCKED =
+  String(import.meta.env.VITE_WORKSPACE_CREATION_LOCKED ?? 'true').toLowerCase() !== 'false';
+
+// Where to point users who want more Spaces while creation is locked.
+export const SUPPORT_CONTACT = 'support@setlists.md';
+
 /**
  * Start a subscription for a workspace. Redirects to Stripe Checkout.
  * @param {string} teamId

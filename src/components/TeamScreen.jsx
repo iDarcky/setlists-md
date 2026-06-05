@@ -8,7 +8,7 @@ import { Input } from './ui/Input';
 import UpgradeGate from './ui/UpgradeGate';
 import AvatarUploader from './ui/AvatarUploader';
 import { useConfirm } from './ui/useConfirmHook';
-import { BILLING_ENABLED, startTeamCheckout } from '../billing/checkout';
+import { BILLING_ENABLED, WORKSPACE_CREATION_LOCKED, startTeamCheckout } from '../billing/checkout';
 
 const TeamIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -90,12 +90,12 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
 
         <div className="text-center">
           <h2 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 mb-1">
-            {multiple ? 'Create a new workspace' : 'Create your team'}
+            {multiple ? 'Create a new Space' : 'Create your Space'}
           </h2>
           <p className="text-copy-14 text-[var(--ds-gray-600)] m-0">
             {multiple
-              ? 'Spin up another shared workspace for a different band or church.'
-              : 'Set up a shared workspace for your worship band or church team.'}
+              ? 'Spin up another shared Space for a different band or church.'
+              : 'Set up a shared Space for your worship band or church.'}
           </p>
         </div>
 
@@ -159,7 +159,7 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
           )}
 
           <Button type="submit" variant="brand" size="lg" className="w-full" disabled={busy || !name.trim()}>
-            {busy ? (billingLive ? 'Starting checkout…' : 'Creating…') : (billingLive ? 'Continue to checkout' : (multiple ? 'Create workspace' : 'Create team'))}
+            {busy ? (billingLive ? 'Starting checkout…' : 'Creating…') : (billingLive ? 'Continue to checkout' : 'Create Space')}
           </Button>
           {onCancel && (
             <Button type="button" variant="secondary" size="lg" className="w-full" onClick={onCancel} disabled={busy}>
@@ -722,18 +722,25 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
   // is created unpaid until the webhook confirms payment). While billing is
   // dormant we keep the entitlement gate so team features aren't given away for
   // free.
-  const canCreate = BILLING_ENABLED || hasTeamPlan;
+  // Eligible to create additional Spaces — but creation may be temporarily
+  // locked for testing (then we show a "contact support" note instead).
+  const eligibleToCreate = BILLING_ENABLED || hasTeamPlan;
+  const canCreate = eligibleToCreate && !WORKSPACE_CREATION_LOCKED;
   const ownerTier = team?.owner_id === user?.id ? team?.plan : undefined;
 
   // Show the create form when explicitly creating, or when the user has no
   // team yet (the original first-run path).
   const showCreate = creating || !team;
 
+  // First Space (no team) is onboarding and is NOT blocked by the lock; only
+  // creating ADDITIONAL Spaces is gated by `canCreate`.
+  const allowThisCreate = team ? canCreate : eligibleToCreate;
+
   return (
     <div className="flex flex-col h-full">
       <ScreenHeader
         onBack={creating && team ? () => setCreating(false) : onBack}
-        title={creating && team ? 'New workspace' : 'Your Team'}
+        title={creating && team ? 'New Space' : 'Your Team'}
         actions={!creating && team && canCreate ? (
           <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
             <span className="flex items-center gap-1.5"><PlusIcon /> New</span>
@@ -746,7 +753,7 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
           <div className="text-copy-14 text-[var(--ds-gray-600)]">Loading team…</div>
         </div>
       ) : showCreate ? (
-        canCreate ? (
+        allowThisCreate ? (
           <CreateTeamForm
             onCreate={handleCreateTeam}
             onCancel={team ? () => setCreating(false) : null}

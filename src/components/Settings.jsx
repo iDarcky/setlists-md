@@ -375,7 +375,7 @@ function ChartPanel({ settings, update }) {
 function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, activeLibrary, team }) {
   if (activeLibrary !== 'personal') {
     return (
-      <Section subtitle={`This workspace is automatically synced with your team "${team?.name || 'Team'}".`}>
+      <Section subtitle={`This Space is automatically synced with your team "${team?.name || 'Team'}".`}>
         <Row label="Provider" description="Team Cloud (Supabase Postgres)">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[var(--ds-green-500)]" />
@@ -495,13 +495,13 @@ function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn, activeLibrary
           isOwner && BILLING_ENABLED ? (
             <>
               {!teamBillingOk && (
-                <Row label="Subscribe" description="Activate this workspace’s subscription to restore paid features.">
+                <Row label="Subscribe" description="Activate this Space’s subscription to restore paid features.">
                   <Button variant="brand" size="sm" disabled={billingBusy} onClick={() => runBilling(() => startTeamCheckout(team.id, team.plan))}>
                     Subscribe
                   </Button>
                 </Row>
               )}
-              <Row label="Manage billing" description="Update your payment method, cancel, or switch plans for this workspace.">
+              <Row label="Manage billing" description="Update your payment method, cancel, or switch plans for this Space.">
                 <Button variant="secondary" size="sm" disabled={billingBusy} onClick={() => runBilling(() => openBillingPortal(team.id))}>
                   Open
                 </Button>
@@ -513,7 +513,7 @@ function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn, activeLibrary
           ) : (
             <Row
               label="Team Subscription"
-              description={isOwner ? 'Billing isn’t live yet — check back soon.' : 'Only the workspace owner can manage this subscription.'}
+              description={isOwner ? 'Billing isn’t live yet — check back soon.' : 'Only the Space owner can manage this subscription.'}
             />
           )
         )}

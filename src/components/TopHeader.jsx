@@ -87,6 +87,8 @@ export default function TopHeader({
   onNotificationAction,
   onManageTeams,
   onNewWorkspace,
+  newWorkspaceLocked = false,
+  supportContact,
   // On the tablet shell, primary nav moves to the bottom nav. We then show
   // the brand lockup on the left instead of the nav tabs, keeping the
   // workspace switcher centered and the right-side actions in place.
@@ -111,7 +113,7 @@ export default function TopHeader({
 
   // Workspaces: Personal + every team the user belongs to.
   const workspaces = [
-    { id: 'personal', name: 'Personal Workspace', isPersonal: true, avatarUrl },
+    { id: 'personal', name: 'Personal Space', isPersonal: true, avatarUrl },
     ...teams.map(t => ({ id: t.id, name: t.name, plan: t.plan, avatarUrl: t.logo_url || null, status: t.subscription_status })),
   ];
   const activeWorkspace =
@@ -196,7 +198,7 @@ export default function TopHeader({
             aria-expanded={wsOpen}
           >
             <WorkspaceBadge workspace={activeWorkspace} size={20} />
-            <span className="truncate">{activeWorkspace?.name || 'Personal Workspace'}</span>
+            <span className="truncate">{activeWorkspace?.name || 'Personal Space'}</span>
             <ChevronIcon open={wsOpen} />
           </button>
 
@@ -225,7 +227,7 @@ export default function TopHeader({
                         )}
                       </span>
                       {!w.isPersonal && (
-                        <span className="block text-label-12 text-[var(--ds-gray-600)] capitalize">{w.plan || 'team'} workspace</span>
+                        <span className="block text-label-12 text-[var(--ds-gray-600)] capitalize">{w.plan || 'team'} Space</span>
                       )}
                     </span>
                     {active && <span className="text-[var(--color-brand)] shrink-0"><CheckIcon /></span>}
@@ -233,7 +235,7 @@ export default function TopHeader({
                 );
               })}
 
-              {(onNewWorkspace || (hasTeamPlan && onManageTeams)) && (
+              {(onNewWorkspace || newWorkspaceLocked || (hasTeamPlan && onManageTeams)) && (
                 <>
                   <div className="my-1 border-t border-[var(--ds-gray-200)]" />
                   {onNewWorkspace && (
@@ -243,8 +245,19 @@ export default function TopHeader({
                       className="w-full flex items-center gap-3 px-3 py-2.5 cursor-pointer border-none bg-transparent text-left text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors"
                     >
                       <span className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[var(--color-brand)]"><PlusIcon /></span>
-                      <span className="text-label-14 font-medium">New workspace</span>
+                      <span className="text-label-14 font-medium">New Space</span>
                     </button>
+                  )}
+                  {!onNewWorkspace && newWorkspaceLocked && (
+                    <a
+                      role="menuitem"
+                      href={supportContact ? `mailto:${supportContact}?subject=Additional%20Space` : undefined}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-[var(--ds-gray-500)] hover:bg-[var(--ds-gray-200)] transition-colors no-underline"
+                      title="Spaces are limited during testing"
+                    >
+                      <span className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"><PlusIcon /></span>
+                      <span className="text-label-13">Contact support for more Spaces</span>
+                    </a>
                   )}
                   {hasTeamPlan && onManageTeams && (
                     <button

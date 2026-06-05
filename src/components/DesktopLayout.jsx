@@ -22,6 +22,8 @@ export default function DesktopLayout({
   teams,
   onChangeWorkspace,
   onNewWorkspace,
+  newWorkspaceLocked = false,
+  supportContact,
 }) {
   const mainRef = useRef(null);
   const isMobile = useMediaQuery('(max-width: 639.98px)');
@@ -65,6 +67,8 @@ export default function DesktopLayout({
           teams={teams}
           onManageTeams={onChangeWorkspace}
           onNewWorkspace={onNewWorkspace}
+          newWorkspaceLocked={newWorkspaceLocked}
+          supportContact={supportContact}
         />
       )}
 
