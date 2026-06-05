@@ -370,17 +370,21 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
   // Current field values for the header. We use `??` (not `||`) so a
   // cleared tempo field doesn't snap back to 120 mid-edit, and an empty
   // time signature stays empty instead of forcing 4/4.
-  const currentKey = preview?.key || 'C';
-  const currentTempo = preview?.tempo ?? '';
-  const currentTime = preview?.time ?? '';
+  // Read musical metadata straight from the md frontmatter (synchronous on
+  // every keystroke) rather than the 300ms-debounced `preview`, so the
+  // Key/Tempo/Time inputs never lag or drop fast-typed digits.
+  const fmFields = useMemo(
+    () => parseFrontmatterFields(splitMd(md).frontmatter),
+    [md],
+  );
+  const currentKey = fmFields.key || 'C';
+  const currentTempo = fmFields.tempo ?? '';
+  const currentTime = fmFields.time ?? '';
 
   // Structure ribbon data (always-visible, edited via the frontmatter
   // `structure` field). availableSections is derived from the body's
   // `## Section` headers so the picker offers the song's real sections.
-  const structureValue = useMemo(
-    () => parseFrontmatterFields(splitMd(md).frontmatter).structure,
-    [md],
-  );
+  const structureValue = fmFields.structure;
   const availableSections = useMemo(() => {
     const body = splitMd(md).body || '';
     const labels = [];
@@ -465,7 +469,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
   }, [song, onCopy, team, activeLibrary, confirm, preview]);
 
   return (
-    <div className="h-screen bg-[var(--ds-background-200)] flex flex-col">
+    <div className="h-[100dvh] bg-[var(--ds-background-200)] flex flex-col overflow-hidden">
       {/* ─── Sticky Header — matches the SetlistBuilder pattern: title +
           secondary actions only. The primary Save/Cancel pair lives in the
           bottom action bar so it's always thumb-reachable on mobile. ─── */}
@@ -503,6 +507,16 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 Copy to {activeLibrary === 'personal' ? 'Team' : 'Personal'}
               </Button>
             )}
+            {isWide && (
+              <Button
+                variant={previewEnabled ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setPreviewEnabled(v => !v)}
+                aria-pressed={previewEnabled}
+              >
+                {previewEnabled ? 'Hide preview' : 'Show preview'}
+              </Button>
+            )}
             {song && onDelete && (
               <IconButton variant="error" size="sm" onClick={handleDeleteSong} aria-label="Delete song">
                 <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -527,8 +541,20 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
               always-visible Structure ribbon, and the collapsible Details
               panel. Advanced-only tools (undo/redo/paste) live in that
               editor's own toolbar. ─── */}
-          <div className="border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]" style={headerFrostStyle}>
+          <div className="shrink-0 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]" style={headerFrostStyle}>
           <div className="flex items-center gap-2 flex-wrap px-4 sm:px-6 py-2">
+            <button
+              type="button"
+              onClick={() => setMetaPanelOpen(v => !v)}
+              aria-expanded={metaPanelOpen}
+              className="inline-flex items-center gap-1.5 bg-transparent hover:bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)] border-none cursor-pointer px-2 py-1 rounded-md transition-colors"
+            >
+              <span className="text-label-11 font-semibold uppercase tracking-wider">Song Details</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${metaPanelOpen ? 'rotate-180' : ''}`}>
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+
             <div className="flex items-center gap-1.5">
               <select
                 value={currentKey}
@@ -553,24 +579,6 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
               />
             </div>
 
-            <button
-              type="button"
-              onClick={() => setMetaPanelOpen(v => !v)}
-              aria-expanded={metaPanelOpen}
-              className="inline-flex items-center gap-2 bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)] text-[var(--ds-gray-1000)] border border-[var(--ds-gray-300)] cursor-pointer pl-2.5 pr-2 py-1 rounded-md transition-colors"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
-                <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
-                <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
-                <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
-                <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
-              </svg>
-              <span className="text-label-11 font-semibold uppercase tracking-wider">Details</span>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${metaPanelOpen ? 'rotate-180' : ''}`}>
-                <path d="m6 9 6 6 6-6" />
-              </svg>
-            </button>
-
             <div className="ml-auto flex items-center gap-2">
               <SegmentedControl
                 size="sm"
@@ -578,21 +586,6 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 onChange={setActiveTab}
                 options={MODE_OPTIONS}
               />
-              {isWide && (
-                <IconButton
-                  variant={previewEnabled ? 'active' : 'ghost'}
-                  size="xs"
-                  onClick={() => setPreviewEnabled(v => !v)}
-                  aria-label={previewEnabled ? 'Hide preview' : 'Show preview'}
-                  aria-pressed={previewEnabled}
-                  title={previewEnabled ? 'Hide preview' : 'Show preview'}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                </IconButton>
-              )}
             </div>
           </div>
 

@@ -23,7 +23,6 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [showModMenu, setShowModMenu] = useState(false);
   const [showTabEditor, setShowTabEditor] = useState(false);
-  const [showRef, setShowRef] = useState(false);
   const [tabEditState, setTabEditState] = useState(null);
   const [chordAnchor, setChordAnchor] = useState(null);
   const [popupAnchor, setPopupAnchor] = useState(null);
@@ -344,45 +343,6 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
         className="flex-1 w-full min-h-[50vh] bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg p-4 text-copy-13 leading-relaxed text-[var(--ds-gray-1000)] resize-y outline-none font-mono"
         style={{ caretColor: 'var(--chord)' }}
       />
-
-      {/* ─── Syntax Reference ─── */}
-      <button
-        onClick={() => setShowRef(v => !v)}
-        className="bg-transparent border-none cursor-pointer text-[var(--color-brand-text)] text-label-12 font-semibold font-mono py-2 text-left flex items-center gap-1.5"
-      >
-        <span className="text-[10px]">{showRef ? '▾' : '▸'}</span>
-        Syntax Reference
-      </button>
-
-      {showRef && (
-        <div className="mb-2.5 p-3 rounded-lg bg-[var(--color-brand-soft)] border border-[var(--color-brand-border)] text-copy-11 text-[var(--ds-gray-600)] leading-relaxed font-mono">
-          <div className="mb-2 text-[var(--ds-gray-500)]">
-            Song details (key, tempo, tags…) live in the <strong className="text-[var(--ds-gray-1000)]">Details</strong> panel — this editor is just the song body.
-          </div>
-          <div className="mb-1.5">
-            <strong className="text-[var(--ds-gray-1000)]">Sections & Chords:</strong>
-          </div>
-          <div className="pl-2.5 text-[var(--ds-gray-500)] mb-2">
-            <strong className="text-[var(--color-brand-text)]">## Section Name</strong> — starts a section<br />
-            <strong className="text-[var(--chord)]">[Chord]</strong>lyrics — inline chords above lyrics<br />
-            <strong className="text-[var(--ds-gray-600)]">&gt; note</strong> — band cue<br />
-          </div>
-          <div className="mb-1.5">
-            <strong className="text-[var(--ds-gray-1000)]">Tab Blocks:</strong>
-          </div>
-          <div className="pl-2.5 text-[var(--ds-gray-500)]">
-            <strong className="text-[var(--color-brand-text)]">{'{'}</strong>tab{'}'} ... {'{'}/tab{'}'}<br />
-            <span className="text-[var(--chord)]">e|--0--2h3--|</span> — string lines (e B G D A E)<br />
-            <span className="opacity-70">Techniques: </span>
-            <strong className="text-[var(--chord)]">h</strong> hammer &nbsp;
-            <strong className="text-[var(--chord)]">p</strong> pull &nbsp;
-            <strong className="text-[var(--chord)]">s</strong> slide &nbsp;
-            <strong className="text-[var(--chord)]">b</strong> bend &nbsp;
-            <strong className="text-[var(--chord)]">x</strong> mute &nbsp;
-            <strong className="text-[var(--chord)]">~</strong> vibrato
-          </div>
-        </div>
-      )}
 
       {/* ─── Popups ─── */}
       {showChordPicker && (

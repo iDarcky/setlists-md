@@ -60,7 +60,7 @@ export default function PromptDialog({
       </div>
       <div className="px-6 pb-6 pt-1 flex justify-end gap-2">
         <Button variant="secondary" size="md" onClick={onClose}>Cancel</Button>
-        <Button variant="primary" size="md" onClick={submit} disabled={!value.trim()}>
+        <Button variant="brand" size="md" onClick={submit} disabled={!value.trim()}>
           {confirmLabel}
         </Button>
       </div>

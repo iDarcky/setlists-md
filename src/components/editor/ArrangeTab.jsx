@@ -101,6 +101,18 @@ const InteractiveLine = memo(function InteractiveLine({
       const m = measure(c.pos);
       if (m) next.push({ chord: c.chord, origIdx: c.origIdx, left: m.left, top: m.top });
     }
+    // Nudge close chords apart so their names never overlap on the same row
+    // (the "spaces for close chords" problem). Shifts only the label, not the
+    // lyric. ~7.8px ≈ one monospace glyph at 13px.
+    next.sort((a, b) => a.top - b.top || a.left - b.left);
+    const CHAR_W = 7.8;
+    for (let i = 1; i < next.length; i++) {
+      const prev = next[i - 1];
+      if (Math.abs(next[i].top - prev.top) < 4) {
+        const prevRight = prev.left + prev.chord.length * CHAR_W + 4;
+        if (next[i].left < prevRight) next[i].left = prevRight;
+      }
+    }
     // Positioning overlays from measured layout is the canonical use of
     // useLayoutEffect (it runs synchronously before paint, so no flicker).
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -145,7 +157,7 @@ const InteractiveLine = memo(function InteractiveLine({
       onPointerDown={handlePointerDown}
       style={{ cursor: isChordMode ? 'crosshair' : 'pointer', fontSize: 16, lineHeight: 2.0, paddingTop: '1.1em' }}
     >
-      <div ref={textRef} className="whitespace-pre-wrap break-words text-[var(--text-1)]">
+      <div ref={textRef} className="whitespace-pre-wrap text-[var(--text-1)]">
         {plainText ? plainText : '\u00A0'}
       </div>
       {chips.map((c) => {
