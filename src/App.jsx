@@ -126,6 +126,7 @@ const PORTABLE_PREF_KEYS = [
   'lastChangelogVersion',
   'performanceRail',
   'navStyle',
+  'defaultSpaceId',
 ];
 
 function extractPortablePrefs(s) {
@@ -146,7 +147,7 @@ function prefsEqual(a, b) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const { team, teams, setActiveTeam, isAdmin, isEditor, isMember, hasTeamPlan } = useTeam();
+  const { team, teams, setActiveTeam, isAdmin, isEditor, isMember, hasTeamPlan, loading: teamLoading } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const canEdit = !team || isAdmin || isEditor;
   const isTeamAdmin = isAdmin;
@@ -240,6 +241,9 @@ export default function App() {
   const prefsHydratedForUserRef = useRef(null);
   const prefsPushTimerRef = useRef(null);
   const isSwitchingLibraryRef = useRef(false);
+  // Tracks which user we've already applied the "home Space" default for, so we
+  // do it once per sign-in and never override a later manual switch.
+  const defaultSpaceAppliedForRef = useRef(null);
 
   // Keep TeamProvider's active team aligned with the chosen library, and fall
   // back to personal if the selected team is no longer one the user belongs to
@@ -254,6 +258,21 @@ export default function App() {
       setActiveLibrary('personal');
     }
   }, [teams, activeLibrary, setActiveTeam]);
+
+  // "Home Space": members who live in a band/church can pick a default Space to
+  // open into instead of Personal. Apply it once per sign-in, after settings +
+  // teams have settled, and only while still on the initial Personal view so we
+  // never yank someone out of a Space they deliberately switched to.
+  useEffect(() => {
+    if (!loaded || !user?.id || teamLoading) return;
+    if (defaultSpaceAppliedForRef.current === user.id) return;
+    const target = settings?.defaultSpaceId;
+    if (!target) return; // nothing set yet (or cloud prefs not hydrated) — wait
+    defaultSpaceAppliedForRef.current = user.id;
+    if (target !== 'personal' && activeLibrary === 'personal' && teams.some(t => t.id === target)) {
+      setActiveLibrary(target);
+    }
+  }, [loaded, user?.id, teamLoading, teams, activeLibrary, settings?.defaultSpaceId]);
 
   // Initialize sync engine for the active library
   const isTeamReadOnly = activeLibrary !== 'personal' && !isAdmin && !isEditor;
@@ -2022,6 +2041,8 @@ export default function App() {
               onSwitchLibrary={switchWorkspace}
               initialCreate={teamCreateIntent}
               onCreateHandled={() => setTeamCreateIntent(false)}
+              defaultSpaceId={settings?.defaultSpaceId || 'personal'}
+              onSetDefaultSpace={(id) => setSettings(prev => ({ ...prev, defaultSpaceId: id }))}
             />
           )}
           {view === 'schedule' && (

@@ -526,7 +526,7 @@ function EditTeamForm({ team, onUpdate }) {
   );
 }
 
-function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemove, onRoleChange, onInvite, onCancelInvite, onLeave, onDelete, onUpdate }) {
+function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemove, onRoleChange, onInvite, onCancelInvite, onLeave, onDelete, onUpdate, isDefaultSpace = false, onToggleDefaultSpace }) {
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState('members');
   const seatsLeft = (team.max_seats || 10) - members.length - (invites?.length || 0);
@@ -566,6 +566,24 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
                   {members.length}/{team.max_seats} seats
                 </span>
               </div>
+
+              {/* Home Space — open straight into this Space on launch instead of
+                  Personal. Handy for members who only use the app for this band/church. */}
+              {onToggleDefaultSpace && (
+                <button
+                  type="button"
+                  onClick={onToggleDefaultSpace}
+                  className="mt-3 inline-flex items-center gap-1.5 text-label-12 font-medium cursor-pointer bg-transparent border-none p-0"
+                  style={{ color: isDefaultSpace ? 'var(--color-brand)' : 'var(--ds-gray-600)' }}
+                  aria-pressed={isDefaultSpace}
+                  title={isDefaultSpace ? 'This Space opens by default' : 'Open this Space by default'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill={isDefaultSpace ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V9.5z" />
+                  </svg>
+                  {isDefaultSpace ? 'Opens here by default' : 'Make this my home Space'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -678,7 +696,7 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
 
 // ── Main Screen ─────────────────────────────────────────────────────────────
 
-export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initialCreate = false, onCreateHandled }) {
+export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initialCreate = false, onCreateHandled, defaultSpaceId = 'personal', onSetDefaultSpace }) {
   const { user } = useAuth();
   const { team, members, invites, isAdmin, loading, createTeam, inviteMember, removeMember, updateMemberRole, cancelInvite, leaveTeam, deleteTeam, hasTeamPlan, updateTeam } = useTeam();
 
@@ -786,6 +804,10 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
           onDelete={async () => {
             await deleteTeam();
           }}
+          isDefaultSpace={defaultSpaceId === team.id}
+          onToggleDefaultSpace={onSetDefaultSpace
+            ? () => onSetDefaultSpace(defaultSpaceId === team.id ? 'personal' : team.id)
+            : undefined}
         />
       )}
     </div>

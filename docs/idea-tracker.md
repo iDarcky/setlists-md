@@ -17,7 +17,18 @@ grouped by what's left. Tied to the `betaui` branch / v0.6.0-pre-alpha.
 - ✅ **Show the church / kill the top modal** — church `TeamBanner` removed; workspace switcher owns it. *(L1-9)*
 - ✅ **iOS-26 mobile shell** — floating glass tab bar + morphing FAB; workspace switcher inside the search bar. *(L2-33, "iOS 26")*
 - ✅ **Swap workspace → always go to dashboard.** *(L2-30)*
-- ✅ **Multiple bands/churches** — multi-team backend (`teams[]` + `activeTeamId`). *(new; underpins L1-1)*
+- ✅ **Multiple bands/churches ("Spaces")** — full UX, not just backend: create
+  additional Spaces from the Team screen + switcher ("+ New Space"), Team/Church
+  tier picker on create, per-Space subscription model (`teams.subscription_status`
+  + Stripe scaffold, dormant), status-aware entitlement, switcher status badges,
+  team logo on the Team screen, and a creation kill-switch (`WORKSPACE_CREATION_LOCKED`,
+  locked while testing → "Contact support for more Spaces"). The user-facing term
+  is **"Space"** (code still says workspace/`activeLibrary`). *(new; underpins L1-1)*
+- ✅ **Home Space (default workspace)** — members who live in a band/church can
+  set a Space to open into on launch instead of Personal (`settings.defaultSpaceId`,
+  synced). *(invited-member ergonomics)*
+- ✅ **Team field scoped to the active Space** — the Team tab/row only shows while
+  a team/church Space is active, never in Personal.
 - ✅ **Scroll on sidebar on iPad** — sidebar removed entirely. *(L2-7)*
 - 🟡 **New UI overall** — desktop + mobile shells done; tablet two-pane shipped; some inner screens unchanged. *(L2-33)*
 - ✅ **Better nav bar on tablet** — tablet now uses the bottom-nav glass shell + a resizable two-pane (master list + preview); the FAB morphs to Play when a setlist is open. *(L1-10)*
@@ -76,6 +87,13 @@ grouped by what's left. Tied to the `betaui` branch / v0.6.0-pre-alpha.
 - ⬜ Songs/Roster as two tabs *(L2-11)* · members auto-add when sorting *(L2-28)* · warn on missing player/vocalists *(L2-29)*
 - ⬜ Rehearsal booking + calendar notifications *(L1-11)* · Sundays-only list *(L1-12)*
 - ⬜ Schedule redesign: bigger, "what's coming up" preview popup, what you're playing, smaller/more cards, green-bar size, AM/PM + location, durations *(L2-47..52)*
+- ⬜ **Cross-Space (universal) availability** — today availability is per-Space
+  (`team_availability` / `team_schedules` are keyed by `team_id`), so marking
+  yourself unavailable in one band/church says nothing in another. *Deferred by
+  decision.* Preferred direction when picked up: a **hybrid** — keep per-Space
+  scheduling/roles, add a personal "unavailable dates" layer (new
+  `user_availability` table keyed by `user_id`) that every Space's roster
+  surfaces as a heads-up, with per-Space availability able to override. *(multi-Space)*
 
 ### C. Chart & performance display
 - ⬜ Display modes: Chords+Lyrics / Lyrics-only / Chords-only / Song-map *(L2-22)*
