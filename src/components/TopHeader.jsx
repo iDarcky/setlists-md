@@ -98,12 +98,15 @@ export default function TopHeader({
 
   const planLower = (plan || '').toLowerCase();
   const hasTeamPlan = planLower === 'team' || planLower === 'church';
+  // The Team tab manages the *current* workspace, so it only appears while a
+  // team/church workspace is active — not in Personal.
+  const inTeamWorkspace = !!activeLibrary && activeLibrary !== 'personal';
 
   const tabs = [
     { id: 'home', label: 'Home' },
     { id: 'setlists', label: 'Setlists' },
     { id: 'library', label: 'Library' },
-    ...(hasTeamPlan ? [{ id: 'team', label: 'Team' }] : []),
+    ...(inTeamWorkspace ? [{ id: 'team', label: 'Team' }] : []),
   ];
 
   // Workspaces: Personal + every team the user belongs to.

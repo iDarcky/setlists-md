@@ -100,7 +100,7 @@ export default function MobileDrawer({
   isIOS = false,
   isStandalone = false,
   onInstall,
-  team,
+  activeLibrary,
 }) {
   const panelRef = useRef(null);
   const [dragX, setDragX] = useState(0);
@@ -264,7 +264,9 @@ export default function MobileDrawer({
         {/* Nav rows — utility actions sit at the bottom of the panel,
             just above the wordmark, so primary CTAs at top can breathe. */}
         <div className="mt-auto px-5 pt-8 flex flex-col gap-2">
-          {isSignedIn && team && onOpenTeam && (
+          {/* "Your Team" manages the current workspace — only show it while a
+              team/church workspace is active, not in Personal. */}
+          {isSignedIn && activeLibrary && activeLibrary !== 'personal' && onOpenTeam && (
             <Row icon={TeamDrawerIcon} label="Your Team" onClick={onOpenTeam} />
           )}
           {onOpenWhatsNew && (

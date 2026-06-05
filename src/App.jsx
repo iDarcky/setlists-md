@@ -2034,7 +2034,7 @@ export default function App() {
         <BottomNav
           activeView={view}
           onNavigate={goToMainView}
-          plan={plan}
+          activeLibrary={activeLibrary}
           onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
           onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
           onPlay={
@@ -2076,7 +2076,6 @@ export default function App() {
           onSignIn={() => { setDrawerOpen(false); setAuthStartMode('signin'); navigate('signin'); }}
           onCreateAccount={() => { setDrawerOpen(false); setAuthStartMode('signup'); navigate('signin'); }}
           onOpenTeam={() => { setDrawerOpen(false); goTeam(); }}
-          team={team}
           teams={teams}
           activeLibrary={activeLibrary}
           setActiveLibrary={switchWorkspace}

@@ -82,7 +82,7 @@ const GLASS = {
  * a pure primary action — a create menu on Home, + on Songs/Setlists, and Play
  * on a setlist. Workspace switching lives in the top bar.
  */
-export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onPlay, plan }) {
+export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onPlay, activeLibrary }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const fabRef = useRef(null);
 
@@ -93,10 +93,10 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
   const isMobile = useMediaQuery('(max-width: 639.98px)');
   const isTablet = useIsTablet();
 
-  const planLower = (plan || '').toLowerCase();
-  const hasTeamPlan = planLower === 'team' || planLower === 'church';
-  // Team gets a tab only on the tablet shell; mobile keeps it in the drawer.
-  const tabs = (isTablet && hasTeamPlan)
+  // Team gets a tab only on the tablet shell, and only while a team/church
+  // workspace is active (it manages the current workspace) — never in Personal.
+  const inTeamWorkspace = !!activeLibrary && activeLibrary !== 'personal';
+  const tabs = (isTablet && inTeamWorkspace)
     ? [...BASE_TABS, { id: 'team', label: 'Team' }]
     : BASE_TABS;
 
