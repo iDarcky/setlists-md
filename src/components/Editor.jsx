@@ -473,12 +473,12 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
   }, [song, onCopy, team, activeLibrary, confirm, preview]);
 
   return (
-    <div className="h-screen bg-[var(--ds-background-200)] flex flex-col">
+    <div className="h-full bg-[var(--ds-background-200)] flex flex-col">
       {/* ─── Unified header. Row 1: title (taps to toggle Song Details) +
           mode toggle / preview / actions. Row 2: arrangement + key/tempo/time.
           Save/Cancel live in the bottom bar so they stay thumb-reachable. ─── */}
       <header
-        className="shrink-0 z-10 sticky top-0 border-b border-[var(--ds-gray-200)] backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)]"
+        className="shrink-0 z-[60] sticky top-0 border-b border-[var(--ds-gray-200)] backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)]"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="flex items-center gap-2 px-3 sm:px-4 h-14">
@@ -576,6 +576,16 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
             />
           </div>
         </div>
+
+        {/* Row 3: structure summary (opens a focused sheet to edit) */}
+        <div className="px-3 sm:px-4 pb-2">
+          <StructureEditor
+            value={structureValue}
+            availableSections={availableSections}
+            onChange={(next) => updateField('structure', next)}
+            autoSeed={false}
+          />
+        </div>
       </header>
 
       {/* ─── Content Area — full-width chrome on top, then the editor + live
@@ -583,31 +593,17 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
           Structure ribbon pushes both columns evenly. ─── */}
       <div className="flex-1 min-h-0 flex flex-col w-full overflow-hidden">
 
-        {/* ─── Editor chrome (full width, above editor + preview) ─── */}
-        <div className="shrink-0 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]" style={headerFrostStyle}>
-          {/* Details — collapsible descriptive metadata, toggled from the
-              title chevron in the header. */}
-          {metaPanelOpen && (
-            <div className="px-4 sm:px-6 py-2 border-b border-[var(--ds-gray-200)]">
-              <MetadataPanel
-                md={md}
-                onChange={setMd}
-                isOpen
-                keyHistory={workingSong.keyHistory}
-              />
-            </div>
-          )}
-
-          {/* Structure ribbon — always visible (rework pending) */}
-          <div className="px-4 sm:px-6 py-1.5">
-            <StructureEditor
-              value={structureValue}
-              availableSections={availableSections}
-              onChange={(next) => updateField('structure', next)}
-              autoSeed={false}
+        {/* ─── Song Details (collapsible, toggled from the title chevron) ─── */}
+        {metaPanelOpen && (
+          <div className="shrink-0 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] px-4 sm:px-6 py-2" style={headerFrostStyle}>
+            <MetadataPanel
+              md={md}
+              onChange={setMd}
+              isOpen
+              keyHistory={workingSong.keyHistory}
             />
           </div>
-          </div>
+        )}
 
           {/* ─── Editor + preview row ─── */}
           <div className="flex-1 min-h-0 flex w-full overflow-hidden">
