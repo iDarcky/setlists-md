@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import ChartView from './ChartView';
-import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields } from '../parser';
+import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields, EXTRA_META_KEYS } from '../parser';
 import { ALL_KEYS } from '../music';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
 import WriteTab from './editor/WriteTab';
@@ -206,6 +206,10 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
     if (preview.tags !== undefined) nextSong.tags = preview.tags;
     if (preview.spotify !== undefined) nextSong.spotify = preview.spotify;
     if (preview.youtube !== undefined) nextSong.youtube = preview.youtube;
+    // Carry the extended descriptive metadata (song-level) onto the saved song.
+    for (const k of EXTRA_META_KEYS) {
+      if (preview[k] !== undefined) nextSong[k] = preview[k];
+    }
     setWorkingSong(nextSong);
     onSave(nextSong);
     setSavedMd(md);

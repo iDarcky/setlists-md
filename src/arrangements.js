@@ -7,7 +7,9 @@
 // shape so most consumers (ChartView, PerformanceView, PDF exporters) keep
 // working unchanged when their callers wrap the song with this helper.
 
-import { generateId } from './parser.js';
+import { generateId, EXTRA_META_FIELDS } from './parser.js';
+
+const EXTRA_KEYS = EXTRA_META_FIELDS.map(([k]) => k);
 
 function arrangementId() {
   return 'arr_' + generateId();
@@ -41,6 +43,7 @@ export function resolveSongView(song, arrangementId) {
     spotify: song.spotify || '',
     youtube: song.youtube || '',
     keyHistory: song.keyHistory || {},
+    ...Object.fromEntries(EXTRA_KEYS.map(k => [k, song[k] ?? ''])),
     key: arr.key,
     tempo: arr.tempo,
     time: arr.time,
@@ -137,6 +140,7 @@ export function songFromFlat(flat) {
     spotify: flat.spotify || '',
     youtube: flat.youtube || '',
     keyHistory: flat.keyHistory || {},
+    ...Object.fromEntries(EXTRA_KEYS.map(k => [k, flat[k] ?? ''])),
     defaultArrangementId: arrId,
     arrangements: [{
       id: arrId,
