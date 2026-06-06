@@ -82,7 +82,7 @@ export default function ArrangementMenu({
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-label-12 text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] cursor-pointer transition-colors max-w-[220px]"
+        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-transparent border-none text-label-12 font-semibold text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer transition-colors max-w-[220px]"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Arrangement"

@@ -13,6 +13,7 @@ import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { SegmentedControl } from './ui/SegmentedControl';
 import PromptDialog from './ui/PromptDialog';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from './ui/Select';
 import { toast } from './ui/use-toast';
 import { useConfirm } from './ui/useConfirmHook';
 import { headerFrostStyle } from '../lib/headerFrost';
@@ -39,18 +40,21 @@ const MODE_OPTIONS = [
 
 const TIME_OPTIONS = ['4/4', '3/4', '6/8', '7/8', '12/8', '2/4', '5/4'];
 const CUSTOM_TIME = '__custom__';
+const TIME_NONE = '__none__'; // Radix SelectItem can't use an empty value
 
 function TimeSignatureControl({ value, onChange }) {
   const isCustom = value && !TIME_OPTIONS.includes(value);
   const [customOpen, setCustomOpen] = useState(isCustom);
   const [numerator, denominator] = (isCustom ? value.split('/') : ['', '']);
 
-  const handleSelect = (e) => {
-    const v = e.target.value;
+  const handleSelect = (v) => {
     if (v === CUSTOM_TIME) {
       setCustomOpen(true);
       // Don't clear an existing custom value; otherwise start blank.
       if (!isCustom) onChange('');
+    } else if (v === TIME_NONE) {
+      setCustomOpen(false);
+      onChange('');
     } else {
       setCustomOpen(false);
       onChange(v);
@@ -100,16 +104,19 @@ function TimeSignatureControl({ value, onChange }) {
   }
 
   return (
-    <select
-      value={value || ''}
-      onChange={handleSelect}
-      className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
-      aria-label="Time signature"
-    >
-      <option value="">—</option>
-      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-      <option value={CUSTOM_TIME}>Custom…</option>
-    </select>
+    <Select value={value || TIME_NONE} onValueChange={handleSelect}>
+      <SelectTrigger
+        aria-label="Time signature"
+        className="h-8 w-auto gap-1 px-2 text-label-12 font-mono bg-[var(--ds-gray-100)]"
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent className="font-mono">
+        <SelectItem value={TIME_NONE}>—</SelectItem>
+        {TIME_OPTIONS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+        <SelectItem value={CUSTOM_TIME}>Custom…</SelectItem>
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -553,14 +560,17 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
             onEdit={() => setEditArrangementsOpen(true)}
           />
           <div className="flex items-center gap-1.5">
-            <select
-              value={currentKey}
-              onChange={e => updateField('key', e.target.value)}
-              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-1 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
-              aria-label="Key"
-            >
-              {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
-            </select>
+            <Select value={currentKey} onValueChange={v => updateField('key', v)}>
+              <SelectTrigger
+                aria-label="Key"
+                className="h-8 w-auto gap-1 px-2 text-label-12 font-mono bg-[var(--ds-gray-100)]"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="font-mono">
+                {ALL_KEYS.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <input
               type="number"
               value={currentTempo}
@@ -595,7 +605,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
 
         {/* ─── Song Details (collapsible, toggled from the title chevron) ─── */}
         {metaPanelOpen && (
-          <div className="shrink-0 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] px-4 sm:px-6 py-2" style={headerFrostStyle}>
+          <div className="shrink-0 max-h-[45vh] overflow-y-auto border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] px-4 sm:px-6 py-2" style={headerFrostStyle}>
             <MetadataPanel
               md={md}
               onChange={setMd}

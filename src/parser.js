@@ -381,6 +381,12 @@ export function parseFrontmatterFields(frontmatter) {
     structure: '', ccli: '', tags: '', capo: '',
     spotify: '', youtube: '', notes: '',
     songid: '', arrangementid: '', arrangementname: '',
+    // Extended descriptive metadata (all optional, plain strings).
+    originaltitle: '', language: '', translator: '',
+    writers: '', publishers: '', copyright: '',
+    album: '', label: '', year: '',
+    themes: '', genres: '', scripture: '', vocalrange: '',
+    moment: '', story: '',
   };
   if (!frontmatter) return fields;
   frontmatter.split('\n').forEach(line => {
@@ -416,6 +422,22 @@ export function serializeFrontmatterFields(fields) {
   if (fields.spotify) lines.push(`spotify: ${fields.spotify}`);
   if (fields.youtube) lines.push(`youtube: ${fields.youtube}`);
   if (fields.notes) lines.push(`notes: ${fields.notes}`);
+  // Extended descriptive metadata.
+  if (fields.originaltitle) lines.push(`originalTitle: ${fields.originaltitle}`);
+  if (fields.language) lines.push(`language: ${fields.language}`);
+  if (fields.translator) lines.push(`translator: ${fields.translator}`);
+  if (fields.writers) lines.push(`writers: ${fields.writers}`);
+  if (fields.publishers) lines.push(`publishers: ${fields.publishers}`);
+  if (fields.copyright) lines.push(`copyright: ${fields.copyright}`);
+  if (fields.album) lines.push(`album: ${fields.album}`);
+  if (fields.label) lines.push(`label: ${fields.label}`);
+  if (fields.year) lines.push(`year: ${fields.year}`);
+  if (fields.themes) lines.push(`themes: ${fields.themes}`);
+  if (fields.genres) lines.push(`genres: ${fields.genres}`);
+  if (fields.scripture) lines.push(`scripture: ${fields.scripture}`);
+  if (fields.vocalrange) lines.push(`vocalRange: ${fields.vocalrange}`);
+  if (fields.moment) lines.push(`moment: ${fields.moment}`);
+  if (fields.story) lines.push(`story: ${fields.story}`);
   if (fields.songid) lines.push(`songId: ${fields.songid}`);
   if (fields.arrangementid) lines.push(`arrangementId: ${fields.arrangementid}`);
   if (fields.arrangementname) lines.push(`arrangementName: ${fields.arrangementname}`);
