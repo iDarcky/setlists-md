@@ -506,6 +506,7 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
         {placements.map((sec, secIdx) => {
           const s = sectionStyle(sec.type, null, customSectionTypes);
           const baseType = sec.type.replace(/\s*\d+$/, '');
+          const secNum = sec.type.slice(baseType.length).trim();
 
           return (
             <div key={secIdx} className="mb-6">
@@ -519,6 +520,9 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
                 >
                   {sectionTypes.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
+                {secNum && (
+                  <span className="text-label-14 font-black -ml-1" style={{ color: s.b }}>{secNum}</span>
+                )}
 
                 <input
                   value={sec.note || ''}
