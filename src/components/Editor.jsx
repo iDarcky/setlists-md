@@ -8,7 +8,7 @@ import WriteTab from './editor/WriteTab';
 import ArrangeTab from './editor/ArrangeTab';
 import MetadataPanel from './editor/MetadataPanel';
 import StructureEditor from './editor/StructureEditor';
-import { EditArrangementsDialog } from './editor/ArrangementMenu';
+import ArrangementMenu, { EditArrangementsDialog } from './editor/ArrangementMenu';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { SegmentedControl } from './ui/SegmentedControl';
@@ -124,7 +124,7 @@ key: C
 
 `;
 
-export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy, activeLibrary, team, importProgress, customSectionTypes, readOnly = false, chartDefaults = {} }) {
+export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy, activeLibrary, team, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null }) {
   const confirm = useConfirm();
 
   // Working copy of the song we're editing. For a new song, songFromFlat
@@ -136,9 +136,14 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
     return songFromFlat({ id: generateId(), title: 'New Song', artist: '', key: 'C', tempo: null, time: '', sections: [] });
   });
 
-  const [activeArrangementId, setActiveArrangementId] = useState(
-    workingSong.defaultArrangementId || workingSong.arrangements?.[0]?.id
-  );
+  const [activeArrangementId, setActiveArrangementId] = useState(() => {
+    // Open the arrangement the user was viewing when they hit Edit, not always
+    // the default. Falls back to the default / first when none was passed.
+    if (initialArrangementId && workingSong.arrangements?.some(a => a.id === initialArrangementId)) {
+      return initialArrangementId;
+    }
+    return workingSong.defaultArrangementId || workingSong.arrangements?.[0]?.id;
+  });
 
   const initialMd = useMemo(() => {
     const arr = getArrangement(workingSong, activeArrangementId);
@@ -528,21 +533,14 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
         }
       />
 
-      {/* ─── Content Area — split-screen on wide viewports so the user
-          can see the rendered chart while editing. The preview is the
-          existing ChartView in isPreview mode, fed by the parsed `preview`
-          state we already maintain for save. ─── */}
-      <div className="flex-1 min-h-0 flex w-full overflow-hidden">
-        
-        {/* LEFT COLUMN */}
-        <div className="flex-1 min-h-0 flex flex-col w-full border-r border-[var(--ds-gray-300)]">
-          
-          {/* ─── Editor chrome: quick controls + mode toggle (toolbar), the
-              always-visible Structure ribbon, and the collapsible Details
-              panel. Advanced-only tools (undo/redo/paste) live in that
-              editor's own toolbar. ─── */}
-          <div className="shrink-0 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]" style={headerFrostStyle}>
-          <div className="flex items-center gap-2 flex-wrap px-4 sm:px-6 py-2">
+      {/* ─── Content Area — full-width chrome on top, then the editor + live
+          preview side-by-side beneath it, so opening Song Details / the
+          Structure ribbon pushes both columns evenly. ─── */}
+      <div className="flex-1 min-h-0 flex flex-col w-full overflow-hidden">
+
+        {/* ─── Editor chrome (full width, above editor + preview) ─── */}
+        <div className="shrink-0 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]" style={headerFrostStyle}>
+          <div className="flex items-center gap-2 flex-wrap px-4 sm:px-6 py-1.5">
             <button
               type="button"
               onClick={() => setMetaPanelOpen(v => !v)}
@@ -554,6 +552,17 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 <path d="m6 9 6 6 6-6" />
               </svg>
             </button>
+
+            <ArrangementMenu
+              arrangements={workingSong.arrangements}
+              activeId={activeArrangementId}
+              defaultId={workingSong.defaultArrangementId}
+              onSwitch={switchArrangement}
+              onAdd={handleAddArrangement}
+              onRename={handleRenameArrangement}
+              onDelete={handleDeleteArrangementById}
+              onEdit={() => setEditArrangementsOpen(true)}
+            />
 
             <div className="flex items-center gap-1.5">
               <select
@@ -590,7 +599,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
           </div>
 
           {/* Structure ribbon — always visible */}
-          <div className="px-4 sm:px-6 pb-2">
+          <div className="px-4 sm:px-6 pb-1.5">
             <StructureEditor
               value={structureValue}
               availableSections={availableSections}
@@ -607,26 +616,20 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 onChange={setMd}
                 isOpen
                 keyHistory={workingSong.keyHistory}
-                arrangements={workingSong.arrangements}
-                activeArrangementId={activeArrangementId}
-                defaultArrangementId={workingSong.defaultArrangementId}
-                onSwitchArrangement={switchArrangement}
-                onAddArrangement={handleAddArrangement}
-                onRenameArrangement={handleRenameArrangement}
-                onDeleteArrangement={handleDeleteArrangementById}
-                onEditArrangements={() => setEditArrangementsOpen(true)}
               />
             </div>
           )}
           </div>
 
-          {/* ─── Active Tab Content ─── */}
-          <div className={`flex-1 min-h-0 flex flex-col w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
-            <div className="wide-container w-full h-full flex flex-col">
-              {renderTab()}
+          {/* ─── Editor + preview row ─── */}
+          <div className="flex-1 min-h-0 flex w-full overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col w-full border-r border-[var(--ds-gray-300)]">
+              <div className={`flex-1 min-h-0 flex flex-col w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
+                <div className="wide-container w-full h-full flex flex-col">
+                  {renderTab()}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
         {/* RIGHT COLUMN (Preview) */}
         {showSidePreview && preview && (
@@ -641,11 +644,12 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
             </div>
           </aside>
         )}
+        </div>
       </div>
 
       {/* ─── Sticky bottom action bar — Cancel + Save, mirrors SetlistBuilder ─── */}
       <div
-        className="sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)] w-full"
+        className="shrink-0 sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)] w-full"
         style={{
           background: 'var(--header-bg-blur)',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',

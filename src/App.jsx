@@ -179,6 +179,9 @@ export default function App() {
     return 'loading';
   });
   const [currentSong, setCurrentSong] = useState(null);
+  // Arrangement to open in the editor (the one the user was viewing). Reset
+  // whenever we enter the editor unless an explicit id is passed.
+  const [editArrangementId, setEditArrangementId] = useState(null);
   const [currentSetlist, setCurrentSetlist] = useState(null);
   const [settings, setSettings] = useState(null);
   useChartTheme(settings);
@@ -668,10 +671,11 @@ export default function App() {
 
   // Navigation with history stack. Not memoised — captures current state
   // through snapshot() on each call, which is what we want for back/forward.
-  const navigate = (nextView, { song, setlist, replace } = {}) => {
+  const navigate = (nextView, { song, setlist, replace, arrangementId } = {}) => {
     if (!replace) pushHistory(snapshot());
     if (song !== undefined) setCurrentSong(song);
     if (setlist !== undefined) setCurrentSetlist(setlist);
+    if (nextView === 'editor') setEditArrangementId(arrangementId ?? null);
     setView(nextView);
     // Entering Settings fresh always lands on the hub.
     if (nextView === 'settings') setSettingsPanel('hub');
@@ -936,7 +940,7 @@ export default function App() {
     }
     navigate('chart', { song });
   };
-  const goEditor = (song = null) => navigate('editor', { song });
+  const goEditor = (song = null, arrangementId = null) => navigate('editor', { song, arrangementId });
   const goSetlistBuild = (sl = null) => navigate('setlist-build', { setlist: sl });
   const goSetlistView = (sl) => navigate('setlist-view', { setlist: sl });
   const goSetlistPlay = (sl) => navigate('setlist-play', { setlist: sl });
@@ -1807,7 +1811,7 @@ export default function App() {
             <ChartView
               song={currentSong}
               onBack={goBack}
-              onEdit={isTeamReadOnly ? null : () => goEditor(currentSong)}
+              onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
               onSongChange={(updated) => {
                 setSongs(prev => prev.map(s => s.id === updated.id ? { ...updated, updatedAt: Date.now() } : s));
               }}
@@ -1836,6 +1840,7 @@ export default function App() {
             <Editor
               key={currentSong?.id || 'new'}
               song={currentSong}
+              initialArrangementId={editArrangementId}
               onSave={isTeamReadOnly ? null : handleSaveSong}
               onBack={importQueue ? handleSkipQueueSong : goBack}
               onDelete={currentSong && !isTeamReadOnly ? handleDeleteSong : null}
