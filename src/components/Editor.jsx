@@ -16,7 +16,6 @@ import PromptDialog from './ui/PromptDialog';
 import { toast } from './ui/use-toast';
 import { useConfirm } from './ui/useConfirmHook';
 import { headerFrostStyle } from '../lib/headerFrost';
-import ScreenHeader from './ui/ScreenHeader';
 
 // The two edit modes. Arrange (visual) is the primary canvas; Source is the
 // raw-markdown power-user escape hatch — hence the compact </> label.
@@ -475,43 +474,42 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
 
   return (
     <div className="h-screen bg-[var(--ds-background-200)] flex flex-col">
-      {/* ─── Sticky Header — matches the SetlistBuilder pattern: title +
-          secondary actions only. The primary Save/Cancel pair lives in the
-          bottom action bar so it's always thumb-reachable on mobile. ─── */}
-      <ScreenHeader
-        title={preview?.title || (song ? 'Edit Song' : 'New Song')}
-        actions={
-          <>
+      {/* ─── Unified header. Row 1: title (taps to toggle Song Details) +
+          mode toggle / preview / actions. Row 2: arrangement + key/tempo/time.
+          Save/Cancel live in the bottom bar so they stay thumb-reachable. ─── */}
+      <header
+        className="shrink-0 z-10 sticky top-0 border-b border-[var(--ds-gray-200)] backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)]"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
+        <div className="flex items-center gap-2 px-3 sm:px-4 h-14">
+          <button
+            type="button"
+            onClick={() => setMetaPanelOpen(v => !v)}
+            aria-expanded={metaPanelOpen}
+            aria-label="Song details"
+            className="flex-1 min-w-0 flex items-center gap-1.5 text-left bg-transparent border-none cursor-pointer p-0"
+          >
+            <h1 className="text-heading-18 text-[var(--text-1)] m-0 leading-tight truncate">
+              {fmFields.title || (song ? 'Edit Song' : 'New Song')}
+            </h1>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 text-[var(--ds-gray-600)] transition-transform duration-200 ${metaPanelOpen ? 'rotate-180' : ''}`}>
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+
+          <div className="flex items-center gap-2 shrink-0">
             {importProgress && (
               <span
-                className="inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 text-label-11 font-semibold border"
-                style={{
-                  color: 'var(--color-brand-text)',
-                  borderColor: 'var(--color-brand-border)',
-                  background: 'var(--color-brand-soft)',
-                }}
+                className="hidden sm:inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 text-label-11 font-semibold border"
+                style={{ color: 'var(--color-brand-text)', borderColor: 'var(--color-brand-border)', background: 'var(--color-brand-soft)' }}
               >
                 Importing {importProgress.current} of {importProgress.total}
                 {importProgress.onSkip && (
-                  <button
-                    onClick={importProgress.onSkip}
-                    className="bg-transparent border-none p-0 text-[var(--color-brand-text)] underline cursor-pointer text-label-11 font-semibold"
-                  >
-                    Skip
-                  </button>
+                  <button onClick={importProgress.onSkip} className="bg-transparent border-none p-0 text-[var(--color-brand-text)] underline cursor-pointer text-label-11 font-semibold">Skip</button>
                 )}
               </span>
             )}
-            {song && onMove && team && (
-              <Button variant="secondary" size="sm" onClick={handleMoveSong}>
-                Move to {activeLibrary === 'personal' ? 'Team' : 'Personal'}
-              </Button>
-            )}
-            {song && onCopy && team && (
-              <Button variant="secondary" size="sm" onClick={handleCopySong}>
-                Copy to {activeLibrary === 'personal' ? 'Team' : 'Personal'}
-              </Button>
-            )}
+            <SegmentedControl size="sm" value={activeTab} onChange={setActiveTab} options={MODE_OPTIONS} />
             {isWide && (
               <Button
                 variant={previewEnabled ? 'secondary' : 'ghost'}
@@ -522,6 +520,16 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 {previewEnabled ? 'Hide preview' : 'Show preview'}
               </Button>
             )}
+            {song && onMove && team && (
+              <Button variant="secondary" size="sm" onClick={handleMoveSong} className="hidden md:inline-flex">
+                Move to {activeLibrary === 'personal' ? 'Team' : 'Personal'}
+              </Button>
+            )}
+            {song && onCopy && team && (
+              <Button variant="secondary" size="sm" onClick={handleCopySong} className="hidden md:inline-flex">
+                Copy to {activeLibrary === 'personal' ? 'Team' : 'Personal'}
+              </Button>
+            )}
             {song && onDelete && (
               <IconButton variant="error" size="sm" onClick={handleDeleteSong} aria-label="Delete song">
                 <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -529,9 +537,46 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 </svg>
               </IconButton>
             )}
-          </>
-        }
-      />
+          </div>
+        </div>
+
+        {/* Row 2: arrangement + key / tempo / time */}
+        <div className="flex items-center gap-2 flex-wrap px-3 sm:px-4 pb-2">
+          <ArrangementMenu
+            arrangements={workingSong.arrangements}
+            activeId={activeArrangementId}
+            defaultId={workingSong.defaultArrangementId}
+            onSwitch={switchArrangement}
+            onAdd={handleAddArrangement}
+            onRename={handleRenameArrangement}
+            onDelete={handleDeleteArrangementById}
+            onEdit={() => setEditArrangementsOpen(true)}
+          />
+          <div className="flex items-center gap-1.5">
+            <select
+              value={currentKey}
+              onChange={e => updateField('key', e.target.value)}
+              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-1 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
+              aria-label="Key"
+            >
+              {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
+            </select>
+            <input
+              type="number"
+              value={currentTempo}
+              onChange={e => updateField('tempo', e.target.value)}
+              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-1 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
+              min="30" max="300"
+              placeholder="bpm"
+              aria-label="Tempo"
+            />
+            <TimeSignatureControl
+              value={currentTime}
+              onChange={v => updateField('time', v)}
+            />
+          </div>
+        </div>
+      </header>
 
       {/* ─── Content Area — full-width chrome on top, then the editor + live
           preview side-by-side beneath it, so opening Song Details / the
@@ -540,77 +585,10 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
 
         {/* ─── Editor chrome (full width, above editor + preview) ─── */}
         <div className="shrink-0 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]" style={headerFrostStyle}>
-          <div className="flex items-center gap-2 flex-wrap px-4 sm:px-6 py-1.5">
-            <button
-              type="button"
-              onClick={() => setMetaPanelOpen(v => !v)}
-              aria-expanded={metaPanelOpen}
-              className="inline-flex items-center gap-1.5 bg-transparent hover:bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)] border-none cursor-pointer px-2 py-1 rounded-md transition-colors"
-            >
-              <span className="text-label-11 font-semibold uppercase tracking-wider">Song Details</span>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${metaPanelOpen ? 'rotate-180' : ''}`}>
-                <path d="m6 9 6 6 6-6" />
-              </svg>
-            </button>
-
-            <ArrangementMenu
-              arrangements={workingSong.arrangements}
-              activeId={activeArrangementId}
-              defaultId={workingSong.defaultArrangementId}
-              onSwitch={switchArrangement}
-              onAdd={handleAddArrangement}
-              onRename={handleRenameArrangement}
-              onDelete={handleDeleteArrangementById}
-              onEdit={() => setEditArrangementsOpen(true)}
-            />
-
-            <div className="flex items-center gap-1.5">
-              <select
-                value={currentKey}
-                onChange={e => updateField('key', e.target.value)}
-                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-1 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none cursor-pointer"
-                aria-label="Key"
-              >
-                {ALL_KEYS.map(k => <option key={k} value={k}>{k}</option>)}
-              </select>
-              <input
-                type="number"
-                value={currentTempo}
-                onChange={e => updateField('tempo', e.target.value)}
-                className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-1 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
-                min="30" max="300"
-                placeholder="bpm"
-                aria-label="Tempo"
-              />
-              <TimeSignatureControl
-                value={currentTime}
-                onChange={v => updateField('time', v)}
-              />
-            </div>
-
-            <div className="ml-auto flex items-center gap-2">
-              <SegmentedControl
-                size="sm"
-                value={activeTab}
-                onChange={setActiveTab}
-                options={MODE_OPTIONS}
-              />
-            </div>
-          </div>
-
-          {/* Structure ribbon — always visible */}
-          <div className="px-4 sm:px-6 pb-1.5">
-            <StructureEditor
-              value={structureValue}
-              availableSections={availableSections}
-              onChange={(next) => updateField('structure', next)}
-              autoSeed={false}
-            />
-          </div>
-
-          {/* Details — collapsible descriptive metadata */}
+          {/* Details — collapsible descriptive metadata, toggled from the
+              title chevron in the header. */}
           {metaPanelOpen && (
-            <div className="px-4 sm:px-6 pb-3">
+            <div className="px-4 sm:px-6 py-2 border-b border-[var(--ds-gray-200)]">
               <MetadataPanel
                 md={md}
                 onChange={setMd}
@@ -619,6 +597,16 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
               />
             </div>
           )}
+
+          {/* Structure ribbon — always visible (rework pending) */}
+          <div className="px-4 sm:px-6 py-1.5">
+            <StructureEditor
+              value={structureValue}
+              availableSections={availableSections}
+              onChange={(next) => updateField('structure', next)}
+              autoSeed={false}
+            />
+          </div>
           </div>
 
           {/* ─── Editor + preview row ─── */}
