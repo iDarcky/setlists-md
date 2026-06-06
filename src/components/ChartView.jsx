@@ -745,9 +745,9 @@ export default function ChartView({
 
 function InfoRow({ label, children }) {
   return (
-    <div className="flex gap-3">
-      <dt className="w-20 shrink-0 text-label-12 font-semibold uppercase tracking-wide text-[var(--text-2)] pt-0.5">{label}</dt>
-      <dd className="flex-1 m-0 text-[var(--text-1)]">{children}</dd>
+    <div className="flex gap-2 min-w-0">
+      <dt className="w-24 shrink-0 text-label-12 font-semibold text-[var(--text-2)] leading-tight pt-0.5">{label}</dt>
+      <dd className="flex-1 min-w-0 m-0 text-[var(--text-1)] break-words">{children}</dd>
     </div>
   );
 }
