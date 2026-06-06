@@ -282,7 +282,10 @@ export default function ChartView({
   ));
 
   // Check if any metadata exists
-  const hasMetadata = !!song.artist || song.capo > 0 || !!song.ccli || (song.tags?.length > 0) || !!song.notes || !!song.spotify || !!song.youtube;
+  const hasMetadata = !!song.artist || song.capo > 0 || !!song.ccli || (song.tags?.length > 0) || !!song.notes || !!song.spotify || !!song.youtube
+    || !!song.originaltitle || !!song.language || !!song.translator || !!song.vocalrange || !!song.year
+    || !!song.writers || !!song.publishers || !!song.album || !!song.label || !!song.copyright
+    || !!song.themes || !!song.genres || !!song.scripture || !!song.moment || !!song.story;
 
   return (
     <div
@@ -641,6 +644,15 @@ export default function ChartView({
                 {song.artist && (
                   <InfoRow label="Artist">{song.artist}</InfoRow>
                 )}
+                {song.originaltitle && (
+                  <InfoRow label="Original title">{song.originaltitle}</InfoRow>
+                )}
+                {song.language && (
+                  <InfoRow label="Language">{song.language}</InfoRow>
+                )}
+                {song.translator && (
+                  <InfoRow label="Translator">{song.translator}</InfoRow>
+                )}
                 {song.tempo && (
                   <InfoRow label="Tempo">{song.tempo} bpm</InfoRow>
                 )}
@@ -650,11 +662,49 @@ export default function ChartView({
                 {song.capo > 0 && (
                   <InfoRow label="Capo">{song.capo}</InfoRow>
                 )}
+                {song.vocalrange && (
+                  <InfoRow label="Vocal range">{song.vocalrange}</InfoRow>
+                )}
+                {song.year && (
+                  <InfoRow label="Release year">{song.year}</InfoRow>
+                )}
+                {song.writers && (
+                  <InfoRow label="Writers">{song.writers}</InfoRow>
+                )}
+                {song.publishers && (
+                  <InfoRow label="Publishers">{song.publishers}</InfoRow>
+                )}
+                {song.album && (
+                  <InfoRow label="Album">{song.album}</InfoRow>
+                )}
+                {song.label && (
+                  <InfoRow label="Label">{song.label}</InfoRow>
+                )}
                 {song.ccli && (
                   <InfoRow label="CCLI">{song.ccli}</InfoRow>
                 )}
+                {song.copyright && (
+                  <InfoRow label="Copyright">{song.copyright}</InfoRow>
+                )}
+                {song.themes && (
+                  <InfoRow label="Themes">{song.themes}</InfoRow>
+                )}
+                {song.genres && (
+                  <InfoRow label="Genres">{song.genres}</InfoRow>
+                )}
+                {song.scripture && (
+                  <InfoRow label="Bible verses">{song.scripture}</InfoRow>
+                )}
+                {song.moment && (
+                  <InfoRow label="Liturgical moment">{song.moment}</InfoRow>
+                )}
                 {song.tags?.length > 0 && (
                   <InfoRow label="Tags">{song.tags.join(', ')}</InfoRow>
+                )}
+                {song.story && (
+                  <InfoRow label="Story behind">
+                    <span className="whitespace-pre-wrap">{song.story}</span>
+                  </InfoRow>
                 )}
                 {song.notes && (
                   <InfoRow label="Notes">

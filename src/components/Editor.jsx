@@ -520,7 +520,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 )}
               </span>
             )}
-            <SegmentedControl size="sm" value={activeTab} onChange={setActiveTab} options={MODE_OPTIONS} />
+            <SegmentedControl size="xs" value={activeTab} onChange={setActiveTab} options={MODE_OPTIONS} />
             {isWide && (
               <Button
                 variant={previewEnabled ? 'secondary' : 'ghost'}
@@ -579,7 +579,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
               type="number"
               value={currentTempo}
               onChange={e => updateField('tempo', e.target.value)}
-              className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1.5 py-1 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-14"
+              className="h-8 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 text-label-12 font-mono text-[var(--ds-gray-1000)] outline-none w-16"
               min="30" max="300"
               placeholder="bpm"
               aria-label="Tempo"
