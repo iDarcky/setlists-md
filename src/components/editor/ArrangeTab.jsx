@@ -226,6 +226,82 @@ function InlineEditor({ initialValue, onSave, onCancel }) {
   );
 }
 
+// ─── Small popover menu (section actions / add) ───────────────────
+
+function PopMenu({ trigger, align = 'left', children }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onPointer); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  return (
+    <div ref={ref} className="relative inline-block">
+      <span onClick={() => setOpen(v => !v)}>{trigger}</span>
+      {open && (
+        <div
+          role="menu"
+          onClick={() => setOpen(false)}
+          className={`absolute z-40 mt-1 ${align === 'right' ? 'right-0' : 'left-0'} min-w-[180px] rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl overflow-hidden py-1`}
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuItem({ onClick, children, danger = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left px-3 py-2.5 text-copy-13 cursor-pointer bg-transparent border-none hover:bg-[var(--ds-gray-alpha-100)] ${danger ? 'text-[var(--ds-error-600)]' : 'text-[var(--ds-gray-1000)]'}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─── Chord-only line (instrumental) ───────────────────────────────
+// A line with chords and no lyrics. Tap "+" to append the palette's active
+// chord; tap ✕ on a chip to remove it. Positions are space-padded under the
+// hood so the line round-trips and renders as chord pills in the chart views.
+
+function ChordOnlyLine({ chords, secIdx, lineIdx, activeChord, onAppend, onRemoveChord }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 py-1.5">
+      {chords.map((c, i) => (
+        <span
+          key={i}
+          className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-md bg-[var(--color-brand-soft)] border border-[var(--color-brand-border)]"
+        >
+          <span className="font-bold font-mono text-[var(--chord)] text-label-13">{c.chord}</span>
+          <button
+            type="button"
+            onClick={() => onRemoveChord(secIdx, lineIdx, i)}
+            aria-label={`Remove ${c.chord}`}
+            className="opacity-50 hover:opacity-100 text-[var(--color-brand-text)] bg-transparent border-none cursor-pointer leading-none px-1"
+          >
+            ✕
+          </button>
+        </span>
+      ))}
+      <button
+        type="button"
+        onClick={() => onAppend(secIdx, lineIdx)}
+        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-dashed border-[var(--ds-gray-400)] text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:border-[var(--ds-gray-600)] text-label-12 cursor-pointer bg-transparent"
+      >
+        + {activeChord || 'chord'}
+      </button>
+    </div>
+  );
+}
+
 // ─── ArrangeTab ───────────────────────────────────────────────────
 
 export default function ArrangeTab({ md, onChange, customSectionTypes }) {
@@ -425,6 +501,59 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
     emitSong({ ...song, sections });
   }, [song, emitSong]);
 
+  // ─── Line operations (add lyric / chord / modulate, remove) ───
+  // All go through applyMutation so line indices stay aligned with the
+  // rendered placements.
+  const addLine = useCallback((secIdx) => {
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec, lines: [...sec.lines, { plainText: '', chords: [], inlineNote: null }],
+    })));
+  }, [applyMutation]);
+
+  const addModulate = useCallback((secIdx, semitones) => {
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec, lines: [...sec.lines, { type: 'modulate', semitones }],
+    })));
+  }, [applyMutation]);
+
+  const removeLine = useCallback((secIdx, lineIdx) => {
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec, lines: sec.lines.filter((_, li) => li !== lineIdx),
+    })));
+  }, [applyMutation]);
+
+  const addChordLine = useCallback((secIdx) => {
+    const chord = activeChord || song?.key || 'C';
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec, lines: [...sec.lines, { plainText: ' ', chords: [{ chord, pos: 0 }], inlineNote: null }],
+    })));
+    addRecent(chord);
+  }, [activeChord, song, applyMutation, addRecent]);
+
+  const appendChord = useCallback((secIdx, lineIdx) => {
+    const chord = activeChord || song?.key || 'C';
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec,
+      lines: sec.lines.map((ln, li) => {
+        if (li !== lineIdx || ln.plainText === undefined) return ln;
+        const gap = 4;
+        const pos = (ln.chords?.length || 0) * gap;
+        // Pad the (lyric-less) text so positions survive the placement round-trip.
+        return { ...ln, plainText: ' '.repeat(pos + 1), chords: [...(ln.chords || []), { chord, pos }] };
+      }),
+    })));
+    addRecent(chord);
+  }, [activeChord, song, applyMutation, addRecent]);
+
+  const removeChord = useCallback((secIdx, lineIdx, chordIdx) => {
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec,
+      lines: sec.lines.map((ln, li) => (li === lineIdx && ln.plainText !== undefined)
+        ? { ...ln, chords: ln.chords.filter((_, ci) => ci !== chordIdx) }
+        : ln),
+    })));
+  }, [applyMutation]);
+
   // ─── Inline editing ───
   const handleLineClick = useCallback((secIdx, lineIdx) => {
     if (activeChord || selectedExisting) return;
@@ -532,16 +661,19 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
                   style={{ borderLeft: sec.note ? `2px solid ${s.br}` : 'none' }}
                 />
 
-                <Button
-                  variant="ghost" size="xs"
-                  onClick={() => setDrawerTarget(secIdx)}
-                  title="Edit section lyrics"
+                <PopMenu
+                  align="right"
+                  trigger={
+                    <IconButton variant="ghost" size="sm" aria-label="Section options" title="Section options">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
+                    </IconButton>
+                  }
                 >
-                  Edit
-                </Button>
-                <IconButton variant="ghost" size="xs" onClick={() => moveSection(secIdx, -1)} aria-label="Move up">↑</IconButton>
-                <IconButton variant="ghost" size="xs" onClick={() => moveSection(secIdx, 1)} aria-label="Move down">↓</IconButton>
-                <IconButton variant="ghost" size="xs" onClick={() => removeSection(secIdx)} aria-label="Remove section">×</IconButton>
+                  <MenuItem onClick={() => setDrawerTarget(secIdx)}>Edit lyrics…</MenuItem>
+                  <MenuItem onClick={() => moveSection(secIdx, -1)}>Move up</MenuItem>
+                  <MenuItem onClick={() => moveSection(secIdx, 1)}>Move down</MenuItem>
+                  <MenuItem danger onClick={() => removeSection(secIdx)}>Delete section</MenuItem>
+                </PopMenu>
               </div>
 
               {/* Lines */}
@@ -552,11 +684,20 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
                   }
                   if (typeof line === 'object' && line.type === 'modulate') {
                     return (
-                      <div key={lineIdx} className="my-4 flex items-center gap-4">
+                      <div key={lineIdx} className="my-4 flex items-center gap-3">
                         <div className="h-[1px] flex-1 bg-[var(--color-brand-border)]" />
                         <span className="text-label-10 font-black uppercase tracking-[0.2em] px-3 py-1 bg-[var(--color-brand)] text-white rounded-full shadow-sm">
                           Key Change: {line.semitones > 0 ? '+' : ''}{line.semitones}
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => removeLine(secIdx, lineIdx)}
+                          aria-label="Remove key change"
+                          title="Remove key change"
+                          className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[var(--ds-gray-600)] hover:text-[var(--ds-error-600)] hover:bg-[var(--ds-gray-alpha-100)] bg-transparent border-none cursor-pointer leading-none"
+                        >
+                          ✕
+                        </button>
                         <div className="h-[1px] flex-1 bg-[var(--color-brand-border)]" />
                       </div>
                     );
@@ -572,6 +713,22 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
                             initialValue={rawLine}
                             onSave={(val) => handleInlineSave(secIdx, lineIdx, val)}
                             onCancel={() => setEditingLine(null)}
+                          />
+                        </div>
+                      );
+                    }
+
+                    // Chord-only (instrumental) line: chords with no lyrics.
+                    if ((line.plainText || '').trim() === '' && (line.chords?.length > 0)) {
+                      return (
+                        <div key={lineIdx} className="mb-2 last:mb-0">
+                          <ChordOnlyLine
+                            chords={line.chords}
+                            secIdx={secIdx}
+                            lineIdx={lineIdx}
+                            activeChord={activeChord}
+                            onAppend={appendChord}
+                            onRemoveChord={removeChord}
                           />
                         </div>
                       );
@@ -604,6 +761,26 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
                   }
                   return null;
                 })}
+              </div>
+
+              {/* Per-section add menu — line / instrumental chords / key change */}
+              <div className="mt-1">
+                <PopMenu
+                  trigger={
+                    <button
+                      type="button"
+                      className="text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer px-1 py-1"
+                    >
+                      + Add
+                    </button>
+                  }
+                >
+                  <MenuItem onClick={() => addLine(secIdx)}>Lyric line</MenuItem>
+                  <MenuItem onClick={() => addChordLine(secIdx)}>Chord line (instrumental)</MenuItem>
+                  <MenuItem onClick={() => addModulate(secIdx, 1)}>Key change +1</MenuItem>
+                  <MenuItem onClick={() => addModulate(secIdx, 2)}>Key change +2</MenuItem>
+                  <MenuItem onClick={() => addModulate(secIdx, -1)}>Key change −1</MenuItem>
+                </PopMenu>
               </div>
             </div>
           );
