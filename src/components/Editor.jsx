@@ -520,7 +520,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 )}
               </span>
             )}
-            <SegmentedControl size="xs" value={activeTab} onChange={setActiveTab} options={MODE_OPTIONS} />
+            <SegmentedControl size="xs" className="h-8 items-center" value={activeTab} onChange={setActiveTab} options={MODE_OPTIONS} />
             {isWide && (
               <Button
                 variant={previewEnabled ? 'secondary' : 'ghost'}
