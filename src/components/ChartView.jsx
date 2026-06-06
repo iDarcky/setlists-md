@@ -150,7 +150,8 @@ export default function ChartView({
     onUpdateSettings?.('showChords', preset.showChords !== false);
     onUpdateSettings?.('showDiagrams', !!preset.showDiagrams);
   };
-  const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'info' | 'arrangements' | null
+  const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'arrangements' | null
+  const [showInfo, setShowInfo] = useState(false); // inline song-details panel toggled from the title chevron
   const [scrolled, setScrolled] = useState(false);
   const [notesPeekOpen, setNotesPeekOpen] = useState(notesPeekDefaultOpen);
 
@@ -287,6 +288,39 @@ export default function ChartView({
     || !!song.writers || !!song.publishers || !!song.album || !!song.label || !!song.copyright
     || !!song.themes || !!song.genres || !!song.scripture || !!song.moment || !!song.story;
 
+  // Song details body — shown inline in the header (toggled by the title
+  // chevron). Defined once so the header panel stays readable.
+  const songInfoBody = hasMetadata ? (
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-copy-13 m-0">
+      {song.artist && <InfoRow label="Artist">{song.artist}</InfoRow>}
+      {song.originaltitle && <InfoRow label="Original title">{song.originaltitle}</InfoRow>}
+      {song.language && <InfoRow label="Language">{song.language}</InfoRow>}
+      {song.translator && <InfoRow label="Translator">{song.translator}</InfoRow>}
+      {song.tempo && <InfoRow label="Tempo">{song.tempo} bpm</InfoRow>}
+      {song.time && <InfoRow label="Time">{song.time}</InfoRow>}
+      {song.capo > 0 && <InfoRow label="Capo">{song.capo}</InfoRow>}
+      {song.vocalrange && <InfoRow label="Vocal range">{song.vocalrange}</InfoRow>}
+      {song.year && <InfoRow label="Release year">{song.year}</InfoRow>}
+      {song.writers && <InfoRow label="Writers">{song.writers}</InfoRow>}
+      {song.publishers && <InfoRow label="Publishers">{song.publishers}</InfoRow>}
+      {song.album && <InfoRow label="Album">{song.album}</InfoRow>}
+      {song.label && <InfoRow label="Label">{song.label}</InfoRow>}
+      {song.ccli && <InfoRow label="CCLI">{song.ccli}</InfoRow>}
+      {song.copyright && <InfoRow label="Copyright">{song.copyright}</InfoRow>}
+      {song.themes && <InfoRow label="Themes">{song.themes}</InfoRow>}
+      {song.genres && <InfoRow label="Genres">{song.genres}</InfoRow>}
+      {song.scripture && <InfoRow label="Bible verses">{song.scripture}</InfoRow>}
+      {song.moment && <InfoRow label="Liturgical moment">{song.moment}</InfoRow>}
+      {song.tags?.length > 0 && <InfoRow label="Tags">{song.tags.join(', ')}</InfoRow>}
+      {song.story && <InfoRow label="Story behind"><span className="whitespace-pre-wrap">{song.story}</span></InfoRow>}
+      {song.notes && <InfoRow label="Notes"><span className="whitespace-pre-wrap">{song.notes}</span></InfoRow>}
+      {song.spotify && <InfoRow label="Spotify"><a href={song.spotify} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-text)] hover:underline">Open ↗</a></InfoRow>}
+      {song.youtube && <InfoRow label="YouTube"><a href={song.youtube} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-text)] hover:underline">Open ↗</a></InfoRow>}
+    </dl>
+  ) : (
+    <p className="text-copy-13 text-[var(--text-2)] italic m-0">No additional song info</p>
+  );
+
   return (
     <div
       ref={scrollContainerRef}
@@ -317,37 +351,24 @@ export default function ChartView({
               Compact "Line-2" content collapses on scroll but the title
               itself doesn't resize. */}
           <div className="wide-container flex items-center justify-between gap-3 pt-3 pb-0.5">
-            {(onBack || onToggleFullscreen) && (
-              <div className="flex gap-0.5 items-center flex-shrink-0">
-                {onBack && (
-                  <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="m6 17 5-5-5-5" /><path d="m13 17 5-5-5-5" />
-                    </svg>
-                  </IconButton>
-                )}
-                {onToggleFullscreen && (
-                  <IconButton variant="ghost" size="sm" onClick={onToggleFullscreen} aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
-                    {isFullscreen ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M8 3v4a1 1 0 0 1-1 1H3" /><path d="M21 8h-4a1 1 0 0 1-1-1V3" /><path d="M3 16h4a1 1 0 0 1 1 1v4" /><path d="M16 21v-4a1 1 0 0 1 1-1h4" />
-                      </svg>
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 8V3h5" /><path d="M21 8V3h-5" /><path d="M3 16v5h5" /><path d="M21 16v5h-5" />
-                      </svg>
-                    )}
-                  </IconButton>
-                )}
-              </div>
-            )}
             <div className="min-w-0 flex-1 flex items-baseline gap-3">
-              <h1
-                className="m-0 truncate font-bold leading-tight text-heading-24"
-                style={{ color: 'var(--text-1)' }}
+              <button
+                type="button"
+                onClick={() => setShowInfo(v => !v)}
+                aria-expanded={showInfo}
+                aria-label="Song details"
+                className="min-w-0 flex items-baseline gap-1.5 bg-transparent border-none cursor-pointer p-0 text-left"
               >
-                {song.title}
-              </h1>
+                <h1
+                  className="m-0 truncate font-bold leading-tight text-heading-24"
+                  style={{ color: 'var(--text-1)' }}
+                >
+                  {song.title}
+                </h1>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 self-center text-[var(--text-2)] transition-transform duration-200 ${showInfo ? 'rotate-180' : ''}`}>
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
               {/* Always-mounted inline meta — visibility toggled via
                   CSS so the DOM doesn't reflow on scroll. Without this
                   the flex container reflowed at the moment `scrolled`
@@ -370,11 +391,6 @@ export default function ChartView({
               </div>
             </div>
             <div className="flex gap-0.5 items-center flex-shrink-0">
-              <IconButton variant="ghost" size="sm" onClick={() => openSheet('info')} aria-label="Song info" title="Song info">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
-                </svg>
-              </IconButton>
               <IconButton variant="ghost" size="sm" onClick={() => exportSongPdf(song, { transpose })} aria-label="Print / Save as PDF" title="Print / Save as PDF">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="6 9 6 2 18 2 18 9" />
@@ -397,6 +413,26 @@ export default function ChartView({
                   <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
                 </svg>
               </IconButton>
+              {onToggleFullscreen && (
+                <IconButton variant="ghost" size="sm" onClick={onToggleFullscreen} aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+                  {isFullscreen ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M8 3v4a1 1 0 0 1-1 1H3" /><path d="M21 8h-4a1 1 0 0 1-1-1V3" /><path d="M3 16h4a1 1 0 0 1 1 1v4" /><path d="M16 21v-4a1 1 0 0 1 1-1h4" />
+                    </svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 8V3h5" /><path d="M21 8V3h-5" /><path d="M3 16v5h5" /><path d="M21 16v5h-5" />
+                    </svg>
+                  )}
+                </IconButton>
+              )}
+              {onBack && (
+                <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </IconButton>
+              )}
             </div>
           </div>
 
@@ -409,18 +445,22 @@ export default function ChartView({
               <>
                 <Select value={activeArrId} onValueChange={handleSwitchArrangement}>
                   <SelectTrigger
-                    className="h-7 px-1.5 border-transparent bg-transparent hover:bg-[var(--bg-2)] text-label-13 font-semibold text-[var(--text-1)] gap-1.5 max-w-[200px] w-auto focus:ring-0"
+                    className="h-7 px-1.5 border-transparent bg-transparent hover:bg-[var(--bg-2)] text-label-13 font-semibold text-[var(--text-1)] gap-1.5 max-w-[180px] min-w-0 w-auto focus:ring-0"
                     aria-label="Switch arrangement"
                   >
-                    <SelectValue />
+                    <span className="truncate">
+                      {song._allArrangements.find(a => a.id === activeArrId)?.name || 'Arrangement'}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {song._allArrangements.map(a => (
                       <SelectItem key={a.id} value={a.id}>
-                        {a.name || 'Untitled arrangement'}
-                        {a.id === song._defaultArrangementId && (
-                          <span className="ml-1.5 text-label-10 text-[var(--text-2)]">default</span>
-                        )}
+                        <span className="inline-flex items-center gap-1.5">
+                          {a.id === song._defaultArrangementId && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" title="Default" aria-label="Default" />
+                          )}
+                          {a.name || 'Untitled arrangement'}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -461,6 +501,13 @@ export default function ChartView({
               </span>
             )}
           </div>
+
+          {/* Inline song details — toggled by the title chevron (like the editor) */}
+          {showInfo && (
+            <div className="wide-container pb-2 mt-1 max-h-[40vh] overflow-y-auto border-t border-[var(--border-1)] pt-2">
+              {songInfoBody}
+            </div>
+          )}
 
           {/* Structure ribbon — always visible */}
           <div className="wide-container pb-2">
@@ -634,102 +681,6 @@ export default function ChartView({
           {/* Arrangement add/rename/delete now lives in the editor only.
               The chart view's dropdown above handles read-only switching. */}
 
-          <BottomSheet
-            open={activeSheet === 'info'}
-            onClose={() => setActiveSheet(null)}
-            title="Song info"
-          >
-            {hasMetadata ? (
-              <dl className="flex flex-col gap-3 text-copy-14 m-0">
-                {song.artist && (
-                  <InfoRow label="Artist">{song.artist}</InfoRow>
-                )}
-                {song.originaltitle && (
-                  <InfoRow label="Original title">{song.originaltitle}</InfoRow>
-                )}
-                {song.language && (
-                  <InfoRow label="Language">{song.language}</InfoRow>
-                )}
-                {song.translator && (
-                  <InfoRow label="Translator">{song.translator}</InfoRow>
-                )}
-                {song.tempo && (
-                  <InfoRow label="Tempo">{song.tempo} bpm</InfoRow>
-                )}
-                {song.time && (
-                  <InfoRow label="Time">{song.time}</InfoRow>
-                )}
-                {song.capo > 0 && (
-                  <InfoRow label="Capo">{song.capo}</InfoRow>
-                )}
-                {song.vocalrange && (
-                  <InfoRow label="Vocal range">{song.vocalrange}</InfoRow>
-                )}
-                {song.year && (
-                  <InfoRow label="Release year">{song.year}</InfoRow>
-                )}
-                {song.writers && (
-                  <InfoRow label="Writers">{song.writers}</InfoRow>
-                )}
-                {song.publishers && (
-                  <InfoRow label="Publishers">{song.publishers}</InfoRow>
-                )}
-                {song.album && (
-                  <InfoRow label="Album">{song.album}</InfoRow>
-                )}
-                {song.label && (
-                  <InfoRow label="Label">{song.label}</InfoRow>
-                )}
-                {song.ccli && (
-                  <InfoRow label="CCLI">{song.ccli}</InfoRow>
-                )}
-                {song.copyright && (
-                  <InfoRow label="Copyright">{song.copyright}</InfoRow>
-                )}
-                {song.themes && (
-                  <InfoRow label="Themes">{song.themes}</InfoRow>
-                )}
-                {song.genres && (
-                  <InfoRow label="Genres">{song.genres}</InfoRow>
-                )}
-                {song.scripture && (
-                  <InfoRow label="Bible verses">{song.scripture}</InfoRow>
-                )}
-                {song.moment && (
-                  <InfoRow label="Liturgical moment">{song.moment}</InfoRow>
-                )}
-                {song.tags?.length > 0 && (
-                  <InfoRow label="Tags">{song.tags.join(', ')}</InfoRow>
-                )}
-                {song.story && (
-                  <InfoRow label="Story behind">
-                    <span className="whitespace-pre-wrap">{song.story}</span>
-                  </InfoRow>
-                )}
-                {song.notes && (
-                  <InfoRow label="Notes">
-                    <span className="whitespace-pre-wrap">{song.notes}</span>
-                  </InfoRow>
-                )}
-                {song.spotify && (
-                  <InfoRow label="Spotify">
-                    <a href={song.spotify} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-text)] hover:underline">
-                      Open ↗
-                    </a>
-                  </InfoRow>
-                )}
-                {song.youtube && (
-                  <InfoRow label="YouTube">
-                    <a href={song.youtube} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-text)] hover:underline">
-                      Open ↗
-                    </a>
-                  </InfoRow>
-                )}
-              </dl>
-            ) : (
-              <p className="text-copy-14 text-[var(--text-2)] italic m-0">No additional song info</p>
-            )}
-          </BottomSheet>
         </>
       )}
 

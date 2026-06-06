@@ -21,20 +21,7 @@ import { headerFrostStyle } from '../lib/headerFrost';
 // The two edit modes. Arrange (visual) is the primary canvas; Source is the
 // raw-markdown power-user escape hatch — hence the compact </> label.
 const MODE_OPTIONS = [
-  {
-    value: 'arrange',
-    label: (
-      <span className="inline-flex items-center gap-1.5">
-        Arrange
-        <span
-          className="text-[9px] font-bold leading-none px-1 py-0.5 rounded-full"
-          style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}
-        >
-          BETA
-        </span>
-      </span>
-    ),
-  },
+  { value: 'arrange', label: 'Arrange' },
   { value: 'write', label: 'Advanced' },
 ];
 
@@ -520,7 +507,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 )}
               </span>
             )}
-            <SegmentedControl size="xs" className="h-8 items-center" value={activeTab} onChange={setActiveTab} options={MODE_OPTIONS} />
+            <SegmentedControl size="sm" className="h-8 items-center" value={activeTab} onChange={setActiveTab} options={MODE_OPTIONS} />
             {isWide && (
               <Button
                 variant={previewEnabled ? 'secondary' : 'ghost'}
