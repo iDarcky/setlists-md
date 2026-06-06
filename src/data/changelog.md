@@ -2,6 +2,29 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.10.0-pre-alpha — Editor & song-details overhaul
+*June 2026*
+
+### Added
+- **Reworked song editor** — a single, compact header (title, arrangement, key/tempo/time, mode toggle) with the chart canvas right beneath it. Song Details opens as a chevron-driven panel from the title.
+- **Visual chord placement** — in Arrange, tap a lyric to drop a chord exactly where you touch (with a measured overlay that stays aligned even when lines wrap), and tap a chord to move or remove it.
+- **Instrumental chord lines** — add chord-only lines for intros/turnarounds: tap "+" to drop the selected chord, shown as chord pills.
+- **Key changes & section tools in Arrange** — add/remove key-change (modulate) markers and manage sections from a per-section menu; sections now show their number (Verse 1, Verse 2…).
+- **Many more song-info fields** — original title, language, translator, writers, publishers, copyright, album, label, release year, themes, genres, Bible verses, vocal range, liturgical moment, story behind — with sensible length limits and tag-style chip inputs. All show on the chart's Song info panel.
+- **Touch-first structure editor** — reorder the song's section flow with tap-to-add and move/remove controls (no fiddly drag), opened from a compact summary strip.
+
+### Improved
+- **Advanced (raw) editor** now edits just the song body — metadata lives in Song Details, so IDs and frontmatter can't be broken by hand.
+- **New arrangements** start as a full copy of the main arrangement instead of empty.
+- **Editing opens the arrangement you were viewing**, not always the default.
+- Cleaner, consistent header controls and custom key / time-signature dropdowns; song-info labels are easier to read.
+- Inputs are length-limited and sanitized so a stray paste can't corrupt a song.
+
+### Fixed
+- Tablet: restored scrolling in the editor and fixed chord placement landing at the end of the line.
+- The arrangement dropdown no longer renders behind the chords, and long arrangement names no longer overflow.
+- Faster tempo entry (no more dropped digits while typing).
+
 ## 0.9.0-pre-alpha — Spaces: multiple bands & churches
 *June 2026*
 

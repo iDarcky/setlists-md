@@ -174,3 +174,34 @@ Planned (highest-value first):
 - [ ] **Cookie Transparency** — Add a footer link/notice about strictly necessary storage usage (no tracking cookies).
 - [ ] **Account Termination Guardrails** — Handle "orphan teams": prevent owner deletion if team has members; require ownership transfer or team deletion first.
 
+## 10. Editor & Chart Rework — Remaining (after 0.10.0-pre-alpha)
+
+The editor/chart overhaul shipped in 0.10.0-pre-alpha (Slices 1–3, unified
+header, structure rework, expanded metadata + chip inputs + sanitization,
+custom dropdowns, chart-header rework). Still outstanding:
+
+- [ ] **Arrange: inline section editing** — replace the `SectionDrawer` modal
+      with edit-in-place (per-line inline edit already exists).
+- [ ] **Arrange: tab blocks + tab rework** — display/edit tab blocks in Arrange;
+      the deeper tab editor redesign (grid vs inline vs ASCII) is its own
+      design question.
+- [ ] **Instrumental: measure/bar grid** — chord-only lines shipped; add the
+      optional `| C | G | Am F |` bar-grid display mode on the same data.
+- [ ] **Team-sync hardening (optimistic locking)** — Phase 1: `version` column
+      + conditional write to detect conflicts; Phase 2: structured 3-way merge;
+      Phase 3: presence. (Design captured in chat.)
+- [ ] **Diacritic-insensitive search** — `Lauda` should match `Laudă`
+      (`.normalize('NFD').replace(/\p{Diacritic}/gu,'')`) in `Library.jsx`.
+- [ ] **Multi-line Story/Notes** — frontmatter is one line per field, so these
+      collapse to a single line; needs a format decision to preserve newlines.
+- [ ] **Per-song IndexedDB persistence** — `saveSongs()` rewrites the whole song
+      array on every edit; split into per-song keys before ~1000+ songs.
+- [ ] **Chart 2-column balancing gaps** — `column-count` balancing leaves gaps
+      at `break-inside: avoid` boundaries; the open/close reflow was fixed via
+      `scrollbar-gutter: stable`, but the static balance gap remains (consider
+      the rows-grid layout as the default).
+- [ ] **Bigger data-architecture items** (from the "outgrown .md?" discussion):
+      per-user notes (`team_notes`), attachments (PDF/sheet music), the BYOC
+      "Song Bundle" folder format, and full-text lyric search.
+
+
