@@ -474,7 +474,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
   }, [song, onCopy, team, activeLibrary, confirm, preview]);
 
   return (
-    <div className="h-[100dvh] bg-[var(--ds-background-200)] flex flex-col overflow-hidden">
+    <div className="h-screen bg-[var(--ds-background-200)] flex flex-col">
       {/* ─── Sticky Header — matches the SetlistBuilder pattern: title +
           secondary actions only. The primary Save/Cancel pair lives in the
           bottom action bar so it's always thumb-reachable on mobile. ─── */}

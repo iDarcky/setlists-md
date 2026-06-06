@@ -16,8 +16,9 @@ const SECTION_TYPES = [
 
 // Map a screen point to a character offset within a line's lyric text node.
 // Uses the native caret APIs (Blink/WebKit: caretRangeFromPoint; Firefox:
-// caretPositionFromPoint) so placement stays accurate even when the line
-// wraps onto multiple visual rows.
+// caretPositionFromPoint) when available, then falls back to a per-character
+// rect scan — the caret APIs can return null on touch / when text isn't
+// selectable, which was putting chords at the end of the row on tablets.
 function caretOffsetFromPoint(x, y, textEl) {
   if (!textEl) return null;
   const textNode = textEl.firstChild;
@@ -32,7 +33,27 @@ function caretOffsetFromPoint(x, y, textEl) {
   }
   if (node && textNode && node === textNode) return offset;
   if (node === textEl) return 0;
-  return null;
+  // Fallback: scan character rects (robust on touch + wrapped lines).
+  return offsetFromRects(textEl, x, y);
+}
+
+function offsetFromRects(textEl, x, y) {
+  const node = textEl?.firstChild;
+  if (!node || node.nodeType !== 3 || node.length === 0) return null;
+  const range = document.createRange();
+  let best = 0;
+  let bestDist = Infinity;
+  for (let i = 0; i < node.length; i++) {
+    range.setStart(node, i);
+    range.setEnd(node, i + 1);
+    for (const r of range.getClientRects()) {
+      const onRow = y >= r.top - 2 && y <= r.bottom + 2;
+      const mid = r.left + r.width / 2;
+      const dist = (onRow ? 0 : 100000) + Math.abs(x - mid);
+      if (dist < bestDist) { bestDist = dist; best = x > mid ? i + 1 : i; }
+    }
+  }
+  return best;
 }
 
 function parsePlacementLine(line) {
@@ -151,7 +172,7 @@ const InteractiveLine = memo(function InteractiveLine({
   return (
     <div
       ref={containerRef}
-      className="relative select-none font-mono"
+      className="relative font-mono"
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
       onPointerDown={handlePointerDown}
