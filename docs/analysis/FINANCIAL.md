@@ -1,4 +1,4 @@
-# Setlists MD — Comprehensive Product & Financial Audit
+# Setlists.md — Comprehensive Product & Financial Audit
 
 **Prepared for:** Daniel (Founder, iDarcky)
 **Date:** April 26, 2026
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-Setlists MD is a technically excellent, privacy-first Progressive Web App with a genuine moat in the worship chord-chart market. The codebase is well-architected, the offline-first data model is a strong differentiator, and the "Bring Your Own Cloud" sync strategy eliminates the #1 cost center (server-side storage) that kills indie SaaS margins.
+Setlists.md is a technically excellent, privacy-first Progressive Web App with a genuine moat in the worship chord-chart market. The codebase is well-architected, the offline-first data model is a strong differentiator, and the "Bring Your Own Cloud" sync strategy eliminates the #1 cost center (server-side storage) that kills indie SaaS margins.
 
 Your planned 4-tier pricing model (Free → $9 Sync → $12/mo Teams → $24/mo Church) is strategically sound, but the **codebase has critical gaps** between the plan and what's actually implemented. This audit covers the app from six professional perspectives, each with actionable recommendations.
 
@@ -263,7 +263,7 @@ Install/Visit → Onboarding Quiz → Demo Songs → Library → Edit → Chart
 
 ### 4.2 Competitive Positioning Matrix
 
-| Feature | Setlists MD | Planning Center | OnSong | SongPro | Ultimate Guitar |
+| Feature | Setlists.md | Planning Center | OnSong | SongPro | Ultimate Guitar |
 |---------|------------|-----------------|--------|---------|-----------------|
 | Offline-first | ✅ Full | ❌ Requires internet | ✅ | ✅ | ❌ |
 | Own your data (.md) | ✅ | ❌ Proprietary | ❌ | ❌ | ❌ |
@@ -280,7 +280,7 @@ Install/Visit → Onboarding Quiz → Demo Songs → Library → Edit → Chart
 
 ### 4.3 Go-to-Market Recommendations
 
-1. **Content marketing:** Create a blog post: "How to switch from Planning Center to Setlists MD in 30 minutes." Target the pain of PCO pricing.
+1. **Content marketing:** Create a blog post: "How to switch from Planning Center to Setlists.md in 30 minutes." Target the pain of PCO pricing.
 2. **CCLI partnership:** Reach out to CCLI. Your `ccli:` field parsing + usage tracking makes compliance easy. A partnership badge builds instant trust with church admins.
 3. **YouTube worship leaders:** Partner with 3-5 mid-tier worship YouTube channels. Offer them lifetime Pro for a demo video.
 4. **Church tech Facebook groups:** These groups (50-100K members) actively discuss tool alternatives. A single authentic post by a worship leader can drive 500+ signups.
@@ -409,7 +409,7 @@ This keeps you at **PCI SAQ-A** compliance (simplest level — you never touch c
 
 ## 8. Final Financial Verdict
 
-**Setlists MD has the fundamentals to build a $200K+ ARR niche SaaS business within 24 months.** The near-zero COGS, strong competitive moat (data ownership), and underserved market (small church worship teams priced out of Planning Center) make this an attractive opportunity.
+**Setlists.md has the fundamentals to build a $200K+ ARR niche SaaS business within 24 months.** The near-zero COGS, strong competitive moat (data ownership), and underserved market (small church worship teams priced out of Planning Center) make this an attractive opportunity.
 
 The single biggest risk is **launching without payment infrastructure and feature gates.** Every day users can access everything for free, you're training them that the product is free. Build the paywall before the audience forms their expectations.
 
@@ -507,7 +507,7 @@ These are the features that matter when a musician is **on stage in front of a c
 
 | Channel | Strategy | Cost |
 |---------|----------|------|
-| **Discord server** | Create a "Setlists MD Community" for worship leaders to share charts, request features, and help each other | Free |
+| **Discord server** | Create a "Setlists.md Community" for worship leaders to share charts, request features, and help each other | Free |
 | **Church tech Subreddit** (r/churchtechnology, r/worshipleaders) | Authentic participation, not spam. Answer questions, mention the app naturally when relevant. | Free |
 | **Worship leader newsletters** | Sponsor 2-3 worship leader email newsletters ($50-200/issue). Target: Worship Online, WorshipTogether, Loop Community. | $100-600 |
 | **Conference booths** | Attend 1-2 worship tech conferences (e.g., WFX, SALT) with a simple demo station | $500-2,000 |
@@ -553,7 +553,7 @@ Before accepting any payment, ensure these are addressed:
 - [ ] **Privacy Policy** — Publish at `/privacy`. Cover: what data you collect (email, display name), where it's stored (Supabase), third-party services (Stripe, Sentry), data retention, deletion rights.
 - [ ] **Terms of Service** — Publish at `/terms`. Cover: acceptable use, intellectual property (user owns their songs), service availability (no SLA for free tier), refund policy.
 - [ ] **Refund Policy** — For the $9 one-time Sync: "14-day money-back guarantee, no questions asked." For subscriptions: "Cancel anytime, no refund for partial months." Keep it simple and generous.
-- [ ] **CCLI Compliance Notice** — Add a disclaimer: "Setlists MD does not provide song lyrics. Users are responsible for their own CCLI licensing." This protects you from copyright claims.
+- [ ] **CCLI Compliance Notice** — Add a disclaimer: "Setlists.md does not provide song lyrics. Users are responsible for their own CCLI licensing." This protects you from copyright claims.
 - [ ] **Cookie/Tracking Disclosure** — Even though you don't use cookies, if Sentry or analytics are active, disclose them.
 - [ ] **Stripe Tax Handling** — Enable Stripe Tax for automatic sales tax / VAT collection. Without this, you're personally liable for uncollected tax in EU/UK/US states.
 - [ ] **Business Entity** — Consider forming an LLC before accepting payments. This separates personal liability from business risk. Cost: ~$100-500 depending on state.

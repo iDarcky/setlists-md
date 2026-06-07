@@ -169,7 +169,7 @@ export default function TopHeader({
         {hidePrimaryNav ? (
           <div className="flex items-center gap-2.5 min-w-0">
             <img src="/setlists-md-mark.svg" alt="" width="26" height="26" className="rounded-[7px]" draggable="false" />
-            <span className="text-label-14 font-bold text-[var(--ds-gray-1000)] tracking-tight truncate">Setlists MD</span>
+            <span className="text-label-14 font-bold text-[var(--ds-gray-1000)] tracking-tight truncate">Setlists.md</span>
           </div>
         ) : (
           <nav className="flex items-center gap-1 min-w-0">

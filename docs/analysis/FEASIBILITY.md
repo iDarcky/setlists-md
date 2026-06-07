@@ -1,7 +1,7 @@
 # Feasibility Analysis & Strategic Positioning
 
 ## Overview
-This document analyzes the current state of the Setlists MD codebase to assess its technical feasibility for launch and outlines the product's strategic positioning in the market, particularly against established competitors like Planning Center Online (PCO) and OnSong.
+This document analyzes the current state of the Setlists.md codebase to assess its technical feasibility for launch and outlines the product's strategic positioning in the market, particularly against established competitors like Planning Center Online (PCO) and OnSong.
 
 ## Technical Feasibility & Codebase Assessment
 
@@ -29,14 +29,14 @@ The codebase is currently robust enough for a "soft launch" or a public beta. Th
 Worship leaders and musicians currently rely on tools that are either highly expensive (OnSong), lock data into a proprietary ecosystem (Planning Center), or require complex infrastructure (Ableton, backing tracks).
 
 ### Our Differentiators
-Setlists MD positions itself as the "Obsidian of Worship Charts."
+Setlists.md positions itself as the "Obsidian of Worship Charts."
 1. **Data Ownership:** You own your files. They are simple `.md` files that can be edited in any text editor. You are never locked into a subscription to access your own charts.
 2. **Offline First:** The app doesn't require an internet connection to render charts or play a setlist.
 3. **Frictionless Onboarding:** No accounts required to start. Open the web app, and start playing.
 4. **Platform Agnostic:** It runs beautifully on an iPad, Android tablet, phone, or desktop browser.
 
 ### The Pitch
-"Your songs, your way. Setlists MD is a lightning-fast, offline-first chord chart renderer that uses simple Markdown files. Build setlists, transpose keys, and sync across devices via your own cloud storage—all for free, with zero vendor lock-in."
+"Your songs, your way. Setlists.md is a lightning-fast, offline-first chord chart renderer that uses simple Markdown files. Build setlists, transpose keys, and sync across devices via your own cloud storage—all for free, with zero vendor lock-in."
 
 ### Feasibility Summary
-Setlists MD is highly feasible as a product. The technology stack perfectly supports the product vision of a lightweight, offline, and portable tool. The challenge will not be technical, but rather behavioral: convincing worship leaders to migrate their libraries from established formats (like PDF or PCO's internal format) to Markdown. The "Smart Import" features planned on the roadmap will be critical to overcoming this friction.
+Setlists.md is highly feasible as a product. The technology stack perfectly supports the product vision of a lightweight, offline, and portable tool. The challenge will not be technical, but rather behavioral: convincing worship leaders to migrate their libraries from established formats (like PDF or PCO's internal format) to Markdown. The "Smart Import" features planned on the roadmap will be critical to overcoming this friction.

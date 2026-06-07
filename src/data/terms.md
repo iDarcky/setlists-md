@@ -2,21 +2,21 @@
 
 *Last updated: May 16, 2026*
 
-These Terms of Service ("Terms") govern your use of Setlists MD (the
-"Service"), provided by the Setlists MD team ("we", "us", or
-"Setlists MD"). By creating an account or using the Service, you
+These Terms of Service ("Terms") govern your use of Setlists.md (the
+"Service"), provided by the Setlists.md team ("we", "us", or
+"Setlists.md"). By creating an account or using the Service, you
 agree to these Terms.
 
 ## 1. The Service
 
-Setlists MD is a Progressive Web App for creating, organising, and
+Setlists.md is a Progressive Web App for creating, organising, and
 performing worship chord charts. The Service is available at
 [setlistsmd.insideahead.com](https://setlistsmd.insideahead.com) and
 through any native applications we may publish in the future.
 
 ## 2. Accounts
 
-You may use Setlists MD without an account. If you create an
+You may use Setlists.md without an account. If you create an
 account, you agree to:
 
 - Provide accurate information.
@@ -27,7 +27,7 @@ You must be at least 13 years old to create an account.
 
 ## 3. Plans and payment
 
-Setlists MD offers a free tier and the following paid plans:
+Setlists.md offers a free tier and the following paid plans:
 
 - **Pro** — a one-time payment that unlocks Bring-Your-Own-Cloud sync
   (Google Drive, Dropbox, OneDrive) and advanced layout features.
@@ -54,7 +54,7 @@ share it with.
 
 You are responsible for ensuring that you have the right to use Your
 Content, including the right to store and share any lyrics or
-musical works. Setlists MD does not grant you any rights to
+musical works. Setlists.md does not grant you any rights to
 copyrighted songs.
 
 ## 5. Acceptable use
@@ -74,7 +74,7 @@ We may suspend or terminate accounts that violate these rules.
 ## 6. Third-party services
 
 When you connect Google Drive, Dropbox, or OneDrive, your use of
-those services is governed by their own terms. Setlists MD is not
+those services is governed by their own terms. Setlists.md is not
 responsible for the availability, security, or content of those
 third-party services.
 
@@ -100,7 +100,7 @@ important files.**
 
 ## 9. Limitation of liability
 
-To the maximum extent permitted by law, the Setlists MD team will
+To the maximum extent permitted by law, the Setlists.md team will
 not be liable for any indirect, incidental, special, consequential,
 or punitive damages, or for any loss of data, profits, or revenue,
 arising out of or related to your use of the Service. Our total
@@ -119,7 +119,7 @@ updated Terms.
 ## 11. Governing law
 
 These Terms are governed by the laws of the United States and the
-state in which the operator of Setlists MD is resident, without
+state in which the operator of Setlists.md is resident, without
 regard to conflict-of-laws principles.
 
 ## 12. Contact

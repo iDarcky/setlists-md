@@ -1,4 +1,4 @@
-# Setlists MD Roadmap
+# Setlists.md Roadmap
 
 This document is the single trackable feature roadmap. It consolidates the
 earlier product spec, design migrations, and the old idea tracker. The

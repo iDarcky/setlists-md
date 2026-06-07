@@ -2,7 +2,7 @@
 
 ## General Questions
 
-### Is Setlists MD really free?
+### Is Setlists.md really free?
 Yes. The core app runs entirely in your browser without requiring a server, which means our hosting costs are near zero. You can use it, store songs, and build setlists completely for free.
 
 ### Where are my songs stored?
@@ -24,7 +24,7 @@ Check the following:
 3. Try tapping the "Sync Now" button in the Settings menu to force an immediate pull from the cloud.
 
 ### My Bluetooth pedal isn't scrolling.
-Setlists MD listens for standard keyboard arrow keys (Up/Down/Left/Right) and Page Up/Page Down.
+Setlists.md listens for standard keyboard arrow keys (Up/Down/Left/Right) and Page Up/Page Down.
 1. Ensure your pedal is paired to your device via Bluetooth.
 2. Go to **Settings > Pedal Mapping**.
 3. Tap the action you want to map, then press the button on your pedal to register it.

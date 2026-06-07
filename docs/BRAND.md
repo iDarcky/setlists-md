@@ -1,13 +1,13 @@
 # Brand & Design System ("Lydian")
 
-The single reference for how Setlists MD looks and feels. Consolidates the brand
+The single reference for how Setlists.md looks and feels. Consolidates the brand
 identity, the functional color system, and component status.
 
 ---
 
 ## 1. Brand Identity
 
-**Setlists MD** is the intelligent workspace for modern musicians — built for
+**Setlists.md** is the intelligent workspace for modern musicians — built for
 speed, precision, and reliability on stage.
 
 **Lydian** is the name of the design system. Like the musical mode it's named

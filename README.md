@@ -1,6 +1,6 @@
 <div align="center">
 
-# Setlists MD
+# Setlists.md
 
 **The worship chord-chart app that works on stage — offline, instant, and yours.**
 
@@ -12,7 +12,7 @@
 
 ## What it is
 
-Setlists MD is a Progressive Web App for worship teams. Install it on an iPad
+Setlists.md is a Progressive Web App for worship teams. Install it on an iPad
 or Android tablet, put it on your mic stand, and use it full-screen — it works
 completely offline, with no Wi-Fi and no login required.
 
@@ -34,7 +34,7 @@ chart, in the right key, that works when the building Wi-Fi doesn't.
 - **📡 Offline-first** — the whole app and your entire library live on your
   device. Full functionality at zero signal.
 - **📂 You own your songs** — every song is a portable Markdown (`.md`) file.
-  Export them anytime. Even if Setlists MD vanished tomorrow, your charts are
+  Export them anytime. Even if Setlists.md vanished tomorrow, your charts are
   plain, readable text.
 - **🎸 Built for musicians, not admins** — mid-song key changes, a built-in
   capo calculator, guitar tab blocks, chord diagrams, and personal notes that
@@ -67,7 +67,7 @@ file you can export, share, or back up to your own cloud.
 
 ## Status
 
-Setlists MD is in active development, heading toward a **public beta on
+Setlists.md is in active development, heading toward a **public beta on
 October 1**. It's live now at
 [setlistsmd.insideahead.com](https://setlistsmd.insideahead.com/).
 

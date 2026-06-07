@@ -1,4 +1,4 @@
-# Setlists MD - Multidisciplinary Product Audit
+# Setlists.md - Multidisciplinary Product Audit
 
 ## 1. The Developer Perspective
 ### Architecture & Sync Resilience
@@ -28,7 +28,7 @@ You are protected. The app handles data predominantly on the client side (`idb-k
 You are acting as a "Bring Your Own Storage" client, meaning you are completely shielded from copyright hosting liability, as the files live in the users' personal infrastructure.
 
 ### Worship Context (CCLI)
-The app is well-prepared. `parser.js` actively parses out `ccli:` metadata from the frontmatter. This allows churches to easily maintain compliance for CCLI reporting while projecting or distributing lyrics directly via Setlists MD.
+The app is well-prepared. `parser.js` actively parses out `ccli:` metadata from the frontmatter. This allows churches to easily maintain compliance for CCLI reporting while projecting or distributing lyrics directly via Setlists.md.
 
 ### Data Privacy
 **GDPR/CCPA Compliance:** The privacy overhead is practically zero. You do not maintain user databases, servers, or auth systems; the app relies securely on OAuth tokens that live on the device.
@@ -47,7 +47,7 @@ Since standard Bluetooth pedals emulate QWERTY keyboard clicks (Up/Down or Left/
 
 ## 4. The Customer Success / Onboarding Perspective
 ### The "Blank Canvas" Problem
-Setlists MD has solved this beautifully. `App.jsx` detects a new user (`songs.length === 0 && !savedSettings.onboardingComplete`) and deliberately prevents them from looking at an empty database. Instead, it seamlessly boots `Onboarding.jsx` and injects `DEMO_SONGS_MD` to immediately populate their library, allowing them to experiment with the syntax instantly.
+Setlists.md has solved this beautifully. `App.jsx` detects a new user (`songs.length === 0 && !savedSettings.onboardingComplete`) and deliberately prevents them from looking at an empty database. Instead, it seamlessly boots `Onboarding.jsx` and injects `DEMO_SONGS_MD` to immediately populate their library, allowing them to experiment with the syntax instantly.
 
 ### Migration Problem
 There is high friction here. Moving 300 existing songs over requires the user to already have them in a Markdown format to use `handleImportSong(...)` or `importSetlistZip`. 
@@ -64,7 +64,7 @@ Without an "Import from OnSong backup" or a bulk `.doc/.pdf/.cho` converter, boa
 
 ### The Moat (USP)
 Your marketing moat is unparalleled: **"Offline-First, Own Your Data."** 
-While Planning Center and OnSong lock users into subscription-based walled gardens or proprietary XML files, Setlists MD's decision to rely entirely on transparent, raw `.md` files in a user's local Dropbox makes alternative apps look bloated maliciously anti-consumer. You are offering total data ownership.
+While Planning Center and OnSong lock users into subscription-based walled gardens or proprietary XML files, Setlists.md's decision to rely entirely on transparent, raw `.md` files in a user's local Dropbox makes alternative apps look bloated maliciously anti-consumer. You are offering total data ownership.
 
 ---
 

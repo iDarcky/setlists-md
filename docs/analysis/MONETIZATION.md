@@ -1,6 +1,6 @@
 # Monetization Strategy & Cost Analysis
 
-The business model behind Setlists MD — how the tiers work, what they cost to
+The business model behind Setlists.md — how the tiers work, what they cost to
 run, and why the "free core, paid sync" approach (inspired by Obsidian) fits
 this market.
 
@@ -76,7 +76,7 @@ hosting cost.
    pure convenience.
 3. **Low risk for the user** — stop paying and you don't lose data, only the
    sync service. Files still export as `.md` or fall back to free Drive sync.
-   This also keeps Setlists MD's legal exposure low (it's a sync utility, not a
+   This also keeps Setlists.md's legal exposure low (it's a sync utility, not a
    lyrics host).
 
 ---

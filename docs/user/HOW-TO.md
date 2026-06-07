@@ -1,6 +1,6 @@
-# How to Use Setlists MD
+# How to Use Setlists.md
 
-Welcome to Setlists MD! This guide will take you from your first time opening the app to mastering its advanced features.
+Welcome to Setlists.md! This guide will take you from your first time opening the app to mastering its advanced features.
 
 ---
 
@@ -9,7 +9,7 @@ Welcome to Setlists MD! This guide will take you from your first time opening th
 Get up and running in 5 minutes.
 
 ### 1. Adding Your First Song
-Setlists MD doesn't use complicated databases; it uses simple text files.
+Setlists.md doesn't use complicated databases; it uses simple text files.
 1. Tap the **Library** tab at the bottom.
 2. Tap the **New Song** button.
 3. You'll see the Editor. By default, it opens the **Visual** tab.
@@ -35,7 +35,7 @@ Setlists MD doesn't use complicated databases; it uses simple text files.
 
 ## Part 2: Deep Dive
 
-Unlock the full power of Setlists MD.
+Unlock the full power of Setlists.md.
 
 ### 1. The Markdown (.md) Format
 Under the hood, all your songs are Markdown files. This makes them portable and future-proof. You can edit them in the app, or in any text editor (like Notepad or VS Code).
@@ -61,7 +61,7 @@ Was blind, but [D]now I [G]see
 * **`[Chords]`** are placed inside brackets directly before the word they are played on.
 
 ### 2. The Editor Modes
-Setlists MD offers three ways to edit your songs:
+Setlists.md offers three ways to edit your songs:
 * **Visual Editor:** The default. It shows the raw text but gives you a handy toolbar to insert chords, sections, and tabs without typing the brackets yourself.
 * **Form Editor:** A fully structured form. No markdown code is visible at all. Great for beginners creating a song from scratch.
 * **Raw Editor:** A plain text box for power users who know the format and want to type fast.
@@ -97,9 +97,9 @@ Different musicians need different views.
 * **Drummer:** (Coming soon) Minimizes lyrics and focuses on structure, tempo, and band cues.
 
 ### 5. Cloud Sync
-Setlists MD runs completely offline using your browser's local storage. To ensure you never lose your data, and to sync across devices:
+Setlists.md runs completely offline using your browser's local storage. To ensure you never lose your data, and to sync across devices:
 1. Go to **Settings**.
 2. Under Data/Sync, connect your Google Drive, Dropbox, or OneDrive.
-3. The app will create a `Setlists MD/` folder in your cloud and sync your `.md` files automatically.
+3. The app will create a `Setlists.md/` folder in your cloud and sync your `.md` files automatically.
 4. **Collaboration:** Share that cloud folder with your bandmates, and everyone stays in sync automatically!
 

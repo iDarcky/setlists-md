@@ -1,13 +1,13 @@
 # Architecture & Technical Overview
 
-This document explains how Setlists MD fits together for anyone reading the
+This document explains how Setlists.md fits together for anyone reading the
 codebase for the first time. For the authoritative, always-current technical
 reference, see `CLAUDE.md` at the repo root — this is the friendly orientation
 version.
 
 ## 1. High-Level Architecture
 
-Setlists MD is a **Progressive Web App (PWA)** built with React 19 and Vite 7.
+Setlists.md is a **Progressive Web App (PWA)** built with React 19 and Vite 7.
 It is **offline-first**:
 
 - The app and rendering engine are downloaded to the browser via a Service

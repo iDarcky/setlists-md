@@ -101,7 +101,7 @@ export default function LegalPage({ doc, onBack }) {
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <a href="/" className="flex items-center gap-2 text-copy-14 text-[var(--ds-gray-1000)] no-underline">
             <img src="/setlists-md-mark.svg" alt="" width="24" height="24" className="rounded" />
-            <span className="font-semibold">Setlists MD</span>
+            <span className="font-semibold">Setlists.md</span>
           </a>
           {onBack ? (
             <Button variant="secondary" size="sm" onClick={onBack}>Back to app</Button>
@@ -116,7 +116,7 @@ export default function LegalPage({ doc, onBack }) {
           <a href="/" className="hover:underline">Home</a>
           <a href="/privacy" className="hover:underline">{TITLES.privacy}</a>
           <a href="/terms" className="hover:underline">{TITLES.terms}</a>
-          <span className="ml-auto">© {new Date().getFullYear()} Setlists MD</span>
+          <span className="ml-auto">© {new Date().getFullYear()} Setlists.md</span>
         </footer>
       </main>
     </div>

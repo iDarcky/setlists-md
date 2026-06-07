@@ -2,7 +2,7 @@
 
 **Last Updated: April 29, 2026**
 
-Welcome to **Setlists MD**. We respect your privacy and are committed to protecting your personal data. This Privacy Policy explains how we handle your information and your rights under global privacy laws, including the GDPR (EU) and CCPA (USA).
+Welcome to **Setlists.md**. We respect your privacy and are committed to protecting your personal data. This Privacy Policy explains how we handle your information and your rights under global privacy laws, including the GDPR (EU) and CCPA (USA).
 
 ## 1. Data We Collect
 We only collect data that is strictly necessary for the operation of the app:
@@ -12,7 +12,7 @@ We only collect data that is strictly necessary for the operation of the app:
 
 ## 2. How We Use Your Data
 Your data is used exclusively to:
-*   Provide the Setlists MD service (syncing your library across devices).
+*   Provide the Setlists.md service (syncing your library across devices).
 *   Facilitate team collaboration.
 *   Verify your subscription status.
 
@@ -30,10 +30,10 @@ Regardless of where you live, we provide the following rights to all users:
 *   **Right to Erasure (The "Right to be Forgotten"):** You may delete your account at any time. This will permanently wipe your personal library and account information from our active databases.
 
 ## 5. Children's Privacy (COPPA)
-Setlists MD is intended for use by worship leaders and musicians. You must be **13 years of age or older** to create an account. We do not knowingly collect data from children under 13.
+Setlists.md is intended for use by worship leaders and musicians. You must be **13 years of age or older** to create an account. We do not knowingly collect data from children under 13.
 
 ## 6. Copyright Responsibility
-Setlists MD is a storage and organization tool. 
+Setlists.md is a storage and organization tool. 
 *   Users are responsible for ensuring they have the legal right or license (e.g., CCLI, SongSelect) to store and display copyrighted material (lyrics and chords) within the app.
 *   We act as a passive storage provider and do not monitor your private library for content.
 
