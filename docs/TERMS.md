@@ -20,6 +20,7 @@ Our service may contain links to third-party websites (e.g., Planning Center, CC
 
 ## 5. User Content & Copyright
 *   **Ownership:** You retain all ownership rights to the content (songs, charts, setlists) you create or import into ChordVault.
+*   **Public Template Library:** Setlists MD may provide a library of curated songs. These songs are licensed to Setlists MD by their respective copyright owners. You may import these songs into your private library for personal or ministry use.
 *   **Responsibility:** You are solely responsible for the content you upload.
 *   **Copyright Warranty:** By importing songs or lyrics, you represent and warrant that you have the legal right to do so (e.g., through a **CCLI**, **SongSelect**, or **PraiseCharts** license).
 *   **Takedown Policy:** We respond to notices of alleged copyright infringement according to the DMCA (USA) and EU Copyright Directive. If we receive a valid notice, we may remove infringing content without notice. See our full [Copyright Policy](./COPYRIGHT.md) for how to submit a notice.

@@ -8,17 +8,26 @@ infringement on the service.
 
 ## What Setlists.md Is
 
-Setlists.md is a private workspace for musicians. We do not maintain a
-catalog of songs, lyrics, or chord charts. All content stored in the
-service is uploaded or created by individual users in their own private
-libraries. Users are responsible for ensuring they hold the appropriate
+Setlists.md is a private workspace for musicians. While we primarily
+facilitate the management of private libraries, we also maintain a
+**Public Template Library** of curated songs provided by our artist partners.
+
+For all other content, users are responsible for ensuring they hold the appropriate
 licenses (such as **CCLI**, **SongSelect**, or **PraiseCharts**) for any
 copyrighted content they import.
 
+## Public Template Library
+
+Songs in our Public Template Library are distributed with the explicit
+permission of the copyright owners. If you are an artist or a church
+interested in sharing your original songs with our community, please
+see our [Artist Partnership Guide](./artist_partnership_guide.md).
+
 ## DMCA Takedown Notices (USA)
 
-If you believe that content stored in a Setlists.md user's library
-infringes your copyright, you may submit a notice under the Digital
+If you believe that content stored in our Public Template Library or a
+Setlists.md user's library infringes your copyright, you may submit a notice
+under the Digital
 Millennium Copyright Act (17 U.S.C. § 512). Your notice must include:
 
 1. A physical or electronic signature of the copyright owner or someone
