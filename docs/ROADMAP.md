@@ -1,6 +1,66 @@
 # Setlists MD Roadmap
 
-This document consolidates earlier specifications (`product-spec.md`) and design migrations into a single trackable feature roadmap. 
+This document is the single trackable feature roadmap. It consolidates the
+earlier product spec, design migrations, and the old idea tracker. The
+near-term launch plan lives at the top; the longer-horizon feature list
+follows.
+
+---
+
+## 0. Launch Plan — Public Beta, October 1
+
+Work is split into months. The goal of June/July is the unglamorous foundation
+(pipeline + legal + bug fixes); features come in August once the custom domain
+is in place.
+
+### 🔴 Launch blockers (must ship before going public)
+- [ ] **GDPR "Delete Account" / Right to be Forgotten** — wipe all user data
+      from Supabase. Legally required.
+- [ ] **Cookie / local-storage transparency notice** — footer notice (no
+      tracking, but still required).
+- [ ] **Account termination guardrails** — handle "orphan teams": block owner
+      deletion while a team has members; require transfer or team deletion.
+- [ ] **Reconcile the pricing model & fix `PricingScreen.jsx`** — three
+      different plan-naming schemes exist across the docs (`analysis/FINANCIAL.md`,
+      `analysis/MONETIZATION.md`, and the in-app `src/data/terms.md`). Pick one,
+      then make the pricing page match. **Product decision required first.**
+- [ ] **Member read-only gating** — members can currently reach the editor in
+      read-only team libraries; gate all editor entry points.
+- [ ] **Unsaved-changes guard** — "are you sure?" before leaving the editor.
+- [ ] **Preference cloud-sync push bug** — ~11 portable keys (chartTheme,
+      accentColor, sectionColors, etc.) never push; fix the dependency array.
+- [ ] **iPad PWA PDF export** — popup is blocked in standalone mode; ship the
+      inline-iframe fallback (see §7 below).
+- [ ] **Login scroll bug on mobile.**
+
+### 🟡 Beta quality (should ship, won't hard-block)
+- [ ] Display modes: Chords-only / Lyrics-only / Song-map.
+- [ ] ChordPro / OnSong import (migration is the #1 new-user friction point).
+- [ ] Notes per setlist.
+- [ ] WakeLock (stop the screen sleeping mid-performance).
+- [ ] Public-domain starter pack (~20 hymns) for first-run.
+- [ ] Setlist QR / URL share (a paid-tier feature — must exist if sold).
+- [ ] Replace remaining native `confirm()`/`alert()` with custom dialogs.
+- [ ] Multi-filter library view.
+
+### Suggested cadence
+| Month | Theme |
+| :--- | :--- |
+| **June** | Pipeline (CI, staging, Sentry) + legal blockers |
+| **July** | Bug fixes (iPad PDF, unsaved guard, permissions, sync, login) |
+| **August** | Custom domain + Resend email + Google/Apple login + first features |
+| **September** | Polish + private soft-launch to 5–10 worship teams |
+| **October 1** | **Public beta** |
+
+### Production pipeline gaps (see also: no `.github/` yet)
+- [ ] **CI** — GitHub Actions running `build + lint + test` on every PR.
+- [ ] **Branch protection** on `master` (require CI to pass before merge).
+- [ ] **PR + issue templates** (`.github/`).
+- [ ] **Staging environment** — second Supabase project + Vercel project.
+- [ ] **Error monitoring** — turn on Sentry (`VITE_SENTRY_DSN`) before launch.
+- [ ] **Release tags** — tag each release on `master` (`git tag v0.x.0`).
+
+---
 
 ## 1. Design System Migration (Geist/Tailwind v4)
 *(See `design-system.md` for full UI component implementation status)*

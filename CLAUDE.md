@@ -492,7 +492,7 @@ Each team/church workspace is its own Stripe subscription, paid by the team
 - The `profiles.preferences` column is optional at runtime — `AuthProvider` falls back to a base `select('id, email, display_name, is_pro, subscription_tier')` if the column doesn't exist, so sign-in works even before the migration is applied. The push side swallows the error.
 - Auth callback URL handling is split: OAuth stays on `/auth/callback` (dedicated `AuthCallback.jsx`). Magic links and recovery links land on `/` and rely on App.jsx's cleanup effect — don't add a new redirect target without wiring a matching cleanup branch.
 - `RecoveryScreen.handleBack` calls `signOut()` *before* invoking the parent `onBack`. If you ever route away from it through another path, make sure that path also ends the recovery session.
-- PDF export uses `window.open('about:blank', '_blank', ...)` followed by `document.write(...)` (see `src/pdf/exportSongPdf.js` and `src/pdf/exportSetlistPdf.js`). This is unreliable inside iOS PWAs launched from the Home Screen (manifest declares `display: 'standalone'`) — the popup handle often comes back `null` or bounces out to Safari, breaking the `window.opener.localStorage` pref-sync hook. There is no popup-permission setting in an installed PWA, so the user can't recover. The roadmap (`docs/roadmap.md` §7) tracks an inline-iframe fallback path; until that ships, expect the feature to feel broken on iPad standalone mode.
+- PDF export uses `window.open('about:blank', '_blank', ...)` followed by `document.write(...)` (see `src/pdf/exportSongPdf.js` and `src/pdf/exportSetlistPdf.js`). This is unreliable inside iOS PWAs launched from the Home Screen (manifest declares `display: 'standalone'`) — the popup handle often comes back `null` or bounces out to Safari, breaking the `window.opener.localStorage` pref-sync hook. There is no popup-permission setting in an installed PWA, so the user can't recover. The roadmap (`docs/ROADMAP.md` §7) tracks an inline-iframe fallback path; until that ships, expect the feature to feel broken on iPad standalone mode.
 - `SetlistOverview` is rendered in **two places**: (1) the dedicated `setlist-view` route in `App.jsx`, and (2) the desktop preview pane inside `Setlists.jsx`. Both wire its export callbacks (`onExportZip`, `onExportPdfOverview`, `onExportPdfFull`) — when you add or rename one, update *both* call sites or the desktop preview will silently no-op.
 
 ## Known Correctness Issues (verify before promoting the Church/Team tier)
@@ -525,5 +525,5 @@ independently-mergeable slices** — never a long-lived big-bang branch. Order:
 (Lyrics-only / Chords-only / Song-map, Nashville + Do-Re-Mi notation, condensed
 sections), (4) setlist + notes rework, (5) Church/Team hardening (the bugs
 above). TypeScript migration is deferred and done incrementally per touched
-file, not as a phase. `docs/roadmap.md` holds the longer-horizon list.
+file, not as a phase. `docs/ROADMAP.md` holds the longer-horizon list.
 
