@@ -4,11 +4,13 @@ import { IconButton } from './ui/IconButton';
 import { Tabs } from './ui/Tabs';
 import ImportTab from './newSong/ImportTab';
 import PasteTab from './newSong/PasteTab';
+import AiImportTab from './newSong/AiImportTab';
 import BrowseTab from './newSong/BrowseTab';
 
 const TABS = [
   { id: 'import', label: 'Import' },
   { id: 'paste', label: 'Paste' },
+  { id: 'ai', label: '✨ AI Import' },
   { id: 'browse', label: 'Browse Public Domain Songs' },
 ];
 
@@ -115,6 +117,7 @@ export default function NewSongModal({
           {tab === 'paste' && (
             <PasteTab onSubmit={onSmartImport} isMobile={isMobile} />
           )}
+          {tab === 'ai' && <AiImportTab onImportSongs={onImportSongs} />}
           {tab === 'browse' && <BrowseTab />}
         </div>
 
