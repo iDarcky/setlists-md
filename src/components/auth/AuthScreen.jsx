@@ -67,7 +67,7 @@ const AppleIcon = () => (
 
 const APPLE_ENABLED = import.meta.env.VITE_ENABLE_APPLE_SIGNIN === 'true';
 
-export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' }) {
+export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin', onShowLegal }) {
   const {
     signInWithGoogle,
     signInWithApple,
@@ -398,6 +398,26 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
             >
               {isSignUp ? 'Sign in instead' : 'Create an account'}
             </Button>
+
+            {isSignUp && (
+              <p className="text-center text-copy-12 text-[var(--modes-text-dim)] m-0 pt-1 leading-relaxed">
+                By creating an account you agree to our{' '}
+                {onShowLegal ? (
+                  <>
+                    <button type="button" onClick={() => onShowLegal('terms')} className="underline underline-offset-2 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-muted)] text-copy-12">Terms of Service</button>
+                    {' '}and{' '}
+                    <button type="button" onClick={() => onShowLegal('privacy')} className="underline underline-offset-2 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-muted)] text-copy-12">Privacy Policy</button>
+                  </>
+                ) : (
+                  <>
+                    <a href="/terms" className="underline underline-offset-2 text-[var(--modes-text-muted)]">Terms of Service</a>
+                    {' '}and{' '}
+                    <a href="/privacy" className="underline underline-offset-2 text-[var(--modes-text-muted)]">Privacy Policy</a>
+                  </>
+                )}
+                .
+              </p>
+            )}
           </form>
         </div>
       </div>

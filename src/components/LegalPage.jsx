@@ -3,6 +3,7 @@ import privacyRaw from '../data/privacy.md?raw';
 import termsRaw from '../data/terms.md?raw';
 import copyrightRaw from '../data/copyright.md?raw';
 import { Button } from './ui/Button';
+import ScreenHeader from './ui/ScreenHeader';
 
 const SOURCES = { privacy: privacyRaw, terms: termsRaw, copyright: copyrightRaw };
 const TITLES = {
@@ -106,6 +107,46 @@ export default function LegalPage({ doc, onBack }) {
     return () => { document.title = previous; };
   }, [title]);
 
+  // Footer links navigate in-app when onBack is available, otherwise use hrefs.
+  const footerLink = (docKey, label) =>
+    onBack ? (
+      <button
+        key={docKey}
+        type="button"
+        onClick={() => {
+          if (typeof window !== 'undefined') window.history.pushState({}, '', `/${docKey}`);
+          // Caller must handle navigating to the right legal view; we just update the URL.
+          // When accessed standalone, fall back to href navigation.
+        }}
+        className="bg-transparent border-none p-0 cursor-pointer hover:underline text-[var(--ds-gray-700)] text-copy-13"
+      >
+        {label}
+      </button>
+    ) : (
+      <a key={docKey} href={`/${docKey}`} className="hover:underline">{label}</a>
+    );
+
+  // Inside app shell: use ScreenHeader + scrollable content (no standalone chrome).
+  if (onBack) {
+    return (
+      <div className="flex flex-col h-full">
+        <ScreenHeader onBack={onBack} title={title} />
+        <div className="flex-1 overflow-y-auto">
+          <main className="max-w-3xl mx-auto px-6 py-10">
+            <article>{body}</article>
+            <footer className="mt-16 pt-8 border-t border-[var(--ds-gray-400)] text-copy-13 text-[var(--ds-gray-700)] flex flex-wrap gap-4">
+              <a href="/privacy" className="hover:underline">{TITLES.privacy}</a>
+              <a href="/terms" className="hover:underline">{TITLES.terms}</a>
+              <a href="/copyright" className="hover:underline">{TITLES.copyright}</a>
+              <span className="ml-auto">© {new Date().getFullYear()} Setlists.md</span>
+            </footer>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  // Standalone (direct URL access): full-page with its own brand header.
   return (
     <div className="min-h-screen bg-[var(--ds-background-100)]">
       <header className="sticky top-0 z-10 bg-[var(--ds-background-100)]/95 backdrop-blur border-b border-[var(--ds-gray-400)]">
@@ -114,11 +155,7 @@ export default function LegalPage({ doc, onBack }) {
             <img src="/setlists-md-mark.svg" alt="" width="24" height="24" className="rounded" />
             <span className="font-semibold">Setlists.md</span>
           </a>
-          {onBack ? (
-            <Button variant="secondary" size="sm" onClick={onBack}>Back to app</Button>
-          ) : (
-            <a href="/" className="text-copy-14 text-[var(--color-brand)] no-underline hover:underline">Open the app</a>
-          )}
+          <a href="/" className="text-copy-14 text-[var(--color-brand)] no-underline hover:underline">Open the app</a>
         </div>
       </header>
       <main className="max-w-3xl mx-auto px-6 py-10">

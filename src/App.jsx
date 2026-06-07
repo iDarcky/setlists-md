@@ -937,7 +937,10 @@ export default function App() {
     }
     navigate('chart', { song });
   };
-  const goEditor = (song = null) => navigate('editor', { song });
+  const goEditor = (song = null) => {
+    if (isTeamReadOnly) return;
+    navigate('editor', { song });
+  };
   const goSetlistBuild = (sl = null) => navigate('setlist-build', { setlist: sl });
   const goSetlistView = (sl) => navigate('setlist-view', { setlist: sl });
   const goSetlistPlay = (sl) => navigate('setlist-play', { setlist: sl });
@@ -1496,25 +1499,6 @@ export default function App() {
     }
   };
 
-  if (view === 'legal-privacy' || view === 'legal-terms' || view === 'legal-copyright') {
-    const doc = view === 'legal-privacy' ? 'privacy' : view === 'legal-terms' ? 'terms' : 'copyright';
-    return (
-      <ErrorBoundary>
-        <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
-          <LegalPage
-            doc={doc}
-            onBack={() => {
-              if (typeof window !== 'undefined') {
-                window.history.pushState({}, '', '/');
-              }
-              goToMainView('home');
-            }}
-          />
-        </Suspense>
-      </ErrorBoundary>
-    );
-  }
-
   if (view === 'auth-callback') {
     return (
       <ErrorBoundary>
@@ -1619,7 +1603,12 @@ export default function App() {
       <Toaster />
       <OfflineBanner />
       {view === 'signin' && (
-        <AuthScreen onBack={goBack} onSignedIn={() => goToMainView('home')} defaultMode={authStartMode} />
+        <AuthScreen
+          onBack={goBack}
+          onSignedIn={() => goToMainView('home')}
+          defaultMode={authStartMode}
+          onShowLegal={(doc) => navigate(`legal-${doc}`)}
+        />
       )}
       {view === 'onboarding' && (
         <div style={{ height: '100dvh', overflowY: 'auto', overflowX: 'hidden' }}>
@@ -1966,6 +1955,15 @@ export default function App() {
               onSignIn={() => {
                 setAuthStartMode('signup');
                 navigate('signin');
+              }}
+            />
+          )}
+          {(view === 'legal-privacy' || view === 'legal-terms' || view === 'legal-copyright') && (
+            <LegalPage
+              doc={view === 'legal-privacy' ? 'privacy' : view === 'legal-terms' ? 'terms' : 'copyright'}
+              onBack={() => {
+                if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
+                goToMainView('home');
               }}
             />
           )}
