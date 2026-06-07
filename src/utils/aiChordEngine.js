@@ -1,8 +1,9 @@
+import Meyda from 'meyda';
+
 /**
- * PoC AI Chord Detection Engine
+ * AI Chord Detection Engine
  *
- * Uses a basic Chromagram + Template Matching approach.
- * In a production version, this would be replaced by Essentia.js or a TensorFlow.js model.
+ * Uses Meyda for Chromagram extraction and template matching for chord recognition.
  */
 
 const CHROMA_NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -26,13 +27,6 @@ for (let i = 0; i < 12; i++) {
 }
 
 /**
- * Maps a frequency in Hz to a MIDI note number.
- */
-function freqToMidi(f) {
-  return Math.round(69 + 12 * Math.log2(f / 440));
-}
-
-/**
  * Calculates the cosine similarity between two vectors.
  */
 function similarity(v1, v2) {
@@ -48,14 +42,12 @@ function similarity(v1, v2) {
 export async function detectChords(audioFile, onProgress) {
   const context = new (window.AudioContext || window.webkitAudioContext)();
   const arrayBuffer = await audioFile.arrayBuffer();
-  onProgress(20);
+  onProgress(10);
 
   const audioBuffer = await context.decodeAudioData(arrayBuffer);
-  onProgress(40);
+  onProgress(30);
 
-  const sampleRate = audioBuffer.sampleRate;
   const data = audioBuffer.getChannelData(0); // Use mono
-  const duration = audioBuffer.duration;
 
   // Analysis parameters
   const bufferSize = 4096;
@@ -64,55 +56,61 @@ export async function detectChords(audioFile, onProgress) {
 
   const results = [];
 
-  // In a real implementation, we would use a proper FFT here.
-  // For the PoC, we'll simulate the analysis windows but focus on the "logic flow".
-  // To make it feel real, we'll process chunks.
-
-  for (let i = 0; i < windowCount; i += 10) { // Step 10 to speed up PoC
+  // Process the audio in chunks
+  for (let i = 0; i < windowCount; i++) {
     const start = i * hopSize;
-    // const chunk = data.slice(start, start + bufferSize);
+    const signal = data.slice(start, start + bufferSize);
 
-    // MOCK: Generate a pseudo-chroma vector based on the "average" content
-    // In reality, this would be computed via FFT -> Log-Frequency Map -> Chroma
-    const mockChroma = new Array(12).fill(0).map(() => Math.random() * 0.5);
-    // Add some "dominant" notes to make it match templates
-    const dominant = Math.floor(Math.random() * 12);
-    mockChroma[dominant] = 1;
-    mockChroma[(dominant + 4) % 12] = 0.8;
-    mockChroma[(dominant + 7) % 12] = 0.9;
+    // Meyda extraction
+    const features = Meyda.extract('chroma', signal);
 
-    let bestMatch = { name: 'N.C.', score: -1 };
-    for (const t of TEMPLATES) {
-      const s = similarity(mockChroma, t.vector);
-      if (s > bestMatch.score) {
-        bestMatch = { name: t.name, score: s };
+    if (features) {
+      let bestMatch = { name: 'N.C.', score: -1 };
+      for (const t of TEMPLATES) {
+        const s = similarity(features, t.vector);
+        if (s > bestMatch.score) {
+          bestMatch = { name: t.name, score: s };
+        }
       }
+
+      results.push({
+        time: (start / audioBuffer.sampleRate).toFixed(2),
+        chord: bestMatch.name
+      });
     }
 
-    results.push({
-      time: (start / sampleRate).toFixed(2),
-      chord: bestMatch.name
-    });
-
-    if (i % 100 === 0) {
-      onProgress(40 + Math.floor((i / windowCount) * 50));
-      // Yield to main thread
+    if (i % 50 === 0) {
+      onProgress(30 + Math.floor((i / windowCount) * 60));
+      // Yield to main thread to keep UI responsive
       await new Promise(resolve => setTimeout(resolve, 0));
     }
   }
 
   onProgress(95);
 
-  // Post-processing: Smooth chords (remove rapid flickering)
+  // Post-processing: Smooth chords and remove "N.C." flickering
   const smoothed = [];
-  for (let i = 0; i < results.length; i++) {
-    const window = results.slice(Math.max(0, i - 2), i + 3);
-    const counts = {};
-    window.forEach(r => counts[r.chord] = (counts[r.chord] || 0) + 1);
-    const winner = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+  const minDuration = 0.5; // seconds
+  let current = null;
 
-    if (smoothed.length === 0 || smoothed[smoothed.length - 1].chord !== winner) {
-      smoothed.push({ time: results[i].time, chord: winner });
+  for (let i = 0; i < results.length; i++) {
+    const res = results[i];
+    if (!current || current.chord !== res.chord) {
+      if (current) {
+        smoothed.push(current);
+      }
+      current = { ...res };
+    }
+  }
+  if (current) smoothed.push(current);
+
+  // Filter out very short segments (noise)
+  const finalChords = [];
+  for (let i = 0; i < smoothed.length; i++) {
+    const nextTime = smoothed[i+1] ? parseFloat(smoothed[i+1].time) : audioBuffer.duration;
+    const duration = nextTime - parseFloat(smoothed[i].time);
+    if (duration > minDuration) {
+      finalChords.push(smoothed[i]);
     }
   }
 
@@ -124,11 +122,11 @@ export async function detectChords(audioFile, onProgress) {
     }
   ];
 
-  // Group into lines for readability
+  // Group into lines for readability (4-8 chords per line)
   let currentLine = '';
-  for (let i = 0; i < smoothed.length; i++) {
-    currentLine += `[${smoothed[i].chord}]   `;
-    if ((i + 1) % 4 === 0) {
+  for (let i = 0; i < finalChords.length; i++) {
+    currentLine += `[${finalChords[i].chord}]   `;
+    if ((i + 1) % 6 === 0) {
       sections[0].lines.push(currentLine.trim());
       currentLine = '';
     }
@@ -138,8 +136,8 @@ export async function detectChords(audioFile, onProgress) {
   return {
     title: audioFile.name.replace(/\.[^/.]+$/, "").replace(/_/g, ' '),
     artist: 'AI Analysis',
-    key: smoothed[0]?.chord.replace('m', '') || 'C',
-    tempo: 120, // Real BPM detection would go here
+    key: finalChords[0]?.chord.replace('m', '') || 'C',
+    tempo: 120, // Tempo detection would be a separate pass
     sections
   };
 }

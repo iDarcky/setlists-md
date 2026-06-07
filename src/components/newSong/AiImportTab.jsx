@@ -4,6 +4,7 @@ import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Spinner } from '../ui/Spinner';
 import { toast } from '../ui/use-toast';
+import { IconButton } from '../ui/IconButton';
 import { detectChords } from '../../utils/aiChordEngine';
 
 export default function AiImportTab({ onImportSongs }) {
@@ -89,20 +90,30 @@ export default function AiImportTab({ onImportSongs }) {
               <IconButton variant="ghost" size="sm" onClick={() => setFile(null)}>✕</IconButton>
             </div>
 
-            <Button
-              className="w-full py-6 text-copy-16"
-              disabled={analyzing}
-              onClick={handleStartAnalysis}
-            >
-              {analyzing ? (
-                <div className="flex items-center gap-2">
-                  <Spinner size="sm" />
-                  <span>Analyzing Chords ({progress}%)</span>
+            <div className="w-full space-y-2">
+              <Button
+                className="w-full py-6 text-copy-16"
+                disabled={analyzing}
+                onClick={handleStartAnalysis}
+              >
+                {analyzing ? (
+                  <div className="flex items-center gap-2">
+                    <Spinner size="sm" />
+                    <span>Analyzing Chords ({progress}%)</span>
+                  </div>
+                ) : (
+                  "Start AI Analysis"
+                )}
+              </Button>
+              {analyzing && (
+                <div className="w-full h-1.5 bg-[var(--ds-gray-300)] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[var(--color-brand)] transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
-              ) : (
-                "Start AI Analysis"
               )}
-            </Button>
+            </div>
           </div>
         )}
         <input
@@ -136,16 +147,5 @@ export default function AiImportTab({ onImportSongs }) {
         </div>
       </div>
     </div>
-  );
-}
-
-function IconButton({ children, onClick, className = '' }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`p-2 rounded-full hover:bg-[var(--ds-gray-300)] text-[var(--ds-gray-600)] transition-colors ${className}`}
-    >
-      {children}
-    </button>
   );
 }
