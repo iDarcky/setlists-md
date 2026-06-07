@@ -174,6 +174,7 @@ export default function App() {
       if (window.location.pathname === '/auth/google-drive') return 'google-drive-callback';
       if (window.location.pathname === '/privacy') return 'legal-privacy';
       if (window.location.pathname === '/terms') return 'legal-terms';
+      if (window.location.pathname === '/copyright') return 'legal-copyright';
       if (/(type=recovery|#access_token=.*type=recovery)/.test(window.location.hash + window.location.search)) return 'recovery';
     }
     return 'loading';
@@ -1495,8 +1496,8 @@ export default function App() {
     }
   };
 
-  if (view === 'legal-privacy' || view === 'legal-terms') {
-    const doc = view === 'legal-privacy' ? 'privacy' : 'terms';
+  if (view === 'legal-privacy' || view === 'legal-terms' || view === 'legal-copyright') {
+    const doc = view === 'legal-privacy' ? 'privacy' : view === 'legal-terms' ? 'terms' : 'copyright';
     return (
       <ErrorBoundary>
         <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
@@ -1585,9 +1586,13 @@ export default function App() {
   // already used across this workspace's setlists (foundation for per-service
   // stats; a canonical team_services table can replace this source later).
   const knownServices = [...new Set(setlists.map(s => s.service).filter(Boolean))].sort();
+  // Display label for the personal plan. The internal `team` tier is branded
+  // "Band" in the UI; everything else title-cases its tier key.
+  const PLAN_DISPLAY = { free: 'Free', sync: 'Sync', team: 'Band', church: 'Church' };
   let plan = 'Free';
   if (profile?.subscription_tier) {
-    plan = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
+    const tier = profile.subscription_tier.toLowerCase();
+    plan = PLAN_DISPLAY[tier] || (tier.charAt(0).toUpperCase() + tier.slice(1));
   } else if (profile?.is_pro) {
     plan = 'Pro';
   }
@@ -1615,16 +1620,6 @@ export default function App() {
       <OfflineBanner />
       {view === 'signin' && (
         <AuthScreen onBack={goBack} onSignedIn={() => goToMainView('home')} defaultMode={authStartMode} />
-      )}
-      {view === 'upgrade' && (
-        <PricingScreen
-          onBack={goBack}
-          settings={settings}
-          onSignIn={() => {
-            setAuthStartMode('signup');
-            navigate('signin');
-          }}
-        />
       )}
       {view === 'onboarding' && (
         <div style={{ height: '100dvh', overflowY: 'auto', overflowX: 'hidden' }}>
@@ -1661,8 +1656,8 @@ export default function App() {
           onDone={() => setView('home')}
         />
       )}
-      {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && (
-        <DesktopLayout 
+      {!['onboarding', 'signin', 'recovery'].includes(view) && (
+        <DesktopLayout
           activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
           onNavigate={goToMainView} 
           isFullscreen={view === 'setlist-performance' || view === 'setlist-play' || view === 'setlist-practice' || (isFullscreen && (view === 'library' || view === 'setlists'))}
@@ -1964,6 +1959,16 @@ export default function App() {
               onGoHome={handleFinaleGoHome}
             />
           )}
+          {view === 'upgrade' && (
+            <PricingScreen
+              onBack={goBack}
+              settings={settings}
+              onSignIn={() => {
+                setAuthStartMode('signup');
+                navigate('signin');
+              }}
+            />
+          )}
           {view === "design" && (
             <LydianShowcase onBack={goBack} />
           )}
@@ -2009,6 +2014,7 @@ export default function App() {
               onSyncNow={triggerSync}
               onRequestSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
               onUpgrade={() => navigate('upgrade')}
+              onShowLegal={(doc) => navigate(`legal-${doc}`)}
               plan={plan}
               isSignedIn={isSignedIn}
               displayName={displayName}
@@ -2037,7 +2043,7 @@ export default function App() {
           {view === 'team' && (
             <TeamScreen
               onBack={goBack}
-              onUpgrade={() => navigate('pricing')}
+              onUpgrade={() => navigate('upgrade')}
               onSwitchLibrary={switchWorkspace}
               initialCreate={teamCreateIntent}
               onCreateHandled={() => setTeamCreateIntent(false)}

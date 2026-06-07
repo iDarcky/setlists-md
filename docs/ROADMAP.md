@@ -43,6 +43,19 @@ is in place.
 - [ ] Replace remaining native `confirm()`/`alert()` with custom dialogs.
 - [ ] Multi-filter library view.
 
+### 🎨 Page redesigns to match the new app shell
+The plan model is now Free / Pro (one-time, BYOC) / Sync ($/mo) for solo, and
+Band (10 seats) / Church (30 seats) for workspaces. The following screens were
+updated for content but still need a visual pass to sit natively inside the new
+app shell (top header, modes theme, consistent cards):
+- [ ] **Pricing page** (`PricingScreen.jsx`) — now renders inside the app shell
+      with the top header; redesign the hero + tier cards to match the new
+      Dashboard aesthetic rather than the legacy `modes` overlay.
+- [ ] **Team page** (`TeamScreen.jsx`) — align create/manage flows and the
+      tier picker with the new design; reflect Band/Church naming.
+- [ ] **Preferences/Settings** (`Settings.jsx`) — modernise the panel layout and
+      the plan/about sections to match the shell.
+
 ### Suggested cadence
 | Month | Theme |
 | :--- | :--- |
@@ -52,8 +65,9 @@ is in place.
 | **September** | Polish + private soft-launch to 5–10 worship teams |
 | **October 1** | **Public beta** |
 
-### Production pipeline gaps (see also: no `.github/` yet)
-- [ ] **CI** — GitHub Actions running `build + lint + test` on every PR.
+### Production pipeline gaps
+- [x] **CI** — GitHub Actions running `lint + test + build` on every PR/push
+      to `master` (`.github/workflows/ci.yml`).
 - [ ] **Branch protection** on `master` (require CI to pass before merge).
 - [ ] **PR + issue templates** (`.github/`).
 - [ ] **Staging environment** — second Supabase project + Vercel project.

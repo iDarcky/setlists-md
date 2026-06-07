@@ -1,10 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import privacyRaw from '../data/privacy.md?raw';
 import termsRaw from '../data/terms.md?raw';
+import copyrightRaw from '../data/copyright.md?raw';
 import { Button } from './ui/Button';
 
-const SOURCES = { privacy: privacyRaw, terms: termsRaw };
-const TITLES = { privacy: 'Privacy Policy', terms: 'Terms of Service' };
+const SOURCES = { privacy: privacyRaw, terms: termsRaw, copyright: copyrightRaw };
+const TITLES = {
+  privacy: 'Privacy Policy',
+  terms: 'Terms of Service',
+  copyright: 'Copyright Policy & DMCA',
+};
 
 function renderInline(text, keyPrefix) {
   const parts = [];
@@ -95,6 +100,12 @@ export default function LegalPage({ doc, onBack }) {
   const body = useMemo(() => renderMarkdown(SOURCES[doc] || ''), [doc]);
   const title = TITLES[doc] || 'Legal';
 
+  useEffect(() => {
+    const previous = document.title;
+    document.title = `${title} · Setlists.md`;
+    return () => { document.title = previous; };
+  }, [title]);
+
   return (
     <div className="min-h-screen bg-[var(--ds-background-100)]">
       <header className="sticky top-0 z-10 bg-[var(--ds-background-100)]/95 backdrop-blur border-b border-[var(--ds-gray-400)]">
@@ -113,9 +124,9 @@ export default function LegalPage({ doc, onBack }) {
       <main className="max-w-3xl mx-auto px-6 py-10">
         <article>{body}</article>
         <footer className="mt-16 pt-8 border-t border-[var(--ds-gray-400)] text-copy-13 text-[var(--ds-gray-700)] flex flex-wrap gap-4">
-          <a href="/" className="hover:underline">Home</a>
           <a href="/privacy" className="hover:underline">{TITLES.privacy}</a>
           <a href="/terms" className="hover:underline">{TITLES.terms}</a>
+          <a href="/copyright" className="hover:underline">{TITLES.copyright}</a>
           <span className="ml-auto">© {new Date().getFullYear()} Setlists.md</span>
         </footer>
       </main>

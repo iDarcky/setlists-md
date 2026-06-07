@@ -164,7 +164,7 @@ const PLAN_DESCRIPTIONS = {
   church: 'Everything in Team plus multi-service scheduling. Up to 30 seats.',
 };
 
-const PLAN_LABELS = { free: 'Free', sync: 'Sync', team: 'Team', church: 'Church' };
+const PLAN_LABELS = { free: 'Free', pro: 'Pro', sync: 'Sync', team: 'Band', church: 'Church' };
 
 // ─── Sub-panel renderers — pure, just take what they need ────────────────
 
@@ -535,9 +535,9 @@ function planSummary(plan) {
   return `${label} plan`;
 }
 
-function AboutPanel({ isSignedIn, displayName }) {
-  const linkClass = 'hover:text-[var(--modes-text)] transition-colors underline-offset-4 underline decoration-[var(--modes-border)]';
-  const docBase = 'https://github.com/iDarcky/setlists-md/blob/master/docs';
+function AboutPanel({ isSignedIn, displayName, onShowLegal }) {
+  const linkClass = 'text-left hover:text-[var(--modes-text)] transition-colors underline-offset-4 underline decoration-[var(--modes-border)] bg-transparent border-none p-0 cursor-pointer';
+  const showLegal = onShowLegal || (() => {});
   return (
     <div className="flex flex-col gap-4">
       <div className="modes-card p-5 flex flex-col gap-3">
@@ -586,16 +586,16 @@ function AboutPanel({ isSignedIn, displayName }) {
           setlists.md is a private workspace; you are responsible for licensing
           the content you import. We act on valid copyright takedown notices.
         </p>
-        <div className="flex flex-col gap-2 mt-1 text-copy-14">
-          <a href={`${docBase}/PRIVACY.md`} target="_blank" rel="noopener noreferrer" className={linkClass}>
+        <div className="flex flex-col items-start gap-2 mt-1 text-copy-14">
+          <button type="button" onClick={() => showLegal('privacy')} className={linkClass}>
             Privacy Policy
-          </a>
-          <a href={`${docBase}/TERMS.md`} target="_blank" rel="noopener noreferrer" className={linkClass}>
+          </button>
+          <button type="button" onClick={() => showLegal('terms')} className={linkClass}>
             Terms of Service
-          </a>
-          <a href={`${docBase}/COPYRIGHT.md`} target="_blank" rel="noopener noreferrer" className={linkClass}>
+          </button>
+          <button type="button" onClick={() => showLegal('copyright')} className={linkClass}>
             Copyright Policy &amp; DMCA
-          </a>
+          </button>
           <a
             href="mailto:legal@setlists.md?subject=Content%20report"
             className={linkClass}
@@ -669,6 +669,7 @@ export default function Settings({
   onSyncNow,
   onRequestSignIn,
   onUpgrade,
+  onShowLegal,
   plan = 'Free',
   isSignedIn = false,
   displayName = '',
@@ -761,7 +762,7 @@ export default function Settings({
           />
         );
       case 'about':
-        return <AboutPanel isSignedIn={isSignedIn} displayName={displayName} />;
+        return <AboutPanel isSignedIn={isSignedIn} displayName={displayName} onShowLegal={onShowLegal} />;
       default:
         return null;
     }

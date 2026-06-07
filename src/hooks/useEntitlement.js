@@ -3,6 +3,12 @@ import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useTeam } from '../auth/useTeam';
 
 // Plan hierarchy — higher rank = more access.
+//
+// Single-user tiers: free → sync. The one-time **Pro** purchase is not a rank
+// here; it's an overlay flag (`profile.is_pro`) that unlocks the same
+// single-user paid features as Sync but via Bring-Your-Own-Cloud (see the
+// carve-out below). Workspace tiers: **Band** (internal key `team`, 10 seats)
+// and **Church** (`church`, 30 seats) gate on the workspace's own plan.
 const PLAN_RANK = { free: 0, sync: 1, team: 2, church: 3 };
 
 // Feature → minimum required plan.
@@ -10,18 +16,19 @@ const PLAN_RANK = { free: 0, sync: 1, team: 2, church: 3 };
 // gated feature? Add its key here and call `useEntitlement('feature-key')`
 // in the component that renders it.
 const FEATURE_GATES = {
-  // Sync tier ($9 one-time)
+  // Single-user paid features — covered by Sync ($5/mo) or the one-time
+  // Pro purchase ($25, BYOC). The is_pro carve-out below unlocks these.
   'cloud-sync':    'sync',
   'smart-import':  'sync',
   'chart-style':   'sync',   // advanced layout: themes, colours, custom fonts
 
-  // Team tier ($12/mo)
+  // Band tier (internal key `team`, $15/mo, up to 10 seats)
   'team-create':   'team',
   'team-library':  'team',
   'team-collab':   'team',
   'team-roles':    'team',
 
-  // Church tier ($24/mo)
+  // Church tier ($25/mo, up to 30 seats)
   'multi-service': 'church',
 };
 
