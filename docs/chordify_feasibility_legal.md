@@ -41,14 +41,26 @@ To maintain "Safe Harbor" status:
 2.  **User-initiated process:** The AI only runs when a user explicitly requests it for their own copy of a song.
 3.  **Takedown policy:** Maintain the existing `COPYRIGHT.md` policy.
 
-## 4. Monetization Strategy (The "Pro" Module)
+## 4. Licensing and Attribution
+
+### 4.1 Library Licenses
+*   **Permissive (MIT/Apache 2.0):** Most libraries currently used (React, Radix UI, Tailwind, svguitar) are permissive. They allow commercial use (monetization) as long as the original license and copyright notice are included in the app's "About" or "Legal" section.
+*   **AGPLv3 (Essentia.js):** The primary engine for high-quality chord detection, **Essentia.js**, is licensed under **AGPLv3** for non-commercial use.
+    *   **Commercial Use:** To safely monetize a feature using Essentia.js, you **must** obtain a commercial license from the Music Technology Group (UPF). Otherwise, the AGPLv3 requires you to open-source your entire application's source code.
+    *   **Alternative:** Use a permissive alternative like `meyda` (MIT) or custom TensorFlow.js models (Apache 2.0), though they may require more development effort to match Essentia's accuracy.
+
+### 4.2 Disclosure Requirements
+*   **Open Source Attribution:** It is standard (and often legally required by MIT/Apache licenses) to have a "Third-Party Notices" page listing the libraries used and their licenses.
+*   **AI Disclosure:** While not strictly legally required in all regions yet, it is good practice to inform users that "AI was used to generate this chart" to manage expectations regarding accuracy.
+
+## 5. Monetization Strategy (The "Pro" Module)
 
 Since AI analysis consumes development resources and provides high value, it is a prime candidate for a "Pro" tier.
 *   **The "Credit" Model:** Users get 3 free AI imports, then pay for a "Power Pack" or Subscription.
 *   **Gating:** The "AI Import" button is visible but triggers a "Upgrade to Pro" modal for non-paying users.
 *   **Value Add:** Pro users also get "Batch Import" and "Cloud Sync" (as per the roadmap).
 
-## 5. Conclusion & Recommendation
+## 6. Conclusion & Recommendation
 The feature is **feasible** and **legally defensible** if implemented as a client-side utility.
 
 **Next Step:** Build a Proof of Concept (PoC) using a lightweight JS chord detection library that allows a user to "Drop an MP3" and see a generated Markdown snippet.
