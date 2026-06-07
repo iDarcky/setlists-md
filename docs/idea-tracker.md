@@ -69,6 +69,18 @@ grouped by what's left. Tied to the `betaui` branch / v0.6.0-pre-alpha.
 - ✅ **Next/prev pill options** — choose a floating pill or header prev/next buttons; swipe left/right also navigates. *(L2-15)*
 - 🟡 **Different live/performance view; show current song elsewhere** — a collapsible setlist rail in live & practice lets you jump songs (toggleable); full alternate display modes still pending. *(L2-35)*
 
+### Song editor & details (0.10.0-pre-alpha)
+- ✅ **Reworked editor shell** — unified header (title + Song Details chevron, arrangement, key/tempo/time, Arrange/Advanced), canvas beneath.
+- ✅ **Visual chord placement (tap-a-chord)** — tap a lyric to place a chord where you touch (measured overlay, wrap-safe); tap to move/remove. *(part of L2-19)*
+- ✅ **New arrangement seeded from the main arrangement.** *(L1-7)*
+- ✅ **Touch-first structure editor** — tap-to-build + move/remove, no drag; opened from a compact summary strip. *(replaces L1-8)*
+- ✅ **Instrumental chord-only lines**, **modulate add/remove**, and **section numbering + per-section menus** in Arrange.
+- ✅ **Advanced (raw) editor edits the body only** — metadata owned by Song Details so IDs/frontmatter can't be hand-broken.
+- ✅ **Expanded song-info fields** (original title, language, translator, writers, publishers, copyright, album, label, year, themes, genres, Bible verses, vocal range, liturgical moment, story) with length limits, chip inputs, and input sanitization; shown on the chart Song-info panel.
+- ✅ **Custom key/time dropdowns**; **chart header rework** (title-chevron Song info, X on the right, default green dot, no overflow).
+- ✅ **Editing opens the arrangement you were viewing**, not the default.
+- 🟡 **Structure scrolls (not overflow)** — compact summary + edit sheet shipped; in-chart structure scroll-with-song still pending. *(L1-16, L2-16, L2-26)*
+
 ---
 
 ## ⬜ What's left (grouped)
@@ -77,7 +89,7 @@ grouped by what's left. Tied to the `betaui` branch / v0.6.0-pre-alpha.
 - ⬜ Notes per setlist vs per song *(L1-3)*
 - ⬜ Notes per user *(L1-4)*
 - ⬜ Edit chords from practice → auto / prompt new arrangement *(L1-6)*
-- ⬜ New arrangement seeded from the current one *(L1-7)*
+- ✅ New arrangement seeded from the main arrangement *(L1-7)*
 
 ### B. Setlists & scheduling
 - ⬜ Edit tempo / structure / **BPM on setlists** from the builder *(L1-2, L2-57)*
@@ -102,8 +114,8 @@ grouped by what's left. Tied to the `betaui` branch / v0.6.0-pre-alpha.
 - ⬜ Structure scrolls (not overflow) / scroll with song *(L1-16, L2-16, L2-26)*
 - 🟡 Different live/performance view — setlist rail shipped *(L2-35)* · dots for setlist position *(L2-25)* · ✅ next/prev pill options *(L2-15)*
 - ⬜ Capo guitar-players-only / per-user *(L2-13)*
-- ⬜ Fix chord diagrams + tap-a-chord + tab builder *(L2-19)*
-- ⬜ Drag structure on mobile *(L1-8)* · structure edit from rehearsal *(L2-46)*
+- 🟡 Fix chord diagrams + tap-a-chord + tab builder — tap-a-chord ✅; chord diagrams + tab builder ⬜ *(L2-19)*
+- ✅ Structure on mobile reworked to tap-to-build (drag removed) *(L1-8)* · ⬜ structure edit from rehearsal *(L2-46)*
 
 ### D. Customization & settings
 - ⬜ Better customization button/entry *(L2-18)*
@@ -126,3 +138,15 @@ grouped by what's left. Tied to the `betaui` branch / v0.6.0-pre-alpha.
 - ⬜ Periodic optional feedback prompt *(L2-56)*
 - ⬜ TypeScript migration (incremental) *(L2-37)*
 - 🟡 Tablet two-pane (Phase 3) — split pane + resizable divider + live/practice setlist rail shipped; polish ongoing
+
+### G. Editor canvas & data (after 0.10.0-pre-alpha)
+*Also mirrored in `docs/roadmap.md` §10. Picking up from the `beta` branch.*
+- ⬜ Inline section editing — replace the `SectionDrawer` modal with edit-in-place
+- ⬜ Arrange tab blocks + tab rework (grid vs inline vs ASCII) *(part of L2-19)*
+- ⬜ Instrumental measure/bar-grid mode (chord-only lines shipped)
+- ⬜ Team-sync hardening / optimistic locking — Phase 1 `version` + conditional write → Phase 2 3-way merge → Phase 3 presence *(L1-1, F above)*
+- ⬜ Diacritic-insensitive search (`Lauda` → `Laudă`) in `Library.jsx`
+- ⬜ Multi-line Story/Notes — frontmatter is one-line-per-field; needs a format decision
+- ⬜ Per-song IndexedDB persistence — `saveSongs()` rewrites the whole array per edit (scaling)
+- ⬜ Chart 2-column static balance gap — open/close reflow fixed via `scrollbar-gutter: stable`; the balance gap remains (consider rows layout)
+- ⬜ Per-user notes (`team_notes`), attachments (PDF/sheet music), BYOC "Song Bundle" folders, full-text lyric search *(from the "outgrown .md?" discussion)*
