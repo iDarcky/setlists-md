@@ -6,6 +6,7 @@ import ChordPalette from './ChordPalette';
 import SectionDrawer from './SectionDrawer';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
+import { loadRecents, saveRecents, pushRecent, isChordToken } from './chordRecents';
 
 const SECTION_TYPES = [
   'Intro', 'Verse', 'Pre Chorus', 'Chorus', 'Bridge',
@@ -335,7 +336,13 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
   const [activeChord, setActiveChord] = useState(null);
   const [selectedExisting, setSelectedExisting] = useState(null);
   const [guidePos, setGuidePos] = useState(null);
-  const [recentChords, setRecentChords] = useState([]);
+  // Recents persist per song-key. Seed once from the song's initial key.
+  const recentsKeyRef = useRef(null);
+  if (recentsKeyRef.current === null) {
+    try { recentsKeyRef.current = parseSongMd(md)?.key || 'C'; }
+    catch { recentsKeyRef.current = 'C'; }
+  }
+  const [recentChords, setRecentChords] = useState(() => loadRecents(recentsKeyRef.current));
   const [editingLine, setEditingLine] = useState(null);
   const [drawerTarget, setDrawerTarget] = useState(null);
   const isInternalUpdate = useRef(false);
@@ -358,13 +365,14 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
     }));
   }, [song]);
 
-  // Collect unique chords for recent suggestions
+  // Collect unique chords for recent suggestions. Validate tokens so section
+  // markers / non-chords in brackets never leak into the palette.
   const songChords = useMemo(() => {
     const set = new Set();
     for (const sec of placements) {
       for (const line of sec.lines) {
         if (line.chords) {
-          for (const c of line.chords) set.add(c.chord);
+          for (const c of line.chords) if (isChordToken(c.chord)) set.add(c.chord);
         }
       }
     }
@@ -410,10 +418,11 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
 
   const addRecent = useCallback((chord) => {
     setRecentChords(prev => {
-      const next = [chord, ...prev.filter(c => c !== chord)];
-      return next.slice(0, 8);
+      const next = pushRecent(prev, chord);
+      saveRecents(recentsKeyRef.current || song?.key || 'C', next);
+      return next;
     });
-  }, []);
+  }, [song?.key]);
 
   const clearGuide = useCallback(() => setGuidePos(null), []);
 
