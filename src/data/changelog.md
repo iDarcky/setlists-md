@@ -2,6 +2,29 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.11.0-pre-alpha — Beta-readiness: security, legal & polish
+*June 2026*
+
+### Added
+- **In-app legal pages** — Privacy Policy, Terms of Service, and a new Copyright Policy & DMCA page now open inside the app with the regular header, instead of linking out to GitHub. Settings → About and the sign-up screen link straight to them.
+- **Sign-up legal notice** — creating an account now shows a clear "you agree to our Terms & Privacy" line.
+- **Sign-in nudge** — guests who skip onboarding see a gentle prompt on the Dashboard to create an account and sync across devices.
+
+### Improved
+- **Settings open smoothly** — the page behind the Settings dialog no longer flickers or jumps while it's open, and tapping the dimmed background closes it.
+- **iPad header spacing** — the top bar now respects the device's safe area, so the status bar never overlaps it when the app is installed to the Home Screen.
+- **Profile & logo uploads** — image uploads now accept JPEG, PNG, and WebP up to 5 MB, with clearer guidance when a file doesn't qualify.
+- **Settings follow you across devices** — every appearance preference (chart theme, accent colour, section colours, custom section types, and more) now syncs to your account, not just a handful.
+
+### Fixed
+- **Read-only bands** — members of a read-only Space can no longer reach the song or setlist editor or save changes there.
+- **Sign-in on small screens** — the sign-in form now scrolls properly on short mobile viewports.
+- **Deleting your account no longer deletes the band** — if you own a Space, ownership now transfers to the longest-standing admin (or the earliest member) instead of removing everyone's library. A Space is only removed when you were its sole member.
+
+### Security
+- Added browser security headers (clickjacking, MIME-sniffing, and transport protections).
+- Hardened the backend: tightened team-function permissions, fixed an authorization edge case in team invites, locked down avatar-file listing, and resolved dependency advisories.
+
 ## 0.10.0-pre-alpha — Editor & song-details overhaul
 *June 2026*
 

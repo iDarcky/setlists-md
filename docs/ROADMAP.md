@@ -9,29 +9,52 @@ follows.
 
 ## 0. Launch Plan — Public Beta, October 1
 
-Work is split into months. The goal of June/July is the unglamorous foundation
-(pipeline + legal + bug fixes); features come in August once the custom domain
-is in place.
+Work is split into months. June/July is the unglamorous foundation (pipeline +
+legal + bug fixes + security); features land in August once the custom domain
+and email are in place.
 
-### 🔴 Launch blockers (must ship before going public)
-- [ ] **GDPR "Delete Account" / Right to be Forgotten** — wipe all user data
-      from Supabase. Legally required.
-- [ ] **Cookie / local-storage transparency notice** — footer notice (no
-      tracking, but still required).
-- [ ] **Account termination guardrails** — handle "orphan teams": block owner
-      deletion while a team has members; require transfer or team deletion.
-- [ ] **Reconcile the pricing model & fix `PricingScreen.jsx`** — three
-      different plan-naming schemes exist across the docs (`analysis/FINANCIAL.md`,
-      `analysis/MONETIZATION.md`, and the in-app `src/data/terms.md`). Pick one,
-      then make the pricing page match. **Product decision required first.**
-- [ ] **Member read-only gating** — members can currently reach the editor in
-      read-only team libraries; gate all editor entry points.
-- [ ] **Unsaved-changes guard** — "are you sure?" before leaving the editor.
-- [ ] **Preference cloud-sync push bug** — ~11 portable keys (chartTheme,
-      accentColor, sectionColors, etc.) never push; fix the dependency array.
+### ✅ June — DONE (shipped in 0.11.0-pre-alpha)
+- [x] **GDPR "Delete Account" / Right to be Forgotten** — edge function wipes
+      the auth user; profile + team rows cascade.
+- [x] **Account termination guardrails** — owning a Space no longer deletes it
+      on account deletion; ownership transfers to the earliest admin → earliest
+      member → only deletes when the owner was the sole member.
+- [x] **Member read-only gating** — three layers: entry points gated, save
+      handlers refuse writes, and a redirect bounces members out of the editor.
+- [x] **Preference cloud-sync push bug** — all 30 portable keys now push via a
+      single snapshot dependency.
+- [x] **Login scroll bug on mobile** — AuthScreen scrolls on short viewports.
+- [x] **In-app legal pages** — Privacy, Terms, and a new Copyright/DMCA page
+      render inside the app shell; wired from Settings → About and sign-up.
+- [x] **Pricing model reconciled** — Free / Pro (one-time, BYOC) / Sync for
+      solo; Band (10 seats) / Church (30 seats) for Spaces. `PricingScreen`
+      shows the new tiers inside the app shell.
+- [x] **Security pass** — headers (clickjacking/MIME/HSTS), revoked anon EXECUTE
+      on team functions, fixed a null-auth bypass in `invite_user_to_team`,
+      added RLS for `user_cloud_tokens`, locked down avatar listing, email-format
+      guard on the waitlist, `npm audit` cleared.
+- [x] **Settings dialog polish** — scroll-lock flicker fixed, backdrop-close,
+      iPad safe-area header padding.
+- [x] **Avatar upload limits** — JPEG/PNG/WebP, 5 MB.
+- [x] **CI** — GitHub Actions `lint + test + build` on every PR/push.
+- [x] **Branch protection** on `main` (require CI to pass before merge).
+
+### ⏳ June items deferred to August (bundled with domain/email work)
+- [ ] **Cookie / local-storage transparency notice** — will live on the
+      marketing-site footer once the `setlists.md → app.setlists.md` split lands.
+      Not required inside the installed PWA.
+- [ ] **Leaked-password protection** — Supabase Auth toggle; enabling alongside
+      Resend + OAuth so all auth changes ship together.
+- [ ] **Staging environment** — using the free Vercel preview on the `beta`
+      branch for now; a dedicated second Supabase project is deferred (no budget).
+- [ ] **Error monitoring (Sentry)** — deferred (no budget); `VITE_SENTRY_DSN`
+      is wired and dormant.
+
+### 🔴 July — remaining launch blockers
+- [ ] **Unsaved-changes guard** — "are you sure?" before leaving the song editor
+      (the setlist builder already has one; the song editor does not).
 - [ ] **iPad PWA PDF export** — popup is blocked in standalone mode; ship the
       inline-iframe fallback (see §7 below).
-- [ ] **Login scroll bug on mobile.**
 
 ### 🟡 Beta quality (should ship, won't hard-block)
 - [ ] Display modes: Chords-only / Lyrics-only / Song-map.
@@ -42,37 +65,46 @@ is in place.
 - [ ] Setlist QR / URL share (a paid-tier feature — must exist if sold).
 - [ ] Replace remaining native `confirm()`/`alert()` with custom dialogs.
 - [ ] Multi-filter library view.
+- [ ] **Team optimistic locking** — concurrent team edits silently overwrite;
+      the sync engine detects hash conflicts but there's no merge/warn UX yet.
+      Needs a product decision (warn-and-merge vs last-write-wins).
 
 ### 🎨 Page redesigns to match the new app shell
-The plan model is now Free / Pro (one-time, BYOC) / Sync ($/mo) for solo, and
-Band (10 seats) / Church (30 seats) for workspaces. The following screens were
-updated for content but still need a visual pass to sit natively inside the new
-app shell (top header, modes theme, consistent cards):
-- [ ] **Pricing page** (`PricingScreen.jsx`) — now renders inside the app shell
-      with the top header; redesign the hero + tier cards to match the new
-      Dashboard aesthetic rather than the legacy `modes` overlay.
+These screens were updated for content but still need a visual pass to sit
+natively inside the new app shell (top header, modes theme, consistent cards):
+- [ ] **Pricing page** (`PricingScreen.jsx`) — redesign the hero + tier cards to
+      match the new Dashboard aesthetic rather than the legacy `modes` overlay.
 - [ ] **Team page** (`TeamScreen.jsx`) — align create/manage flows and the
       tier picker with the new design; reflect Band/Church naming.
 - [ ] **Preferences/Settings** (`Settings.jsx`) — modernise the panel layout and
       the plan/about sections to match the shell.
 
 ### Suggested cadence
-| Month | Theme |
-| :--- | :--- |
-| **June** | Pipeline (CI, staging, Sentry) + legal blockers |
-| **July** | Bug fixes (iPad PDF, unsaved guard, permissions, sync, login) |
-| **August** | Custom domain + Resend email + Google/Apple login + first features |
-| **September** | Polish + private soft-launch to 5–10 worship teams |
-| **October 1** | **Public beta** |
+| Month | Theme | Status |
+| :--- | :--- | :--- |
+| **June** | Pipeline (CI, branch protection) + legal + security + bug fixes | ✅ shipped (0.11.0) |
+| **July** | Remaining blockers (iPad PDF, unsaved guard) + App-shell redesign slices | up next |
+| **August** | Custom domain + Resend email + Google/Apple login + cookie notice + leaked-password toggle + first features | planned |
+| **September** | Polish + private soft-launch to 5–10 worship teams | planned |
+| **October 1** | **Public beta** | planned |
+
+### App Shell redesign — independently-mergeable slices
+Shipped as small slices, never a long-lived branch. Order:
+1. [x] Settings-modal backdrop-close + scroll-lock + iPad header safe-area.
+2. [ ] Dashboard + Schedule redesign.
+3. [ ] Chart/performance display options (Lyrics-only / Chords-only / Song-map,
+       Nashville + Do-Re-Mi notation, condensed sections).
+4. [ ] Setlist + notes rework.
+5. [ ] Church/Team hardening (read-only gating done; optimistic locking left).
 
 ### Production pipeline gaps
-- [x] **CI** — GitHub Actions running `lint + test + build` on every PR/push
-      to `master` (`.github/workflows/ci.yml`).
-- [ ] **Branch protection** on `master` (require CI to pass before merge).
+- [x] **CI** — GitHub Actions `lint + test + build` on every PR/push.
+- [x] **Branch protection** on `main` (require CI to pass before merge).
 - [ ] **PR + issue templates** (`.github/`).
-- [ ] **Staging environment** — second Supabase project + Vercel project.
-- [ ] **Error monitoring** — turn on Sentry (`VITE_SENTRY_DSN`) before launch.
-- [ ] **Release tags** — tag each release on `master` (`git tag v0.x.0`).
+- [ ] **Staging environment** — free Vercel preview on `beta` for now; dedicated
+      second Supabase project deferred (no budget).
+- [ ] **Error monitoring** — Sentry wired + dormant; enable before launch if budget allows.
+- [ ] **Release tags** — tag each release on `main` after merge (`git tag v0.x.0`).
 
 ---
 
