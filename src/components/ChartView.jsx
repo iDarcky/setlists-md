@@ -54,7 +54,7 @@ export default function ChartView({
   settings,
   onUpdateSettings,
   onOpenAdvancedStyle,
-  onMoveSong, onCopySong, moveCopyLabel,
+  onMoveSong, onCopySong,
 }) {
   const initialFontSize = FONT_SIZES[defaultFontSize] || (typeof defaultFontSize === 'number' ? defaultFontSize : 16);
 
@@ -429,7 +429,7 @@ export default function ChartView({
                     onClick: () => openSheet('layout'),
                   },
                   onMoveSong && {
-                    label: `Move to ${moveCopyLabel || 'Library'}`,
+                    label: 'Move to…',
                     icon: (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M5 12h14M13 6l6 6-6 6" />
@@ -438,7 +438,7 @@ export default function ChartView({
                     onClick: () => onMoveSong(),
                   },
                   onCopySong && {
-                    label: `Copy to ${moveCopyLabel || 'Library'}`,
+                    label: 'Copy to…',
                     icon: (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />

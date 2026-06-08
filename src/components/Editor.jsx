@@ -147,6 +147,19 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
   }, []);
   const [md, setMd] = useState(initialMd);
   const [savedMd, setSavedMd] = useState(initialMd);
+  // Autosave/draft recovery. We stash the in-progress markdown under a per-song
+  // key so a crash or accidental exit doesn't lose work. On mount we surface any
+  // draft that differs from the saved content as a restore banner.
+  const draftKey = `setlists-md:draft:${song?.id || 'new'}`;
+  const [draftFound, setDraftFound] = useState(() => {
+    try {
+      const d = localStorage.getItem(draftKey);
+      return d && d !== initialMd ? d : null;
+    } catch { return null; }
+  });
+  const clearDraft = useCallback(() => {
+    try { localStorage.removeItem(draftKey); } catch { /* private mode */ }
+  }, [draftKey]);
   const [activeTab, setActiveTab] = useState('arrange');
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
@@ -160,6 +173,9 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
       : true,
   );
   const showSidePreview = isWide && previewEnabled;
+  // On tablet portrait / phone the side preview is too tight, so narrow screens
+  // get a full-height slide-over peek instead.
+  const [previewPeekOpen, setPreviewPeekOpen] = useState(false);
   const { width: previewWidth, onPointerDown: onPreviewResize } = useResizablePane({
     storageKey: 'setlists-md:editor-preview-w',
     defaultWidth: 460,
@@ -194,6 +210,16 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
     return () => clearTimeout(timer);
   }, [md]);
 
+  // Debounced draft autosave. Only writes while dirty; cleared explicitly on
+  // save/discard so we never wipe a recoverable draft on the first render.
+  useEffect(() => {
+    if (md === savedMd) return;
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(draftKey, md); } catch { /* private mode */ }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [md, savedMd, draftKey]);
+
   const handleSave = useCallback(() => {
     if (!preview) return;
     // Build the next v2 song by patching the active arrangement's content
@@ -222,11 +248,13 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
     setWorkingSong(nextSong);
     onSave(nextSong);
     setSavedMd(md);
+    clearDraft();
+    setDraftFound(null);
     toast({
       title: 'Song saved',
       description: preview.title || 'Untitled',
     });
-  }, [preview, onSave, md, workingSong, activeArrangementId]);
+  }, [preview, onSave, md, workingSong, activeArrangementId, clearDraft]);
 
   // Switch the textarea content to a different arrangement. Saves the
   // current edits into workingSong first so the user doesn't lose them.
@@ -337,9 +365,10 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
         variant: 'danger',
       });
       if (!ok) return;
+      clearDraft();
     }
     onBack?.();
-  }, [isDirty, confirm, onBack]);
+  }, [isDirty, confirm, onBack, clearDraft]);
 
   // Warn before browser/tab close on unsaved edits.
   useEffect(() => {
@@ -595,6 +624,20 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
     defaultFontSize: previewLyricSize,
     chordFontSize: previewChordSize,
   };
+  // Shared preview chart — reused by the desktop side pane and the narrow-screen
+  // peek overlay. onUpdateSettings is intentionally dropped so the preview can
+  // never write back to global display settings.
+  const previewChartEl = preview ? (
+    <ChartView
+      song={preview}
+      isPreview
+      {...chartDefaults}
+      settings={previewChartSettings}
+      defaultColumns={previewCols}
+      defaultFontSize={previewLyricSize}
+      onUpdateSettings={undefined}
+    />
+  ) : null;
 
   return (
     <div className="h-full bg-[var(--ds-background-200)] flex flex-col">
@@ -649,6 +692,14 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
                 {previewEnabled ? 'Hide preview' : 'Show preview'}
               </Button>
             )}
+            {!isWide && (
+              <IconButton variant="ghost" size="sm" onClick={() => setPreviewPeekOpen(true)} aria-label="Preview">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </IconButton>
+            )}
             {song && onDelete && (
               <IconButton variant="error" size="sm" onClick={handleDeleteSong} aria-label="Delete song">
                 <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -701,6 +752,29 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
           Structure ribbon pushes both columns evenly. ─── */}
       <div className="flex-1 min-h-0 flex flex-col w-full overflow-hidden">
 
+        {/* ─── Draft recovery banner ─── */}
+        {draftFound && (
+          <div className="shrink-0 flex items-center gap-3 px-4 py-2 border-b border-[var(--color-brand-border)] bg-[var(--color-brand-soft)]">
+            <span className="flex-1 min-w-0 text-label-12 text-[var(--color-brand-text)]">
+              Unsaved draft found from a previous session.
+            </span>
+            <Button
+              variant="brand"
+              size="sm"
+              onClick={() => { setMd(draftFound); setDraftFound(null); }}
+            >
+              Restore
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { clearDraft(); setDraftFound(null); }}
+            >
+              Discard
+            </Button>
+          </div>
+        )}
+
           {/* ─── Editor + preview row ─── */}
           <div className="flex-1 min-h-0 flex w-full overflow-hidden">
             <div className="flex-1 min-h-0 flex flex-col w-full border-r border-[var(--ds-gray-300)]">
@@ -732,20 +806,39 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
               {previewControls}
             </div>
             <div className="flex-1 min-h-0 flex flex-col">
-              <ChartView
-                song={preview}
-                isPreview
-                {...chartDefaults}
-                settings={previewChartSettings}
-                defaultColumns={previewCols}
-                defaultFontSize={previewLyricSize}
-                onUpdateSettings={undefined}
-              />
+              {previewChartEl}
             </div>
           </aside>
         )}
         </div>
       </div>
+
+      {/* ─── Narrow-screen preview peek (slide-over) ─── */}
+      {!isWide && previewPeekOpen && (
+        <div
+          className="fixed inset-0 z-[80] flex flex-col bg-[var(--ds-background-100)]"
+          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+        >
+          <div className="shrink-0 px-3 py-2 border-b border-[var(--ds-gray-200)] flex items-center justify-between gap-2">
+            <span className="text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">Preview</span>
+            <div className="flex items-center gap-1">
+              {previewControls}
+              <IconButton variant="ghost" size="sm" onClick={() => setPreviewPeekOpen(false)} aria-label="Close preview">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </IconButton>
+            </div>
+          </div>
+          <div className="flex-1 min-h-0 flex flex-col">
+            {previewChartEl || (
+              <div className="flex-1 flex items-center justify-center text-copy-13 text-[var(--ds-gray-600)] italic">
+                Nothing to preview yet.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ─── Sticky bottom action bar — Cancel + Save, mirrors SetlistBuilder ─── */}
       <div

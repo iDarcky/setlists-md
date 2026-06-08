@@ -2,6 +2,7 @@ import { Toaster } from "./components/ui/Toaster";
 import { toast } from "./components/ui/use-toast";
 import { useConfirm } from "./components/ui/useConfirmHook";
 import OfflineBanner from "./components/ui/OfflineBanner";
+import WorkspacePickerDialog from "./components/ui/WorkspacePickerDialog";
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { parseSongMd, songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, getStorageEstimate, clearAll } from './storage';
@@ -152,6 +153,8 @@ export default function App() {
   const canEdit = !team || isAdmin || isEditor;
   const isTeamAdmin = isAdmin;
   const confirm = useConfirm();
+  // Workspace move/copy picker: null, or { action: 'move'|'copy', songId }.
+  const [moveCopyDialog, setMoveCopyDialog] = useState(null);
   // PWA update prompt — toast appears when a new SW is downloaded.
   usePWAUpdate();
   // Native + iOS install affordance.
@@ -1197,37 +1200,32 @@ export default function App() {
     }
   };
 
+  // Candidate destinations for moving/copying a song — every workspace except
+  // the one currently active.
+  const moveCopyWorkspaces = [
+    { id: 'personal', name: 'Personal' },
+    ...teams.map(t => ({ id: t.id, name: t.name })),
+  ].filter(w => w.id !== activeLibrary);
+
   // Per-song Move/Copy props for the ChartView kebab (chart reader + library
-  // preview pane). Only team admins see them; the target is the "other"
-  // library relative to the active workspace, mirroring the old editor buttons.
+  // preview pane). Opens a workspace picker so users choose where to send the
+  // song — Copy is offered whenever another workspace exists; Move also
+  // requires write access to the source (personal, or admin of the team).
   const buildChartMoveCopy = (songId) => {
-    if (!songId || !team || !isTeamAdmin) return {};
-    const target = activeLibrary === 'personal' ? team.id : 'personal';
-    const label = activeLibrary === 'personal' ? team.name : 'Personal';
-    const titleOf = () => songs.find(s => s.id === songId)?.title || 'this song';
-    return {
-      moveCopyLabel: label,
-      onMoveSong: async () => {
-        const ok = await confirm({
-          title: `Move to ${label}?`,
-          description: activeLibrary === 'personal'
-            ? `"${titleOf()}" will be shared with everyone in ${team.name}.`
-            : `"${titleOf()}" will be moved out of ${team.name} and into your personal library only.`,
-          confirmLabel: 'Move',
-        });
-        if (ok) handleMoveSongToLibrary(songId, target);
-      },
-      onCopySong: async () => {
-        const ok = await confirm({
-          title: `Copy to ${label}?`,
-          description: activeLibrary === 'personal'
-            ? `A copy of "${titleOf()}" will be added to ${team.name}. The original stays in your personal library.`
-            : `A copy of "${titleOf()}" will be added to your personal library. The original stays in ${team.name}.`,
-          confirmLabel: 'Copy',
-        });
-        if (ok) handleCopySongToLibrary(songId, target);
-      },
+    if (!songId || moveCopyWorkspaces.length === 0) return {};
+    const canMove = activeLibrary === 'personal' || isTeamAdmin;
+    const props = {
+      onCopySong: () => setMoveCopyDialog({ action: 'copy', songId }),
     };
+    if (canMove) props.onMoveSong = () => setMoveCopyDialog({ action: 'move', songId });
+    return props;
+  };
+
+  const performMoveCopy = (target) => {
+    if (!moveCopyDialog) return;
+    const { action, songId } = moveCopyDialog;
+    if (action === 'move') handleMoveSongToLibrary(songId, target);
+    else handleCopySongToLibrary(songId, target);
   };
 
   const handleDeleteSong = (id) => {
@@ -2198,6 +2196,24 @@ export default function App() {
             onSmartImport={handleSmartImport}
           />
         </Suspense>
+      )}
+
+      {/* Workspace destination picker for move/copy from the song kebab. */}
+      {moveCopyDialog && (
+        <WorkspacePickerDialog
+          open
+          title={moveCopyDialog.action === 'move' ? 'Move song to…' : 'Copy song to…'}
+          description={(() => {
+            const t = songs.find(s => s.id === moveCopyDialog.songId)?.title || 'this song';
+            return moveCopyDialog.action === 'move'
+              ? `"${t}" will be moved out of the current workspace.`
+              : `A copy of "${t}" will be added. The original stays put.`;
+          })()}
+          confirmLabel={moveCopyDialog.action === 'move' ? 'Move' : 'Copy'}
+          workspaces={moveCopyWorkspaces}
+          onSelect={performMoveCopy}
+          onClose={() => setMoveCopyDialog(null)}
+        />
       )}
 
       {/* One-time pre-permission explainer for stage mode — render is
