@@ -179,6 +179,7 @@ export default function Library({
   onMoveSongs,
   onCopySongs,
   onAddSongsToSetlist,
+  chartMoveCopy,
 }) {
   // Responsive shell. Touch tablets (pointer: coarse) get the two-pane master-
   // detail; true desktops (fine pointer) keep the Phase 1 overlay peek.
@@ -647,6 +648,7 @@ export default function Library({
                 onEdit={onEditSong ? () => onEditSong(previewSong) : null}
                 isFullscreen={false}
                 onToggleFullscreen={onToggleFullscreen}
+                {...(chartMoveCopy ? chartMoveCopy(previewSong.id) : {})}
                 {...chartDefaults}
               />
             </Suspense>
@@ -750,6 +752,7 @@ export default function Library({
               onEdit={onEditSong ? () => onEditSong(previewSong) : null}
               isFullscreen={isFullscreen}
               onToggleFullscreen={onToggleFullscreen}
+              {...(chartMoveCopy ? chartMoveCopy(previewSong.id) : {})}
               {...chartDefaults}
             />
           </Suspense>

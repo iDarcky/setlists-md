@@ -11,6 +11,7 @@ import StructureEditor from './editor/StructureEditor';
 import ArrangementMenu, { EditArrangementsDialog } from './editor/ArrangementMenu';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import { SegmentedControl } from './ui/SegmentedControl';
 import { Tabs } from './ui/Tabs';
 import PromptDialog from './ui/PromptDialog';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from './ui/Select';
@@ -118,7 +119,7 @@ key: C
 
 `;
 
-export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy, activeLibrary, team, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null }) {
+export default function Editor({ song, onSave, onBack, onDelete, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null }) {
   const confirm = useConfirm();
 
   // Working copy of the song we're editing. For a new song, songFromFlat
@@ -449,34 +450,6 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
     if (ok) onDelete(song.id);
   }, [song, onDelete, confirm, preview]);
 
-  const handleMoveSong = useCallback(async () => {
-    if (!song || !onMove || !team) return;
-    const target = activeLibrary === 'personal' ? team.id : 'personal';
-    const label = activeLibrary === 'personal' ? team.name : 'Personal Library';
-    const ok = await confirm({
-      title: `Move to ${label}?`,
-      description: activeLibrary === 'personal'
-        ? `"${preview?.title || song.title || 'this song'}" will be shared with everyone in ${team.name}.`
-        : `"${preview?.title || song.title || 'this song'}" will be moved out of ${team.name} and into your personal library only.`,
-      confirmLabel: 'Move',
-    });
-    if (ok) onMove(target);
-  }, [song, onMove, team, activeLibrary, confirm, preview]);
-
-  const handleCopySong = useCallback(async () => {
-    if (!song || !onCopy || !team) return;
-    const target = activeLibrary === 'personal' ? team.id : 'personal';
-    const label = activeLibrary === 'personal' ? team.name : 'Personal Library';
-    const ok = await confirm({
-      title: `Copy to ${label}?`,
-      description: activeLibrary === 'personal'
-        ? `A copy of "${preview?.title || song.title || 'this song'}" will be added to ${team.name}. The original stays in your personal library.`
-        : `A copy of "${preview?.title || song.title || 'this song'}" will be added to your personal library. The original stays in ${team.name}.`,
-      confirmLabel: 'Copy',
-    });
-    if (ok) onCopy(target);
-  }, [song, onCopy, team, activeLibrary, confirm, preview]);
-
   // Arrangement picker + key/tempo/time. Rendered inline on the title row when
   // wide; tucked into the Song Details panel on narrow screens so the header
   // collapses to just title + structure + mode tabs.
@@ -521,6 +494,43 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
     </div>
   );
 
+  // Quick column + font-size controls for the live preview pane. They write
+  // straight to the device display settings (same channel the chart reader
+  // uses), so a tweak here matches what you'll see everywhere.
+  const previewSettings = chartDefaults.settings || {};
+  const setPreviewSetting = chartDefaults.onUpdateSettings || (() => {});
+  const previewCols = previewSettings.defaultColumns === 2 ? 2 : 1;
+  const previewFont = typeof previewSettings.defaultFontSize === 'number' ? previewSettings.defaultFontSize : 16;
+  const previewControls = (
+    <div className="flex items-center gap-2">
+      <SegmentedControl
+        size="sm"
+        value={previewCols}
+        onChange={v => setPreviewSetting('defaultColumns', v)}
+        options={[{ value: 1, label: '1 col' }, { value: 2, label: '2 col' }]}
+      />
+      <div className="flex items-center gap-0.5">
+        <IconButton
+          variant="ghost"
+          size="xs"
+          onClick={() => setPreviewSetting('defaultFontSize', Math.max(10, previewFont - 2))}
+          aria-label="Decrease font size"
+        >
+          −
+        </IconButton>
+        <span className="w-6 text-center text-label-11 font-mono tabular-nums text-[var(--ds-gray-700)]">{previewFont}</span>
+        <IconButton
+          variant="ghost"
+          size="xs"
+          onClick={() => setPreviewSetting('defaultFontSize', Math.min(30, previewFont + 2))}
+          aria-label="Increase font size"
+        >
+          +
+        </IconButton>
+      </div>
+    </div>
+  );
+
   return (
     <div className="h-full bg-[var(--ds-background-200)] flex flex-col">
       {/* ─── Unified header. Row 1: title (taps to toggle Song Details) +
@@ -538,7 +548,7 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
             onClick={() => setMetaPanelOpen(v => !v)}
             aria-expanded={metaPanelOpen}
             aria-label="Song details"
-            className="flex-1 min-w-0 flex items-center gap-1.5 text-left bg-transparent border-none cursor-pointer p-0"
+            className="min-w-0 shrink flex items-center gap-1.5 text-left bg-transparent border-none cursor-pointer p-0"
           >
             <h1 className="text-heading-18 text-[var(--text-1)] m-0 leading-tight truncate">
               {fmFields.title || (song ? 'Edit Song' : 'New Song')}
@@ -549,6 +559,8 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
           </button>
 
           {isWide && musicControls}
+
+          <div className="flex-1 min-w-0" />
 
           <div className="flex items-center gap-2 shrink-0">
             {importProgress && (
@@ -572,16 +584,6 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 {previewEnabled ? 'Hide preview' : 'Show preview'}
               </Button>
             )}
-            {song && onMove && team && (
-              <Button variant="secondary" size="sm" onClick={handleMoveSong} className="hidden md:inline-flex">
-                Move to {activeLibrary === 'personal' ? 'Team' : 'Personal'}
-              </Button>
-            )}
-            {song && onCopy && team && (
-              <Button variant="secondary" size="sm" onClick={handleCopySong} className="hidden md:inline-flex">
-                Copy to {activeLibrary === 'personal' ? 'Team' : 'Personal'}
-              </Button>
-            )}
             {song && onDelete && (
               <IconButton variant="error" size="sm" onClick={handleDeleteSong} aria-label="Delete song">
                 <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -591,6 +593,23 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
             )}
           </div>
         </div>
+
+        {/* ─── Song Details (collapsible, drops directly below the title) ─── */}
+        {metaPanelOpen && (
+          <div className="shrink-0 max-h-[45vh] overflow-y-auto border-t border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] px-4 sm:px-6 py-2" style={headerFrostStyle}>
+            {!isWide && (
+              <div className="pb-3 mb-3 border-b border-[var(--ds-gray-200)]">
+                {musicControls}
+              </div>
+            )}
+            <MetadataPanel
+              md={md}
+              onChange={setMd}
+              isOpen
+              keyHistory={workingSong.keyHistory}
+            />
+          </div>
+        )}
 
         {/* Row 2: structure summary (opens a focused sheet to edit) */}
         <div className="px-3 sm:px-4 pb-2">
@@ -616,23 +635,6 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
           preview side-by-side beneath it, so opening Song Details / the
           Structure ribbon pushes both columns evenly. ─── */}
       <div className="flex-1 min-h-0 flex flex-col w-full overflow-hidden">
-
-        {/* ─── Song Details (collapsible, toggled from the title chevron) ─── */}
-        {metaPanelOpen && (
-          <div className="shrink-0 max-h-[45vh] overflow-y-auto border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] px-4 sm:px-6 py-2" style={headerFrostStyle}>
-            {!isWide && (
-              <div className="pb-3 mb-3 border-b border-[var(--ds-gray-200)]">
-                {musicControls}
-              </div>
-            )}
-            <MetadataPanel
-              md={md}
-              onChange={setMd}
-              isOpen
-              keyHistory={workingSong.keyHistory}
-            />
-          </div>
-        )}
 
           {/* ─── Editor + preview row ─── */}
           <div className="flex-1 min-h-0 flex w-full overflow-hidden">
@@ -660,8 +662,9 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
             style={{ width: previewWidth }}
             className="shrink-0 flex flex-col bg-[var(--ds-background-100)]"
           >
-            <div className="px-4 py-2 border-b border-[var(--ds-gray-200)] text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] sticky top-0 bg-[var(--ds-background-100)] z-10 shadow-sm">
-              Preview
+            <div className="px-4 py-2 border-b border-[var(--ds-gray-200)] sticky top-0 bg-[var(--ds-background-100)] z-10 shadow-sm flex items-center justify-between gap-2">
+              <span className="text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">Preview</span>
+              {previewControls}
             </div>
             <div className="flex-1 min-h-0 flex flex-col">
               <ChartView song={preview} isPreview {...chartDefaults} />

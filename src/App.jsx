@@ -1197,6 +1197,39 @@ export default function App() {
     }
   };
 
+  // Per-song Move/Copy props for the ChartView kebab (chart reader + library
+  // preview pane). Only team admins see them; the target is the "other"
+  // library relative to the active workspace, mirroring the old editor buttons.
+  const buildChartMoveCopy = (songId) => {
+    if (!songId || !team || !isTeamAdmin) return {};
+    const target = activeLibrary === 'personal' ? team.id : 'personal';
+    const label = activeLibrary === 'personal' ? team.name : 'Personal';
+    const titleOf = () => songs.find(s => s.id === songId)?.title || 'this song';
+    return {
+      moveCopyLabel: label,
+      onMoveSong: async () => {
+        const ok = await confirm({
+          title: `Move to ${label}?`,
+          description: activeLibrary === 'personal'
+            ? `"${titleOf()}" will be shared with everyone in ${team.name}.`
+            : `"${titleOf()}" will be moved out of ${team.name} and into your personal library only.`,
+          confirmLabel: 'Move',
+        });
+        if (ok) handleMoveSongToLibrary(songId, target);
+      },
+      onCopySong: async () => {
+        const ok = await confirm({
+          title: `Copy to ${label}?`,
+          description: activeLibrary === 'personal'
+            ? `A copy of "${titleOf()}" will be added to ${team.name}. The original stays in your personal library.`
+            : `A copy of "${titleOf()}" will be added to your personal library. The original stays in ${team.name}.`,
+          confirmLabel: 'Copy',
+        });
+        if (ok) handleCopySongToLibrary(songId, target);
+      },
+    };
+  };
+
   const handleDeleteSong = (id) => {
     const nextSongs = songs.filter((s) => s.id !== id);
     setSongs(nextSongs);
@@ -1755,6 +1788,7 @@ export default function App() {
               onAddSongsToSetlist={isTeamReadOnly ? null : handleAddSongsToSetlist}
               onMoveSongs={!isTeamReadOnly && teams.length > 0 ? handleMoveSongs : null}
               onCopySongs={teams.length > 0 ? handleCopySongs : null}
+              chartMoveCopy={buildChartMoveCopy}
               chartDefaults={{
                 defaultColumns: settings?.defaultColumns,
                 defaultFontSize: settings?.defaultFontSize,
@@ -1809,6 +1843,7 @@ export default function App() {
               song={currentSong}
               onBack={goBack}
               onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
+              {...buildChartMoveCopy(currentSong.id)}
               onSongChange={(updated) => {
                 setSongs(prev => prev.map(s => s.id === updated.id ? { ...updated, updatedAt: Date.now() } : s));
               }}
@@ -1847,10 +1882,6 @@ export default function App() {
                 total: importQueue.total,
                 onSkip: handleSkipQueueSong,
               } : null}
-              onMove={currentSong && team && isTeamAdmin ? (target) => handleMoveSongToLibrary(currentSong.id, target) : null}
-              onCopy={currentSong && team && isTeamAdmin ? (target) => handleCopySongToLibrary(currentSong.id, target) : null}
-              activeLibrary={activeLibrary}
-              team={team}
               readOnly={isTeamReadOnly}
               chartDefaults={{
                 defaultColumns: settings?.defaultColumns,
