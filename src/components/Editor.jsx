@@ -166,6 +166,20 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
     min: 340,
     max: 720,
   });
+  // Editor-local preview display knobs. These intentionally do NOT touch the
+  // global display settings — they only restyle this editor's preview pane so
+  // you can sanity-check layout without changing how charts read elsewhere.
+  const [previewOptsOpen, setPreviewOptsOpen] = useState(false);
+  const [previewCols, setPreviewCols] = useState(
+    () => (chartDefaults.settings?.defaultColumns === 2 ? 2 : 1),
+  );
+  const [previewLyricSize, setPreviewLyricSize] = useState(
+    () => (typeof chartDefaults.settings?.defaultFontSize === 'number' ? chartDefaults.settings.defaultFontSize : 16),
+  );
+  const [previewChordSize, setPreviewChordSize] = useState(
+    () => (typeof chartDefaults.settings?.chordFontSize === 'number' ? chartDefaults.settings.chordFontSize : 14),
+  );
+  const [previewLinkSizes, setPreviewLinkSizes] = useState(true);
   const [editArrangementsOpen, setEditArrangementsOpen] = useState(false);
   const [promptConfig, setPromptConfig] = useState(null);
   const textareaRef = useRef(null);
@@ -494,42 +508,93 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
     </div>
   );
 
-  // Quick column + font-size controls for the live preview pane. They write
-  // straight to the device display settings (same channel the chart reader
-  // uses), so a tweak here matches what you'll see everywhere.
-  const previewSettings = chartDefaults.settings || {};
-  const setPreviewSetting = chartDefaults.onUpdateSettings || (() => {});
-  const previewCols = previewSettings.defaultColumns === 2 ? 2 : 1;
-  const previewFont = typeof previewSettings.defaultFontSize === 'number' ? previewSettings.defaultFontSize : 16;
-  const previewControls = (
-    <div className="flex items-center gap-2">
-      <SegmentedControl
-        size="sm"
-        value={previewCols}
-        onChange={v => setPreviewSetting('defaultColumns', v)}
-        options={[{ value: 1, label: '1 col' }, { value: 2, label: '2 col' }]}
-      />
-      <div className="flex items-center gap-0.5">
-        <IconButton
-          variant="ghost"
-          size="xs"
-          onClick={() => setPreviewSetting('defaultFontSize', Math.max(10, previewFont - 2))}
-          aria-label="Decrease font size"
-        >
-          −
-        </IconButton>
-        <span className="w-6 text-center text-label-11 font-mono tabular-nums text-[var(--ds-gray-700)]">{previewFont}</span>
-        <IconButton
-          variant="ghost"
-          size="xs"
-          onClick={() => setPreviewSetting('defaultFontSize', Math.min(30, previewFont + 2))}
-          aria-label="Increase font size"
-        >
-          +
-        </IconButton>
-      </div>
+  // Compact, editor-only preview display controls. Housed in a small popover
+  // behind a single icon so the preview strip stays as slim as before. All
+  // state is local (previewCols / previewLyricSize / previewChordSize) and is
+  // fed to the preview ChartView as prop overrides — never written to the
+  // global display settings.
+  const clampSize = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  const stepLyric = (d) => setPreviewLyricSize(s => {
+    const n = clampSize(s + d, 10, 30);
+    if (previewLinkSizes) setPreviewChordSize(c => clampSize(c + (n - s), 8, 30));
+    return n;
+  });
+  const stepChord = (d) => setPreviewChordSize(c => clampSize(c + d, 8, 30));
+  const sizeStepper = (value, onDown, onUp, label) => (
+    <div className="flex items-center gap-0.5">
+      <IconButton variant="ghost" size="xs" onClick={onDown} aria-label={`Decrease ${label}`}>−</IconButton>
+      <span className="w-6 text-center text-label-11 font-mono tabular-nums text-[var(--ds-gray-700)]">{value}</span>
+      <IconButton variant="ghost" size="xs" onClick={onUp} aria-label={`Increase ${label}`}>+</IconButton>
     </div>
   );
+  const previewControls = (
+    <div className="relative">
+      <IconButton
+        variant="ghost"
+        size="xs"
+        aria-label="Preview display options"
+        aria-expanded={previewOptsOpen}
+        onClick={() => setPreviewOptsOpen(v => !v)}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
+          <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
+          <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+        </svg>
+      </IconButton>
+      {previewOptsOpen && (
+        <>
+          <button
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            onClick={() => setPreviewOptsOpen(false)}
+            className="fixed inset-0 z-40 cursor-default bg-transparent border-none"
+          />
+          <div className="absolute right-0 top-full mt-1 z-50 w-60 rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg p-3 flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-label-12 text-[var(--ds-gray-700)]">Columns</span>
+              <SegmentedControl
+                size="sm"
+                value={previewCols}
+                onChange={setPreviewCols}
+                options={[{ value: 1, label: '1' }, { value: 2, label: '2' }]}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-label-12 text-[var(--ds-gray-700)]">Lyric size</span>
+              {sizeStepper(previewLyricSize, () => stepLyric(-2), () => stepLyric(2), 'lyric size')}
+            </div>
+            {!previewLinkSizes && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-label-12 text-[var(--ds-gray-700)]">Chord size</span>
+                {sizeStepper(previewChordSize, () => stepChord(-2), () => stepChord(2), 'chord size')}
+              </div>
+            )}
+            <label className="flex items-center gap-2 text-label-12 text-[var(--ds-gray-700)] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={previewLinkSizes}
+                onChange={e => setPreviewLinkSizes(e.target.checked)}
+                className="accent-[var(--color-brand)]"
+              />
+              Link chord size to lyric
+            </label>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  // Settings the preview ChartView reads from — the global display settings
+  // overridden with the editor-local knobs so nothing here leaks out.
+  const previewChartSettings = {
+    ...(chartDefaults.settings || {}),
+    defaultColumns: previewCols,
+    defaultFontSize: previewLyricSize,
+    chordFontSize: previewChordSize,
+  };
 
   return (
     <div className="h-full bg-[var(--ds-background-200)] flex flex-col">
@@ -662,12 +727,20 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
             style={{ width: previewWidth }}
             className="shrink-0 flex flex-col bg-[var(--ds-background-100)]"
           >
-            <div className="px-4 py-2 border-b border-[var(--ds-gray-200)] sticky top-0 bg-[var(--ds-background-100)] z-10 shadow-sm flex items-center justify-between gap-2">
+            <div className="px-3 py-1 border-b border-[var(--ds-gray-200)] sticky top-0 bg-[var(--ds-background-100)] z-10 shadow-sm flex items-center justify-between gap-2">
               <span className="text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">Preview</span>
               {previewControls}
             </div>
             <div className="flex-1 min-h-0 flex flex-col">
-              <ChartView song={preview} isPreview {...chartDefaults} />
+              <ChartView
+                song={preview}
+                isPreview
+                {...chartDefaults}
+                settings={previewChartSettings}
+                defaultColumns={previewCols}
+                defaultFontSize={previewLyricSize}
+                onUpdateSettings={undefined}
+              />
             </div>
           </aside>
         )}
