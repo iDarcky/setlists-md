@@ -811,7 +811,7 @@ export default function App() {
   // Fully close Settings — pop history until we land on a non-settings view,
   // so the desktop modal × button always exits regardless of how many
   // sub-panels the user drilled through.
-  const closeSettings = () => {
+  const closeSettings = useCallback(() => {
     while (historyRef.current.length > 0) {
       const prev = historyRef.current.pop();
       if (prev && prev.view !== 'settings') {
@@ -832,7 +832,7 @@ export default function App() {
     // Nothing else in history — fall back to home.
     setView('home');
     setSettingsPanel('hub');
-  };
+  }, []);
 
   // Modal openers — each one pushes history first so hardware Back closes
   // the modal instead of bypassing it. Modal close handlers call

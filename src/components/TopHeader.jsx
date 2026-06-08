@@ -158,11 +158,15 @@ export default function TopHeader({
     <>
       <header
         className={cn(
-          'w-full h-14 shrink-0 items-center gap-3 px-4 xl:px-6',
+          'w-full shrink-0 items-center gap-3 px-4 xl:px-6',
           'bg-[var(--ds-background-200)] border-b border-[var(--ds-gray-200)]',
           'grid-cols-[1fr_auto_1fr]',
           className
         )}
+        style={{
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          minHeight: 'calc(56px + env(safe-area-inset-top, 0px))',
+        }}
       >
         {/* Left — primary nav, or the brand lockup on the tablet shell where
             nav has moved to the bottom bar. */}
