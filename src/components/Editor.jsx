@@ -11,18 +11,19 @@ import StructureEditor from './editor/StructureEditor';
 import ArrangementMenu, { EditArrangementsDialog } from './editor/ArrangementMenu';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
-import { SegmentedControl } from './ui/SegmentedControl';
+import { Tabs } from './ui/Tabs';
 import PromptDialog from './ui/PromptDialog';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from './ui/Select';
 import { toast } from './ui/use-toast';
 import { useConfirm } from './ui/useConfirmHook';
 import { headerFrostStyle } from '../lib/headerFrost';
+import { useResizablePane } from '../lib/useResizablePane';
 
 // The two edit modes. Arrange (visual) is the primary canvas; Source is the
 // raw-markdown power-user escape hatch — hence the compact </> label.
 const MODE_OPTIONS = [
-  { value: 'arrange', label: 'Arrange' },
-  { value: 'write', label: 'Advanced' },
+  { id: 'arrange', label: 'Arrange' },
+  { id: 'write', label: 'Advanced' },
 ];
 
 const TIME_OPTIONS = ['4/4', '3/4', '6/8', '7/8', '12/8', '2/4', '5/4'];
@@ -158,6 +159,12 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
       : true,
   );
   const showSidePreview = isWide && previewEnabled;
+  const { width: previewWidth, onPointerDown: onPreviewResize } = useResizablePane({
+    storageKey: 'setlists-md:editor-preview-w',
+    defaultWidth: 460,
+    min: 340,
+    max: 720,
+  });
   const [editArrangementsOpen, setEditArrangementsOpen] = useState(false);
   const [promptConfig, setPromptConfig] = useState(null);
   const textareaRef = useRef(null);
@@ -470,10 +477,56 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
     if (ok) onCopy(target);
   }, [song, onCopy, team, activeLibrary, confirm, preview]);
 
+  // Arrangement picker + key/tempo/time. Rendered inline on the title row when
+  // wide; tucked into the Song Details panel on narrow screens so the header
+  // collapses to just title + structure + mode tabs.
+  const musicControls = (
+    <div className="flex items-center gap-2 flex-wrap">
+      <ArrangementMenu
+        arrangements={workingSong.arrangements}
+        activeId={activeArrangementId}
+        defaultId={workingSong.defaultArrangementId}
+        onSwitch={switchArrangement}
+        onAdd={handleAddArrangement}
+        onRename={handleRenameArrangement}
+        onDelete={handleDeleteArrangementById}
+        onEdit={() => setEditArrangementsOpen(true)}
+      />
+      <div className="flex items-center gap-1.5">
+        <Select value={currentKey} onValueChange={v => updateField('key', v)}>
+          <SelectTrigger
+            aria-label="Key"
+            className="h-8 w-auto gap-1 px-2 text-label-12 font-mono bg-[var(--ds-gray-100)]"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="font-mono">
+            {ALL_KEYS.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <input
+          type="number"
+          value={currentTempo}
+          onChange={e => updateField('tempo', e.target.value)}
+          className="h-8 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 text-label-12 font-mono text-[var(--ds-gray-1000)] outline-none w-16"
+          min="30" max="300"
+          placeholder="bpm"
+          aria-label="Tempo"
+        />
+        <TimeSignatureControl
+          value={currentTime}
+          onChange={v => updateField('time', v)}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <div className="h-full bg-[var(--ds-background-200)] flex flex-col">
       {/* ─── Unified header. Row 1: title (taps to toggle Song Details) +
-          mode toggle / preview / actions. Row 2: arrangement + key/tempo/time.
+          (wide) arrangement/key/tempo/time + preview / actions. Row 2:
+          structure summary. Row 3: edit-mode tabs. On narrow screens the music
+          controls move into the Song Details panel so the header stays compact.
           Save/Cancel live in the bottom bar so they stay thumb-reachable. ─── */}
       <header
         className="shrink-0 z-[60] sticky top-0 border-b border-[var(--ds-gray-200)] backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)]"
@@ -495,6 +548,8 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
             </svg>
           </button>
 
+          {isWide && musicControls}
+
           <div className="flex items-center gap-2 shrink-0">
             {importProgress && (
               <span
@@ -507,7 +562,6 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
                 )}
               </span>
             )}
-            <SegmentedControl size="sm" className="h-8 items-center" value={activeTab} onChange={setActiveTab} options={MODE_OPTIONS} />
             {isWide && (
               <Button
                 variant={previewEnabled ? 'secondary' : 'ghost'}
@@ -538,53 +592,22 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
           </div>
         </div>
 
-        {/* Row 2: arrangement + key / tempo / time */}
-        <div className="flex items-center gap-2 flex-wrap px-3 sm:px-4 pb-2">
-          <ArrangementMenu
-            arrangements={workingSong.arrangements}
-            activeId={activeArrangementId}
-            defaultId={workingSong.defaultArrangementId}
-            onSwitch={switchArrangement}
-            onAdd={handleAddArrangement}
-            onRename={handleRenameArrangement}
-            onDelete={handleDeleteArrangementById}
-            onEdit={() => setEditArrangementsOpen(true)}
-          />
-          <div className="flex items-center gap-1.5">
-            <Select value={currentKey} onValueChange={v => updateField('key', v)}>
-              <SelectTrigger
-                aria-label="Key"
-                className="h-8 w-auto gap-1 px-2 text-label-12 font-mono bg-[var(--ds-gray-100)]"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="font-mono">
-                {ALL_KEYS.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <input
-              type="number"
-              value={currentTempo}
-              onChange={e => updateField('tempo', e.target.value)}
-              className="h-8 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 text-label-12 font-mono text-[var(--ds-gray-1000)] outline-none w-16"
-              min="30" max="300"
-              placeholder="bpm"
-              aria-label="Tempo"
-            />
-            <TimeSignatureControl
-              value={currentTime}
-              onChange={v => updateField('time', v)}
-            />
-          </div>
-        </div>
-
-        {/* Row 3: structure summary (opens a focused sheet to edit) */}
+        {/* Row 2: structure summary (opens a focused sheet to edit) */}
         <div className="px-3 sm:px-4 pb-2">
           <StructureEditor
             value={structureValue}
             availableSections={availableSections}
             onChange={(next) => updateField('structure', next)}
             autoSeed={false}
+          />
+        </div>
+
+        {/* Row 3: edit-mode tabs (Arrange / Advanced), left-aligned */}
+        <div className="px-1 sm:px-2">
+          <Tabs
+            tabs={MODE_OPTIONS}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
           />
         </div>
       </header>
@@ -597,6 +620,11 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
         {/* ─── Song Details (collapsible, toggled from the title chevron) ─── */}
         {metaPanelOpen && (
           <div className="shrink-0 max-h-[45vh] overflow-y-auto border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] px-4 sm:px-6 py-2" style={headerFrostStyle}>
+            {!isWide && (
+              <div className="pb-3 mb-3 border-b border-[var(--ds-gray-200)]">
+                {musicControls}
+              </div>
+            )}
             <MetadataPanel
               md={md}
               onChange={setMd}
@@ -616,10 +644,21 @@ export default function Editor({ song, onSave, onBack, onDelete, onMove, onCopy,
               </div>
             </div>
 
+        {/* Drag divider — widens/narrows the preview pane (mirrors Library) */}
+        {showSidePreview && preview && (
+          <div
+            onPointerDown={onPreviewResize}
+            className="shrink-0 w-1.5 self-stretch cursor-col-resize relative group"
+          >
+            <span className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-[var(--ds-gray-300)] group-hover:bg-[var(--color-brand)] transition-colors" />
+          </div>
+        )}
+
         {/* RIGHT COLUMN (Preview) */}
         {showSidePreview && preview && (
           <aside
-            className="w-[42%] min-w-[340px] max-w-[560px] shrink-0 border-l border-[var(--ds-gray-300)] flex flex-col bg-[var(--ds-background-100)]"
+            style={{ width: previewWidth }}
+            className="shrink-0 flex flex-col bg-[var(--ds-background-100)]"
           >
             <div className="px-4 py-2 border-b border-[var(--ds-gray-200)] text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] sticky top-0 bg-[var(--ds-background-100)] z-10 shadow-sm">
               Preview

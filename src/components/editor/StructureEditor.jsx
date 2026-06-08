@@ -63,6 +63,13 @@ export default function StructureEditor({ value, availableSections, onChange, au
       <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] shrink-0">
         Structure
       </span>
+      <button
+        type="button"
+        onClick={() => { setSelIdx(null); setOpen(true); }}
+        className="shrink-0 text-label-11 font-semibold text-[var(--color-brand-text)] hover:underline bg-transparent border-none cursor-pointer px-1 py-1"
+      >
+        Edit
+      </button>
       <div className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto">
         {items.length === 0 ? (
           <span className="text-copy-12 text-[var(--ds-gray-600)] italic whitespace-nowrap">
@@ -80,13 +87,6 @@ export default function StructureEditor({ value, availableSections, onChange, au
           ))
         )}
       </div>
-      <button
-        type="button"
-        onClick={() => { setSelIdx(null); setOpen(true); }}
-        className="shrink-0 text-label-11 font-semibold text-[var(--color-brand-text)] hover:underline bg-transparent border-none cursor-pointer px-1 py-1"
-      >
-        Edit
-      </button>
 
       <BottomSheet open={open} onClose={() => setOpen(false)} title="Song structure">
         <div className="flex flex-col gap-5 pb-2">
