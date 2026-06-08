@@ -920,6 +920,18 @@ export default function App() {
 
   const goLibrary = () => goToMainView('library');
   const goSetlists = () => goToMainView('setlists');
+
+  // Safety net: if a member ends up on an editing surface in a read-only team
+  // library (e.g. they switched into the workspace while the editor was open),
+  // bounce them back to the matching list. The entry points are gated, the save
+  // handlers refuse to write, and this keeps them from staring at a dead editor.
+  useEffect(() => {
+    if (!isTeamReadOnly) return;
+    if (view === 'editor') goToMainView('library');
+    else if (view === 'setlist-build') goToMainView('setlists');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTeamReadOnly, view]);
+
   const goChart = (song) => {
     if (!settings?.firstSongOpened) {
       setSettings(prev => ({ ...prev, firstSongOpened: true }));
@@ -930,7 +942,10 @@ export default function App() {
     if (isTeamReadOnly) return;
     navigate('editor', { song });
   };
-  const goSetlistBuild = (sl = null) => navigate('setlist-build', { setlist: sl });
+  const goSetlistBuild = (sl = null) => {
+    if (isTeamReadOnly) return;
+    navigate('setlist-build', { setlist: sl });
+  };
   const goSetlistView = (sl) => navigate('setlist-view', { setlist: sl });
   const goSetlistPlay = (sl) => navigate('setlist-play', { setlist: sl });
   const goSetlistPerformance = (sl) => {
@@ -998,6 +1013,10 @@ export default function App() {
   // and matches an existing song id, we merge into the active/default
   // arrangement so the song's other arrangements are preserved.
   const handleSaveSong = (input, opts = {}) => {
+    if (isTeamReadOnly) {
+      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit songs here.', variant: 'error' });
+      return;
+    }
     const isV2 = !!(input && Array.isArray(input.arrangements) && input.arrangements.length > 0);
     let v2 = input;
     let isNew = false;
@@ -1286,6 +1305,10 @@ export default function App() {
 
   // Setlist CRUD
   const handleSaveSetlist = (incomingSl) => {
+    if (isTeamReadOnly) {
+      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit setlists here.', variant: 'error' });
+      return;
+    }
     // Determine isNew / prevSetlist synchronously from the current render's
     // setlists value. We can't read it from inside the setSetlists updater
     // because React 18 defers updaters until the next render, so any closure
