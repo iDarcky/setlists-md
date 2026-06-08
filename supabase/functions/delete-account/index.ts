@@ -1,22 +1,22 @@
 // Supabase Edge Function: delete-account
 //
-// Purpose: permanently delete the calling user's auth record. Cascade-deletes
-// profile + team_members rows via the FK constraints declared in the
-// 20260427_create_teams.sql migration (ON DELETE CASCADE).
+// Purpose: permanently delete the calling user's auth record.
+//
+// Owned teams are NOT automatically deleted. Instead, ownership is
+// transferred to the earliest-joined admin, or the earliest member if
+// no admin exists. The team is deleted only when the owner is the sole
+// member.
+//
+// Cascade-deletes: profile + team_members rows via ON DELETE CASCADE FKs.
+// invited_by columns SET NULL via the 20260607 migration so pending invites
+// created by this user are preserved with a null inviter.
 //
 // Deploy:
 //   supabase functions deploy delete-account --no-verify-jwt=false
 //
-// Env required (set in Supabase Project Settings → Functions):
+// Env required:
 //   SUPABASE_URL              — auto-injected
 //   SUPABASE_SERVICE_ROLE_KEY — service role key, never expose to client
-//
-// Called from the client via:
-//   supabase.functions.invoke('delete-account')
-//
-// The request must carry the user's JWT (Supabase client does this
-// automatically when verify_jwt is enabled), so we trust auth.uid() to
-// identify which user to remove.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -42,7 +42,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ ok: false, error: 'Server misconfiguration: missing env.' }, 500);
   }
 
-  // Identify the caller from the JWT bound to the request.
   const authHeader = req.headers.get('Authorization') || '';
   const jwt = authHeader.replace(/^Bearer\s+/i, '').trim();
   if (!jwt) {
@@ -65,23 +64,58 @@ Deno.serve(async (req: Request): Promise<Response> => {
     auth: { persistSession: false },
   });
 
-  // If the user is a team owner, we delete the team explicitly so we don't
-  // orphan it. (RLS would block this from the client; service role bypasses.)
-  // The team_members rows for the deleted user cascade via FK.
+  // Transfer ownership of any teams this user owns rather than deleting them.
+  // Preference order: earliest admin → earliest member → delete (no one left).
   try {
     const { data: ownedTeams } = await admin
       .from('teams')
       .select('id')
       .eq('owner_id', userId);
-    if (ownedTeams && ownedTeams.length > 0) {
-      await admin.from('teams').delete().in('id', ownedTeams.map(t => t.id));
+
+    for (const team of (ownedTeams ?? [])) {
+      // 1. Look for the earliest-joined admin who isn't the departing owner.
+      const { data: admins } = await admin
+        .from('team_members')
+        .select('user_id')
+        .eq('team_id', team.id)
+        .eq('role', 'admin')
+        .neq('user_id', userId)
+        .order('joined_at', { ascending: true })
+        .limit(1);
+
+      let newOwnerId: string | undefined = admins?.[0]?.user_id;
+
+      if (!newOwnerId) {
+        // 2. No admin — promote the earliest regular member instead.
+        const { data: members } = await admin
+          .from('team_members')
+          .select('user_id')
+          .eq('team_id', team.id)
+          .neq('user_id', userId)
+          .order('joined_at', { ascending: true })
+          .limit(1);
+
+        newOwnerId = members?.[0]?.user_id;
+      }
+
+      if (newOwnerId) {
+        // Transfer ownership and make sure the new owner is an admin.
+        await admin.from('teams').update({ owner_id: newOwnerId }).eq('id', team.id);
+        await admin
+          .from('team_members')
+          .update({ role: 'admin' })
+          .eq('team_id', team.id)
+          .eq('user_id', newOwnerId);
+      } else {
+        // Owner was the only member — nothing to preserve, delete the team.
+        await admin.from('teams').delete().eq('id', team.id);
+      }
     }
   } catch {
     // best-effort; continue to user delete
   }
 
-  // Profile row will cascade from auth.users on delete; explicit delete kept
-  // as a defence-in-depth in case the FK is missing in some environment.
+  // Profile row cascades from auth.users; explicit delete kept as defence-in-depth.
   try {
     await admin.from('profiles').delete().eq('id', userId);
   } catch {
