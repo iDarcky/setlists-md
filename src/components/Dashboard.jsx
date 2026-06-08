@@ -27,6 +27,7 @@ export default function Dashboard({
   checklistActions,
   onDismissChecklist,
   canEdit = true,
+  onSignIn,
 }) {
   const { team } = useTeam();
   const { user } = useAuth();
@@ -187,6 +188,19 @@ export default function Dashboard({
             actions={checklistActions}
             onDismiss={onDismissChecklist}
           />
+        )}
+
+        {/* Sign-in nudge for guests */}
+        {!user && onSignIn && (
+          <div className="modes-card p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex-1">
+              <p className="text-copy-16 font-semibold text-[var(--modes-text)] m-0">Save your work across devices</p>
+              <p className="text-copy-14 text-[var(--modes-text-muted)] mt-1 m-0">
+                Create a free account to sync your songs and setlists — or sign in if you already have one.
+              </p>
+            </div>
+            <Button variant="brand" onClick={onSignIn}>Sign in / Sign up</Button>
+          </div>
         )}
 
         {/* My Schedule Calendar Widget */}

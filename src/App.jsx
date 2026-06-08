@@ -566,6 +566,11 @@ export default function App() {
     if (!user?.id) prefsHydratedForUserRef.current = null;
   }, [user?.id]);
 
+  // Snapshot of all portable prefs — used as a single stable dep so the push
+  // effect fires whenever *any* of the 30 keys changes, not just the 15 that
+  // were previously listed in the deps array.
+  const portablePrefsSnapshot = settings ? JSON.stringify(extractPortablePrefs(settings)) : null;
+
   // Push portable preference changes to the cloud (debounced, only after
   // hydration so we don't clobber server state with local defaults).
   useEffect(() => {
@@ -581,23 +586,7 @@ export default function App() {
     }, 800);
     return () => clearTimeout(prefsPushTimerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    loaded,
-    user?.id,
-    settings?.theme,
-    settings?.defaultColumns,
-    settings?.defaultFontSize,
-    settings?.pedalNext,
-    settings?.pedalPrev,
-    settings?.showInlineNotes,
-    settings?.inlineNoteStyle,
-    settings?.displayRole,
-    settings?.duplicateSections,
-    settings?.chartLayout,
-    settings?.userName,
-    settings?.firstDayOfWeek,
-    settings?.clockFormat,
-  ]);
+  }, [loaded, user?.id, portablePrefsSnapshot]);
 
   // Sync on tab focus
   useEffect(() => {
@@ -1717,6 +1706,7 @@ export default function App() {
               }}
               onDismissChecklist={() => setSettings(prev => ({ ...prev, checklistDismissed: true }))}
               canEdit={canEdit}
+              onSignIn={!user ? () => { setAuthStartMode('signin'); navigate('signin'); } : undefined}
             />
           )}
           {view === 'library' && (

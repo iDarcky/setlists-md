@@ -186,7 +186,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
 
   if (!isConfigured) {
     return (
-      <div data-theme-variant="modes" className="min-h-screen flex flex-col">
+      <div data-theme-variant="modes" className="fixed inset-0 overflow-y-auto flex flex-col">
         <ScreenHeader onBack={onBack} title="Sign In" />
         <div className="flex-1 flex items-center justify-center px-6">
           <div className="modes-card max-w-sm p-6 text-center">
@@ -202,7 +202,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
   }
 
   return (
-    <div data-theme-variant="modes" className="min-h-screen flex flex-col">
+    <div data-theme-variant="modes" className="fixed inset-0 overflow-y-auto flex flex-col">
       <ScreenHeader onBack={onBack} title={isSignUp ? 'Create account' : 'Sign in'} />
 
       <div className="flex-1 flex items-start justify-center px-4 py-6 sm:py-10">
