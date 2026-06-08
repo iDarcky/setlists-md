@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import BottomSheet from '../ui/BottomSheet';
+import { Button } from '../ui/Button';
 
 // Compact label for a section name. "Verse 1" -> "V1", "Pre Chorus 2"
 // -> "PC2", "Chorus" -> "C". Keep trailing numbers but strip the words.
@@ -15,27 +17,27 @@ function shortCode(name) {
   return initials + num;
 }
 
-// A draggable, Proclaim-style chip editor for `structure: [...]`.
+// Structure editor: a compact, always-visible summary strip that opens a
+// focused, touch-friendly bottom sheet for editing. No drag-and-drop (it's
+// unreliable in an installed PWA on tablets) — the sheet uses tap-to-build
+// (tap a section to append) plus tap-to-select + big move/remove controls.
 //
 // value          — current comma-separated string from form fields
-// availableSections — list of section labels found in the song body
+// availableSections — section labels found in the song body
 // onChange(next) — fires with the next comma-separated string
-//
-// When `value` is empty and the editor has not been touched, hitting
-// "Edit order" auto-populates the list from document order so the user
-// has a real starting point rather than a blank canvas.
-export default function StructureEditor({ value, availableSections, onChange }) {
+// autoSeed       — populate from document order on first paint when empty
+export default function StructureEditor({ value, availableSections, onChange, autoSeed = true }) {
   const items = useMemo(() => {
     if (!value) return [];
     return value.split(',').map(s => s.trim()).filter(Boolean);
   }, [value]);
 
-  const [adding, setAdding] = useState(false);
-  const [draggingIdx, setDraggingIdx] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [selIdx, setSelIdx] = useState(null);
   const seedRef = useRef(false);
 
-  // Auto-populate from document order on first paint when empty.
   useEffect(() => {
+    if (!autoSeed) return;
     if (seedRef.current) return;
     seedRef.current = true;
     if (items.length === 0 && availableSections.length > 0) {
@@ -45,155 +47,136 @@ export default function StructureEditor({ value, availableSections, onChange }) 
   }, []);
 
   const commit = (next) => onChange(next.join(', '));
-
-  const handleRemove = (idx) => {
+  const append = (name) => commit([...items, name]);
+  const remove = (idx) => { commit(items.filter((_, i) => i !== idx)); setSelIdx(null); };
+  const move = (idx, dir) => {
+    const j = idx + dir;
+    if (j < 0 || j >= items.length) return;
     const next = items.slice();
-    next.splice(idx, 1);
+    [next[idx], next[j]] = [next[j], next[idx]];
     commit(next);
+    setSelIdx(j);
   };
-
-  const handleAdd = (name) => {
-    if (!name) return;
-    commit([...items, name]);
-    setAdding(false);
-  };
-
-  const handleReset = () => {
-    commit(availableSections);
-  };
-
-  const handleClear = () => commit([]);
-
-  const handleDragStart = (idx) => () => setDraggingIdx(idx);
-  const handleDragOver = (idx) => (e) => {
-    e.preventDefault();
-    if (draggingIdx === null || draggingIdx === idx) return;
-    const next = items.slice();
-    const [moved] = next.splice(draggingIdx, 1);
-    next.splice(idx, 0, moved);
-    setDraggingIdx(idx);
-    commit(next);
-  };
-  const handleDragEnd = () => setDraggingIdx(null);
-
-  const handleTouchStart = (idx) => (e) => {
-    if (e.target.closest('button')) return;
-    setDraggingIdx(idx);
-  };
-
-  const handleTouchMove = (e) => {
-    if (draggingIdx === null) return;
-    const touch = e.touches[0];
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (el) {
-      const chip = el.closest('[data-drag-idx]');
-      if (chip) {
-        const hoverIdx = parseInt(chip.dataset.dragIdx, 10);
-        if (hoverIdx !== draggingIdx) {
-          const next = items.slice();
-          const [moved] = next.splice(draggingIdx, 1);
-          next.splice(hoverIdx, 0, moved);
-          setDraggingIdx(hoverIdx);
-          commit(next);
-        }
-      }
-    }
-  };
-
-  const handleTouchEnd = () => setDraggingIdx(null);
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">
-          Structure
-        </span>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleReset}
-            className="text-label-11 text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer p-0"
-          >
-            Reset to song order
-          </button>
-          {items.length > 0 && (
-            <button
-              type="button"
-              onClick={handleClear}
-              className="text-label-11 text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer p-0"
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] shrink-0">
+        Structure
+      </span>
+      <div className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto">
+        {items.length === 0 ? (
+          <span className="text-copy-12 text-[var(--ds-gray-600)] italic whitespace-nowrap">
+            No order set
+          </span>
+        ) : (
+          items.map((name, i) => (
+            <span
+              key={`${name}-${i}`}
+              title={name}
+              className="shrink-0 px-1.5 py-0.5 rounded text-label-11 font-mono font-bold bg-[var(--color-brand-soft)] text-[var(--color-brand-text)]"
             >
-              Clear
-            </button>
+              {shortCode(name)}
+            </span>
+          ))
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => { setSelIdx(null); setOpen(true); }}
+        className="shrink-0 text-label-11 font-semibold text-[var(--color-brand-text)] hover:underline bg-transparent border-none cursor-pointer px-1 py-1"
+      >
+        Edit
+      </button>
+
+      <BottomSheet open={open} onClose={() => setOpen(false)} title="Song structure">
+        <div className="flex flex-col gap-5 pb-2">
+          {/* Current order */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-label-12 font-semibold text-[var(--text-2)]">Play order</span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => { commit(availableSections); setSelIdx(null); }}
+                  className="text-label-12 text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer p-0"
+                >
+                  Reset to song order
+                </button>
+                {items.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => { commit([]); setSelIdx(null); }}
+                    className="text-label-12 text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer p-0"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 p-2.5 min-h-[60px] rounded-xl border border-dashed border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)]">
+              {items.length === 0 && (
+                <span className="text-copy-13 text-[var(--ds-gray-600)] italic px-1 py-2">
+                  Tap a section below to add it to the order.
+                </span>
+              )}
+              {items.map((name, i) => {
+                const selected = selIdx === i;
+                return (
+                  <button
+                    key={`${name}-${i}`}
+                    type="button"
+                    onClick={() => setSelIdx(selected ? null : i)}
+                    title={name}
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-copy-13 font-mono cursor-pointer transition-colors ${
+                      selected
+                        ? 'bg-[var(--color-brand)] text-white border border-[var(--color-brand)]'
+                        : 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border border-[var(--color-brand-border)]'
+                    }`}
+                  >
+                    <span className="font-bold">{shortCode(name)}</span>
+                    <span className="opacity-70">{name}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Controls for the selected item */}
+            {selIdx !== null && items[selIdx] && (
+              <div className="flex items-center gap-2 mt-3">
+                <Button variant="secondary" size="md" onClick={() => move(selIdx, -1)} disabled={selIdx === 0}>
+                  ← Move
+                </Button>
+                <Button variant="secondary" size="md" onClick={() => move(selIdx, 1)} disabled={selIdx === items.length - 1}>
+                  Move →
+                </Button>
+                <Button variant="danger" size="md" onClick={() => remove(selIdx)} className="ml-auto">
+                  Remove
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Add a section */}
+          {availableSections.length > 0 && (
+            <div>
+              <span className="text-label-12 font-semibold text-[var(--text-2)] block mb-2">Add a section</span>
+              <div className="flex flex-wrap gap-2">
+                {availableSections.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => append(name)}
+                    title={name}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-copy-13 font-mono cursor-pointer bg-transparent border border-dashed border-[var(--ds-gray-400)] text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:border-[var(--ds-gray-600)]"
+                  >
+                    + {name}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
-      </div>
-
-      <div
-        className="flex flex-wrap gap-1.5 p-2 min-h-[44px] rounded-md border border-dashed border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)]"
-        onDragOver={(e) => e.preventDefault()}
-      >
-        {items.length === 0 && !adding && (
-          <span className="text-copy-12 text-[var(--ds-gray-600)] italic px-1 py-1">
-            No order set — sections will play in the order they appear in the song.
-          </span>
-        )}
-        {items.map((name, idx) => (
-          <span
-            key={`${name}-${idx}`}
-            data-drag-idx={idx}
-            draggable
-            onDragStart={handleDragStart(idx)}
-            onDragOver={handleDragOver(idx)}
-            onDragEnd={handleDragEnd}
-            onTouchStart={handleTouchStart(idx)}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handleTouchEnd}
-            title={name}
-            className={
-              'inline-flex items-center gap-1 px-2 py-1 rounded-md text-label-12 font-mono cursor-grab active:cursor-grabbing select-none touch-none ' +
-              'bg-[var(--color-brand-soft)] border border-[var(--color-brand-border)] text-[var(--color-brand-text)] ' +
-              (draggingIdx === idx ? 'opacity-50' : '')
-            }
-          >
-            <span className="font-bold">{shortCode(name)}</span>
-            <button
-              type="button"
-              onClick={() => handleRemove(idx)}
-              aria-label={`Remove ${name}`}
-              className="bg-transparent border-none text-[var(--color-brand-text)] opacity-70 hover:opacity-100 cursor-pointer p-0 leading-none"
-              style={{ fontSize: '12px' }}
-            >
-              ✕
-            </button>
-          </span>
-        ))}
-
-        {adding ? (
-          <select
-            autoFocus
-            value=""
-            onChange={(e) => handleAdd(e.target.value)}
-            onBlur={() => setAdding(false)}
-            className="bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] rounded-md px-2 py-1 text-label-12 font-mono text-[var(--ds-gray-1000)] outline-none"
-          >
-            <option value="" disabled>Pick a section…</option>
-            {availableSections.map((name) => (
-              <option key={name} value={name}>{shortCode(name)} — {name}</option>
-            ))}
-          </select>
-        ) : (
-          availableSections.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-label-12 font-mono cursor-pointer bg-transparent border border-dashed border-[var(--ds-gray-400)] text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:border-[var(--ds-gray-600)]"
-            >
-              + Add
-            </button>
-          )
-        )}
-      </div>
+      </BottomSheet>
     </div>
   );
 }

@@ -128,11 +128,40 @@ export function parseSongMd(text) {
         ? meta.structure.split(',').map(s => s.trim()).filter(Boolean)
         : sections.map(s => s.type)),
     sections,
+    // Extended descriptive metadata (song-level).
+    ...Object.fromEntries(EXTRA_META_FIELDS.map(([k]) => [k, meta[k] != null ? String(meta[k]) : ''])),
     // Arrangement linkage — null when the file is a standalone (single-arrangement) song.
     songId: meta.songid || null,
     arrangementId: meta.arrangementid || null,
     arrangementName: meta.arrangementname || null,
   };
+}
+
+// Extended descriptive metadata carried at song level: [objectKey, mdKey].
+export const EXTRA_META_FIELDS = [
+  ['originaltitle', 'originalTitle'],
+  ['language', 'language'],
+  ['translator', 'translator'],
+  ['writers', 'writers'],
+  ['publishers', 'publishers'],
+  ['copyright', 'copyright'],
+  ['album', 'album'],
+  ['label', 'label'],
+  ['year', 'year'],
+  ['themes', 'themes'],
+  ['genres', 'genres'],
+  ['scripture', 'scripture'],
+  ['vocalrange', 'vocalRange'],
+  ['moment', 'moment'],
+  ['story', 'story'],
+];
+export const EXTRA_META_KEYS = EXTRA_META_FIELDS.map(([k]) => k);
+
+// Frontmatter is one line per field. Strip newlines/tabs that would break the
+// parse (or inject stray keys) and trim. Internal single spaces are preserved.
+export function sanitizeFrontmatterValue(v) {
+  if (v == null) return '';
+  return String(v).replace(/[\r\n\t\f\v]+/g, ' ').trim();
 }
 
 // Convert a song object back to .md format.
@@ -158,6 +187,7 @@ export function songToMd(song, arrangement) {
         tags: song.tags,
         spotify: song.spotify,
         youtube: song.youtube,
+        ...Object.fromEntries(EXTRA_META_FIELDS.map(([k]) => [k, song[k]])),
         key: arr?.key,
         tempo: arr?.tempo,
         time: arr?.time,
@@ -177,24 +207,28 @@ export function songToMd(song, arrangement) {
   // legacy single-arrangement exports we still emit `id` so older tooling
   // keeps working.
   const useArrangementIdentity = !!(view._songId && view._arrangementId);
-  if (!useArrangementIdentity && view.id) md += `id: ${view.id}\n`;
-  md += `title: ${view.title}\n`;
-  md += `artist: ${view.artist}\n`;
-  md += `key: ${view.key}\n`;
-  if (view.tempo) md += `tempo: ${view.tempo}\n`;
-  if (view.time) md += `time: ${view.time}\n`;
-  if (view.duration) md += `duration: ${view.duration}\n`;
-  if (view.ccli) md += `ccli: "${view.ccli}"\n`;
-  if (view.tags?.length) md += `tags: [${view.tags.join(', ')}]\n`;
-  if (view.spotify) md += `spotify: ${view.spotify}\n`;
-  if (view.youtube) md += `youtube: ${view.youtube}\n`;
-  if (view.capo) md += `capo: ${view.capo}\n`;
-  if (view.notes) md += `notes: ${view.notes}\n`;
+  const sv = sanitizeFrontmatterValue;
+  if (!useArrangementIdentity && view.id) md += `id: ${sv(view.id)}\n`;
+  md += `title: ${sv(view.title)}\n`;
+  md += `artist: ${sv(view.artist)}\n`;
+  md += `key: ${sv(view.key)}\n`;
+  if (view.tempo) md += `tempo: ${sv(view.tempo)}\n`;
+  if (view.time) md += `time: ${sv(view.time)}\n`;
+  if (view.duration) md += `duration: ${sv(view.duration)}\n`;
+  if (view.ccli) md += `ccli: "${sv(view.ccli)}"\n`;
+  if (view.tags?.length) md += `tags: [${sv(view.tags.join(', '))}]\n`;
+  if (view.spotify) md += `spotify: ${sv(view.spotify)}\n`;
+  if (view.youtube) md += `youtube: ${sv(view.youtube)}\n`;
+  if (view.capo) md += `capo: ${sv(view.capo)}\n`;
+  if (view.notes) md += `notes: ${sv(view.notes)}\n`;
+  for (const [k, mdKey] of EXTRA_META_FIELDS) {
+    if (view[k]) md += `${mdKey}: ${sv(view[k])}\n`;
+  }
   // Only emit `structure:` when the user has explicitly set a custom
   // section order (Proclaim-style). When empty, render falls back to
   // document order so we don't want to bake that order into the file.
   if (view.structure && view.structure.length > 0) {
-    md += `structure: [${view.structure.join(', ')}]\n`;
+    md += `structure: [${sv(view.structure.join(', '))}]\n`;
   }
   if (useArrangementIdentity) {
     md += `songId: ${view._songId}\n`;
@@ -381,6 +415,12 @@ export function parseFrontmatterFields(frontmatter) {
     structure: '', ccli: '', tags: '', capo: '',
     spotify: '', youtube: '', notes: '',
     songid: '', arrangementid: '', arrangementname: '',
+    // Extended descriptive metadata (all optional, plain strings).
+    originaltitle: '', language: '', translator: '',
+    writers: '', publishers: '', copyright: '',
+    album: '', label: '', year: '',
+    themes: '', genres: '', scripture: '', vocalrange: '',
+    moment: '', story: '',
   };
   if (!frontmatter) return fields;
   frontmatter.split('\n').forEach(line => {
@@ -397,27 +437,34 @@ export function parseFrontmatterFields(frontmatter) {
   return fields;
 }
 
-// Serialize field object back to frontmatter text
+// Serialize field object back to frontmatter text. Values are sanitized so a
+// pasted newline (or a `key: value`-looking line) inside a field can't break
+// the frontmatter or inject stray keys.
 export function serializeFrontmatterFields(fields) {
+  const s = sanitizeFrontmatterValue;
   const lines = [];
-  if (fields.title) lines.push(`title: ${fields.title}`);
-  if (fields.artist) lines.push(`artist: ${fields.artist}`);
-  if (fields.key) lines.push(`key: ${fields.key}`);
-  if (fields.tempo) lines.push(`tempo: ${fields.tempo}`);
-  if (fields.time) lines.push(`time: ${fields.time}`);
-  if (fields.duration) lines.push(`duration: ${fields.duration}`);
+  if (fields.title) lines.push(`title: ${s(fields.title)}`);
+  if (fields.artist) lines.push(`artist: ${s(fields.artist)}`);
+  if (fields.key) lines.push(`key: ${s(fields.key)}`);
+  if (fields.tempo) lines.push(`tempo: ${s(fields.tempo)}`);
+  if (fields.time) lines.push(`time: ${s(fields.time)}`);
+  if (fields.duration) lines.push(`duration: ${s(fields.duration)}`);
   // Structure is now a user-edited list (Proclaim-style). Persist
   // verbatim through the form-editor round-trip so the chip editor
   // can hand it back unchanged.
-  if (fields.structure) lines.push(`structure: [${fields.structure}]`);
-  if (fields.ccli) lines.push(`ccli: "${fields.ccli}"`);
-  if (fields.tags) lines.push(`tags: [${fields.tags}]`);
-  if (fields.capo) lines.push(`capo: ${fields.capo}`);
-  if (fields.spotify) lines.push(`spotify: ${fields.spotify}`);
-  if (fields.youtube) lines.push(`youtube: ${fields.youtube}`);
-  if (fields.notes) lines.push(`notes: ${fields.notes}`);
-  if (fields.songid) lines.push(`songId: ${fields.songid}`);
-  if (fields.arrangementid) lines.push(`arrangementId: ${fields.arrangementid}`);
-  if (fields.arrangementname) lines.push(`arrangementName: ${fields.arrangementname}`);
+  if (fields.structure) lines.push(`structure: [${s(fields.structure)}]`);
+  if (fields.ccli) lines.push(`ccli: "${s(fields.ccli)}"`);
+  if (fields.tags) lines.push(`tags: [${s(fields.tags)}]`);
+  if (fields.capo) lines.push(`capo: ${s(fields.capo)}`);
+  if (fields.spotify) lines.push(`spotify: ${s(fields.spotify)}`);
+  if (fields.youtube) lines.push(`youtube: ${s(fields.youtube)}`);
+  if (fields.notes) lines.push(`notes: ${s(fields.notes)}`);
+  // Extended descriptive metadata.
+  for (const [objKey, mdKey] of EXTRA_META_FIELDS) {
+    if (fields[objKey]) lines.push(`${mdKey}: ${s(fields[objKey])}`);
+  }
+  if (fields.songid) lines.push(`songId: ${s(fields.songid)}`);
+  if (fields.arrangementid) lines.push(`arrangementId: ${s(fields.arrangementid)}`);
+  if (fields.arrangementname) lines.push(`arrangementName: ${s(fields.arrangementname)}`);
   return lines.join('\n');
 }

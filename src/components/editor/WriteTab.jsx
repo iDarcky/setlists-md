@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ChordPicker from './ChordPicker';
 import TabGridEditor from './TabGridEditor';
-import { parseTabBlock, splitMd, parseFrontmatterFields } from '../../parser';
+import { parseTabBlock } from '../../parser';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 
@@ -10,7 +10,7 @@ const SECTION_TYPES = [
   'Instrumental', 'Interlude', 'Tag', 'Vamp', 'Outro', 'Ending', 'Refrain',
 ];
 
-export default function WriteTab({ md, onChange, textareaRef, customSectionTypes }) {
+export default function WriteTab({ md, onChange, textareaRef, customSectionTypes, time, onUndo, onRedo, onImport }) {
   const sectionTypes = useMemo(() => {
     const custom = (customSectionTypes || [])
       .map(t => t?.name?.trim())
@@ -23,7 +23,6 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [showModMenu, setShowModMenu] = useState(false);
   const [showTabEditor, setShowTabEditor] = useState(false);
-  const [showRef, setShowRef] = useState(false);
   const [tabEditState, setTabEditState] = useState(null);
   const [chordAnchor, setChordAnchor] = useState(null);
   const [popupAnchor, setPopupAnchor] = useState(null);
@@ -215,11 +214,9 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     setter(true);
   };
 
-  // Get time sig from frontmatter for TabGridEditor
-  const getTime = () => {
-    const fields = parseFrontmatterFields(splitMd(md).frontmatter);
-    return fields.time || '4/4';
-  };
+  // Time sig for TabGridEditor — passed down from the Editor shell, since the
+  // frontmatter is no longer part of this editor's text.
+  const getTime = () => time || '4/4';
 
   // ─── Find / Replace ───
   const matches = useMemo(() => {
@@ -308,6 +305,12 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
         <ToolBtn label="↑" title="Modulate" onClick={(e) => openPopup(setShowModMenu, e)} />
         <ToolBtn label="┃" title="Tab" onClick={handleTabInsert} />
         <ToolBtn label="🔍" title="Find" onClick={() => setShowFind(true)} />
+        {(onUndo || onRedo || onImport) && (
+          <span className="w-px self-stretch bg-[var(--ds-gray-300)] mx-0.5" aria-hidden="true" />
+        )}
+        {onUndo && <ToolBtn label="↶" title="Undo" onClick={onUndo} />}
+        {onRedo && <ToolBtn label="↷" title="Redo" onClick={onRedo} />}
+        {onImport && <ToolBtn label="📋" title="Paste" onClick={onImport} />}
       </div>
 
       {/* ─── Find / Replace bar ─── */}
@@ -340,54 +343,6 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
         className="flex-1 w-full min-h-[50vh] bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg p-4 text-copy-13 leading-relaxed text-[var(--ds-gray-1000)] resize-y outline-none font-mono"
         style={{ caretColor: 'var(--chord)' }}
       />
-
-      {/* ─── Syntax Reference ─── */}
-      <button
-        onClick={() => setShowRef(v => !v)}
-        className="bg-transparent border-none cursor-pointer text-[var(--color-brand-text)] text-label-12 font-semibold font-mono py-2 text-left flex items-center gap-1.5"
-      >
-        <span className="text-[10px]">{showRef ? '▾' : '▸'}</span>
-        Syntax Reference
-      </button>
-
-      {showRef && (
-        <div className="mb-2.5 p-3 rounded-lg bg-[var(--color-brand-soft)] border border-[var(--color-brand-border)] text-copy-11 text-[var(--ds-gray-600)] leading-relaxed font-mono">
-          <div className="mb-1.5">
-            <strong className="text-[var(--ds-gray-1000)]">Frontmatter</strong> (between <code>---</code> delimiters):
-          </div>
-          <div className="pl-2.5 mb-2 text-[var(--ds-gray-500)]">
-            title: Song Name<br />
-            artist: Artist Name<br />
-            key: C<br />
-            tempo: 120<br />
-            time: 4/4<br />
-            structure: [Verse 1, Chorus, Verse 2, Chorus]<br />
-            <span className="opacity-50">tags, ccli, spotify, youtube, capo, notes — optional</span>
-          </div>
-          <div className="mb-1.5">
-            <strong className="text-[var(--ds-gray-1000)]">Sections & Chords:</strong>
-          </div>
-          <div className="pl-2.5 text-[var(--ds-gray-500)] mb-2">
-            <strong className="text-[var(--color-brand-text)]">## Section Name</strong> — starts a section<br />
-            <strong className="text-[var(--chord)]">[Chord]</strong>lyrics — inline chords above lyrics<br />
-            <strong className="text-[var(--ds-gray-600)]">&gt; note</strong> — band cue<br />
-          </div>
-          <div className="mb-1.5">
-            <strong className="text-[var(--ds-gray-1000)]">Tab Blocks:</strong>
-          </div>
-          <div className="pl-2.5 text-[var(--ds-gray-500)]">
-            <strong className="text-[var(--color-brand-text)]">{'{'}</strong>tab{'}'} ... {'{'}/tab{'}'}<br />
-            <span className="text-[var(--chord)]">e|--0--2h3--|</span> — string lines (e B G D A E)<br />
-            <span className="opacity-70">Techniques: </span>
-            <strong className="text-[var(--chord)]">h</strong> hammer &nbsp;
-            <strong className="text-[var(--chord)]">p</strong> pull &nbsp;
-            <strong className="text-[var(--chord)]">s</strong> slide &nbsp;
-            <strong className="text-[var(--chord)]">b</strong> bend &nbsp;
-            <strong className="text-[var(--chord)]">x</strong> mute &nbsp;
-            <strong className="text-[var(--chord)]">~</strong> vibrato
-          </div>
-        </div>
-      )}
 
       {/* ─── Popups ─── */}
       {showChordPicker && (

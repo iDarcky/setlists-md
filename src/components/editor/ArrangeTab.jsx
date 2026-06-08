@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, memo } from 'react';
 import { parseSongMd, songToMd, lineToPlacement, placementToLine, extractInlineNotes } from '../../parser';
 import { sectionStyle } from '../../music';
 import TabBlock from '../TabBlock';
@@ -14,24 +14,46 @@ const SECTION_TYPES = [
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
-function charPosFromPointer(e, lineEl) {
-  const chars = lineEl.querySelectorAll('[data-char-pos]');
-  if (!chars.length) return 0;
-  const clientX = e.clientX;
-  const clientY = e.clientY;
-  let closest = 0;
-  let closestDist = Infinity;
-  for (const el of chars) {
-    const rect = el.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const dist = Math.abs(clientX - centerX) + Math.abs(clientY - centerY) * 2;
-    if (dist < closestDist) {
-      closestDist = dist;
-      closest = parseInt(el.dataset.charPos, 10);
+// Map a screen point to a character offset within a line's lyric text node.
+// Uses the native caret APIs (Blink/WebKit: caretRangeFromPoint; Firefox:
+// caretPositionFromPoint) when available, then falls back to a per-character
+// rect scan — the caret APIs can return null on touch / when text isn't
+// selectable, which was putting chords at the end of the row on tablets.
+function caretOffsetFromPoint(x, y, textEl) {
+  if (!textEl) return null;
+  const textNode = textEl.firstChild;
+  let node = null;
+  let offset = 0;
+  if (document.caretPositionFromPoint) {
+    const cp = document.caretPositionFromPoint(x, y);
+    if (cp) { node = cp.offsetNode; offset = cp.offset; }
+  } else if (document.caretRangeFromPoint) {
+    const r = document.caretRangeFromPoint(x, y);
+    if (r) { node = r.startContainer; offset = r.startOffset; }
+  }
+  if (node && textNode && node === textNode) return offset;
+  if (node === textEl) return 0;
+  // Fallback: scan character rects (robust on touch + wrapped lines).
+  return offsetFromRects(textEl, x, y);
+}
+
+function offsetFromRects(textEl, x, y) {
+  const node = textEl?.firstChild;
+  if (!node || node.nodeType !== 3 || node.length === 0) return null;
+  const range = document.createRange();
+  let best = 0;
+  let bestDist = Infinity;
+  for (let i = 0; i < node.length; i++) {
+    range.setStart(node, i);
+    range.setEnd(node, i + 1);
+    for (const r of range.getClientRects()) {
+      const onRow = y >= r.top - 2 && y <= r.bottom + 2;
+      const mid = r.left + r.width / 2;
+      const dist = (onRow ? 0 : 100000) + Math.abs(x - mid);
+      if (dist < bestDist) { bestDist = dist; best = x > mid ? i + 1 : i; }
     }
   }
-  return closest;
+  return best;
 }
 
 function parsePlacementLine(line) {
@@ -42,171 +64,156 @@ function parsePlacementLine(line) {
   return { ...placement, inlineNote };
 }
 
-function expandForChords(plainText, chords) {
-  if (!chords.length) {
-    const len = plainText.length || 1;
-    return { text: plainText || ' ', displayChords: [], posMap: Array.from({ length: len }, (_, i) => i) };
-  }
-
-  const sorted = chords
-    .map((c, i) => ({ ...c, origIdx: i }))
-    .sort((a, b) => a.pos - b.pos);
-
-  let expanded = '';
-  const displayChords = [];
-  const posMap = [];
-  let srcIdx = 0;
-
-  for (let ci = 0; ci < sorted.length; ci++) {
-    const chord = sorted[ci];
-    const origPos = chord.pos;
-
-    while (srcIdx < origPos && srcIdx < plainText.length) {
-      posMap.push(srcIdx);
-      expanded += plainText[srcIdx];
-      srcIdx++;
-    }
-
-    const currentLen = expanded.length;
-    const minPos = displayChords.length > 0
-      ? displayChords[displayChords.length - 1].pos + displayChords[displayChords.length - 1].chord.length + 1
-      : currentLen;
-    const actualPos = Math.max(currentLen, minPos);
-    const dashCount = actualPos - currentLen;
-
-    for (let d = 0; d < dashCount; d++) {
-      posMap.push(origPos);
-      expanded += '-';
-    }
-
-    displayChords.push({ chord: chord.chord, pos: actualPos, origIdx: chord.origIdx });
-  }
-
-  while (srcIdx < plainText.length) {
-    posMap.push(srcIdx);
-    expanded += plainText[srcIdx];
-    srcIdx++;
-  }
-
-  if (!expanded) {
-    expanded = ' ';
-    posMap.push(0);
-  }
-
-  return { text: expanded, displayChords, posMap };
-}
-
 // ─── InteractiveLine ──────────────────────────────────────────────
+//
+// Renders the lyric as a single wrapping text node and overlays chords as
+// absolutely-positioned chips, measured against the rendered text so each chip
+// sits over the right character on whichever visual row it wraps to. This keeps
+// the DOM at O(chords) nodes per line instead of O(characters), and (paired
+// with the line-specific props below) lets a pointer-move re-render only the
+// one line it's over rather than every line in the song.
 
-function InteractiveLine({
+const InteractiveLine = memo(function InteractiveLine({
   plainText, chords, secIdx, lineIdx,
-  activeChord, selectedExisting, guidePos,
-  onPlace, onChordTap, onGuideUpdate, onGuideClear,
-  onLineClick,
+  activeChord, hasSelection, guideCharPos, selectedChordIdx,
+  onPlace, onChordTap, onGuideUpdate, onGuideClear, onLineClick,
 }) {
-  const { text, displayChords, posMap } = useMemo(
-    () => expandForChords(plainText, chords),
-    [plainText, chords]
+  const containerRef = useRef(null);
+  const textRef = useRef(null);
+  const [chips, setChips] = useState([]);
+  const [caret, setCaret] = useState(null);
+  const [tick, setTick] = useState(0);
+
+  const isChordMode = !!(activeChord || hasSelection);
+  const showGuide = guideCharPos != null;
+
+  const indexedChords = useMemo(
+    () => (chords || []).map((c, i) => ({ chord: c.chord, pos: c.pos, origIdx: i })),
+    [chords],
   );
 
-  const isSelected = (origIdx) =>
-    selectedExisting &&
-    selectedExisting.secIdx === secIdx &&
-    selectedExisting.lineIdx === lineIdx &&
-    selectedExisting.chordIdx === origIdx;
+  // Measure chord anchor positions (and the guide caret) after layout. Re-runs
+  // when the text/chords change or the container resizes (wrapping changes).
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const textEl = textRef.current;
+    if (!container || !textEl) return;
+    const textNode = textEl.firstChild;
+    const len = textNode && textNode.nodeType === 3 ? textNode.length : 0;
+    const cRect = container.getBoundingClientRect();
 
-  const isChordMode = activeChord || selectedExisting;
+    const measure = (pos) => {
+      if (!textNode || len === 0) {
+        const r = textEl.getBoundingClientRect();
+        return { left: r.left - cRect.left, top: r.top - cRect.top };
+      }
+      const atEnd = pos >= len;
+      const i = atEnd ? len - 1 : Math.max(0, pos);
+      const range = document.createRange();
+      range.setStart(textNode, i);
+      range.setEnd(textNode, i + 1);
+      const r = range.getClientRects()[0];
+      if (!r) return null;
+      return { left: (atEnd ? r.right : r.left) - cRect.left, top: r.top - cRect.top };
+    };
+
+    const next = [];
+    for (const c of indexedChords) {
+      const m = measure(c.pos);
+      if (m) next.push({ chord: c.chord, origIdx: c.origIdx, left: m.left, top: m.top });
+    }
+    // Nudge close chords apart so their names never overlap on the same row
+    // (the "spaces for close chords" problem). Shifts only the label, not the
+    // lyric. ~7.8px ≈ one monospace glyph at 13px.
+    next.sort((a, b) => a.top - b.top || a.left - b.left);
+    const CHAR_W = 7.8;
+    for (let i = 1; i < next.length; i++) {
+      const prev = next[i - 1];
+      if (Math.abs(next[i].top - prev.top) < 4) {
+        const prevRight = prev.left + prev.chord.length * CHAR_W + 4;
+        if (next[i].left < prevRight) next[i].left = prevRight;
+      }
+    }
+    // Positioning overlays from measured layout is the canonical use of
+    // useLayoutEffect (it runs synchronously before paint, so no flicker).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setChips(next);
+    setCaret(showGuide ? measure(guideCharPos) : null);
+  }, [plainText, indexedChords, showGuide, guideCharPos, tick]);
+
+  // Remeasure on width changes (preview toggled, window resized, …).
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setTick(t => t + 1));
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, []);
 
   const handlePointerMove = (e) => {
     if (!isChordMode) return;
-    const el = e.currentTarget;
-    const pos = charPosFromPointer(e, el);
-    onGuideUpdate({ secIdx, lineIdx, charPos: pos });
+    const pos = caretOffsetFromPoint(e.clientX, e.clientY, textRef.current);
+    if (pos != null) onGuideUpdate({ secIdx, lineIdx, charPos: pos });
   };
-
-  const handlePointerLeave = () => { onGuideClear(); };
-
+  const handlePointerLeave = () => onGuideClear();
   const handlePointerDown = (e) => {
     if (isChordMode) {
-      const el = e.currentTarget;
-      const expandedPos = charPosFromPointer(e, el);
-      const origPos = posMap[expandedPos] ?? expandedPos;
-      onPlace(secIdx, lineIdx, origPos);
+      const pos = caretOffsetFromPoint(e.clientX, e.clientY, textRef.current);
+      onPlace(secIdx, lineIdx, pos == null ? (plainText?.length || 0) : pos);
     } else {
       onLineClick(secIdx, lineIdx);
     }
   };
 
-  const showGuide = guidePos &&
-    guidePos.secIdx === secIdx &&
-    guidePos.lineIdx === lineIdx;
-
-  if (!plainText && chords.length === 0) {
-    return <div className="min-h-[1.3em]" />;
+  if (!plainText && (!chords || chords.length === 0)) {
+    return <div className="min-h-[1.3em]" onPointerDown={() => onLineClick(secIdx, lineIdx)} />;
   }
 
   return (
     <div
-      className="relative select-none"
+      ref={containerRef}
+      className="relative font-mono"
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
       onPointerDown={handlePointerDown}
-      style={{
-        cursor: isChordMode ? 'crosshair' : 'pointer',
-        lineHeight: 1,
-      }}
+      style={{ cursor: isChordMode ? 'crosshair' : 'pointer', fontSize: 16, lineHeight: 2.0, paddingTop: '1.1em' }}
     >
-      <div className="flex flex-wrap items-end font-mono" style={{ fontSize: 16 }}>
-        {[...text].map((char, i) => {
-          const dc = displayChords.find(c => c.pos === i);
-          const origIdx = dc ? dc.origIdx : -1;
-          const selected = dc && isSelected(origIdx);
-          const isGuided = showGuide && guidePos.charPos === i;
-
-          return (
-            <span
-              key={i}
-              className="inline-flex flex-col justify-end"
-              data-char-pos={i}
-              style={{
-                borderLeft: isGuided ? '2px solid var(--chord)' : '2px solid transparent',
-              }}
-            >
-              <span
-                className="leading-none whitespace-nowrap"
-                style={{ minHeight: '1.4em', paddingBottom: 2 }}
-              >
-                {dc ? (
-                  <span
-                    className="font-bold cursor-pointer transition-all"
-                    style={{
-                      color: selected ? 'var(--color-brand)' : 'var(--chord)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      borderBottom: selected ? '2px solid var(--color-brand)' : '2px solid transparent',
-                      animation: selected ? 'pulse 1.5s ease-in-out infinite' : 'none',
-                    }}
-                    onPointerDown={(e) => {
-                      e.stopPropagation();
-                      onChordTap(secIdx, lineIdx, origIdx);
-                    }}
-                  >
-                    {dc.chord}{'\u2003'}
-                  </span>
-                ) : (
-                  '\u00A0'
-                )}
-              </span>
-              <span className="text-[var(--text-1)] whitespace-pre leading-tight">
-                {char === ' ' ? '\u00A0' : char}
-              </span>
-            </span>
-          );
-        })}
+      <div ref={textRef} className="whitespace-pre-wrap text-[var(--text-1)]">
+        {plainText ? plainText : '\u00A0'}
       </div>
+      {chips.map((c) => {
+        const selected = selectedChordIdx === c.origIdx;
+        return (
+          <span
+            key={c.origIdx}
+            className="absolute font-bold cursor-pointer"
+            style={{
+              left: c.left,
+              top: c.top,
+              transform: 'translateY(-100%)',
+              lineHeight: 1,
+              fontSize: 13,
+              color: selected ? 'var(--color-brand)' : 'var(--chord)',
+              borderBottom: selected ? '2px solid var(--color-brand)' : '2px solid transparent',
+              whiteSpace: 'nowrap',
+              animation: selected ? 'pulse 1.5s ease-in-out infinite' : 'none',
+            }}
+            onPointerDown={(e) => { e.stopPropagation(); onChordTap(secIdx, lineIdx, c.origIdx); }}
+          >
+            {c.chord}
+          </span>
+        );
+      })}
+      {showGuide && caret && (
+        <span
+          className="absolute pointer-events-none"
+          style={{ left: caret.left, top: caret.top, width: 2, height: '1.2em', background: 'var(--chord)' }}
+          aria-hidden="true"
+        />
+      )}
     </div>
   );
-}
+});
 
 // ─── InlineEditor ─────────────────────────────────────────────────
 
@@ -237,6 +244,82 @@ function InlineEditor({ initialValue, onSave, onCancel }) {
       className="w-full px-2 py-1 bg-[var(--ds-gray-100)] border border-[var(--chord)] rounded text-copy-13 text-[var(--ds-gray-1000)] outline-none font-mono"
       style={{ caretColor: 'var(--chord)' }}
     />
+  );
+}
+
+// ─── Small popover menu (section actions / add) ───────────────────
+
+function PopMenu({ trigger, align = 'left', children }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onPointer); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  return (
+    <div ref={ref} className="relative inline-block">
+      <span onClick={() => setOpen(v => !v)}>{trigger}</span>
+      {open && (
+        <div
+          role="menu"
+          onClick={() => setOpen(false)}
+          className={`absolute z-40 mt-1 ${align === 'right' ? 'right-0' : 'left-0'} min-w-[180px] rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl overflow-hidden py-1`}
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuItem({ onClick, children, danger = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left px-3 py-2.5 text-copy-13 cursor-pointer bg-transparent border-none hover:bg-[var(--ds-gray-alpha-100)] ${danger ? 'text-[var(--ds-error-600)]' : 'text-[var(--ds-gray-1000)]'}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─── Chord-only line (instrumental) ───────────────────────────────
+// A line with chords and no lyrics. Tap "+" to append the palette's active
+// chord; tap ✕ on a chip to remove it. Positions are space-padded under the
+// hood so the line round-trips and renders as chord pills in the chart views.
+
+function ChordOnlyLine({ chords, secIdx, lineIdx, activeChord, onAppend, onRemoveChord }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 py-1.5">
+      {chords.map((c, i) => (
+        <span
+          key={i}
+          className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-md bg-[var(--color-brand-soft)] border border-[var(--color-brand-border)]"
+        >
+          <span className="font-bold font-mono text-[var(--chord)] text-label-13">{c.chord}</span>
+          <button
+            type="button"
+            onClick={() => onRemoveChord(secIdx, lineIdx, i)}
+            aria-label={`Remove ${c.chord}`}
+            className="opacity-50 hover:opacity-100 text-[var(--color-brand-text)] bg-transparent border-none cursor-pointer leading-none px-1"
+          >
+            ✕
+          </button>
+        </span>
+      ))}
+      <button
+        type="button"
+        onClick={() => onAppend(secIdx, lineIdx)}
+        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-dashed border-[var(--ds-gray-400)] text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:border-[var(--ds-gray-600)] text-label-12 cursor-pointer bg-transparent"
+      >
+        + {activeChord || 'chord'}
+      </button>
+    </div>
   );
 }
 
@@ -331,6 +414,8 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
       return next.slice(0, 8);
     });
   }, []);
+
+  const clearGuide = useCallback(() => setGuidePos(null), []);
 
   const handlePlace = useCallback((secIdx, lineIdx, charPos) => {
     if (selectedExisting) {
@@ -437,6 +522,59 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
     emitSong({ ...song, sections });
   }, [song, emitSong]);
 
+  // ─── Line operations (add lyric / chord / modulate, remove) ───
+  // All go through applyMutation so line indices stay aligned with the
+  // rendered placements.
+  const addLine = useCallback((secIdx) => {
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec, lines: [...sec.lines, { plainText: '', chords: [], inlineNote: null }],
+    })));
+  }, [applyMutation]);
+
+  const addModulate = useCallback((secIdx, semitones) => {
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec, lines: [...sec.lines, { type: 'modulate', semitones }],
+    })));
+  }, [applyMutation]);
+
+  const removeLine = useCallback((secIdx, lineIdx) => {
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec, lines: sec.lines.filter((_, li) => li !== lineIdx),
+    })));
+  }, [applyMutation]);
+
+  const addChordLine = useCallback((secIdx) => {
+    const chord = activeChord || song?.key || 'C';
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec, lines: [...sec.lines, { plainText: ' ', chords: [{ chord, pos: 0 }], inlineNote: null }],
+    })));
+    addRecent(chord);
+  }, [activeChord, song, applyMutation, addRecent]);
+
+  const appendChord = useCallback((secIdx, lineIdx) => {
+    const chord = activeChord || song?.key || 'C';
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec,
+      lines: sec.lines.map((ln, li) => {
+        if (li !== lineIdx || ln.plainText === undefined) return ln;
+        const gap = 4;
+        const pos = (ln.chords?.length || 0) * gap;
+        // Pad the (lyric-less) text so positions survive the placement round-trip.
+        return { ...ln, plainText: ' '.repeat(pos + 1), chords: [...(ln.chords || []), { chord, pos }] };
+      }),
+    })));
+    addRecent(chord);
+  }, [activeChord, song, applyMutation, addRecent]);
+
+  const removeChord = useCallback((secIdx, lineIdx, chordIdx) => {
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec,
+      lines: sec.lines.map((ln, li) => (li === lineIdx && ln.plainText !== undefined)
+        ? { ...ln, chords: ln.chords.filter((_, ci) => ci !== chordIdx) }
+        : ln),
+    })));
+  }, [applyMutation]);
+
   // ─── Inline editing ───
   const handleLineClick = useCallback((secIdx, lineIdx) => {
     if (activeChord || selectedExisting) return;
@@ -517,8 +655,8 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
       <div className="flex-1 overflow-auto px-4 pt-2 pb-8">
         {placements.map((sec, secIdx) => {
           const s = sectionStyle(sec.type, null, customSectionTypes);
-          const sectionLabel = sec.type.replace(/:+$/, '');
           const baseType = sec.type.replace(/\s*\d+$/, '');
+          const secNum = sec.type.slice(baseType.length).trim();
 
           return (
             <div key={secIdx} className="mb-6">
@@ -532,6 +670,9 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
                 >
                   {sectionTypes.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
+                {secNum && (
+                  <span className="text-label-14 font-black -ml-1" style={{ color: s.b }}>{secNum}</span>
+                )}
 
                 <input
                   value={sec.note || ''}
@@ -541,16 +682,19 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
                   style={{ borderLeft: sec.note ? `2px solid ${s.br}` : 'none' }}
                 />
 
-                <Button
-                  variant="ghost" size="xs"
-                  onClick={() => setDrawerTarget(secIdx)}
-                  title="Edit section lyrics"
+                <PopMenu
+                  align="right"
+                  trigger={
+                    <IconButton variant="ghost" size="sm" aria-label="Section options" title="Section options">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
+                    </IconButton>
+                  }
                 >
-                  Edit
-                </Button>
-                <IconButton variant="ghost" size="xs" onClick={() => moveSection(secIdx, -1)} aria-label="Move up">↑</IconButton>
-                <IconButton variant="ghost" size="xs" onClick={() => moveSection(secIdx, 1)} aria-label="Move down">↓</IconButton>
-                <IconButton variant="ghost" size="xs" onClick={() => removeSection(secIdx)} aria-label="Remove section">×</IconButton>
+                  <MenuItem onClick={() => setDrawerTarget(secIdx)}>Edit lyrics…</MenuItem>
+                  <MenuItem onClick={() => moveSection(secIdx, -1)}>Move up</MenuItem>
+                  <MenuItem onClick={() => moveSection(secIdx, 1)}>Move down</MenuItem>
+                  <MenuItem danger onClick={() => removeSection(secIdx)}>Delete section</MenuItem>
+                </PopMenu>
               </div>
 
               {/* Lines */}
@@ -561,11 +705,20 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
                   }
                   if (typeof line === 'object' && line.type === 'modulate') {
                     return (
-                      <div key={lineIdx} className="my-4 flex items-center gap-4">
+                      <div key={lineIdx} className="my-4 flex items-center gap-3">
                         <div className="h-[1px] flex-1 bg-[var(--color-brand-border)]" />
                         <span className="text-label-10 font-black uppercase tracking-[0.2em] px-3 py-1 bg-[var(--color-brand)] text-white rounded-full shadow-sm">
                           Key Change: {line.semitones > 0 ? '+' : ''}{line.semitones}
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => removeLine(secIdx, lineIdx)}
+                          aria-label="Remove key change"
+                          title="Remove key change"
+                          className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[var(--ds-gray-600)] hover:text-[var(--ds-error-600)] hover:bg-[var(--ds-gray-alpha-100)] bg-transparent border-none cursor-pointer leading-none"
+                        >
+                          ✕
+                        </button>
                         <div className="h-[1px] flex-1 bg-[var(--color-brand-border)]" />
                       </div>
                     );
@@ -586,6 +739,22 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
                       );
                     }
 
+                    // Chord-only (instrumental) line: chords with no lyrics.
+                    if ((line.plainText || '').trim() === '' && (line.chords?.length > 0)) {
+                      return (
+                        <div key={lineIdx} className="mb-2 last:mb-0">
+                          <ChordOnlyLine
+                            chords={line.chords}
+                            secIdx={secIdx}
+                            lineIdx={lineIdx}
+                            activeChord={activeChord}
+                            onAppend={appendChord}
+                            onRemoveChord={removeChord}
+                          />
+                        </div>
+                      );
+                    }
+
                     return (
                       <div key={lineIdx} className="mb-2 last:mb-0">
                         <InteractiveLine
@@ -594,12 +763,13 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
                           secIdx={secIdx}
                           lineIdx={lineIdx}
                           activeChord={activeChord}
-                          selectedExisting={selectedExisting}
-                          guidePos={guidePos}
+                          hasSelection={!!selectedExisting}
+                          guideCharPos={guidePos && guidePos.secIdx === secIdx && guidePos.lineIdx === lineIdx ? guidePos.charPos : null}
+                          selectedChordIdx={selectedExisting && selectedExisting.secIdx === secIdx && selectedExisting.lineIdx === lineIdx ? selectedExisting.chordIdx : null}
                           onPlace={handlePlace}
                           onChordTap={handleChordTap}
                           onGuideUpdate={setGuidePos}
-                          onGuideClear={() => setGuidePos(null)}
+                          onGuideClear={clearGuide}
                           onLineClick={handleLineClick}
                         />
                         {line.inlineNote && (
@@ -612,6 +782,26 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
                   }
                   return null;
                 })}
+              </div>
+
+              {/* Per-section add menu — line / instrumental chords / key change */}
+              <div className="mt-1">
+                <PopMenu
+                  trigger={
+                    <button
+                      type="button"
+                      className="text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer px-1 py-1"
+                    >
+                      + Add
+                    </button>
+                  }
+                >
+                  <MenuItem onClick={() => addLine(secIdx)}>Lyric line</MenuItem>
+                  <MenuItem onClick={() => addChordLine(secIdx)}>Chord line (instrumental)</MenuItem>
+                  <MenuItem onClick={() => addModulate(secIdx, 1)}>Key change +1</MenuItem>
+                  <MenuItem onClick={() => addModulate(secIdx, 2)}>Key change +2</MenuItem>
+                  <MenuItem onClick={() => addModulate(secIdx, -1)}>Key change −1</MenuItem>
+                </PopMenu>
               </div>
             </div>
           );
