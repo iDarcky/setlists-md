@@ -1882,6 +1882,7 @@ export default function App() {
                 onSkip: handleSkipQueueSong,
               } : null}
               readOnly={isTeamReadOnly}
+              onOpenNewSong={isTeamReadOnly ? null : openNewSongModal}
               chartDefaults={{
                 defaultColumns: settings?.defaultColumns,
                 defaultFontSize: settings?.defaultFontSize,
