@@ -24,9 +24,12 @@ export default function ChordAutocomplete({
   }, []);
 
   useEffect(() => {
+    // Attach on the next frame so the same click that opened the popover
+    // (a discrete pointerdown React may flush synchronously) doesn't get
+    // caught here and close it instantly — the bug that broke desktop/mouse.
     const onPointer = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) onClose(); };
-    document.addEventListener('mousedown', onPointer);
-    return () => document.removeEventListener('mousedown', onPointer);
+    const raf = requestAnimationFrame(() => document.addEventListener('pointerdown', onPointer));
+    return () => { cancelAnimationFrame(raf); document.removeEventListener('pointerdown', onPointer); };
   }, [onClose]);
 
   const base = useMemo(() => {

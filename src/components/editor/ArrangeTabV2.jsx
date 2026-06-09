@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, memo } from 'react';
-import { parseSongMd, songToMd, placementToLine, splitMd, parseFrontmatterFields, replaceFrontmatter, serializeFrontmatterFields } from '../../parser';
+import { parseSongMd, songToMd, placementToLine } from '../../parser';
 import { sectionStyle } from '../../music';
 import TabBlock from '../TabBlock';
-import StructureEditor from './StructureEditor';
 import SectionDrawer from './SectionDrawer';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
@@ -102,7 +101,7 @@ const InteractiveLine = memo(function InteractiveLine({
         aria-label="Edit lyrics"
         title="Edit lyrics"
         onPointerDown={(e) => { e.stopPropagation(); onEditText(secIdx, lineIdx); }}
-        className="mt-[1.1em] opacity-0 group-hover/line:opacity-60 hover:!opacity-100 shrink-0"
+        className="mt-[1.1em] opacity-40 hover:!opacity-100 shrink-0"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
@@ -403,21 +402,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     setDrawerTarget(null);
   }, [song, emitSong]);
 
-  // ─── Structure (play order) ───
-  // StructureEditor works with a comma-separated frontmatter string (same as
-  // the Editor header), so read/write the `structure` field directly rather
-  // than the parsed song.structure array.
-  const structureValue = useMemo(
-    () => parseFrontmatterFields(splitMd(md).frontmatter).structure,
-    [md],
-  );
-  const availableSections = useMemo(() => (song?.sections || []).map(s => s.type), [song]);
-  const setStructure = useCallback((next) => {
-    const fields = parseFrontmatterFields(splitMd(md).frontmatter);
-    fields.structure = next;
-    onChange(replaceFrontmatter(md, serializeFrontmatterFields(fields)));
-  }, [md, onChange]);
-
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') { setEditingLine(null); setAutocomplete(null); } };
     document.addEventListener('keydown', handler);
@@ -430,16 +414,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      {/* Structure (inline, editable) */}
-      <div className="shrink-0 px-4 py-2 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
-        <StructureEditor
-          value={structureValue}
-          availableSections={availableSections}
-          onChange={setStructure}
-          autoSeed={false}
-        />
-      </div>
-
       <div className="flex-1 overflow-auto px-4 pt-3 pb-8">
         {placements.map((sec, secIdx) => {
           const s = sectionStyle(sec.type, null, customSectionTypes);
