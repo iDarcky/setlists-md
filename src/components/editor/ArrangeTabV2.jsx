@@ -21,7 +21,7 @@ const TEMPLATE_TYPES = ['Verse', 'Chorus', 'Bridge', 'Pre Chorus', 'Intro', 'Tag
 // caret shows where a chord will land.
 const InteractiveLine = memo(function InteractiveLine({
   plainText, chords, secIdx, lineIdx, editingChordIdx,
-  onPlace, onChordTap, onEditText,
+  onPlace, onChordTap,
 }) {
   const containerRef = useRef(null);
   const textRef = useRef(null);
@@ -111,22 +111,9 @@ const InteractiveLine = memo(function InteractiveLine({
   };
 
   return (
-    <div className="group/line flex items-start gap-1">
-      <IconButton
-        variant="ghost"
-        size="xs"
-        aria-label="Edit lyrics"
-        title="Edit lyrics"
-        onClick={(e) => { e.stopPropagation(); onEditText(secIdx, lineIdx); }}
-        className="mt-[1.1em] opacity-40 hover:!opacity-100 shrink-0"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-        </svg>
-      </IconButton>
       <div
         ref={containerRef}
-        className="relative font-mono flex-1 min-w-0"
+        className="relative font-mono min-w-0"
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}
         onPointerDown={handlePointerDown}
@@ -160,7 +147,6 @@ const InteractiveLine = memo(function InteractiveLine({
           <span className="absolute pointer-events-none" style={{ left: caret.left, top: caret.top, width: 2, height: '1.2em', background: 'var(--chord)', opacity: 0.6 }} aria-hidden="true" />
         )}
       </div>
-    </div>
   );
 });
 
@@ -440,6 +426,11 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                   className="flex-1 bg-transparent border-none text-label-11 italic text-[var(--text-2)] outline-none min-w-0 px-1"
                   style={{ borderLeft: sec.note ? `2px solid ${s.br}` : 'none' }}
                 />
+                <IconButton variant="ghost" size="sm" aria-label="Edit lyrics" title="Edit lyrics" onClick={() => handleEditText(secIdx)}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                  </svg>
+                </IconButton>
                 <PopMenu
                   trigger={
                     <IconButton variant="ghost" size="sm" aria-label="Section options" title="Section options">
@@ -501,7 +492,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                             editingChordIdx={autocomplete && autocomplete.secIdx === secIdx && autocomplete.lineIdx === lineIdx ? autocomplete.chordIdx : null}
                             onPlace={openAddChord}
                             onChordTap={openEditChord}
-                            onEditText={handleEditText}
                           />
                           {line.inlineNote && (
                             <span className="text-[var(--text-2)] italic text-[0.8em]">{' ---- '}{line.inlineNote}</span>

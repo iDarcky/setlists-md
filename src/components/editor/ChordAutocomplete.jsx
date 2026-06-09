@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { getDiatonicChords } from '../../music';
 import { isChordToken } from './chordRecents';
 
@@ -65,28 +65,34 @@ export default function ChordAutocomplete({
     if (e.key === 'Enter') { e.preventDefault(); commit(options[active] ?? value); }
   };
 
-  // Center over the click, flip above when there's room (feels anchored to the
-  // chord's landing spot). No measuring needed — keeps it snappy.
-  const WIDTH = 244;
-  const preferAbove = !!anchor && anchor.y > 240;
-  const left = anchor ? Math.min(Math.max(anchor.x - WIDTH / 2, 8), window.innerWidth - WIDTH - 8) : 40;
-  const top = anchor ? (preferAbove ? anchor.y - 10 : anchor.y + 18) : 40;
-  const arrowLeft = anchor ? Math.min(Math.max(anchor.x - left, 14), WIDTH - 14) : WIDTH / 2;
+  // Position after layout so the popover always stays fully on screen: prefer
+  // above the clicked caret, fall back below, then clamp. On phones it docks to
+  // the left edge (wider, easier to reach) instead of centering on the tap.
+  useLayoutEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const M = 8;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const isMobile = vw < 640;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    let left = isMobile ? M : (anchor ? anchor.x - w / 2 : M);
+    left = Math.max(M, Math.min(left, vw - w - M));
+    let top = anchor ? anchor.y - h - 12 : M;        // prefer above the line
+    if (top < M) top = anchor ? anchor.y + 20 : M;   // not enough room → below
+    top = Math.max(M, Math.min(top, vh - h - M));    // final clamp
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+    el.style.visibility = 'visible';
+  });
 
   return (
     <div
       ref={rootRef}
       className="fixed z-[100] rounded-xl border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] p-2 shadow-2xl"
-      style={{ left, top, width: WIDTH, transform: preferAbove ? 'translateY(-100%)' : 'none', transformOrigin: preferAbove ? 'bottom center' : 'top center', animation: 'pop-in 120ms ease-out' }}
+      style={{ left: 8, top: 8, width: 244, maxHeight: '80vh', overflowY: 'auto', visibility: 'hidden', animation: 'pop-in 120ms ease-out' }}
     >
-      {/* pointer */}
-      <span
-        aria-hidden
-        className="absolute w-2.5 h-2.5 rotate-45 bg-[var(--ds-background-100)] border-[var(--ds-gray-400)]"
-        style={preferAbove
-          ? { left: arrowLeft - 5, bottom: -5, borderRight: '1px solid', borderBottom: '1px solid' }
-          : { left: arrowLeft - 5, top: -5, borderLeft: '1px solid', borderTop: '1px solid' }}
-      />
       <input
         ref={inputRef}
         value={value}
