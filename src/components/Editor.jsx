@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import ChartView from './ChartView';
 import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields, EXTRA_META_KEYS } from '../parser';
-import { ALL_KEYS } from '../music';
+import { ALL_KEYS, transposeChord, semitonesBetween } from '../music';
+import { isChordToken } from '../importer';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
 import WriteTab from './editor/WriteTab';
 import ArrangeTab from './editor/ArrangeTab';
@@ -463,6 +464,20 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
     setMd(frontmatter ? `---\n${frontmatter}\n---\n\n${newBody}` : newBody);
   }, [md]);
 
+  // Change the song's key by transposing every stored chord to the new key
+  // (a committed transpose), not just relabelling. No-op intervals just set
+  // the key field. Only valid chord tokens inside [...] are rewritten.
+  const changeSongKey = useCallback((targetKey) => {
+    const from = fmFields.key || 'C';
+    const semis = semitonesBetween(from, targetKey);
+    if (!semis) { updateField('key', targetKey); return; }
+    const { frontmatter, body } = splitMd(md);
+    const newBody = body.replace(/\[([^\]]+)\]/g, (m, ch) => (isChordToken(ch) ? `[${transposeChord(ch, semis)}]` : m));
+    const fields = parseFrontmatterFields(frontmatter);
+    fields.key = targetKey;
+    setMd(`---\n${serializeFrontmatterFields(fields)}\n---\n\n${newBody.replace(/^\n+/, '')}`);
+  }, [md, fmFields.key, updateField]);
+
   // Render active tab content
   const renderTab = () => {
     switch (activeTab) {
@@ -515,7 +530,7 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
         onEdit={() => setEditArrangementsOpen(true)}
       />
       <div className="flex items-center gap-1.5">
-        <Select value={currentKey} onValueChange={v => updateField('key', v)}>
+        <Select value={currentKey} onValueChange={changeSongKey}>
           <SelectTrigger
             aria-label="Key"
             className="h-8 w-auto gap-1 px-2 text-label-12 font-mono bg-[var(--ds-gray-100)]"
