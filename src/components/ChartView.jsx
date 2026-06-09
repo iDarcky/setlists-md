@@ -122,6 +122,9 @@ export default function ChartView({
   const [nns, setNns] = useState(disp.nashville);
   const [showChords, setShowChords] = useState(disp.showChords);
   const [showDiagrams, setShowDiagrams] = useState(disp.showDiagrams);
+  // Quick display filters (session-local) toggled from the structure row.
+  const [showLyrics, setShowLyrics] = useState(true);
+  const [showTabs, setShowTabs] = useState(true);
 
   // Re-seed local mirrors when the persisted display settings change — another
   // song, a role preset, or an edit made on a different surface.
@@ -544,19 +547,42 @@ export default function ChartView({
             </div>
           )}
 
-          {/* Structure ribbon — always visible */}
-          <div className="wide-container pb-2">
-            <StructureRibbon
-              structure={orderedSections.map(s => s.type)}
-              compact
-              sectionColors={settings?.sectionColors}
-              sectionLabels={settings?.sectionLabels}
-              customSectionTypes={settings?.customSectionTypes}
-              onSelect={(i) => {
-                const el = document.getElementById(`section-${i}`);
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-            />
+          {/* Structure ribbon (left) + display filters (right) */}
+          <div className="wide-container pb-2 flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <StructureRibbon
+                structure={orderedSections.map(s => s.type)}
+                compact
+                sectionColors={settings?.sectionColors}
+                sectionLabels={settings?.sectionLabels}
+                customSectionTypes={settings?.customSectionTypes}
+                onSelect={(i) => {
+                  const el = document.getElementById(`section-${i}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+              />
+            </div>
+            <div className="shrink-0 flex items-center gap-1 pt-0.5">
+              {[
+                { id: 'chords', label: 'Chords', on: showChords, toggle: toggleShowChords },
+                { id: 'lyrics', label: 'Lyrics', on: showLyrics, toggle: () => setShowLyrics(v => !v) },
+                { id: 'tabs', label: 'Tabs', on: showTabs, toggle: () => setShowTabs(v => !v) },
+              ].map(b => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={b.toggle}
+                  aria-pressed={b.on}
+                  className={`px-2 py-0.5 rounded-md text-label-11 font-semibold cursor-pointer border transition-colors ${
+                    b.on
+                      ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border-[var(--color-brand-border)]'
+                      : 'bg-transparent text-[var(--ds-gray-500)] border-[var(--ds-gray-400)] hover:text-[var(--ds-gray-900)]'
+                  }`}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Song notes peek strip — collapsible, hidden when song has no notes */}
@@ -764,6 +790,8 @@ export default function ChartView({
                 nns={nns}
                 songKey={song.key}
                 showChords={showChords}
+                showLyrics={showLyrics}
+                showTabs={showTabs}
                 inlineNotes={showInlineNotes}
                 noteStyle={inlineNoteStyle}
                 sectionColors={settings?.sectionColors}

@@ -48,7 +48,7 @@ export default function DesktopLayout({
         Personal ↔ team/church switching. Hidden on mobile, which keeps the
         bespoke MobileTopBar + BottomNav shell.
       */}
-      {!isFullscreen && (
+      {!isFullscreen && !(isTablet && activeView === 'editor') && (
         <TopHeader
           className="hidden sm:grid"
           hidePrimaryNav={isTablet}

@@ -171,10 +171,15 @@ export default function TopHeader({
         {/* Left — primary nav, or the brand lockup on the tablet shell where
             nav has moved to the bottom bar. */}
         {hidePrimaryNav ? (
-          <div className="flex items-center gap-2.5 min-w-0">
+          <button
+            type="button"
+            onClick={() => onNavigate('home')}
+            aria-label="Home"
+            className="flex items-center gap-2.5 min-w-0 bg-transparent border-none cursor-pointer p-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+          >
             <img src="/setlists-md-mark.svg" alt="" width="26" height="26" className="rounded-[7px]" draggable="false" />
             <span className="text-label-14 font-bold text-[var(--ds-gray-1000)] tracking-tight truncate">Setlists.md</span>
-          </div>
+          </button>
         ) : (
           <nav className="flex items-center gap-1 min-w-0">
             {tabs.map(({ id, label }) => {

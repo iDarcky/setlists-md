@@ -40,7 +40,7 @@ function groupChordWords(pairs) {
 
 export default function SectionBlock({
   section, transpose, modOffset = 0, nns, songKey,
-  showChords = true, inlineNotes = true, noteStyle = 'dashes',
+  showChords = true, showLyrics = true, showTabs = true, inlineNotes = true, noteStyle = 'dashes',
   sectionColors, sectionLabels, customSectionTypes, tabScale = 1,
 }) {
   const s = sectionStyle(section.type, sectionColors, customSectionTypes);
@@ -62,7 +62,7 @@ export default function SectionBlock({
 
   const renderLine = (line, idx) => {
     if (typeof line !== 'string') {
-      if (line.type === 'tab') return <TabBlock key={idx} data={line} scale={tabScale} />;
+      if (line.type === 'tab') return showTabs ? <TabBlock key={idx} data={line} scale={tabScale} /> : null;
       if (line.type === 'modulate') {
         return (
           <div key={idx} className="my-4 flex items-center gap-4">
@@ -84,8 +84,10 @@ export default function SectionBlock({
     const inlineNote = noteMatch ? noteMatch[1] : null;
     const cleanLine = line.replace(/\{!.*?\}/g, '');
 
-    // Plain text line (no chords) or chords hidden
+    // Plain text line (no chords) or chords hidden — this branch only renders
+    // lyric text, so skip it entirely when lyrics are hidden.
     if (!cleanLine.includes('[') || !showChords) {
+      if (!showLyrics) return null;
       const displayLine = !showChords ? cleanLine.replace(/\[.*?\]/g, '') : cleanLine;
       return (
         <div
@@ -109,8 +111,10 @@ export default function SectionBlock({
       );
     }
 
-    // Parse into chord+text pairs using the parser
-    const pairs = parseLine(cleanLine);
+    // Parse into chord+text pairs using the parser. When lyrics are hidden,
+    // drop the text so the line renders chords-only.
+    const parsedPairs = parseLine(cleanLine);
+    const pairs = showLyrics ? parsedPairs : parsedPairs.map(p => ({ ...p, text: '' }));
     const hasLyrics = pairs.some(p => p.text.trim());
 
     const renderChord = (rawChord, padded) => {
