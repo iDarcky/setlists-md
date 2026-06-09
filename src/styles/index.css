@@ -778,6 +778,11 @@
   100% { background-position: -200% 0; }
 }
 
+@keyframes pop-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
 /* Light-mode override for modes variant */
 [data-theme="light"] [data-theme-variant="modes"] {
   --modes-surface: rgba(0, 0, 0, 0.035);
