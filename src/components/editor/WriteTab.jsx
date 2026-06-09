@@ -295,7 +295,7 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
   }, [textareaRef]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full pl-3 pr-6">
       {/* ─── Toolbar ─── */}
       <div className="flex flex-wrap gap-1 py-1.5 border-b border-[var(--ds-gray-300)] mb-2">
         <ToolBtn label="♪" title="Chord" onClick={openChordPicker} />

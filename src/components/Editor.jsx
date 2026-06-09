@@ -168,11 +168,10 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
   const isWide = useMediaQuery('(min-width: 1024px)');
-  // Side preview is OFF by default so the editor uses the full width; toggle it
-  // on (Arrange only) when you want the side-by-side chart. It never shows for
-  // Advanced/Tabs — a chart preview there just steals width.
+  // Side preview is OFF by default so the editor uses the full width; it's
+  // available from every tab via the toggle (wide) / peek (narrow).
   const [previewEnabled, setPreviewEnabled] = useState(false);
-  const showSidePreview = isWide && previewEnabled && activeTab === 'arrange';
+  const showSidePreview = isWide && previewEnabled;
   // On tablet portrait / phone the side preview is too tight, so narrow screens
   // get a full-height slide-over peek instead.
   const [previewPeekOpen, setPreviewPeekOpen] = useState(false);
@@ -707,7 +706,7 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
                 )}
               </span>
             )}
-            {isWide && activeTab === 'arrange' && (
+            {isWide && (
               <Button
                 variant={previewEnabled ? 'secondary' : 'ghost'}
                 size="sm"
@@ -717,7 +716,7 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
                 {previewEnabled ? 'Hide preview' : 'Show preview'}
               </Button>
             )}
-            {!isWide && activeTab === 'arrange' && (
+            {!isWide && (
               <IconButton variant="ghost" size="sm" onClick={() => setPreviewPeekOpen(true)} aria-label="Preview">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
@@ -812,7 +811,7 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
           <div className="flex-1 min-h-0 flex w-full overflow-hidden">
             <div className="flex-1 min-h-0 flex flex-col w-full border-r border-[var(--ds-gray-300)]">
               <div className={`flex-1 min-h-0 flex flex-col w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
-                <div className="w-full h-full flex flex-col px-4 sm:px-6">
+                <div className="w-full h-full flex flex-col">
                   {renderTab()}
                 </div>
               </div>

@@ -76,7 +76,7 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
   return (
     <div className="flex flex-col min-h-0 h-full">
       {/* Create row */}
-      <div className="shrink-0 flex flex-wrap items-end gap-2 px-4 py-3 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
+      <div className="shrink-0 flex flex-wrap items-end gap-2 pl-3 pr-6 py-3 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
         <label className="flex flex-col gap-1">
           <span className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)]">Instrument</span>
           <div className="flex gap-1">
@@ -113,7 +113,7 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
       </div>
 
       {/* Gallery */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto pl-3 pr-6 py-4">
         {tabs.length === 0 ? (
           <p className="text-copy-13 text-[var(--ds-gray-600)] italic m-0">No tabs yet. Pick an instrument and section, then “New tab”.</p>
         ) : (

@@ -422,7 +422,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   return (
     <div className="flex flex-col min-h-0 h-full">
       {/* Notation toggle — display chords as letters / Nashville numbers / solfège. */}
-      <div className="shrink-0 flex items-center justify-end gap-1 px-4 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
+      <div className="shrink-0 flex items-center justify-end gap-1 pl-3 pr-6 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
         <span className="mr-auto text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)]">Notation</span>
         {[{ id: 'chords', label: 'ABC' }, { id: 'nashville', label: '123' }, { id: 'solfege', label: 'Do' }].map(o => (
           <button
@@ -440,7 +440,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
       {/* Section jump row — tap to scroll to a section in long songs. */}
       {placements.length > 1 && (
-        <div className="shrink-0 flex items-center gap-1 overflow-x-auto px-4 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
+        <div className="shrink-0 flex items-center gap-1 overflow-x-auto pl-3 pr-6 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
           {placements.map((sec, i) => {
             const st = sectionStyle(sec.type, null, customSectionTypes);
             return (
@@ -459,7 +459,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
         </div>
       )}
 
-      <div className="flex-1 overflow-auto pl-4 pr-8 pt-3 pb-8">
+      <div className="flex-1 overflow-auto pl-3 pr-6 pt-3 pb-8">
         {placements.map((sec, secIdx) => {
           const s = sectionStyle(sec.type, null, customSectionTypes);
           const base = sectionBaseType(sec.type);
