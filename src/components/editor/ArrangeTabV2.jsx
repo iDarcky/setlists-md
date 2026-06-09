@@ -1,13 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, memo } from 'react';
-import { createPortal } from 'react-dom';
 import { parseSongMd, songToMd, placementToLine } from '../../parser';
 import { sectionStyle } from '../../music';
 import TabBlock from '../TabBlock';
 import SectionDrawer from './SectionDrawer';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
-import { getDiatonicChords } from '../../music';
-import { useMediaQuery } from '../../lib/useMediaQuery';
 import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType } from './arrangeHelpers';
 import { loadRecents, saveRecents, pushRecent } from './chordRecents';
 import ChordAutocomplete from './ChordAutocomplete';
@@ -225,11 +222,9 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   const [drawerTarget, setDrawerTarget] = useState(null);
   const [collapsed, setCollapsed] = useState({});
-  const [autocomplete, setAutocomplete] = useState(null);
-  // On phones we skip the floating popover (it fights the keyboard/scroll) and
-  // use an "armed" position + a sticky bottom chord bar instead.
-  const isPhone = useMediaQuery('(max-width: 639px)');
-  const [armed, setArmed] = useState(null); // { secIdx, lineIdx, charPos, chordIdx, initial }
+  // Chord entry target: null, or { secIdx, lineIdx, charPos, chordIdx, initial }.
+  // A full-width bottom bar handles entry on every device.
+  const [entry, setEntry] = useState(null);
   const sectionRefs = useRef({});
   const jumpTo = useCallback((idx) => {
     sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -238,12 +233,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const song = useMemo(() => { try { return parseSongMd(md); } catch { return null; } }, [md]);
 
   const [recentChords, setRecentChords] = useState(() => loadRecents(song?.key || 'C'));
-  const phoneBarChords = useMemo(() => {
-    const out = [];
-    for (const c of getDiatonicChords(song?.key || 'C')) if (!out.includes(c)) out.push(c);
-    for (const c of recentChords) if (!out.includes(c)) out.push(c);
-    return out.slice(0, 16);
-  }, [song?.key, recentChords]);
   const addRecent = useCallback((chord) => {
     setRecentChords(prev => {
       const next = pushRecent(prev, chord);
@@ -285,18 +274,15 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     emitSong(updatedSong);
   }, [song, placements, emitSong]);
 
-  // ─── Chord entry ───
-  // Desktop/tablet: tap opens the popover. Phone: tap "arms" the position and
-  // the sticky bottom bar inserts the chord.
-  const openAddChord = useCallback((secIdx, lineIdx, charPos, x, y) => {
-    if (isPhone) { setArmed({ secIdx, lineIdx, charPos, chordIdx: null, initial: '' }); return; }
-    setAutocomplete({ secIdx, lineIdx, chordIdx: null, charPos, anchor: { x, y }, initial: '' });
-  }, [isPhone]);
-  const openEditChord = useCallback((secIdx, lineIdx, chordIdx, x, y) => {
+  // ─── Chord entry ─── Tap a lyric position (or a chord) to arm it; the
+  // full-width bottom bar handles entry on every device.
+  const openAddChord = useCallback((secIdx, lineIdx, charPos) => {
+    setEntry({ secIdx, lineIdx, charPos, chordIdx: null, initial: '' });
+  }, []);
+  const openEditChord = useCallback((secIdx, lineIdx, chordIdx) => {
     const cur = placements[secIdx]?.lines[lineIdx]?.chords?.[chordIdx]?.chord || '';
-    if (isPhone) { setArmed({ secIdx, lineIdx, charPos: null, chordIdx, initial: cur }); return; }
-    setAutocomplete({ secIdx, lineIdx, chordIdx, charPos: null, anchor: { x, y }, initial: cur });
-  }, [placements, isPhone]);
+    setEntry({ secIdx, lineIdx, charPos: null, chordIdx, initial: cur });
+  }, [placements]);
 
   const placeChordAt = useCallback((target, chord) => {
     if (!target) return;
@@ -315,7 +301,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     addRecent(chord);
   }, [applyMutation, addRecent]);
 
-  const commitChord = useCallback((chord) => { placeChordAt(autocomplete, chord); }, [autocomplete, placeChordAt]);
+  const commitChord = useCallback((chord) => { placeChordAt(entry, chord); }, [entry, placeChordAt]);
 
   const removeChordAt = useCallback((secIdx, lineIdx, chordIdx) => {
     applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
@@ -326,7 +312,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     })));
   }, [applyMutation]);
 
-  const appendChord = useCallback((secIdx, lineIdx, x, y) => {
+  const appendChord = useCallback((secIdx, lineIdx) => {
     const line = placements[secIdx]?.lines[lineIdx];
     const pos = ((line?.chords?.length) || 0) * 4;
     // ensure text is padded so the chord round-trips
@@ -336,7 +322,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
         ? { ...ln, plainText: ' '.repeat(pos + 1) }
         : ln),
     })));
-    setAutocomplete({ secIdx, lineIdx, chordIdx: null, charPos: pos, anchor: { x, y }, initial: '' });
+    setEntry({ secIdx, lineIdx, chordIdx: null, charPos: pos, initial: '' });
   }, [placements, applyMutation]);
 
   // ─── Section operations ───
@@ -388,10 +374,10 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const addLine = useCallback((secIdx) => {
     applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: [...sec.lines, { plainText: '', chords: [], inlineNote: null }] })));
   }, [applyMutation]);
-  const addChordLine = useCallback((secIdx, x, y) => {
+  const addChordLine = useCallback((secIdx) => {
     applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: [...sec.lines, { plainText: ' ', chords: [], inlineNote: null }] })));
     const newLineIdx = (placements[secIdx]?.lines.length) || 0;
-    setAutocomplete({ secIdx, lineIdx: newLineIdx, chordIdx: null, charPos: 0, anchor: { x, y }, initial: '' });
+    setEntry({ secIdx, lineIdx: newLineIdx, chordIdx: null, charPos: 0, initial: '' });
   }, [applyMutation, placements]);
   const addModulate = useCallback((secIdx, semitones) => {
     applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: [...sec.lines, { type: 'modulate', semitones }] })));
@@ -403,7 +389,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   // Text is edited a whole section at a time (the bottom-sheet drawer) — robust
   // on mobile where a per-line inline input gets hidden under the keyboard.
   const handleEditText = useCallback((secIdx) => {
-    setAutocomplete(null);
+    setEntry(null);
     setDrawerTarget(secIdx);
   }, []);
 
@@ -415,7 +401,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   }, [song, emitSong]);
 
   useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') { setAutocomplete(null); setArmed(null); } };
+    const handler = (e) => { if (e.key === 'Escape') { setEntry(null); } };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
@@ -547,11 +533,8 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                             chords={line.chords}
                             secIdx={secIdx}
                             lineIdx={lineIdx}
-                            editingChordIdx={
-                              (autocomplete && autocomplete.secIdx === secIdx && autocomplete.lineIdx === lineIdx ? autocomplete.chordIdx : null)
-                              ?? (armed && armed.secIdx === secIdx && armed.lineIdx === lineIdx ? armed.chordIdx : null)
-                            }
-                            armedCharPos={armed && armed.secIdx === secIdx && armed.lineIdx === lineIdx && armed.charPos != null ? armed.charPos : null}
+                            editingChordIdx={entry && entry.secIdx === secIdx && entry.lineIdx === lineIdx ? entry.chordIdx : null}
+                            armedCharPos={entry && entry.secIdx === secIdx && entry.lineIdx === lineIdx && entry.charPos != null ? entry.charPos : null}
                             onPlace={openAddChord}
                             onChordTap={openEditChord}
                           />
@@ -599,57 +582,18 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
         </div>
       </div>
 
-      {/* Chord autocomplete (single-phase) */}
-      {autocomplete && (
+      {/* Full-width chord entry bar (all devices) */}
+      {entry && (
         <ChordAutocomplete
-          anchor={autocomplete.anchor}
-          initial={autocomplete.initial}
+          initial={entry.initial}
+          editing={entry.chordIdx != null}
           songKey={song.key}
           recents={recentChords}
           onCommit={commitChord}
-          onRemove={autocomplete.chordIdx != null ? () => removeChordAt(autocomplete.secIdx, autocomplete.lineIdx, autocomplete.chordIdx) : null}
-          onClose={() => setAutocomplete(null)}
+          onRemove={entry.chordIdx != null ? () => removeChordAt(entry.secIdx, entry.lineIdx, entry.chordIdx) : null}
+          onClose={() => setEntry(null)}
         />
       )}
-
-      {/* Phone sticky chord bar — inserts at the armed position. */}
-      {isPhone && armed && createPortal((
-        <div
-          className="fixed left-0 right-0 z-[90] border-t border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-[0_-8px_24px_rgba(0,0,0,0.35)]"
-          style={{ bottom: 0, paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-        >
-          <div className="flex items-center justify-between px-3 pt-2">
-            <span className="text-label-11 font-semibold text-[var(--ds-gray-600)]">
-              {armed.chordIdx != null ? 'Replace chord' : 'Add chord here'}
-            </span>
-            <div className="flex items-center gap-3">
-              {armed.chordIdx != null && (
-                <button type="button" onClick={() => { removeChordAt(armed.secIdx, armed.lineIdx, armed.chordIdx); setArmed(null); }} className="text-label-11 font-semibold text-[var(--ds-error-600)] bg-transparent border-none cursor-pointer">Remove</button>
-              )}
-              <button type="button" onClick={() => setArmed(null)} aria-label="Close" className="text-label-11 font-semibold text-[var(--ds-gray-600)] bg-transparent border-none cursor-pointer">Done</button>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto">
-            <button
-              type="button"
-              onClick={() => { setAutocomplete({ ...armed, anchor: { x: 12, y: 90 } }); setArmed(null); }}
-              className="shrink-0 px-3 py-2 rounded-lg text-label-13 font-semibold bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-[var(--ds-gray-1000)] cursor-pointer"
-            >
-              abc…
-            </button>
-            {phoneBarChords.map(c => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => { placeChordAt(armed, c); setArmed(null); }}
-                className="shrink-0 px-3 py-2 rounded-lg text-label-13 font-bold font-mono bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-[var(--chord)] cursor-pointer"
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-      ), document.body)}
 
       {/* Section drawer (bulk lyric edit) */}
       {drawerTarget !== null && song.sections[drawerTarget] && (
