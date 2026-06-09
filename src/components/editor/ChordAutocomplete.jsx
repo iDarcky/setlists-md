@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { getDiatonicChords } from '../../music';
 import { isChordToken } from './chordRecents';
-import ChordPicker from './ChordPicker';
+
+const ROOTS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+const SUFFIXES = ['', 'm', '7', 'm7', 'maj7', 'sus4', 'sus2', 'add9', 'dim', 'aug'];
 
 // Single-phase chord entry popover. Anchored at the caret you clicked, it
 // centers over that point and flips above/below to stay on screen. Type any
@@ -14,6 +16,8 @@ export default function ChordAutocomplete({
   const [value, setValue] = useState(initial);
   const [active, setActive] = useState(0);
   const [showPicker, setShowPicker] = useState(false);
+  const [pickRoot, setPickRoot] = useState(null);
+  const [pickAcc, setPickAcc] = useState('');
   const rootRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -93,38 +97,101 @@ export default function ChordAutocomplete({
         className="w-full px-2 py-1.5 bg-[var(--ds-gray-100)] border border-[var(--chord)] rounded-md text-copy-13 font-mono text-[var(--ds-gray-1000)] outline-none"
         style={{ caretColor: 'var(--chord)' }}
       />
-      <div className="flex flex-wrap gap-1 mt-1.5 max-h-[120px] overflow-y-auto">
-        {options.map((c, i) => {
-          const isCreate = canCreate && i === 0;
-          return (
-            <button
-              key={c}
-              type="button"
-              onMouseEnter={() => setActive(i)}
-              onClick={() => commit(c)}
-              className={`px-2 py-1 rounded-md font-mono text-label-12 font-semibold cursor-pointer border transition-colors ${
-                i === active
-                  ? 'bg-[var(--chord)] text-black border-[var(--chord)]'
-                  : isCreate
-                    ? 'bg-transparent text-[var(--ds-gray-1000)] border-dashed border-[var(--ds-gray-500)]'
-                    : 'bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)] border-[var(--ds-gray-400)] hover:bg-[var(--ds-gray-200)]'
-              }`}
-            >
-              {c}{isCreate ? ' +' : ''}
-            </button>
-          );
-        })}
-        {options.length === 0 && (
-          <span className="px-1 py-1 text-copy-12 text-[var(--ds-gray-600)] italic">No matches — keep typing.</span>
-        )}
-      </div>
+      {!showPicker ? (
+        <div className="flex flex-wrap gap-1 mt-1.5 max-h-[120px] overflow-y-auto">
+          {options.map((c, i) => {
+            const isCreate = canCreate && i === 0;
+            return (
+              <button
+                key={c}
+                type="button"
+                onMouseEnter={() => setActive(i)}
+                onClick={() => commit(c)}
+                className={`px-2 py-1 rounded-md font-mono text-label-12 font-semibold cursor-pointer border transition-colors ${
+                  i === active
+                    ? 'bg-[var(--chord)] text-black border-[var(--chord)]'
+                    : isCreate
+                      ? 'bg-transparent text-[var(--ds-gray-1000)] border-dashed border-[var(--ds-gray-500)]'
+                      : 'bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)] border-[var(--ds-gray-400)] hover:bg-[var(--ds-gray-200)]'
+                }`}
+              >
+                {c}{isCreate ? ' +' : ''}
+              </button>
+            );
+          })}
+          {options.length === 0 && (
+            <span className="px-1 py-1 text-copy-12 text-[var(--ds-gray-600)] italic">No matches — keep typing.</span>
+          )}
+        </div>
+      ) : (
+        /* Inline structured picker — stays inside the popover. */
+        <div className="mt-1.5 flex flex-col gap-1.5">
+          <div className="flex flex-wrap gap-1">
+            {ROOTS.map(r => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setPickRoot(r)}
+                className={`flex-1 min-w-[26px] px-1 py-1 rounded-md font-mono text-label-12 font-semibold cursor-pointer border ${
+                  pickRoot === r ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)]' : 'bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)] border-[var(--ds-gray-400)] hover:bg-[var(--ds-gray-200)]'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+            {['#', 'b'].map(a => (
+              <button
+                key={a}
+                type="button"
+                onClick={() => setPickAcc(v => v === a ? '' : a)}
+                className={`w-7 px-1 py-1 rounded-md font-mono text-label-12 font-semibold cursor-pointer border ${
+                  pickAcc === a ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border-[var(--color-brand-border)]' : 'bg-[var(--ds-gray-100)] text-[var(--ds-gray-600)] border-[var(--ds-gray-400)]'
+                }`}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {SUFFIXES.map(suf => (
+              <button
+                key={suf || 'maj'}
+                type="button"
+                disabled={!pickRoot}
+                onClick={() => commit(pickRoot + pickAcc + suf)}
+                className={`px-2 py-1 rounded-md font-mono text-label-11 font-semibold border ${
+                  pickRoot ? 'bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)] border-[var(--ds-gray-400)] hover:bg-[var(--ds-gray-200)] cursor-pointer' : 'bg-[var(--ds-gray-100)] text-[var(--ds-gray-500)] border-[var(--ds-gray-300)] opacity-40 cursor-not-allowed'
+                }`}
+              >
+                {suf || 'maj'}
+              </button>
+            ))}
+          </div>
+          {pickRoot && (
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-label-10 text-[var(--ds-gray-500)]">/</span>
+              {ROOTS.map(r => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => commit(pickRoot + pickAcc + '/' + r)}
+                  className="px-1.5 py-0.5 rounded-md font-mono text-label-10 font-semibold bg-[var(--ds-gray-100)] text-[var(--ds-gray-600)] border border-[var(--ds-gray-400)] hover:bg-[var(--ds-gray-200)] cursor-pointer"
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-[var(--ds-gray-200)]">
         <button
           type="button"
-          onClick={() => setShowPicker(true)}
+          onClick={() => { setShowPicker(v => !v); setPickRoot(null); setPickAcc(''); }}
           className="text-label-11 font-semibold text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer px-1"
         >
-          More…
+          {showPicker ? '‹ Suggestions' : 'More…'}
         </button>
         {onRemove && (
           <button
@@ -136,15 +203,6 @@ export default function ChordAutocomplete({
           </button>
         )}
       </div>
-
-      {showPicker && (
-        <ChordPicker
-          onSelect={(c) => { setShowPicker(false); commit(c); }}
-          onClose={() => setShowPicker(false)}
-          anchorRect={anchor ? { bottom: top, left } : null}
-          recentChords={recents}
-        />
-      )}
     </div>
   );
 }

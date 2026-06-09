@@ -25,6 +25,7 @@ const InteractiveLine = memo(function InteractiveLine({
 }) {
   const containerRef = useRef(null);
   const textRef = useRef(null);
+  const downRef = useRef(null);
   const [chips, setChips] = useState([]);
   const [caret, setCaret] = useState(null);
   const [hoverPos, setHoverPos] = useState(null);
@@ -83,12 +84,28 @@ const InteractiveLine = memo(function InteractiveLine({
     return () => ro.disconnect();
   }, []);
 
+  // Distinguish a tap (place a chord) from a scroll/drag. Mouse hovers show a
+  // guide caret; touch never opens on the initial press — only on a clean
+  // pointerup that didn't move, so swiping to scroll won't fire the popover.
   const handlePointerMove = (e) => {
-    const pos = caretOffsetFromPoint(e.clientX, e.clientY, textRef.current);
-    if (pos != null) setHoverPos(pos);
+    if (downRef.current) {
+      const d = downRef.current;
+      if (Math.abs(e.clientX - d.x) > 8 || Math.abs(e.clientY - d.y) > 8) { d.moved = true; setHoverPos(null); }
+      return;
+    }
+    if (e.pointerType !== 'touch') {
+      const pos = caretOffsetFromPoint(e.clientX, e.clientY, textRef.current);
+      if (pos != null) setHoverPos(pos);
+    }
   };
   const handlePointerLeave = () => setHoverPos(null);
   const handlePointerDown = (e) => {
+    downRef.current = { x: e.clientX, y: e.clientY, moved: false };
+  };
+  const handlePointerUp = (e) => {
+    const d = downRef.current;
+    downRef.current = null;
+    if (!d || d.moved) return;
     const pos = caretOffsetFromPoint(e.clientX, e.clientY, textRef.current);
     onPlace(secIdx, lineIdx, pos == null ? (plainText?.length || 0) : pos, e.clientX, e.clientY);
   };
@@ -100,7 +117,7 @@ const InteractiveLine = memo(function InteractiveLine({
         size="xs"
         aria-label="Edit lyrics"
         title="Edit lyrics"
-        onPointerDown={(e) => { e.stopPropagation(); onEditText(secIdx, lineIdx); }}
+        onClick={(e) => { e.stopPropagation(); onEditText(secIdx, lineIdx); }}
         className="mt-[1.1em] opacity-40 hover:!opacity-100 shrink-0"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -113,7 +130,9 @@ const InteractiveLine = memo(function InteractiveLine({
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}
         onPointerDown={handlePointerDown}
-        style={{ cursor: 'text', fontSize: 16, lineHeight: 2.0, paddingTop: '1.1em' }}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => { downRef.current = null; setHoverPos(null); }}
+        style={{ cursor: 'text', fontSize: 16, lineHeight: 2.0, paddingTop: '1.1em', touchAction: 'pan-y' }}
       >
         <div ref={textRef} className="whitespace-pre-wrap text-[var(--text-1)]">
           {plainText ? plainText : ' '}
@@ -130,7 +149,8 @@ const InteractiveLine = memo(function InteractiveLine({
                 borderBottom: selected ? '2px solid var(--color-brand)' : '2px solid transparent',
                 whiteSpace: 'nowrap',
               }}
-              onPointerDown={(e) => { e.stopPropagation(); onChordTap(secIdx, lineIdx, c.origIdx, e.clientX, e.clientY); }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); onChordTap(secIdx, lineIdx, c.origIdx, e.clientX, e.clientY); }}
             >
               {c.chord}
             </span>
@@ -143,31 +163,6 @@ const InteractiveLine = memo(function InteractiveLine({
     </div>
   );
 });
-
-// ─── InlineEditor ─────────────────────────────────────────────────
-function InlineEditor({ initialValue, onSave, onCancel }) {
-  const [value, setValue] = useState(initialValue);
-  const ref = useRef(null);
-  useEffect(() => {
-    if (ref.current) { ref.current.focus(); ref.current.selectionStart = ref.current.value.length; }
-  }, []);
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); onSave(value); }
-    if (e.key === 'Escape') onCancel();
-  };
-  return (
-    <input
-      ref={ref}
-      value={value}
-      onChange={e => setValue(e.target.value)}
-      onKeyDown={handleKeyDown}
-      onBlur={() => onSave(value)}
-      spellCheck={false}
-      className="w-full px-2 py-1 bg-[var(--ds-gray-100)] border border-[var(--chord)] rounded text-copy-13 text-[var(--ds-gray-1000)] outline-none font-mono"
-      style={{ caretColor: 'var(--chord)' }}
-    />
-  );
-}
 
 // ─── Popover menu ─────────────────────────────────────────────────
 function PopMenu({ trigger, align = 'right', children }) {
@@ -224,7 +219,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     return [...SECTION_TYPES, ...custom];
   }, [customSectionTypes]);
 
-  const [editingLine, setEditingLine] = useState(null);
   const [drawerTarget, setDrawerTarget] = useState(null);
   const [collapsed, setCollapsed] = useState({});
   const [autocomplete, setAutocomplete] = useState(null);
@@ -275,7 +269,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   // ─── Single-phase chord entry ───
   const openAddChord = useCallback((secIdx, lineIdx, charPos, x, y) => {
-    setEditingLine(null);
     setAutocomplete({ secIdx, lineIdx, chordIdx: null, charPos, anchor: { x, y }, initial: '' });
   }, []);
   const openEditChord = useCallback((secIdx, lineIdx, chordIdx, x, y) => {
@@ -384,16 +377,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: sec.lines.filter((_, li) => li !== lineIdx) })));
   }, [applyMutation]);
 
-  const handleEditText = useCallback((secIdx, lineIdx) => {
+  // Text is edited a whole section at a time (the bottom-sheet drawer) — robust
+  // on mobile where a per-line inline input gets hidden under the keyboard.
+  const handleEditText = useCallback((secIdx) => {
     setAutocomplete(null);
-    setEditingLine({ secIdx, lineIdx });
+    setDrawerTarget(secIdx);
   }, []);
-  const handleInlineSave = useCallback((secIdx, lineIdx, newText) => {
-    if (!song) return;
-    const sections = song.sections.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: sec.lines.map((line, li) => li === lineIdx ? newText : line) }));
-    emitSong({ ...song, sections });
-    setEditingLine(null);
-  }, [song, emitSong]);
 
   const handleDrawerSave = useCallback((sectionIndex, rawText) => {
     if (!song) return;
@@ -403,7 +392,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   }, [song, emitSong]);
 
   useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') { setEditingLine(null); setAutocomplete(null); } };
+    const handler = (e) => { if (e.key === 'Escape') { setAutocomplete(null); } };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
@@ -414,11 +403,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      <div className="flex-1 overflow-auto px-4 pt-3 pb-8">
+      <div className="flex-1 overflow-auto pl-4 pr-8 pt-3 pb-8">
         {placements.map((sec, secIdx) => {
           const s = sectionStyle(sec.type, null, customSectionTypes);
           const base = sectionBaseType(sec.type);
-          const num = sec.type.slice(base.length).trim();
+          const num = (sec.type.match(/(\d+)\s*:?\s*$/) || [])[1] || '';
+          const typeOptions = !base || sectionTypes.includes(base) ? sectionTypes : [base, ...sectionTypes];
           const isCollapsed = !!collapsed[secIdx];
           return (
             <div key={secIdx} className="mb-6">
@@ -440,7 +430,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                   className="bg-transparent border-none text-label-14 font-black uppercase tracking-[0.15em] cursor-pointer outline-none"
                   style={{ color: s.b }}
                 >
-                  {sectionTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                  {typeOptions.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
                 {num && <span className="text-label-14 font-black -ml-1" style={{ color: s.b }}>{num}</span>}
                 <input
@@ -485,15 +475,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                       );
                     }
                     if (line.plainText !== undefined) {
-                      if (editingLine && editingLine.secIdx === secIdx && editingLine.lineIdx === lineIdx) {
-                        let rawLine = placementToLine({ plainText: line.plainText, chords: line.chords });
-                        if (line.inlineNote) rawLine += ` {!${line.inlineNote}}`;
-                        return (
-                          <div key={lineIdx} className="mb-2">
-                            <InlineEditor initialValue={rawLine} onSave={(val) => handleInlineSave(secIdx, lineIdx, val)} onCancel={() => setEditingLine(null)} />
-                          </div>
-                        );
-                      }
                       if ((line.plainText || '').trim() === '' && (line.chords?.length > 0)) {
                         return (
                           <div key={lineIdx} className="mb-2 last:mb-0">

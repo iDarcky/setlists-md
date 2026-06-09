@@ -50,7 +50,8 @@ export function parsePlacementLine(line) {
   return { ...placement, inlineNote };
 }
 
-// Strip a trailing " 2"/" 3" etc. from a section label to get its base type.
+// Strip a trailing " 2"/" 3" (and an optional trailing colon, e.g. from
+// "## Verse 1:") from a section label to get its base type.
 export function sectionBaseType(type) {
-  return (type || '').replace(/\s*\d+$/, '');
+  return (type || '').replace(/:\s*$/, '').replace(/\s*\d+$/, '').trim();
 }
