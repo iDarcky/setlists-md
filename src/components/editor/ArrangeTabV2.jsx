@@ -15,6 +15,14 @@ const SECTION_TYPES = [
 ];
 const TEMPLATE_TYPES = ['Verse', 'Chorus', 'Bridge', 'Pre Chorus', 'Intro', 'Tag', 'Instrumental'];
 
+// "Verse 1" -> "V1", "Pre Chorus 2" -> "PC2", "Chorus" -> "C".
+function sectionShortCode(type) {
+  const base = sectionBaseType(type);
+  const num = (type.match(/(\d+)\s*:?\s*$/) || [])[1] || '';
+  const initials = base.split(/\s+/).map(w => w[0] || '').join('').toUpperCase();
+  return initials + num;
+}
+
 // ─── InteractiveLine (single-phase) ──────────────────────────────────
 // Clicking anywhere on the lyric opens the chord autocomplete at that caret;
 // tapping an existing chord opens it pre-filled to edit/move/remove. A hover
@@ -135,6 +143,8 @@ const InteractiveLine = memo(function InteractiveLine({
                 color: selected ? 'var(--color-brand)' : 'var(--chord)',
                 borderBottom: selected ? '2px solid var(--color-brand)' : '2px solid transparent',
                 whiteSpace: 'nowrap',
+                // Enlarge the touch target without shifting layout.
+                padding: '5px 7px', margin: '-5px -7px',
               }}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); onChordTap(secIdx, lineIdx, c.origIdx, e.clientX, e.clientY); }}
@@ -208,6 +218,10 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const [drawerTarget, setDrawerTarget] = useState(null);
   const [collapsed, setCollapsed] = useState({});
   const [autocomplete, setAutocomplete] = useState(null);
+  const sectionRefs = useRef({});
+  const jumpTo = useCallback((idx) => {
+    sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   const song = useMemo(() => { try { return parseSongMd(md); } catch { return null; } }, [md]);
 
@@ -389,6 +403,27 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
+      {/* Section jump row — tap to scroll to a section in long songs. */}
+      {placements.length > 1 && (
+        <div className="shrink-0 flex items-center gap-1 overflow-x-auto px-4 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
+          {placements.map((sec, i) => {
+            const st = sectionStyle(sec.type, null, customSectionTypes);
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => jumpTo(i)}
+                className="shrink-0 px-2 py-1 rounded-md text-label-11 font-bold font-mono border border-[var(--ds-gray-300)] bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)] cursor-pointer"
+                style={{ color: st.b }}
+                title={sec.type}
+              >
+                {sectionShortCode(sec.type)}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="flex-1 overflow-auto pl-4 pr-8 pt-3 pb-8">
         {placements.map((sec, secIdx) => {
           const s = sectionStyle(sec.type, null, customSectionTypes);
@@ -397,7 +432,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
           const typeOptions = !base || sectionTypes.includes(base) ? sectionTypes : [base, ...sectionTypes];
           const isCollapsed = !!collapsed[secIdx];
           return (
-            <div key={secIdx} className="mb-6">
+            <div key={secIdx} className="mb-6" ref={el => { sectionRefs.current[secIdx] = el; }}>
               {/* Section header */}
               <div className="flex items-center gap-2 mb-2">
                 <button
