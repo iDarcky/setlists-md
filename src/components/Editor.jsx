@@ -168,15 +168,11 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
   const isWide = useMediaQuery('(min-width: 1024px)');
-  // Side preview defaults ON only on roomy screens (>=1280). At 1024-1279
-  // (iPad landscape) it stays collapsed so the editor keeps full width while
-  // typing; the user can still toggle it on as a 42%-wide panel.
-  const [previewEnabled, setPreviewEnabled] = useState(
-    () => typeof window !== 'undefined'
-      ? window.matchMedia('(min-width: 1280px)').matches
-      : true,
-  );
-  const showSidePreview = isWide && previewEnabled;
+  // Side preview is OFF by default so the editor uses the full width; toggle it
+  // on (Arrange only) when you want the side-by-side chart. It never shows for
+  // Advanced/Tabs — a chart preview there just steals width.
+  const [previewEnabled, setPreviewEnabled] = useState(false);
+  const showSidePreview = isWide && previewEnabled && activeTab === 'arrange';
   // On tablet portrait / phone the side preview is too tight, so narrow screens
   // get a full-height slide-over peek instead.
   const [previewPeekOpen, setPreviewPeekOpen] = useState(false);
@@ -711,7 +707,7 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
                 )}
               </span>
             )}
-            {isWide && (
+            {isWide && activeTab === 'arrange' && (
               <Button
                 variant={previewEnabled ? 'secondary' : 'ghost'}
                 size="sm"
@@ -721,7 +717,7 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
                 {previewEnabled ? 'Hide preview' : 'Show preview'}
               </Button>
             )}
-            {!isWide && (
+            {!isWide && activeTab === 'arrange' && (
               <IconButton variant="ghost" size="sm" onClick={() => setPreviewPeekOpen(true)} aria-label="Preview">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
