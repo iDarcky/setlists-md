@@ -61,8 +61,11 @@ function gridToAscii(grid, measures, timeSig, strings, cpb) {
   }).join('\n');
 }
 
-export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRINGS, subdivision = 4, onSave, onClose }) {
+export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRINGS, tunings = null, subdivision = 4, onSave, onClose }) {
   const timeSig = time || '4/4';
+  // The active string labels (tuning). Changing tuning only relabels rows; the
+  // grid (and fret positions) are preserved.
+  const [curStrings, setCurStrings] = useState(strings);
   // Editing an existing tab loads at fine (16th) resolution so nothing is lost;
   // new tabs start at the chosen subdivision.
   const [cpb, setCpb] = useState(() => (initialTab ? 4 : subdivision));
@@ -212,7 +215,7 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
   };
 
   const handleInsert = () => {
-    const ascii = gridToAscii(grid, measures, timeSig, strings, cpb);
+    const ascii = gridToAscii(grid, measures, timeSig, curStrings, cpb);
     const header = `{tab, time: ${timeSig}}`;
     onSave(`${header}\n${ascii}\n{/tab}`);
   };
@@ -222,11 +225,11 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
     const { string: si, pos } = cursor;
     if (e.key === 'ArrowRight') { e.preventDefault(); setCursor({ string: si, pos: Math.min(pos + 1, totalSlots - 1) }); }
     if (e.key === 'ArrowLeft')  { e.preventDefault(); setCursor({ string: si, pos: Math.max(pos - 1, 0) }); }
-    if (e.key === 'ArrowDown')  { e.preventDefault(); setCursor({ string: Math.min(si + 1, strings.length - 1), pos }); }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); setCursor({ string: Math.min(si + 1, curStrings.length - 1), pos }); }
     if (e.key === 'ArrowUp')    { e.preventDefault(); setCursor({ string: Math.max(si - 1, 0), pos }); }
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openInput(si, pos); }
     if (e.key === 'Delete' || e.key === 'Backspace') { clearCell(si, pos); }
-  }, [activeInput, cursor, totalSlots, openInput, clearCell, strings.length]);
+  }, [activeInput, cursor, totalSlots, openInput, clearCell, curStrings.length]);
 
   const cellW = 34;
   const cellH = 28;
@@ -308,7 +311,24 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
 
           <div className="flex-1" />
 
-          {/* Measure controls */}
+          {/* Tuning */}
+          {tunings && tunings.length > 1 && (
+            <div className="flex gap-1 items-center">
+              <span className="text-label-10 text-[var(--ds-gray-500)]">Tuning:</span>
+              <select
+                value={tunings.find(t => t.strings.join('') === curStrings.join(''))?.id || ''}
+                onChange={e => {
+                  const t = tunings.find(x => x.id === e.target.value);
+                  if (t) setCurStrings(t.strings);
+                }}
+                className="h-7 px-1.5 rounded-md bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-label-11 text-[var(--ds-gray-1000)] outline-none"
+              >
+                {!tunings.some(t => t.strings.join('') === curStrings.join('')) && <option value="">Custom</option>}
+                {tunings.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+            </div>
+          )}
+
           {/* Subdivision (grid resolution) */}
           <div className="flex gap-1 items-center">
             <span className="text-label-10 text-[var(--ds-gray-500)]">Grid:</span>
@@ -364,7 +384,7 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
           </div>
 
           {/* String rows */}
-          {strings.map((name, si) => (
+          {curStrings.map((name, si) => (
             <div key={si} className="flex items-center mb-0.5">
               <div
                 className="shrink-0 text-right pr-1.5 text-label-12-mono font-bold text-[var(--ds-gray-600)]"

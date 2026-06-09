@@ -106,7 +106,7 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
           variant="brand"
           size="sm"
           disabled={sections.length === 0}
-          onClick={() => setEditorFor({ mode: 'new', secIdx: targetSec, tab: null, strings: TAB_INSTRUMENTS[instrument].strings })}
+          onClick={() => setEditorFor({ mode: 'new', secIdx: targetSec, tab: null, strings: TAB_INSTRUMENTS[instrument].strings, tunings: TAB_INSTRUMENTS[instrument].tunings })}
         >
           + New tab
         </Button>
@@ -128,7 +128,7 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
                     <span className="text-label-10 text-[var(--ds-gray-500)]">{TAB_INSTRUMENTS[instrumentOf(t.tab)]?.label || 'Guitar'}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button variant="secondary" size="xs" onClick={() => setEditorFor({ mode: 'edit', secIdx: t.secIdx, lineIdx: t.lineIdx, tab: t.tab, strings: TAB_INSTRUMENTS[instrumentOf(t.tab)].strings })}>Edit</Button>
+                    <Button variant="secondary" size="xs" onClick={() => setEditorFor({ mode: 'edit', secIdx: t.secIdx, lineIdx: t.lineIdx, tab: t.tab, strings: t.tab.strings.map(s => s.note), tunings: TAB_INSTRUMENTS[instrumentOf(t.tab)].tunings })}>Edit</Button>
                     <Button variant="ghost" size="xs" onClick={() => deleteTab(t.secIdx, t.lineIdx)}>Delete</Button>
                   </div>
                 </div>
@@ -144,6 +144,7 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
         <TabGridEditor
           initialTab={editorFor.tab}
           strings={editorFor.strings}
+          tunings={editorFor.tunings}
           subdivision={subdivision}
           time={editorFor.tab?.time || song.time || '4/4'}
           onSave={handleEditorSave}
