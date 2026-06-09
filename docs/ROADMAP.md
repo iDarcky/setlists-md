@@ -334,3 +334,18 @@ Flag-gated, intended for after the public release.
   and a diff preview. Reuse the existing notifications surface.
 - **Gating:** behind a feature flag until the team tier is hardened; depends on
   team-sync conflict handling landing first.
+
+## Phase 5 follow-up — Reusable tab library (snippets)
+
+Tabs today are copy-on-insert into `section.lines` (no schema change). A future
+slice could make tabs *reusable*: a named library of riffs/licks stored at the
+song (or workspace) level that can be inserted into multiple sections and edited
+in one place.
+
+- **Data:** a `tabs[]` array on the song (or a `team_tabs` table for shared
+  libraries) — `id`, `name`, `instrument`, `tuning`, `strings`, `time`. Sections
+  reference a tab by id instead of embedding it. Needs a `.md`/schema decision
+  and a migration; would break the current inline round-trip, so do it
+  deliberately (MAJOR per SemVer).
+- **UI:** the Tabs gallery becomes the library; "Insert" drops a reference;
+  editing a snippet updates everywhere it's used.
