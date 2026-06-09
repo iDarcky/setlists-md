@@ -3,7 +3,7 @@ import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 
 const DEFAULT_STRINGS = ['e', 'B', 'G', 'D', 'A', 'E'];
-const TECHNIQUES = ['h', 'p', 's', 'b', 'x'];
+const TECHNIQUES = ['h', 'p', 's', 'b', 'x', '~'];
 
 function slotsPerMeasure(timeSig) {
   const [num, den] = (timeSig || '4/4').split('/').map(Number);
@@ -275,7 +275,7 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
                 key={t}
                 onClick={() => applyTechnique(t)}
                 disabled={!lastPlaced}
-                title={{ h: 'Hammer-on', p: 'Pull-off', s: 'Slide', b: 'Bend', x: 'Mute' }[t]}
+                title={{ h: 'Hammer-on', p: 'Pull-off', s: 'Slide', b: 'Bend', x: 'Mute', '~': 'Vibrato' }[t]}
                 className={`rounded-md px-2 py-1 text-label-12 font-semibold font-mono cursor-pointer border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] text-[var(--ds-gray-600)] hover:bg-[var(--ds-gray-200)] transition-colors ${
                   !lastPlaced ? 'opacity-40 cursor-not-allowed' : ''
                 }`}

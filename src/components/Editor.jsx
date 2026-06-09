@@ -8,6 +8,7 @@ import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrange
 import WriteTab from './editor/WriteTab';
 import ArrangeTab from './editor/ArrangeTab';
 import ArrangeTabV2 from './editor/ArrangeTabV2';
+import TabsTab from './editor/TabsTab';
 import EditorEmptyState from './editor/EditorEmptyState';
 import MetadataPanel from './editor/MetadataPanel';
 import StructureEditor from './editor/StructureEditor';
@@ -494,6 +495,8 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
             onImport={handleImport}
           />
         );
+      case 'tabs':
+        return <TabsTab md={md} onChange={setMd} />;
       case 'arrange':
         return chartDefaults.settings?.newArrange
           ? <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />
@@ -763,10 +766,10 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
           />
         </div>
 
-        {/* Row 3: edit-mode tabs (Arrange / Advanced), left-aligned */}
+        {/* Row 3: edit-mode tabs (Arrange / Advanced / Tabs), left-aligned */}
         <div className="px-1 sm:px-2">
           <Tabs
-            tabs={MODE_OPTIONS}
+            tabs={chartDefaults.settings?.newArrange ? [...MODE_OPTIONS, { id: 'tabs', label: 'Tabs' }] : MODE_OPTIONS}
             activeTab={activeTab}
             onTabChange={setActiveTab}
           />
