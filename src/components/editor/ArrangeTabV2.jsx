@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, memo } from 'react';
 import { parseSongMd, songToMd, placementToLine } from '../../parser';
-import { sectionStyle } from '../../music';
+import { sectionStyle, getNashvilleNumber, getSolfege } from '../../music';
 import TabBlock from '../TabBlock';
 import SectionDrawer from './SectionDrawer';
 import { IconButton } from '../ui/IconButton';
@@ -14,6 +14,13 @@ const SECTION_TYPES = [
   'Instrumental', 'Interlude', 'Tag', 'Vamp', 'Outro', 'Ending', 'Refrain',
 ];
 const TEMPLATE_TYPES = ['Verse', 'Chorus', 'Bridge', 'Pre Chorus', 'Intro', 'Tag', 'Instrumental'];
+
+// Display a chord in the chosen notation (reading aid; data stays as chords).
+function formatChord(chord, notation, key) {
+  if (notation === 'nashville') return getNashvilleNumber(chord, key);
+  if (notation === 'solfege') return getSolfege(chord, key);
+  return chord;
+}
 
 // "Verse 1" -> "V1", "Pre Chorus 2" -> "PC2", "Chorus" -> "C".
 function sectionShortCode(type) {
@@ -29,6 +36,7 @@ function sectionShortCode(type) {
 // caret shows where a chord will land.
 const InteractiveLine = memo(function InteractiveLine({
   plainText, chords, secIdx, lineIdx, editingChordIdx, armedCharPos,
+  notation, songKey,
   onPlace, onChordTap,
 }) {
   const containerRef = useRef(null);
@@ -145,13 +153,12 @@ const InteractiveLine = memo(function InteractiveLine({
                 color: selected ? 'var(--color-brand)' : 'var(--chord)',
                 borderBottom: selected ? '2px solid var(--color-brand)' : '2px solid transparent',
                 whiteSpace: 'nowrap',
-                // Enlarge the touch target without shifting layout.
-                padding: '5px 7px', margin: '-5px -7px',
+                padding: '6px 8px 2px 0',
               }}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); onChordTap(secIdx, lineIdx, c.origIdx, e.clientX, e.clientY); }}
             >
-              {c.chord}
+              {formatChord(c.chord, notation, songKey)}
             </span>
           );
         })}
@@ -225,6 +232,8 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   // Chord entry target: null, or { secIdx, lineIdx, charPos, chordIdx, initial }.
   // A full-width bottom bar handles entry on every device.
   const [entry, setEntry] = useState(null);
+  // Reading-aid notation for chord labels: 'chords' | 'nashville' | 'solfege'.
+  const [notation, setNotation] = useState('chords');
   const sectionRefs = useRef({});
   const jumpTo = useCallback((idx) => {
     sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -412,6 +421,23 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
+      {/* Notation toggle — display chords as letters / Nashville numbers / solfège. */}
+      <div className="shrink-0 flex items-center justify-end gap-1 px-4 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
+        <span className="mr-auto text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)]">Notation</span>
+        {[{ id: 'chords', label: 'ABC' }, { id: 'nashville', label: '123' }, { id: 'solfege', label: 'Do' }].map(o => (
+          <button
+            key={o.id}
+            type="button"
+            onClick={() => setNotation(o.id)}
+            className={`px-2 py-0.5 rounded-md text-label-11 font-semibold cursor-pointer border ${
+              notation === o.id ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border-[var(--color-brand-border)]' : 'bg-transparent text-[var(--ds-gray-600)] border-transparent hover:bg-[var(--ds-gray-100)]'
+            }`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+
       {/* Section jump row — tap to scroll to a section in long songs. */}
       {placements.length > 1 && (
         <div className="shrink-0 flex items-center gap-1 overflow-x-auto px-4 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
@@ -535,6 +561,8 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                             lineIdx={lineIdx}
                             editingChordIdx={entry && entry.secIdx === secIdx && entry.lineIdx === lineIdx ? entry.chordIdx : null}
                             armedCharPos={entry && entry.secIdx === secIdx && entry.lineIdx === lineIdx && entry.charPos != null ? entry.charPos : null}
+                            notation={notation}
+                            songKey={song.key}
                             onPlace={openAddChord}
                             onChordTap={openEditChord}
                           />
