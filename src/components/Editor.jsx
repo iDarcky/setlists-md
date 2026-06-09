@@ -6,6 +6,7 @@ import { ALL_KEYS } from '../music';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
 import WriteTab from './editor/WriteTab';
 import ArrangeTab from './editor/ArrangeTab';
+import ArrangeTabV2 from './editor/ArrangeTabV2';
 import MetadataPanel from './editor/MetadataPanel';
 import StructureEditor from './editor/StructureEditor';
 import ArrangementMenu, { EditArrangementsDialog } from './editor/ArrangementMenu';
@@ -476,7 +477,9 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
           />
         );
       case 'arrange':
-        return <ArrangeTab md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
+        return chartDefaults.settings?.newArrange
+          ? <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />
+          : <ArrangeTab md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
       default:
         return <ArrangeTab md={md} onChange={setMd} />;
     }

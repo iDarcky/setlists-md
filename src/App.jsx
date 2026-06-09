@@ -128,6 +128,7 @@ const PORTABLE_PREF_KEYS = [
   'performanceRail',
   'navStyle',
   'defaultSpaceId',
+  'newArrange',
 ];
 
 function extractPortablePrefs(s) {
