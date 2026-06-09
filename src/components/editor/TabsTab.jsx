@@ -3,11 +3,11 @@ import { parseSongMd, songToMd, parseTabBlock } from '../../parser';
 import { sectionStyle } from '../../music';
 import TabBlock from '../TabBlock';
 import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
+import { useConfirm } from '../ui/useConfirmHook';
 import TabGridEditor from './TabGridEditor';
-import { TAB_INSTRUMENTS } from './tabInstruments';
+import { TAB_INSTRUMENTS, instrumentForStrings } from './tabInstruments';
 
-// Turn the grid editor's saved string into a clean tab object — raw holds only
-// the string lines so it round-trips.
 function tabObjectFromEditor(saved) {
   const lines = saved.split('\n');
   const tm = saved.match(/\{tab(?:,\s*time:\s*([^}]+))?\}/);
@@ -18,21 +18,22 @@ function tabObjectFromEditor(saved) {
   return tab;
 }
 
-function instrumentOf(tab) {
-  const n = tab?.strings?.length || 6;
-  if (n <= 4) return 'bass';
-  if (n === 5) return 'bass5';
-  return 'electric';
-}
+const PencilIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
+);
+const TrashIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M19 6l-.9 13a2 2 0 0 1-2 1.9H7.9a2 2 0 0 1-2-1.9L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+);
 
-// Tabs mode — a first-class workspace (sibling of Arrange/Advanced) to build
-// and organize the song's tabs and insert them into sections.
+// Tabs mode — create and organize the song's tabs. Creating a tab (instrument,
+// strings, tuning, target section) happens in the tab tool; the gallery lists,
+// edits and deletes them.
 export default function TabsTab({ md, onChange, subdivision = 4 }) {
   const song = useMemo(() => { try { return parseSongMd(md); } catch { return null; } }, [md]);
   const sections = useMemo(() => song?.sections || [], [song]);
+  const confirm = useConfirm();
 
   const [instrument, setInstrument] = useState('electric');
-  const [targetSec, setTargetSec] = useState(0);
   const [editorFor, setEditorFor] = useState(null);
 
   const emit = useCallback((nextSong) => onChange(songToMd(nextSong)), [onChange]);
@@ -57,19 +58,16 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
     if (!song) return;
     emit({ ...song, sections: song.sections.map((s, i) => i !== secIdx ? s : ({ ...s, lines: s.lines.map((l, li) => li === lineIdx ? tabObj : l) })) });
   };
-  const deleteTab = (secIdx, lineIdx) => {
+  const deleteTab = async (secIdx, lineIdx) => {
     if (!song) return;
+    const ok = await confirm({ title: 'Delete this tab?', description: 'This removes the tab from its section.', confirmLabel: 'Delete', variant: 'danger' });
+    if (!ok) return;
     emit({ ...song, sections: song.sections.map((s, i) => i !== secIdx ? s : ({ ...s, lines: s.lines.filter((_, li) => li !== lineIdx) })) });
   };
-  // Reuse: drop a copy of an existing tab into the chosen "Add to" section.
-  const copyTabTo = (tab, secIdx) => {
-    const copy = { type: 'tab', time: tab.time, strings: tab.strings.map(s => ({ ...s })), raw: [...(tab.raw || [])] };
-    insertTab(secIdx, copy);
-  };
 
-  const handleEditorSave = (saved) => {
+  const handleEditorSave = (saved, targetSec) => {
     const tabObj = tabObjectFromEditor(saved);
-    if (editorFor.mode === 'new') insertTab(editorFor.secIdx, tabObj);
+    if (editorFor.mode === 'new') insertTab(targetSec ?? 0, tabObj);
     else updateTab(editorFor.secIdx, editorFor.lineIdx, tabObj);
     setEditorFor(null);
   };
@@ -80,7 +78,8 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      {/* Create row */}
+      {/* Create row — instrument + new tab. String count, tuning and target
+          section are chosen inside the tab tool. */}
       <div className="shrink-0 flex flex-wrap items-end gap-2 pl-3 pr-6 py-3 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
         <label className="flex flex-col gap-1">
           <span className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)]">Instrument</span>
@@ -97,21 +96,19 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
             ))}
           </div>
         </label>
-        <label className="flex flex-col gap-1 min-w-0">
-          <span className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)]">Add to</span>
-          <select
-            value={targetSec}
-            onChange={e => setTargetSec(Number(e.target.value))}
-            className="h-8 px-2 rounded-md bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-label-12 text-[var(--ds-gray-1000)] outline-none"
-          >
-            {sections.map((s, i) => <option key={i} value={i}>{s.type}</option>)}
-          </select>
-        </label>
         <Button
           variant="brand"
           size="sm"
           disabled={sections.length === 0}
-          onClick={() => setEditorFor({ mode: 'new', secIdx: targetSec, tab: null, strings: TAB_INSTRUMENTS[instrument].strings, tunings: TAB_INSTRUMENTS[instrument].tunings })}
+          onClick={() => setEditorFor({
+            mode: 'new',
+            tab: null,
+            strings: TAB_INSTRUMENTS[instrument].strings,
+            tunings: TAB_INSTRUMENTS[instrument].tunings,
+            instrument,
+            counts: TAB_INSTRUMENTS[instrument].counts,
+            sections,
+          })}
         >
           + New tab
         </Button>
@@ -120,22 +117,27 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
       {/* Gallery */}
       <div className="flex-1 overflow-auto pl-3 pr-6 py-4">
         {tabs.length === 0 ? (
-          <p className="text-copy-13 text-[var(--ds-gray-600)] italic m-0">No tabs yet. Pick an instrument and section, then “New tab”.</p>
+          <p className="text-copy-13 text-[var(--ds-gray-600)] italic m-0">No tabs yet. Pick an instrument, then “New tab”.</p>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
           {tabs.map((t, i) => {
             const st = sectionStyle(t.sectionType);
+            const instr = instrumentForStrings(t.tab?.strings?.length);
             return (
               <div key={i} className="rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] p-3">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-label-11 font-black uppercase tracking-wider" style={{ color: st.b }}>{t.sectionType}</span>
-                    <span className="text-label-10 text-[var(--ds-gray-500)]">{TAB_INSTRUMENTS[instrumentOf(t.tab)]?.label || 'Guitar'}</span>
+                    <span className="text-label-10 text-[var(--ds-gray-500)]">{TAB_INSTRUMENTS[instr]?.label || 'Guitar'}</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="xs" onClick={() => copyTabTo(t.tab, targetSec)} title={`Insert a copy into ${sections[targetSec]?.type || 'a section'}`}>Copy to {sections[targetSec]?.type || '…'}</Button>
-                    <Button variant="secondary" size="xs" onClick={() => setEditorFor({ mode: 'edit', secIdx: t.secIdx, lineIdx: t.lineIdx, tab: t.tab, strings: t.tab.strings.map(s => s.note), tunings: TAB_INSTRUMENTS[instrumentOf(t.tab)].tunings })}>Edit</Button>
-                    <Button variant="ghost" size="xs" onClick={() => deleteTab(t.secIdx, t.lineIdx)}>Delete</Button>
+                  <div className="flex items-center gap-0.5">
+                    <IconButton variant="ghost" size="xs" aria-label="Edit tab" title="Edit"
+                      onClick={() => setEditorFor({ mode: 'edit', secIdx: t.secIdx, lineIdx: t.lineIdx, tab: t.tab, strings: t.tab.strings.map(s => s.note), tunings: TAB_INSTRUMENTS[instr].tunings, instrument: instr, counts: TAB_INSTRUMENTS[instr].counts })}>
+                      <PencilIcon />
+                    </IconButton>
+                    <IconButton variant="error" size="xs" aria-label="Delete tab" title="Delete" onClick={() => deleteTab(t.secIdx, t.lineIdx)}>
+                      <TrashIcon />
+                    </IconButton>
                   </div>
                 </div>
                 <div className="overflow-x-auto"><TabBlock data={t.tab} /></div>
@@ -151,6 +153,9 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
           initialTab={editorFor.tab}
           strings={editorFor.strings}
           tunings={editorFor.tunings}
+          instrument={editorFor.instrument}
+          counts={editorFor.counts}
+          sections={editorFor.sections}
           subdivision={subdivision}
           time={editorFor.tab?.time || song.time || '4/4'}
           onSave={handleEditorSave}

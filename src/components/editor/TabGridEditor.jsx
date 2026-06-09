@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import { stringsForCount } from './tabInstruments';
 
 const DEFAULT_STRINGS = ['e', 'B', 'G', 'D', 'A', 'E'];
 const TECHNIQUES = ['h', 'p', 's', 'b', 'x', '~'];
@@ -61,11 +62,12 @@ function gridToAscii(grid, measures, timeSig, strings, cpb) {
   }).join('\n');
 }
 
-export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRINGS, tunings = null, subdivision = 4, onSave, onClose }) {
+export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRINGS, tunings = null, instrument = 'electric', counts = null, sections = null, subdivision = 4, onSave, onClose }) {
   const timeSig = time || '4/4';
   // The active string labels (tuning). Changing tuning only relabels rows; the
   // grid (and fret positions) are preserved.
   const [curStrings, setCurStrings] = useState(strings);
+  const [targetSec, setTargetSec] = useState(0);
   // Editing an existing tab loads at fine (16th) resolution so nothing is lost;
   // new tabs start at the chosen subdivision.
   const [cpb, setCpb] = useState(() => (initialTab ? 4 : subdivision));
@@ -217,7 +219,7 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
   const handleInsert = () => {
     const ascii = gridToAscii(grid, measures, timeSig, curStrings, cpb);
     const header = `{tab, time: ${timeSig}}`;
-    onSave(`${header}\n${ascii}\n{/tab}`);
+    onSave(`${header}\n${ascii}\n{/tab}`, targetSec);
   };
 
   const handleGridKeyDown = useCallback((e) => {
@@ -308,6 +310,39 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
               </button>
             ))}
           </div>
+
+          {sections && (
+            <div className="flex gap-1 items-center">
+              <span className="text-label-10 text-[var(--ds-gray-500)]">Add to:</span>
+              <select
+                value={targetSec}
+                onChange={e => setTargetSec(Number(e.target.value))}
+                className="h-7 px-1.5 rounded-md bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-label-11 text-[var(--ds-gray-1000)] outline-none"
+              >
+                {sections.map((s, i) => <option key={i} value={i}>{s.type}</option>)}
+              </select>
+            </div>
+          )}
+
+          {counts && counts.length > 1 && (
+            <div className="flex gap-1 items-center">
+              <span className="text-label-10 text-[var(--ds-gray-500)]">Strings:</span>
+              {counts.map(n => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setCurStrings(stringsForCount(instrument, n))}
+                  className={`rounded-md px-2 py-1 text-label-11 font-semibold cursor-pointer border ${
+                    curStrings.length === n
+                      ? 'border-[var(--chord)] text-[var(--chord)] bg-[var(--ds-gray-100)]'
+                      : 'border-[var(--ds-gray-400)] text-[var(--ds-gray-600)] bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)]'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="flex-1" />
 

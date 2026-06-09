@@ -521,7 +521,20 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                 <div>
                   {sec.lines.map((line, lineIdx) => {
                     if (typeof line === 'object' && line.type === 'tab') {
-                      return <TabBlock key={lineIdx} data={line} />;
+                      return (
+                        <div key={lineIdx} className="group/tab relative my-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] p-2 pr-8">
+                          <button
+                            type="button"
+                            onClick={() => removeLine(secIdx, lineIdx)}
+                            aria-label="Remove tab"
+                            title="Remove tab"
+                            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-[var(--ds-gray-500)] hover:text-[var(--ds-error-600)] hover:bg-[var(--ds-gray-alpha-100)] bg-transparent border-none cursor-pointer leading-none"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                          </button>
+                          <div className="overflow-x-auto"><TabBlock data={line} /></div>
+                        </div>
+                      );
                     }
                     if (typeof line === 'object' && line.type === 'modulate') {
                       return (
