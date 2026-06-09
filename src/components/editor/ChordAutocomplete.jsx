@@ -69,14 +69,21 @@ export default function ChordAutocomplete({
         <span className="text-label-11 font-semibold text-[var(--ds-gray-600)]">
           {editing ? 'Replace chord' : 'Add chord'}
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button type="button" onClick={() => { setShowPicker(v => !v); setPickRoot(null); setPickAcc(''); }} className="text-label-11 font-semibold text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">
             {showPicker ? 'Hide picker' : 'Picker'}
           </button>
           {onRemove && (
             <button type="button" onClick={() => { onRemove(); onClose(); }} className="text-label-11 font-semibold text-[var(--ds-error-600)] bg-transparent border-none cursor-pointer">Remove</button>
           )}
-          <button type="button" onClick={onClose} className="text-label-11 font-semibold text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">Done</button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close chord bar"
+            className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] cursor-pointer"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </button>
         </div>
       </div>
 
@@ -85,10 +92,10 @@ export default function ChordAutocomplete({
         <div className="px-3 pt-2 flex flex-col gap-1.5">
           <div className="flex flex-wrap gap-1">
             {ROOTS.map(r => (
-              <button key={r} type="button" onClick={() => setPickRoot(r)} className={`px-2.5 py-1.5 rounded-md font-mono text-label-12 font-semibold cursor-pointer border ${pickRoot === r ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)]' : 'bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)] border-[var(--ds-gray-400)]'}`}>{r}</button>
+              <button key={r} type="button" onClick={() => setPickRoot(r)} className={`px-2.5 py-1.5 rounded-md font-mono text-label-12 font-semibold cursor-pointer border ${pickRoot === r ? 'bg-[var(--chord)] text-black border-[var(--chord)]' : 'bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)] border-[var(--ds-gray-400)]'}`}>{r}</button>
             ))}
             {['#', 'b'].map(a => (
-              <button key={a} type="button" onClick={() => setPickAcc(v => v === a ? '' : a)} className={`w-8 py-1.5 rounded-md font-mono text-label-12 font-semibold cursor-pointer border ${pickAcc === a ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border-[var(--color-brand-border)]' : 'bg-[var(--ds-gray-100)] text-[var(--ds-gray-600)] border-[var(--ds-gray-400)]'}`}>{a}</button>
+              <button key={a} type="button" onClick={() => setPickAcc(v => v === a ? '' : a)} className={`w-8 py-1.5 rounded-md font-mono text-label-12 font-semibold cursor-pointer border ${pickAcc === a ? 'bg-[var(--chord)] text-black border-[var(--chord)]' : 'bg-[var(--ds-gray-100)] text-[var(--ds-gray-600)] border-[var(--ds-gray-400)]'}`}>{a}</button>
             ))}
           </div>
           <div className="flex flex-wrap gap-1">
