@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, memo } from 'react';
-import { parseSongMd, songToMd, placementToLine } from '../../parser';
+import { parseSongMd, songToMd, placementToLine, splitMd, parseFrontmatterFields, replaceFrontmatter, serializeFrontmatterFields } from '../../parser';
 import { sectionStyle } from '../../music';
 import TabBlock from '../TabBlock';
 import StructureEditor from './StructureEditor';
@@ -404,11 +404,19 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   }, [song, emitSong]);
 
   // ─── Structure (play order) ───
+  // StructureEditor works with a comma-separated frontmatter string (same as
+  // the Editor header), so read/write the `structure` field directly rather
+  // than the parsed song.structure array.
+  const structureValue = useMemo(
+    () => parseFrontmatterFields(splitMd(md).frontmatter).structure,
+    [md],
+  );
   const availableSections = useMemo(() => (song?.sections || []).map(s => s.type), [song]);
   const setStructure = useCallback((next) => {
-    if (!song) return;
-    emitSong({ ...song, structure: next });
-  }, [song, emitSong]);
+    const fields = parseFrontmatterFields(splitMd(md).frontmatter);
+    fields.structure = next;
+    onChange(replaceFrontmatter(md, serializeFrontmatterFields(fields)));
+  }, [md, onChange]);
 
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') { setEditingLine(null); setAutocomplete(null); } };
@@ -425,7 +433,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
       {/* Structure (inline, editable) */}
       <div className="shrink-0 px-4 py-2 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
         <StructureEditor
-          value={song.structure || []}
+          value={structureValue}
           availableSections={availableSections}
           onChange={setStructure}
           autoSeed={false}
