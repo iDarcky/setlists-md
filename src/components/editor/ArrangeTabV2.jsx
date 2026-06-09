@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { parseSongMd, songToMd, placementToLine } from '../../parser';
 import { sectionStyle } from '../../music';
 import TabBlock from '../TabBlock';
 import SectionDrawer from './SectionDrawer';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
+import { getDiatonicChords } from '../../music';
+import { useMediaQuery } from '../../lib/useMediaQuery';
 import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType } from './arrangeHelpers';
 import { loadRecents, saveRecents, pushRecent } from './chordRecents';
 import ChordAutocomplete from './ChordAutocomplete';
@@ -28,7 +31,7 @@ function sectionShortCode(type) {
 // tapping an existing chord opens it pre-filled to edit/move/remove. A hover
 // caret shows where a chord will land.
 const InteractiveLine = memo(function InteractiveLine({
-  plainText, chords, secIdx, lineIdx, editingChordIdx,
+  plainText, chords, secIdx, lineIdx, editingChordIdx, armedCharPos,
   onPlace, onChordTap,
 }) {
   const containerRef = useRef(null);
@@ -36,6 +39,7 @@ const InteractiveLine = memo(function InteractiveLine({
   const downRef = useRef(null);
   const [chips, setChips] = useState([]);
   const [caret, setCaret] = useState(null);
+  const [armedCaret, setArmedCaret] = useState(null);
   const [hoverPos, setHoverPos] = useState(null);
   const [tick, setTick] = useState(0);
 
@@ -82,7 +86,8 @@ const InteractiveLine = memo(function InteractiveLine({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setChips(next);
     setCaret(hoverPos != null ? measure(hoverPos) : null);
-  }, [plainText, indexedChords, hoverPos, tick]);
+    setArmedCaret(armedCharPos != null ? measure(armedCharPos) : null);
+  }, [plainText, indexedChords, hoverPos, armedCharPos, tick]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -156,6 +161,9 @@ const InteractiveLine = memo(function InteractiveLine({
         {caret && (
           <span className="absolute pointer-events-none" style={{ left: caret.left, top: caret.top, width: 2, height: '1.2em', background: 'var(--chord)', opacity: 0.6 }} aria-hidden="true" />
         )}
+        {armedCaret && (
+          <span className="absolute pointer-events-none" style={{ left: armedCaret.left - 1, top: armedCaret.top, width: 2.5, height: '1.2em', background: 'var(--color-brand)', boxShadow: '0 0 0 2px color-mix(in srgb, var(--color-brand) 25%, transparent)' }} aria-hidden="true" />
+        )}
       </div>
   );
 });
@@ -218,6 +226,10 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const [drawerTarget, setDrawerTarget] = useState(null);
   const [collapsed, setCollapsed] = useState({});
   const [autocomplete, setAutocomplete] = useState(null);
+  // On phones we skip the floating popover (it fights the keyboard/scroll) and
+  // use an "armed" position + a sticky bottom chord bar instead.
+  const isPhone = useMediaQuery('(max-width: 639px)');
+  const [armed, setArmed] = useState(null); // { secIdx, lineIdx, charPos, chordIdx, initial }
   const sectionRefs = useRef({});
   const jumpTo = useCallback((idx) => {
     sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -226,6 +238,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const song = useMemo(() => { try { return parseSongMd(md); } catch { return null; } }, [md]);
 
   const [recentChords, setRecentChords] = useState(() => loadRecents(song?.key || 'C'));
+  const phoneBarChords = useMemo(() => {
+    const out = [];
+    for (const c of getDiatonicChords(song?.key || 'C')) if (!out.includes(c)) out.push(c);
+    for (const c of recentChords) if (!out.includes(c)) out.push(c);
+    return out.slice(0, 16);
+  }, [song?.key, recentChords]);
   const addRecent = useCallback((chord) => {
     setRecentChords(prev => {
       const next = pushRecent(prev, chord);
@@ -267,24 +285,27 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     emitSong(updatedSong);
   }, [song, placements, emitSong]);
 
-  // ─── Single-phase chord entry ───
+  // ─── Chord entry ───
+  // Desktop/tablet: tap opens the popover. Phone: tap "arms" the position and
+  // the sticky bottom bar inserts the chord.
   const openAddChord = useCallback((secIdx, lineIdx, charPos, x, y) => {
+    if (isPhone) { setArmed({ secIdx, lineIdx, charPos, chordIdx: null, initial: '' }); return; }
     setAutocomplete({ secIdx, lineIdx, chordIdx: null, charPos, anchor: { x, y }, initial: '' });
-  }, []);
+  }, [isPhone]);
   const openEditChord = useCallback((secIdx, lineIdx, chordIdx, x, y) => {
     const cur = placements[secIdx]?.lines[lineIdx]?.chords?.[chordIdx]?.chord || '';
+    if (isPhone) { setArmed({ secIdx, lineIdx, charPos: null, chordIdx, initial: cur }); return; }
     setAutocomplete({ secIdx, lineIdx, chordIdx, charPos: null, anchor: { x, y }, initial: cur });
-  }, [placements]);
+  }, [placements, isPhone]);
 
-  const commitChord = useCallback((chord) => {
-    if (!autocomplete) return;
-    const { secIdx, lineIdx, chordIdx, charPos } = autocomplete;
+  const placeChordAt = useCallback((target, chord) => {
+    if (!target) return;
+    const { secIdx, lineIdx, chordIdx, charPos } = target;
     applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
       ...sec,
       lines: sec.lines.map((line, li) => {
         if (li !== lineIdx || line.plainText === undefined) return line;
         if (chordIdx != null) {
-          // edit existing in place
           return { ...line, chords: line.chords.map((c, ci) => ci === chordIdx ? { ...c, chord } : c) };
         }
         const filtered = line.chords.filter(c => c.pos !== charPos);
@@ -292,7 +313,9 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
       }),
     })));
     addRecent(chord);
-  }, [autocomplete, applyMutation, addRecent]);
+  }, [applyMutation, addRecent]);
+
+  const commitChord = useCallback((chord) => { placeChordAt(autocomplete, chord); }, [autocomplete, placeChordAt]);
 
   const removeChordAt = useCallback((secIdx, lineIdx, chordIdx) => {
     applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
@@ -392,7 +415,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   }, [song, emitSong]);
 
   useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') { setAutocomplete(null); } };
+    const handler = (e) => { if (e.key === 'Escape') { setAutocomplete(null); setArmed(null); } };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
@@ -524,7 +547,11 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                             chords={line.chords}
                             secIdx={secIdx}
                             lineIdx={lineIdx}
-                            editingChordIdx={autocomplete && autocomplete.secIdx === secIdx && autocomplete.lineIdx === lineIdx ? autocomplete.chordIdx : null}
+                            editingChordIdx={
+                              (autocomplete && autocomplete.secIdx === secIdx && autocomplete.lineIdx === lineIdx ? autocomplete.chordIdx : null)
+                              ?? (armed && armed.secIdx === secIdx && armed.lineIdx === lineIdx ? armed.chordIdx : null)
+                            }
+                            armedCharPos={armed && armed.secIdx === secIdx && armed.lineIdx === lineIdx && armed.charPos != null ? armed.charPos : null}
                             onPlace={openAddChord}
                             onChordTap={openEditChord}
                           />
@@ -584,6 +611,45 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
           onClose={() => setAutocomplete(null)}
         />
       )}
+
+      {/* Phone sticky chord bar — inserts at the armed position. */}
+      {isPhone && armed && createPortal((
+        <div
+          className="fixed left-0 right-0 z-[90] border-t border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-[0_-8px_24px_rgba(0,0,0,0.35)]"
+          style={{ bottom: 0, paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        >
+          <div className="flex items-center justify-between px-3 pt-2">
+            <span className="text-label-11 font-semibold text-[var(--ds-gray-600)]">
+              {armed.chordIdx != null ? 'Replace chord' : 'Add chord here'}
+            </span>
+            <div className="flex items-center gap-3">
+              {armed.chordIdx != null && (
+                <button type="button" onClick={() => { removeChordAt(armed.secIdx, armed.lineIdx, armed.chordIdx); setArmed(null); }} className="text-label-11 font-semibold text-[var(--ds-error-600)] bg-transparent border-none cursor-pointer">Remove</button>
+              )}
+              <button type="button" onClick={() => setArmed(null)} aria-label="Close" className="text-label-11 font-semibold text-[var(--ds-gray-600)] bg-transparent border-none cursor-pointer">Done</button>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => { setAutocomplete({ ...armed, anchor: { x: 12, y: 90 } }); setArmed(null); }}
+              className="shrink-0 px-3 py-2 rounded-lg text-label-13 font-semibold bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-[var(--ds-gray-1000)] cursor-pointer"
+            >
+              abc…
+            </button>
+            {phoneBarChords.map(c => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => { placeChordAt(armed, c); setArmed(null); }}
+                className="shrink-0 px-3 py-2 rounded-lg text-label-13 font-bold font-mono bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-[var(--chord)] cursor-pointer"
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      ), document.body)}
 
       {/* Section drawer (bulk lyric edit) */}
       {drawerTarget !== null && song.sections[drawerTarget] && (

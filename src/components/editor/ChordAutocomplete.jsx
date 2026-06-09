@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { getDiatonicChords } from '../../music';
 import { isChordToken } from './chordRecents';
 
@@ -87,7 +88,7 @@ export default function ChordAutocomplete({
     el.style.visibility = 'visible';
   });
 
-  return (
+  return createPortal((
     <div
       ref={rootRef}
       className="fixed z-[100] rounded-xl border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] p-2 shadow-2xl"
@@ -210,5 +211,5 @@ export default function ChordAutocomplete({
         )}
       </div>
     </div>
-  );
+  ), document.body);
 }
