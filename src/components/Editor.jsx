@@ -813,7 +813,7 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
           <div className="flex-1 min-h-0 flex w-full overflow-hidden">
             <div className="flex-1 min-h-0 flex flex-col w-full border-r border-[var(--ds-gray-300)]">
               <div className={`flex-1 min-h-0 flex flex-col w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
-                <div className="wide-container w-full h-full flex flex-col">
+                <div className="w-full h-full flex flex-col px-4 sm:px-6">
                   {renderTab()}
                 </div>
               </div>
