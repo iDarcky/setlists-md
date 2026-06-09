@@ -41,7 +41,7 @@ function groupChordWords(pairs) {
 export default function SectionBlock({
   section, transpose, modOffset = 0, nns, songKey,
   showChords = true, inlineNotes = true, noteStyle = 'dashes',
-  sectionColors, sectionLabels, customSectionTypes,
+  sectionColors, sectionLabels, customSectionTypes, tabScale = 1,
 }) {
   const s = sectionStyle(section.type, sectionColors, customSectionTypes);
 
@@ -62,7 +62,7 @@ export default function SectionBlock({
 
   const renderLine = (line, idx) => {
     if (typeof line !== 'string') {
-      if (line.type === 'tab') return <TabBlock key={idx} data={line} />;
+      if (line.type === 'tab') return <TabBlock key={idx} data={line} scale={tabScale} />;
       if (line.type === 'modulate') {
         return (
           <div key={idx} className="my-4 flex items-center gap-4">

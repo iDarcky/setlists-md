@@ -411,6 +411,28 @@ function ChartPanel({ settings, update }) {
           })}
         </div>
       </Row>
+      <Row label="Tab size" description="How large guitar/bass tabs render in the chart view.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: 0.85, label: 'Small' },
+            { key: 1, label: 'Medium' },
+            { key: 1.25, label: 'Large' },
+          ].map(({ key, label }) => {
+            const active = (settings.tabSize || 1) === key;
+            return (
+              <Button
+                key={key}
+                size="sm"
+                variant={active ? 'secondary' : 'ghost'}
+                onClick={() => update('tabSize', key)}
+                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </div>
+      </Row>
     </Section>
   );
 }

@@ -130,6 +130,7 @@ const PORTABLE_PREF_KEYS = [
   'defaultSpaceId',
   'newArrange',
   'tabSubdivision',
+  'tabSize',
 ];
 
 function extractPortablePrefs(s) {

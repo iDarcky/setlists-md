@@ -769,6 +769,7 @@ export default function ChartView({
                 sectionColors={settings?.sectionColors}
                 sectionLabels={settings?.sectionLabels}
                 customSectionTypes={settings?.customSectionTypes}
+                tabScale={settings?.tabSize || 1}
               />
             </div>
           ))}

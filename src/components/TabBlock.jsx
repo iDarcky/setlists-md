@@ -7,7 +7,7 @@ const PADDING_TOP = 12;
 const PADDING_BOTTOM = 8;
 const CHAR_WIDTH = 9;
 
-export default function TabBlock({ data }) {
+export default function TabBlock({ data, scale = 1 }) {
   const parsed = useMemo(() => parseForRender(data), [data]);
 
   if (!parsed.strings.length) return null;
@@ -16,12 +16,15 @@ export default function TabBlock({ data }) {
   const contentWidth = parsed.maxLen * CHAR_WIDTH;
   const totalWidth = LABEL_WIDTH + contentWidth + 16;
 
+  // Render at a fixed scale so notes are the same size regardless of the tab's
+  // length; long tabs overflow into a horizontal scroll instead of shrinking.
   return (
+    <div className="overflow-x-auto max-w-full my-1.5">
     <svg
-      width="100%"
+      width={totalWidth * scale}
+      height={height * scale}
       viewBox={`0 0 ${totalWidth} ${height}`}
-      preserveAspectRatio="xMinYMid meet"
-      className="block my-1.5 max-w-[800px]"
+      className="block"
     >
       {/* String lines */}
       {parsed.strings.map((str, i) => {
@@ -114,6 +117,7 @@ export default function TabBlock({ data }) {
         ));
       })}
     </svg>
+    </div>
   );
 }
 
