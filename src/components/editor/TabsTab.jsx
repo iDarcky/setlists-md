@@ -61,6 +61,11 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
     if (!song) return;
     emit({ ...song, sections: song.sections.map((s, i) => i !== secIdx ? s : ({ ...s, lines: s.lines.filter((_, li) => li !== lineIdx) })) });
   };
+  // Reuse: drop a copy of an existing tab into the chosen "Add to" section.
+  const copyTabTo = (tab, secIdx) => {
+    const copy = { type: 'tab', time: tab.time, strings: tab.strings.map(s => ({ ...s })), raw: [...(tab.raw || [])] };
+    insertTab(secIdx, copy);
+  };
 
   const handleEditorSave = (saved) => {
     const tabObj = tabObjectFromEditor(saved);
@@ -128,6 +133,7 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
                     <span className="text-label-10 text-[var(--ds-gray-500)]">{TAB_INSTRUMENTS[instrumentOf(t.tab)]?.label || 'Guitar'}</span>
                   </div>
                   <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="xs" onClick={() => copyTabTo(t.tab, targetSec)} title={`Insert a copy into ${sections[targetSec]?.type || 'a section'}`}>Copy to {sections[targetSec]?.type || '…'}</Button>
                     <Button variant="secondary" size="xs" onClick={() => setEditorFor({ mode: 'edit', secIdx: t.secIdx, lineIdx: t.lineIdx, tab: t.tab, strings: t.tab.strings.map(s => s.note), tunings: TAB_INSTRUMENTS[instrumentOf(t.tab)].tunings })}>Edit</Button>
                     <Button variant="ghost" size="xs" onClick={() => deleteTab(t.secIdx, t.lineIdx)}>Delete</Button>
                   </div>
