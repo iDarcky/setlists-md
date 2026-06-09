@@ -311,3 +311,26 @@ custom dropdowns, chart-header rework). Still outstanding:
       "Song Bundle" folder format, and full-text lyric search.
 
 
+
+## Post-launch — Suggested Edits (propose & approve)
+
+Members propose changes; an admin/editor reviews and accepts or rejects.
+Flag-gated, intended for after the public release.
+
+- **Scope:** suggest edits to a song's chords, lyrics, or tabs (and likely
+  arrangement metadata) instead of writing directly, in team/church libraries.
+- **Flow:** member edits → submits a *suggestion* (a diff against the current
+  song) → admin/editor gets a **notification** → previews the proposed change
+  and **Accepts** (applies + notifies) or **Rejects/Removes** it.
+- **Data:** a `song_suggestions` table — `id`, `team_id`, `song_id`,
+  `author_id`, `status` (pending|accepted|rejected), `kind`
+  (chords|lyrics|tab|meta), `payload` (the proposed `.md` or a structured diff),
+  `base_version` (for conflict detection), `created_at`, `reviewed_by`,
+  `reviewed_at`. RLS: members insert their own + read suggestions on their
+  team's songs; admins/editors update status. Pairs naturally with the planned
+  optimistic-locking `version` column.
+- **UI:** a "Suggest edit" affordance in the editor for read-only members
+  (today they're blocked entirely), a review inbox/notification for reviewers,
+  and a diff preview. Reuse the existing notifications surface.
+- **Gating:** behind a feature flag until the team tier is hardened; depends on
+  team-sync conflict handling landing first.

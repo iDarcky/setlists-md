@@ -389,6 +389,28 @@ function ChartPanel({ settings, update }) {
           })}
         </div>
       </Row>
+      <Row label="Tab grid resolution" description="Default subdivisions when creating a new tab. Beats only keeps it simple; finer grids allow 8th/16th-note detail.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: 1, label: 'Beats' },
+            { key: 2, label: '8ths' },
+            { key: 4, label: '16ths' },
+          ].map(({ key, label }) => {
+            const active = (settings.tabSubdivision || 4) === key;
+            return (
+              <Button
+                key={key}
+                size="sm"
+                variant={active ? 'secondary' : 'ghost'}
+                onClick={() => update('tabSubdivision', key)}
+                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </div>
+      </Row>
     </Section>
   );
 }

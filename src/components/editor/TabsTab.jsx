@@ -27,7 +27,7 @@ function instrumentOf(tab) {
 
 // Tabs mode — a first-class workspace (sibling of Arrange/Advanced) to build
 // and organize the song's tabs and insert them into sections.
-export default function TabsTab({ md, onChange }) {
+export default function TabsTab({ md, onChange, subdivision = 4 }) {
   const song = useMemo(() => { try { return parseSongMd(md); } catch { return null; } }, [md]);
   const sections = useMemo(() => song?.sections || [], [song]);
 
@@ -112,12 +112,13 @@ export default function TabsTab({ md, onChange }) {
         </Button>
       </div>
 
-      {/* List */}
-      <div className="flex-1 overflow-auto p-4 flex flex-col gap-3">
+      {/* Gallery */}
+      <div className="flex-1 overflow-auto p-4">
         {tabs.length === 0 ? (
           <p className="text-copy-13 text-[var(--ds-gray-600)] italic m-0">No tabs yet. Pick an instrument and section, then “New tab”.</p>
         ) : (
-          tabs.map((t, i) => {
+          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
+          {tabs.map((t, i) => {
             const st = sectionStyle(t.sectionType);
             return (
               <div key={i} className="rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] p-3">
@@ -134,7 +135,8 @@ export default function TabsTab({ md, onChange }) {
                 <div className="overflow-x-auto"><TabBlock data={t.tab} /></div>
               </div>
             );
-          })
+          })}
+          </div>
         )}
       </div>
 
@@ -142,6 +144,7 @@ export default function TabsTab({ md, onChange }) {
         <TabGridEditor
           initialTab={editorFor.tab}
           strings={editorFor.strings}
+          subdivision={subdivision}
           time={editorFor.tab?.time || song.time || '4/4'}
           onSave={handleEditorSave}
           onClose={() => setEditorFor(null)}

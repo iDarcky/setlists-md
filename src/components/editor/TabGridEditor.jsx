@@ -5,37 +5,39 @@ import { IconButton } from '../ui/IconButton';
 const DEFAULT_STRINGS = ['e', 'B', 'G', 'D', 'A', 'E'];
 const TECHNIQUES = ['h', 'p', 's', 'b', 'x', '~'];
 
-function slotsPerMeasure(timeSig) {
-  const [num, den] = (timeSig || '4/4').split('/').map(Number);
-  if (den === 8) return num * 2;
-  return num * 4;
+// Grid resolution is "cells per beat" (cpb): 1 = beats only (1 2 3 4),
+// 2 = eighths (1 & 2 &), 4 = sixteenths (1 e & a).
+function slotsPerMeasure(timeSig, cpb) {
+  const [num] = (timeSig || '4/4').split('/').map(Number);
+  return num * cpb;
 }
 
 const DURATIONS = [
-  { id: 'w',  label: '𝅝',  slots: 16, title: 'Whole' },
-  { id: 'h',  label: '𝅗𝅥',  slots: 8,  title: 'Half' },
-  { id: 'q',  label: '♩',  slots: 4,  title: 'Quarter' },
-  { id: 'e',  label: '♪',  slots: 2,  title: '8th' },
-  { id: 's',  label: '𝅘𝅥𝅯',  slots: 1,  title: '16th' },
-  { id: 'dq', label: '♩.',  slots: 6,  title: 'Dotted Quarter' },
+  { id: 'w',  label: '𝅝',  beats: 4,   title: 'Whole' },
+  { id: 'h',  label: '𝅗𝅥',  beats: 2,   title: 'Half' },
+  { id: 'q',  label: '♩',  beats: 1,   title: 'Quarter' },
+  { id: 'e',  label: '♪',  beats: 0.5, title: '8th' },
+  { id: 's',  label: '𝅘𝅥𝅯',  beats: 0.25, title: '16th' },
+  { id: 'dq', label: '♩.',  beats: 1.5, title: 'Dotted Quarter' },
 ];
 
-function beatLabels(timeSig) {
+function beatLabels(timeSig, cpb) {
   const [num] = (timeSig || '4/4').split('/').map(Number);
+  const sub = cpb === 4 ? ['', 'e', '&', 'a'] : cpb === 2 ? ['', '&'] : [''];
   const labels = [];
   for (let b = 1; b <= num; b++) {
-    labels.push(String(b), 'e', '&', 'a');
+    for (let s = 0; s < cpb; s++) labels.push(s === 0 ? String(b) : (sub[s] || ''));
   }
   return labels;
 }
 
-function makeGrid(measures, timeSig, strings) {
-  const slots = slotsPerMeasure(timeSig) * measures;
+function makeGrid(measures, timeSig, strings, cpb) {
+  const slots = slotsPerMeasure(timeSig, cpb) * measures;
   return strings.map(() => Array(slots).fill(null));
 }
 
-function gridToAscii(grid, measures, timeSig, strings) {
-  const spm = slotsPerMeasure(timeSig);
+function gridToAscii(grid, measures, timeSig, strings, cpb) {
+  const spm = slotsPerMeasure(timeSig, cpb);
 
   return strings.map((name, si) => {
     let line = name + '|';
@@ -59,11 +61,14 @@ function gridToAscii(grid, measures, timeSig, strings) {
   }).join('\n');
 }
 
-export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRINGS, onSave, onClose }) {
+export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRINGS, subdivision = 4, onSave, onClose }) {
   const timeSig = time || '4/4';
+  // Editing an existing tab loads at fine (16th) resolution so nothing is lost;
+  // new tabs start at the chosen subdivision.
+  const [cpb, setCpb] = useState(() => (initialTab ? 4 : subdivision));
   const [measures, setMeasures] = useState(2);
   const [duration, setDuration] = useState('q');
-  const [grid, setGrid] = useState(() => makeGrid(2, timeSig, strings));
+  const [grid, setGrid] = useState(() => makeGrid(2, timeSig, strings, initialTab ? 4 : subdivision));
   const [cursor, setCursor] = useState({ string: 0, pos: 0 });
   const [chordMode, setChordMode] = useState(false);
   const [activeInput, setActiveInput] = useState(null);
@@ -72,9 +77,9 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
   const [inputError, setInputError] = useState(false);
   const inputRef = useRef(null);
 
-  const spm = slotsPerMeasure(timeSig);
+  const spm = slotsPerMeasure(timeSig, cpb);
   const totalSlots = spm * measures;
-  const labels = beatLabels(timeSig);
+  const labels = beatLabels(timeSig, cpb);
 
   useEffect(() => {
     if (activeInput && inputRef.current) inputRef.current.focus();
@@ -83,7 +88,7 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
   useEffect(() => {
     if (!initialTab || !initialTab.strings || initialTab.strings.length === 0) return;
     const maxMeasures = Math.max(2, initialTab.strings[0]?.content?.split('|').length || 2);
-    const newGrid = makeGrid(maxMeasures, timeSig, strings);
+    const newGrid = makeGrid(maxMeasures, timeSig, strings, 4);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMeasures(maxMeasures);
 
@@ -118,7 +123,23 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
     setGrid(newGrid);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const durSlots = DURATIONS.find(d => d.id === duration)?.slots || 4;
+  const durSlots = Math.max(1, Math.round((DURATIONS.find(d => d.id === duration)?.beats || 1) * cpb));
+
+  // Switch grid resolution, remapping placed notes by beat position.
+  const changeSubdivision = useCallback((newCpb) => {
+    setGrid(prev => {
+      const newTotal = slotsPerMeasure(timeSig, newCpb) * measures;
+      const next = prev.map(() => Array(newTotal).fill(null));
+      prev.forEach((row, si) => row.forEach((cell, slot) => {
+        if (cell == null) return;
+        const ns = Math.round((slot / cpb) * newCpb);
+        if (ns < newTotal && next[si][ns] == null) next[si][ns] = cell;
+      }));
+      return next;
+    });
+    setCpb(newCpb);
+    setCursor({ string: 0, pos: 0 });
+  }, [cpb, timeSig, measures]);
 
   const openInput = useCallback((si, pos) => {
     setActiveInput({ string: si, pos });
@@ -191,7 +212,7 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
   };
 
   const handleInsert = () => {
-    const ascii = gridToAscii(grid, measures, timeSig, strings);
+    const ascii = gridToAscii(grid, measures, timeSig, strings, cpb);
     const header = `{tab, time: ${timeSig}}`;
     onSave(`${header}\n${ascii}\n{/tab}`);
   };
@@ -288,6 +309,27 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
           <div className="flex-1" />
 
           {/* Measure controls */}
+          {/* Subdivision (grid resolution) */}
+          <div className="flex gap-1 items-center">
+            <span className="text-label-10 text-[var(--ds-gray-500)]">Grid:</span>
+            {[{ v: 1, l: '1·2·3·4' }, { v: 2, l: '8ths' }, { v: 4, l: '16ths' }].map(o => (
+              <button
+                key={o.v}
+                type="button"
+                onClick={() => changeSubdivision(o.v)}
+                className={`rounded-md px-2 py-1 text-label-11 font-semibold cursor-pointer border transition-colors ${
+                  cpb === o.v
+                    ? 'border-[var(--color-brand)] text-[var(--color-brand-text)] bg-[var(--color-brand-soft)]'
+                    : 'border-[var(--ds-gray-400)] text-[var(--ds-gray-600)] bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)]'
+                }`}
+              >
+                {o.l}
+              </button>
+            ))}
+          </div>
+
+          <div className="w-px h-5 bg-[var(--ds-gray-400)]" />
+
           <div className="flex gap-1 items-center">
             <span className="text-label-10 text-[var(--ds-gray-500)]">{measures} bar{measures !== 1 ? 's' : ''}</span>
             <IconButton variant="default" size="xs" onClick={removeMeasure} disabled={measures <= 1} aria-label="Remove bar">−</IconButton>
@@ -302,7 +344,7 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
             {Array.from({ length: totalSlots }, (_, pos) => {
               const isBarLine = pos > 0 && pos % spm === 0;
               const beatLabel = labels[pos % labels.length];
-              const isBeat = pos % 4 === 0;
+              const isBeat = pos % cpb === 0;
               return (
                 <div
                   key={pos}

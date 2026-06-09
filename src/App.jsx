@@ -129,6 +129,7 @@ const PORTABLE_PREF_KEYS = [
   'navStyle',
   'defaultSpaceId',
   'newArrange',
+  'tabSubdivision',
 ];
 
 function extractPortablePrefs(s) {

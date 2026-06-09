@@ -496,7 +496,7 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
           />
         );
       case 'tabs':
-        return <TabsTab md={md} onChange={setMd} />;
+        return <TabsTab md={md} onChange={setMd} subdivision={chartDefaults.settings?.tabSubdivision || 4} />;
       case 'arrange':
         return chartDefaults.settings?.newArrange
           ? <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />
