@@ -3,6 +3,7 @@ import { parseSongMd, songToMd, placementToLine } from '../../parser';
 import { sectionStyle, getNashvilleNumber, getSolfege } from '../../music';
 import TabBlock from '../TabBlock';
 import SectionDrawer from './SectionDrawer';
+import TabManager from './TabManager';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
 import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType } from './arrangeHelpers';
@@ -234,6 +235,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const [entry, setEntry] = useState(null);
   // Reading-aid notation for chord labels: 'chords' | 'nashville' | 'solfege'.
   const [notation, setNotation] = useState('chords');
+  const [tabManagerOpen, setTabManagerOpen] = useState(false);
   const sectionRefs = useRef({});
   const jumpTo = useCallback((idx) => {
     sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -374,6 +376,20 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     emitSong({ ...song, sections });
   }, [song, emitSong, labelFor]);
 
+  // ─── Tab blocks (tab mode) ───
+  const insertTab = useCallback((secIdx, tabObj) => {
+    if (!song) return;
+    emitSong({ ...song, sections: song.sections.map((s, i) => i !== secIdx ? s : ({ ...s, lines: [...s.lines, tabObj] })) });
+  }, [song, emitSong]);
+  const updateTabAt = useCallback((secIdx, lineIdx, tabObj) => {
+    if (!song) return;
+    emitSong({ ...song, sections: song.sections.map((s, i) => i !== secIdx ? s : ({ ...s, lines: s.lines.map((l, li) => li === lineIdx ? tabObj : l) })) });
+  }, [song, emitSong]);
+  const deleteTabAt = useCallback((secIdx, lineIdx) => {
+    if (!song) return;
+    emitSong({ ...song, sections: song.sections.map((s, i) => i !== secIdx ? s : ({ ...s, lines: s.lines.filter((_, li) => li !== lineIdx) })) });
+  }, [song, emitSong]);
+
   const updateSectionNote = useCallback((idx, note) => {
     if (!song) return;
     emitSong({ ...song, sections: song.sections.map((s, i) => i === idx ? { ...s, note } : s) });
@@ -423,7 +439,15 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     <div className="flex flex-col min-h-0 h-full">
       {/* Notation toggle — display chords as letters / Nashville numbers / solfège. */}
       <div className="shrink-0 flex items-center justify-end gap-1 px-4 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
-        <span className="mr-auto text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)]">Notation</span>
+        <button
+          type="button"
+          onClick={() => setTabManagerOpen(true)}
+          className="mr-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-label-11 font-semibold cursor-pointer border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)]"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/></svg>
+          Tabs
+        </button>
+        <span className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)]">Notation</span>
         {[{ id: 'chords', label: 'ABC' }, { id: 'nashville', label: '123' }, { id: 'solfege', label: 'Do' }].map(o => (
           <button
             key={o.id}
@@ -620,6 +644,18 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
           onCommit={commitChord}
           onRemove={entry.chordIdx != null ? () => removeChordAt(entry.secIdx, entry.lineIdx, entry.chordIdx) : null}
           onClose={() => setEntry(null)}
+        />
+      )}
+
+      {/* Tab mode (build/organize tabs, insert into sections) */}
+      {tabManagerOpen && (
+        <TabManager
+          song={song}
+          defaultTime={song.time}
+          onInsert={insertTab}
+          onUpdateTab={updateTabAt}
+          onDeleteTab={deleteTabAt}
+          onClose={() => setTabManagerOpen(false)}
         />
       )}
 

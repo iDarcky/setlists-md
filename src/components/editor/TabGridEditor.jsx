@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 
-const STRING_NAMES = ['e', 'B', 'G', 'D', 'A', 'E'];
+const DEFAULT_STRINGS = ['e', 'B', 'G', 'D', 'A', 'E'];
 const TECHNIQUES = ['h', 'p', 's', 'b', 'x'];
 
 function slotsPerMeasure(timeSig) {
@@ -29,15 +29,15 @@ function beatLabels(timeSig) {
   return labels;
 }
 
-function makeGrid(measures, timeSig) {
+function makeGrid(measures, timeSig, strings) {
   const slots = slotsPerMeasure(timeSig) * measures;
-  return STRING_NAMES.map(() => Array(slots).fill(null));
+  return strings.map(() => Array(slots).fill(null));
 }
 
-function gridToAscii(grid, measures, timeSig) {
+function gridToAscii(grid, measures, timeSig, strings) {
   const spm = slotsPerMeasure(timeSig);
 
-  return STRING_NAMES.map((name, si) => {
+  return strings.map((name, si) => {
     let line = name + '|';
     for (let m = 0; m < measures; m++) {
       for (let pos = 0; pos < spm; pos++) {
@@ -59,11 +59,11 @@ function gridToAscii(grid, measures, timeSig) {
   }).join('\n');
 }
 
-export default function TabGridEditor({ initialTab, time, onSave, onClose }) {
+export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRINGS, onSave, onClose }) {
   const timeSig = time || '4/4';
   const [measures, setMeasures] = useState(2);
   const [duration, setDuration] = useState('q');
-  const [grid, setGrid] = useState(() => makeGrid(2, timeSig));
+  const [grid, setGrid] = useState(() => makeGrid(2, timeSig, strings));
   const [cursor, setCursor] = useState({ string: 0, pos: 0 });
   const [chordMode, setChordMode] = useState(false);
   const [activeInput, setActiveInput] = useState(null);
@@ -83,11 +83,12 @@ export default function TabGridEditor({ initialTab, time, onSave, onClose }) {
   useEffect(() => {
     if (!initialTab || !initialTab.strings || initialTab.strings.length === 0) return;
     const maxMeasures = Math.max(2, initialTab.strings[0]?.content?.split('|').length || 2);
-    const newGrid = makeGrid(maxMeasures, timeSig);
+    const newGrid = makeGrid(maxMeasures, timeSig, strings);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMeasures(maxMeasures);
 
     initialTab.strings.forEach((str, si) => {
-      if (si >= STRING_NAMES.length) return;
+      if (si >= strings.length) return;
       const content = str.content;
       let slot = 0;
       let i = 0;
@@ -190,17 +191,9 @@ export default function TabGridEditor({ initialTab, time, onSave, onClose }) {
   };
 
   const handleInsert = () => {
-    const ascii = gridToAscii(grid, measures, timeSig);
+    const ascii = gridToAscii(grid, measures, timeSig, strings);
     const header = `{tab, time: ${timeSig}}`;
     onSave(`${header}\n${ascii}\n{/tab}`);
-  };
-
-  const handleKeyDown = (e, si, pos) => {
-    if (e.key === 'Escape') { setActiveInput(null); return; }
-    if (e.key === 'Delete' || e.key === 'Backspace') {
-      clearCell(si, pos);
-      setActiveInput(null);
-    }
   };
 
   const handleGridKeyDown = useCallback((e) => {
@@ -208,11 +201,11 @@ export default function TabGridEditor({ initialTab, time, onSave, onClose }) {
     const { string: si, pos } = cursor;
     if (e.key === 'ArrowRight') { e.preventDefault(); setCursor({ string: si, pos: Math.min(pos + 1, totalSlots - 1) }); }
     if (e.key === 'ArrowLeft')  { e.preventDefault(); setCursor({ string: si, pos: Math.max(pos - 1, 0) }); }
-    if (e.key === 'ArrowDown')  { e.preventDefault(); setCursor({ string: Math.min(si + 1, 5), pos }); }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); setCursor({ string: Math.min(si + 1, strings.length - 1), pos }); }
     if (e.key === 'ArrowUp')    { e.preventDefault(); setCursor({ string: Math.max(si - 1, 0), pos }); }
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openInput(si, pos); }
     if (e.key === 'Delete' || e.key === 'Backspace') { clearCell(si, pos); }
-  }, [activeInput, cursor, totalSlots, openInput, clearCell]);
+  }, [activeInput, cursor, totalSlots, openInput, clearCell, strings.length]);
 
   const cellW = 34;
   const cellH = 28;
@@ -329,7 +322,7 @@ export default function TabGridEditor({ initialTab, time, onSave, onClose }) {
           </div>
 
           {/* String rows */}
-          {STRING_NAMES.map((name, si) => (
+          {strings.map((name, si) => (
             <div key={si} className="flex items-center mb-0.5">
               <div
                 className="shrink-0 text-right pr-1.5 text-label-12-mono font-bold text-[var(--ds-gray-600)]"
