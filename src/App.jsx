@@ -1340,7 +1340,7 @@ export default function App() {
     await handleImportSetlist(file);
   };
 
-  const openNewSongModal = (initialTab = 'home') => {
+  const openNewSongModal = (initialTab = 'import') => {
     setNewSongModal({ initialTab });
   };
 

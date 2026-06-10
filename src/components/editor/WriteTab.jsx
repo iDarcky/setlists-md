@@ -12,6 +12,18 @@ function nextTabName(library = []) {
   return `Tab ${n}`;
 }
 
+// The %% tabs library region is kept in the body but hidden from the Advanced
+// editor's textarea — it's managed through the Tab button, not raw text.
+function splitTabsRegion(body) {
+  const m = body.match(/^%% tabs[ \t]*$/m);
+  if (!m) return { visible: body, tabs: '' };
+  return { visible: body.slice(0, m.index).replace(/\s+$/, ''), tabs: body.slice(m.index).replace(/\s+$/, '') };
+}
+function joinTabsRegion(visible, tabs) {
+  const v = visible.replace(/\s+$/, '');
+  return tabs ? `${v}\n\n${tabs.replace(/\s+$/, '')}\n` : `${v}\n`;
+}
+
 function tabObjectFromAscii(ascii) {
   const tm = ascii.match(/\{tab(?:,\s*time:\s*([^}]+))?\}/);
   const time = tm && tm[1] ? tm[1].trim() : null;
@@ -55,6 +67,11 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
   const [recentChords, setRecentChords] = useState([]);
   const findInputRef = useRef(null);
 
+  // Split off the hidden %% tabs region; the textarea only shows the visible
+  // song body. emit() re-attaches the preserved tabs region on every change.
+  const { visible, tabs } = useMemo(() => splitTabsRegion(md), [md]);
+  const emit = useCallback((newVisible) => onChange(tabs ? joinTabsRegion(newVisible, tabs) : newVisible), [onChange, tabs]);
+
   // ─── Textarea helpers ───
   const insertAtCursor = useCallback((text, opts = {}) => {
     const ta = textareaRef.current;
@@ -83,13 +100,13 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     }
 
     const newVal = val.substring(0, start) + insert + val.substring(end);
-    onChange(newVal);
+    emit(newVal);
 
     requestAnimationFrame(() => {
       ta.selectionStart = ta.selectionEnd = newCursor;
       ta.focus();
     });
-  }, [onChange, textareaRef]);
+  }, [emit, textareaRef]);
 
   // The song's reusable tab library, parsed from the body's %% tabs region.
   const tabLibrary = useMemo(() => {
@@ -107,17 +124,15 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     const name = nextTabName(tabLibrary);
     const tab = tabObjectFromAscii(ascii);
     const ta = textareaRef.current;
-    const start = ta ? ta.selectionStart : md.length;
+    const start = ta ? ta.selectionStart : visible.length;
     const ref = `{tabref: ${name}}`;
-    const before = md.slice(0, start);
+    const before = visible.slice(0, start);
     const needsNl = before.length > 0 && !before.endsWith('\n');
-    let body = before + (needsNl ? '\n' : '') + ref + md.slice(start);
+    const newVisible = before + (needsNl ? '\n' : '') + ref + visible.slice(start);
     const def = serializeTabDef({ name, tab });
-    body = /^%% tabs\s*$/m.test(body)
-      ? body.replace(/\s*$/, '') + '\n\n' + def + '\n'
-      : body.replace(/\s*$/, '') + '\n\n%% tabs\n\n' + def + '\n';
-    onChange(body);
-  }, [md, tabLibrary, onChange, textareaRef]);
+    const newTabs = tabs ? `${tabs.replace(/\s+$/, '')}\n\n${def}` : `%% tabs\n\n${def}`;
+    onChange(joinTabsRegion(newVisible, newTabs));
+  }, [visible, tabs, tabLibrary, onChange, textareaRef]);
 
   // Harvest chords currently in the song text (most recent first by appearance)
   const songChords = useMemo(() => {
@@ -125,12 +140,12 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     const out = [];
     const re = /\[([^\]]+)\]/g;
     let m;
-    while ((m = re.exec(md)) !== null) {
+    while ((m = re.exec(visible)) !== null) {
       const c = m[1].trim();
       if (c && !seen.has(c)) { seen.add(c); out.push(c); }
     }
     return out;
-  }, [md]);
+  }, [visible]);
 
   const effectiveRecent = useMemo(() => {
     const merged = [...recentChords];
@@ -159,7 +174,7 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
       const selected = val.substring(start, end);
       const insert = `[${chord}]${selected}`;
       const newVal = val.substring(0, start) + insert + val.substring(end);
-      onChange(newVal);
+      emit(newVal);
       requestAnimationFrame(() => {
         ta.selectionStart = ta.selectionEnd = start + insert.length;
         ta.focus();
@@ -167,7 +182,7 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     } else {
       const insert = `[${chord}]`;
       const newVal = val.substring(0, start) + insert + val.substring(end);
-      onChange(newVal);
+      emit(newVal);
       requestAnimationFrame(() => {
         ta.selectionStart = ta.selectionEnd = start + insert.length;
         ta.focus();
@@ -175,18 +190,18 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     }
     setShowChordBar(false);
     addRecent(chord);
-  }, [onChange, textareaRef, addRecent]);
+  }, [emit, textareaRef, addRecent]);
 
   // ─── Section insertion with auto-numbering ───
   const handleSectionInsert = useCallback((type) => {
     const regex = new RegExp(`^## ${type}(\\s+\\d+)?$`, 'gm');
-    const matches = md.match(regex);
+    const matches = visible.match(regex);
     const count = matches ? matches.length : 0;
     const needsNumber = ['Verse', 'Pre Chorus', 'Chorus', 'Bridge'].includes(type);
     const label = needsNumber ? `${type} ${count + 1}` : (count > 0 ? `${type} ${count + 1}` : type);
     insertAtCursor(`## ${label}\n`, { newLine: true });
     setShowSectionMenu(false);
-  }, [md, insertAtCursor]);
+  }, [visible, insertAtCursor]);
 
   const handleCueInsert = useCallback(() => {
     if (!cueText.trim()) return;
@@ -239,7 +254,7 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
   const matches = useMemo(() => {
     if (!showFind || !findText) return [];
     const out = [];
-    const hay = caseSensitive ? md : md.toLowerCase();
+    const hay = caseSensitive ? visible : visible.toLowerCase();
     const needle = caseSensitive ? findText : findText.toLowerCase();
     if (!needle) return [];
     let i = 0;
@@ -250,7 +265,7 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
       i = pos + Math.max(needle.length, 1);
     }
     return out;
-  }, [showFind, findText, caseSensitive, md]);
+  }, [showFind, findText, caseSensitive, visible]);
 
   useEffect(() => {
     if (!showFind || matches.length === 0) return;
@@ -279,24 +294,24 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     if (matches.length === 0 || !findText) return;
     const start = matches[matchIdx];
     const end = start + findText.length;
-    const newVal = md.substring(0, start) + replaceText + md.substring(end);
-    onChange(newVal);
+    const newVal = visible.substring(0, start) + replaceText + visible.substring(end);
+    emit(newVal);
     // stay near current match after replace
     setMatchIdx((m) => Math.min(m, matches.length - 2 < 0 ? 0 : matches.length - 2));
-  }, [matches, matchIdx, findText, replaceText, md, onChange]);
+  }, [matches, matchIdx, findText, replaceText, visible, emit]);
 
   const replaceAll = useCallback(() => {
     if (matches.length === 0 || !findText) return;
     let out = '';
     let cursor = 0;
     for (const pos of matches) {
-      out += md.substring(cursor, pos) + replaceText;
+      out += visible.substring(cursor, pos) + replaceText;
       cursor = pos + findText.length;
     }
-    out += md.substring(cursor);
-    onChange(out);
+    out += visible.substring(cursor);
+    emit(out);
     setMatchIdx(0);
-  }, [matches, findText, replaceText, md, onChange]);
+  }, [matches, findText, replaceText, visible, emit]);
 
   // Cmd/Ctrl+F inside the textarea opens find
   const handleTextareaKeyDown = useCallback((e) => {
@@ -365,8 +380,8 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
       {/* ─── Textarea ─── */}
       <textarea
         ref={textareaRef}
-        value={md}
-        onChange={e => onChange(e.target.value)}
+        value={visible}
+        onChange={e => emit(e.target.value)}
         onKeyDown={handleTextareaKeyDown}
         spellCheck={false}
         className="flex-1 w-full min-h-[50vh] bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg p-4 text-copy-13 leading-relaxed text-[var(--ds-gray-1000)] resize-y outline-none font-mono"
