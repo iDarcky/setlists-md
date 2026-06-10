@@ -219,7 +219,7 @@ function PopMenu({ trigger, align = 'right', up = false, children }) {
 }
 function MenuItem({ onClick, children, danger = false }) {
   return (
-    <button type="button" onClick={onClick} className={`w-full text-left px-3 py-2.5 text-copy-13 cursor-pointer bg-transparent border-none hover:bg-[var(--ds-gray-alpha-100)] ${danger ? 'text-[var(--ds-error-600)]' : 'text-[var(--ds-gray-1000)]'}`}>
+    <button type="button" onClick={onClick} className={`w-full text-left px-3 py-2.5 text-copy-13 cursor-pointer bg-transparent border-none hover:bg-[var(--ds-gray-alpha-100)] ${danger ? 'text-[var(--ds-red-700)] font-semibold' : 'text-[var(--ds-gray-1000)]'}`}>
       {children}
     </button>
   );
@@ -676,6 +676,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                   className="flex-1 bg-transparent border-none text-label-11 italic text-[var(--text-2)] outline-none min-w-0 px-1"
                   style={{ borderLeft: sec.note ? `2px solid ${s.br}` : 'none' }}
                 />
+                <IconButton variant="ghost" size="sm" aria-label="Move section up" title="Move up" disabled={secIdx === 0} onClick={() => moveSection(secIdx, -1)}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                </IconButton>
+                <IconButton variant="ghost" size="sm" aria-label="Move section down" title="Move down" disabled={secIdx === placements.length - 1} onClick={() => moveSection(secIdx, 1)}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                </IconButton>
                 <IconButton variant="ghost" size="sm" aria-label="Edit lyrics" title="Edit lyrics" onClick={() => handleEditText(secIdx)}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
@@ -689,8 +695,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                   }
                 >
                   <MenuItem onClick={() => duplicateSection(secIdx)}>Duplicate section</MenuItem>
-                  <MenuItem onClick={() => moveSection(secIdx, -1)}>Move up</MenuItem>
-                  <MenuItem onClick={() => moveSection(secIdx, 1)}>Move down</MenuItem>
                   <MenuItem danger onClick={() => removeSection(secIdx)}>Delete section</MenuItem>
                 </PopMenu>
               </div>

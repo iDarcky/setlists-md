@@ -166,7 +166,7 @@ export default function TabGridEditorV2({
     else if (e.key === 'ArrowLeft') { e.preventDefault(); setCursor({ string: si, pos: Math.max(pos - 1, 0) }); }
     else if (e.key === 'ArrowDown') { e.preventDefault(); setCursor({ string: Math.min(si + 1, curStrings.length - 1), pos }); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setCursor({ string: Math.max(si - 1, 0), pos }); }
-    else if (e.key >= '0' && e.key <= '9') { open(si, pos); setVal(e.key); }
+    else if (e.key >= '0' && e.key <= '9') { e.preventDefault(); open(si, pos); setVal(e.key); }
     else if (e.key === 'Enter') { e.preventDefault(); open(si, pos); }
     else if (e.key === 'Backspace' || e.key === 'Delete') { clearCell(si, pos); }
     else if ('hpsbx~'.includes(e.key)) applyTech(e.key);

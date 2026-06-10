@@ -235,6 +235,7 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
       notes: preview.notes,
       structure: Array.isArray(preview.structure) ? preview.structure : a.structure,
       sections: Array.isArray(preview.sections) ? preview.sections : a.sections,
+      tabLibrary: Array.isArray(preview.tabLibrary) ? preview.tabLibrary : a.tabLibrary,
     }));
     nextSong.title = preview.title || nextSong.title;
     nextSong.artist = preview.artist || nextSong.artist;
@@ -268,6 +269,7 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
         key: preview.key, tempo: preview.tempo, time: preview.time,
         capo: preview.capo, notes: preview.notes,
         structure: preview.structure, sections: preview.sections,
+        tabLibrary: Array.isArray(preview.tabLibrary) ? preview.tabLibrary : a.tabLibrary,
       }));
       setWorkingSong(next);
     }

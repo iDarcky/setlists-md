@@ -7,8 +7,16 @@ const PADDING_TOP = 12;
 const PADDING_BOTTOM = 8;
 const CHAR_WIDTH = 9;
 
-export default function TabBlock({ data, scale = 1 }) {
+const DEFAULT_COLORS = {
+  line: 'var(--ds-gray-400)',
+  label: 'var(--ds-gray-600)',
+  number: 'var(--chord)',
+  bg: 'var(--ds-background-200)',
+};
+
+export default function TabBlock({ data, scale = 1, colors }) {
   const parsed = useMemo(() => parseForRender(data), [data]);
+  const c = { ...DEFAULT_COLORS, ...(colors || {}) };
 
   if (!parsed.strings.length) return null;
 
@@ -36,7 +44,7 @@ export default function TabBlock({ data, scale = 1 }) {
             y1={y}
             x2={LABEL_WIDTH + contentWidth}
             y2={y}
-            stroke="var(--ds-gray-400)"
+            stroke={c.line}
             strokeWidth={1}
           />
         );
@@ -50,7 +58,7 @@ export default function TabBlock({ data, scale = 1 }) {
             key={`label-${i}`}
             x={LABEL_WIDTH - 8}
             y={y + 4}
-            fill="var(--ds-gray-600)"
+            fill={c.label}
             fontFamily="var(--fm)"
             fontSize={11}
             fontWeight={600}
@@ -69,7 +77,7 @@ export default function TabBlock({ data, scale = 1 }) {
           y1={PADDING_TOP - 4}
           x2={LABEL_WIDTH + pos * CHAR_WIDTH}
           y2={PADDING_TOP + (parsed.strings.length - 1) * STRING_SPACING + 4}
-          stroke="var(--ds-gray-500)"
+          stroke={c.line}
           strokeWidth={1.5}
         />
       ))}
@@ -85,14 +93,14 @@ export default function TabBlock({ data, scale = 1 }) {
               y={y - 7}
               width={f.fret >= 10 ? 16 : 10}
               height={14}
-              fill="var(--ds-background-200)"
+              fill={c.bg}
               rx={2}
             />
             {/* Fret number */}
             <text
               x={LABEL_WIDTH + f.pos * CHAR_WIDTH + 1}
               y={y + 4}
-              fill="var(--chord)"
+              fill={c.number}
               fontFamily="var(--fm)"
               fontSize={12}
               fontWeight={700}

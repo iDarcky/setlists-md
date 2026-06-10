@@ -131,6 +131,9 @@ const PORTABLE_PREF_KEYS = [
   'newArrange',
   'tabSubdivision',
   'tabSize',
+  'tabStringColor',
+  'tabNumberColor',
+  'tabBg',
 ];
 
 function extractPortablePrefs(s) {

@@ -52,6 +52,7 @@ export function resolveSongView(song, arrangementId) {
     notes: arr.notes || '',
     structure: arr.structure || [],
     sections: arr.sections || [],
+    tabLibrary: arr.tabLibrary || [],
     updatedAt: arr.updatedAt || song.updatedAt,
     _arrangementId: arr.id,
     _arrangementName: arr.name,
@@ -90,6 +91,7 @@ export function addArrangement(song, name, base) {
     notes: seed?.notes || '',
     structure: Array.isArray(seed?.structure) ? clone(seed.structure) : [],
     sections: Array.isArray(seed?.sections) ? clone(seed.sections) : [],
+    tabLibrary: Array.isArray(seed?.tabLibrary) ? clone(seed.tabLibrary) : [],
     updatedAt: Date.now(),
   };
   const next = {
@@ -153,6 +155,7 @@ export function songFromFlat(flat) {
       notes: flat.notes || '',
       structure: Array.isArray(flat.structure) ? flat.structure : [],
       sections: Array.isArray(flat.sections) ? flat.sections : [],
+      tabLibrary: Array.isArray(flat.tabLibrary) ? flat.tabLibrary : [],
       updatedAt: Date.now(),
     }],
     updatedAt: Date.now(),

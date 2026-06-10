@@ -433,7 +433,35 @@ function ChartPanel({ settings, update }) {
           })}
         </div>
       </Row>
+      <Row label="Tab string colour" description="Colour of the string lines, bar lines and string labels in tabs.">
+        <TabColorControl value={settings.tabStringColor} fallback="#9b9b9b" onChange={v => update('tabStringColor', v)} />
+      </Row>
+      <Row label="Tab number colour" description="Colour of the fret numbers in tabs.">
+        <TabColorControl value={settings.tabNumberColor} fallback="#e0a82e" onChange={v => update('tabNumberColor', v)} />
+      </Row>
+      <Row label="Tab background" description="Fill behind the fret numbers (where the string line is broken).">
+        <TabColorControl value={settings.tabBg} fallback="#101010" onChange={v => update('tabBg', v)} />
+      </Row>
     </Section>
+  );
+}
+
+// Color swatch + native picker with a reset-to-theme option for tab styling.
+function TabColorControl({ value, fallback, onChange }) {
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="color"
+        value={value || fallback}
+        onChange={e => onChange(e.target.value)}
+        className="w-9 h-8 rounded-md border border-[var(--ds-gray-400)] bg-transparent cursor-pointer p-0"
+        aria-label="Pick colour"
+      />
+      <span className="text-label-12 font-mono text-[var(--ds-gray-700)] w-[72px]">{value || 'Theme'}</span>
+      {value && (
+        <Button size="sm" variant="ghost" onClick={() => onChange('')} className="text-[var(--ds-gray-700)]">Reset</Button>
+      )}
+    </div>
   );
 }
 

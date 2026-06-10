@@ -265,6 +265,18 @@ describe('named tab library + references', () => {
     expect(again.sections.flatMap(s => s.lines).filter(l => l?.type === 'tabref')).toHaveLength(2);
   });
 
+  it('survives the v2 arrangement round-trip (editor save path)', async () => {
+    const { songFromFlat, resolveSongView } = await import('../arrangements.js');
+    const flat = parseSongMd(md);
+    const v2 = songFromFlat(flat);                 // Editor working song
+    expect(v2.arrangements[0].tabLibrary).toHaveLength(1);
+    const view = resolveSongView(v2, v2.defaultArrangementId);
+    expect(view.tabLibrary).toHaveLength(1);
+    const out = songToMd(v2, v2.arrangements[0]);  // re-derive md from working song
+    expect(out).toContain('{tab: Solo, time: 4/4}');
+    expect(parseSongMd(out).tabLibrary).toHaveLength(1);
+  });
+
   it('leaves dangling references unresolved (null tab)', () => {
     const song = parseSongMd('---\ntitle: X\nkey: C\n---\n\n## Intro\n{tabref: Ghost}\n');
     const ref = song.sections[0].lines.find(l => l?.type === 'tabref');

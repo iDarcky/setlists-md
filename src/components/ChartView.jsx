@@ -267,6 +267,16 @@ export default function ChartView({
 
   // Cumulative modulate offsets follow playback order so a repeated
   // section after a `{modulate}` block plays back in the new key.
+  // User tab palette — only include keys the user actually set so TabBlock's
+  // defaults still apply for the rest.
+  const tabColors = useMemo(() => {
+    const out = {};
+    if (settings?.tabStringColor) { out.line = settings.tabStringColor; out.label = settings.tabStringColor; }
+    if (settings?.tabNumberColor) out.number = settings.tabNumberColor;
+    if (settings?.tabBg) out.bg = settings.tabBg;
+    return out;
+  }, [settings?.tabStringColor, settings?.tabNumberColor, settings?.tabBg]);
+
   const sectionModOffsets = useMemo(() => {
     const acc = { total: 0 };
     return orderedSections.map(section => {
@@ -801,6 +811,7 @@ export default function ChartView({
                 sectionLabels={settings?.sectionLabels}
                 customSectionTypes={settings?.customSectionTypes}
                 tabScale={settings?.tabSize || 1}
+                tabColors={tabColors}
               />
             </div>
           ))}
