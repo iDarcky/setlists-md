@@ -403,7 +403,7 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
         type: sec.type,
         note: sec.note,
         lines: sec.lines.map(line => {
-          if (typeof line === 'object' && (line.type === 'tab' || line.type === 'modulate')) return line;
+          if (typeof line === 'object' && (line.type === 'tab' || line.type === 'tabref' || line.type === 'modulate')) return line;
           if (line.plainText !== undefined) {
             let mdLine = placementToLine({ plainText: line.plainText, chords: line.chords });
             if (line.inlineNote) mdLine += ` {!${line.inlineNote}}`;
@@ -711,6 +711,9 @@ export default function ArrangeTab({ md, onChange, customSectionTypes }) {
                 {sec.lines.map((line, lineIdx) => {
                   if (typeof line === 'object' && line.type === 'tab') {
                     return <TabBlock key={lineIdx} data={line} />;
+                  }
+                  if (typeof line === 'object' && line.type === 'tabref') {
+                    return line.tab ? <TabBlock key={lineIdx} data={line.tab} /> : null;
                   }
                   if (typeof line === 'object' && line.type === 'modulate') {
                     return (

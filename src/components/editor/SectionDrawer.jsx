@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 function serializeLine(l) {
   if (typeof l === 'string') return l;
   if (l.type === 'tab') return serializeTabBlock(l);
+  if (l.type === 'tabref') return `{tabref: ${l.name}}`;
   if (l.type === 'modulate') return `{modulate: ${l.semitones > 0 ? '+' : ''}${l.semitones}}`;
   return '';
 }

@@ -38,8 +38,44 @@ export function parseSongMd(text) {
   let current = null;
   let inTab = false;
   let tabAccum = null;
+  // Named tab library (independent, reusable blocks) lives in a trailing
+  // `%% tabs` region. Sections reference them with `{tabref: Name}`.
+  const tabLibrary = [];
+  let inLibrary = false;
+  let libAccum = null;
+  let libName = null;
 
   for (const line of bodyLines) {
+    // Enter the trailing tab-library region.
+    if (line.trim() === '%% tabs') {
+      if (inTab && tabAccum && current) { current.lines.push(tabAccum); inTab = false; tabAccum = null; }
+      if (current) { sections.push(current); current = null; }
+      inLibrary = true;
+      continue;
+    }
+    if (inLibrary) {
+      const defOpen = line.match(/^\{tab:\s*([^,}]+?)(?:,\s*(.+?))?\}$/);
+      if (defOpen) {
+        libName = defOpen[1].trim();
+        let time = null;
+        const tp = (defOpen[2] || '').match(/time:\s*(\S+)/);
+        if (tp) time = tp[1];
+        libAccum = { type: 'tab', strings: [], time, raw: [] };
+        continue;
+      }
+      if (libAccum && line.trim() === '{/tab}') {
+        tabLibrary.push({ name: libName, tab: libAccum });
+        libAccum = null; libName = null;
+        continue;
+      }
+      if (libAccum) {
+        const sm = line.match(/^([eBGDAE])\|(.+)$/);
+        if (sm) libAccum.strings.push({ note: sm[1], content: sm[2] });
+        libAccum.raw.push(line);
+      }
+      continue;
+    }
+
     const sectionMatch = line.match(/^##\s+(.+?)$/);
     if (sectionMatch) {
       if (inTab && tabAccum && current) {
@@ -90,6 +126,13 @@ export function parseSongMd(text) {
       continue;
     }
 
+    // Reference to a named library tab.
+    const refMatch = line.match(/^\{tabref:\s*(.+?)\}$/);
+    if (refMatch) {
+      if (current) current.lines.push({ type: 'tabref', name: refMatch[1].trim() });
+      continue;
+    }
+
     if (current) current.lines.push(line);
   }
   if (inTab && tabAccum && current) {
@@ -97,12 +140,22 @@ export function parseSongMd(text) {
   }
   if (current) sections.push(current);
 
+  if (libAccum && libName) tabLibrary.push({ name: libName, tab: libAccum });
+
   // Trim trailing empty lines from each section
   for (const s of sections) {
     while (s.lines.length) {
       const last = s.lines[s.lines.length - 1];
       if (typeof last === 'string' && !last.trim()) s.lines.pop();
       else break;
+    }
+  }
+
+  // Resolve tab references to their library block (kept by name for re-export).
+  const libMap = new Map(tabLibrary.map(t => [t.name, t.tab]));
+  for (const s of sections) {
+    for (const l of s.lines) {
+      if (l && typeof l === 'object' && l.type === 'tabref') l.tab = libMap.get(l.name) || null;
     }
   }
 
@@ -128,6 +181,7 @@ export function parseSongMd(text) {
         ? meta.structure.split(',').map(s => s.trim()).filter(Boolean)
         : sections.map(s => s.type)),
     sections,
+    tabLibrary,
     // Extended descriptive metadata (song-level).
     ...Object.fromEntries(EXTRA_META_FIELDS.map(([k]) => [k, meta[k] != null ? String(meta[k]) : ''])),
     // Arrangement linkage — null when the file is a standalone (single-arrangement) song.
@@ -195,6 +249,7 @@ export function songToMd(song, arrangement) {
         notes: arr?.notes,
         structure: arr?.structure,
         sections: arr?.sections || [],
+        tabLibrary: arr?.tabLibrary || song.tabLibrary || [],
         _songId: song.id,
         _arrangementId: arr?.id,
         _arrangementName: arr?.name,
@@ -243,12 +298,29 @@ export function songToMd(song, arrangement) {
     md += (sec.lines || []).map(l => {
       if (typeof l === 'string') return l;
       if (l && l.type === 'tab') return serializeTabBlock(l);
+      if (l && l.type === 'tabref') return `{tabref: ${l.name}}`;
       if (l && l.type === 'modulate') return `{modulate: ${l.semitones > 0 ? '+' : ''}${l.semitones}}`;
       return '';
     }).join('\n') + '\n\n';
   }
 
+  // Trailing named-tab library (independent reusable blocks).
+  const lib = view.tabLibrary || [];
+  if (lib.length > 0) {
+    md += '%% tabs\n\n';
+    md += lib.map(serializeTabDef).join('\n\n') + '\n';
+  }
+
   return md.trim() + '\n';
+}
+
+// Serialize a named library tab: `{tab: Name, time: T}` … `{/tab}`.
+export function serializeTabDef({ name, tab }) {
+  const header = tab?.time ? `{tab: ${name}, time: ${tab.time}}` : `{tab: ${name}}`;
+  const bodyLines = (tab?.raw && tab.raw.length > 0)
+    ? tab.raw
+    : (tab?.strings || []).map(s => `${s.note}|${s.content}`);
+  return `${header}\n${bodyLines.join('\n')}\n{/tab}`;
 }
 
 // Parse a lyric line into chord+text pairs

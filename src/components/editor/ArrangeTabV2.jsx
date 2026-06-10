@@ -18,6 +18,14 @@ const SECTION_TYPES = [
 ];
 const TEMPLATE_TYPES = ['Verse', 'Chorus', 'Bridge', 'Pre Chorus', 'Intro', 'Tag', 'Instrumental'];
 
+// Next free "Tab N" name for the library.
+function nextTabName(library = []) {
+  const used = new Set((library || []).map(t => t.name));
+  let n = (library || []).length + 1;
+  while (used.has(`Tab ${n}`)) n++;
+  return `Tab ${n}`;
+}
+
 // Build a clean tab object from the tab tool's saved string.
 function tabObjectFromEditor(saved) {
   const lines = saved.split('\n');
@@ -388,7 +396,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
         type: sec.type,
         note: sec.note,
         lines: sec.lines.map(line => {
-          if (typeof line === 'object' && (line.type === 'tab' || line.type === 'modulate')) return line;
+          if (typeof line === 'object' && (line.type === 'tab' || line.type === 'tabref' || line.type === 'modulate')) return line;
           if (line.plainText !== undefined) {
             let mdLine = placementToLine({ plainText: line.plainText, chords: line.chords });
             if (line.inlineNote) mdLine += ` {!${line.inlineNote}}`;
@@ -539,12 +547,23 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     setKeyChangeSec(null);
     if (addChords) setEntry({ secIdx, lineIdx: null, chordIdx: null, charPos: 0, initial: '', newLine: 'chord' });
   }, [addModulate]);
+  // New tab from Arrange: save it to the song's tab library (named Tab N) and
+  // drop a reference into the section.
   const insertTabInto = useCallback((secIdx, saved) => {
     if (!song) return;
-    const tabObj = tabObjectFromEditor(saved);
-    emitSong({ ...song, sections: song.sections.map((s, i) => i !== secIdx ? s : ({ ...s, lines: [...s.lines, tabObj] })) });
+    const tab = tabObjectFromEditor(saved);
+    const name = nextTabName(song.tabLibrary);
+    emitSong({
+      ...song,
+      tabLibrary: [...(song.tabLibrary || []), { name, tab }],
+      sections: song.sections.map((s, i) => i !== secIdx ? s : ({ ...s, lines: [...s.lines, { type: 'tabref', name }] })),
+    });
     setTabEditorSec(null);
   }, [song, emitSong]);
+  // Drop a reference to an existing library tab into a section.
+  const insertTabRef = useCallback((secIdx, name) => {
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: [...sec.lines, { type: 'tabref', name }] })));
+  }, [applyMutation]);
   const removeLine = useCallback((secIdx, lineIdx) => {
     applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: sec.lines.filter((_, li) => li !== lineIdx) })));
   }, [applyMutation]);
@@ -680,19 +699,25 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
               {!isCollapsed && (
                 <div>
                   {sec.lines.map((line, lineIdx) => {
-                    if (typeof line === 'object' && line.type === 'tab') {
+                    if (typeof line === 'object' && (line.type === 'tab' || line.type === 'tabref')) {
+                      const tabData = line.type === 'tabref' ? line.tab : line;
                       return (
-                        <div key={lineIdx} className="relative inline-flex max-w-full my-1.5 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] py-1.5 pl-2 pr-7">
+                        <div key={lineIdx} className="relative inline-flex flex-col max-w-full my-1.5 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] py-1.5 pl-2 pr-7">
                           <button
                             type="button"
                             onClick={() => removeLine(secIdx, lineIdx)}
                             aria-label="Remove tab"
-                            title="Remove tab"
+                            title={line.type === 'tabref' ? 'Remove from this section (keeps the saved tab)' : 'Remove tab'}
                             className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-[var(--ds-gray-500)] hover:text-[var(--ds-error-600)] hover:bg-[var(--ds-gray-alpha-100)] bg-transparent border-none cursor-pointer leading-none"
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
                           </button>
-                          <div className="overflow-x-auto"><TabBlock data={line} scale={0.8} /></div>
+                          {line.type === 'tabref' && (
+                            <span className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] mb-1 pl-0.5">{line.name}</span>
+                          )}
+                          {tabData
+                            ? <div className="overflow-x-auto"><TabBlock data={tabData} scale={0.8} /></div>
+                            : <span className="text-copy-12 italic text-[var(--ds-error-600)]">Missing tab “{line.name}”</span>}
                         </div>
                       );
                     }
@@ -767,8 +792,14 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                     >
                       <MenuItem onClick={() => addLine(secIdx)}>Lyric line</MenuItem>
                       <MenuItem onClick={() => addChordLine(secIdx)}>Chord line (instrumental)</MenuItem>
-                      <MenuItem onClick={() => setTabEditorSec(secIdx)}>Tab…</MenuItem>
                       <MenuItem onClick={() => setKeyChangeSec(secIdx)}>Key change…</MenuItem>
+                      <div className="my-1 border-t border-[var(--ds-gray-200)]" />
+                      {(song.tabLibrary || []).map(t => (
+                        <MenuItem key={t.name} onClick={() => insertTabRef(secIdx, t.name)}>
+                          <span className="inline-flex items-center gap-2"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-60"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/></svg>{t.name}</span>
+                        </MenuItem>
+                      ))}
+                      <MenuItem onClick={() => setTabEditorSec(secIdx)}>+ New tab…</MenuItem>
                     </PopMenu>
                   </div>
                 </div>

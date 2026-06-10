@@ -115,6 +115,7 @@ export function renderSection(section, transpose, modOffset) {
   const inner = (section.lines || []).map(line => {
     if (typeof line === 'object' && line) {
       if (line.type === 'tab') return renderTab(line);
+      if (line.type === 'tabref') return line.tab ? renderTab(line.tab) : '';
       if (line.type === 'modulate') {
         running += line.semitones;
         return renderModulate(line);
