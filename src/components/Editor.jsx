@@ -385,42 +385,6 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
-  const handleImport = useCallback(async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text.trim()) return;
-      if (splitMd(md).body.trim()) {
-        const ok = await confirm({
-          title: 'Replace content?',
-          description: 'The clipboard will be converted from a chord chart (Ultimate-Guitar or ChordPro) and replace the current song body.',
-          confirmLabel: 'Convert & replace',
-        });
-        if (!ok) return;
-      }
-      const { body, meta } = importChartText(text);
-      setBody(body);
-      // Apply any metadata the source declared, without clobbering existing
-      // non-empty fields.
-      const fm = parseFrontmatterFields(splitMd(md).frontmatter);
-      const patch = {};
-      for (const k of ['title', 'artist', 'key', 'tempo', 'time', 'capo']) {
-        if (meta[k] && !fm[k]) patch[k] = meta[k];
-      }
-      if (Object.keys(patch).length) {
-        Object.assign(fm, patch);
-        // setBody already rewrote md; re-read and patch frontmatter on top.
-        setMd((cur) => replaceFrontmatter(cur, serializeFrontmatterFields({ ...parseFrontmatterFields(splitMd(cur).frontmatter), ...patch })));
-      }
-      toast({ title: 'Imported', description: 'Converted the pasted chart into the editor.' });
-    } catch {
-      toast({
-        title: 'Clipboard unavailable',
-        description: 'Try pasting directly into the editor.',
-        variant: 'error',
-      });
-    }
-  }, [md, confirm, setBody]);
-
   const handleUndo = useCallback(() => {
     textareaRef.current?.focus();
     document.execCommand('undo');
@@ -476,6 +440,42 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
     const { frontmatter } = splitMd(md);
     setMd(frontmatter ? `---\n${frontmatter}\n---\n\n${newBody}` : newBody);
   }, [md]);
+
+  // Convert pasted chord charts (Ultimate-Guitar / ChordPro) into the body.
+  // Declared after setBody so it can depend on it without a TDZ.
+  const handleImport = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) return;
+      if (splitMd(md).body.trim()) {
+        const ok = await confirm({
+          title: 'Replace content?',
+          description: 'The clipboard will be converted from a chord chart (Ultimate-Guitar or ChordPro) and replace the current song body.',
+          confirmLabel: 'Convert & replace',
+        });
+        if (!ok) return;
+      }
+      const { body, meta } = importChartText(text);
+      setBody(body);
+      // Apply any metadata the source declared, without clobbering existing
+      // non-empty fields.
+      const fm = parseFrontmatterFields(splitMd(md).frontmatter);
+      const patch = {};
+      for (const k of ['title', 'artist', 'key', 'tempo', 'time', 'capo']) {
+        if (meta[k] && !fm[k]) patch[k] = meta[k];
+      }
+      if (Object.keys(patch).length) {
+        setMd((cur) => replaceFrontmatter(cur, serializeFrontmatterFields({ ...parseFrontmatterFields(splitMd(cur).frontmatter), ...patch })));
+      }
+      toast({ title: 'Imported', description: 'Converted the pasted chart into the editor.' });
+    } catch {
+      toast({
+        title: 'Clipboard unavailable',
+        description: 'Try pasting directly into the editor.',
+        variant: 'error',
+      });
+    }
+  }, [md, confirm, setBody]);
 
   // Change the song's key by transposing every stored chord to the new key
   // (a committed transpose), not just relabelling. No-op intervals just set
