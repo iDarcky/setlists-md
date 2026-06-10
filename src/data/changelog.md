@@ -2,6 +2,30 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.12.0-pre-alpha — Editor rework: reusable tabs, Arrange & New Song
+*June 2026*
+
+### Added
+- **Reusable tab library** — build a tab once, name it (e.g. "Solo"), and drop it into any section. Edit the block once and every placement updates. Manage them in the new Tabs editor.
+- **Insert anywhere** — a "+" between every line in Arrange lets you add a lyric, chord line, tab or key change at that exact spot, not just at the end of a section.
+- **Paste to import** — the Advanced editor's paste now converts Ultimate-Guitar (chords-over-lyrics) and ChordPro into a clean chart, filling in title/key/etc. when present.
+- **Browse songs when creating** — the New Song screen can start you from a bundled public-domain song.
+- **Tab colours** — Settings → Chart lets you set the string, fret-number and background colours of tabs, plus their size.
+- **Print tabs separately** — the PDF/print options now have an independent Tabs toggle alongside Chords.
+
+### Improved
+- **New Song redesign** — Blank, Import, Paste and Browse are clean tabs; choosing Blank drops you straight into the editor.
+- **Advanced editor matches Arrange** — the chord tool, coloured section picker, key-change stepper and tab library are now the same across both. The saved-tabs block stays out of your way in the text.
+- **Tidier Arrange** — notation moved into a Customize menu, a colour-coded section picker, move up/down chevrons, and a Customize panel with working line/section spacing.
+- **Smarter chart view** — the Tabs view option only appears when a song actually has tabs.
+- New tabs default to a quarter-note grid.
+
+### Fixed
+- **Saved tabs stick** — tabs no longer vanish after saving and reopening a song.
+- **Editor opens reliably** — fixed a crash when entering the editor.
+- **Tab entry** — typing a single fret no longer doubles (1 became 11).
+- **Delete section** — now shown in red and asks for confirmation; moving a section up/down updates the song's order everywhere.
+
 ## 0.11.0-pre-alpha — Beta-readiness: security, legal & polish
 *June 2026*
 
