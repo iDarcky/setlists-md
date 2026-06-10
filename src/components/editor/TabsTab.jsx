@@ -5,7 +5,7 @@ import TabBlock from '../TabBlock';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { useConfirm } from '../ui/useConfirmHook';
-import TabGridEditor from './TabGridEditor';
+import TabGridEditor from './TabGridEditorV2';
 import { TAB_INSTRUMENTS, instrumentForStrings } from './tabInstruments';
 
 function tabObjectFromEditor(saved) {

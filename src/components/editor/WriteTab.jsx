@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ChordPicker from './ChordPicker';
-import TabGridEditor from './TabGridEditor';
+import TabGridEditor from './TabGridEditorV2';
 import { parseTabBlock } from '../../parser';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
