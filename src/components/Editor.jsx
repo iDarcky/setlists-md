@@ -5,6 +5,7 @@ import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFr
 import { ALL_KEYS, transposeChord, semitonesBetween } from '../music';
 import { isChordToken } from '../importer';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
+import { importChartText } from '../lib/importChords';
 import WriteTab from './editor/WriteTab';
 import ArrangeTab from './editor/ArrangeTab';
 import ArrangeTabV2 from './editor/ArrangeTabV2';
@@ -388,15 +389,29 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
     try {
       const text = await navigator.clipboard.readText();
       if (!text.trim()) return;
-      if (md.trim()) {
+      if (splitMd(md).body.trim()) {
         const ok = await confirm({
           title: 'Replace content?',
-          description: 'The current editor content will be replaced with the clipboard contents.',
-          confirmLabel: 'Replace',
+          description: 'The clipboard will be converted from a chord chart (Ultimate-Guitar or ChordPro) and replace the current song body.',
+          confirmLabel: 'Convert & replace',
         });
         if (!ok) return;
       }
-      setMd(text);
+      const { body, meta } = importChartText(text);
+      setBody(body);
+      // Apply any metadata the source declared, without clobbering existing
+      // non-empty fields.
+      const fm = parseFrontmatterFields(splitMd(md).frontmatter);
+      const patch = {};
+      for (const k of ['title', 'artist', 'key', 'tempo', 'time', 'capo']) {
+        if (meta[k] && !fm[k]) patch[k] = meta[k];
+      }
+      if (Object.keys(patch).length) {
+        Object.assign(fm, patch);
+        // setBody already rewrote md; re-read and patch frontmatter on top.
+        setMd((cur) => replaceFrontmatter(cur, serializeFrontmatterFields({ ...parseFrontmatterFields(splitMd(cur).frontmatter), ...patch })));
+      }
+      toast({ title: 'Imported', description: 'Converted the pasted chart into the editor.' });
     } catch {
       toast({
         title: 'Clipboard unavailable',
@@ -404,7 +419,7 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
         variant: 'error',
       });
     }
-  }, [md, confirm]);
+  }, [md, confirm, setBody]);
 
   const handleUndo = useCallback(() => {
     textareaRef.current?.focus();

@@ -298,19 +298,19 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     <div className="flex flex-col h-full pl-3 pr-6">
       {/* ─── Toolbar ─── */}
       <div className="flex flex-wrap gap-1 py-1.5 border-b border-[var(--ds-gray-300)] mb-2">
-        <ToolBtn label="♪" title="Chord" onClick={openChordPicker} />
-        <ToolBtn label="§" title="Section" onClick={(e) => openPopup(setShowSectionMenu, e)} />
-        <ToolBtn label="📢" title="Cue" onClick={(e) => openPopup(setShowCueInput, e)} />
-        <ToolBtn label="💬" title="Note" onClick={(e) => openPopup(setShowNoteInput, e)} />
-        <ToolBtn label="↑" title="Modulate" onClick={(e) => openPopup(setShowModMenu, e)} />
-        <ToolBtn label="┃" title="Tab" onClick={handleTabInsert} />
-        <ToolBtn label="🔍" title="Find" onClick={() => setShowFind(true)} />
+        <ToolBtn label="Chord" onClick={openChordPicker} />
+        <ToolBtn label="Section" onClick={(e) => openPopup(setShowSectionMenu, e)} />
+        <ToolBtn label="Cue" onClick={(e) => openPopup(setShowCueInput, e)} />
+        <ToolBtn label="Note" onClick={(e) => openPopup(setShowNoteInput, e)} />
+        <ToolBtn label="Modulate" onClick={(e) => openPopup(setShowModMenu, e)} />
+        <ToolBtn label="Tab" onClick={handleTabInsert} />
+        <ToolBtn label="Find" onClick={() => setShowFind(true)} />
         {(onUndo || onRedo || onImport) && (
           <span className="w-px self-stretch bg-[var(--ds-gray-300)] mx-0.5" aria-hidden="true" />
         )}
-        {onUndo && <ToolBtn label="↶" title="Undo" onClick={onUndo} />}
-        {onRedo && <ToolBtn label="↷" title="Redo" onClick={onRedo} />}
-        {onImport && <ToolBtn label="📋" title="Paste" onClick={onImport} />}
+        {onUndo && <ToolBtn label="Undo" onClick={onUndo} />}
+        {onRedo && <ToolBtn label="Redo" onClick={onRedo} />}
+        {onImport && <ToolBtn label="Paste import" onClick={onImport} />}
       </div>
 
       {/* ─── Find / Replace bar ─── */}
@@ -432,11 +432,10 @@ function ToolBtn({ label, title, onClick }) {
   return (
     <button
       onClick={onClick}
-      title={title}
-      className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg px-2.5 py-1.5 cursor-pointer text-[var(--ds-gray-1000)] text-[14px] font-semibold flex items-center gap-1 whitespace-nowrap hover:bg-[var(--ds-gray-200)] hover:border-[var(--ds-gray-600)] transition-colors"
+      title={title || label}
+      className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg px-3 py-1.5 cursor-pointer text-[var(--ds-gray-1000)] text-label-12 font-semibold whitespace-nowrap hover:bg-[var(--ds-gray-200)] hover:border-[var(--ds-gray-600)] transition-colors"
     >
-      <span className="text-[15px]">{label}</span>
-      <span className="text-label-10 text-[var(--ds-gray-600)] font-mono">{title}</span>
+      {label}
     </button>
   );
 }
