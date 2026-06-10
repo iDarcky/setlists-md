@@ -26,7 +26,6 @@ import {
   DEFAULT_LYRIC_FONT_ID,
 } from '../data/chartThemes';
 import { useEntitlement } from '../hooks/useEntitlement';
-import { STAGE_MODES, STAGE_MODE_MAP } from '../data/stageModes';
 import { resolveChartDisplay, resolveColumns, FONT_SIZES } from '../lib/chartDisplay';
 
 // Tokens written by useChartTheme (App.jsx) live on :root and decide the
@@ -92,7 +91,6 @@ export default function ChartView({
   // Every change writes straight back through onUpdateSettings, so a tweak on
   // one song shows up on every song and in the live / practice views too. Local
   // mirrors keep the controls snappy and re-seed when settings change.
-  const stageMode = settings?.stageMode || 'leader';
   const disp = resolveChartDisplay(settings, { fallbackLyric: initialFontSize });
 
   // Tablet adaptive reflow: a wide landscape reading area reads better in two
@@ -129,6 +127,17 @@ export default function ChartView({
   const viewLyrics = displayMode !== 'tabs';
   const viewTabs = displayMode !== 'lyrics';
 
+  // Does this song actually contain any tabs? Drives whether the "Tabs" view
+  // option is offered at all.
+  const hasTabs = useMemo(
+    () => (song?.sections || []).some(s => (s.lines || []).some(l => l && typeof l === 'object' && (l.type === 'tab' || l.type === 'tabref'))),
+    [song],
+  );
+  // If a song loses its tabs (or never had them), don't get stuck in tabs view.
+  useEffect(() => {
+    if (!hasTabs && displayMode === 'tabs') setDisplayMode('chords');
+  }, [hasTabs, displayMode]);
+
   // Re-seed local mirrors when the persisted display settings change — another
   // song, a role preset, or an edit made on a different surface.
   useEffect(() => {
@@ -144,20 +153,14 @@ export default function ChartView({
   const changeFontSize = (v) => { const n = Math.max(10, Math.min(30, v)); setFontSize(n); onUpdateSettings?.('defaultFontSize', n); };
   const changeChordFontSize = (v) => { const n = Math.max(8, Math.min(30, v)); setChordFontSize(n); onUpdateSettings?.('chordFontSize', n); };
   const toggleNns = () => { const v = !nns; setNns(v); onUpdateSettings?.('nashville', v); };
-  const toggleShowChords = () => { const v = !showChords; setShowChords(v); onUpdateSettings?.('showChords', v); };
   const toggleShowDiagrams = () => { const v = !showDiagrams; setShowDiagrams(v); onUpdateSettings?.('showDiagrams', v); };
+  // Spacing controls (read straight from settings; the CSS vars below reflow
+  // the chart live on change).
+  const sectionSpacing = settings?.sectionSpacing ?? 24;
+  const lyricLineHeight = settings?.lyricLineHeight ?? 1.35;
+  const changeSectionSpacing = (v) => onUpdateSettings?.('sectionSpacing', Math.max(8, Math.min(64, v)));
+  const changeLineHeight = (v) => onUpdateSettings?.('lyricLineHeight', Math.max(1, Math.min(2.4, Math.round(v * 100) / 100)));
 
-  // Picking a role applies its preset by writing every value through to
-  // settings, so the role choice persists across songs and views too.
-  const applyRole = (id) => {
-    const preset = STAGE_MODE_MAP[id]?.settings || {};
-    onUpdateSettings?.('stageMode', id);
-    if (preset.lyricFontSize != null) onUpdateSettings?.('defaultFontSize', preset.lyricFontSize);
-    if (preset.chordFontSize != null) onUpdateSettings?.('chordFontSize', preset.chordFontSize);
-    onUpdateSettings?.('nashville', !!preset.nashville);
-    onUpdateSettings?.('showChords', preset.showChords !== false);
-    onUpdateSettings?.('showDiagrams', !!preset.showDiagrams);
-  };
   const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'arrangements' | null
   const [showInfo, setShowInfo] = useState(false); // inline song-details panel toggled from the title chevron
   const [scrolled, setScrolled] = useState(false);
@@ -579,7 +582,7 @@ export default function ChartView({
               {[
                 { id: 'chords', label: 'Chords' },
                 { id: 'lyrics', label: 'Lyrics' },
-                { id: 'tabs', label: 'Tabs' },
+                ...(hasTabs ? [{ id: 'tabs', label: 'Tabs' }] : []),
               ].map(b => (
                 <button
                   key={b.id}
@@ -655,48 +658,39 @@ export default function ChartView({
             title="Layout"
           >
             <div className="flex flex-col gap-4">
-              <SheetField label="Role">
-                <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
-                  {STAGE_MODES.map(m => {
-                    const active = stageMode === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => applyRole(m.id)}
-                        className={cn(
-                          "shrink-0 px-3 h-8 rounded-lg border transition-all text-label-12 font-semibold",
-                          active
-                            ? "border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]"
-                            : "border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]"
-                        )}
-                        title={m.description}
-                      >
-                        {m.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </SheetField>
-
-              <SheetField label="Display">
+              <SheetField label="Chords">
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant={nns ? 'brand' : 'secondary'}
                     size="sm"
                     onClick={toggleNns}
-                  >Numbers</Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={toggleShowChords}
-                    className={cn(!showChords && "opacity-40")}
-                  >Chords</Button>
+                  >Nashville numbers</Button>
                   <Button
                     variant={showDiagrams ? 'brand' : 'secondary'}
                     size="sm"
                     onClick={toggleShowDiagrams}
                   >Diagrams</Button>
+                </div>
+              </SheetField>
+
+              <SheetField label="Spacing">
+                <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-label-10 uppercase tracking-wider text-[var(--text-2)]">Section gap</span>
+                    <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+                      <IconButton variant="ghost" size="sm" onClick={() => changeSectionSpacing(sectionSpacing - 4)} aria-label="Less section gap">−</IconButton>
+                      <span className="w-8 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{sectionSpacing}</span>
+                      <IconButton variant="ghost" size="sm" onClick={() => changeSectionSpacing(sectionSpacing + 4)} aria-label="More section gap">+</IconButton>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-label-10 uppercase tracking-wider text-[var(--text-2)]">Line height</span>
+                    <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+                      <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight - 0.1)} aria-label="Tighter line height">−</IconButton>
+                      <span className="w-8 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{lyricLineHeight.toFixed(2)}</span>
+                      <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight + 0.1)} aria-label="Looser line height">+</IconButton>
+                    </div>
+                  </div>
                 </div>
               </SheetField>
 

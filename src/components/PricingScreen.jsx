@@ -50,7 +50,7 @@ function buildTiers() {
       featured: false,
       badge: null,
       features: [
-        'Full editor — Visual, Form & Raw',
+        'Full editor — Arrange, Advanced & Tabs',
         'Unlimited songs & setlists',
         'Transpose, capo & Nashville numbers',
         'Chord diagrams & guitar tabs',

@@ -61,9 +61,9 @@ export default function HelpPage({ onBack, onMarkSeen }) {
         <Section icon="✏️" title="The Song Editor">
           <p className="m-0">The editor has three modes, each suited to a different workflow:</p>
           <div className="flex flex-col gap-2 pl-1">
-            <div><strong className="text-[var(--ds-gray-1000)]">Visual Tab</strong> — Toolbar with chord picker, section inserter, and tab grid editor. Best for quick editing.</div>
-            <div><strong className="text-[var(--ds-gray-1000)]">Form Tab</strong> — Structured fields for metadata (title, artist, key, tempo) and section blocks. Best for building from scratch.</div>
-            <div><strong className="text-[var(--ds-gray-1000)]">Raw Tab</strong> — Plain markdown textarea. Best for power users who want full control.</div>
+            <div><strong className="text-[var(--ds-gray-1000)]">Arrange</strong> — Visual canvas: tap a lyric to place chords, reorder sections, insert tabs and key changes anywhere. Best for everyday editing.</div>
+            <div><strong className="text-[var(--ds-gray-1000)]">Advanced</strong> — Plain markdown editor for the song body. Best for power users who want full control.</div>
+            <div><strong className="text-[var(--ds-gray-1000)]">Tabs</strong> — A library of reusable tab blocks you create once and place into any section. Best for solos and riffs.</div>
           </div>
           <Tip>Chords are written inline with square brackets: <code className="px-1.5 py-0.5 rounded bg-[var(--ds-gray-200)] text-[var(--ds-gray-1000)] text-copy-13">[Am]</code> before the word they&apos;re played on.</Tip>
         </Section>
