@@ -34,6 +34,7 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
   const confirm = useConfirm();
 
   const [instrument, setInstrument] = useState('electric');
+  const [targetSec, setTargetSec] = useState(0);
   const [editorFor, setEditorFor] = useState(null);
 
   const emit = useCallback((nextSong) => onChange(songToMd(nextSong)), [onChange]);
@@ -65,9 +66,9 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
     emit({ ...song, sections: song.sections.map((s, i) => i !== secIdx ? s : ({ ...s, lines: s.lines.filter((_, li) => li !== lineIdx) })) });
   };
 
-  const handleEditorSave = (saved, targetSec) => {
+  const handleEditorSave = (saved) => {
     const tabObj = tabObjectFromEditor(saved);
-    if (editorFor.mode === 'new') insertTab(targetSec ?? 0, tabObj);
+    if (editorFor.mode === 'new') insertTab(targetSec, tabObj);
     else updateTab(editorFor.secIdx, editorFor.lineIdx, tabObj);
     setEditorFor(null);
   };
@@ -78,9 +79,10 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      {/* Create row — instrument + new tab. String count, tuning and target
-          section are chosen inside the tab tool. */}
-      <div className="shrink-0 flex flex-wrap items-end gap-2 pl-3 pr-6 py-3 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
+      {/* Create row — instrument + which section to add to + new tab. The tab
+          tool itself just creates the tab; placement is chosen here (or from
+          the Arrange tab's per-section “+ Add → Tab”). */}
+      <div className="shrink-0 flex flex-wrap items-end gap-3 pl-3 pr-6 py-3 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
         <label className="flex flex-col gap-1">
           <span className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)]">Instrument</span>
           <div className="flex gap-1">
@@ -96,6 +98,12 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
             ))}
           </div>
         </label>
+        <label className="flex flex-col gap-1 min-w-0">
+          <span className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)]">Add to</span>
+          <select value={targetSec} onChange={e => setTargetSec(Number(e.target.value))} className="h-8 px-2 rounded-md bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-label-12 text-[var(--ds-gray-1000)] outline-none">
+            {sections.map((s, i) => <option key={i} value={i}>{s.type}</option>)}
+          </select>
+        </label>
         <Button
           variant="brand"
           size="sm"
@@ -107,7 +115,6 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
             tunings: TAB_INSTRUMENTS[instrument].tunings,
             instrument,
             counts: TAB_INSTRUMENTS[instrument].counts,
-            sections,
           })}
         >
           + New tab
@@ -155,7 +162,6 @@ export default function TabsTab({ md, onChange, subdivision = 4 }) {
           tunings={editorFor.tunings}
           instrument={editorFor.instrument}
           counts={editorFor.counts}
-          sections={editorFor.sections}
           subdivision={subdivision}
           time={editorFor.tab?.time || song.time || '4/4'}
           onSave={handleEditorSave}

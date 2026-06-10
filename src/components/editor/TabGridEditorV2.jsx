@@ -79,14 +79,14 @@ function gridFromTab(initialTab, timeSig, strings) {
 // Click a cell and type the fret (auto-advances by the chosen note value).
 export default function TabGridEditorV2({
   initialTab, time, strings = DEFAULT_STRINGS, tunings = null,
-  instrument = 'electric', counts = null, sections = null, subdivision = 4,
+  instrument = 'electric', counts = null, subdivision = 1,
   onSave, onClose,
 }) {
   const timeSig = time || '4/4';
   const initStrings = initialTab?.strings?.length ? initialTab.strings.map(s => s.note) : strings;
   const initState = initialTab?.strings?.length
     ? gridFromTab(initialTab, timeSig, initStrings)
-    : { grid: makeGrid(2, timeSig, initStrings, subdivision), measures: 2 };
+    : { grid: makeGrid(4, timeSig, initStrings, subdivision), measures: 4 };
 
   const [curStrings, setCurStrings] = useState(initStrings);
   const [cpb, setCpb] = useState(initialTab ? 4 : subdivision);
@@ -97,7 +97,7 @@ export default function TabGridEditorV2({
   const [editing, setEditing] = useState(null); // {string,pos} cell being typed
   const [val, setVal] = useState('');
   const [lastPlaced, setLastPlaced] = useState(null);
-  const [targetSec, setTargetSec] = useState(0);
+  const [showHelp, setShowHelp] = useState(false);
   const inputRef = useRef(null);
   const panelRef = useRef(null);
 
@@ -175,7 +175,7 @@ export default function TabGridEditorV2({
   const handleInsert = () => {
     if (editing) commit(editing.string, editing.pos, val, false);
     const ascii = gridToAscii(grid, measures, timeSig, curStrings, cpb);
-    onSave(`{tab, time: ${timeSig}}\n${ascii}\n{/tab}`, targetSec);
+    onSave(`{tab, time: ${timeSig}}\n${ascii}\n{/tab}`);
   };
 
   const CW = 32, CH = 30, LW = 24;
@@ -188,26 +188,24 @@ export default function TabGridEditorV2({
         tabIndex={-1}
         onClick={e => e.stopPropagation()}
         onKeyDown={onGridKey}
-        className="bg-[var(--ds-background-200)] rounded-2xl border border-[var(--ds-gray-400)] w-full max-w-[820px] max-h-[92vh] flex flex-col outline-none"
+        className="bg-[var(--ds-background-200)] rounded-2xl border border-[var(--ds-gray-400)] w-full max-w-[820px] max-h-[92vh] flex flex-col outline-none select-none"
         style={{ boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
       >
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--ds-gray-300)]">
           <span className="text-heading-14 font-semibold text-[var(--ds-gray-1000)]">Tab</span>
           <div className="flex-1" />
-          <Button variant="secondary" size="xs" onClick={onClose}>Cancel</Button>
-          <Button variant="brand" size="xs" onClick={handleInsert}>{initialTab ? 'Save' : 'Insert'}</Button>
+          <IconButton variant="ghost" size="xs" aria-label="Help" title="How to use" onClick={() => setShowHelp(v => !v)}>?</IconButton>
         </div>
+
+        {showHelp && (
+          <div className="px-4 py-2 border-b border-[var(--ds-gray-200)] bg-[var(--ds-gray-100)] text-label-11 text-[var(--ds-gray-700)]">
+            Click a cell and type a fret (0–24) · Enter to confirm · arrows to move · right-click clears · h p s b ~ x add techniques. The note value sets how far the cursor jumps after each note.
+          </div>
+        )}
 
         {/* Visible, grouped controls */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-100)]">
-          {sections && (
-            <Group label="Section">
-              <select value={targetSec} onChange={e => setTargetSec(Number(e.target.value))} className="h-7 px-1.5 rounded-md bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-label-12 text-[var(--ds-gray-1000)] outline-none">
-                {sections.map((s, i) => <option key={i} value={i}>{s.type}</option>)}
-              </select>
-            </Group>
-          )}
           {counts && counts.length > 1 && (
             <Group label="Strings">
               {counts.map(n => <Chip key={n} active={curStrings.length === n} onClick={() => changeStrings(stringsForCount(instrument, n))}>{n}</Chip>)}
@@ -303,7 +301,6 @@ export default function TabGridEditorV2({
               </div>
             ))}
           </div>
-          <p className="text-label-10 text-[var(--ds-gray-500)] mt-2">Click a cell and type a fret (0–24) · Enter to confirm · arrows to move · right-click clears · h p s b ~ x add techniques</p>
         </div>
 
         {/* Note value + techniques */}
@@ -320,6 +317,11 @@ export default function TabGridEditorV2({
                 className={`rounded-md w-7 py-1 text-label-12 font-mono font-semibold cursor-pointer border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] ${!lastPlaced ? 'opacity-40 cursor-not-allowed' : ''}`}>{t.id}</button>
             ))}
           </Group>
+          <div className="flex-1" />
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={onClose}>Cancel</Button>
+            <Button variant="brand" size="sm" onClick={handleInsert}>{initialTab ? 'Save' : 'Insert'}</Button>
+          </div>
         </div>
       </div>
     </div>

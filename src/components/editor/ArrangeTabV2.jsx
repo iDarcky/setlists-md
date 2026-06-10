@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, memo } from 'react';
-import { parseSongMd, songToMd, placementToLine } from '../../parser';
+import { parseSongMd, songToMd, placementToLine, parseTabBlock } from '../../parser';
 import { sectionStyle, getNashvilleNumber, getSolfege } from '../../music';
 import TabBlock from '../TabBlock';
+import TabGridEditor from './TabGridEditorV2';
+import { TAB_INSTRUMENTS } from './tabInstruments';
 import SectionDrawer from './SectionDrawer';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
@@ -14,6 +16,17 @@ const SECTION_TYPES = [
   'Instrumental', 'Interlude', 'Tag', 'Vamp', 'Outro', 'Ending', 'Refrain',
 ];
 const TEMPLATE_TYPES = ['Verse', 'Chorus', 'Bridge', 'Pre Chorus', 'Intro', 'Tag', 'Instrumental'];
+
+// Build a clean tab object from the tab tool's saved string.
+function tabObjectFromEditor(saved) {
+  const lines = saved.split('\n');
+  const tm = saved.match(/\{tab(?:,\s*time:\s*([^}]+))?\}/);
+  const time = tm && tm[1] ? tm[1].trim() : null;
+  const stringLines = lines.map(l => l.trim()).filter(l => /^[eBGDAE]\|/.test(l));
+  const tab = parseTabBlock(stringLines);
+  tab.time = time;
+  return tab;
+}
 
 // Display a chord in the chosen notation (reading aid; data stays as chords).
 function formatChord(chord, notation, key) {
@@ -234,6 +247,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const [entry, setEntry] = useState(null);
   // Reading-aid notation for chord labels: 'chords' | 'nashville' | 'solfege'.
   const [notation, setNotation] = useState('chords');
+  const [tabEditorSec, setTabEditorSec] = useState(null); // section idx for new tab
   const sectionRefs = useRef({});
   const jumpTo = useCallback((idx) => {
     sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -391,6 +405,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const addModulate = useCallback((secIdx, semitones) => {
     applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: [...sec.lines, { type: 'modulate', semitones }] })));
   }, [applyMutation]);
+  const insertTabInto = useCallback((secIdx, saved) => {
+    if (!song) return;
+    const tabObj = tabObjectFromEditor(saved);
+    emitSong({ ...song, sections: song.sections.map((s, i) => i !== secIdx ? s : ({ ...s, lines: [...s.lines, tabObj] })) });
+    setTabEditorSec(null);
+  }, [song, emitSong]);
   const removeLine = useCallback((secIdx, lineIdx) => {
     applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: sec.lines.filter((_, li) => li !== lineIdx) })));
   }, [applyMutation]);
@@ -595,6 +615,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                       trigger={<button type="button" className="text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer px-1 py-1">+ Add</button>}
                     >
                       <MenuItem onClick={() => addLine(secIdx)}>Lyric line</MenuItem>
+                      <MenuItem onClick={() => setTabEditorSec(secIdx)}>Tab…</MenuItem>
                       <MenuItem onClick={(e) => addChordLine(secIdx, e.clientX, e.clientY)}>Chord line (instrumental)</MenuItem>
                       <MenuItem onClick={() => addModulate(secIdx, 1)}>Key change +1</MenuItem>
                       <MenuItem onClick={() => addModulate(secIdx, 2)}>Key change +2</MenuItem>
@@ -633,6 +654,19 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
           onCommit={commitChord}
           onRemove={entry.chordIdx != null ? () => removeChordAt(entry.secIdx, entry.lineIdx, entry.chordIdx) : null}
           onClose={() => setEntry(null)}
+        />
+      )}
+
+      {/* Tab tool — create a tab and drop it into this section */}
+      {tabEditorSec !== null && (
+        <TabGridEditor
+          time={song.time}
+          strings={TAB_INSTRUMENTS.electric.strings}
+          tunings={TAB_INSTRUMENTS.electric.tunings}
+          instrument="electric"
+          counts={TAB_INSTRUMENTS.electric.counts}
+          onSave={(saved) => insertTabInto(tabEditorSec, saved)}
+          onClose={() => setTabEditorSec(null)}
         />
       )}
 
