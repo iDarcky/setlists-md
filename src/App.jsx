@@ -1340,7 +1340,7 @@ export default function App() {
     await handleImportSetlist(file);
   };
 
-  const openNewSongModal = (initialTab = 'import') => {
+  const openNewSongModal = (initialTab = 'home') => {
     setNewSongModal({ initialTab });
   };
 
@@ -1751,7 +1751,7 @@ export default function App() {
               setlists={setlists}
               settings={settings}
               onSelectSong={goChart}
-              onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
+              onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
               onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onViewSetlist={goSetlistView}
               onPlaySetlist={goSetlistPerformance}
@@ -1764,7 +1764,7 @@ export default function App() {
                   const song = songs.find(s => s.title === 'Amazing Grace') || songs[0];
                   if (song) goChart(song);
                 },
-                newSong: () => openNewSongModal('import'),
+                newSong: () => openNewSongModal(),
                 newSetlist: () => goSetlistBuild(),
                 signIn: () => { setAuthStartMode('signin'); navigate('signin'); },
               }}
@@ -1778,7 +1778,7 @@ export default function App() {
               songs={songs}
               loaded={loaded}
               onSelectSong={goChart}
-              onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
+              onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
               previewSongId={previewSongId}
               onSelectPreview={setPreviewSongId}
               isFullscreen={isFullscreen}
@@ -2122,7 +2122,7 @@ export default function App() {
           activeView={view}
           onNavigate={goToMainView}
           activeLibrary={activeLibrary}
-          onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
+          onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
           onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
           onPlay={
             view === 'setlist-view' && currentSetlist
