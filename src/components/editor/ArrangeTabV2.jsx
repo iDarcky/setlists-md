@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, memo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, memo, Fragment } from 'react';
 import { parseSongMd, songToMd, placementToLine, parseTabBlock } from '../../parser';
 import { sectionStyle, getNashvilleNumber, getSolfege } from '../../music';
 import TabBlock from '../TabBlock';
 import TabGridEditor from './TabGridEditorV2';
-import { TAB_INSTRUMENTS } from './tabInstruments';
+import { TAB_INSTRUMENTS, instrumentForStrings } from './tabInstruments';
 import SectionDrawer from './SectionDrawer';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
@@ -356,9 +356,10 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const [entry, setEntry] = useState(null);
   // Reading-aid notation for chord labels: 'chords' | 'nashville' | 'solfege'.
   const [notation, setNotation] = useState('chords');
-  const [tabEditorSec, setTabEditorSec] = useState(null); // section idx for new tab
-  const [draftSec, setDraftSec] = useState(null); // section idx with an open inline lyric draft
-  const [keyChangeSec, setKeyChangeSec] = useState(null); // section idx for the key-change dialog
+  // Tab tool target: { mode:'new', secIdx, idx } | { mode:'editLib', name, tab } | null
+  const [tabEditorTarget, setTabEditorTarget] = useState(null);
+  const [draftTarget, setDraftTarget] = useState(null); // { secIdx, idx } open inline lyric draft
+  const [keyChangeTarget, setKeyChangeTarget] = useState(null); // { secIdx, idx } key-change dialog
   const confirm = useConfirm();
   const sectionRefs = useRef({});
   const jumpTo = useCallback((idx) => {
@@ -425,9 +426,13 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     // Deferred chord line: create the line only once it has a chord, so it
     // survives the .md round-trip (an empty line would be stripped).
     if (newLine === 'chord') {
-      applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
-        ...sec, lines: [...sec.lines, { plainText: ' ', chords: [{ chord, pos: 0 }], inlineNote: null }],
-      })));
+      const insertIdx = target.insertIdx;
+      applyMutation(prev => prev.map((sec, si) => {
+        if (si !== secIdx) return sec;
+        const lines = [...sec.lines];
+        lines.splice(insertIdx == null ? lines.length : insertIdx, 0, { plainText: ' ', chords: [{ chord, pos: 0 }], inlineNote: null });
+        return { ...sec, lines };
+      }));
       addRecent(chord);
       setEntry(null);
       return;
@@ -528,42 +533,61 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   }, [song, emitSong]);
 
   // ─── Line operations ───
+  // Insert a line object at `idx` (null/undefined = append to the end).
+  const insertLineAt = useCallback((secIdx, idx, lineObj) => {
+    applyMutation(prev => prev.map((sec, si) => {
+      if (si !== secIdx) return sec;
+      const lines = [...sec.lines];
+      lines.splice(idx == null ? lines.length : idx, 0, lineObj);
+      return { ...sec, lines };
+    }));
+  }, [applyMutation]);
   // Lyric lines go through an inline draft (see DraftLyricInput) because blank
   // lines can't round-trip through the .md.
-  const addLine = useCallback((secIdx) => { setEntry(null); setDraftSec(secIdx); }, []);
-  const commitDraftLyric = useCallback((secIdx, text) => {
-    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: [...sec.lines, { plainText: text, chords: [], inlineNote: null }] })));
-  }, [applyMutation]);
+  const addLine = useCallback((secIdx, idx) => { setEntry(null); setDraftTarget({ secIdx, idx: idx == null ? null : idx }); }, []);
+  const commitDraftLyric = useCallback((secIdx, idx, text) => {
+    insertLineAt(secIdx, idx, { plainText: text, chords: [], inlineNote: null });
+    // Advance the draft so successive Enters stack lines in order.
+    if (idx != null) setDraftTarget({ secIdx, idx: idx + 1 });
+  }, [insertLineAt]);
   // Chord line: defer creation until the first chord is committed.
-  const addChordLine = useCallback((secIdx) => {
-    setDraftSec(null);
-    setEntry({ secIdx, lineIdx: null, chordIdx: null, charPos: 0, initial: '', newLine: 'chord' });
+  const addChordLine = useCallback((secIdx, idx) => {
+    setDraftTarget(null);
+    setEntry({ secIdx, lineIdx: null, chordIdx: null, charPos: 0, initial: '', newLine: 'chord', insertIdx: idx == null ? null : idx });
   }, []);
-  const addModulate = useCallback((secIdx, semitones) => {
-    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: [...sec.lines, { type: 'modulate', semitones }] })));
-  }, [applyMutation]);
-  const confirmKeyChange = useCallback((secIdx, semitones, addChords) => {
-    addModulate(secIdx, semitones);
-    setKeyChangeSec(null);
-    if (addChords) setEntry({ secIdx, lineIdx: null, chordIdx: null, charPos: 0, initial: '', newLine: 'chord' });
-  }, [addModulate]);
-  // New tab from Arrange: save it to the song's tab library (named Tab N) and
-  // drop a reference into the section.
-  const insertTabInto = useCallback((secIdx, saved) => {
-    if (!song) return;
+  const confirmKeyChange = useCallback((target, semitones, addChords) => {
+    const { secIdx, idx } = target;
+    insertLineAt(secIdx, idx, { type: 'modulate', semitones });
+    setKeyChangeTarget(null);
+    if (addChords) setEntry({ secIdx, lineIdx: null, chordIdx: null, charPos: 0, initial: '', newLine: 'chord', insertIdx: idx == null ? null : idx + 1 });
+  }, [insertLineAt]);
+  // Save handler for the tab tool — either create a new library tab + reference
+  // it at the target index, or update an existing library block in place.
+  const handleTabToolSave = useCallback((saved) => {
+    if (!song || !tabEditorTarget) return;
     const tab = tabObjectFromEditor(saved);
-    const name = nextTabName(song.tabLibrary);
-    emitSong({
-      ...song,
-      tabLibrary: [...(song.tabLibrary || []), { name, tab }],
-      sections: song.sections.map((s, i) => i !== secIdx ? s : ({ ...s, lines: [...s.lines, { type: 'tabref', name }] })),
-    });
-    setTabEditorSec(null);
-  }, [song, emitSong]);
-  // Drop a reference to an existing library tab into a section.
-  const insertTabRef = useCallback((secIdx, name) => {
-    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: [...sec.lines, { type: 'tabref', name }] })));
-  }, [applyMutation]);
+    if (tabEditorTarget.mode === 'editLib') {
+      emitSong({ ...song, tabLibrary: (song.tabLibrary || []).map(t => t.name === tabEditorTarget.name ? { ...t, tab } : t) });
+    } else {
+      const { secIdx, idx } = tabEditorTarget;
+      const name = nextTabName(song.tabLibrary);
+      emitSong({
+        ...song,
+        tabLibrary: [...(song.tabLibrary || []), { name, tab }],
+        sections: song.sections.map((s, i) => {
+          if (i !== secIdx) return s;
+          const lines = [...s.lines];
+          lines.splice(idx == null ? lines.length : idx, 0, { type: 'tabref', name });
+          return { ...s, lines };
+        }),
+      });
+    }
+    setTabEditorTarget(null);
+  }, [song, emitSong, tabEditorTarget]);
+  // Drop a reference to an existing library tab into a section at `idx`.
+  const insertTabRef = useCallback((secIdx, name, idx) => {
+    insertLineAt(secIdx, idx, { type: 'tabref', name });
+  }, [insertLineAt]);
   const removeLine = useCallback((secIdx, lineIdx) => {
     applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: sec.lines.filter((_, li) => li !== lineIdx) })));
   }, [applyMutation]);
@@ -587,6 +611,38 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
+
+  // Shared add-menu body — used by the bottom "+ Add" and every inline insert
+  // point. `idx` is the position to insert at (null = append).
+  const renderAddItems = (secIdx, idx) => (
+    <>
+      <MenuItem onClick={() => addLine(secIdx, idx)}>Lyric line</MenuItem>
+      <MenuItem onClick={() => addChordLine(secIdx, idx)}>Chord line (instrumental)</MenuItem>
+      <MenuItem onClick={() => setKeyChangeTarget({ secIdx, idx })}>Key change…</MenuItem>
+      <div className="my-1 border-t border-[var(--ds-gray-200)]" />
+      {(song.tabLibrary || []).map(t => (
+        <MenuItem key={t.name} onClick={() => insertTabRef(secIdx, t.name, idx)}>
+          <span className="inline-flex items-center gap-2"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-60"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/></svg>{t.name}</span>
+        </MenuItem>
+      ))}
+      <MenuItem onClick={() => setTabEditorTarget({ mode: 'new', secIdx, idx })}>+ New tab…</MenuItem>
+    </>
+  );
+
+  // A subtle "+" between lines that opens the add menu, inserting at `idx`.
+  const renderInsertPoint = (secIdx, idx) => (
+    <div key={`ins-${idx}`} className="group/ins relative h-2 flex items-center justify-center">
+      <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-transparent group-hover/ins:bg-[var(--ds-gray-300)]" />
+      <PopMenu
+        align="left"
+        trigger={
+          <button type="button" aria-label="Insert here" className="relative z-[1] w-5 h-5 rounded-full flex items-center justify-center bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] text-[var(--ds-gray-600)] opacity-0 group-hover/ins:opacity-100 hover:text-[var(--color-brand)] hover:border-[var(--color-brand-border)] cursor-pointer text-[13px] leading-none transition-opacity">+</button>
+        }
+      >
+        {renderAddItems(secIdx, idx)}
+      </PopMenu>
+    </div>
+  );
 
   if (!song) {
     return <div className="flex items-center justify-center h-40 text-[var(--ds-gray-600)]">Start typing in the Advanced tab to use Arrange mode</div>;
@@ -703,107 +759,110 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
               {!isCollapsed && (
                 <div>
                   {sec.lines.map((line, lineIdx) => {
+                    let el = null;
                     if (typeof line === 'object' && (line.type === 'tab' || line.type === 'tabref')) {
                       const tabData = line.type === 'tabref' ? line.tab : line;
-                      return (
-                        <div key={lineIdx} className="relative inline-flex flex-col max-w-full my-1.5 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] py-1.5 pl-2 pr-7">
-                          <button
-                            type="button"
-                            onClick={() => removeLine(secIdx, lineIdx)}
-                            aria-label="Remove tab"
-                            title={line.type === 'tabref' ? 'Remove from this section (keeps the saved tab)' : 'Remove tab'}
-                            className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-[var(--ds-gray-500)] hover:text-[var(--ds-error-600)] hover:bg-[var(--ds-gray-alpha-100)] bg-transparent border-none cursor-pointer leading-none"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
-                          </button>
+                      el = (
+                        <div className="relative inline-flex flex-col max-w-full my-1.5 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] py-1.5 pl-2 pr-12">
+                          <div className="absolute top-1 right-1 flex items-center gap-0.5">
+                            {line.type === 'tabref' && line.tab && (
+                              <button
+                                type="button"
+                                onClick={() => setTabEditorTarget({ mode: 'editLib', name: line.name, tab: line.tab })}
+                                aria-label="Edit tab" title="Edit this tab"
+                                className="w-5 h-5 rounded-full flex items-center justify-center text-[var(--ds-gray-500)] hover:text-[var(--color-brand)] hover:bg-[var(--ds-gray-alpha-100)] bg-transparent border-none cursor-pointer leading-none"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => removeLine(secIdx, lineIdx)}
+                              aria-label="Remove tab"
+                              title={line.type === 'tabref' ? 'Remove from this section (keeps the saved tab)' : 'Remove tab'}
+                              className="w-5 h-5 rounded-full flex items-center justify-center text-[var(--ds-gray-500)] hover:text-[var(--ds-red-700)] hover:bg-[var(--ds-gray-alpha-100)] bg-transparent border-none cursor-pointer leading-none"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                            </button>
+                          </div>
                           {line.type === 'tabref' && (
                             <span className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] mb-1 pl-0.5">{line.name}</span>
                           )}
                           {tabData
                             ? <div className="overflow-x-auto"><TabBlock data={tabData} scale={0.8} /></div>
-                            : <span className="text-copy-12 italic text-[var(--ds-error-600)]">Missing tab “{line.name}”</span>}
+                            : <span className="text-copy-12 italic text-[var(--ds-red-700)]">Missing tab “{line.name}”</span>}
                         </div>
                       );
-                    }
-                    if (typeof line === 'object' && line.type === 'modulate') {
-                      return (
-                        <div key={lineIdx} className="my-4 flex items-center gap-3">
+                    } else if (typeof line === 'object' && line.type === 'modulate') {
+                      el = (
+                        <div className="my-4 flex items-center gap-3">
                           <div className="h-[1px] flex-1 bg-[var(--color-brand-border)]" />
                           <span className="text-label-10 font-black uppercase tracking-[0.2em] px-3 py-1 bg-[var(--color-brand)] text-white rounded-full shadow-sm">
                             Key Change: {line.semitones > 0 ? '+' : ''}{line.semitones}
                           </span>
-                          <button type="button" onClick={() => removeLine(secIdx, lineIdx)} aria-label="Remove key change" className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[var(--ds-gray-600)] hover:text-[var(--ds-error-600)] hover:bg-[var(--ds-gray-alpha-100)] bg-transparent border-none cursor-pointer leading-none">✕</button>
+                          <button type="button" onClick={() => removeLine(secIdx, lineIdx)} aria-label="Remove key change" className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[var(--ds-gray-600)] hover:text-[var(--ds-red-700)] hover:bg-[var(--ds-gray-alpha-100)] bg-transparent border-none cursor-pointer leading-none">✕</button>
                           <div className="h-[1px] flex-1 bg-[var(--color-brand-border)]" />
                         </div>
                       );
-                    }
-                    if (line.plainText !== undefined) {
+                    } else if (line.plainText !== undefined) {
                       if ((line.plainText || '').trim() === '' && (line.chords?.length > 0)) {
-                        return (
-                          <div key={lineIdx} className="mb-2 last:mb-0">
-                            <ChordOnlyLine chords={line.chords} secIdx={secIdx} lineIdx={lineIdx} onEditChord={openEditChord} onAppend={appendChord} onRemoveChord={removeChordAt} />
-                          </div>
-                        );
-                      }
-                      if ((line.plainText || '').trim() === '' && (!line.chords || line.chords.length === 0)) {
-                        return (
-                          <div key={lineIdx} className="mb-2 last:mb-0">
+                        el = <div className="mb-2 last:mb-0"><ChordOnlyLine chords={line.chords} secIdx={secIdx} lineIdx={lineIdx} onEditChord={openEditChord} onAppend={appendChord} onRemoveChord={removeChordAt} /></div>;
+                      } else if ((line.plainText || '').trim() === '' && (!line.chords || line.chords.length === 0)) {
+                        el = (
+                          <div className="mb-2 last:mb-0">
                             <button type="button" onClick={() => handleEditText(secIdx, lineIdx)} className="text-copy-13 italic text-[var(--ds-gray-500)] bg-transparent border-none cursor-text px-1 py-1">
                               Tap to add lyrics…
                             </button>
                           </div>
                         );
+                      } else {
+                        el = (
+                          <div className="mb-2 last:mb-0">
+                            <InteractiveLine
+                              plainText={line.plainText}
+                              chords={line.chords}
+                              secIdx={secIdx}
+                              lineIdx={lineIdx}
+                              editingChordIdx={entry && entry.secIdx === secIdx && entry.lineIdx === lineIdx ? entry.chordIdx : null}
+                              armedCharPos={entry && entry.secIdx === secIdx && entry.lineIdx === lineIdx && entry.charPos != null ? entry.charPos : null}
+                              notation={notation}
+                              songKey={song.key}
+                              onPlace={openAddChord}
+                              onChordTap={openEditChord}
+                            />
+                            {line.inlineNote && (
+                              <span className="text-[var(--text-2)] italic text-[0.8em]">{' ---- '}{line.inlineNote}</span>
+                            )}
+                          </div>
+                        );
                       }
-                      return (
-                        <div key={lineIdx} className="mb-2 last:mb-0">
-                          <InteractiveLine
-                            plainText={line.plainText}
-                            chords={line.chords}
-                            secIdx={secIdx}
-                            lineIdx={lineIdx}
-                            editingChordIdx={entry && entry.secIdx === secIdx && entry.lineIdx === lineIdx ? entry.chordIdx : null}
-                            armedCharPos={entry && entry.secIdx === secIdx && entry.lineIdx === lineIdx && entry.charPos != null ? entry.charPos : null}
-                            notation={notation}
-                            songKey={song.key}
-                            onPlace={openAddChord}
-                            onChordTap={openEditChord}
-                          />
-                          {line.inlineNote && (
-                            <span className="text-[var(--text-2)] italic text-[0.8em]">{' ---- '}{line.inlineNote}</span>
-                          )}
-                        </div>
-                      );
                     }
-                    return null;
+                    return (
+                      <Fragment key={lineIdx}>
+                        {renderInsertPoint(secIdx, lineIdx)}
+                        {draftTarget && draftTarget.secIdx === secIdx && draftTarget.idx === lineIdx && (
+                          <div className="mb-2"><DraftLyricInput onCommit={(t) => commitDraftLyric(secIdx, lineIdx, t)} onClose={() => setDraftTarget(null)} /></div>
+                        )}
+                        {el}
+                      </Fragment>
+                    );
                   })}
 
-                  {/* Inline lyric draft (only when adding) */}
-                  {draftSec === secIdx && (
+                  {/* Inline lyric draft appended at the end */}
+                  {draftTarget && draftTarget.secIdx === secIdx && draftTarget.idx == null && (
                     <div className="mb-2">
-                      <DraftLyricInput
-                        onCommit={(text) => commitDraftLyric(secIdx, text)}
-                        onClose={() => setDraftSec(null)}
-                      />
+                      <DraftLyricInput onCommit={(t) => commitDraftLyric(secIdx, null, t)} onClose={() => setDraftTarget(null)} />
                     </div>
                   )}
 
-                  {/* Per-section add menu */}
+                  {/* Per-section add menu (append) */}
                   <div className="mt-1">
                     <PopMenu
                       align="left"
                       up
                       trigger={<button type="button" className="text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer px-1 py-1">+ Add</button>}
                     >
-                      <MenuItem onClick={() => addLine(secIdx)}>Lyric line</MenuItem>
-                      <MenuItem onClick={() => addChordLine(secIdx)}>Chord line (instrumental)</MenuItem>
-                      <MenuItem onClick={() => setKeyChangeSec(secIdx)}>Key change…</MenuItem>
-                      <div className="my-1 border-t border-[var(--ds-gray-200)]" />
-                      {(song.tabLibrary || []).map(t => (
-                        <MenuItem key={t.name} onClick={() => insertTabRef(secIdx, t.name)}>
-                          <span className="inline-flex items-center gap-2"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-60"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/></svg>{t.name}</span>
-                        </MenuItem>
-                      ))}
-                      <MenuItem onClick={() => setTabEditorSec(secIdx)}>+ New tab…</MenuItem>
+                      {renderAddItems(secIdx, null)}
                     </PopMenu>
                   </div>
                 </div>
@@ -841,24 +900,30 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
         />
       )}
 
-      {/* Tab tool — create a tab and drop it into this section */}
-      {tabEditorSec !== null && (
-        <TabGridEditor
-          time={song.time}
-          strings={TAB_INSTRUMENTS.electric.strings}
-          tunings={TAB_INSTRUMENTS.electric.tunings}
-          instrument="electric"
-          counts={TAB_INSTRUMENTS.electric.counts}
-          onSave={(saved) => insertTabInto(tabEditorSec, saved)}
-          onClose={() => setTabEditorSec(null)}
-        />
-      )}
+      {/* Tab tool — create a new library tab (and reference it) or edit an
+          existing library block in place. */}
+      {tabEditorTarget && (() => {
+        const editing = tabEditorTarget.mode === 'editLib' ? tabEditorTarget.tab : null;
+        const instr = editing ? instrumentForStrings(editing.strings?.length) : 'electric';
+        return (
+          <TabGridEditor
+            initialTab={editing}
+            time={editing?.time || song.time}
+            strings={editing ? editing.strings.map(s => s.note) : TAB_INSTRUMENTS[instr].strings}
+            tunings={TAB_INSTRUMENTS[instr].tunings}
+            instrument={instr}
+            counts={TAB_INSTRUMENTS[instr].counts}
+            onSave={handleTabToolSave}
+            onClose={() => setTabEditorTarget(null)}
+          />
+        );
+      })()}
 
       {/* Key change dialog */}
-      {keyChangeSec !== null && (
+      {keyChangeTarget && (
         <KeyChangeDialog
-          onConfirm={(steps, addChords) => confirmKeyChange(keyChangeSec, steps, addChords)}
-          onClose={() => setKeyChangeSec(null)}
+          onConfirm={(steps, addChords) => confirmKeyChange(keyChangeTarget, steps, addChords)}
+          onClose={() => setKeyChangeTarget(null)}
         />
       )}
 
