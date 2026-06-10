@@ -122,9 +122,12 @@ export default function ChartView({
   const [nns, setNns] = useState(disp.nashville);
   const [showChords, setShowChords] = useState(disp.showChords);
   const [showDiagrams, setShowDiagrams] = useState(disp.showDiagrams);
-  // Quick display filters (session-local) toggled from the structure row.
-  const [showLyrics, setShowLyrics] = useState(true);
-  const [showTabs, setShowTabs] = useState(true);
+  // Quick view mode (session-local) from the structure row:
+  //   chords → chords + lyrics (+ tabs); lyrics → lyrics only; tabs → tabs only.
+  const [displayMode, setDisplayMode] = useState('chords');
+  const viewChords = displayMode === 'chords';
+  const viewLyrics = displayMode !== 'tabs';
+  const viewTabs = displayMode !== 'lyrics';
 
   // Re-seed local mirrors when the persisted display settings change — another
   // song, a role preset, or an edit made on a different surface.
@@ -562,21 +565,21 @@ export default function ChartView({
                 }}
               />
             </div>
-            <div className="shrink-0 flex items-center gap-1 pt-0.5">
+            <div className="shrink-0 flex items-center gap-0.5 pt-0.5 p-0.5 rounded-lg bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)]">
               {[
-                { id: 'chords', label: 'Chords', on: showChords, toggle: toggleShowChords },
-                { id: 'lyrics', label: 'Lyrics', on: showLyrics, toggle: () => setShowLyrics(v => !v) },
-                { id: 'tabs', label: 'Tabs', on: showTabs, toggle: () => setShowTabs(v => !v) },
+                { id: 'chords', label: 'Chords' },
+                { id: 'lyrics', label: 'Lyrics' },
+                { id: 'tabs', label: 'Tabs' },
               ].map(b => (
                 <button
                   key={b.id}
                   type="button"
-                  onClick={b.toggle}
-                  aria-pressed={b.on}
-                  className={`px-2 py-0.5 rounded-md text-label-11 font-semibold cursor-pointer border transition-colors ${
-                    b.on
-                      ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border-[var(--color-brand-border)]'
-                      : 'bg-transparent text-[var(--ds-gray-500)] border-[var(--ds-gray-400)] hover:text-[var(--ds-gray-900)]'
+                  onClick={() => setDisplayMode(b.id)}
+                  aria-pressed={displayMode === b.id}
+                  className={`px-2.5 py-0.5 rounded-md text-label-11 font-semibold cursor-pointer border-none transition-colors ${
+                    displayMode === b.id
+                      ? 'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] shadow-sm'
+                      : 'bg-transparent text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'
                   }`}
                 >
                   {b.label}
@@ -789,9 +792,9 @@ export default function ChartView({
                 modOffset={sectionModOffsets[idx]}
                 nns={nns}
                 songKey={song.key}
-                showChords={showChords}
-                showLyrics={showLyrics}
-                showTabs={showTabs}
+                showChords={showChords && viewChords}
+                showLyrics={viewLyrics}
+                showTabs={viewTabs}
                 inlineNotes={showInlineNotes}
                 noteStyle={inlineNoteStyle}
                 sectionColors={settings?.sectionColors}

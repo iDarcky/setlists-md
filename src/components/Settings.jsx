@@ -392,9 +392,9 @@ function ChartPanel({ settings, update }) {
       <Row label="Tab grid resolution" description="Default subdivisions when creating a new tab. Beats only keeps it simple; finer grids allow 8th/16th-note detail.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
           {[
-            { key: 1, label: 'Beats' },
-            { key: 2, label: '8ths' },
-            { key: 4, label: '16ths' },
+            { key: 1, label: '1/4' },
+            { key: 2, label: '1/8' },
+            { key: 4, label: '1/16' },
           ].map(({ key, label }) => {
             const active = (settings.tabSubdivision || 4) === key;
             return (

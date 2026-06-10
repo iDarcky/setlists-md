@@ -168,9 +168,9 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
   const isWide = useMediaQuery('(min-width: 1024px)');
-  // Side preview is OFF by default so the editor uses the full width; it's
-  // available from every tab via the toggle (wide) / peek (narrow).
-  const [previewEnabled, setPreviewEnabled] = useState(false);
+  // Side preview is ON by default on wide screens; available from every tab
+  // via the toggle (wide) / peek (narrow), and resizable.
+  const [previewEnabled, setPreviewEnabled] = useState(true);
   const showSidePreview = isWide && previewEnabled;
   // On tablet portrait / phone the side preview is too tight, so narrow screens
   // get a full-height slide-over peek instead.

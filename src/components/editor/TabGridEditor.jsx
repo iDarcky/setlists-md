@@ -146,6 +146,20 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
     setCursor({ string: 0, pos: 0 });
   }, [cpb, timeSig, measures]);
 
+  // Change string labels/count. Rebuilds grid rows to match the new count
+  // (preserving existing rows by index) so the render never indexes a missing
+  // row — the cause of the "se[D] is undefined" crash on 7-string / 5-bass.
+  const changeStrings = useCallback((next) => {
+    setGrid(prev => {
+      const cols = prev[0]?.length || (slotsPerMeasure(timeSig, cpb) * measures);
+      return next.map((_, i) => (prev[i] ? [...prev[i]] : Array(cols).fill(null)));
+    });
+    setCurStrings(next);
+    setCursor({ string: 0, pos: 0 });
+    setActiveInput(null);
+    setLastPlaced(null);
+  }, [timeSig, cpb, measures]);
+
   const openInput = useCallback((si, pos) => {
     setActiveInput({ string: si, pos });
     setInputVal('');
@@ -331,7 +345,7 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
                 <button
                   key={n}
                   type="button"
-                  onClick={() => setCurStrings(stringsForCount(instrument, n))}
+                  onClick={() => changeStrings(stringsForCount(instrument, n))}
                   className={`rounded-md px-2 py-1 text-label-11 font-semibold cursor-pointer border ${
                     curStrings.length === n
                       ? 'border-[var(--chord)] text-[var(--chord)] bg-[var(--ds-gray-100)]'
@@ -354,7 +368,7 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
                 value={tunings.find(t => t.strings.join('') === curStrings.join(''))?.id || ''}
                 onChange={e => {
                   const t = tunings.find(x => x.id === e.target.value);
-                  if (t) setCurStrings(t.strings);
+                  if (t) changeStrings(t.strings);
                 }}
                 className="h-7 px-1.5 rounded-md bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-label-11 text-[var(--ds-gray-1000)] outline-none"
               >
@@ -367,7 +381,7 @@ export default function TabGridEditor({ initialTab, time, strings = DEFAULT_STRI
           {/* Subdivision (grid resolution) */}
           <div className="flex gap-1 items-center">
             <span className="text-label-10 text-[var(--ds-gray-500)]">Grid:</span>
-            {[{ v: 1, l: '1·2·3·4' }, { v: 2, l: '8ths' }, { v: 4, l: '16ths' }].map(o => (
+            {[{ v: 1, l: '1/4' }, { v: 2, l: '1/8' }, { v: 4, l: '1/16' }].map(o => (
               <button
                 key={o.v}
                 type="button"

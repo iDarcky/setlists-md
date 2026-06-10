@@ -522,17 +522,17 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                   {sec.lines.map((line, lineIdx) => {
                     if (typeof line === 'object' && line.type === 'tab') {
                       return (
-                        <div key={lineIdx} className="group/tab relative my-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] p-2 pr-8">
+                        <div key={lineIdx} className="relative inline-flex max-w-full my-1.5 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] py-1.5 pl-2 pr-7">
                           <button
                             type="button"
                             onClick={() => removeLine(secIdx, lineIdx)}
                             aria-label="Remove tab"
                             title="Remove tab"
-                            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-[var(--ds-gray-500)] hover:text-[var(--ds-error-600)] hover:bg-[var(--ds-gray-alpha-100)] bg-transparent border-none cursor-pointer leading-none"
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-[var(--ds-gray-500)] hover:text-[var(--ds-error-600)] hover:bg-[var(--ds-gray-alpha-100)] bg-transparent border-none cursor-pointer leading-none"
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
                           </button>
-                          <div className="overflow-x-auto"><TabBlock data={line} /></div>
+                          <div className="overflow-x-auto"><TabBlock data={line} scale={0.8} /></div>
                         </div>
                       );
                     }
