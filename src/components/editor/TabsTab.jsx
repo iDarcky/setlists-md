@@ -28,7 +28,7 @@ const TrashIcon = () => (
 // Tabs mode — create and organize the song's tabs. Creating a tab (instrument,
 // strings, tuning, target section) happens in the tab tool; the gallery lists,
 // edits and deletes them.
-export default function TabsTab({ md, onChange, subdivision = 4 }) {
+export default function TabsTab({ md, onChange, subdivision = 1 }) {
   const song = useMemo(() => { try { return parseSongMd(md); } catch { return null; } }, [md]);
   const sections = useMemo(() => song?.sections || [], [song]);
   const confirm = useConfirm();

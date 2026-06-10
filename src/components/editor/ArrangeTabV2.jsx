@@ -10,6 +10,7 @@ import { Button } from '../ui/Button';
 import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType } from './arrangeHelpers';
 import { loadRecents, saveRecents, pushRecent } from './chordRecents';
 import ChordAutocomplete from './ChordAutocomplete';
+import { useConfirm } from '../ui/useConfirmHook';
 
 const SECTION_TYPES = [
   'Intro', 'Verse', 'Pre Chorus', 'Chorus', 'Bridge',
@@ -186,7 +187,7 @@ const InteractiveLine = memo(function InteractiveLine({
 });
 
 // ─── Popover menu ─────────────────────────────────────────────────
-function PopMenu({ trigger, align = 'right', children }) {
+function PopMenu({ trigger, align = 'right', up = false, children }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -201,7 +202,7 @@ function PopMenu({ trigger, align = 'right', children }) {
     <div ref={ref} className="relative inline-block">
       <span onClick={() => setOpen(v => !v)}>{trigger}</span>
       {open && (
-        <div role="menu" onClick={() => setOpen(false)} className={`absolute z-40 mt-1 ${align === 'right' ? 'right-0' : 'left-0'} min-w-[180px] rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl overflow-hidden py-1`}>
+        <div role="menu" onClick={() => setOpen(false)} className={`absolute z-50 ${up ? 'bottom-full mb-1' : 'mt-1'} ${align === 'right' ? 'right-0' : 'left-0'} min-w-[180px] max-h-[60vh] overflow-y-auto rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1`}>
           {children}
         </div>
       )}
@@ -213,6 +214,106 @@ function MenuItem({ onClick, children, danger = false }) {
     <button type="button" onClick={onClick} className={`w-full text-left px-3 py-2.5 text-copy-13 cursor-pointer bg-transparent border-none hover:bg-[var(--ds-gray-alpha-100)] ${danger ? 'text-[var(--ds-error-600)]' : 'text-[var(--ds-gray-1000)]'}`}>
       {children}
     </button>
+  );
+}
+
+// ─── Section type picker ──────────────────────────────────────────
+// Custom dropdown so each type carries its own section color and the number
+// sits snug next to the label (a native <select> can't colour per-option or
+// hug the value).
+function SectionTypePicker({ value, num, options, customSectionTypes, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+  const cur = sectionStyle(value, null, customSectionTypes);
+  return (
+    <div ref={ref} className="relative inline-flex items-baseline">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="inline-flex items-baseline gap-1 bg-transparent border-none cursor-pointer outline-none p-0 text-label-14 font-black uppercase tracking-[0.15em]"
+        style={{ color: cur.b }}
+      >
+        <span>{value}</span>
+        {num && <span className="font-black">{num}</span>}
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="opacity-50 self-center"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </button>
+      {open && (
+        <div role="menu" className="absolute z-50 left-0 top-full mt-1 min-w-[170px] max-h-[60vh] overflow-y-auto rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1">
+          {options.map(t => {
+            const st = sectionStyle(t, null, customSectionTypes);
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => { setOpen(false); if (t !== value) onChange(t); }}
+                className="w-full text-left px-3 py-2 text-label-13 font-bold uppercase tracking-wider cursor-pointer bg-transparent border-none hover:bg-[var(--ds-gray-alpha-100)]"
+                style={{ color: st.b }}
+              >
+                {t}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Key change dialog ────────────────────────────────────────────
+// Pick how many semitones the key shifts, and optionally drop a chord line
+// right after to write the chords that come with the new key.
+function KeyChangeDialog({ onConfirm, onClose }) {
+  const [steps, setSteps] = useState(2);
+  return (
+    <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="bg-[var(--ds-background-200)] rounded-2xl border border-[var(--ds-gray-400)] w-full max-w-[340px] p-5" style={{ boxShadow: '0 16px 48px rgba(0,0,0,0.5)' }}>
+        <h3 className="text-heading-15 font-semibold text-[var(--ds-gray-1000)] m-0 mb-1">Key change</h3>
+        <p className="text-copy-13 text-[var(--ds-gray-600)] m-0 mb-4">Shift every chord after this point up or down.</p>
+        <div className="flex items-center justify-center gap-4 mb-5">
+          <IconButton variant="default" size="md" aria-label="Down a step" onClick={() => setSteps(s => Math.max(-12, s - 1))}>−</IconButton>
+          <div className="text-center min-w-[88px]">
+            <div className="text-[28px] font-black font-mono text-[var(--chord)] leading-none">{steps > 0 ? '+' : ''}{steps}</div>
+            <div className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] mt-1">{Math.abs(steps) === 1 ? 'semitone' : 'semitones'}</div>
+          </div>
+          <IconButton variant="default" size="md" aria-label="Up a step" onClick={() => setSteps(s => Math.min(12, s + 1))}>+</IconButton>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Button variant="brand" size="md" disabled={steps === 0} onClick={() => onConfirm(steps, true)}>Insert + add chords</Button>
+          <Button variant="secondary" size="md" disabled={steps === 0} onClick={() => onConfirm(steps, false)}>Insert key change only</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Inline lyric draft ───────────────────────────────────────────
+// A blank lyric line can't survive the .md round-trip (trailing empties are
+// stripped), so new lyric lines are typed here first and only committed once
+// they have text. Enter keeps adding lines; empty Enter/blur closes.
+function DraftLyricInput({ onCommit, onClose }) {
+  const [text, setText] = useState('');
+  const ref = useRef(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+  return (
+    <input
+      ref={ref}
+      value={text}
+      onChange={e => setText(e.target.value)}
+      onKeyDown={e => {
+        if (e.key === 'Enter') { e.preventDefault(); if (text.trim()) { onCommit(text); setText(''); } else onClose(); }
+        else if (e.key === 'Escape') onClose();
+      }}
+      onBlur={() => { if (text.trim()) onCommit(text); onClose(); }}
+      placeholder="Type a lyric line, Enter for the next…"
+      className="w-full bg-transparent border-b border-dashed border-[var(--ds-gray-400)] text-[var(--text-1)] font-mono outline-none py-1.5 px-1"
+      style={{ fontSize: 16 }}
+    />
   );
 }
 
@@ -248,6 +349,9 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   // Reading-aid notation for chord labels: 'chords' | 'nashville' | 'solfege'.
   const [notation, setNotation] = useState('chords');
   const [tabEditorSec, setTabEditorSec] = useState(null); // section idx for new tab
+  const [draftSec, setDraftSec] = useState(null); // section idx with an open inline lyric draft
+  const [keyChangeSec, setKeyChangeSec] = useState(null); // section idx for the key-change dialog
+  const confirm = useConfirm();
   const sectionRefs = useRef({});
   const jumpTo = useCallback((idx) => {
     sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -309,7 +413,17 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   const placeChordAt = useCallback((target, chord) => {
     if (!target) return;
-    const { secIdx, lineIdx, chordIdx, charPos } = target;
+    const { secIdx, lineIdx, chordIdx, charPos, newLine } = target;
+    // Deferred chord line: create the line only once it has a chord, so it
+    // survives the .md round-trip (an empty line would be stripped).
+    if (newLine === 'chord') {
+      applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+        ...sec, lines: [...sec.lines, { plainText: ' ', chords: [{ chord, pos: 0 }], inlineNote: null }],
+      })));
+      addRecent(chord);
+      setEntry(null);
+      return;
+    }
     applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
       ...sec,
       lines: sec.lines.map((line, li) => {
@@ -351,11 +465,18 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   // ─── Section operations ───
   const labelFor = useCallback((base, count) => `${base} ${count + 1}`, []);
 
+  // Emit a new section list and keep `structure` mirroring section order, so the
+  // chart/performance views (which follow `structure`) reflect Arrange edits.
+  const emitSections = useCallback((sections) => {
+    if (!song) return;
+    emitSong({ ...song, sections, structure: sections.map(s => s.type) });
+  }, [song, emitSong]);
+
   const addSection = useCallback((base = 'Verse') => {
     if (!song) return;
     const count = song.sections.filter(s => sectionBaseType(s.type) === base).length;
-    emitSong({ ...song, sections: [...song.sections, { type: labelFor(base, count), note: '', lines: [''] }] });
-  }, [song, emitSong, labelFor]);
+    emitSections([...song.sections, { type: labelFor(base, count), note: '', lines: [''] }]);
+  }, [song, emitSections, labelFor]);
 
   const duplicateSection = useCallback((idx) => {
     if (!song) return;
@@ -363,14 +484,20 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     const base = sectionBaseType(src.type);
     const count = song.sections.filter(s => sectionBaseType(s.type) === base).length;
     const copy = { ...src, type: labelFor(base, count), lines: [...src.lines] };
-    const sections = [...song.sections.slice(0, idx + 1), copy, ...song.sections.slice(idx + 1)];
-    emitSong({ ...song, sections });
-  }, [song, emitSong, labelFor]);
+    emitSections([...song.sections.slice(0, idx + 1), copy, ...song.sections.slice(idx + 1)]);
+  }, [song, emitSections, labelFor]);
 
-  const removeSection = useCallback((idx) => {
+  const removeSection = useCallback(async (idx) => {
     if (!song) return;
-    emitSong({ ...song, sections: song.sections.filter((_, i) => i !== idx) });
-  }, [song, emitSong]);
+    const ok = await confirm({
+      title: 'Delete this section?',
+      description: 'This removes the section and everything in it from the song.',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    emitSections(song.sections.filter((_, i) => i !== idx));
+  }, [song, emitSections, confirm]);
 
   const moveSection = useCallback((idx, dir) => {
     if (!song) return;
@@ -378,15 +505,14 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     if (j < 0 || j >= song.sections.length) return;
     const arr = [...song.sections];
     [arr[idx], arr[j]] = [arr[j], arr[idx]];
-    emitSong({ ...song, sections: arr });
-  }, [song, emitSong]);
+    emitSections(arr);
+  }, [song, emitSections]);
 
   const changeSectionType = useCallback((idx, base) => {
     if (!song) return;
     const count = song.sections.filter((s, i) => i < idx && sectionBaseType(s.type) === base).length;
-    const sections = song.sections.map((s, i) => i === idx ? { ...s, type: labelFor(base, count) } : s);
-    emitSong({ ...song, sections });
-  }, [song, emitSong, labelFor]);
+    emitSections(song.sections.map((s, i) => i === idx ? { ...s, type: labelFor(base, count) } : s));
+  }, [song, emitSections, labelFor]);
 
   const updateSectionNote = useCallback((idx, note) => {
     if (!song) return;
@@ -394,17 +520,25 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   }, [song, emitSong]);
 
   // ─── Line operations ───
-  const addLine = useCallback((secIdx) => {
-    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: [...sec.lines, { plainText: '', chords: [], inlineNote: null }] })));
+  // Lyric lines go through an inline draft (see DraftLyricInput) because blank
+  // lines can't round-trip through the .md.
+  const addLine = useCallback((secIdx) => { setEntry(null); setDraftSec(secIdx); }, []);
+  const commitDraftLyric = useCallback((secIdx, text) => {
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: [...sec.lines, { plainText: text, chords: [], inlineNote: null }] })));
   }, [applyMutation]);
+  // Chord line: defer creation until the first chord is committed.
   const addChordLine = useCallback((secIdx) => {
-    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: [...sec.lines, { plainText: ' ', chords: [], inlineNote: null }] })));
-    const newLineIdx = (placements[secIdx]?.lines.length) || 0;
-    setEntry({ secIdx, lineIdx: newLineIdx, chordIdx: null, charPos: 0, initial: '' });
-  }, [applyMutation, placements]);
+    setDraftSec(null);
+    setEntry({ secIdx, lineIdx: null, chordIdx: null, charPos: 0, initial: '', newLine: 'chord' });
+  }, []);
   const addModulate = useCallback((secIdx, semitones) => {
     applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: [...sec.lines, { type: 'modulate', semitones }] })));
   }, [applyMutation]);
+  const confirmKeyChange = useCallback((secIdx, semitones, addChords) => {
+    addModulate(secIdx, semitones);
+    setKeyChangeSec(null);
+    if (addChords) setEntry({ secIdx, lineIdx: null, chordIdx: null, charPos: 0, initial: '', newLine: 'chord' });
+  }, [addModulate]);
   const insertTabInto = useCallback((secIdx, saved) => {
     if (!song) return;
     const tabObj = tabObjectFromEditor(saved);
@@ -441,27 +575,11 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      {/* Notation toggle — display chords as letters / Nashville numbers / solfège. */}
-      <div className="shrink-0 flex items-center justify-end gap-1 pl-3 pr-6 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
-        <span className="mr-auto text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)]">Notation</span>
-        {[{ id: 'chords', label: 'ABC' }, { id: 'nashville', label: '123' }, { id: 'solfege', label: 'Do' }].map(o => (
-          <button
-            key={o.id}
-            type="button"
-            onClick={() => setNotation(o.id)}
-            className={`px-2 py-0.5 rounded-md text-label-11 font-semibold cursor-pointer border ${
-              notation === o.id ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border-[var(--color-brand-border)]' : 'bg-transparent text-[var(--ds-gray-600)] border-transparent hover:bg-[var(--ds-gray-100)]'
-            }`}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Section jump row — tap to scroll to a section in long songs. */}
-      {placements.length > 1 && (
-        <div className="shrink-0 flex items-center gap-1 overflow-x-auto pl-3 pr-6 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
-          {placements.map((sec, i) => {
+      {/* Structure row — section jump chips on the left, a Customize popover
+          (notation + display options) tucked on the right to keep it clean. */}
+      <div className="shrink-0 flex items-center gap-2 pl-3 pr-6 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
+        <div className="flex-1 flex items-center gap-1 overflow-x-auto min-w-0">
+          {placements.length > 1 ? placements.map((sec, i) => {
             const st = sectionStyle(sec.type, null, customSectionTypes);
             return (
               <button
@@ -475,9 +593,34 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                 {sectionShortCode(sec.type)}
               </button>
             );
-          })}
+          }) : <span className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)]">Structure</span>}
         </div>
-      )}
+        <PopMenu
+          trigger={
+            <IconButton variant="ghost" size="sm" aria-label="Customize" title="Customize">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" /></svg>
+            </IconButton>
+          }
+        >
+          <div className="px-3 py-2" onClick={e => e.stopPropagation()}>
+            <div className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] mb-1.5">Notation</div>
+            <div className="flex gap-1">
+              {[{ id: 'chords', label: 'ABC' }, { id: 'nashville', label: '123' }, { id: 'solfege', label: 'Do' }].map(o => (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => setNotation(o.id)}
+                  className={`px-2.5 py-1 rounded-md text-label-11 font-semibold cursor-pointer border ${
+                    notation === o.id ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border-[var(--color-brand-border)]' : 'bg-transparent text-[var(--ds-gray-600)] border-[var(--ds-gray-400)] hover:bg-[var(--ds-gray-100)]'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </PopMenu>
+      </div>
 
       <div className="flex-1 overflow-auto pl-3 pr-6 pt-3 pb-8">
         {placements.map((sec, secIdx) => {
@@ -500,15 +643,13 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                     <path d="m6 9 6 6 6-6" />
                   </svg>
                 </button>
-                <select
+                <SectionTypePicker
                   value={base}
-                  onChange={e => changeSectionType(secIdx, e.target.value)}
-                  className="bg-transparent border-none text-label-14 font-black uppercase tracking-[0.15em] cursor-pointer outline-none"
-                  style={{ color: s.b }}
-                >
-                  {typeOptions.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                {num && <span className="text-label-14 font-black -ml-1" style={{ color: s.b }}>{num}</span>}
+                  num={num}
+                  options={typeOptions}
+                  customSectionTypes={customSectionTypes}
+                  onChange={(t) => changeSectionType(secIdx, t)}
+                />
                 <input
                   value={sec.note || ''}
                   onChange={e => updateSectionNote(secIdx, e.target.value)}
@@ -528,7 +669,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                     </IconButton>
                   }
                 >
-                  <MenuItem onClick={() => setDrawerTarget(secIdx)}>Edit lyrics…</MenuItem>
                   <MenuItem onClick={() => duplicateSection(secIdx)}>Duplicate section</MenuItem>
                   <MenuItem onClick={() => moveSection(secIdx, -1)}>Move up</MenuItem>
                   <MenuItem onClick={() => moveSection(secIdx, 1)}>Move down</MenuItem>
@@ -608,18 +748,27 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                     return null;
                   })}
 
+                  {/* Inline lyric draft (only when adding) */}
+                  {draftSec === secIdx && (
+                    <div className="mb-2">
+                      <DraftLyricInput
+                        onCommit={(text) => commitDraftLyric(secIdx, text)}
+                        onClose={() => setDraftSec(null)}
+                      />
+                    </div>
+                  )}
+
                   {/* Per-section add menu */}
                   <div className="mt-1">
                     <PopMenu
                       align="left"
+                      up
                       trigger={<button type="button" className="text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer px-1 py-1">+ Add</button>}
                     >
                       <MenuItem onClick={() => addLine(secIdx)}>Lyric line</MenuItem>
+                      <MenuItem onClick={() => addChordLine(secIdx)}>Chord line (instrumental)</MenuItem>
                       <MenuItem onClick={() => setTabEditorSec(secIdx)}>Tab…</MenuItem>
-                      <MenuItem onClick={(e) => addChordLine(secIdx, e.clientX, e.clientY)}>Chord line (instrumental)</MenuItem>
-                      <MenuItem onClick={() => addModulate(secIdx, 1)}>Key change +1</MenuItem>
-                      <MenuItem onClick={() => addModulate(secIdx, 2)}>Key change +2</MenuItem>
-                      <MenuItem onClick={() => addModulate(secIdx, -1)}>Key change −1</MenuItem>
+                      <MenuItem onClick={() => setKeyChangeSec(secIdx)}>Key change…</MenuItem>
                     </PopMenu>
                   </div>
                 </div>
@@ -667,6 +816,14 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
           counts={TAB_INSTRUMENTS.electric.counts}
           onSave={(saved) => insertTabInto(tabEditorSec, saved)}
           onClose={() => setTabEditorSec(null)}
+        />
+      )}
+
+      {/* Key change dialog */}
+      {keyChangeSec !== null && (
+        <KeyChangeDialog
+          onConfirm={(steps, addChords) => confirmKeyChange(keyChangeSec, steps, addChords)}
+          onClose={() => setKeyChangeSec(null)}
         />
       )}
 

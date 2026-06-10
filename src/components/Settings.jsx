@@ -396,7 +396,7 @@ function ChartPanel({ settings, update }) {
             { key: 2, label: '1/8' },
             { key: 4, label: '1/16' },
           ].map(({ key, label }) => {
-            const active = (settings.tabSubdivision || 4) === key;
+            const active = (settings.tabSubdivision || 1) === key;
             return (
               <Button
                 key={key}
