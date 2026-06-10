@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import ChordPicker from './ChordPicker';
+import ChordAutocomplete from './ChordAutocomplete';
 import TabGridEditor from './TabGridEditorV2';
 import { parseTabBlock } from '../../parser';
+import { sectionStyle } from '../../music';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 
@@ -10,21 +11,20 @@ const SECTION_TYPES = [
   'Instrumental', 'Interlude', 'Tag', 'Vamp', 'Outro', 'Ending', 'Refrain',
 ];
 
-export default function WriteTab({ md, onChange, textareaRef, customSectionTypes, time, onUndo, onRedo, onImport }) {
+export default function WriteTab({ md, onChange, textareaRef, customSectionTypes, time, songKey = 'C', onUndo, onRedo, onImport }) {
   const sectionTypes = useMemo(() => {
     const custom = (customSectionTypes || [])
       .map(t => t?.name?.trim())
       .filter(Boolean);
     return [...SECTION_TYPES, ...custom];
   }, [customSectionTypes]);
-  const [showChordPicker, setShowChordPicker] = useState(false);
+  const [showChordBar, setShowChordBar] = useState(false);
   const [showSectionMenu, setShowSectionMenu] = useState(false);
   const [showCueInput, setShowCueInput] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [showModMenu, setShowModMenu] = useState(false);
   const [showTabEditor, setShowTabEditor] = useState(false);
   const [tabEditState, setTabEditState] = useState(null);
-  const [chordAnchor, setChordAnchor] = useState(null);
   const [popupAnchor, setPopupAnchor] = useState(null);
   const [cueText, setCueText] = useState('');
   const [noteText, setNoteText] = useState('');
@@ -126,7 +126,7 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
         ta.focus();
       });
     }
-    setShowChordPicker(false);
+    setShowChordBar(false);
     addRecent(chord);
   }, [onChange, textareaRef, addRecent]);
 
@@ -202,11 +202,7 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     setShowTabEditor(false);
   }, [tabEditState, md, onChange, insertAtCursor]);
 
-  const openChordPicker = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setChordAnchor(rect);
-    setShowChordPicker(true);
-  };
+  const openChordPicker = () => setShowChordBar(true);
 
   const openPopup = (setter, e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -308,9 +304,21 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
         {(onUndo || onRedo || onImport) && (
           <span className="w-px self-stretch bg-[var(--ds-gray-300)] mx-0.5" aria-hidden="true" />
         )}
-        {onUndo && <ToolBtn label="Undo" onClick={onUndo} />}
-        {onRedo && <ToolBtn label="Redo" onClick={onRedo} />}
-        {onImport && <ToolBtn label="Paste import" onClick={onImport} />}
+        {onUndo && (
+          <IconButton variant="secondary" size="sm" onClick={onUndo} aria-label="Undo" title="Undo">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-1" /></svg>
+          </IconButton>
+        )}
+        {onRedo && (
+          <IconButton variant="secondary" size="sm" onClick={onRedo} aria-label="Redo" title="Redo">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 14 5-5-5-5" /><path d="M20 9H9a5 5 0 0 0 0 10h1" /></svg>
+          </IconButton>
+        )}
+        {onImport && (
+          <IconButton variant="secondary" size="sm" onClick={onImport} aria-label="Paste &amp; import a chord sheet" title="Paste &amp; import">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>
+          </IconButton>
+        )}
       </div>
 
       {/* ─── Find / Replace bar ─── */}
@@ -345,12 +353,13 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
       />
 
       {/* ─── Popups ─── */}
-      {showChordPicker && (
-        <ChordPicker
-          anchorRect={chordAnchor}
-          onSelect={handleChordSelect}
-          onClose={() => setShowChordPicker(false)}
-          recentChords={effectiveRecent}
+      {showChordBar && (
+        <ChordAutocomplete
+          dock="top"
+          songKey={songKey}
+          recents={effectiveRecent}
+          onCommit={handleChordSelect}
+          onClose={() => setShowChordBar(false)}
         />
       )}
 
@@ -361,7 +370,8 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
               <button
                 key={t}
                 onClick={() => handleSectionInsert(t)}
-                className="bg-transparent border-none rounded-md px-3 py-1.5 text-left cursor-pointer text-copy-13 font-medium text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] transition-colors"
+                className="bg-transparent border-none rounded-md px-3 py-1.5 text-left cursor-pointer text-copy-13 font-bold uppercase tracking-wider hover:bg-[var(--ds-gray-200)] transition-colors"
+                style={{ color: sectionStyle(t, null, customSectionTypes).b }}
               >
                 {t}
               </button>

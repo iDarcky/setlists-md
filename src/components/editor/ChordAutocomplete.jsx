@@ -12,7 +12,7 @@ const SUFFIXES = ['', 'm', '7', 'm7', 'maj7', 'sus4', 'sus2', 'add9', 'dim', 'au
 // inline picker. Enter commits, ←/→ move the chip highlight, Esc closes.
 export default function ChordAutocomplete({
   initial = '', songKey = 'C', recents = [],
-  editing = false, onCommit, onRemove, onClose,
+  editing = false, dock = 'bottom', onCommit, onRemove, onClose,
 }) {
   const [value, setValue] = useState(initial);
   const [active, setActive] = useState(0);
@@ -59,10 +59,11 @@ export default function ChordAutocomplete({
     if (e.key === 'Enter') { e.preventDefault(); commit(options[active] ?? value); }
   };
 
+  const top = dock === 'top';
   return createPortal((
     <div
-      className="fixed left-0 right-0 bottom-0 z-[120] border-t border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-[0_-8px_24px_rgba(0,0,0,0.35)]"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', animation: 'pop-in 120ms ease-out' }}
+      className={`fixed left-0 right-0 z-[120] bg-[var(--ds-background-100)] ${top ? 'top-0 border-b border-[var(--ds-gray-300)] shadow-[0_8px_24px_rgba(0,0,0,0.35)]' : 'bottom-0 border-t border-[var(--ds-gray-300)] shadow-[0_-8px_24px_rgba(0,0,0,0.35)]'}`}
+      style={{ ...(top ? { paddingTop: 'env(safe-area-inset-top, 0px)' } : { paddingBottom: 'env(safe-area-inset-bottom, 0px)' }), animation: 'pop-in 120ms ease-out' }}
     >
       {/* Title + actions */}
       <div className="flex items-center justify-between px-3 pt-2">

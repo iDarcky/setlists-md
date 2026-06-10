@@ -502,6 +502,7 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
             textareaRef={textareaRef}
             customSectionTypes={customSectionTypes}
             time={currentTime || '4/4'}
+            songKey={currentKey}
             onUndo={handleUndo}
             onRedo={handleRedo}
             onImport={handleImport}
