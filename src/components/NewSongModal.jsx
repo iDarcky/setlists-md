@@ -108,8 +108,8 @@ export default function NewSongModal({
           <IconButton variant="ghost" size="sm" onClick={onClose} aria-label="Close">✕</IconButton>
         </div>
 
-        {/* License notice for import/paste */}
-        {(view === 'import' || view === 'paste') && (
+        {/* License notice — shown from the start (not on the public-domain browse). */}
+        {view !== 'browse' && (
           <div className="px-5 py-2 border-b border-[var(--ds-gray-300)] text-label-11 text-[var(--ds-gray-700)] shrink-0" style={{ background: 'var(--ds-gray-100)' }}>
             You're responsible for ensuring you have a license to copy the content you import
             (e.g. CCLI, SongSelect, PraiseCharts, or original material).

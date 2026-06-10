@@ -10,7 +10,6 @@ import WriteTab from './editor/WriteTab';
 import ArrangeTab from './editor/ArrangeTab';
 import ArrangeTabV2 from './editor/ArrangeTabV2';
 import TabsTab from './editor/TabsTab';
-import EditorEmptyState from './editor/EditorEmptyState';
 import MetadataPanel from './editor/MetadataPanel';
 import StructureEditor from './editor/StructureEditor';
 import ArrangementMenu, { EditArrangementsDialog } from './editor/ArrangementMenu';
@@ -124,7 +123,7 @@ key: C
 
 `;
 
-export default function Editor({ song, onSave, onBack, onDelete, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null, onOpenNewSong = null }) {
+export default function Editor({ song, onSave, onBack, onDelete, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null }) {
   const confirm = useConfirm();
 
   // Working copy of the song we're editing. For a new song, songFromFlat
@@ -177,7 +176,6 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
   // get a full-height slide-over peek instead.
   const [previewPeekOpen, setPreviewPeekOpen] = useState(false);
   // Empty-state chooser for a brand-new, still-blank song.
-  const [emptyDismissed, setEmptyDismissed] = useState(false);
   const { width: previewWidth, onPointerDown: onPreviewResize } = useResizablePane({
     storageKey: 'setlists-md:editor-preview-w',
     defaultWidth: 460,
@@ -677,9 +675,6 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
   ) : null;
 
   // Show the empty-state chooser for a fresh blank song (no chords/lyrics yet).
-  const showEmptyState = !song && !readOnly && !emptyDismissed && !!preview
-    && Array.isArray(preview.sections)
-    && preview.sections.every(s => (s.lines || []).every(l => (typeof l === 'string' ? !l.trim() : false)));
 
   return (
     <div className="h-full bg-[var(--ds-background-200)] flex flex-col">
@@ -817,15 +812,7 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
           </div>
         )}
 
-          {showEmptyState ? (
-            <EditorEmptyState
-              onApplyMd={(newMd) => { setMd(newMd); setEmptyDismissed(true); }}
-              onDismiss={() => setEmptyDismissed(true)}
-              onImport={onOpenNewSong ? () => onOpenNewSong('import') : null}
-              onBrowse={onOpenNewSong ? () => onOpenNewSong('browse') : null}
-            />
-          ) : (
-          /* ─── Editor + preview row ─── */
+          {/* ─── Editor + preview row ─── */}
           <div className="flex-1 min-h-0 flex w-full overflow-hidden">
             <div className="flex-1 min-h-0 flex flex-col w-full border-r border-[var(--ds-gray-300)]">
               <div className={`flex-1 min-h-0 flex flex-col w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
@@ -861,7 +848,6 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
           </aside>
         )}
         </div>
-        )}
       </div>
 
       {/* ─── Narrow-screen preview peek (slide-over) ─── */}
