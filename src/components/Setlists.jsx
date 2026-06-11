@@ -145,6 +145,9 @@ export default function Setlists({
 
   const [query, setQuery] = useState('');
   const [serviceFilter, setServiceFilter] = useState('all');
+  const [selectedTags, setSelectedTags] = useState([]);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const tagsRef = useRef(null);
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'gallery'
   const [sortMode, setSortMode] = useState('date');   // 'name' | 'date' | 'songs'
   const [sortAsc, setSortAsc] = useState(false);
@@ -173,10 +176,18 @@ export default function Setlists({
     [setlists],
   );
 
+  // Distinct tags across all setlists — powers the multi-tag filter.
+  const allTags = useMemo(
+    () => [...new Set(setlists.flatMap(s => s.tags || []).filter(Boolean))].sort(),
+    [setlists],
+  );
+  const toggleTag = (tag) => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return setlists.filter(sl => {
       if (showService && serviceFilter !== 'all' && (sl.service || '') !== serviceFilter) return false;
+      if (selectedTags.length > 0 && !selectedTags.every(t => (sl.tags || []).includes(t))) return false;
       if (!q) return true;
       return (
         (sl.name || '').toLowerCase().includes(q) ||
@@ -184,9 +195,17 @@ export default function Setlists({
         (sl.tags || []).some(t => t.toLowerCase().includes(q))
       );
     });
-  }, [setlists, query, showService, serviceFilter]);
+  }, [setlists, query, showService, serviceFilter, selectedTags]);
 
-  useEffect(() => { setSelected([]); }, [query, sortMode, sortAsc, serviceFilter]);
+  useEffect(() => { setSelected([]); }, [query, sortMode, sortAsc, serviceFilter, selectedTags]);
+
+  // Close the tags dropdown on outside click.
+  useEffect(() => {
+    if (!tagsOpen) return;
+    const handler = (e) => { if (tagsRef.current && !tagsRef.current.contains(e.target)) setTagsOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [tagsOpen]);
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
@@ -339,6 +358,43 @@ export default function Setlists({
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
+          )}
+
+          {allTags.length > 0 && (
+            <div ref={tagsRef} className="relative">
+              <button
+                onClick={() => setTagsOpen(o => !o)}
+                className={cn(
+                  'h-9 px-4 rounded-lg border cursor-pointer flex items-center gap-2 text-label-14 transition-all duration-150',
+                  selectedTags.length > 0
+                    ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--modes-surface)]'
+                    : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]',
+                )}
+              >
+                {selectedTags.length > 0 && <span className="w-2 h-2 rounded-full bg-[var(--color-brand)]" />}
+                Tags{selectedTags.length > 0 ? ` (${selectedTags.length})` : ''}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn('transition-transform duration-150', tagsOpen && 'rotate-180')}>
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+              {tagsOpen && (
+                <div className="absolute right-0 top-full mt-2 w-[220px] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden">
+                  <div className="flex flex-col py-1 max-h-[320px] overflow-y-auto">
+                    {allTags.map(tag => (
+                      <label key={tag} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--modes-surface)] transition-colors">
+                        <input type="checkbox" checked={selectedTags.includes(tag)} onChange={() => toggleTag(tag)} className="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer" />
+                        <span className="text-copy-14 text-[var(--modes-text)]">{tag}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {selectedTags.length > 0 && (
+                    <button onClick={() => setSelectedTags([])} className="w-full px-4 py-2.5 text-left text-label-13 text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)] border-t border-[var(--modes-border)] cursor-pointer bg-transparent">
+                      Clear tags
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           <div className={cn('items-center rounded-lg border border-[var(--modes-border)] overflow-hidden', advanced ? 'flex' : 'hidden')}>
