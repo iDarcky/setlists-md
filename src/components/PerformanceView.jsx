@@ -395,6 +395,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
               showDiagrams={disp.showDiagrams}
               displayMode={displayMode}
               tabInstrument={tabInstrument}
+              chordEmphasis={settings?.stageMode === 'bassist' ? 'root' : 'full'}
               sectionColors={settings?.sectionColors}
               sectionLabels={settings?.sectionLabels}
               customSectionTypes={settings?.customSectionTypes}
@@ -481,7 +482,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   );
 }
 
-function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, nashville = false, showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', sectionColors, sectionLabels, customSectionTypes }) {
+function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, nashville = false, showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', chordEmphasis = 'full', sectionColors, sectionLabels, customSectionTypes }) {
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   const [notesOpen, setNotesOpen] = useState(false);
   const viewChords = displayMode === 'chords';
@@ -629,6 +630,7 @@ function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, 
             showLyrics={viewLyrics}
             showTabs={viewTabs}
             tabInstrument={tabInstrument}
+            chordEmphasis={chordEmphasis}
             inlineNotes
             noteStyle="dashes"
           />

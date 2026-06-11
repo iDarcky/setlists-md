@@ -19,6 +19,27 @@ export function readInitialPrefs() {
   }
 }
 
+// Lightweight, self-contained toast for the PDF pipeline. These modules run
+// outside React (and sometimes inside a popup), so they can't use the app's
+// Toaster — but a native alert() is jarring, so inject a transient element.
+function showPdfToast(message) {
+  try {
+    const t = document.createElement('div');
+    t.setAttribute('role', 'status');
+    t.textContent = message;
+    t.style.cssText =
+      'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483647;' +
+      'background:#1a1a1a;color:#fff;padding:12px 16px;border-radius:10px;max-width:90vw;' +
+      'font:14px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,0.3);';
+    document.body.appendChild(t);
+    setTimeout(() => {
+      t.style.transition = 'opacity 0.3s';
+      t.style.opacity = '0';
+      setTimeout(() => t.remove(), 300);
+    }, 4000);
+  } catch { /* DOM unavailable — fail silently */ }
+}
+
 function isStandaloneMode() {
   return (
     window.navigator.standalone === true ||
@@ -102,7 +123,7 @@ export function openPrintWindow(html) {
   // window.open to return null and prevents document.write.
   const w = window.open('about:blank', '_blank', 'width=900,height=1100,resizable=yes,scrollbars=yes');
   if (!w || w.closed || typeof w.document === 'undefined') {
-    alert('Could not open the print window. Please allow popups for this site and try again.');
+    showPdfToast('Could not open the print window. Please allow popups for this site and try again.');
     return null;
   }
   try {
@@ -114,7 +135,7 @@ export function openPrintWindow(html) {
   } catch (err) {
     console.error('[openPrintWindow] failed to populate popup', err);
     try { w.close(); } catch { /* ignore */ }
-    alert('Could not render the printable view. Please try again.');
+    showPdfToast('Could not render the printable view. Please try again.');
     return null;
   }
 }

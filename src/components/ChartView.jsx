@@ -892,6 +892,7 @@ export default function ChartView({
                 showLyrics={viewLyrics}
                 showTabs={viewTabs}
                 tabInstrument={tabInstrument}
+                chordEmphasis={settings?.stageMode === 'bassist' ? 'root' : 'full'}
                 inlineNotes={showInlineNotes}
                 noteStyle={inlineNoteStyle}
                 sectionColors={settings?.sectionColors}

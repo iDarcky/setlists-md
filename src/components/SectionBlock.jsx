@@ -9,6 +9,16 @@ const NOTE_SEPARATORS = {
   arrow:  ' ----> ',
 };
 
+// The note a bassist actually plays: the slash bass (e.g. C/E → E) when there
+// is one, otherwise the chord root (Gsus4 → G, Bbm7 → Bb).
+function bassNote(chord) {
+  if (!chord) return chord;
+  const parts = String(chord).split('/');
+  const base = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+  const m = base.match(/^[A-G][#b]?/);
+  return m ? m[0] : base;
+}
+
 // Group chord+text pairs into whole words so a lyric line only ever wraps at a
 // space — never in the middle of a word, even when a chord sits mid-word.
 // Returns a list of items: { segments: [{chord, text}] } for a word, or
@@ -41,7 +51,7 @@ function groupChordWords(pairs) {
 export default function SectionBlock({
   section, transpose, modOffset = 0, nns, songKey,
   showChords = true, showLyrics = true, showTabs = true, inlineNotes = true, noteStyle = 'dashes',
-  sectionColors, sectionLabels, customSectionTypes, tabScale = 1, tabColors, tabInstrument = 'all',
+  sectionColors, sectionLabels, customSectionTypes, tabScale = 1, tabColors, tabInstrument = 'all', chordEmphasis = 'full',
 }) {
   const s = sectionStyle(section.type, sectionColors, customSectionTypes);
   // When an instrument filter is active, only show tabs tagged for it. Untagged
@@ -122,7 +132,10 @@ export default function SectionBlock({
     const hasLyrics = pairs.some(p => p.text.trim());
 
     const renderChord = (rawChord, padded) => {
-      const chord = nns ? getNashvilleNumber(rawChord, songKey) : transposeChord(rawChord, effectiveTranspose);
+      let chord = nns ? getNashvilleNumber(rawChord, songKey) : transposeChord(rawChord, effectiveTranspose);
+      // Bass "root emphasis": collapse each chord to the note a bassist plays —
+      // the slash bass if present, otherwise the chord root.
+      if (chordEmphasis === 'root') chord = bassNote(chord);
       return (
         <span
           className="font-bold text-[var(--chord)] leading-none select-none whitespace-nowrap"

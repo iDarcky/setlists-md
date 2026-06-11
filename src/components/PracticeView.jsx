@@ -506,6 +506,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             showDiagrams={showDiagrams}
             displayMode={displayMode}
             tabInstrument={tabInstrument}
+            chordEmphasis={settings?.stageMode === 'bassist' ? 'root' : 'full'}
             sectionColors={settings?.sectionColors}
             sectionLabels={settings?.sectionLabels}
             customSectionTypes={settings?.customSectionTypes}
@@ -849,7 +850,7 @@ function StructureEditor({ structure, availableSections, onUpdate, onClose }) {
 }
 
 // Chart with editable cue cards between sections
-function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, nashville = false, showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', sectionColors, sectionLabels, customSectionTypes, onSaveCue }) {
+function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, nashville = false, showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', chordEmphasis = 'full', sectionColors, sectionLabels, customSectionTypes, onSaveCue }) {
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   // Mirror the chart-view display switch.
   const viewChords = displayMode === 'chords';
@@ -941,6 +942,7 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
             showLyrics={viewLyrics}
             showTabs={viewTabs}
             tabInstrument={tabInstrument}
+            chordEmphasis={chordEmphasis}
             inlineNotes
             noteStyle="dashes"
           />
