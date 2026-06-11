@@ -7,6 +7,9 @@ import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
 import ExportSetlistDialog from './ExportSetlistDialog';
 import { useTeam } from '../auth/useTeam';
+import { useAuth } from '../auth/useAuth';
+import { SHARE_ENABLED } from '../share/setlistShare';
+import ShareSetlistDialog from './ShareSetlistDialog';
 import RosterPanel from './setlist/RosterPanel';
 import { headerFrostStyle } from '../lib/headerFrost';
 import { formatClockTime } from '../lib/dateFormat';
@@ -16,6 +19,9 @@ import { useIsTablet, useIsDesktop } from '../lib/useMediaQuery';
 export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false, hidePlay = false }) {
   const confirm = useConfirm();
   const { team, isAdmin } = useTeam();
+  const { user } = useAuth();
+  const [shareOpen, setShareOpen] = useState(false);
+  const canShare = SHARE_ENABLED && !!user?.id && !embedded;
   // "Play live" lives in the BottomNav FAB on mobile + tablet (iPad, both
   // orientations). Only desktop — which has no bottom nav — needs an in-page
   // Play button, so we surface it there and nowhere else to avoid duplicates.
@@ -113,6 +119,14 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
         </svg>
       </IconButton>
+      {canShare && (
+        <IconButton variant="ghost" size="sm" onClick={() => setShareOpen(true)} aria-label="Share setlist" title="Share setlist">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+          </svg>
+        </IconButton>
+      )}
       {canEdit && onDelete && (
         <IconButton variant="ghost" size="sm" onClick={handleDelete} aria-label="Delete setlist" title="Delete setlist">
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -443,6 +457,15 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           onExportZip={() => { setExportOpen(false); onExportZip?.(); }}
           onExportPdfOverview={() => { setExportOpen(false); onExportPdfOverview?.(); }}
           onExportPdfFull={() => { setExportOpen(false); onExportPdfFull?.(); }}
+        />
+      )}
+
+      {shareOpen && (
+        <ShareSetlistDialog
+          setlist={setlist}
+          songs={songs}
+          ownerId={user?.id}
+          onClose={() => setShareOpen(false)}
         />
       )}
 

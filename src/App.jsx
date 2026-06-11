@@ -6,6 +6,7 @@ import WorkspacePickerDialog from "./components/ui/WorkspacePickerDialog";
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { parseSongMd, songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, getStorageEstimate, clearAll } from './storage';
+import { shareTokenFromUrl } from './share/setlistShare';
 import { withArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
 import { DEMO_SONGS_MD } from './data/demos';
@@ -69,6 +70,7 @@ const Editor = lazy(() => import('./components/Editor'));
 const SetlistBuilder = lazy(() => import('./components/SetlistBuilder'));
 const SetlistPlayer = lazy(() => import('./components/SetlistPlayer'));
 const SetlistOverview = lazy(() => import('./components/SetlistOverview'));
+const SharedSetlistViewer = lazy(() => import('./components/SharedSetlistViewer'));
 const PerformanceView = lazy(() => import('./components/PerformanceView'));
 const PracticeView = lazy(() => import('./components/PracticeView'));
 const LegalPage = lazy(() => import('./components/LegalPage'));
@@ -184,9 +186,11 @@ export default function App() {
       if (window.location.pathname === '/terms') return 'legal-terms';
       if (window.location.pathname === '/copyright') return 'legal-copyright';
       if (/(type=recovery|#access_token=.*type=recovery)/.test(window.location.hash + window.location.search)) return 'recovery';
+      if (shareTokenFromUrl()) return 'share-view';
     }
     return 'loading';
   });
+  const [shareToken] = useState(() => shareTokenFromUrl());
   const [currentSong, setCurrentSong] = useState(null);
   // Arrangement to open in the editor (the one the user was viewing). Reset
   // whenever we enter the editor unless an explicit id is passed.
@@ -1596,6 +1600,22 @@ export default function App() {
       toast({ title: 'Import failed', description: 'Could not read setlist zip.', variant: 'error' });
     }
   };
+
+  if (view === 'share-view') {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
+          <SharedSetlistViewer
+            token={shareToken}
+            onExit={() => {
+              window.history.replaceState({}, document.title, '/');
+              goToMainView('home');
+            }}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
 
   if (view === 'auth-callback') {
     return (
