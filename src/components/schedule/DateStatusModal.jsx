@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { formatClockTime } from '../../lib/dateFormat';
 
 const STATUS_OPTIONS = [
   {
@@ -33,17 +34,31 @@ const STATUS_OPTIONS = [
   },
 ];
 
+// Order + look for the per-member status pill.
+const STATUS_META = {
+  available: { label: 'Available', order: 0, cls: 'bg-[var(--ds-green-100)] text-[var(--ds-green-800)] border-[var(--ds-green-300)]' },
+  maybe: { label: 'Maybe', order: 1, cls: 'bg-[var(--ds-orange-100)] text-[var(--ds-orange-800)] border-[var(--ds-orange-300)]' },
+  pending: { label: 'No reply', order: 2, cls: 'bg-[var(--modes-surface-strong)] text-[var(--modes-text-dim)] border-[var(--modes-border)]' },
+  unavailable: { label: 'Unavailable', order: 3, cls: 'bg-[var(--ds-red-100)] text-[var(--ds-red-800)] border-[var(--ds-red-300)]' },
+};
+
 /**
- * Modal for picking the user's availability on a single date.
- * Replaces the previous "tap to cycle" interaction with explicit choices.
+ * Day detail sheet: the setlists scheduled on a date, the team's availability
+ * for it, and controls to set the current user's own status.
  */
 export default function DateStatusModal({
   date,
   currentStatus,
   availableCount,
   totalMembers,
+  setlists = [],
+  memberStatuses = [],
+  isAdmin = false,
+  clockFormat = '12h',
   onSetStatus,
   onClear,
+  onOpenSetlist,
+  onOpenRoster,
   onClose,
 }) {
   useEffect(() => {
@@ -56,6 +71,9 @@ export default function DateStatusModal({
 
   const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
   const longDate = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const sortedMembers = [...memberStatuses].sort(
+    (a, b) => (STATUS_META[a.status]?.order ?? 9) - (STATUS_META[b.status]?.order ?? 9) || a.name.localeCompare(b.name),
+  );
 
   return (
     <div
@@ -63,17 +81,17 @@ export default function DateStatusModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-2xl shadow-xl flex flex-col gap-4 p-5"
+        className="w-full max-w-md max-h-[85vh] overflow-y-auto bg-[var(--ds-background-100)] border border-[var(--modes-border)] rounded-2xl shadow-xl flex flex-col gap-4 p-5"
         onClick={e => e.stopPropagation()}
         role="dialog"
-        aria-label={`Set availability for ${longDate}`}
+        aria-label={`Day detail for ${longDate}`}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col">
-            <span className="text-label-12 uppercase tracking-wider text-[var(--ds-gray-600)]">
+            <span className="text-label-12 uppercase tracking-wider text-[var(--modes-text-dim)]">
               {weekday}
             </span>
-            <span className="text-heading-20 font-bold text-[var(--ds-gray-1000)]">
+            <span className="text-heading-20 font-bold text-[var(--modes-text)]">
               {longDate}
             </span>
           </div>
@@ -81,7 +99,7 @@ export default function DateStatusModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border-none text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] cursor-pointer"
+            className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border-none text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)] cursor-pointer"
           >
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -89,11 +107,32 @@ export default function DateStatusModal({
           </button>
         </div>
 
-        <p className="text-copy-13 text-[var(--ds-gray-700)] m-0">
-          Mark your availability so the worship leader can plan around it.
-        </p>
+        {/* Setlists on this date */}
+        {setlists.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <span className="text-label-12 uppercase tracking-wider font-semibold text-[var(--modes-text-dim)]">
+              {setlists.length === 1 ? 'Setlist' : 'Setlists'}
+            </span>
+            {setlists.map(sl => (
+              <div key={sl.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--modes-border)] bg-[var(--modes-surface)] px-3 py-2.5">
+                <div className="min-w-0">
+                  <div className="text-copy-14 font-semibold text-[var(--modes-text)] truncate">{sl.name || 'Untitled Setlist'}</div>
+                  {sl.time && <div className="text-label-12 text-[var(--modes-text-dim)]">{formatClockTime(sl.time, clockFormat)}</div>}
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button type="button" onClick={() => onOpenSetlist?.(sl)} className="text-label-13 font-semibold text-[var(--color-brand)] bg-transparent border-none cursor-pointer hover:underline">Open</button>
+                  {isAdmin && (
+                    <button type="button" onClick={() => onOpenRoster?.(sl)} className="text-label-13 font-semibold text-[var(--modes-text-muted)] bg-transparent border-none cursor-pointer hover:text-[var(--modes-text)]">Roster</button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
+        {/* My availability */}
         <div className="flex flex-col gap-2">
+          <span className="text-label-12 uppercase tracking-wider font-semibold text-[var(--modes-text-dim)]">My availability</span>
           {STATUS_OPTIONS.map(opt => {
             const active = currentStatus === opt.value;
             return (
@@ -108,36 +147,47 @@ export default function DateStatusModal({
                   color: active ? opt.activeFg : opt.fg,
                 }}
               >
-                <div className="text-copy-14 font-bold">
-                  {opt.label} {active && '✓'}
-                </div>
-                <div className="text-copy-12 mt-0.5 opacity-80">
-                  {opt.description}
-                </div>
+                <div className="text-copy-14 font-bold">{opt.label} {active && '✓'}</div>
+                <div className="text-copy-12 mt-0.5 opacity-80">{opt.description}</div>
               </button>
             );
           })}
+          {currentStatus && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-copy-13 text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] underline underline-offset-2 self-start cursor-pointer bg-transparent border-none p-0"
+            >
+              Clear my status for this date
+            </button>
+          )}
         </div>
 
-        {currentStatus && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="text-copy-13 text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] underline underline-offset-2 self-start cursor-pointer bg-transparent border-none p-0"
-          >
-            Clear my status for this date
-          </button>
-        )}
-
-        {typeof availableCount === 'number' && totalMembers > 0 && (
-          <div className="text-label-12 text-[var(--ds-gray-600)] flex items-center gap-2 pt-2 border-t border-[var(--ds-gray-200)]">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-            {availableCount} of {totalMembers} teammates available
+        {/* Team availability */}
+        {sortedMembers.length > 0 && (
+          <div className="flex flex-col gap-2 pt-2 border-t border-[var(--modes-border)]">
+            <div className="flex items-center justify-between">
+              <span className="text-label-12 uppercase tracking-wider font-semibold text-[var(--modes-text-dim)]">Team availability</span>
+              {typeof availableCount === 'number' && totalMembers > 0 && (
+                <span className="text-label-12 text-[var(--modes-text-dim)]">{availableCount}/{totalMembers} available</span>
+              )}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {sortedMembers.map(m => {
+                const meta = STATUS_META[m.status] || STATUS_META.pending;
+                return (
+                  <div key={m.id} className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center overflow-hidden shrink-0 text-label-11 font-bold text-[var(--modes-text-muted)]">
+                      {m.avatarUrl ? <img src={m.avatarUrl} alt="" className="w-full h-full object-cover" /> : (m.name[0] || '?').toUpperCase()}
+                    </div>
+                    <span className="flex-1 min-w-0 text-copy-13 text-[var(--modes-text)] truncate">
+                      {m.name}{m.isYou && <span className="text-[var(--modes-text-dim)]"> (you)</span>}
+                    </span>
+                    <span className={`text-label-11 px-2 py-0.5 rounded-full border shrink-0 ${meta.cls}`}>{meta.label}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

@@ -360,6 +360,7 @@ function InviteForm({ onInvite, seatsLeft }) {
 function TeamStats({ teamId }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [serviceFilter, setServiceFilter] = useState('all');
 
   useEffect(() => {
     (async () => {
@@ -389,42 +390,35 @@ function TeamStats({ teamId }) {
 
         const setlistCount = ordered.length;
 
-        let songCounts = {};
+        // Song play-counts, both overall ("all") and per service, so the team
+        // can see which songs they lean on for each service.
+        const songsByService = { all: {} };
+        const servicesSet = new Set();
         let recentSongs = [];
 
         ordered.forEach((sl, index) => {
+          const svc = sl.content?.service?.trim() || null;
+          if (svc) {
+            servicesSet.add(svc);
+            songsByService[svc] = songsByService[svc] || {};
+          }
           const items = sl.content?.items || [];
           items.forEach(item => {
             if (item.type !== 'break' && item.songTitle) {
-              songCounts[item.songTitle] = (songCounts[item.songTitle] || 0) + 1;
+              songsByService.all[item.songTitle] = (songsByService.all[item.songTitle] || 0) + 1;
+              if (svc) songsByService[svc][item.songTitle] = (songsByService[svc][item.songTitle] || 0) + 1;
               if (index < 5 && !recentSongs.find(s => s.title === item.songTitle)) {
                 recentSongs.push({ title: item.songTitle, date: sl.content?.date || null });
               }
             }
           });
         });
-        
-        const popularSongs = Object.entries(songCounts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 5)
-          .map(([title, count]) => ({ title, count }));
-
-        // Break setlists down by their service (church tier). Setlists with no
-        // service collapse into "No service".
-        const serviceCounts = {};
-        ordered.forEach(sl => {
-          const svc = sl.content?.service?.trim() || 'No service';
-          serviceCounts[svc] = (serviceCounts[svc] || 0) + 1;
-        });
-        const byService = Object.entries(serviceCounts)
-          .sort((a, b) => b[1] - a[1])
-          .map(([service, count]) => ({ service, count }));
 
         setStats({
           songCount: songCount || 0,
           setlistCount,
-          popularSongs,
-          byService,
+          songsByService,
+          services: [...servicesSet].sort(),
           recentSongs: recentSongs.slice(0, 5)
         });
       } catch (err) {
@@ -450,33 +444,47 @@ function TeamStats({ teamId }) {
         </div>
       </div>
 
-      {stats?.byService?.some(s => s.service !== 'No service') && (
-        <div>
-          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Setlists by Service</h3>
-          <div className="flex flex-col gap-2">
-            {stats.byService.map((row, i) => (
-              <div key={i} className="modes-card flex items-center justify-between px-4 py-3">
-                <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{row.service}</span>
-                <span className="text-label-12 text-[var(--modes-text-dim)]">{row.count} setlist{row.count !== 1 ? 's' : ''}</span>
+      {(() => {
+        const counts = stats?.songsByService?.[serviceFilter] || {};
+        const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        const hasServices = (stats?.services?.length || 0) > 0;
+        if (ranked.length === 0 && !hasServices) return null;
+        return (
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3 px-1">
+              <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">Songs by Service</h3>
+            </div>
+            {hasServices && (
+              <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-3">
+                {['all', ...stats.services].map(svc => (
+                  <button
+                    key={svc}
+                    type="button"
+                    onClick={() => setServiceFilter(svc)}
+                    className={`shrink-0 px-3 h-8 rounded-lg border text-label-12 font-semibold transition-all cursor-pointer ${
+                      serviceFilter === svc
+                        ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                        : 'border-[var(--modes-border)] text-[var(--modes-text-muted)] bg-[var(--modes-surface)] hover:text-[var(--modes-text)]'
+                    }`}
+                  >
+                    {svc === 'all' ? 'All services' : svc}
+                  </button>
+                ))}
               </div>
-            ))}
+            )}
+            <div className="flex flex-col gap-2">
+              {ranked.length > 0 ? ranked.map(([title, count], i) => (
+                <div key={i} className="modes-card flex items-center justify-between px-4 py-3">
+                  <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{title}</span>
+                  <span className="text-label-12 text-[var(--modes-text-dim)]">{count} play{count !== 1 ? 's' : ''}</span>
+                </div>
+              )) : (
+                <div className="modes-card px-4 py-6 text-center text-copy-13 text-[var(--modes-text-dim)]">No songs for this service yet.</div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-
-      {stats?.popularSongs?.length > 0 && (
-        <div>
-          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Most Popular Songs</h3>
-          <div className="flex flex-col gap-2">
-            {stats.popularSongs.map((song, i) => (
-              <div key={i} className="modes-card flex items-center justify-between px-4 py-3">
-                <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{song.title}</span>
-                <span className="text-label-12 text-[var(--modes-text-dim)]">{song.count} plays</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {stats?.recentSongs?.length > 0 && (
         <div>

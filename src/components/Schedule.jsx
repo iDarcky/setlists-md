@@ -33,14 +33,14 @@ function useIsMobile() {
 }
 
 // Modern header matching the Setlists / Library / Team shell.
-function ScheduleHeader({ teamName, viewMode, onSetView, onBack, hideToggle = false }) {
+function ScheduleHeader({ teamName, viewMode, onSetView, onBack, showBack = true, hideToggle = false }) {
   return (
     <header
       className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
-      <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
-        {onBack && (
+      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
+        {onBack && showBack && (
           <button
             type="button"
             onClick={onBack}
@@ -92,6 +92,18 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
   const pickerAvailableCount = pickerDateStr
     ? availability.filter(a => a.date === pickerDateStr && a.status === 'available').length
     : 0;
+  // Setlists scheduled on the picked date, and every member's availability for
+  // it — so the day sheet shows what's happening and who can serve.
+  const pickerSetlists = pickerDateStr ? setlists.filter(sl => sl.date === pickerDateStr) : [];
+  const pickerMemberStatuses = pickerDateStr
+    ? members.map(m => ({
+        id: m.user_id,
+        name: m.profile?.display_name || m.profile?.email?.split('@')[0] || 'Member',
+        avatarUrl: m.profile?.avatar_url || null,
+        isYou: m.user_id === user?.id,
+        status: availability.find(a => a.user_id === m.user_id && a.date === pickerDateStr)?.status || 'pending',
+      }))
+    : [];
 
   const handleSetStatus = async (status) => {
     if (!pickerDate) return;
@@ -123,8 +135,8 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
   if (!team) {
     return (
       <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
-        <ScheduleHeader teamName={null} viewMode={viewMode} onSetView={handleSetView} onBack={onBack} hideToggle />
-        <div className="w-full max-w-3xl mx-auto px-5 sm:px-8 py-16">
+        <ScheduleHeader teamName={null} viewMode={viewMode} onSetView={handleSetView} onBack={onBack} showBack={isMobile} hideToggle />
+        <div className="w-full max-w-4xl mx-auto px-5 sm:px-8 py-16">
           <div className="modes-card p-8 text-center flex flex-col items-center gap-3">
             <div className="w-14 h-14 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--modes-text-muted)]">
@@ -143,9 +155,9 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
 
   return (
     <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
-      <ScheduleHeader teamName={team.name} viewMode={viewMode} onSetView={handleSetView} onBack={onBack} />
+      <ScheduleHeader teamName={team.name} viewMode={viewMode} onSetView={handleSetView} onBack={onBack} showBack={isMobile} />
 
-      <div className="w-full max-w-3xl mx-auto px-5 sm:px-8 py-6 flex flex-col gap-6">
+      <div className="w-full max-w-4xl mx-auto px-5 sm:px-8 py-6 flex flex-col gap-6">
         <RecurringPicker onApply={handleApplyRecurring} />
 
         {viewMode === 'list' ? (
@@ -199,8 +211,14 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
           currentStatus={pickerStatus}
           availableCount={pickerAvailableCount}
           totalMembers={members.length}
+          setlists={pickerSetlists}
+          memberStatuses={pickerMemberStatuses}
+          isAdmin={isAdmin}
+          clockFormat={clockFormat}
           onSetStatus={handleSetStatus}
           onClear={handleClearStatus}
+          onOpenSetlist={(sl) => { setPickerDate(null); onOpenSetlist?.(sl); }}
+          onOpenRoster={(sl) => { setPickerDate(null); setRosterSetlist(sl); }}
           onClose={() => setPickerDate(null)}
         />
       )}
