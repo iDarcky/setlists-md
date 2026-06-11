@@ -1300,6 +1300,21 @@ export default function App() {
     toast({ title: `Deleted ${ids.length} song${ids.length === 1 ? '' : 's'}` });
   };
 
+  // Rename or clear a service across every setlist that uses it. Passing an
+  // empty newName "deletes" the service (it disappears once unused). Mutates
+  // via setSetlists like other setlist edits, so the auto-save effect persists.
+  const handleRemapService = useCallback((oldName, newName) => {
+    const next = (newName || '').trim();
+    setSetlists(prev => prev.map(sl =>
+      (sl.service || '') === oldName
+        ? { ...sl, service: next, updatedAt: Date.now() }
+        : sl
+    ));
+    toast(next
+      ? { title: 'Service renamed', description: `“${oldName}” → “${next}”` }
+      : { title: 'Service removed', description: `“${oldName}” cleared from its setlists` });
+  }, []);
+
   const handleAddSongsToSetlist = (songIds, setlistId) => {
     const target = setlists.find(s => s.id === setlistId);
     if (!target) return;
@@ -2107,6 +2122,8 @@ export default function App() {
               onCreateAccount={() => { setAuthStartMode('signup'); navigate('signin'); }}
               activeLibrary={activeLibrary}
               team={team}
+              setlists={setlists}
+              onRemapService={handleRemapService}
             />
           )}
           {view === "account" && settings && (

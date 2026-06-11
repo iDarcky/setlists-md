@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Account from './Account';
 import { useAuth } from '../auth/useAuth';
+import { useEntitlement } from '../hooks/useEntitlement';
+import { Input } from './ui/Input';
 import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '../billing/checkout';
 import SyncSettings from './settings/SyncSettings';
 import WhatsNewPanel from './settings/WhatsNewPanel';
@@ -151,6 +153,7 @@ const PANEL_TITLES = {
   'chart-style': 'Chart Style',
   sections: 'Sections',
   sync: 'Cloud Sync',
+  services: 'Services',
   plan: 'Plan & billing',
   data: 'Data',
   whatsnew: "What's New",
@@ -607,6 +610,78 @@ function planSummary(plan) {
   return `${label} plan`;
 }
 
+function ServicesPanel({ setlists = [], onRemapService }) {
+  const confirm = useConfirm();
+  const services = useMemo(() => {
+    const counts = {};
+    setlists.forEach(sl => {
+      const s = (sl.service || '').trim();
+      if (s) counts[s] = (counts[s] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([name, count]) => ({ name, count }));
+  }, [setlists]);
+
+  const [editing, setEditing] = useState(null);
+  const [draft, setDraft] = useState('');
+
+  const startEdit = (name) => { setEditing(name); setDraft(name); };
+  const saveEdit = (oldName) => {
+    const next = draft.trim();
+    if (next && next !== oldName) onRemapService?.(oldName, next);
+    setEditing(null);
+  };
+  const remove = async (name, count) => {
+    const ok = await confirm({
+      title: `Remove “${name}”?`,
+      description: `This clears the service from ${count} setlist${count === 1 ? '' : 's'}. The setlists themselves are kept.`,
+      confirmLabel: 'Remove service',
+      variant: 'danger',
+    });
+    if (ok) onRemapService?.(name, '');
+  };
+
+  return (
+    <Section subtitle="Services are the slots a setlist belongs to (e.g. Sunday AM). They come from what you type on setlists — rename or remove them here.">
+      {services.length === 0 ? (
+        <div className="modes-card p-6 text-center text-copy-14 text-[var(--modes-text-muted)]">
+          No services yet. Set a service on a setlist and it’ll appear here.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {services.map(svc => (
+            <div key={svc.name} className="modes-card flex items-center gap-2 px-4 py-3">
+              {editing === svc.name ? (
+                <>
+                  <Input
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') saveEdit(svc.name); if (e.key === 'Escape') setEditing(null); }}
+                    autoFocus
+                    className="flex-1"
+                  />
+                  <Button variant="brand" size="sm" onClick={() => saveEdit(svc.name)} disabled={!draft.trim()}>Save</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setEditing(null)}>Cancel</Button>
+                </>
+              ) : (
+                <>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{svc.name}</div>
+                    <div className="text-label-12 text-[var(--modes-text-dim)]">{svc.count} setlist{svc.count === 1 ? '' : 's'}</div>
+                  </div>
+                  <Button variant="secondary" size="sm" onClick={() => startEdit(svc.name)}>Rename</Button>
+                  <Button variant="ghost" size="sm" onClick={() => remove(svc.name, svc.count)} className="text-[var(--ds-red-700)]">Remove</Button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
+  );
+}
+
 function AboutPanel({ isSignedIn, displayName, onShowLegal }) {
   const linkClass = 'text-left hover:text-[var(--modes-text)] transition-colors underline-offset-4 underline decoration-[var(--modes-border)] bg-transparent border-none p-0 cursor-pointer';
   const showLegal = onShowLegal || (() => {});
@@ -754,7 +829,10 @@ export default function Settings({
   onChangePanel = () => {},
   activeLibrary = 'personal',
   team = null,
+  setlists = [],
+  onRemapService,
 }) {
+  const { allowed: canManageServices } = useEntitlement('multi-service');
   // Accepts (key, value) for single-field tweaks or a patch object for
   // multi-field updates done in the same render — without this, two
   // back-to-back update('foo', ...) calls each spread the *stale*
@@ -806,6 +884,8 @@ export default function Settings({
             team={team}
           />
         );
+      case 'services':
+        return <ServicesPanel setlists={setlists} onRemapService={onRemapService} />;
       case 'plan':
         return (
           <PlanPanel
@@ -967,6 +1047,14 @@ export default function Settings({
               value={syncSummary(syncState)}
               onClick={() => onChangePanel('sync')}
             />
+            {canManageServices && (
+              <HubRow
+                icon={PlanIcon}
+                label="Services"
+                value={`${new Set(setlists.map(s => (s.service || '').trim()).filter(Boolean)).size} service${new Set(setlists.map(s => (s.service || '').trim()).filter(Boolean)).size === 1 ? '' : 's'}`}
+                onClick={() => onChangePanel('services')}
+              />
+            )}
             <HubRow
               icon={PlanIcon}
               label="Plan & billing"
