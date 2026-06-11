@@ -39,7 +39,7 @@ function ScheduleHeader({ teamName, viewMode, onSetView, onBack, showBack = true
       className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
-      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
+      <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 h-16 flex items-center gap-3">
         {onBack && showBack && (
           <button
             type="button"
@@ -51,7 +51,7 @@ function ScheduleHeader({ teamName, viewMode, onSetView, onBack, showBack = true
           </button>
         )}
         <div className="flex-1 min-w-0">
-          <h1 className="text-heading-24 font-bold text-[var(--modes-text)] m-0 truncate leading-tight">Schedule</h1>
+          <h1 className="text-heading-32 font-bold text-[var(--modes-text)] m-0 truncate leading-tight">Schedule</h1>
           {teamName && <p className="text-label-12 text-[var(--modes-text-dim)] m-0 truncate">{teamName}</p>}
         </div>
         {!hideToggle && (
@@ -136,7 +136,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
     return (
       <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
         <ScheduleHeader teamName={null} viewMode={viewMode} onSetView={handleSetView} onBack={onBack} showBack={isMobile} hideToggle />
-        <div className="w-full max-w-4xl mx-auto px-5 sm:px-8 py-16">
+        <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 py-16">
           <div className="modes-card p-8 text-center flex flex-col items-center gap-3">
             <div className="w-14 h-14 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--modes-text-muted)]">
@@ -157,7 +157,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
     <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
       <ScheduleHeader teamName={team.name} viewMode={viewMode} onSetView={handleSetView} onBack={onBack} showBack={isMobile} />
 
-      <div className="w-full max-w-4xl mx-auto px-5 sm:px-8 py-6 flex flex-col gap-6">
+      <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 pt-6 pb-28 flex flex-col gap-6">
         <RecurringPicker onApply={handleApplyRecurring} />
 
         {viewMode === 'list' ? (

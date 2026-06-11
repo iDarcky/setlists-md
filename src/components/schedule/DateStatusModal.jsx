@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { formatClockTime } from '../../lib/dateFormat';
 
 const STATUS_OPTIONS = [
@@ -16,10 +16,10 @@ const STATUS_OPTIONS = [
     value: 'maybe',
     label: 'Maybe',
     description: 'Tentative — confirm closer to the date.',
-    bg: 'var(--ds-orange-100)',
-    border: 'var(--ds-orange-300)',
-    fg: 'var(--ds-orange-800)',
-    activeBg: 'var(--ds-orange-600)',
+    bg: 'var(--ds-amber-100)',
+    border: 'var(--ds-amber-300)',
+    fg: 'var(--ds-amber-900)',
+    activeBg: 'var(--ds-amber-600)',
     activeFg: '#fff',
   },
   {
@@ -34,12 +34,13 @@ const STATUS_OPTIONS = [
   },
 ];
 
-// Order + look for the per-member status pill.
+// Order + look for the per-member status pill. Borderless tinted fills (the
+// light status borders read as a harsh outline on the dark schedule surface).
 const STATUS_META = {
-  available: { label: 'Available', order: 0, cls: 'bg-[var(--ds-green-100)] text-[var(--ds-green-800)] border-[var(--ds-green-300)]' },
-  maybe: { label: 'Maybe', order: 1, cls: 'bg-[var(--ds-orange-100)] text-[var(--ds-orange-800)] border-[var(--ds-orange-300)]' },
-  pending: { label: 'No reply', order: 2, cls: 'bg-[var(--modes-surface-strong)] text-[var(--modes-text-dim)] border-[var(--modes-border)]' },
-  unavailable: { label: 'Unavailable', order: 3, cls: 'bg-[var(--ds-red-100)] text-[var(--ds-red-800)] border-[var(--ds-red-300)]' },
+  available: { label: 'Available', order: 0, cls: 'bg-[var(--ds-green-100)] text-[var(--ds-green-800)]' },
+  maybe: { label: 'Maybe', order: 1, cls: 'bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)]' },
+  pending: { label: 'No reply', order: 2, cls: 'bg-[var(--modes-surface-strong)] text-[var(--modes-text-dim)]' },
+  unavailable: { label: 'Unavailable', order: 3, cls: 'bg-[var(--ds-red-100)] text-[var(--ds-red-800)]' },
 };
 
 /**
@@ -61,6 +62,8 @@ export default function DateStatusModal({
   onOpenRoster,
   onClose,
 }) {
+  const [editing, setEditing] = useState(false);
+
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
@@ -68,6 +71,7 @@ export default function DateStatusModal({
   }, [onClose]);
 
   if (!date) return null;
+  const myMeta = STATUS_META[currentStatus] || null;
 
   const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
   const longDate = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -130,38 +134,53 @@ export default function DateStatusModal({
           </div>
         )}
 
-        {/* My availability */}
-        <div className="flex flex-col gap-2">
-          <span className="text-label-12 uppercase tracking-wider font-semibold text-[var(--modes-text-dim)]">My availability</span>
-          {STATUS_OPTIONS.map(opt => {
-            const active = currentStatus === opt.value;
-            return (
+        {/* My availability — collapsed by default; only the controls when
+            editing. Keeps the day sheet focused on the team's status. */}
+        {!editing ? (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="flex items-center justify-between gap-3 rounded-xl border border-[var(--modes-border)] bg-[var(--modes-surface)] px-4 py-3 cursor-pointer hover:bg-[var(--modes-surface-strong)] transition-colors"
+          >
+            <span className="flex items-center gap-2 min-w-0">
+              <span className="text-copy-14 font-medium text-[var(--modes-text)]">Your availability</span>
+              {myMeta && <span className={`text-label-11 px-2 py-0.5 rounded-full shrink-0 ${myMeta.cls}`}>{myMeta.label}</span>}
+            </span>
+            <span className="text-label-13 font-semibold text-[var(--color-brand)] shrink-0">{currentStatus ? 'Change' : 'Set status'}</span>
+          </button>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <span className="text-label-12 uppercase tracking-wider font-semibold text-[var(--modes-text-dim)]">My availability</span>
+            {STATUS_OPTIONS.map(opt => {
+              const active = currentStatus === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onSetStatus(opt.value)}
+                  className="text-left rounded-xl border p-3 cursor-pointer transition-colors"
+                  style={{
+                    background: active ? opt.activeBg : opt.bg,
+                    borderColor: active ? opt.activeBg : opt.border,
+                    color: active ? opt.activeFg : opt.fg,
+                  }}
+                >
+                  <div className="text-copy-14 font-bold">{opt.label} {active && '✓'}</div>
+                  <div className="text-copy-12 mt-0.5 opacity-80">{opt.description}</div>
+                </button>
+              );
+            })}
+            {currentStatus && (
               <button
-                key={opt.value}
                 type="button"
-                onClick={() => onSetStatus(opt.value)}
-                className="text-left rounded-xl border p-3 cursor-pointer transition-colors"
-                style={{
-                  background: active ? opt.activeBg : opt.bg,
-                  borderColor: active ? opt.activeBg : opt.border,
-                  color: active ? opt.activeFg : opt.fg,
-                }}
+                onClick={onClear}
+                className="text-copy-13 text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] underline underline-offset-2 self-start cursor-pointer bg-transparent border-none p-0"
               >
-                <div className="text-copy-14 font-bold">{opt.label} {active && '✓'}</div>
-                <div className="text-copy-12 mt-0.5 opacity-80">{opt.description}</div>
+                Clear my status for this date
               </button>
-            );
-          })}
-          {currentStatus && (
-            <button
-              type="button"
-              onClick={onClear}
-              className="text-copy-13 text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] underline underline-offset-2 self-start cursor-pointer bg-transparent border-none p-0"
-            >
-              Clear my status for this date
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* Team availability */}
         {sortedMembers.length > 0 && (
@@ -183,7 +202,7 @@ export default function DateStatusModal({
                     <span className="flex-1 min-w-0 text-copy-13 text-[var(--modes-text)] truncate">
                       {m.name}{m.isYou && <span className="text-[var(--modes-text-dim)]"> (you)</span>}
                     </span>
-                    <span className={`text-label-11 px-2 py-0.5 rounded-full border shrink-0 ${meta.cls}`}>{meta.label}</span>
+                    <span className={`text-label-11 px-2 py-0.5 rounded-full shrink-0 ${meta.cls}`}>{meta.label}</span>
                   </div>
                 );
               })}

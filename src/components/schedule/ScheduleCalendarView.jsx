@@ -50,8 +50,6 @@ export default function ScheduleCalendarView({
   isAdmin,
   firstDayOfWeek = 'sunday',
   onSelectDate,
-  onOpenSetlist,
-  onOpenRoster,
 }) {
   const weekStart = firstDayOffset(firstDayOfWeek);
   const WEEKDAY_LABELS = weekdayLabels(firstDayOfWeek);
@@ -107,67 +105,52 @@ export default function ScheduleCalendarView({
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-1.5">
         {cells.map((date, idx) => {
           const dateStr = toLocalDateStr(date);
           const inMonth = date.getMonth() === cursor.getMonth();
-          const isPast = date < today;
           const isToday = date.getTime() === today.getTime();
           const myStatus = myAvailFor(dateStr);
           const slOnDay = setlistsFor(dateStr);
           const availCount = availableCountFor(dateStr);
 
-          const cellBg = isToday
-            ? 'border-[var(--color-brand)] bg-[var(--modes-surface-strong)]'
-            : 'border-[var(--modes-border)] bg-[var(--modes-surface)]';
-
-          const opacity = inMonth ? '' : 'opacity-40';
-          const interactive = !isPast;
-
           return (
             <button
               key={idx}
               type="button"
-              disabled={!interactive}
-              onClick={() => interactive ? onSelectDate(date) : null}
-              className={`relative aspect-square flex flex-col items-stretch justify-between rounded-lg border p-1.5 text-left transition-colors ${cellBg} ${opacity} ${interactive ? 'hover:bg-[var(--modes-surface-strong)] cursor-pointer' : 'cursor-default'}`}
+              onClick={() => onSelectDate(date)}
+              className={`min-h-[84px] sm:min-h-[124px] flex flex-col gap-1 rounded-xl border p-1.5 text-left transition-colors cursor-pointer ${
+                isToday ? 'border-[var(--color-brand)] bg-[var(--modes-surface)]' : 'border-[var(--modes-border)] bg-[var(--modes-surface)]'
+              } hover:bg-[var(--modes-surface-strong)] ${inMonth ? '' : 'opacity-45'}`}
             >
-              <div className="flex items-center justify-between">
-                <span className={`text-label-13 ${isToday ? 'font-bold text-[var(--color-brand)]' : 'text-[var(--modes-text)]'}`}>
-                  {date.getDate()}
-                </span>
+              <div className="flex items-center justify-between gap-1">
+                {isToday ? (
+                  <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1 rounded-full bg-[var(--color-brand)] text-white text-label-12 font-bold">
+                    {date.getDate()}
+                  </span>
+                ) : (
+                  <span className="text-label-13 text-[var(--modes-text)] pl-0.5">{date.getDate()}</span>
+                )}
                 {myStatus && (
                   <span className={`w-2 h-2 rounded-full ${statusDotClass(myStatus)}`} aria-label={myStatus} />
                 )}
               </div>
 
-              <div className="flex flex-col gap-0.5">
-                {slOnDay.length > 0 && (
+              <div className="flex flex-col gap-1 min-h-0">
+                {slOnDay.slice(0, 2).map(sl => (
                   <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (isAdmin) onOpenRoster(slOnDay[0]);
-                      else onOpenSetlist(slOnDay[0]);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.stopPropagation();
-                        if (isAdmin) onOpenRoster(slOnDay[0]);
-                        else onOpenSetlist(slOnDay[0]);
-                      }
-                    }}
-                    className="block text-label-10 px-1 py-0.5 rounded bg-[var(--color-brand)] text-white truncate cursor-pointer hover:opacity-90"
-                    title={slOnDay[0].name}
+                    key={sl.id}
+                    className="block text-label-10 leading-tight px-1.5 py-1 rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] font-medium truncate"
+                    title={sl.name}
                   >
-                    {slOnDay[0].name || 'Setlist'}
+                    {sl.name || 'Setlist'}
                   </span>
+                ))}
+                {slOnDay.length > 2 && (
+                  <span className="text-label-10 text-[var(--modes-text-dim)] pl-0.5">+{slOnDay.length - 2} more</span>
                 )}
                 {isAdmin && availCount > 0 && (
-                  <span className="text-label-10 text-[var(--modes-text-dim)]">
-                    {availCount}/{members.length} avail
-                  </span>
+                  <span className="text-label-10 text-[var(--modes-text-dim)] pl-0.5">{availCount}/{members.length} avail</span>
                 )}
               </div>
             </button>

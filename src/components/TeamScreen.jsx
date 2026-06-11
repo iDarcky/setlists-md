@@ -360,7 +360,8 @@ function InviteForm({ onInvite, seatsLeft }) {
 function TeamStats({ teamId }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [serviceFilter, setServiceFilter] = useState('all');
+  // Empty = "All services"; otherwise the union of the picked services.
+  const [selectedServices, setSelectedServices] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -445,31 +446,58 @@ function TeamStats({ teamId }) {
       </div>
 
       {(() => {
-        const counts = stats?.songsByService?.[serviceFilter] || {};
-        const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        const sbs = stats?.songsByService || { all: {} };
         const hasServices = (stats?.services?.length || 0) > 0;
+        // Aggregate counts across the selected services (or "all" when none).
+        const merged = {};
+        if (selectedServices.length === 0) {
+          Object.assign(merged, sbs.all || {});
+        } else {
+          selectedServices.forEach(svc => {
+            Object.entries(sbs[svc] || {}).forEach(([title, c]) => {
+              merged[title] = (merged[title] || 0) + c;
+            });
+          });
+        }
+        const ranked = Object.entries(merged).sort((a, b) => b[1] - a[1]).slice(0, 8);
         if (ranked.length === 0 && !hasServices) return null;
+        const toggle = (svc) => setSelectedServices(prev => prev.includes(svc) ? prev.filter(s => s !== svc) : [...prev, svc]);
         return (
           <div>
             <div className="flex items-center justify-between gap-2 mb-3 px-1">
               <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">Songs by Service</h3>
+              {hasServices && <span className="text-label-11 text-[var(--modes-text-dim)]">Tap to combine services</span>}
             </div>
             {hasServices && (
               <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-3">
-                {['all', ...stats.services].map(svc => (
-                  <button
-                    key={svc}
-                    type="button"
-                    onClick={() => setServiceFilter(svc)}
-                    className={`shrink-0 px-3 h-8 rounded-lg border text-label-12 font-semibold transition-all cursor-pointer ${
-                      serviceFilter === svc
-                        ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
-                        : 'border-[var(--modes-border)] text-[var(--modes-text-muted)] bg-[var(--modes-surface)] hover:text-[var(--modes-text)]'
-                    }`}
-                  >
-                    {svc === 'all' ? 'All services' : svc}
-                  </button>
-                ))}
+                <button
+                  type="button"
+                  onClick={() => setSelectedServices([])}
+                  className={`shrink-0 px-3 h-8 rounded-lg border text-label-12 font-semibold transition-all cursor-pointer ${
+                    selectedServices.length === 0
+                      ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                      : 'border-[var(--modes-border)] text-[var(--modes-text-muted)] bg-[var(--modes-surface)] hover:text-[var(--modes-text)]'
+                  }`}
+                >
+                  All services
+                </button>
+                {stats.services.map(svc => {
+                  const active = selectedServices.includes(svc);
+                  return (
+                    <button
+                      key={svc}
+                      type="button"
+                      onClick={() => toggle(svc)}
+                      className={`shrink-0 px-3 h-8 rounded-lg border text-label-12 font-semibold transition-all cursor-pointer ${
+                        active
+                          ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                          : 'border-[var(--modes-border)] text-[var(--modes-text-muted)] bg-[var(--modes-surface)] hover:text-[var(--modes-text)]'
+                      }`}
+                    >
+                      {active && '✓ '}{svc}
+                    </button>
+                  );
+                })}
               </div>
             )}
             <div className="flex flex-col gap-2">
@@ -479,7 +507,7 @@ function TeamStats({ teamId }) {
                   <span className="text-label-12 text-[var(--modes-text-dim)]">{count} play{count !== 1 ? 's' : ''}</span>
                 </div>
               )) : (
-                <div className="modes-card px-4 py-6 text-center text-copy-13 text-[var(--modes-text-dim)]">No songs for this service yet.</div>
+                <div className="modes-card px-4 py-6 text-center text-copy-13 text-[var(--modes-text-dim)]">No songs for the selected service{selectedServices.length === 1 ? '' : 's'} yet.</div>
               )}
             </div>
           </div>
@@ -566,8 +594,8 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
   const seatsLeft = (team.max_seats || 10) - members.length - (invites?.length || 0);
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
-      <div className="max-w-2xl mx-auto flex flex-col gap-6">
+    <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+      <div className="max-w-[1320px] mx-auto flex flex-col gap-6">
         {/* Team header */}
         <div className="modes-card-strong p-6 pb-0 overflow-hidden">
           <div className="flex items-start gap-4 mb-6">
@@ -793,7 +821,7 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
         className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
+        <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 h-16 flex items-center gap-3">
           {headerBack && (
             <button
               type="button"
@@ -806,7 +834,7 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
               </svg>
             </button>
           )}
-          <h1 className="flex-1 min-w-0 text-heading-24 font-bold text-[var(--modes-text)] m-0 truncate">{headerTitle}</h1>
+          <h1 className="flex-1 min-w-0 text-heading-32 font-bold text-[var(--modes-text)] m-0 truncate">{headerTitle}</h1>
           {!creating && team && canCreate && (
             <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
               <span className="flex items-center gap-1.5"><PlusIcon /> New</span>

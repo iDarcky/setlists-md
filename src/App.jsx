@@ -2185,7 +2185,7 @@ export default function App() {
       {/* Mobile glass nav lives at the App root (not inside <main>) so the
           drawer's transform/will-change doesn't capture its fixed positioning
           or break the glass backdrop-filter. */}
-      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade'].includes(view) && !drawerOpen && (
+      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule'].includes(view) && !drawerOpen && (
         <BottomNav
           activeView={view}
           onNavigate={goToMainView}
