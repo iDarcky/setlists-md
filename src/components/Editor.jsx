@@ -777,7 +777,7 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
         {/* Row 3: edit-mode tabs (Arrange / Advanced / Tabs), left-aligned */}
         <div className="px-1 sm:px-2">
           <Tabs
-            tabs={chartDefaults.settings?.newArrange ? [...MODE_OPTIONS, { id: 'tabs', label: 'Tabs' }] : MODE_OPTIONS}
+            tabs={[...MODE_OPTIONS, { id: 'tabs', label: 'Tabs' }]}
             activeTab={activeTab}
             onTabChange={setActiveTab}
           />

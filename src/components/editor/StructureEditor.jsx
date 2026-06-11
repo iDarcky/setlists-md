@@ -175,6 +175,13 @@ export default function StructureEditor({ value, availableSections, onChange, au
               </div>
             </div>
           )}
+
+          {/* Done — explicit close so the order feels committed. */}
+          <div className="pt-1">
+            <Button variant="brand" size="lg" onClick={() => setOpen(false)} className="w-full justify-center">
+              Done
+            </Button>
+          </div>
         </div>
       </BottomSheet>
     </div>
