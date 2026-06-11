@@ -368,27 +368,6 @@ function ChartPanel({ settings, update }) {
           })}
         </div>
       </Row>
-      <Row label="New Arrange editor (beta)" description="Faster single-click chord placement, section duplicate/collapse, and inline structure. Affects the song editor only.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {[
-            { key: true, label: 'On' },
-            { key: false, label: 'Off' },
-          ].map(({ key, label }) => {
-            const active = (settings.newArrange === true) === key;
-            return (
-              <Button
-                key={String(key)}
-                size="sm"
-                variant={active ? 'secondary' : 'ghost'}
-                onClick={() => update('newArrange', key)}
-                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </div>
-      </Row>
       <Row label="Tab grid resolution" description="Default subdivisions when creating a new tab. Beats only keeps it simple; finer grids allow 8th/16th-note detail.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
           {[

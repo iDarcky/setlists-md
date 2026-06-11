@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { transposeChord, ALL_KEYS, semitonesBetween, normalizeSectionName } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
+import SongMap from './SongMap';
 import ChordDiagram from './ChordDiagram';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
@@ -583,6 +584,7 @@ export default function ChartView({
                 { id: 'chords', label: 'Chords' },
                 { id: 'lyrics', label: 'Lyrics' },
                 ...(hasTabs ? [{ id: 'tabs', label: 'Tabs' }] : []),
+                { id: 'songmap', label: 'Song map' },
               ].map(b => (
                 <button
                   key={b.id}
@@ -773,7 +775,7 @@ export default function ChartView({
         {/* ── Sections ── */}
         <div
           data-print-target="chart"
-          className={chartLayout === 'rows' && columns === 2 ? "grid grid-cols-2 gap-x-12 items-start" : undefined}
+          className={displayMode !== 'songmap' && chartLayout === 'rows' && columns === 2 ? "grid grid-cols-2 gap-x-12 items-start" : undefined}
           style={{
             fontSize,
             ['--chart-font-size-lyric']: `${fontSize}px`,
@@ -781,10 +783,26 @@ export default function ChartView({
             ['--chart-line-height-lyric']: settings?.lyricLineHeight ?? 1.35,
             ['--chart-section-gap']: `${settings?.sectionSpacing ?? 24}px`,
             fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
-            ...(chartLayout !== 'rows' || columns !== 2 ? { columnCount: columns, columnGap: '3rem' } : {}),
+            ...(displayMode !== 'songmap' && (chartLayout !== 'rows' || columns !== 2) ? { columnCount: columns, columnGap: '3rem' } : {}),
           }}
         >
-          {orderedSections.map((section, idx) => (
+          {displayMode === 'songmap' ? (
+            <SongMap
+              sections={orderedSections}
+              modOffsets={sectionModOffsets}
+              transpose={transpose}
+              sectionColors={settings?.sectionColors}
+              sectionLabels={settings?.sectionLabels}
+              customSectionTypes={settings?.customSectionTypes}
+              onSelect={(i) => {
+                setDisplayMode('chords');
+                requestAnimationFrame(() => {
+                  const el = document.getElementById(`section-${i}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+              }}
+            />
+          ) : orderedSections.map((section, idx) => (
             <div
               key={`${section.id || section.type}-${idx}`}
               id={`section-${idx}`}

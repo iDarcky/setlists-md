@@ -7,7 +7,6 @@ import { isChordToken } from '../importer';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
 import { importChartText } from '../lib/importChords';
 import WriteTab from './editor/WriteTab';
-import ArrangeTab from './editor/ArrangeTab';
 import ArrangeTabV2 from './editor/ArrangeTabV2';
 import TabsTab from './editor/TabsTab';
 import MetadataPanel from './editor/MetadataPanel';
@@ -123,7 +122,7 @@ key: C
 
 `;
 
-export default function Editor({ song, onSave, onBack, onDelete, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null }) {
+export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null }) {
   const confirm = useConfirm();
 
   // Working copy of the song we're editing. For a new song, songFromFlat
@@ -200,6 +199,14 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
   const [promptConfig, setPromptConfig] = useState(null);
   const textareaRef = useRef(null);
   const isDirty = md !== savedMd;
+
+  // Surface dirty state to the app shell so global navigation (browser back,
+  // top-nav, notifications) can prompt before discarding — mirrors the setlist
+  // builder. Clear the flag on unmount so a stale "dirty" never blocks nav.
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+  useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
 
   // Parse md → preview with debounce
   useEffect(() => {
@@ -509,11 +516,9 @@ export default function Editor({ song, onSave, onBack, onDelete, importProgress,
       case 'tabs':
         return <TabsTab md={md} onChange={setMd} subdivision={chartDefaults.settings?.tabSubdivision || 1} />;
       case 'arrange':
-        return chartDefaults.settings?.newArrange
-          ? <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />
-          : <ArrangeTab md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
+        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
       default:
-        return <ArrangeTab md={md} onChange={setMd} />;
+        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
     }
   };
 

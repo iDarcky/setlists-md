@@ -128,7 +128,6 @@ const PORTABLE_PREF_KEYS = [
   'performanceRail',
   'navStyle',
   'defaultSpaceId',
-  'newArrange',
   'tabSubdivision',
   'tabSize',
   'tabStringColor',
@@ -203,6 +202,8 @@ export default function App() {
   // guard on header nav + browser back (the builder reports it via callback).
   const setlistDirtyRef = useRef(false);
   const markSetlistDirty = useCallback((dirty) => { setlistDirtyRef.current = dirty; }, []);
+  const editorDirtyRef = useRef(false);
+  const markEditorDirty = useCallback((dirty) => { editorDirtyRef.current = dirty; }, []);
   // Which item to open in setlist practice (tapping a song in the overview).
   const [practiceStartIndex, setPracticeStartIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -724,6 +725,15 @@ export default function App() {
         variant: 'danger',
       });
     }
+    if (view === 'editor' && editorDirtyRef.current) {
+      return await confirm({
+        title: 'Discard unsaved changes?',
+        description: 'You have unsaved edits to this song. Leaving now will lose them.',
+        confirmLabel: 'Discard',
+        cancelLabel: 'Keep editing',
+        variant: 'danger',
+      });
+    }
     return true;
   };
 
@@ -744,6 +754,21 @@ export default function App() {
         }).then((ok) => {
           if (!ok) return;
           setlistDirtyRef.current = false;
+          window.history.back();
+        });
+        return;
+      }
+      if (view === 'editor' && editorDirtyRef.current) {
+        window.history.pushState(null, '');
+        confirm({
+          title: 'Discard unsaved changes?',
+          description: 'You have unsaved edits to this song. Leaving now will lose them.',
+          confirmLabel: 'Discard',
+          cancelLabel: 'Keep editing',
+          variant: 'danger',
+        }).then((ok) => {
+          if (!ok) return;
+          editorDirtyRef.current = false;
           window.history.back();
         });
         return;
@@ -959,7 +984,12 @@ export default function App() {
     if (isTeamReadOnly) return;
     navigate('setlist-build', { setlist: sl });
   };
-  const goSetlistView = (sl) => navigate('setlist-view', { setlist: sl });
+  const goSetlistView = (sl) => {
+    // Opening the full overview supersedes any side-peek preview — clear it so
+    // returning to the list doesn't re-open the pane for this setlist.
+    setPreviewSetlistId(null);
+    navigate('setlist-view', { setlist: sl });
+  };
   const goSetlistPlay = (sl) => navigate('setlist-play', { setlist: sl });
   const goSetlistPerformance = (sl) => {
     if (!settings?.firstStageMode) {
@@ -1879,6 +1909,7 @@ export default function App() {
               initialArrangementId={editArrangementId}
               onSave={isTeamReadOnly ? null : handleSaveSong}
               onBack={importQueue ? handleSkipQueueSong : goBack}
+              onDirtyChange={markEditorDirty}
               onDelete={currentSong && !isTeamReadOnly ? handleDeleteSong : null}
               customSectionTypes={settings?.customSectionTypes}
               importProgress={importQueue ? {
