@@ -102,6 +102,9 @@ export default function TabsTab({ md, onChange, subdivision = 1 }) {
 
   const handleEditorSave = useCallback((saved) => {
     const tab = tabObjectFromEditor(saved);
+    // Carry the chosen instrument so it round-trips through the .md format and
+    // can be filtered in the chart/practice/live views.
+    if (editorFor.instrument) tab.instrument = editorFor.instrument;
     if (editorFor.mode === 'new') createTab(tab);
     else updateTabContent(editorFor.name, tab);
     setEditorFor(null);
@@ -156,7 +159,7 @@ export default function TabsTab({ md, onChange, subdivision = 1 }) {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
           {library.map((entry) => {
-            const instr = instrumentForStrings(entry.tab?.strings?.length);
+            const instr = entry.tab?.instrument || instrumentForStrings(entry.tab?.strings?.length);
             const refs = countRefs(song.sections, entry.name);
             const isRenaming = renaming?.name === entry.name;
             return (

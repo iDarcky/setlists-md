@@ -29,6 +29,7 @@ import {
 import { useEntitlement } from '../hooks/useEntitlement';
 import { resolveChartDisplay, resolveColumns, FONT_SIZES } from '../lib/chartDisplay';
 import { STAGE_MODES } from '../data/stageModes';
+import { TAB_INSTRUMENTS } from './editor/tabInstruments';
 
 // Tokens written by useChartTheme (App.jsx) live on :root and decide the
 // chart's bg/text/chord colours plus the chord and lyric font stacks.
@@ -139,6 +140,21 @@ export default function ChartView({
   useEffect(() => {
     if (!hasTabs && displayMode === 'tabs') setDisplayMode('chords');
   }, [hasTabs, displayMode]);
+
+  // Instruments this song's tabs are tagged for (electric / acoustic / bass).
+  // When more than one is present, the reader can filter to just theirs.
+  const tabInstrumentsPresent = useMemo(() => {
+    const set = new Set();
+    (song?.sections || []).forEach(sec => (sec.lines || []).forEach(l => {
+      if (l && typeof l === 'object') {
+        if (l.type === 'tab' && l.instrument) set.add(l.instrument);
+        if (l.type === 'tabref' && l.tab?.instrument) set.add(l.tab.instrument);
+      }
+    }));
+    return [...set];
+  }, [song]);
+  const [tabInstrument, setTabInstrument] = useState('all');
+  useEffect(() => { setTabInstrument('all'); }, [song?.id]);
 
   // Re-seed local mirrors when the persisted display settings change — another
   // song, a role preset, or an edit made on a different surface.
@@ -701,6 +717,23 @@ export default function ChartView({
                 </div>
               </SheetField>
 
+              {tabInstrumentsPresent.length >= 2 && (
+                <SheetField label="Tab instrument">
+                  <div className="flex flex-wrap gap-2">
+                    {['all', ...tabInstrumentsPresent].map(id => (
+                      <Button
+                        key={id}
+                        variant={tabInstrument === id ? 'brand' : 'secondary'}
+                        size="sm"
+                        onClick={() => setTabInstrument(id)}
+                      >
+                        {id === 'all' ? 'All' : (TAB_INSTRUMENTS[id]?.label || id)}
+                      </Button>
+                    ))}
+                  </div>
+                </SheetField>
+              )}
+
               <SheetField label="Chords">
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -858,6 +891,7 @@ export default function ChartView({
                 showChords={showChords && viewChords}
                 showLyrics={viewLyrics}
                 showTabs={viewTabs}
+                tabInstrument={tabInstrument}
                 inlineNotes={showInlineNotes}
                 noteStyle={inlineNoteStyle}
                 sectionColors={settings?.sectionColors}

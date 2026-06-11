@@ -3,6 +3,7 @@ import { transposeKey, transposeChord, ALL_KEYS, semitonesBetween } from '../mus
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
 import SongMap from './SongMap';
+import { TAB_INSTRUMENTS } from './editor/tabInstruments';
 import ChordDiagram from './ChordDiagram';
 import { StructureRibbon } from './StructureRibbon';
 import FloatingNavPill from './ui/FloatingNavPill';
@@ -45,6 +46,8 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   // What to show in the chart body: chords / lyrics-only / tabs / song map.
   // Mirrors the chart-view switch; local to the session like the other knobs.
   const [displayMode, setDisplayMode] = useState('chords');
+  // Per-session tab-instrument filter (e.g. acoustic player sees acoustic tabs).
+  const [tabInstrument, setTabInstrument] = useState('all');
   useEffect(() => {
     setFontSize(disp.lyricFontSize);
     setChordFontSize(disp.chordFontSize);
@@ -131,6 +134,18 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
 
   const cur = resolved[idx] || null;
   const next = resolved[idx + 1] || null;
+
+  // Union of tab instruments across the whole set — drives the filter chip.
+  const tabInstrumentsPresent = useMemo(() => {
+    const set = new Set();
+    resolved.forEach(r => (r.song?.sections || []).forEach(sec => (sec.lines || []).forEach(l => {
+      if (l && typeof l === 'object') {
+        if (l.type === 'tab' && l.instrument) set.add(l.instrument);
+        if (l.type === 'tabref' && l.tab?.instrument) set.add(l.tab.instrument);
+      }
+    })));
+    return [...set];
+  }, [resolved]);
 
   // Reset key whenever the current item changes
   useEffect(() => {
@@ -490,6 +505,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             showChords={showChords}
             showDiagrams={showDiagrams}
             displayMode={displayMode}
+            tabInstrument={tabInstrument}
             sectionColors={settings?.sectionColors}
             sectionLabels={settings?.sectionLabels}
             customSectionTypes={settings?.customSectionTypes}
@@ -634,6 +650,23 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             size="sm"
           />
         </SheetField>
+
+        {tabInstrumentsPresent.length >= 2 && (
+          <SheetField label="Tab instrument">
+            <div className="flex flex-wrap gap-2">
+              {['all', ...tabInstrumentsPresent].map(id => (
+                <Button
+                  key={id}
+                  variant={tabInstrument === id ? 'brand' : 'secondary'}
+                  size="sm"
+                  onClick={() => setTabInstrument(id)}
+                >
+                  {id === 'all' ? 'All' : (TAB_INSTRUMENTS[id]?.label || id)}
+                </Button>
+              ))}
+            </div>
+          </SheetField>
+        )}
 
         <SheetField label="Display">
           <div className="flex flex-wrap gap-2">
@@ -816,7 +849,7 @@ function StructureEditor({ structure, availableSections, onUpdate, onClose }) {
 }
 
 // Chart with editable cue cards between sections
-function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, nashville = false, showChords = true, showDiagrams = false, displayMode = 'chords', sectionColors, sectionLabels, customSectionTypes, onSaveCue }) {
+function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, nashville = false, showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', sectionColors, sectionLabels, customSectionTypes, onSaveCue }) {
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   // Mirror the chart-view display switch.
   const viewChords = displayMode === 'chords';
@@ -907,6 +940,7 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
             showChords={showChords && viewChords}
             showLyrics={viewLyrics}
             showTabs={viewTabs}
+            tabInstrument={tabInstrument}
             inlineNotes
             noteStyle="dashes"
           />

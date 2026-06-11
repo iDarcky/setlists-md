@@ -541,6 +541,8 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     if (!song || !tabEditorTarget) return;
     const tab = tabObjectFromEditor(saved);
     if (tabEditorTarget.mode === 'editLib') {
+      // Preserve the block's instrument tag (set in the Tabs tab) on edit.
+      if (tabEditorTarget.tab?.instrument) tab.instrument = tabEditorTarget.tab.instrument;
       emitSong({ ...song, tabLibrary: (song.tabLibrary || []).map(t => t.name === tabEditorTarget.name ? { ...t, tab } : t) });
     } else {
       const { secIdx, idx } = tabEditorTarget;

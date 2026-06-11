@@ -6,6 +6,7 @@ import ChordDiagram from './ChordDiagram';
 import { Card } from './ui/Card';
 import SectionBlock from './SectionBlock';
 import SongMap from './SongMap';
+import { TAB_INSTRUMENTS } from './editor/tabInstruments';
 import { StructureRibbon } from './StructureRibbon';
 import FloatingNavPill from './ui/FloatingNavPill';
 import { IconButton } from './ui/IconButton';
@@ -28,6 +29,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   // Live display mode (chords / lyrics / tabs / song map) — session-local, set
   // from the header view picker.
   const [displayMode, setDisplayMode] = useState('chords');
+  const [tabInstrument, setTabInstrument] = useState('all');
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const scrollRef = useRef(null);
 
@@ -76,6 +78,18 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
 
   const cur = resolved[idx] || null;
   const next = resolved[idx + 1] || null;
+
+  // Union of tab instruments across the set — drives the live filter.
+  const tabInstrumentsPresent = useMemo(() => {
+    const set = new Set();
+    resolved.forEach(r => (r.song?.sections || []).forEach(sec => (sec.lines || []).forEach(l => {
+      if (l && typeof l === 'object') {
+        if (l.type === 'tab' && l.instrument) set.add(l.instrument);
+        if (l.type === 'tabref' && l.tab?.instrument) set.add(l.tab.instrument);
+      }
+    })));
+    return [...set];
+  }, [resolved]);
 
   // Reset key whenever the current item changes
   useEffect(() => {
@@ -275,6 +289,19 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
                           <SelectItem value="songmap">Song map</SelectItem>
                         </SelectContent>
                       </Select>
+                      {tabInstrumentsPresent.length >= 2 && (
+                        <Select value={tabInstrument} onValueChange={setTabInstrument}>
+                          <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0" aria-label="Tab instrument">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All tabs</SelectItem>
+                            {tabInstrumentsPresent.map(id => (
+                              <SelectItem key={id} value={id}>{TAB_INSTRUMENTS[id]?.label || id}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                       <Select value={displayKey} onValueChange={setSelectedKey}>
                         <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
                           <SelectValue />
@@ -367,6 +394,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
               showChords={disp.showChords}
               showDiagrams={disp.showDiagrams}
               displayMode={displayMode}
+              tabInstrument={tabInstrument}
               sectionColors={settings?.sectionColors}
               sectionLabels={settings?.sectionLabels}
               customSectionTypes={settings?.customSectionTypes}
@@ -453,7 +481,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   );
 }
 
-function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, nashville = false, showChords = true, showDiagrams = false, displayMode = 'chords', sectionColors, sectionLabels, customSectionTypes }) {
+function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, nashville = false, showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', sectionColors, sectionLabels, customSectionTypes }) {
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   const [notesOpen, setNotesOpen] = useState(false);
   const viewChords = displayMode === 'chords';
@@ -600,6 +628,7 @@ function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, 
             showChords={showChords && viewChords}
             showLyrics={viewLyrics}
             showTabs={viewTabs}
+            tabInstrument={tabInstrument}
             inlineNotes
             noteStyle="dashes"
           />

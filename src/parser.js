@@ -60,7 +60,9 @@ export function parseSongMd(text) {
         let time = null;
         const tp = (defOpen[2] || '').match(/time:\s*(\S+)/);
         if (tp) time = tp[1];
-        libAccum = { type: 'tab', strings: [], time, raw: [] };
+        const ip = (defOpen[2] || '').match(/instrument:\s*(\w+)/);
+        const instrument = ip ? ip[1] : null;
+        libAccum = { type: 'tab', strings: [], time, instrument, raw: [] };
         continue;
       }
       if (libAccum && line.trim() === '{/tab}') {
@@ -101,7 +103,9 @@ export function parseSongMd(text) {
       let time = null;
       const timePart = meta.match(/time:\s*(\S+)/);
       if (timePart) time = timePart[1];
-      tabAccum = { type: 'tab', strings: [], time, raw: [] };
+      const instPart = meta.match(/instrument:\s*(\w+)/);
+      const instrument = instPart ? instPart[1] : null;
+      tabAccum = { type: 'tab', strings: [], time, instrument, raw: [] };
       continue;
     }
     if (inTab && line.trim() === '{/tab}') {
@@ -316,7 +320,10 @@ export function songToMd(song, arrangement) {
 
 // Serialize a named library tab: `{tab: Name, time: T}` … `{/tab}`.
 export function serializeTabDef({ name, tab }) {
-  const header = tab?.time ? `{tab: ${name}, time: ${tab.time}}` : `{tab: ${name}}`;
+  const attrs = [];
+  if (tab?.instrument) attrs.push(`instrument: ${tab.instrument}`);
+  if (tab?.time) attrs.push(`time: ${tab.time}`);
+  const header = `{tab: ${name}${attrs.length ? ', ' + attrs.join(', ') : ''}}`;
   const bodyLines = (tab?.raw && tab.raw.length > 0)
     ? tab.raw
     : (tab?.strings || []).map(s => `${s.note}|${s.content}`);
@@ -385,13 +392,15 @@ export function placementToLine({ plainText, chords }) {
  
 // Serialize a tab block object back to ASCII
 export function serializeTabBlock(tab) {
+  const attrs = [];
+  if (tab.instrument) attrs.push(`instrument: ${tab.instrument}`);
+  if (tab.time) attrs.push(`time: ${tab.time}`);
+  const header = `{tab${attrs.length ? ', ' + attrs.join(', ') : ''}}`;
   // Prefer raw lines for round-trip fidelity
   if (tab.raw && tab.raw.length > 0) {
-    const header = tab.time ? `{tab, time: ${tab.time}}` : '{tab}';
     return header + '\n' + tab.raw.join('\n') + '\n{/tab}';
   }
   // Generate from structured data (grid-editor-created)
-  const header = tab.time ? `{tab, time: ${tab.time}}` : '{tab}';
   const lines = tab.strings.map(s => `${s.note}|${s.content}`);
   return header + '\n' + lines.join('\n') + '\n{/tab}';
 }

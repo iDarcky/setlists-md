@@ -41,9 +41,12 @@ function groupChordWords(pairs) {
 export default function SectionBlock({
   section, transpose, modOffset = 0, nns, songKey,
   showChords = true, showLyrics = true, showTabs = true, inlineNotes = true, noteStyle = 'dashes',
-  sectionColors, sectionLabels, customSectionTypes, tabScale = 1, tabColors,
+  sectionColors, sectionLabels, customSectionTypes, tabScale = 1, tabColors, tabInstrument = 'all',
 }) {
   const s = sectionStyle(section.type, sectionColors, customSectionTypes);
+  // When an instrument filter is active, only show tabs tagged for it. Untagged
+  // tabs are only shown under "all".
+  const tabMatches = (inst) => !tabInstrument || tabInstrument === 'all' || inst === tabInstrument;
 
   // Pre-compute per-line modulate offsets (cumulative within this section)
   const lineOffsets = useMemo(() => {
@@ -62,8 +65,8 @@ export default function SectionBlock({
 
   const renderLine = (line, idx) => {
     if (typeof line !== 'string') {
-      if (line.type === 'tab') return showTabs ? <TabBlock key={idx} data={line} scale={tabScale} colors={tabColors} /> : null;
-      if (line.type === 'tabref') return showTabs && line.tab ? <TabBlock key={idx} data={line.tab} scale={tabScale} colors={tabColors} /> : null;
+      if (line.type === 'tab') return showTabs && tabMatches(line.instrument) ? <TabBlock key={idx} data={line} scale={tabScale} colors={tabColors} /> : null;
+      if (line.type === 'tabref') return showTabs && line.tab && tabMatches(line.tab.instrument) ? <TabBlock key={idx} data={line.tab} scale={tabScale} colors={tabColors} /> : null;
       if (line.type === 'modulate') {
         return (
           <div key={idx} className="my-4 flex items-center gap-4">
