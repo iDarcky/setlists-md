@@ -71,7 +71,7 @@ function ScheduleHeader({ teamName, viewMode, onSetView, onBack, showBack = true
 }
 
 export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
-  const { team, members, isAdmin } = useTeam();
+  const { team, members, canManageRoster } = useTeam();
   const { user } = useAuth();
   const { availability, setStatus, clearStatus } = useTeamAvailability(team?.id);
   const isMobile = useIsMobile();
@@ -168,7 +168,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
             availability={availability}
             members={members}
             userId={user?.id}
-            isAdmin={isAdmin}
+            isAdmin={canManageRoster}
             clockFormat={clockFormat}
             onSelectDate={(date) => setPickerDate(date)}
             onOpenSetlist={(sl) => onOpenSetlist?.(sl)}
@@ -181,7 +181,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
             members={members}
             userId={user?.id}
             firstDayOfWeek={firstDayOfWeek}
-            isAdmin={isAdmin}
+            isAdmin={canManageRoster}
             onSelectDate={(date) => setPickerDate(date)}
             onOpenSetlist={(sl) => onOpenSetlist?.(sl)}
             onOpenRoster={(sl) => setRosterSetlist(sl)}
@@ -199,7 +199,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
               setlistId={rosterSetlist.id}
               setlistDate={rosterSetlist.date}
               onClose={() => setRosterSetlist(null)}
-              readOnly={!isAdmin}
+              readOnly={!canManageRoster}
             />
           </div>
         </div>
@@ -213,7 +213,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
           totalMembers={members.length}
           setlists={pickerSetlists}
           memberStatuses={pickerMemberStatuses}
-          isAdmin={isAdmin}
+          isAdmin={canManageRoster}
           clockFormat={clockFormat}
           onSetStatus={handleSetStatus}
           onClear={handleClearStatus}

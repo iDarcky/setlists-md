@@ -234,6 +234,7 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
             className="bg-[var(--ds-background-100)] border border-[var(--modes-border)] rounded-md px-2 py-1 text-label-11 font-medium text-[var(--modes-text-muted)] outline-none cursor-pointer hover:border-[var(--ds-gray-400)] focus:border-[var(--color-brand)] transition-colors"
           >
             <option value="admin">Admin</option>
+            <option value="leader">Leader</option>
             <option value="editor">Editor</option>
             <option value="member">Member</option>
           </select>
