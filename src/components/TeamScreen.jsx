@@ -215,6 +215,15 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
             </>
           )}
         </div>
+        {Array.isArray(member.instruments) && member.instruments.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {member.instruments.map(inst => (
+              <span key={inst} className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)]">
+                {inst}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {isAdmin && !isCurrentUser && (
