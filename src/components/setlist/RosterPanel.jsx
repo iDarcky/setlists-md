@@ -4,20 +4,29 @@ import { useTeamSchedules } from '../../hooks/useTeamSchedules';
 import { useTeamAvailability } from '../../hooks/useTeamAvailability';
 import { useTeamSetlistMap } from '../../hooks/useTeamSetlistMap';
 import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
 import { IconButton } from '../ui/IconButton';
 import { toast } from '../ui/use-toast';
 import { useConfirm } from '../ui/useConfirmHook';
 
-const PREDEFINED_ROLES = [
+// Instrument is the team_schedules.role column; vocal part is a separate
+// column so a person can have both (e.g. Electric Guitar + Backing).
+const INSTRUMENT_OPTIONS = [
   "Acoustic Guitar",
   "Electric Guitar",
   "Bass",
   "Drums",
   "Keys",
-  "Vocals",
-  "Lead Vocal",
-  "Piano"
+  "Piano",
+];
+
+const VOCAL_PARTS = [
+  "Lead male",
+  "Lead female",
+  "Soprano",
+  "Alto",
+  "Tenor",
+  "Bass",
+  "Backing",
 ];
 
 // Sort priority: available (0) → unknown (1) → maybe (2) → unavailable (3).
@@ -119,6 +128,14 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
     }
   };
 
+  const handleUpdateVocalPart = async (scheduleId, vocal_part) => {
+    try {
+      await updateSchedule(scheduleId, { vocal_part: vocal_part || null });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleRemove = async (scheduleId) => {
     const ok = await confirm({
       title: 'Remove from roster?',
@@ -191,6 +208,11 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                               {schedule.role}
                             </span>
                           )}
+                          {readOnly && schedule.vocal_part && (
+                            <span className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-text)]">
+                              {schedule.vocal_part}
+                            </span>
+                          )}
                         </div>
                         </div>
                       </div>
@@ -204,48 +226,42 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                     </div>
 
                     {!readOnly && (
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold">Role</span>
+                      <div className="grid grid-cols-2 gap-2">
                         <div className="flex flex-col gap-1">
+                          <span className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold">Instrument</span>
                           {(() => {
-                            let availableRoles = (member?.instruments && member.instruments.length > 0)
-                              ? [...member.instruments]
-                              : [...PREDEFINED_ROLES];
-                            
-                            // Ensure current role is in the list if it matches a predefined one,
-                            // or it will fall into 'custom'.
-                            const isCustom = schedule.role && !availableRoles.includes(schedule.role);
-                            
+                            // Offer the member's declared instruments first, then
+                            // the standard list; keep whatever's set even if custom.
+                            const base = (member?.instruments && member.instruments.length > 0)
+                              ? member.instruments
+                              : INSTRUMENT_OPTIONS;
+                            const opts = [...new Set([...base, ...INSTRUMENT_OPTIONS, ...(schedule.role ? [schedule.role] : [])])];
                             return (
-                              <>
-                                <select
-                                  className="w-full bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md text-copy-13 px-2 py-1 outline-none"
-                                  value={isCustom ? 'custom' : (schedule.role || '')}
-                                  onChange={(e) => {
-                                    if (e.target.value !== 'custom') {
-                                      handleUpdateRole(schedule.id, e.target.value);
-                                    }
-                                  }}
-                                >
-                                  <option value="" disabled>Select role...</option>
-                                  {availableRoles.map(role => (
-                                    <option key={role} value={role}>{role}</option>
-                                  ))}
-                                  <option value="custom">Custom...</option>
-                                </select>
-
-                                {isCustom && (
-                                  <Input
-                                    size="sm"
-                                    placeholder="Enter custom role"
-                                    value={schedule.role === 'custom' ? '' : (schedule.role || '')}
-                                    onChange={(e) => handleUpdateRole(schedule.id, e.target.value)}
-                                    className="mt-1"
-                                  />
-                                )}
-                              </>
+                              <select
+                                className="w-full bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md text-copy-13 px-2 py-1 outline-none"
+                                value={schedule.role || ''}
+                                onChange={(e) => handleUpdateRole(schedule.id, e.target.value)}
+                              >
+                                <option value="">None</option>
+                                {opts.map(role => (
+                                  <option key={role} value={role}>{role}</option>
+                                ))}
+                              </select>
                             );
                           })()}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold">Vocal part</span>
+                          <select
+                            className="w-full bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md text-copy-13 px-2 py-1 outline-none"
+                            value={schedule.vocal_part || ''}
+                            onChange={(e) => handleUpdateVocalPart(schedule.id, e.target.value)}
+                          >
+                            <option value="">None</option>
+                            {VOCAL_PARTS.map(part => (
+                              <option key={part} value={part}>{part}</option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     )}
