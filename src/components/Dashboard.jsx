@@ -5,6 +5,7 @@ import { SearchBar } from './ui/SearchBar';
 import { Chip } from './ui/Chip';
 import ProgressChecklist from '../onboarding/ProgressChecklist';
 import { CalendarWidget } from './ui/CalendarWidget';
+import ActivityFeed from './team/ActivityFeed';
 import { useTeam } from '../auth/useTeam';
 import { useTeamSchedules } from '../hooks/useTeamSchedules';
 import { useTeamAvailability } from '../hooks/useTeamAvailability';
@@ -29,7 +30,7 @@ export default function Dashboard({
   canEdit = true,
   onSignIn,
 }) {
-  const { team } = useTeam();
+  const { team, members } = useTeam();
   const { user } = useAuth();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const { availability } = useTeamAvailability(team?.id);
@@ -55,6 +56,10 @@ export default function Dashboard({
       return dateA - dateB;
     })
     .slice(0, 2);
+
+  // Count of all future-dated setlists (the hero only shows the next one).
+  const futureCount = setlists.filter(sl => new Date(`${sl.date}T${sl.time || '00:00'}:00`) >= now).length;
+  const songCountOf = (sl) => (sl.items || []).filter(i => i.songId).length;
 
   // Date formatting: "Monday, April 6"
   const dateStr = new Date().toLocaleDateString('en-US', {
@@ -117,7 +122,7 @@ export default function Dashboard({
     >
 
       {/* Dashboard Header: Welcome + Search + Actions */}
-      <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 pt-6 sm:pt-10 pb-4 sm:pb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="max-w-[1320px] mx-auto w-full px-4 sm:px-8 pt-6 sm:pt-10 pb-4 sm:pb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div>
           <h1 className="text-heading-40 text-[var(--modes-text)] m-0">
             Welcome, <span className="italic font-serif text-[var(--modes-text)]">{userName}</span>
@@ -176,7 +181,7 @@ export default function Dashboard({
 
 
 
-      <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-8 flex flex-col gap-6 sm:gap-8">
+      <div className="max-w-[1320px] mx-auto w-full px-4 sm:px-8 py-4 sm:py-8 flex flex-col gap-6 sm:gap-8">
 
         {/* Onboarding progress checklist — hides itself when complete or dismissed */}
         {!settings?.checklistDismissed && checklistActions && (
@@ -202,6 +207,28 @@ export default function Dashboard({
             <Button variant="brand" onClick={onSignIn}>Sign in / Sign up</Button>
           </div>
         )}
+
+        {/* At-a-glance stats */}
+        <div className={`grid gap-3 sm:gap-4 ${team ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
+          {[
+            { label: 'Songs', value: songs.length },
+            { label: 'Setlists', value: setlists.length },
+            { label: 'Upcoming', value: futureCount },
+            ...(team ? [{ label: 'Members', value: members.length }] : []),
+          ].map(s => (
+            <div key={s.label} className="modes-card p-4">
+              <div className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-1">{s.label}</div>
+              <div className="text-heading-24 text-[var(--modes-text)] leading-none">{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Command-center grid: main column (left) + side column (right). The
+            side blocks come first in source, so order utilities place main left. */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 sm:gap-8 items-start">
+
+          {/* Side column */}
+          <div className="flex flex-col gap-6 sm:gap-8 lg:order-2 min-w-0">
 
         {/* My Schedule Calendar Widget */}
         {user && (
@@ -264,6 +291,21 @@ export default function Dashboard({
             </div>
           </section>
         )}
+
+        {/* Recent team activity (compact) */}
+        {team && (
+          <section className="flex flex-col gap-3">
+            <h2 className="text-heading-20 font-bold text-[var(--modes-text)]">Recent Activity</h2>
+            <div className="modes-card p-2">
+              <ActivityFeed teamId={team.id} members={members} compact />
+            </div>
+          </section>
+        )}
+
+          </div>{/* /side column */}
+
+          {/* Main column */}
+          <div className="flex flex-col gap-6 sm:gap-8 lg:order-1 min-w-0">
 
         {/* Upcoming Setlists */}
         <section className="flex flex-col gap-3 sm:gap-4">
@@ -335,7 +377,7 @@ export default function Dashboard({
                       Play Live
                     </Button>
                     <div className="text-label-13 text-[var(--modes-text-dim)] font-medium">
-                      {upcomingSetlists[0].items.length} Songs • 1h 45m
+                      {songCountOf(upcomingSetlists[0])} song{songCountOf(upcomingSetlists[0]) !== 1 ? 's' : ''}
                     </div>
                   </div>
                 </div>
@@ -389,6 +431,9 @@ export default function Dashboard({
             )}
           </div>
         </section>
+
+          </div>{/* /main column */}
+        </div>{/* /command-center grid */}
 
       </div>
     </div>
