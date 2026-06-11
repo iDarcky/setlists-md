@@ -763,7 +763,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                             <span className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] mb-1 pl-0.5">{line.name}</span>
                           )}
                           {tabData
-                            ? <div className="overflow-x-auto"><TabBlock data={tabData} scale={0.8} /></div>
+                            ? <TabBlock data={tabData} scale={0.8} />
                             : <span className="text-copy-12 italic text-[var(--ds-red-700)]">Missing tab “{line.name}”</span>}
                         </div>
                       );

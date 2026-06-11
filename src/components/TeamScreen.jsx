@@ -77,10 +77,7 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
 
   return (
     <div className="flex-1 flex items-center justify-center px-6 py-12">
-      <div
-        className="w-full max-w-md rounded-2xl p-8 flex flex-col gap-5"
-        style={{ background: 'var(--ds-background-100)', border: '1px solid var(--ds-gray-400)' }}
-      >
+      <div className="modes-card-strong w-full max-w-md p-8 flex flex-col gap-5">
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto"
           style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}
@@ -89,10 +86,10 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
         </div>
 
         <div className="text-center">
-          <h2 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 mb-1">
+          <h2 className="text-heading-24 text-[var(--modes-text)] m-0 mb-1">
             {multiple ? 'Create a new Space' : 'Create your Space'}
           </h2>
-          <p className="text-copy-14 text-[var(--ds-gray-600)] m-0">
+          <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">
             {multiple
               ? 'Spin up another shared Space for a different band or church.'
               : 'Set up a shared Space for your worship band or church.'}
@@ -101,7 +98,7 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1">
-            <span className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider">Team name</span>
+            <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Team name</span>
             <Input
               type="text"
               required
@@ -112,7 +109,7 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider">Location <span className="normal-case tracking-normal text-[var(--ds-gray-500)]">(optional)</span></span>
+            <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Location <span className="normal-case tracking-normal text-[var(--modes-text-dim)]">(optional)</span></span>
             <Input
               type="text"
               value={location}
@@ -123,7 +120,7 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
 
           {/* Tier picker — sets seats/features (and the price at checkout). */}
           <div className="flex flex-col gap-1.5">
-            <span className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider">Plan</span>
+            <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Plan</span>
             <div className="grid grid-cols-2 gap-2">
               {TIERS.map(t => {
                 const active = plan === t.id;
@@ -134,18 +131,18 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
                     onClick={() => setPlan(t.id)}
                     className="text-left rounded-xl p-3 border transition-all"
                     style={{
-                      borderColor: active ? 'var(--color-brand)' : 'var(--ds-gray-400)',
+                      borderColor: active ? 'var(--color-brand)' : 'var(--modes-border)',
                       boxShadow: active ? '0 0 0 1px var(--color-brand)' : 'none',
-                      background: active ? 'var(--color-brand-soft)' : 'var(--ds-background-200)',
+                      background: active ? 'var(--color-brand-soft)' : 'var(--modes-surface)',
                     }}
                     aria-pressed={active}
                   >
                     <div className="flex items-baseline justify-between gap-1">
-                      <span className="text-copy-14 font-semibold text-[var(--ds-gray-1000)]">{t.label}</span>
+                      <span className="text-copy-14 font-semibold text-[var(--modes-text)]">{t.label}</span>
                       {billingLive && <span className="text-label-11 font-bold text-[var(--color-brand)]">{t.price}</span>}
                     </div>
-                    <div className="text-label-11 text-[var(--ds-gray-600)] mt-0.5">{t.seats}</div>
-                    <div className="text-label-11 text-[var(--ds-gray-500)] mt-0.5">{t.blurb}</div>
+                    <div className="text-label-11 text-[var(--modes-text-muted)] mt-0.5">{t.seats}</div>
+                    <div className="text-label-11 text-[var(--modes-text-dim)] mt-0.5">{t.blurb}</div>
                   </button>
                 );
               })}
@@ -181,10 +178,7 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
   const initial = displayName?.slice(0, 2)?.toUpperCase() || '??';
 
   return (
-    <div
-      className="flex items-center gap-3 px-4 py-3 rounded-xl"
-      style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}
-    >
+    <div className="modes-card flex items-center gap-3 px-4 py-3">
       {/* Avatar */}
       <div
         className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 overflow-hidden text-label-14 font-bold"
@@ -200,11 +194,11 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-copy-14 font-medium text-[var(--ds-gray-1000)] truncate">
+          <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">
             {displayName}
           </span>
           {isCurrentUser && (
-            <span className="text-label-11 text-[var(--ds-gray-500)]">(you)</span>
+            <span className="text-label-11 text-[var(--modes-text-dim)]">(you)</span>
           )}
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
@@ -213,12 +207,12 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
               <CrownIcon /> Admin
             </span>
           ) : (
-            <span className="text-label-11 font-medium text-[var(--ds-gray-600)] capitalize">{member.role || 'Member'}</span>
+            <span className="text-label-11 font-medium text-[var(--modes-text-muted)] capitalize">{member.role || 'Member'}</span>
           )}
           {profile.email && (
             <>
-              <span className="text-label-11 text-[var(--ds-gray-400)]">•</span>
-              <span className="text-label-11 text-[var(--ds-gray-500)] truncate">{profile.email}</span>
+              <span className="text-label-11 text-[var(--modes-text-dim)]">•</span>
+              <span className="text-label-11 text-[var(--modes-text-dim)] truncate">{profile.email}</span>
             </>
           )}
         </div>
@@ -229,7 +223,7 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
           <select
             value={member.role || 'member'}
             onChange={(e) => onRoleChange(member.id, e.target.value)}
-            className="bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md px-2 py-1 text-label-11 font-medium text-[var(--ds-gray-700)] outline-none cursor-pointer hover:border-[var(--ds-gray-400)] focus:border-[var(--color-brand)] transition-colors"
+            className="bg-[var(--ds-background-100)] border border-[var(--modes-border)] rounded-md px-2 py-1 text-label-11 font-medium text-[var(--modes-text-muted)] outline-none cursor-pointer hover:border-[var(--ds-gray-400)] focus:border-[var(--color-brand)] transition-colors"
           >
             <option value="admin">Admin</option>
             <option value="editor">Editor</option>
@@ -237,7 +231,7 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
           </select>
           <button
             onClick={() => onRemove(member.id)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border border-[var(--ds-gray-300)] cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-red-700)] hover:border-[var(--ds-red-400)] transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border border-[var(--modes-border)] cursor-pointer text-[var(--modes-text-dim)] hover:text-[var(--ds-red-700)] hover:border-[var(--ds-red-400)] transition-colors"
             title="Remove member"
           >
             <TrashIcon />
@@ -251,8 +245,8 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
 function InviteRow({ invite, isAdmin, onCancel }) {
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 rounded-xl opacity-80"
-      style={{ background: 'var(--ds-background-200)', border: '1px dashed var(--ds-gray-400)' }}
+      className="flex items-center gap-3 px-4 py-3 rounded-2xl opacity-80"
+      style={{ background: 'var(--modes-surface)', border: '1px dashed var(--modes-border)' }}
     >
       <div
         className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-label-14 font-bold"
@@ -266,7 +260,7 @@ function InviteRow({ invite, isAdmin, onCancel }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-copy-14 font-medium text-[var(--ds-gray-900)] truncate">
+          <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">
             {invite.email}
           </span>
           <span className="text-label-11 text-[var(--ds-orange-700)] bg-[var(--ds-orange-200)] px-2 py-0.5 rounded-full">
@@ -274,14 +268,14 @@ function InviteRow({ invite, isAdmin, onCancel }) {
           </span>
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-label-11 text-[var(--ds-gray-500)]">Tell them to sign up to join.</span>
+          <span className="text-label-11 text-[var(--modes-text-dim)]">Tell them to sign up to join.</span>
         </div>
       </div>
 
       {isAdmin && (
         <button
           onClick={() => onCancel(invite.id)}
-          className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border border-[var(--ds-gray-300)] cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-red-700)] hover:border-[var(--ds-red-400)] transition-colors"
+          className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border border-[var(--modes-border)] cursor-pointer text-[var(--modes-text-dim)] hover:text-[var(--ds-red-700)] hover:border-[var(--ds-red-400)] transition-colors"
           title="Cancel invite"
         >
           <TrashIcon />
@@ -315,15 +309,12 @@ function InviteForm({ onInvite, seatsLeft }) {
   };
 
   return (
-    <div
-      className="rounded-xl p-4"
-      style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}
-    >
+    <div className="modes-card p-4">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider font-semibold">
+        <span className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">
           Invite member
         </span>
-        <span className="text-label-11 text-[var(--ds-gray-500)]">
+        <span className="text-label-11 text-[var(--modes-text-dim)]">
           {seatsLeft} seat{seatsLeft !== 1 ? 's' : ''} left
         </span>
       </div>
@@ -339,7 +330,7 @@ function InviteForm({ onInvite, seatsLeft }) {
         <select
           value={role}
           onChange={e => setRole(e.target.value)}
-          className="bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md px-3 text-copy-14 text-[var(--ds-gray-900)] outline-none cursor-pointer focus:border-[var(--color-brand)] transition-colors"
+          className="bg-[var(--ds-background-100)] border border-[var(--modes-border)] rounded-md px-3 text-copy-14 text-[var(--ds-gray-900)] outline-none cursor-pointer focus:border-[var(--color-brand)] transition-colors"
         >
           <option value="admin">Admin</option>
           <option value="editor">Editor</option>
@@ -379,30 +370,40 @@ function TeamStats({ teamId }) {
           .select('id', { count: 'exact', head: true })
           .eq('team_id', teamId);
 
+        // NB: team_setlists has no top-level `date` column — the service date
+        // lives inside the `content` jsonb. Selecting/ordering by `date` errors
+        // out the whole query (which is why the count used to read 0). Order by
+        // `updated_at` and pull the date out of `content` instead.
         const { data: setlists } = await supabase
           .from('team_setlists')
-          .select('id, name, date, content')
+          .select('id, name, content, updated_at')
           .eq('team_id', teamId)
-          .order('date', { ascending: false });
+          .order('updated_at', { ascending: false });
 
-        const setlistCount = setlists?.length || 0;
-        
+        // Sort by the service date carried inside content (newest first),
+        // falling back to updated_at when a setlist has no date.
+        const ordered = (setlists || []).slice().sort((a, b) => {
+          const da = a.content?.date || a.updated_at || '';
+          const db = b.content?.date || b.updated_at || '';
+          return db.localeCompare(da);
+        });
+
+        const setlistCount = ordered.length;
+
         let songCounts = {};
         let recentSongs = [];
-        
-        if (setlists) {
-          setlists.forEach((sl, index) => {
-            const items = sl.content?.items || [];
-            items.forEach(item => {
-              if (item.type !== 'break' && item.songTitle) {
-                songCounts[item.songTitle] = (songCounts[item.songTitle] || 0) + 1;
-                if (index < 5 && !recentSongs.find(s => s.title === item.songTitle)) {
-                  recentSongs.push({ title: item.songTitle, date: sl.date });
-                }
+
+        ordered.forEach((sl, index) => {
+          const items = sl.content?.items || [];
+          items.forEach(item => {
+            if (item.type !== 'break' && item.songTitle) {
+              songCounts[item.songTitle] = (songCounts[item.songTitle] || 0) + 1;
+              if (index < 5 && !recentSongs.find(s => s.title === item.songTitle)) {
+                recentSongs.push({ title: item.songTitle, date: sl.content?.date || null });
               }
-            });
+            }
           });
-        }
+        });
         
         const popularSongs = Object.entries(songCounts)
           .sort((a, b) => b[1] - a[1])
@@ -423,29 +424,29 @@ function TeamStats({ teamId }) {
     })();
   }, [teamId]);
 
-  if (loading) return <div className="text-copy-13 text-[var(--ds-gray-500)] py-4">Loading statistics…</div>;
+  if (loading) return <div className="text-copy-13 text-[var(--modes-text-dim)] py-4">Loading statistics…</div>;
 
   return (
     <div className="flex flex-col gap-6 mt-4">
       <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-xl p-4" style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}>
-          <div className="text-label-12 text-[var(--ds-gray-600)] uppercase tracking-wider font-semibold mb-1">Songs</div>
-          <div className="text-heading-24 text-[var(--ds-gray-1000)] m-0 leading-none">{stats?.songCount || 0}</div>
+        <div className="modes-card p-4">
+          <div className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-1">Songs</div>
+          <div className="text-heading-24 text-[var(--modes-text)] m-0 leading-none">{stats?.songCount || 0}</div>
         </div>
-        <div className="rounded-xl p-4" style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}>
-          <div className="text-label-12 text-[var(--ds-gray-600)] uppercase tracking-wider font-semibold mb-1">Setlists</div>
-          <div className="text-heading-24 text-[var(--ds-gray-1000)] m-0 leading-none">{stats?.setlistCount || 0}</div>
+        <div className="modes-card p-4">
+          <div className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-1">Setlists</div>
+          <div className="text-heading-24 text-[var(--modes-text)] m-0 leading-none">{stats?.setlistCount || 0}</div>
         </div>
       </div>
-      
+
       {stats?.popularSongs?.length > 0 && (
         <div>
-          <h3 className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider font-semibold mb-3 px-1">Most Popular Songs</h3>
+          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Most Popular Songs</h3>
           <div className="flex flex-col gap-2">
             {stats.popularSongs.map((song, i) => (
-              <div key={i} className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}>
-                <span className="text-copy-14 font-medium text-[var(--ds-gray-900)] truncate">{song.title}</span>
-                <span className="text-label-12 text-[var(--ds-gray-500)]">{song.count} plays</span>
+              <div key={i} className="modes-card flex items-center justify-between px-4 py-3">
+                <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{song.title}</span>
+                <span className="text-label-12 text-[var(--modes-text-dim)]">{song.count} plays</span>
               </div>
             ))}
           </div>
@@ -454,12 +455,12 @@ function TeamStats({ teamId }) {
 
       {stats?.recentSongs?.length > 0 && (
         <div>
-          <h3 className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider font-semibold mb-3 px-1">Recently Played</h3>
+          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Recently Played</h3>
           <div className="flex flex-col gap-2">
             {stats.recentSongs.map((song, i) => (
-              <div key={i} className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}>
-                <span className="text-copy-14 font-medium text-[var(--ds-gray-900)] truncate">{song.title}</span>
-                <span className="text-label-12 text-[var(--ds-gray-500)]">{new Date(song.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              <div key={i} className="modes-card flex items-center justify-between px-4 py-3">
+                <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{song.title}</span>
+                <span className="text-label-12 text-[var(--modes-text-dim)]">{song.date ? new Date(song.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
               </div>
             ))}
           </div>
@@ -496,10 +497,10 @@ function EditTeamForm({ team, onUpdate }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4 rounded-xl mt-4" style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}>
-      <h3 className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider font-semibold mb-1">Team Settings</h3>
+    <form onSubmit={handleSubmit} className="modes-card flex flex-col gap-4 p-4 mt-4">
+      <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-1">Team Settings</h3>
       <div className="flex flex-col gap-1.5">
-        <span className="text-label-12 text-[var(--ds-gray-700)]">Logo</span>
+        <span className="text-label-12 text-[var(--modes-text-muted)]">Logo</span>
         <AvatarUploader
           url={team.logo_url || null}
           fallback={(team.name || 'T').trim().charAt(0).toUpperCase()}
@@ -510,11 +511,11 @@ function EditTeamForm({ team, onUpdate }) {
         />
       </div>
       <label className="flex flex-col gap-1">
-        <span className="text-label-12 text-[var(--ds-gray-700)]">Team Name</span>
+        <span className="text-label-12 text-[var(--modes-text-muted)]">Team Name</span>
         <Input type="text" required value={name} onChange={e => setName(e.target.value)} />
       </label>
       <label className="flex flex-col gap-1">
-        <span className="text-label-12 text-[var(--ds-gray-700)]">Location (optional)</span>
+        <span className="text-label-12 text-[var(--modes-text-muted)]">Location (optional)</span>
         <Input type="text" value={location} onChange={e => setLocation(e.target.value)} />
       </label>
       {error && <div className="text-copy-13 text-[var(--ds-red-1000)] bg-[var(--ds-red-100)] px-3 py-2 rounded-lg">{error}</div>}
@@ -535,10 +536,7 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
     <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
       <div className="max-w-2xl mx-auto flex flex-col gap-6">
         {/* Team header */}
-        <div
-          className="rounded-2xl p-6 pb-0 overflow-hidden"
-          style={{ background: 'var(--ds-background-100)', border: '1px solid var(--ds-gray-400)' }}
-        >
+        <div className="modes-card-strong p-6 pb-0 overflow-hidden">
           <div className="flex items-start gap-4 mb-6">
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden"
@@ -551,9 +549,9 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 mb-0.5 truncate">{team.name}</h2>
+              <h2 className="text-heading-24 text-[var(--modes-text)] m-0 mb-0.5 truncate">{team.name}</h2>
               {team.location && (
-                <div className="flex items-center gap-1.5 text-copy-14 text-[var(--ds-gray-600)]">
+                <div className="flex items-center gap-1.5 text-copy-14 text-[var(--modes-text-muted)]">
                   <LocationIcon />
                   <span>{team.location}</span>
                 </div>
@@ -562,7 +560,7 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
                 <span className="text-label-11 uppercase tracking-wider font-semibold px-2.5 py-1 rounded-md" style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}>
                   {team.plan === 'church' ? 'Church' : 'Teams'} Plan
                 </span>
-                <span className="text-label-12 text-[var(--ds-gray-500)]">
+                <span className="text-label-12 text-[var(--modes-text-dim)]">
                   {members.length}/{team.max_seats} seats
                 </span>
               </div>
@@ -588,13 +586,13 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
           </div>
 
           {/* Tabs */}
-          <div className="flex items-center gap-6 border-b border-[var(--ds-gray-300)]">
+          <div className="flex items-center gap-6 border-b border-[var(--modes-border)]">
             <button
               onClick={() => setActiveTab('members')}
               className={`pb-3 text-label-14 font-semibold border-b-2 transition-colors cursor-pointer bg-transparent px-1 ${
                 activeTab === 'members'
-                  ? 'border-[var(--color-brand)] text-[var(--ds-gray-1000)]'
-                  : 'border-transparent text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-800)]'
+                  ? 'border-[var(--color-brand)] text-[var(--modes-text)]'
+                  : 'border-transparent text-[var(--modes-text-dim)] hover:text-[var(--modes-text)]'
               }`}
             >
               Members
@@ -603,8 +601,8 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
               onClick={() => setActiveTab('info')}
               className={`pb-3 text-label-14 font-semibold border-b-2 transition-colors cursor-pointer bg-transparent px-1 ${
                 activeTab === 'info'
-                  ? 'border-[var(--color-brand)] text-[var(--ds-gray-1000)]'
-                  : 'border-transparent text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-800)]'
+                  ? 'border-[var(--color-brand)] text-[var(--modes-text)]'
+                  : 'border-transparent text-[var(--modes-text-dim)] hover:text-[var(--modes-text)]'
               }`}
             >
               Info & Stats
@@ -619,7 +617,7 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
               <InviteForm onInvite={onInvite} seatsLeft={seatsLeft} />
             )}
             <div>
-              <h3 className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider font-semibold mb-3 px-1">
+              <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">
                 Members ({members.length})
               </h3>
               <div className="flex flex-col gap-2">
@@ -654,10 +652,7 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
               <EditTeamForm team={team} onUpdate={onUpdate} />
             )}
 
-            <div
-              className="rounded-xl p-4 mt-2"
-              style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}
-            >
+            <div className="modes-card p-4 mt-2">
               <h3 className="text-label-12 text-[var(--ds-red-700)] uppercase tracking-wider font-semibold mb-3">
                 Danger zone
               </h3>
@@ -755,7 +750,7 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
   const allowThisCreate = team ? canCreate : eligibleToCreate;
 
   return (
-    <div className="flex flex-col h-full">
+    <div data-theme-variant="modes" className="flex flex-col h-full">
       <ScreenHeader
         onBack={creating && team ? () => setCreating(false) : onBack}
         title={creating && team ? 'New Space' : 'Your Team'}
@@ -768,7 +763,7 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-copy-14 text-[var(--ds-gray-600)]">Loading team…</div>
+          <div className="text-copy-14 text-[var(--modes-text-muted)]">Loading team…</div>
         </div>
       ) : showCreate ? (
         allowThisCreate ? (

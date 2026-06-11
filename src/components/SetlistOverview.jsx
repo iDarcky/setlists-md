@@ -248,10 +248,10 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
         </div>
       </div>
 
-      {/* Practice — mobile only (Play live is the BottomNav FAB; desktop/tablet
-          use the floating Practice + Play pills). */}
+      {/* Practice — top action on every breakpoint. Play live stays on the
+          BottomNav FAB (mobile) / floating FAB (desktop/tablet). */}
       {onPractice && (
-        <div className="sm:hidden a4-container pt-4">
+        <div className="a4-container pt-4">
           <button
             type="button"
             onClick={() => practiceAt()}
@@ -294,7 +294,6 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                     className="flex items-center gap-3 px-1 py-2"
                     aria-label="Break"
                   >
-                    <span className="flex-1 border-t border-dashed border-[var(--ds-gray-400)]" aria-hidden="true" />
                     <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--ds-gray-400)] slrow-pill slrow-v-soft">
                       <span className="text-label-13 font-semibold text-[var(--ds-gray-1000)]">
                         {item.label || 'Break'}
@@ -417,33 +416,17 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
         </div>
       )}
 
-      {/* ── Floating Practice + Play — desktop/tablet only. On mobile the
-          BottomNav morphing FAB owns "Play live", and Practice lives in the
-          header action row, so this block would duplicate them. ── */}
+      {/* ── Floating Play — desktop/tablet only. On mobile the BottomNav
+          morphing FAB owns "Play live". Practice now lives in the top action
+          area on every breakpoint (see the "Practice this set" button above),
+          so it's no longer duplicated here. ── */}
       <div
         className="fixed right-6 z-[150] hidden sm:flex flex-col items-end gap-2"
         style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
       >
-        {onPractice && (
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => practiceAt()}
-            onKeyDown={(e) => e.key === 'Enter' && practiceAt()}
-            className="flex items-center gap-2 h-10 px-4 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] shadow-md cursor-pointer hover:bg-[var(--ds-background-100)] transition-all duration-150 active:scale-95 select-none"
-            aria-label="Practice setlist"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--ds-gray-900)]">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
-            <span className="text-label-13 font-semibold text-[var(--ds-gray-900)]">Practice</span>
-          </div>
-        )}
         {/* On touch tablets the bottom-nav FAB owns "Play live", so the caller
-            passes hidePlay to drop this duplicate and keep only Practice.
-            Desktop (no bottom nav) and the full setlist view keep it as the
-            primary play affordance. */}
+            passes hidePlay to drop this duplicate. Desktop (no bottom nav) and
+            the full setlist view keep it as the primary play affordance. */}
         {!hidePlay && (
           <div
             role="button"

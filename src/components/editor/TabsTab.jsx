@@ -195,7 +195,7 @@ export default function TabsTab({ md, onChange, subdivision = 1 }) {
                     </IconButton>
                   </div>
                 </div>
-                <div className="overflow-x-auto"><TabBlock data={entry.tab} /></div>
+                <TabBlock data={entry.tab} />
               </div>
             );
           })}

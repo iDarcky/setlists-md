@@ -7,6 +7,7 @@ import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { useResizablePane } from '../lib/useResizablePane';
+import { useEntitlement } from '../hooks/useEntitlement';
 
 const SetlistOverview = lazy(() => import('./SetlistOverview'));
 
@@ -68,7 +69,7 @@ function HeaderSort({ label, modeKey, sortMode, sortAsc, onSort }) {
 }
 
 // A titled table section (Upcoming / Past) sharing one column layout.
-function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onToggleAll, sortMode, sortAsc, onSort, compact = false }) {
+function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onToggleAll, sortMode, sortAsc, onSort, compact = false, showService = false }) {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-baseline gap-2 px-1">
@@ -85,6 +86,7 @@ function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onTog
               <th className="text-left px-5 py-3"><HeaderSort label="Name" modeKey="name" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
               <th className="text-left px-5 py-3 w-[180px]"><HeaderSort label="Date" modeKey="date" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
               <th className="text-left px-5 py-3 hidden md:table-cell w-[90px]"><HeaderSort label="Songs" modeKey="songs" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
+              {showService && <th className="text-left px-5 py-3 hidden md:table-cell w-[150px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Service</th>}
               {!compact && <th className="text-left px-5 py-3 hidden lg:table-cell w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>}
             </tr>
           </thead>
@@ -138,7 +140,11 @@ export default function Setlists({
   const openPeek = (sl, e) => { e?.stopPropagation(); onSelectPreview?.(sl.id); };
   const onRowActivate = isTablet ? openPeek : openFull;
 
+  // Service column + filter are a Church-tier feature (one service per setlist).
+  const { allowed: showService } = useEntitlement('multi-service');
+
   const [query, setQuery] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('all');
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'gallery'
   const [sortMode, setSortMode] = useState('date');   // 'name' | 'date' | 'songs'
   const [sortAsc, setSortAsc] = useState(false);
@@ -161,17 +167,26 @@ export default function Setlists({
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
-  const filtered = useMemo(() => {
-    if (!query) return setlists;
-    const q = query.toLowerCase();
-    return setlists.filter(sl =>
-      (sl.name || '').toLowerCase().includes(q) ||
-      (sl.service || '').toLowerCase().includes(q) ||
-      (sl.tags || []).some(t => t.toLowerCase().includes(q))
-    );
-  }, [setlists, query]);
+  // Distinct services across all setlists (church tier) — powers the filter.
+  const serviceOptions = useMemo(
+    () => [...new Set(setlists.map(s => s.service).filter(Boolean))].sort(),
+    [setlists],
+  );
 
-  useEffect(() => { setSelected([]); }, [query, sortMode, sortAsc]);
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    return setlists.filter(sl => {
+      if (showService && serviceFilter !== 'all' && (sl.service || '') !== serviceFilter) return false;
+      if (!q) return true;
+      return (
+        (sl.name || '').toLowerCase().includes(q) ||
+        (sl.service || '').toLowerCase().includes(q) ||
+        (sl.tags || []).some(t => t.toLowerCase().includes(q))
+      );
+    });
+  }, [setlists, query, showService, serviceFilter]);
+
+  useEffect(() => { setSelected([]); }, [query, sortMode, sortAsc, serviceFilter]);
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
 
@@ -272,6 +287,13 @@ export default function Setlists({
         </td>
         <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap">{formatDate(sl.date)}</td>
         <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] hidden md:table-cell">{songCount(sl)}</td>
+        {showService && (
+          <td className="px-5 py-3.5 hidden md:table-cell">
+            {sl.service
+              ? <span className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface)] text-[var(--modes-text-muted)] border border-[var(--modes-border)] whitespace-nowrap">{sl.service}</span>
+              : <span className="text-copy-14 text-[var(--modes-text-dim)]">—</span>}
+          </td>
+        )}
         {!splitDock && (
           <td className="px-5 py-3.5 hidden lg:table-cell">
             <div className="flex flex-wrap gap-1">
@@ -299,6 +321,25 @@ export default function Setlists({
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
+
+          {showService && serviceOptions.length > 0 && (
+            <select
+              value={serviceFilter}
+              onChange={e => setServiceFilter(e.target.value)}
+              aria-label="Filter by service"
+              className={cn(
+                'h-9 px-3 rounded-lg border text-label-14 cursor-pointer bg-[var(--modes-surface)] outline-none transition-colors focus:border-[var(--color-brand)]',
+                serviceFilter !== 'all'
+                  ? 'border-[var(--color-brand)] text-[var(--color-brand)]'
+                  : 'border-[var(--modes-border)] text-[var(--modes-text)] hover:bg-[var(--modes-surface-strong)]',
+              )}
+            >
+              <option value="all">All services</option>
+              {serviceOptions.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          )}
 
           <div className={cn('items-center rounded-lg border border-[var(--modes-border)] overflow-hidden', advanced ? 'flex' : 'hidden')}>
             <button onClick={() => setViewMode('table')} aria-label="Table view" title="Table view"
@@ -372,6 +413,7 @@ export default function Setlists({
                 sortAsc={sortAsc}
                 onSort={handleSortClick}
                 compact={splitDock}
+                showService={showService}
               />
             )}
             {tablePast.length > 0 && (
@@ -387,6 +429,7 @@ export default function Setlists({
                 sortAsc={sortAsc}
                 onSort={handleSortClick}
                 compact={splitDock}
+                showService={showService}
               />
             )}
           </div>
