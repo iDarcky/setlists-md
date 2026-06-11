@@ -5,6 +5,7 @@ import { useAuth } from '../auth/useAuth';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import UpgradeGate from './ui/UpgradeGate';
+import ActivityFeed from './team/ActivityFeed';
 import AvatarUploader from './ui/AvatarUploader';
 import { useConfirm } from './ui/useConfirmHook';
 import { BILLING_ENABLED, WORKSPACE_CREATION_LOCKED, startTeamCheckout } from '../billing/checkout';
@@ -841,6 +842,13 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
         {activeTab === 'info' && (
           <div className="flex flex-col gap-6">
             <TeamStats teamId={team.id} members={members} />
+
+            <div>
+              <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Recent Activity</h3>
+              <div className="modes-card p-2">
+                <ActivityFeed teamId={team.id} members={members} />
+              </div>
+            </div>
 
             {isAdmin && (
               <EditTeamForm team={team} onUpdate={onUpdate} />
