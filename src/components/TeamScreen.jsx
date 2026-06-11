@@ -366,7 +366,7 @@ function InviteForm({ onInvite, seatsLeft }) {
 
 // ── Team Stats ──────────────────────────────────────────────────────────────
 
-function TeamStats({ teamId }) {
+function TeamStats({ teamId, members = [] }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   // Empty = "All services"; otherwise the union of the picked services.
@@ -389,6 +389,16 @@ function TeamStats({ teamId }) {
           .select('id, name, content, updated_at')
           .eq('team_id', teamId)
           .order('updated_at', { ascending: false });
+
+        // Songs (for key spread + stale detection) and availability (readiness).
+        const { data: songRows } = await supabase
+          .from('team_songs')
+          .select('id, title, content')
+          .eq('team_id', teamId);
+        const { data: availRows } = await supabase
+          .from('team_availability')
+          .select('user_id, date, status')
+          .eq('team_id', teamId);
 
         // Sort by the service date carried inside content (newest first),
         // falling back to updated_at when a setlist has no date.
@@ -424,12 +434,54 @@ function TeamStats({ teamId }) {
           });
         });
 
+        // ── Upcoming services (next future-dated setlists) ──
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const upcoming = ordered
+          .filter(sl => (sl.content?.date || '') >= todayStr)
+          .sort((a, b) => (a.content?.date || '').localeCompare(b.content?.date || ''))
+          .slice(0, 3)
+          .map(sl => ({
+            id: sl.id,
+            name: sl.name || sl.content?.name || 'Untitled',
+            date: sl.content?.date || null,
+            service: sl.content?.service || null,
+            songCount: (sl.content?.items || []).filter(i => i.type !== 'break' && i.songId).length,
+            content: sl.content,
+          }));
+
+        // ── Roster readiness for the very next service ──
+        const next = upcoming[0] || null;
+        let readiness = null;
+        if (next?.date) {
+          const avail = new Set((availRows || []).filter(a => a.date === next.date && a.status === 'available').map(a => a.user_id));
+          readiness = { date: next.date, name: next.name, available: avail.size, total: members.length };
+        }
+
+        // ── Most-used keys across the library ──
+        const keyCounts = {};
+        (songRows || []).forEach(s => {
+          const k = s.content?.key || s.content?.arrangements?.[0]?.key;
+          if (k) keyCounts[k] = (keyCounts[k] || 0) + 1;
+        });
+        const topKeys = Object.entries(keyCounts).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([key, count]) => ({ key, count }));
+
+        // ── Stale songs (in the library, never used in a setlist) ──
+        const usedTitles = new Set();
+        ordered.forEach(sl => (sl.content?.items || []).forEach(it => { if (it.songTitle) usedTitles.add(it.songTitle); }));
+        const stale = (songRows || [])
+          .map(s => s.title || s.content?.title)
+          .filter(t => t && !usedTitles.has(t));
+
         setStats({
           songCount: songCount || 0,
           setlistCount,
           songsByService,
           services: [...servicesSet].sort(),
-          recentSongs: recentSongs.slice(0, 5)
+          recentSongs: recentSongs.slice(0, 5),
+          upcoming,
+          readiness,
+          topKeys,
+          stale,
         });
       } catch (err) {
         console.error('Failed to load team stats', err);
@@ -437,7 +489,7 @@ function TeamStats({ teamId }) {
         setLoading(false);
       }
     })();
-  }, [teamId]);
+  }, [teamId, members.length]);
 
   if (loading) return <div className="text-copy-13 text-[var(--modes-text-dim)] py-4">Loading statistics…</div>;
 
@@ -453,6 +505,44 @@ function TeamStats({ teamId }) {
           <div className="text-heading-24 text-[var(--modes-text)] m-0 leading-none">{stats?.setlistCount || 0}</div>
         </div>
       </div>
+
+      {/* Roster readiness for the next service */}
+      {stats?.readiness && stats.readiness.total > 0 && (
+        <div className="modes-card p-4">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="min-w-0">
+              <div className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">Next service readiness</div>
+              <div className="text-copy-14 font-medium text-[var(--modes-text)] truncate mt-0.5">{stats.readiness.name}</div>
+            </div>
+            <div className="text-heading-24 text-[var(--modes-text)] leading-none shrink-0">{stats.readiness.available}<span className="text-copy-14 text-[var(--modes-text-dim)]">/{stats.readiness.total}</span></div>
+          </div>
+          <div className="h-1.5 rounded-full bg-[var(--modes-surface-strong)] overflow-hidden">
+            <div className="h-full rounded-full bg-[var(--color-brand)]" style={{ width: `${Math.round((stats.readiness.available / stats.readiness.total) * 100)}%` }} />
+          </div>
+          <div className="text-label-12 text-[var(--modes-text-dim)] mt-1.5">{stats.readiness.available} available · {new Date(stats.readiness.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+        </div>
+      )}
+
+      {/* Upcoming services */}
+      {stats?.upcoming?.length > 0 && (
+        <div>
+          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Upcoming Services</h3>
+          <div className="flex flex-col gap-2">
+            {stats.upcoming.map(sl => (
+              <div key={sl.id} className="modes-card flex items-center gap-3 px-4 py-3">
+                <div className="flex flex-col items-center justify-center w-11 h-11 rounded-lg bg-[var(--modes-surface-strong)] shrink-0">
+                  <span className="text-label-10 uppercase tracking-wider text-[var(--modes-text-dim)] leading-none">{sl.date ? new Date(sl.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short' }) : '—'}</span>
+                  <span className="text-heading-18 leading-none mt-0.5 text-[var(--modes-text)]">{sl.date ? new Date(sl.date + 'T00:00:00').getDate() : '?'}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{sl.name}</div>
+                  <div className="text-label-12 text-[var(--modes-text-dim)] truncate">{sl.service ? `${sl.service} · ` : ''}{sl.songCount} song{sl.songCount !== 1 ? 's' : ''}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {(() => {
         const sbs = stats?.songsByService || { all: {} };
@@ -522,6 +612,39 @@ function TeamStats({ teamId }) {
           </div>
         );
       })()}
+
+      {/* Most-used keys */}
+      {stats?.topKeys?.length > 0 && (
+        <div>
+          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Most-used Keys</h3>
+          <div className="flex flex-wrap gap-2">
+            {stats.topKeys.map(k => (
+              <div key={k.key} className="modes-card flex items-center gap-2 px-3 py-2">
+                <span className="text-copy-15 font-bold text-[var(--color-brand-text)] font-mono">{k.key}</span>
+                <span className="text-label-12 text-[var(--modes-text-dim)]">{k.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stale / unused songs */}
+      {stats?.stale?.length > 0 && (
+        <div>
+          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">
+            Never Played <span className="text-[var(--modes-text-dim)] normal-case tracking-normal">({stats.stale.length})</span>
+          </h3>
+          <div className="modes-card px-4 py-3 flex flex-col gap-1.5">
+            <p className="text-label-12 text-[var(--modes-text-dim)] m-0">In your library but not in any setlist — rotate them in or retire them.</p>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {stats.stale.slice(0, 12).map((t, i) => (
+                <span key={i} className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)] truncate max-w-[180px]">{t}</span>
+              ))}
+              {stats.stale.length > 12 && <span className="text-label-12 text-[var(--modes-text-dim)] self-center">+{stats.stale.length - 12} more</span>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {stats?.recentSongs?.length > 0 && (
         <div>
@@ -716,7 +839,7 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
 
         {activeTab === 'info' && (
           <div className="flex flex-col gap-6">
-            <TeamStats teamId={team.id} />
+            <TeamStats teamId={team.id} members={members} />
 
             {isAdmin && (
               <EditTeamForm team={team} onUpdate={onUpdate} />
