@@ -5,6 +5,7 @@ import { resolveChartDisplay, resolveColumns } from '../lib/chartDisplay';
 import ChordDiagram from './ChordDiagram';
 import { Card } from './ui/Card';
 import SectionBlock from './SectionBlock';
+import SongMap from './SongMap';
 import { StructureRibbon } from './StructureRibbon';
 import FloatingNavPill from './ui/FloatingNavPill';
 import { IconButton } from './ui/IconButton';
@@ -24,6 +25,9 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   // Library chart writes to, so customizing a song carries into live mode.
   const disp = resolveChartDisplay(settings, { fallbackLyric: defaultFontSize || 18 });
   const fontSize = disp.lyricFontSize;
+  // Live display mode (chords / lyrics / tabs / song map) — session-local, set
+  // from the header view picker.
+  const [displayMode, setDisplayMode] = useState('chords');
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const scrollRef = useRef(null);
 
@@ -257,9 +261,20 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
                     {cur.isBreak ? (cur.label || 'Break') : cur.song.title}
                   </h1>
 
-                  {/* Meta: key picker + tempo + time */}
+                  {/* Meta: view mode + key picker + tempo + time */}
                   {!cur.isBreak && !cur.isMissing && displayKey && (
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <Select value={displayMode} onValueChange={setDisplayMode}>
+                        <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0" aria-label="Display mode">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="chords">Chords</SelectItem>
+                          <SelectItem value="lyrics">Lyrics</SelectItem>
+                          <SelectItem value="tabs">Tabs</SelectItem>
+                          <SelectItem value="songmap">Song map</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <Select value={displayKey} onValueChange={setSelectedKey}>
                         <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
                           <SelectValue />
@@ -351,6 +366,10 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
               nashville={disp.nashville}
               showChords={disp.showChords}
               showDiagrams={disp.showDiagrams}
+              displayMode={displayMode}
+              sectionColors={settings?.sectionColors}
+              sectionLabels={settings?.sectionLabels}
+              customSectionTypes={settings?.customSectionTypes}
             />
           </>
         ) : null}
@@ -434,9 +453,12 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   );
 }
 
-function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, nashville = false, showChords = true, showDiagrams = false }) {
+function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, nashville = false, showChords = true, showDiagrams = false, displayMode = 'chords', sectionColors, sectionLabels, customSectionTypes }) {
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   const [notesOpen, setNotesOpen] = useState(false);
+  const viewChords = displayMode === 'chords';
+  const viewLyrics = displayMode !== 'tabs';
+  const viewTabs = displayMode !== 'lyrics';
 
   const allChords = useMemo(() => Array.from(new Set(
     song.sections.flatMap(s => s.lines)
@@ -479,6 +501,23 @@ function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, 
     });
   }, [orderedSections]);
 
+  if (displayMode === 'songmap') {
+    return (
+      <SongMap
+        sections={orderedSections}
+        modOffsets={sectionModOffsets}
+        transpose={transpose}
+        sectionColors={sectionColors}
+        sectionLabels={sectionLabels}
+        customSectionTypes={customSectionTypes}
+        onSelect={(i) => {
+          const el = document.getElementById(`perf-section-${i}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }}
+      />
+    );
+  }
+
   return (
     <div
       style={{
@@ -490,7 +529,7 @@ function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, 
         ...(chordFontSize ? { ['--chart-font-size-chord']: `${chordFontSize}px` } : {}),
       }}
     >
-      {showDiagrams && allChords.length > 0 && (
+      {showDiagrams && viewChords && allChords.length > 0 && (
         <div className="flex gap-4 overflow-x-auto no-scrollbar pb-6 mb-6 border-b border-[var(--ds-gray-300)]" style={{ columnSpan: 'all', WebkitColumnSpan: 'all' }}>
           {allChords.map(chord => (
             <div key={chord} className="flex flex-col items-center gap-1 flex-shrink-0">
@@ -558,7 +597,9 @@ function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, 
             modOffset={sectionModOffsets[i]}
             nns={nashville}
             songKey={song.key}
-            showChords={showChords}
+            showChords={showChords && viewChords}
+            showLyrics={viewLyrics}
+            showTabs={viewTabs}
             inlineNotes
             noteStyle="dashes"
           />

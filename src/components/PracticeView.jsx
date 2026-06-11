@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { transposeKey, transposeChord, ALL_KEYS, semitonesBetween } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
+import SongMap from './SongMap';
 import ChordDiagram from './ChordDiagram';
 import { StructureRibbon } from './StructureRibbon';
 import FloatingNavPill from './ui/FloatingNavPill';
@@ -41,6 +42,9 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const [nns, setNns] = useState(disp.nashville);
   const [showChords, setShowChords] = useState(disp.showChords);
   const [showDiagrams, setShowDiagrams] = useState(disp.showDiagrams);
+  // What to show in the chart body: chords / lyrics-only / tabs / song map.
+  // Mirrors the chart-view switch; local to the session like the other knobs.
+  const [displayMode, setDisplayMode] = useState('chords');
   useEffect(() => {
     setFontSize(disp.lyricFontSize);
     setChordFontSize(disp.chordFontSize);
@@ -485,6 +489,10 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             nashville={nns}
             showChords={showChords}
             showDiagrams={showDiagrams}
+            displayMode={displayMode}
+            sectionColors={settings?.sectionColors}
+            sectionLabels={settings?.sectionLabels}
+            customSectionTypes={settings?.customSectionTypes}
             onSaveCue={handleSaveCue}
           />
         ) : null}
@@ -611,6 +619,20 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
               );
             })}
           </div>
+        </SheetField>
+
+        <SheetField label="View">
+          <SegmentedControl
+            value={displayMode}
+            onChange={setDisplayMode}
+            options={[
+              { value: 'chords', label: 'Chords' },
+              { value: 'lyrics', label: 'Lyrics' },
+              { value: 'tabs', label: 'Tabs' },
+              { value: 'songmap', label: 'Map' },
+            ]}
+            size="sm"
+          />
         </SheetField>
 
         <SheetField label="Display">
@@ -794,8 +816,12 @@ function StructureEditor({ structure, availableSections, onUpdate, onClose }) {
 }
 
 // Chart with editable cue cards between sections
-function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, nashville = false, showChords = true, showDiagrams = false, onSaveCue }) {
+function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, nashville = false, showChords = true, showDiagrams = false, displayMode = 'chords', sectionColors, sectionLabels, customSectionTypes, onSaveCue }) {
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
+  // Mirror the chart-view display switch.
+  const viewChords = displayMode === 'chords';
+  const viewLyrics = displayMode !== 'tabs';
+  const viewTabs = displayMode !== 'lyrics';
 
   const allChords = useMemo(() => Array.from(new Set(
     song.sections.flatMap(s => s.lines)
@@ -816,6 +842,23 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
     });
   }, [song.sections]);
 
+  if (displayMode === 'songmap') {
+    return (
+      <SongMap
+        sections={song.sections}
+        modOffsets={sectionModOffsets}
+        transpose={transpose}
+        sectionColors={sectionColors}
+        sectionLabels={sectionLabels}
+        customSectionTypes={customSectionTypes}
+        onSelect={(i) => {
+          const el = document.getElementById(`practice-section-${i}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }}
+      />
+    );
+  }
+
   return (
     <div
       style={{
@@ -826,7 +869,7 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
         ...(columns === 2 ? { columnCount: 2, columnGap: '3rem' } : {}),
       }}
     >
-      {showDiagrams && allChords.length > 0 && (
+      {showDiagrams && viewChords && allChords.length > 0 && (
         <div className="flex gap-4 overflow-x-auto no-scrollbar pb-6 mb-6 border-b border-[var(--ds-gray-300)]" style={{ columnSpan: 'all', WebkitColumnSpan: 'all' }}>
           {allChords.map(chord => (
             <div key={chord} className="flex flex-col items-center gap-1 flex-shrink-0">
@@ -861,7 +904,9 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
             modOffset={sectionModOffsets[i]}
             nns={nashville}
             songKey={song.key}
-            showChords={showChords}
+            showChords={showChords && viewChords}
+            showLyrics={viewLyrics}
+            showTabs={viewTabs}
             inlineNotes
             noteStyle="dashes"
           />
