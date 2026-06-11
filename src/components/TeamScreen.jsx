@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../auth/supabase';
 import { useTeam } from '../auth/useTeam';
 import { useAuth } from '../auth/useAuth';
-import ScreenHeader from './ui/ScreenHeader';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import UpgradeGate from './ui/UpgradeGate';
@@ -410,10 +409,22 @@ function TeamStats({ teamId }) {
           .slice(0, 5)
           .map(([title, count]) => ({ title, count }));
 
+        // Break setlists down by their service (church tier). Setlists with no
+        // service collapse into "No service".
+        const serviceCounts = {};
+        ordered.forEach(sl => {
+          const svc = sl.content?.service?.trim() || 'No service';
+          serviceCounts[svc] = (serviceCounts[svc] || 0) + 1;
+        });
+        const byService = Object.entries(serviceCounts)
+          .sort((a, b) => b[1] - a[1])
+          .map(([service, count]) => ({ service, count }));
+
         setStats({
           songCount: songCount || 0,
           setlistCount,
           popularSongs,
+          byService,
           recentSongs: recentSongs.slice(0, 5)
         });
       } catch (err) {
@@ -438,6 +449,20 @@ function TeamStats({ teamId }) {
           <div className="text-heading-24 text-[var(--modes-text)] m-0 leading-none">{stats?.setlistCount || 0}</div>
         </div>
       </div>
+
+      {stats?.byService?.some(s => s.service !== 'No service') && (
+        <div>
+          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Setlists by Service</h3>
+          <div className="flex flex-col gap-2">
+            {stats.byService.map((row, i) => (
+              <div key={i} className="modes-card flex items-center justify-between px-4 py-3">
+                <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{row.service}</span>
+                <span className="text-label-12 text-[var(--modes-text-dim)]">{row.count} setlist{row.count !== 1 ? 's' : ''}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {stats?.popularSongs?.length > 0 && (
         <div>
@@ -749,17 +774,38 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
   // creating ADDITIONAL Spaces is gated by `canCreate`.
   const allowThisCreate = team ? canCreate : eligibleToCreate;
 
+  const headerBack = creating && team ? () => setCreating(false) : onBack;
+  const headerTitle = creating && team ? 'New Space' : 'Your Team';
+
   return (
     <div data-theme-variant="modes" className="flex flex-col h-full">
-      <ScreenHeader
-        onBack={creating && team ? () => setCreating(false) : onBack}
-        title={creating && team ? 'New Space' : 'Your Team'}
-        actions={!creating && team && canCreate ? (
-          <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
-            <span className="flex items-center gap-1.5"><PlusIcon /> New</span>
-          </Button>
-        ) : null}
-      />
+      {/* Modern header — matches the Setlists/Library shell (big title, blurred
+          bar, modes hairline) rather than the legacy compact ScreenHeader. */}
+      <header
+        className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
+        <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
+          {headerBack && (
+            <button
+              type="button"
+              onClick={headerBack}
+              aria-label="Back"
+              className="w-10 h-10 -ml-1 rounded-xl flex items-center justify-center text-[var(--modes-text)] hover:bg-[var(--modes-surface)] active:scale-95 transition-all cursor-pointer border-none bg-transparent shrink-0"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+          )}
+          <h1 className="flex-1 min-w-0 text-heading-24 font-bold text-[var(--modes-text)] m-0 truncate">{headerTitle}</h1>
+          {!creating && team && canCreate && (
+            <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
+              <span className="flex items-center gap-1.5"><PlusIcon /> New</span>
+            </Button>
+          )}
+        </div>
+      </header>
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
