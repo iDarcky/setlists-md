@@ -55,15 +55,22 @@ export default function ScheduleListView({
     return t;
   }, []);
 
+  // Agenda: only surface days that actually matter — today, days with a
+  // setlist, days you've marked, or days someone is available — so the list
+  // isn't 50+ empty rows. Use the Calendar view to mark an arbitrary day.
   const dates = useMemo(() => {
     const arr = [];
     for (let i = 0; i < weeksAhead * 7; i++) {
       const d = new Date(today);
       d.setDate(d.getDate() + i);
-      arr.push(d);
+      const ds = toLocalDateStr(d);
+      const hasSetlist = setlists.some(sl => sl.date === ds);
+      const hasStatus = availability?.some(a => a.user_id === userId && a.date === ds);
+      const hasAvail = availability?.some(a => a.date === ds && a.status === 'available');
+      if (i === 0 || hasSetlist || hasStatus || hasAvail) arr.push(d);
     }
     return arr;
-  }, [today, weeksAhead]);
+  }, [today, weeksAhead, setlists, availability, userId]);
 
   const myAvailFor = (dateStr) =>
     availability?.find(a => a.user_id === userId && a.date === dateStr)?.status || null;
@@ -88,7 +95,7 @@ export default function ScheduleListView({
         return (
           <div
             key={idx}
-            className={`p-3 rounded-xl border bg-[var(--ds-background-100)] flex flex-col gap-2 ${isToday ? 'border-[var(--color-brand)]' : 'border-[var(--ds-gray-300)]'}`}
+            className={`p-3 rounded-xl border bg-[var(--modes-surface)] flex flex-col gap-2 ${isToday ? 'border-[var(--color-brand)]' : 'border-[var(--modes-border)]'}`}
           >
             <div className="flex items-center justify-between gap-3">
               <button
@@ -97,19 +104,19 @@ export default function ScheduleListView({
                 className="flex items-center gap-3 text-left bg-transparent border-none p-0 cursor-pointer min-w-0 flex-1"
                 aria-label={`Set availability for ${dayLabel}`}
               >
-                <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shrink-0">
-                  <span className="text-label-11 uppercase tracking-wider text-[var(--ds-gray-600)] leading-none">
+                <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] shrink-0">
+                  <span className="text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)] leading-none">
                     {date.toLocaleDateString('en-US', { month: 'short' })}
                   </span>
-                  <span className="text-heading-18 leading-none mt-0.5">
+                  <span className="text-heading-18 leading-none mt-0.5 text-[var(--modes-text)]">
                     {date.getDate()}
                   </span>
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-copy-14 font-semibold text-[var(--ds-gray-1000)]">
+                  <span className="text-copy-14 font-semibold text-[var(--modes-text)]">
                     {weekday}
                   </span>
-                  <span className="text-copy-12 text-[var(--ds-gray-600)]">
+                  <span className="text-copy-12 text-[var(--modes-text-dim)]">
                     {rel || dayLabel}
                   </span>
                 </div>
@@ -126,15 +133,15 @@ export default function ScheduleListView({
             {slOnDay.map(sl => (
               <div
                 key={sl.id}
-                className="flex items-center justify-between gap-3 pl-15 border-t border-dashed border-[var(--ds-gray-300)] pt-2"
+                className="flex items-center justify-between gap-3 pl-15 border-t border-dashed border-[var(--modes-border)] pt-2"
               >
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <Chip variant="success" size="sm">Setlist</Chip>
-                  <span className="text-copy-13 text-[var(--ds-gray-1000)] font-medium truncate">
+                  <span className="text-copy-13 text-[var(--modes-text)] font-medium truncate">
                     {sl.name || 'Untitled Setlist'}
                   </span>
                   {sl.time && (
-                    <span className="text-copy-12 text-[var(--ds-gray-600)] shrink-0">
+                    <span className="text-copy-12 text-[var(--modes-text-dim)] shrink-0">
                       {formatClockTime(sl.time, clockFormat)}
                     </span>
                   )}
@@ -150,7 +157,7 @@ export default function ScheduleListView({
             ))}
 
             {isAdmin && (
-              <div className="text-label-12 text-[var(--ds-gray-600)] flex items-center gap-2">
+              <div className="text-label-12 text-[var(--modes-text-dim)] flex items-center gap-2">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                   <circle cx="9" cy="7" r="4" />

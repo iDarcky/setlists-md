@@ -1,5 +1,4 @@
 import { useState, useSyncExternalStore } from 'react';
-import ScreenHeader from './ui/ScreenHeader';
 import { SegmentedControl } from './ui/SegmentedControl';
 import RecurringPicker from './schedule/RecurringPicker';
 import ScheduleListView from './schedule/ScheduleListView';
@@ -30,6 +29,44 @@ function useIsMobile() {
     subscribeMobile,
     () => window.matchMedia(MOBILE_QUERY).matches,
     () => false,
+  );
+}
+
+// Modern header matching the Setlists / Library / Team shell.
+function ScheduleHeader({ teamName, viewMode, onSetView, onBack, hideToggle = false }) {
+  return (
+    <header
+      className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]"
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+    >
+      <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back"
+            className="w-10 h-10 -ml-1 rounded-xl flex items-center justify-center text-[var(--modes-text)] hover:bg-[var(--modes-surface)] active:scale-95 transition-all cursor-pointer border-none bg-transparent shrink-0"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+          </button>
+        )}
+        <div className="flex-1 min-w-0">
+          <h1 className="text-heading-24 font-bold text-[var(--modes-text)] m-0 truncate leading-tight">Schedule</h1>
+          {teamName && <p className="text-label-12 text-[var(--modes-text-dim)] m-0 truncate">{teamName}</p>}
+        </div>
+        {!hideToggle && (
+          <SegmentedControl
+            value={viewMode}
+            onChange={onSetView}
+            options={[
+              { value: 'list', label: 'List' },
+              { value: 'calendar', label: 'Calendar' },
+            ]}
+            size="sm"
+          />
+        )}
+      </div>
+    </header>
   );
 }
 
@@ -85,36 +122,30 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
 
   if (!team) {
     return (
-      <div className="material-page min-h-screen pb-8">
-        <ScreenHeader title="Schedule" onBack={onBack} />
-        <div className="a4-container py-12 text-center">
-          <p className="text-copy-14 text-[var(--ds-gray-700)]">
-            Schedule planning is a team feature. Create or join a team to start coordinating availability.
-          </p>
+      <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
+        <ScheduleHeader teamName={null} viewMode={viewMode} onSetView={handleSetView} onBack={onBack} hideToggle />
+        <div className="w-full max-w-3xl mx-auto px-5 sm:px-8 py-16">
+          <div className="modes-card p-8 text-center flex flex-col items-center gap-3">
+            <div className="w-14 h-14 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--modes-text-muted)]">
+                <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
+              </svg>
+            </div>
+            <h2 className="text-heading-20 text-[var(--modes-text)] m-0">Schedule is a team feature</h2>
+            <p className="text-copy-14 text-[var(--modes-text-muted)] max-w-sm m-0">
+              Create or join a team to plan services, coordinate availability, and build rosters together.
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="material-page min-h-screen pb-8">
-      <ScreenHeader
-        title="Schedule"
-        subtitle={team.name}
-        onBack={onBack}
-        actions={
-          <SegmentedControl
-            value={viewMode}
-            onChange={handleSetView}
-            options={[
-              { value: 'list', label: 'List' },
-              { value: 'calendar', label: 'Calendar' },
-            ]}
-          />
-        }
-      />
+    <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
+      <ScheduleHeader teamName={team.name} viewMode={viewMode} onSetView={handleSetView} onBack={onBack} />
 
-      <div className="a4-container pt-6 flex flex-col gap-6">
+      <div className="w-full max-w-3xl mx-auto px-5 sm:px-8 py-6 flex flex-col gap-6">
         <RecurringPicker onApply={handleApplyRecurring} />
 
         {viewMode === 'list' ? (

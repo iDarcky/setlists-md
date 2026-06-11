@@ -89,7 +89,7 @@ export default function ScheduleCalendarView({
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
         </Button>
         <div className="flex items-center gap-2">
-          <h3 className="text-heading-18 m-0 text-[var(--ds-gray-1000)]">
+          <h3 className="text-heading-18 m-0 text-[var(--modes-text)]">
             {monthLabel}
           </h3>
           <Button variant="ghost" size="xs" onClick={goToday}>Today</Button>
@@ -101,7 +101,7 @@ export default function ScheduleCalendarView({
 
       <div className="grid grid-cols-7 gap-1 text-center">
         {WEEKDAY_LABELS.map(label => (
-          <span key={label} className="text-label-11 uppercase tracking-wider text-[var(--ds-gray-600)] py-2">
+          <span key={label} className="text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)] py-2">
             {label}
           </span>
         ))}
@@ -118,8 +118,8 @@ export default function ScheduleCalendarView({
           const availCount = availableCountFor(dateStr);
 
           const cellBg = isToday
-            ? 'border-[var(--color-brand)] bg-[var(--ds-background-100)]'
-            : 'border-[var(--ds-gray-200)] bg-[var(--ds-background-100)]';
+            ? 'border-[var(--color-brand)] bg-[var(--modes-surface-strong)]'
+            : 'border-[var(--modes-border)] bg-[var(--modes-surface)]';
 
           const opacity = inMonth ? '' : 'opacity-40';
           const interactive = !isPast;
@@ -130,10 +130,10 @@ export default function ScheduleCalendarView({
               type="button"
               disabled={!interactive}
               onClick={() => interactive ? onSelectDate(date) : null}
-              className={`relative aspect-square flex flex-col items-stretch justify-between rounded-lg border p-1.5 text-left transition-colors ${cellBg} ${opacity} ${interactive ? 'hover:bg-[var(--ds-gray-100)] cursor-pointer' : 'cursor-default'}`}
+              className={`relative aspect-square flex flex-col items-stretch justify-between rounded-lg border p-1.5 text-left transition-colors ${cellBg} ${opacity} ${interactive ? 'hover:bg-[var(--modes-surface-strong)] cursor-pointer' : 'cursor-default'}`}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-label-13 ${isToday ? 'font-bold text-[var(--color-brand)]' : 'text-[var(--ds-gray-1000)]'}`}>
+                <span className={`text-label-13 ${isToday ? 'font-bold text-[var(--color-brand)]' : 'text-[var(--modes-text)]'}`}>
                   {date.getDate()}
                 </span>
                 {myStatus && (
@@ -165,7 +165,7 @@ export default function ScheduleCalendarView({
                   </span>
                 )}
                 {isAdmin && availCount > 0 && (
-                  <span className="text-label-10 text-[var(--ds-gray-600)]">
+                  <span className="text-label-10 text-[var(--modes-text-dim)]">
                     {availCount}/{members.length} avail
                   </span>
                 )}
