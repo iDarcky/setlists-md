@@ -36,8 +36,10 @@ export function useTeamRealtime(teamId, onRemoteChange) {
       }, DEBOUNCE_MS);
     };
 
+    // Unique topic per subscription so a repeated topic can't return an
+    // already-subscribed channel (which makes .on('postgres_changes') throw).
     const channel = supabase
-      .channel(`team-library-${teamId}`)
+      .channel(`team-library-${teamId}-${Math.random().toString(36).slice(2, 9)}`)
       .on(
         'postgres_changes',
         {

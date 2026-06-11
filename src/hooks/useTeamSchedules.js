@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../auth/supabase';
 import { useAuth } from '../auth/useAuth';
 
@@ -32,18 +32,22 @@ export function useTeamSchedules(teamId) {
     fetchSchedules();
   }, [fetchSchedules]);
 
+  // Keep the realtime callback fresh without re-subscribing each render.
+  const fetchRef = useRef(fetchSchedules);
+  fetchRef.current = fetchSchedules;
+
   // Subscribe to changes
   useEffect(() => {
     if (!teamId) return;
 
-    const channelId = `team_schedules_${teamId}_${Math.random().toString(36).substring(7)}`;
+    const channelId = `team_schedules_${teamId}_${Math.random().toString(36).slice(2, 9)}`;
     const channel = supabase.channel(channelId)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'team_schedules', filter: `team_id=eq.${teamId}` },
-        (payload) => {
+        () => {
           // Re-fetch everything on change to get user metadata joins correctly
-          fetchSchedules();
+          fetchRef.current();
         }
       )
       .subscribe();
@@ -51,7 +55,7 @@ export function useTeamSchedules(teamId) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [teamId, fetchSchedules]);
+  }, [teamId]);
 
   const updateSchedule = async (id, updates) => {
     if (!id) return;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../auth/supabase';
 import { useAuth } from '../auth/useAuth';
 
@@ -44,17 +44,25 @@ export function useTeamAvailability(teamId) {
     fetchAvailability();
   }, [fetchAvailability]);
 
+  // Keep the realtime callback fresh without re-subscribing on every render.
+  const fetchRef = useRef(fetchAvailability);
+  fetchRef.current = fetchAvailability;
+
   useEffect(() => {
     if (!teamId || !supabase) return;
-    const channel = supabase.channel(`team_availability_${teamId}`)
+    // Unique topic per subscription instance — supabase-js reuses a channel for
+    // a repeated topic, and adding postgres_changes to an already-subscribed
+    // channel throws. A random suffix avoids that collision (e.g. when this
+    // hook mounts in two places, or the effect re-runs before cleanup lands).
+    const channel = supabase.channel(`team_availability_${teamId}_${Math.random().toString(36).slice(2, 9)}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'team_availability', filter: `team_id=eq.${teamId}` },
-        () => { fetchAvailability(); }
+        () => { fetchRef.current(); }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [teamId, fetchAvailability]);
+  }, [teamId]);
 
   const setStatus = useCallback(async (date, status) => {
     if (!teamId || !user) throw new Error('Not signed in to a team.');
