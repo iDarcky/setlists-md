@@ -40,17 +40,12 @@ function showPdfToast(message) {
   } catch { /* DOM unavailable — fail silently */ }
 }
 
-function isStandaloneMode() {
-  return (
-    window.navigator.standalone === true ||
-    window.matchMedia('(display-mode: standalone)').matches
-  );
-}
-
-// In standalone PWA mode (iOS home-screen app), window.open is blocked.
-// We inject a full-screen overlay with an iframe instead — same-origin srcdoc
-// so localStorage prefs work, and interactive controls inside the iframe still
-// function normally before the user prints.
+// In-app print preview overlay with an <iframe srcdoc> document. Used on
+// every platform: popups (the old desktop path) are blocked by popup
+// blockers, return null handles in installed PWAs, and don't exist at all in
+// Capacitor/Electron webviews — while a same-origin iframe works everywhere,
+// keeps localStorage prefs readable directly, and printing its contentWindow
+// prints just the document (not the app behind it).
 function openPrintOverlay(html) {
   document.getElementById('pdf-print-overlay')?.remove();
 
@@ -59,6 +54,15 @@ function openPrintOverlay(html) {
   overlay.style.cssText =
     'position:fixed;inset:0;z-index:999999;background:#fff;display:flex;flex-direction:column;' +
     'font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;';
+
+  const close = () => {
+    document.removeEventListener('keydown', onKeyDown);
+    overlay.remove();
+  };
+  const onKeyDown = (e) => {
+    if (e.key === 'Escape') close();
+  };
+  document.addEventListener('keydown', onKeyDown);
 
   const safeTop = 'env(safe-area-inset-top, 0px)';
   const header = document.createElement('div');
@@ -72,7 +76,7 @@ function openPrintOverlay(html) {
   doneBtn.style.cssText =
     'background:none;border:none;cursor:pointer;font-size:15px;font-weight:600;' +
     'color:#6366f1;padding:8px 4px;';
-  doneBtn.onclick = () => overlay.remove();
+  doneBtn.onclick = close;
 
   const titleEl = document.createElement('span');
   titleEl.textContent = 'Print Preview';
@@ -85,6 +89,7 @@ function openPrintOverlay(html) {
     'color:#fff;padding:8px 14px;border-radius:8px;';
   printBtn.onclick = () => {
     const frame = document.getElementById('pdf-print-frame');
+    frame?.contentWindow?.focus();
     frame?.contentWindow?.print();
   };
 
@@ -94,13 +99,14 @@ function openPrintOverlay(html) {
 
   const hint = document.createElement('p');
   hint.textContent =
-    'Adjust layout options below, then tap Print… — or use the Share ↑ button for more options.';
+    'Adjust the layout below, then use Print… to print or save as PDF.';
   hint.style.cssText =
     'margin:0;padding:6px 16px;font-size:12px;color:#6b7280;' +
     'background:#f9fafb;border-bottom:1px solid #e5e7eb;flex-shrink:0;';
 
   const frame = document.createElement('iframe');
   frame.id = 'pdf-print-frame';
+  frame.title = 'Print preview';
   frame.style.cssText = 'flex:1;border:none;width:100%;background:#fff;';
   frame.srcdoc = html;
 
@@ -108,34 +114,18 @@ function openPrintOverlay(html) {
   overlay.appendChild(hint);
   overlay.appendChild(frame);
   document.body.appendChild(overlay);
+  return overlay;
 }
 
-// Open the print preview. On desktop/regular browser this uses a popup window;
-// on iOS standalone PWA it falls back to an in-app full-screen overlay so the
-// user isn't hit with a broken "allow popups" error.
+// Open the print preview overlay (kept under the historical name — both
+// export entry points call this). Returns the overlay element, or null when
+// the DOM is unavailable.
 export function openPrintWindow(html) {
-  if (isStandaloneMode()) {
-    openPrintOverlay(html);
-    return null;
-  }
-  // Desktop / regular browser: popup so the interactive toolbar doesn't
-  // occlude the current page. Do NOT pass noopener/noreferrer — that causes
-  // window.open to return null and prevents document.write.
-  const w = window.open('about:blank', '_blank', 'width=900,height=1100,resizable=yes,scrollbars=yes');
-  if (!w || w.closed || typeof w.document === 'undefined') {
-    showPdfToast('Could not open the print window. Please allow popups for this site and try again.');
-    return null;
-  }
   try {
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    return w;
+    return openPrintOverlay(html);
   } catch (err) {
-    console.error('[openPrintWindow] failed to populate popup', err);
-    try { w.close(); } catch { /* ignore */ }
-    showPdfToast('Could not render the printable view. Please try again.');
+    console.error('[openPrintWindow] failed to open print preview', err);
+    showPdfToast('Could not open the print preview. Please try again.');
     return null;
   }
 }
@@ -738,7 +728,14 @@ function buildPopupScript(initialPrefs) {
       var act = e.target.closest('[data-action]');
       if (!act) return;
       if (act.dataset.action === 'print') window.print();
-      if (act.dataset.action === 'close') window.close();
+      if (act.dataset.action === 'close') {
+        // Inside the print-preview iframe (same-origin) remove the host
+        // overlay; window.close() only applies to the legacy popup case.
+        var fe = window.frameElement;
+        var ov = fe && fe.ownerDocument.getElementById('pdf-print-overlay');
+        if (ov) ov.remove();
+        else window.close();
+      }
     });
 
     apply();
