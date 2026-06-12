@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../auth/supabase';
 import { useTeam } from '../auth/useTeam';
 import { useAuth } from '../auth/useAuth';
@@ -171,7 +171,24 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
 
 // ── Team Dashboard ──────────────────────────────────────────────────────────
 
+const MEMBER_ROLES = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'leader', label: 'Leader' },
+  { value: 'editor', label: 'Editor' },
+  { value: 'member', label: 'Member' },
+];
+
 function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
+  const confirm = useConfirm();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
+
   const isOwner = member.role === 'admin';
   const profile = member.profile || {};
   const displayName = profile.display_name || profile.email?.split('@')[0] || member.user_id?.slice(0, 8);
@@ -228,24 +245,49 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
       </div>
 
       {isAdmin && !isCurrentUser && (
-        <div className="flex items-center gap-3">
-          <select
-            value={member.role || 'member'}
-            onChange={(e) => onRoleChange(member.id, e.target.value)}
-            className="bg-[var(--ds-background-100)] border border-[var(--modes-border)] rounded-md px-2 py-1 text-label-11 font-medium text-[var(--modes-text-muted)] outline-none cursor-pointer hover:border-[var(--ds-gray-400)] focus:border-[var(--color-brand)] transition-colors"
-          >
-            <option value="admin">Admin</option>
-            <option value="leader">Leader</option>
-            <option value="editor">Editor</option>
-            <option value="member">Member</option>
-          </select>
+        <div className="relative shrink-0" ref={menuRef}>
           <button
-            onClick={() => onRemove(member.id)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border border-[var(--modes-border)] cursor-pointer text-[var(--modes-text-dim)] hover:text-[var(--ds-red-700)] hover:border-[var(--ds-red-400)] transition-colors"
-            title="Remove member"
+            onClick={() => setMenuOpen(o => !o)}
+            aria-label="Member options"
+            className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border-none cursor-pointer text-[var(--modes-text-dim)] hover:text-[var(--modes-text)] hover:bg-[var(--modes-surface-strong)] transition-colors"
           >
-            <TrashIcon />
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg>
           </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-52 rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden py-1">
+              <div className="px-3 pt-1.5 pb-1 text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)] font-semibold">Change role</div>
+              {MEMBER_ROLES.map(r => {
+                const active = (member.role || 'member') === r.value;
+                return (
+                  <button
+                    key={r.value}
+                    onClick={() => { onRoleChange(member.id, r.value); setMenuOpen(false); }}
+                    className="w-full flex items-center justify-between px-3 py-2 text-left text-copy-14 text-[var(--modes-text)] hover:bg-[var(--modes-surface)] bg-transparent border-none cursor-pointer"
+                  >
+                    {r.label}
+                    {active && <span className="text-[var(--color-brand)]">✓</span>}
+                  </button>
+                );
+              })}
+              <div className="border-t border-[var(--modes-border)] my-1" />
+              <button
+                onClick={async () => {
+                  setMenuOpen(false);
+                  const ok = await confirm({
+                    title: `Remove ${displayName}?`,
+                    description: 'They will lose access to this team’s library, schedule, and roster. This cannot be undone — they’d need to be invited again.',
+                    confirmLabel: 'Remove member',
+                    cancelLabel: 'Keep member',
+                    variant: 'danger',
+                  });
+                  if (ok) onRemove(member.id);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-left text-copy-14 text-[var(--ds-red-700)] hover:bg-[var(--ds-red-100)] bg-transparent border-none cursor-pointer"
+              >
+                <TrashIcon /> Remove from team
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
