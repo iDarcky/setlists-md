@@ -164,6 +164,22 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
         )}
       </div>
 
+      {/* Mobile view switcher — a FAB toggles List ↔ Calendar (the header
+          toggle is desktop-only). Sits above the bottom nav. */}
+      <button
+        type="button"
+        onClick={() => handleSetView(viewMode === 'list' ? 'calendar' : 'list')}
+        aria-label={viewMode === 'list' ? 'Switch to calendar view' : 'Switch to list view'}
+        className="sm:hidden fixed right-4 z-[120] w-14 h-14 rounded-full bg-[var(--color-brand)] text-white shadow-lg flex items-center justify-center cursor-pointer active:scale-95 transition-transform border-none"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 90px)' }}
+      >
+        {viewMode === 'list' ? (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+        ) : (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
+        )}
+      </button>
+
       {rosterSetlist && (
         <div
           className="fixed inset-0 z-[200] flex justify-end bg-black/20 backdrop-blur-[2px]"
