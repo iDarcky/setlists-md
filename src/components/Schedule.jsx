@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore } from 'react';
 import { SegmentedControl } from './ui/SegmentedControl';
+import PageHeader from './ui/PageHeader';
 import RecurringPicker from './schedule/RecurringPicker';
 import ScheduleListView from './schedule/ScheduleListView';
 import ScheduleCalendarView from './schedule/ScheduleCalendarView';
@@ -29,44 +30,6 @@ function useIsMobile() {
     subscribeMobile,
     () => window.matchMedia(MOBILE_QUERY).matches,
     () => false,
-  );
-}
-
-// Modern header matching the Setlists / Library / Team shell.
-function ScheduleHeader({ teamName, viewMode, onSetView, onBack, showBack = true, hideToggle = false }) {
-  return (
-    <header
-      className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]"
-      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-    >
-      <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 h-16 flex items-center gap-3">
-        {onBack && showBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="Back"
-            className="w-10 h-10 -ml-1 rounded-xl flex items-center justify-center text-[var(--modes-text)] hover:bg-[var(--modes-surface)] active:scale-95 transition-all cursor-pointer border-none bg-transparent shrink-0"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-          </button>
-        )}
-        <div className="flex-1 min-w-0">
-          <h1 className="text-heading-32 font-bold text-[var(--modes-text)] m-0 truncate leading-tight">Schedule</h1>
-          {teamName && <p className="text-label-12 text-[var(--modes-text-dim)] m-0 truncate">{teamName}</p>}
-        </div>
-        {!hideToggle && (
-          <SegmentedControl
-            value={viewMode}
-            onChange={onSetView}
-            options={[
-              { value: 'list', label: 'List' },
-              { value: 'calendar', label: 'Calendar' },
-            ]}
-            size="sm"
-          />
-        )}
-      </div>
-    </header>
   );
 }
 
@@ -136,7 +99,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
   if (!team) {
     return (
       <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
-        <ScheduleHeader teamName={null} viewMode={viewMode} onSetView={handleSetView} onBack={onBack} showBack={isMobile} hideToggle />
+        <PageHeader title="Schedule" onClose={onBack} />
         <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 py-16">
           <div className="modes-card p-8 text-center flex flex-col items-center gap-3">
             <div className="w-14 h-14 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
@@ -156,7 +119,18 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
 
   return (
     <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
-      <ScheduleHeader teamName={team.name} viewMode={viewMode} onSetView={handleSetView} onBack={onBack} showBack={isMobile} />
+      <PageHeader
+        title="Schedule"
+        onClose={onBack}
+        actions={
+          <SegmentedControl
+            value={viewMode}
+            onChange={handleSetView}
+            options={[{ value: 'list', label: 'List' }, { value: 'calendar', label: 'Calendar' }]}
+            size="sm"
+          />
+        }
+      />
 
       <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 pt-6 pb-28 flex flex-col gap-6">
         <RecurringPicker onApply={handleApplyRecurring} />

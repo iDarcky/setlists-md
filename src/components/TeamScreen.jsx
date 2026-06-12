@@ -5,6 +5,7 @@ import { useAuth } from '../auth/useAuth';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import UpgradeGate from './ui/UpgradeGate';
+import PageHeader from './ui/PageHeader';
 import ActivityFeed from './team/ActivityFeed';
 import AvatarUploader from './ui/AvatarUploader';
 import { useConfirm } from './ui/useConfirmHook';
@@ -993,38 +994,20 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
   // creating ADDITIONAL Spaces is gated by `canCreate`.
   const allowThisCreate = team ? canCreate : eligibleToCreate;
 
-  const headerBack = creating && team ? () => setCreating(false) : onBack;
-  const headerTitle = creating && team ? 'New Space' : 'Your Team';
+  const inCreateSubmenu = creating && team;
 
   return (
     <div data-theme-variant="modes" className="flex flex-col h-full">
-      {/* Modern header — matches the Setlists/Library shell (big title, blurred
-          bar, modes hairline) rather than the legacy compact ScreenHeader. */}
-      <header
-        className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
-        <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 h-16 flex items-center gap-3">
-          {headerBack && (
-            <button
-              type="button"
-              onClick={headerBack}
-              aria-label="Back"
-              className="w-10 h-10 -ml-1 rounded-xl flex items-center justify-center text-[var(--modes-text)] hover:bg-[var(--modes-surface)] active:scale-95 transition-all cursor-pointer border-none bg-transparent shrink-0"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-          )}
-          <h1 className="flex-1 min-w-0 text-heading-32 font-bold text-[var(--modes-text)] m-0 truncate">{headerTitle}</h1>
-          {!creating && team && canCreate && (
-            <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
-              <span className="flex items-center gap-1.5"><PlusIcon /> New</span>
-            </Button>
-          )}
-        </div>
-      </header>
+      <PageHeader
+        title={inCreateSubmenu ? 'New Space' : 'Your Team'}
+        onBack={inCreateSubmenu ? () => setCreating(false) : undefined}
+        onClose={onBack}
+        actions={!creating && team && canCreate ? (
+          <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
+            <span className="flex items-center gap-1.5"><PlusIcon /> New</span>
+          </Button>
+        ) : null}
+      />
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
