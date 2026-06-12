@@ -54,12 +54,10 @@ export default function DateStatusModal({
   totalMembers,
   setlists = [],
   memberStatuses = [],
-  isAdmin = false,
   clockFormat = '12h',
   onSetStatus,
   onClear,
   onOpenSetlist,
-  onOpenRoster,
   onClose,
 }) {
   const [editing, setEditing] = useState(false);
@@ -123,12 +121,7 @@ export default function DateStatusModal({
                   <div className="text-copy-14 font-semibold text-[var(--modes-text)] truncate">{sl.name || 'Untitled Setlist'}</div>
                   {sl.time && <div className="text-label-12 text-[var(--modes-text-dim)]">{formatClockTime(sl.time, clockFormat)}</div>}
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button type="button" onClick={() => onOpenSetlist?.(sl)} className="text-label-13 font-semibold text-[var(--color-brand)] bg-transparent border-none cursor-pointer hover:underline">Open</button>
-                  {isAdmin && (
-                    <button type="button" onClick={() => onOpenRoster?.(sl)} className="text-label-13 font-semibold text-[var(--modes-text-muted)] bg-transparent border-none cursor-pointer hover:text-[var(--modes-text)]">Roster</button>
-                  )}
-                </div>
+                <button type="button" onClick={() => onOpenSetlist?.(sl)} className="text-label-13 font-semibold text-[var(--color-brand)] bg-transparent border-none cursor-pointer hover:underline shrink-0">Open</button>
               </div>
             ))}
           </div>

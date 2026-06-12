@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { transposeKey, compactLabel } from '../music';
 import { resolveSongView } from '../arrangements';
 import { durationToSeconds, formatTotalDuration } from '../lib/duration';
@@ -34,33 +34,12 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
     if (!s && title) s = songs.find(s => s.title === title);
     return s ? resolveSongView(s, arrangementId) : null;
   };
-  const [collapsed, setCollapsed] = useState(false);
+  // Header no longer collapses on scroll — it stays expanded (kept as a const so
+  // the existing collapsed/expanded branch in the header markup still resolves).
+  const collapsed = false;
   const [exportOpen, setExportOpen] = useState(false);
   const [showDetails, setShowDetails] = useState(true);
   const scrollRef = useRef(null);
-
-  // Own scroll container (not window) so the overview scrolls correctly when
-  // embedded in the tablet docked pane / side-peek, and so it presents a single
-  // scrollbar inside `<main>` rather than nesting a second one. In the narrow
-  // pane (embedded) we skip the scroll-collapse — the header height swap is
-  // jarring in such a small viewport.
-  useEffect(() => {
-    if (embedded) return;
-    const node = scrollRef.current;
-    if (!node) return;
-    // Full-page: the page scrolls on <main> (or the window), NOT this element —
-    // making this element a scroller too would nest a second scrollbar. Listen
-    // on that ancestor so the header still collapses. Hysteresis (collapse >96,
-    // expand <24) stops the header flip-flopping as the collapse shifts content.
-    const scroller = node.closest('main') || window;
-    const getY = () => (scroller === window ? window.scrollY : scroller.scrollTop);
-    const onScroll = () => {
-      const y = getY();
-      setCollapsed(prev => (prev ? y > 24 : y > 96));
-    };
-    scroller.addEventListener('scroll', onScroll, { passive: true });
-    return () => scroller.removeEventListener('scroll', onScroll);
-  }, [embedded]);
 
   // Open practice; `i` is the item index to start on (tapping a song row),
   // omitted/non-numeric (e.g. from a button's event) starts at the top.
@@ -259,7 +238,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
               while the body switches between Set order and Roster. */}
           {team && (
             <div className="inline-flex p-0.5 mt-1 mb-3 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)]">
-              {[['setlist', 'Set order'], ['roster', 'Roster']].map(([id, label]) => (
+              {[['setlist', 'Set order'], ['roster', 'Band']].map(([id, label]) => (
                 <button
                   key={id}
                   type="button"

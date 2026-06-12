@@ -35,7 +35,7 @@ const AVAIL_RANK = { available: 0, maybe: 2, unavailable: 3 };
 function availabilityBadgeClasses(status) {
   if (status === 'available') return 'bg-[var(--ds-green-100)] text-[var(--ds-green-800)]';
   if (status === 'unavailable') return 'bg-[var(--ds-red-100)] text-[var(--ds-red-800)]';
-  if (status === 'maybe') return 'bg-[var(--ds-orange-100)] text-[var(--ds-orange-800)]';
+  if (status === 'maybe') return 'bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)]';
   return 'bg-[var(--ds-gray-200)] text-[var(--ds-gray-600)]';
 }
 
@@ -108,7 +108,8 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
     setIsAdding(true);
     setAddingMemberId(member.user_id);
     try {
-      const defaultRole = (member.instruments && member.instruments[0]) || 'Vocals';
+      // No default part — the leader assigns instrument/vocal explicitly.
+      const defaultRole = (member.instruments && member.instruments[0]) || null;
       await createSchedule(dbSetlistId, member.user_id, defaultRole, 'pending');
       toast({ title: 'Added to roster', description: 'Member has been scheduled.' });
     } catch (err) {
@@ -157,8 +158,8 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
       : 'flex flex-col h-full bg-[var(--ds-background-100)] border-l border-[var(--ds-gray-300)] w-[360px] max-w-full'}>
       {!inline && (
         <div className="p-4 border-b border-[var(--ds-gray-300)] flex items-center justify-between">
-          <h3 className="text-heading-18 font-bold m-0">{readOnly ? 'Roster' : 'Setlist Roster'}</h3>
-          <IconButton size="sm" onClick={onClose} aria-label="Close roster">
+          <h3 className="text-heading-18 font-bold m-0">{readOnly ? 'Band' : 'Setlist Band'}</h3>
+          <IconButton size="sm" onClick={onClose} aria-label="Close band">
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -175,7 +176,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
           <>
             {/* Current Roster */}
             <div className="flex flex-col gap-3">
-              <p className="text-label-12 text-[var(--ds-gray-600)] uppercase tracking-wider font-bold">Scheduled Team</p>
+              <p className="text-label-12 text-[var(--ds-gray-600)] uppercase tracking-wider font-bold">The Band</p>
 
               {setlistSchedules.length === 0 && (
                 <p className="text-copy-14 text-[var(--ds-gray-500)] italic py-4 text-center">
@@ -273,7 +274,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
             {/* Add Member — admins only */}
             {!readOnly && (
               <div className="flex flex-col gap-3">
-                <p className="text-label-12 text-[var(--ds-gray-600)] uppercase tracking-wider font-bold">Add to Roster</p>
+                <p className="text-label-12 text-[var(--ds-gray-600)] uppercase tracking-wider font-bold">Add to the Band</p>
 
                 {!setlistDate && (
                   <p className="text-copy-12 text-[var(--ds-orange-700)] bg-[var(--ds-orange-100)] px-3 py-2 rounded-lg">

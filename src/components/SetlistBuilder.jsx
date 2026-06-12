@@ -298,7 +298,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
         {/* Tabs — team setlists, once saved, can manage the roster here. */}
         {isTeamContext && setlist && (
           <div className="inline-flex p-0.5 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] mb-6">
-            {[['setlist', 'Set order'], ['roster', 'Roster']].map(([id, label]) => (
+            {[['setlist', 'Set order'], ['roster', 'Band']].map(([id, label]) => (
               <button
                 key={id}
                 type="button"

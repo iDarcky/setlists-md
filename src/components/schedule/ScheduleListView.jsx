@@ -11,10 +11,10 @@ function toLocalDateStr(date) {
 }
 
 function statusPillClasses(status) {
-  if (status === 'available') return 'bg-[var(--ds-green-100)] text-[var(--ds-green-800)] border-[var(--ds-green-300)]';
-  if (status === 'unavailable') return 'bg-[var(--ds-red-100)] text-[var(--ds-red-800)] border-[var(--ds-red-300)]';
-  if (status === 'maybe') return 'bg-[var(--ds-orange-100)] text-[var(--ds-orange-800)] border-[var(--ds-orange-300)]';
-  return 'bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)] border-[var(--ds-gray-300)]';
+  if (status === 'available') return 'bg-[var(--ds-green-100)] text-[var(--ds-green-800)]';
+  if (status === 'unavailable') return 'bg-[var(--ds-red-100)] text-[var(--ds-red-800)]';
+  if (status === 'maybe') return 'bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)]';
+  return 'bg-[var(--modes-surface-strong)] text-[var(--modes-text-dim)]';
 }
 
 function statusLabel(status) {
@@ -124,7 +124,7 @@ export default function ScheduleListView({
               <button
                 type="button"
                 onClick={() => onSelectDate(date)}
-                className={`text-label-12 px-2.5 py-1 rounded-full border shrink-0 cursor-pointer hover:opacity-80 transition-opacity ${statusPillClasses(myStatus)}`}
+                className={`text-label-12 px-2.5 py-1 rounded-full shrink-0 cursor-pointer hover:opacity-80 transition-opacity ${statusPillClasses(myStatus)}`}
               >
                 {statusLabel(myStatus)}
               </button>
@@ -151,7 +151,7 @@ export default function ScheduleListView({
                   variant="ghost"
                   onClick={() => isAdmin ? onOpenRoster(sl) : onOpenSetlist(sl)}
                 >
-                  {isAdmin ? 'Edit roster' : 'Open'} →
+                  {isAdmin ? 'Edit band' : 'Open'} →
                 </Button>
               </div>
             ))}
