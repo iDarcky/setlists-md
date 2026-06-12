@@ -95,6 +95,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
   // Setlists scheduled on the picked date, and every member's availability for
   // it — so the day sheet shows what's happening and who can serve.
   const pickerSetlists = pickerDateStr ? setlists.filter(sl => sl.date === pickerDateStr) : [];
+  const pickerRehearsals = pickerDateStr ? setlists.filter(sl => sl.rehearsalDate === pickerDateStr) : [];
   const pickerMemberStatuses = pickerDateStr
     ? members.map(m => ({
         id: m.user_id,
@@ -212,6 +213,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
           availableCount={pickerAvailableCount}
           totalMembers={members.length}
           setlists={pickerSetlists}
+          rehearsals={pickerRehearsals}
           memberStatuses={pickerMemberStatuses}
           isAdmin={canManageRoster}
           clockFormat={clockFormat}

@@ -76,6 +76,7 @@ export default function ScheduleCalendarView({
     availability?.find(a => a.user_id === userId && a.date === dateStr)?.status || null;
 
   const setlistsFor = (dateStr) => setlists.filter(sl => sl.date === dateStr);
+  const rehearsalsFor = (dateStr) => setlists.filter(sl => sl.rehearsalDate === dateStr);
 
   const availableCountFor = (dateStr) =>
     availability?.filter(a => a.date === dateStr && a.status === 'available').length || 0;
@@ -112,6 +113,7 @@ export default function ScheduleCalendarView({
           const isToday = date.getTime() === today.getTime();
           const myStatus = myAvailFor(dateStr);
           const slOnDay = setlistsFor(dateStr);
+          const rehOnDay = rehearsalsFor(dateStr);
           const availCount = availableCountFor(dateStr);
 
           return (
@@ -149,6 +151,15 @@ export default function ScheduleCalendarView({
                 {slOnDay.length > 2 && (
                   <span className="text-label-10 text-[var(--modes-text-dim)] pl-0.5">+{slOnDay.length - 2} more</span>
                 )}
+                {rehOnDay.slice(0, 1).map(sl => (
+                  <span
+                    key={`reh-${sl.id}`}
+                    className="block text-label-10 leading-tight px-1.5 py-1 rounded-md bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)] font-medium truncate"
+                    title={`Rehearsal · ${sl.name}`}
+                  >
+                    ⏱ {sl.name || 'Rehearsal'}
+                  </span>
+                ))}
                 {isAdmin && availCount > 0 && (
                   <span className="text-label-10 text-[var(--modes-text-dim)] pl-0.5">{availCount}/{members.length} avail</span>
                 )}

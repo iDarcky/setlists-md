@@ -65,9 +65,10 @@ export default function ScheduleListView({
       d.setDate(d.getDate() + i);
       const ds = toLocalDateStr(d);
       const hasSetlist = setlists.some(sl => sl.date === ds);
+      const hasRehearsal = setlists.some(sl => sl.rehearsalDate === ds);
       const hasStatus = availability?.some(a => a.user_id === userId && a.date === ds);
       const hasAvail = availability?.some(a => a.date === ds && a.status === 'available');
-      if (i === 0 || hasSetlist || hasStatus || hasAvail) arr.push(d);
+      if (i === 0 || hasSetlist || hasRehearsal || hasStatus || hasAvail) arr.push(d);
     }
     return arr;
   }, [today, weeksAhead, setlists, availability, userId]);
@@ -76,6 +77,7 @@ export default function ScheduleListView({
     availability?.find(a => a.user_id === userId && a.date === dateStr)?.status || null;
 
   const setlistsFor = (dateStr) => setlists.filter(sl => sl.date === dateStr);
+  const rehearsalsFor = (dateStr) => setlists.filter(sl => sl.rehearsalDate === dateStr);
 
   const availableCountFor = (dateStr) =>
     availability?.filter(a => a.date === dateStr && a.status === 'available').length || 0;
@@ -86,6 +88,7 @@ export default function ScheduleListView({
         const dateStr = toLocalDateStr(date);
         const myStatus = myAvailFor(dateStr);
         const slOnDay = setlistsFor(dateStr);
+        const rehOnDay = rehearsalsFor(dateStr);
         const availCount = availableCountFor(dateStr);
         const isToday = date.getTime() === today.getTime();
         const rel = relativeLabel(date, today);
@@ -153,6 +156,22 @@ export default function ScheduleListView({
                 >
                   {isAdmin ? 'Edit band' : 'Open'} →
                 </Button>
+              </div>
+            ))}
+
+            {rehOnDay.map(sl => (
+              <div
+                key={`reh-${sl.id}`}
+                className="flex items-center justify-between gap-3 pl-15 border-t border-dashed border-[var(--modes-border)] pt-2"
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)] shrink-0">Rehearsal</span>
+                  <span className="text-copy-13 text-[var(--modes-text)] font-medium truncate">{sl.name || 'Untitled Setlist'}</span>
+                  {sl.rehearsalTime && (
+                    <span className="text-copy-12 text-[var(--modes-text-dim)] shrink-0">{formatClockTime(sl.rehearsalTime, clockFormat)}</span>
+                  )}
+                </div>
+                <Button size="xs" variant="ghost" onClick={() => onOpenSetlist(sl)}>Open →</Button>
               </div>
             ))}
 

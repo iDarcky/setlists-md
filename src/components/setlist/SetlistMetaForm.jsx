@@ -55,7 +55,7 @@ function ServiceField({ value, options, onChange }) {
 /**
  * Setlist metadata form — name, date, freeform tags, and (Church tier only) service.
  */
-export default function SetlistMetaForm({ name, date, time = '20:00', location = '', tags, service = '', knownServices = [], firstDayOfWeek = 'sunday', clockFormat = '12h', onNameChange, onDateChange, onTimeChange, onLocationChange, onTagsChange, onServiceChange }) {
+export default function SetlistMetaForm({ name, date, time = '20:00', location = '', tags, service = '', rehearsalDate = '', rehearsalTime = '19:00', knownServices = [], firstDayOfWeek = 'sunday', clockFormat = '12h', onNameChange, onDateChange, onTimeChange, onLocationChange, onTagsChange, onServiceChange, onRehearsalDateChange, onRehearsalTimeChange }) {
   const [tagInput, setTagInput] = useState('');
 
   const addTag = () => {
@@ -116,6 +116,30 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
           />
         </div>
       </div>
+
+      {/* Rehearsal day (optional) — surfaces as a distinct entry in the schedule */}
+      {onRehearsalDateChange && (
+        <div className="flex flex-col gap-1">
+          <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">
+            Rehearsal <span className="font-normal text-[var(--ds-gray-600)]">(optional)</span>
+          </label>
+          {rehearsalDate ? (
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <DatePicker value={rehearsalDate} onChange={onRehearsalDateChange} firstDayOfWeek={firstDayOfWeek} />
+              </div>
+              <div className="w-36">
+                <TimePicker value={rehearsalTime || '19:00'} onChange={onRehearsalTimeChange} clockFormat={clockFormat} />
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => onRehearsalDateChange('')} aria-label="Remove rehearsal">Remove</Button>
+            </div>
+          ) : (
+            <Button size="sm" variant="secondary" className="self-start" onClick={() => onRehearsalDateChange(date || new Date().toISOString().slice(0, 10))}>
+              + Add rehearsal day
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Location */}
       <div className="flex flex-col gap-1">

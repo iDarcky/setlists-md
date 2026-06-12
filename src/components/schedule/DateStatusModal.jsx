@@ -54,6 +54,7 @@ export default function DateStatusModal({
   totalMembers,
   setlists = [],
   memberStatuses = [],
+  rehearsals = [],
   clockFormat = '12h',
   onSetStatus,
   onClear,
@@ -120,6 +121,25 @@ export default function DateStatusModal({
                 <div className="min-w-0">
                   <div className="text-copy-14 font-semibold text-[var(--modes-text)] truncate">{sl.name || 'Untitled Setlist'}</div>
                   {sl.time && <div className="text-label-12 text-[var(--modes-text-dim)]">{formatClockTime(sl.time, clockFormat)}</div>}
+                </div>
+                <button type="button" onClick={() => onOpenSetlist?.(sl)} className="text-label-13 font-semibold text-[var(--color-brand)] bg-transparent border-none cursor-pointer hover:underline shrink-0">Open</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Rehearsals on this date */}
+        {rehearsals.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <span className="text-label-12 uppercase tracking-wider font-semibold text-[var(--modes-text-dim)]">Rehearsal</span>
+            {rehearsals.map(sl => (
+              <div key={`reh-${sl.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--modes-border)] bg-[var(--modes-surface)] px-3 py-2.5">
+                <div className="min-w-0 flex items-center gap-2">
+                  <span className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)] shrink-0">Rehearsal</span>
+                  <div className="min-w-0">
+                    <div className="text-copy-14 font-semibold text-[var(--modes-text)] truncate">{sl.name || 'Untitled Setlist'}</div>
+                    {sl.rehearsalTime && <div className="text-label-12 text-[var(--modes-text-dim)]">{formatClockTime(sl.rehearsalTime, clockFormat)}</div>}
+                  </div>
                 </div>
                 <button type="button" onClick={() => onOpenSetlist?.(sl)} className="text-label-13 font-semibold text-[var(--color-brand)] bg-transparent border-none cursor-pointer hover:underline shrink-0">Open</button>
               </div>
