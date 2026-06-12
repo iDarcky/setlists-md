@@ -2,7 +2,7 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
-## 0.13.0-pre-alpha — Teams, scheduling, sharing & a new dashboard
+## 0.10.0 — Editor overhaul, teams & scheduling, sharing, and a new look
 *June 2026*
 
 ### Added
@@ -11,97 +11,51 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Rehearsal day** — give a setlist an optional rehearsal date/time; it shows on the schedule as its own entry, separate from the service.
 - **Band assignments** — assign each scheduled person an instrument *and* a vocal part (Lead male/female, Soprano, Alto, Tenor, Bass, Backing).
 - **Team activity feed** — see who added songs, edited setlists, joined, set availability or got scheduled — on the Team page and the dashboard.
-- **Song map** — a new chart view showing the whole song's section flow with each section's chord shape; available in chart, practice and live.
+- **Schedule & availability** — a team schedule with a list/agenda and a month calendar, per-day availability, recurring availability, and rosters per service.
+- **Song map** — a chart view showing the whole song's section flow with each section's chord shape; available in chart, practice and live.
 - **Instrument views** — pick your role (Leader / Vocalist / Guitarist / Bassist / Keys / Drummer) from the chart; Bassist collapses chords to root notes.
 - **Tabs by instrument** — tag a tab as acoustic, electric or bass and filter to just yours in chart, practice and live.
 - **Display modes in practice & live** — switch between Chords, Lyrics, Tabs and Song map, not just in the chart view.
 - **Setlist services** (Church) — a Service column + filter on the setlist list, a Services manager in Settings, and Songs-by-Service stats on the team page.
-- **Richer team page** — upcoming services, next-service readiness, most-used keys, never-played songs, and each member's instruments.
+- **Reusable tab library** — build a tab once, name it, and drop it into any section; edit it once and every placement updates. Tag tabs with an instrument.
+- **Insert anywhere** — a "+" between every line in Arrange adds a lyric, chord line, tab or key change at that exact spot.
+- **Paste to import** — the editor's paste converts Ultimate-Guitar (chords-over-lyrics) and ChordPro into a clean chart, filling in title/key/etc.
+- **Browse songs when creating** — start a New Song from a bundled public-domain song.
+- **Tab colours & separate printing** — set string/fret/background colours and size for tabs (Settings → Chart), and a dedicated Tabs toggle in the PDF/print options.
+- **Reworked song editor** — a compact header (title, arrangement, key/tempo/time, mode toggle) with the chart canvas beneath; Song Details opens from the title.
+- **Visual chord placement** — tap a lyric to drop a chord where you touch, and tap a chord to move or remove it; add chord-only lines for intros/turnarounds.
+- **Key changes & section tools in Arrange** — add/remove modulate markers and manage sections from a per-section menu; sections show their number.
+- **Many more song-info fields** — original title, language, translator, writers, publishers, copyright, album, label, year, themes, genres, verses, vocal range, and more.
+- **Touch-first structure editor** — reorder the section flow with tap-to-add and move/remove controls.
+- **In-app legal pages** — Privacy, Terms, and a Copyright/DMCA page open inside the app; a sign-up legal notice; and a sign-in nudge for guests on the dashboard.
 
 ### Improved
-- **New dashboard** — a cleaner home: Next up, your schedule, upcoming services, recent activity and recently edited — no oversized hero.
-- **Reworked schedule** — a modern header, an agenda list that only shows days that matter, a roomier Google-style month grid, and a day sheet showing the setlist + who's available.
+- **New dashboard** — a cleaner home: Next up, your schedule, upcoming services, recent activity and recently edited.
 - **Consistent headers** — Team, Schedule, Preferences, Help, Legal and Plans share one header: a big title on desktop, and on mobile a back chevron in submenus with an X to close.
-- **Long tabs wrap** — guitar tabs now flow onto multiple lines at the bar instead of scrolling sideways.
-- **Safer member removal** — change role and remove now live behind a ⋯ menu, and removing someone asks first.
-- **Multi-tag filtering** on the setlist library, and a Tabs tab that's always available in the editor.
-- **Unsaved-changes guard** on the song editor, and an explicit Done on the song-structure sheet.
+- **Richer team page** — upcoming services, next-service readiness, most-used keys, never-played songs, and each member's instruments.
+- **Long tabs wrap** — guitar tabs flow onto multiple lines at the bar instead of scrolling sideways.
+- **Safer member removal** — change role and remove live behind a ⋯ menu, and removing someone asks first.
+- **Multi-tag filtering** on the song and setlist libraries, and a Tabs tab that's always available in the editor.
+- **Unsaved-changes guard** on the song editor, plus an explicit Done on the song-structure sheet.
+- **Editor parity** — the chord tool, coloured section picker, key-change stepper and tab library are the same across Arrange and Advanced; the raw editor edits just the song body.
+- **New Song redesign** — Blank, Import, Paste and Browse as clean tabs; Blank drops you straight into the editor.
+- **Settings sync** — every appearance preference (chart theme, accent, section colours, custom types, and more) now follows you across devices.
+- **Smoother Settings** — no flicker behind the dialog, tap-outside to close, and proper iPad safe-area spacing.
+- **Profile & logo uploads** accept JPEG/PNG/WebP up to 5 MB with clearer guidance.
 
 ### Fixed
 - **Schedule/team crash** — fixed an "unexpected error" caused by duplicate realtime subscriptions.
 - **Team stats** — the team page no longer shows 0 setlists when you have some.
-- **Dashboard requests** — pending availability requests now actually appear and stay actionable.
+- **Dashboard requests** — pending availability requests now appear and stay actionable.
 - **Setlist preview** — opening a setlist and going back no longer leaves the side panel stuck open.
-
-## 0.12.0-pre-alpha — Editor rework: reusable tabs, Arrange & New Song
-*June 2026*
-
-### Added
-- **Reusable tab library** — build a tab once, name it (e.g. "Solo"), and drop it into any section. Edit the block once and every placement updates. Manage them in the new Tabs editor.
-- **Insert anywhere** — a "+" between every line in Arrange lets you add a lyric, chord line, tab or key change at that exact spot, not just at the end of a section.
-- **Paste to import** — the Advanced editor's paste now converts Ultimate-Guitar (chords-over-lyrics) and ChordPro into a clean chart, filling in title/key/etc. when present.
-- **Browse songs when creating** — the New Song screen can start you from a bundled public-domain song.
-- **Tab colours** — Settings → Chart lets you set the string, fret-number and background colours of tabs, plus their size.
-- **Print tabs separately** — the PDF/print options now have an independent Tabs toggle alongside Chords.
-
-### Improved
-- **New Song redesign** — Blank, Import, Paste and Browse are clean tabs; choosing Blank drops you straight into the editor.
-- **Advanced editor matches Arrange** — the chord tool, coloured section picker, key-change stepper and tab library are now the same across both. The saved-tabs block stays out of your way in the text.
-- **Tidier Arrange** — notation moved into a Customize menu, a colour-coded section picker, move up/down chevrons, and a Customize panel with working line/section spacing.
-- **Smarter chart view** — the Tabs view option only appears when a song actually has tabs.
-- New tabs default to a quarter-note grid.
-
-### Fixed
-- **Saved tabs stick** — tabs no longer vanish after saving and reopening a song.
-- **Editor opens reliably** — fixed a crash when entering the editor.
-- **Tab entry** — typing a single fret no longer doubles (1 became 11).
-- **Delete section** — now shown in red and asks for confirmation; moving a section up/down updates the song's order everywhere.
-
-## 0.11.0-pre-alpha — Beta-readiness: security, legal & polish
-*June 2026*
-
-### Added
-- **In-app legal pages** — Privacy Policy, Terms of Service, and a new Copyright Policy & DMCA page now open inside the app with the regular header, instead of linking out to GitHub. Settings → About and the sign-up screen link straight to them.
-- **Sign-up legal notice** — creating an account now shows a clear "you agree to our Terms & Privacy" line.
-- **Sign-in nudge** — guests who skip onboarding see a gentle prompt on the Dashboard to create an account and sync across devices.
-
-### Improved
-- **Settings open smoothly** — the page behind the Settings dialog no longer flickers or jumps while it's open, and tapping the dimmed background closes it.
-- **iPad header spacing** — the top bar now respects the device's safe area, so the status bar never overlaps it when the app is installed to the Home Screen.
-- **Profile & logo uploads** — image uploads now accept JPEG, PNG, and WebP up to 5 MB, with clearer guidance when a file doesn't qualify.
-- **Settings follow you across devices** — every appearance preference (chart theme, accent colour, section colours, custom section types, and more) now syncs to your account, not just a handful.
-
-### Fixed
-- **Read-only bands** — members of a read-only Space can no longer reach the song or setlist editor or save changes there.
-- **Sign-in on small screens** — the sign-in form now scrolls properly on short mobile viewports.
-- **Deleting your account no longer deletes the band** — if you own a Space, ownership now transfers to the longest-standing admin (or the earliest member) instead of removing everyone's library. A Space is only removed when you were its sole member.
+- **Saved tabs stick** and the editor opens reliably; single-fret entry no longer doubles (1 → 11); delete-section confirms and reorders everywhere.
+- **Read-only bands** — members of a read-only Space can't reach the editor or save there.
+- **Sign-in on small screens** scrolls properly; deleting your account transfers Space ownership instead of removing everyone's library.
+- **Tablet editor** — restored scrolling, fixed chord placement at line ends, the arrangement dropdown no longer hides behind chords, and tempo entry doesn't drop digits.
 
 ### Security
 - Added browser security headers (clickjacking, MIME-sniffing, and transport protections).
-- Hardened the backend: tightened team-function permissions, fixed an authorization edge case in team invites, locked down avatar-file listing, and resolved dependency advisories.
-
-## 0.10.0-pre-alpha — Editor & song-details overhaul
-*June 2026*
-
-### Added
-- **Reworked song editor** — a single, compact header (title, arrangement, key/tempo/time, mode toggle) with the chart canvas right beneath it. Song Details opens as a chevron-driven panel from the title.
-- **Visual chord placement** — in Arrange, tap a lyric to drop a chord exactly where you touch (with a measured overlay that stays aligned even when lines wrap), and tap a chord to move or remove it.
-- **Instrumental chord lines** — add chord-only lines for intros/turnarounds: tap "+" to drop the selected chord, shown as chord pills.
-- **Key changes & section tools in Arrange** — add/remove key-change (modulate) markers and manage sections from a per-section menu; sections now show their number (Verse 1, Verse 2…).
-- **Many more song-info fields** — original title, language, translator, writers, publishers, copyright, album, label, release year, themes, genres, Bible verses, vocal range, liturgical moment, story behind — with sensible length limits and tag-style chip inputs. All show on the chart's Song info panel.
-- **Touch-first structure editor** — reorder the song's section flow with tap-to-add and move/remove controls (no fiddly drag), opened from a compact summary strip.
-
-### Improved
-- **Advanced (raw) editor** now edits just the song body — metadata lives in Song Details, so IDs and frontmatter can't be broken by hand.
-- **New arrangements** start as a full copy of the main arrangement instead of empty.
-- **Editing opens the arrangement you were viewing**, not always the default.
-- Cleaner, consistent header controls and custom key / time-signature dropdowns; song-info labels are easier to read.
-- Inputs are length-limited and sanitized so a stray paste can't corrupt a song.
-
-### Fixed
-- Tablet: restored scrolling in the editor and fixed chord placement landing at the end of the line.
-- The arrangement dropdown no longer renders behind the chords, and long arrangement names no longer overflow.
-- Faster tempo entry (no more dropped digits while typing).
+- Hardened the backend: tightened team-function permissions, fixed an authorization edge case in team invites, locked down avatar-file listing, and cleared dependency advisories.
 
 ## 0.9.0-pre-alpha — Spaces: multiple bands & churches
 *June 2026*
