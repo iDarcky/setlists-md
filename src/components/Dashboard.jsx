@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import SongCard from './SongCard';
 import { Button } from './ui/Button';
 import { SearchBar } from './ui/SearchBar';
-import { Chip } from './ui/Chip';
 import ProgressChecklist from '../onboarding/ProgressChecklist';
 import { CalendarWidget } from './ui/CalendarWidget';
 import ActivityFeed from './team/ActivityFeed';
@@ -11,6 +10,22 @@ import { useTeamSchedules } from '../hooks/useTeamSchedules';
 import { useTeamAvailability } from '../hooks/useTeamAvailability';
 import { useAuth } from '../auth/useAuth';
 import { formatClockTime } from '../lib/dateFormat';
+
+// Compact brand-tinted date chip (Month / Day) used on dashboard service rows.
+function DateChip({ date }) {
+  if (!date) {
+    return <div className="w-12 h-12 rounded-xl bg-[var(--modes-surface-strong)] shrink-0" />;
+  }
+  const d = new Date(date + 'T12:00:00');
+  return (
+    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-[var(--color-brand-soft)] shrink-0">
+      <span className="text-label-10 uppercase tracking-wider text-[var(--color-brand-text)] leading-none">
+        {d.toLocaleDateString(undefined, { month: 'short' })}
+      </span>
+      <span className="text-heading-18 leading-none mt-0.5 text-[var(--color-brand-text)]">{d.getDate()}</span>
+    </div>
+  );
+}
 
 export default function Dashboard({
   songs,
@@ -55,10 +70,8 @@ export default function Dashboard({
       const dateB = new Date(`${b.date}T${b.time || '00:00'}:00`);
       return dateA - dateB;
     })
-    .slice(0, 2);
+    .slice(0, 6);
 
-  // Count of all future-dated setlists (the hero only shows the next one).
-  const futureCount = setlists.filter(sl => new Date(`${sl.date}T${sl.time || '00:00'}:00`) >= now).length;
   const songCountOf = (sl) => (sl.items || []).filter(i => i.songId).length;
 
   // Date formatting: "Monday, April 6"
@@ -208,31 +221,37 @@ export default function Dashboard({
           </div>
         )}
 
-        {/* At-a-glance stats */}
-        <div className={`grid gap-3 sm:gap-4 ${team ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
-          {[
-            { label: 'Songs', value: songs.length },
-            { label: 'Setlists', value: setlists.length },
-            { label: 'Upcoming', value: futureCount },
-            ...(team ? [{ label: 'Members', value: members.length }] : []),
-          ].map(s => (
-            <div key={s.label} className="modes-card p-4">
-              <div className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-1">{s.label}</div>
-              <div className="text-heading-24 text-[var(--modes-text)] leading-none">{s.value}</div>
+        {/* ── Next up — the soonest service/setlist (compact, no big hero) ── */}
+        {upcomingSetlists.length > 0 && (
+          <section>
+            <div
+              className="modes-card-strong p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 cursor-pointer hover:bg-[var(--modes-surface-strong)] transition-colors"
+              onClick={() => onViewSetlist(upcomingSetlists[0])}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <div className="flex items-center gap-4 flex-1 min-w-0">
+                <DateChip date={upcomingSetlists[0].date} />
+                <div className="min-w-0">
+                  <div className="text-label-11 uppercase tracking-wider font-semibold text-[var(--color-brand-text)]">Next up</div>
+                  <h3 className="text-heading-20 font-bold text-[var(--modes-text)] truncate m-0">{upcomingSetlists[0].name || 'Untitled Setlist'}</h3>
+                  <div className="text-label-13 text-[var(--modes-text-muted)] truncate">
+                    {formatDateFriendly(upcomingSetlists[0].date)} · {formatTimeFriendly(upcomingSetlists[0].time)}
+                    {upcomingSetlists[0].location ? ` · ${upcomingSetlists[0].location}` : ''}
+                    {' · '}{songCountOf(upcomingSetlists[0])} song{songCountOf(upcomingSetlists[0]) !== 1 ? 's' : ''}
+                  </div>
+                </div>
+              </div>
+              <Button variant="brand" className="shrink-0" onClick={(e) => { e.stopPropagation(); onPlaySetlist(upcomingSetlists[0]); }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="mr-1.5"><path d="M8 5v14l11-7z"/></svg>
+                Play Live
+              </Button>
             </div>
-          ))}
-        </div>
+          </section>
+        )}
 
-        {/* Command-center grid: main column (left) + side column (right). The
-            side blocks come first in source, so order utilities place main left. */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 sm:gap-8 items-start">
-
-          {/* Side column */}
-          <div className="flex flex-col gap-6 sm:gap-8 lg:order-2 min-w-0">
-
-        {/* My Schedule Calendar Widget */}
+        {/* ── Schedule ── */}
         {user && (
-          <section className="flex flex-col gap-3 sm:gap-4 -mt-2 mb-2">
+          <section className="flex flex-col gap-3 sm:gap-4">
             <CalendarWidget
               setlists={setlists}
               schedules={schedules}
@@ -244,12 +263,10 @@ export default function Dashboard({
           </section>
         )}
 
-        {/* Pending Requests */}
+        {/* ── Pending requests (schedule-related) ── */}
         {user && schedules?.filter(s => s.user_id === user.id && s.availability === 'pending').length > 0 && (
           <section className="flex flex-col gap-3 sm:gap-4">
-            <h2 className="text-heading-20 font-bold text-[var(--modes-text)]">
-              Pending Requests
-            </h2>
+            <h2 className="text-heading-20 font-bold text-[var(--modes-text)]">Pending Requests</h2>
             <div className="flex flex-col gap-3">
               {schedules
                 .filter(s => s.user_id === user.id && s.availability === 'pending')
@@ -257,33 +274,18 @@ export default function Dashboard({
                   const sl = setlists.find(l => l.id === schedule.setlist_id);
                   if (!sl) return null;
                   return (
-                    <div 
-                      key={schedule.id}
-                      className="modes-card p-4 flex items-center justify-between"
-                    >
-                      <div className="flex flex-col">
-                        <span className="text-copy-16 font-bold">{sl.name}</span>
+                    <div key={schedule.id} className="modes-card p-4 flex items-center justify-between gap-3">
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-copy-16 font-bold truncate">{sl.name}</span>
                         <span className="text-label-13 text-[var(--modes-text-muted)]">
-                          {sl.date 
-                            ? new Date(sl.date + 'T' + (sl.time || '00:00')).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) 
+                          {sl.date
+                            ? new Date(sl.date + 'T' + (sl.time || '00:00')).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
                             : 'Date TBD'} {schedule.role ? `• ${schedule.role}` : ''}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="secondary"
-                          onClick={() => updateSchedule(schedule.id, { availability: 'unavailable' })}
-                        >
-                          Decline
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="brand"
-                          onClick={() => updateSchedule(schedule.id, { availability: 'available' })}
-                        >
-                          Accept
-                        </Button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button size="sm" variant="secondary" onClick={() => updateSchedule(schedule.id, { availability: 'unavailable' })}>Decline</Button>
+                        <Button size="sm" variant="brand" onClick={() => updateSchedule(schedule.id, { availability: 'available' })}>Accept</Button>
                       </div>
                     </div>
                   );
@@ -292,9 +294,45 @@ export default function Dashboard({
           </section>
         )}
 
-        {/* Recent team activity (compact) */}
+        {/* ── Upcoming services / setlists (after the next-up) ── */}
+        {(upcomingSetlists.length === 0 || upcomingSetlists.length > 1) && (
+          <section className="flex flex-col gap-3 sm:gap-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-heading-20 font-bold text-[var(--modes-text)]">{team ? 'Upcoming Services' : 'Upcoming Setlists'}</h2>
+              <Button variant="ghost" size="sm" onClick={onGoSetlists} className="text-[var(--color-brand)] hover:text-[var(--color-brand)] hover:bg-white/5">View All</Button>
+            </div>
+            {upcomingSetlists.length > 1 ? (
+              <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]">
+                {upcomingSetlists.slice(1).map(sl => (
+                  <div key={sl.id} className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[var(--modes-surface)] transition-colors" onClick={() => onViewSetlist(sl)}>
+                    <DateChip date={sl.date} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-copy-15 font-semibold text-[var(--modes-text)] truncate">{sl.name || 'Untitled Setlist'}</div>
+                      <div className="text-label-13 text-[var(--modes-text-muted)] truncate">
+                        {formatDateFriendly(sl.date)} · {formatTimeFriendly(sl.time)} · {songCountOf(sl)} song{songCountOf(sl) !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onPlaySetlist(sl); }}
+                      aria-label="Play live"
+                      className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-transparent border-none cursor-pointer text-[var(--modes-text-muted)] hover:text-[var(--color-brand)] hover:bg-[var(--modes-surface-strong)] transition-colors"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="modes-card py-14 text-center flex flex-col items-center gap-3 border-dashed">
+                <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">No upcoming {team ? 'services' : 'setlists'}.</p>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── Recent team activity ── */}
         {team && (
-          <section className="flex flex-col gap-3">
+          <section className="flex flex-col gap-3 sm:gap-4">
             <h2 className="text-heading-20 font-bold text-[var(--modes-text)]">Recent Activity</h2>
             <div className="modes-card p-2">
               <ActivityFeed teamId={team.id} members={members} compact />
@@ -302,138 +340,26 @@ export default function Dashboard({
           </section>
         )}
 
-          </div>{/* /side column */}
-
-          {/* Main column */}
-          <div className="flex flex-col gap-6 sm:gap-8 lg:order-1 min-w-0">
-
-        {/* Upcoming Setlists */}
+        {/* ── Recently edited ── */}
         <section className="flex flex-col gap-3 sm:gap-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-heading-20 font-bold text-[var(--modes-text)]">
-              Upcoming Setlists
-            </h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onGoSetlists}
-              className="text-[var(--color-brand)] hover:text-[var(--color-brand)] hover:bg-white/5"
-            >
-              View All
-            </Button>
-          </div>
-
-          <div>
-            {upcomingSetlists.length > 0 ? (
-              <div
-                className="modes-card-strong flex flex-col md:flex-row w-full overflow-hidden shadow-[0_8px_28px_rgba(0,0,0,0.35)] h-auto md:h-64 cursor-pointer group transition-transform duration-150 active:scale-[0.99]"
-                onClick={() => onViewSetlist(upcomingSetlists[0])}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                {/* Left part (Branded Gradient) */}
-                <div className="w-full md:w-1/3 bg-gradient-to-br from-[var(--color-brand)] to-[var(--color-brand-vetiver)] h-28 md:h-full relative overflow-hidden">
-                   <div className="absolute inset-0 bg-black/10"></div>
-                </div>
-
-                {/* Right part (Details) */}
-                <div className="flex-1 p-5 md:p-8 flex flex-col justify-center group-hover:bg-white/[0.02] transition-colors">
-                  {/* Tags — rendered only when the setlist has any. No
-                      placeholder chip, mirrors SetlistCard behavior. */}
-                  {upcomingSetlists[0].tags?.length > 0 && (
-                    <div className="flex items-center gap-2 mb-3">
-                      {upcomingSetlists[0].tags.slice(0, 2).map(tag => (
-                        <Chip key={tag} variant="success" size="sm">
-                          {tag}
-                        </Chip>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Setlist Name */}
-                  <h3 className="text-heading-24 md:text-[32px] md:leading-[36px] font-bold text-[var(--modes-text)] m-0 mb-3 tracking-tight">
-                    {upcomingSetlists[0].name || "Untitled Setlist"}
-                  </h3>
-
-                  {/* Time & Location */}
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-label-14 text-[var(--modes-text-muted)] mb-6 font-medium">
-                    <div className="flex items-center gap-2">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                      {formatDateFriendly(upcomingSetlists[0].date)} • {formatTimeFriendly(upcomingSetlists[0].time)}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                      {upcomingSetlists[0].location || "No Location Set"}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-6 mt-auto">
-                    <Button
-                      variant="brand"
-                      className="border-none text-white shadow-sm px-6 font-bold"
-                      onClick={(e) => { e.stopPropagation(); onPlaySetlist(upcomingSetlists[0]); }}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="mr-2"><path d="M8 5v14l11-7z"/></svg>
-                      Play Live
-                    </Button>
-                    <div className="text-label-13 text-[var(--modes-text-dim)] font-medium">
-                      {songCountOf(upcomingSetlists[0])} song{songCountOf(upcomingSetlists[0]) !== 1 ? 's' : ''}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="modes-card py-14 text-center flex flex-col items-center gap-3 border-dashed">
-                <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">
-                  No upcoming setlists.
-                </p>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Recently Edited */}
-        <section className="flex flex-col gap-3 sm:gap-4 sm:mt-2">
           <div className="flex justify-between items-center text-left">
-            <h2 className="text-heading-20 font-bold text-[var(--modes-text)]">
-              Recently Edited
-            </h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onGoLibrary}
-              className="text-[var(--color-brand)] hover:text-[var(--color-brand)] hover:bg-white/5"
-            >
-              Full Library
-            </Button>
+            <h2 className="text-heading-20 font-bold text-[var(--modes-text)]">Recently Edited</h2>
+            <Button variant="ghost" size="sm" onClick={onGoLibrary} className="text-[var(--color-brand)] hover:text-[var(--color-brand)] hover:bg-white/5">Full Library</Button>
           </div>
-
           <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
             {latestSongs.map(song => (
-              <SongCard
-                key={song.id}
-                song={song}
-                variant="row"
-                onClick={() => onSelectSong(song)}
-              />
+              <SongCard key={song.id} song={song} variant="row" onClick={() => onSelectSong(song)} />
             ))}
             {latestSongs.length === 0 && (
               <div className="py-14 text-center flex flex-col items-center gap-3">
-                <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">
-                  Your library is empty.
-                </p>
+                <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">Your library is empty.</p>
                 {canEdit && onNewSong && (
-                  <Button variant="brand" size="sm" onClick={onNewSong}>
-                    Add Your First Song
-                  </Button>
+                  <Button variant="brand" size="sm" onClick={onNewSong}>Add Your First Song</Button>
                 )}
               </div>
             )}
           </div>
         </section>
-
-          </div>{/* /main column */}
-        </div>{/* /command-center grid */}
 
       </div>
     </div>
