@@ -8,6 +8,7 @@ import ActivityFeed from './team/ActivityFeed';
 import { useTeam } from '../auth/useTeam';
 import { useTeamSchedules } from '../hooks/useTeamSchedules';
 import { useTeamAvailability } from '../hooks/useTeamAvailability';
+import { useTeamSetlistMap } from '../hooks/useTeamSetlistMap';
 import { useAuth } from '../auth/useAuth';
 import { formatClockTime } from '../lib/dateFormat';
 
@@ -49,6 +50,12 @@ export default function Dashboard({
   const { user } = useAuth();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const { availability } = useTeamAvailability(team?.id);
+  // team_schedules.setlist_id is the remote UUID; local setlists use base-36
+  // ids. Resolve either way so pending requests actually find their setlist.
+  const { map: setlistMap } = useTeamSetlistMap(team?.id);
+  const resolveScheduleSetlist = (schedule) =>
+    setlists.find(l => l.id === schedule.setlist_id || setlistMap[l.id] === schedule.setlist_id) || null;
+  const pendingRequests = (schedules || []).filter(s => s.user_id === user?.id && s.availability === 'pending');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -264,32 +271,30 @@ export default function Dashboard({
         )}
 
         {/* ── Pending requests (schedule-related) ── */}
-        {user && schedules?.filter(s => s.user_id === user.id && s.availability === 'pending').length > 0 && (
+        {user && pendingRequests.length > 0 && (
           <section className="flex flex-col gap-3 sm:gap-4">
             <h2 className="text-heading-20 font-bold text-[var(--modes-text)]">Pending Requests</h2>
             <div className="flex flex-col gap-3">
-              {schedules
-                .filter(s => s.user_id === user.id && s.availability === 'pending')
-                .map(schedule => {
-                  const sl = setlists.find(l => l.id === schedule.setlist_id);
-                  if (!sl) return null;
-                  return (
-                    <div key={schedule.id} className="modes-card p-4 flex items-center justify-between gap-3">
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-copy-16 font-bold truncate">{sl.name}</span>
-                        <span className="text-label-13 text-[var(--modes-text-muted)]">
-                          {sl.date
-                            ? new Date(sl.date + 'T' + (sl.time || '00:00')).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
-                            : 'Date TBD'} {schedule.role ? `• ${schedule.role}` : ''}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button size="sm" variant="secondary" onClick={() => updateSchedule(schedule.id, { availability: 'unavailable' })}>Decline</Button>
-                        <Button size="sm" variant="brand" onClick={() => updateSchedule(schedule.id, { availability: 'available' })}>Accept</Button>
-                      </div>
+              {pendingRequests.map(schedule => {
+                const sl = resolveScheduleSetlist(schedule);
+                const part = [schedule.role, schedule.vocal_part].filter(Boolean).join(' · ');
+                return (
+                  <div key={schedule.id} className="modes-card p-4 flex items-center justify-between gap-3">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-copy-16 font-bold truncate text-[var(--modes-text)]">{sl?.name || 'Team service'}</span>
+                      <span className="text-label-13 text-[var(--modes-text-muted)]">
+                        {sl?.date
+                          ? new Date(sl.date + 'T' + (sl.time || '00:00')).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
+                          : 'Date TBD'}{part ? ` • ${part}` : ''}
+                      </span>
                     </div>
-                  );
-                })}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button size="sm" variant="secondary" onClick={() => updateSchedule(schedule.id, { availability: 'unavailable' })}>Decline</Button>
+                      <Button size="sm" variant="brand" onClick={() => updateSchedule(schedule.id, { availability: 'available' })}>Accept</Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}
