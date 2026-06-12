@@ -202,6 +202,11 @@ export default function App() {
   const [syncState, setSyncState] = useState({ state: 'idle', lastSync: null, provider: null });
   const [previewSongId, setPreviewSongId] = useState(null);
   const [previewSetlistId, setPreviewSetlistId] = useState(null);
+  // Schedule list/calendar view — lifted here so the BottomNav morphing FAB can
+  // toggle it (alongside the desktop header switch). Defaults to list on phones.
+  const [scheduleView, setScheduleView] = useState(() =>
+    (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches) ? 'list' : 'calendar'
+  );
   // True while the setlist builder has unsaved edits — drives the discard
   // guard on header nav + browser back (the builder reports it via callback).
   const setlistDirtyRef = useRef(false);
@@ -2176,6 +2181,8 @@ export default function App() {
               setlists={setlists}
               onBack={goBack}
               onOpenSetlist={goSetlistView}
+              viewMode={scheduleView}
+              onSetView={setScheduleView}
               clockFormat={settings?.clockFormat || '12h'}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />
@@ -2192,6 +2199,8 @@ export default function App() {
           activeLibrary={activeLibrary}
           onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
           onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+          scheduleView={scheduleView}
+          onToggleScheduleView={() => setScheduleView(v => (v === 'list' ? 'calendar' : 'list'))}
           onPlay={
             view === 'setlist-view' && currentSetlist
               ? () => goSetlistPerformance(currentSetlist)

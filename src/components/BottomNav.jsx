@@ -32,6 +32,12 @@ const PlusIcon = ({ open = false }) => (
 const PlayIcon = () => (
   <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 5.5v13a1 1 0 0 0 1.54.84l10-6.5a1 1 0 0 0 0-1.68l-10-6.5A1 1 0 0 0 7 5.5Z" /></svg>
 );
+const CalendarIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+);
+const ListIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
+);
 const SongMenuIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
@@ -82,7 +88,7 @@ const GLASS = {
  * a pure primary action — a create menu on Home, + on Songs/Setlists, and Play
  * on a setlist. Workspace switching lives in the top bar.
  */
-export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onPlay, activeLibrary }) {
+export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onPlay, activeLibrary, scheduleView, onToggleScheduleView }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const fabRef = useRef(null);
 
@@ -127,6 +133,12 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
     fab = { kind: 'action', label: 'New setlist', onClick: onNewSetlist, icon: <PlusIcon /> };
   } else if (activeView === 'setlist-view' && onPlay) {
     fab = { kind: 'action', label: 'Play live', onClick: onPlay, icon: <PlayIcon /> };
+  } else if (activeView === 'schedule' && onToggleScheduleView) {
+    // Flip the schedule between list and calendar; the icon shows the view it
+    // switches TO.
+    fab = scheduleView === 'list'
+      ? { kind: 'action', label: 'Calendar view', onClick: onToggleScheduleView, icon: <CalendarIcon /> }
+      : { kind: 'action', label: 'List view', onClick: onToggleScheduleView, icon: <ListIcon /> };
   }
 
   // Only render where the bottom nav is the primary nav.
