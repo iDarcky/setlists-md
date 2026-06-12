@@ -535,11 +535,40 @@ treat them as the first work item if the paid tier is ever demoed.
 - **Members can edit songs in read-only team libraries** — `App.jsx` computes
   `isTeamReadOnly` (non-admin/non-editor in a team library), but the editor
   entry points aren't all gated by it, so members reach the editor anyway.
-- **Preference cloud-sync push misses ~11 keys** — the push effect's dependency
-  array in `App.jsx` lists only a subset of `PORTABLE_PREF_KEYS`, so changes to
-  `chartTheme`, `chartBg`, `accentColor`, `sectionColors`, `customSectionTypes`,
-  etc. never trigger a debounced push. Team song/setlist sync also has **no
-  optimistic locking** — concurrent edits overwrite silently.
+- ~~**Preference cloud-sync push misses ~11 keys**~~ — *Stale / already fixed.*
+  The push effect depends on `portablePrefsSnapshot` (a JSON string of ALL
+  `PORTABLE_PREF_KEYS`), so every portable key triggers the debounced push.
+- ~~**Team sync has no optimistic locking**~~ — *Fixed (June 2026).* Team
+  libraries now sync through `src/sync/team-engine.js` (see below), whose
+  updates are compare-and-swap-guarded on `updated_at`.
+
+### Team library sync (src/sync/team-engine.js)
+
+Team libraries no longer go through the file-manifest engine
+(`engine.js` + the `supabase-team.js` provider shim). They use a dedicated
+**server-authoritative** engine that talks to `team_songs`/`team_setlists`
+directly:
+
+- **Pull = server wins.** Every row replaces the local copy; rows deleted on
+  the server disappear locally (App adopts the result wholesale via the
+  `replaced: true` flag in the sync result). Local-only never-synced items are
+  inserted; previously-synced items missing remotely are dropped.
+- **Canonical hashing** — songs hash the markdown text (the `content` text
+  column round-trips byte-exact); setlists hash a key-sorted `stableStringify`
+  because JSONB does not preserve key order. (The old engine hashed
+  pretty-printed JSON on push but compact JSONB on pull, so every cycle looked
+  dirty → re-upload → realtime → loop → endless "Synced" toasts.)
+- **CAS updates** — pushes guard with `.eq('updated_at', lastSyncedTime)`; a
+  miss means another member wrote first: their edit is kept, ours is reported
+  as a conflict and the next pull adopts the server copy.
+- **Identity** — the song/setlist id embedded in `content` is canonical, with
+  a fallback to the previous manifest's `remoteId` mapping (legacy rows
+  without embedded ids), then the row UUID. Duplicate rows for one id are
+  healed (newest kept, others deleted by writers).
+- Members (`readOnly`) are a pure mirror — no writes ever leave the device.
+- `createEngineForLibrary()` in App.jsx picks the engine per library; the
+  file-manifest engine remains for personal Drive/Dropbox/OneDrive sync.
+- Tests: `src/__tests__/team-engine.test.js` (fake Supabase client).
 
 ## Current Focus & Roadmap
 
