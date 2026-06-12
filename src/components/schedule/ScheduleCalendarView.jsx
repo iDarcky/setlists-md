@@ -98,15 +98,16 @@ export default function ScheduleCalendarView({
         </Button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center">
+      <div className="grid grid-cols-7 gap-1 sm:gap-1.5 text-center">
         {WEEKDAY_LABELS.map(label => (
-          <span key={label} className="text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)] py-2">
-            {label}
+          <span key={label} className="text-[10px] sm:text-label-11 uppercase tracking-wide sm:tracking-wider text-[var(--modes-text-dim)] py-1.5 sm:py-2">
+            <span className="sm:hidden">{label.slice(0, 1)}</span>
+            <span className="hidden sm:inline">{label}</span>
           </span>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1.5">
+      <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
         {cells.map((date, idx) => {
           const dateStr = toLocalDateStr(date);
           const inMonth = date.getMonth() === cursor.getMonth();
@@ -121,47 +122,49 @@ export default function ScheduleCalendarView({
               key={idx}
               type="button"
               onClick={() => onSelectDate(date)}
-              className={`min-h-[84px] sm:min-h-[124px] flex flex-col gap-1 rounded-xl border p-1.5 text-left transition-colors cursor-pointer ${
+              className={`min-h-[58px] sm:min-h-[124px] flex flex-col gap-0.5 sm:gap-1 rounded-lg sm:rounded-xl border p-1 sm:p-1.5 text-left transition-colors cursor-pointer ${
                 isToday ? 'border-[var(--color-brand)] bg-[var(--modes-surface)]' : 'border-[var(--modes-border)] bg-[var(--modes-surface)]'
               } hover:bg-[var(--modes-surface-strong)] ${inMonth ? '' : 'opacity-45'}`}
             >
-              <div className="flex items-center justify-between gap-1">
+              <div className="flex items-center justify-between gap-0.5">
                 {isToday ? (
-                  <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1 rounded-full bg-[var(--color-brand)] text-white text-label-12 font-bold">
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] sm:min-w-[24px] sm:h-6 px-1 rounded-full bg-[var(--color-brand)] text-white text-[10px] sm:text-label-12 font-bold">
                     {date.getDate()}
                   </span>
                 ) : (
-                  <span className="text-label-13 text-[var(--modes-text)] pl-0.5">{date.getDate()}</span>
+                  <span className="text-label-12 sm:text-label-13 text-[var(--modes-text)] pl-0.5">{date.getDate()}</span>
                 )}
                 {myStatus && (
-                  <span className={`w-2 h-2 rounded-full ${statusDotClass(myStatus)}`} aria-label={myStatus} />
+                  <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${statusDotClass(myStatus)}`} aria-label={myStatus} />
                 )}
               </div>
 
-              <div className="flex flex-col gap-1 min-h-0">
+              <div className="flex flex-col gap-0.5 sm:gap-1 min-h-0">
                 {slOnDay.slice(0, 2).map(sl => (
                   <span
                     key={sl.id}
-                    className="block text-label-10 leading-tight px-1.5 py-1 rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] font-medium truncate"
+                    className="block text-[9px] sm:text-label-10 leading-tight px-1 sm:px-1.5 py-0.5 sm:py-1 rounded sm:rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] font-medium truncate"
                     title={sl.name}
                   >
                     {sl.name || 'Setlist'}
                   </span>
                 ))}
                 {slOnDay.length > 2 && (
-                  <span className="text-label-10 text-[var(--modes-text-dim)] pl-0.5">+{slOnDay.length - 2} more</span>
+                  <span className="text-[9px] sm:text-label-10 text-[var(--modes-text-dim)] pl-0.5">+{slOnDay.length - 2}</span>
                 )}
                 {rehOnDay.slice(0, 1).map(sl => (
                   <span
                     key={`reh-${sl.id}`}
-                    className="block text-label-10 leading-tight px-1.5 py-1 rounded-md bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)] font-medium truncate"
+                    className="block text-[9px] sm:text-label-10 leading-tight px-1 sm:px-1.5 py-0.5 sm:py-1 rounded sm:rounded-md bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)] font-medium truncate"
                     title={`Rehearsal · ${sl.name}`}
                   >
                     ⏱ {sl.name || 'Rehearsal'}
                   </span>
                 ))}
                 {isAdmin && availCount > 0 && (
-                  <span className="text-label-10 text-[var(--modes-text-dim)] pl-0.5">{availCount}/{members.length} avail</span>
+                  <span className="text-[9px] sm:text-label-10 text-[var(--modes-text-dim)] pl-0.5 truncate">
+                    {availCount}/{members.length}<span className="hidden sm:inline"> avail</span>
+                  </span>
                 )}
               </div>
             </button>
