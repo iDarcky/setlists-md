@@ -2,6 +2,37 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.13.0-pre-alpha — Teams, scheduling, sharing & a new dashboard
+*June 2026*
+
+### Added
+- **Share a setlist by link** — publish a read-only snapshot anyone can open (with an optional expiry: 24h / 7 days / 30 days / never) and a QR code. Revoke any time.
+- **Worship Leader role** — a new team role between Admin and Member that can run the schedule and assign the band, without billing or member-management powers.
+- **Rehearsal day** — give a setlist an optional rehearsal date/time; it shows on the schedule as its own entry, separate from the service.
+- **Band assignments** — assign each scheduled person an instrument *and* a vocal part (Lead male/female, Soprano, Alto, Tenor, Bass, Backing).
+- **Team activity feed** — see who added songs, edited setlists, joined, set availability or got scheduled — on the Team page and the dashboard.
+- **Song map** — a new chart view showing the whole song's section flow with each section's chord shape; available in chart, practice and live.
+- **Instrument views** — pick your role (Leader / Vocalist / Guitarist / Bassist / Keys / Drummer) from the chart; Bassist collapses chords to root notes.
+- **Tabs by instrument** — tag a tab as acoustic, electric or bass and filter to just yours in chart, practice and live.
+- **Display modes in practice & live** — switch between Chords, Lyrics, Tabs and Song map, not just in the chart view.
+- **Setlist services** (Church) — a Service column + filter on the setlist list, a Services manager in Settings, and Songs-by-Service stats on the team page.
+- **Richer team page** — upcoming services, next-service readiness, most-used keys, never-played songs, and each member's instruments.
+
+### Improved
+- **New dashboard** — a cleaner home: Next up, your schedule, upcoming services, recent activity and recently edited — no oversized hero.
+- **Reworked schedule** — a modern header, an agenda list that only shows days that matter, a roomier Google-style month grid, and a day sheet showing the setlist + who's available.
+- **Consistent headers** — Team, Schedule, Preferences, Help, Legal and Plans share one header: a big title on desktop, and on mobile a back chevron in submenus with an X to close.
+- **Long tabs wrap** — guitar tabs now flow onto multiple lines at the bar instead of scrolling sideways.
+- **Safer member removal** — change role and remove now live behind a ⋯ menu, and removing someone asks first.
+- **Multi-tag filtering** on the setlist library, and a Tabs tab that's always available in the editor.
+- **Unsaved-changes guard** on the song editor, and an explicit Done on the song-structure sheet.
+
+### Fixed
+- **Schedule/team crash** — fixed an "unexpected error" caused by duplicate realtime subscriptions.
+- **Team stats** — the team page no longer shows 0 setlists when you have some.
+- **Dashboard requests** — pending availability requests now actually appear and stay actionable.
+- **Setlist preview** — opening a setlist and going back no longer leaves the side panel stuck open.
+
 ## 0.12.0-pre-alpha — Editor rework: reusable tabs, Arrange & New Song
 *June 2026*
 
