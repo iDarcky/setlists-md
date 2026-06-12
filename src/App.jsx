@@ -696,9 +696,23 @@ export default function App() {
     window.history.pushState(null, '');
   };
 
+  // True (and toasts) when the active team library is read-only for this user.
+  const guardTeamReadOnly = () => {
+    if (!isTeamReadOnly) return false;
+    toast({
+      title: 'Read-only library',
+      description: 'Only team admins and editors can change songs here. Ask a team admin for the editor role.',
+    });
+    return true;
+  };
+
   // Navigation with history stack. Not memoised — captures current state
   // through snapshot() on each call, which is what we want for back/forward.
   const navigate = (nextView, { song, setlist, replace, arrangementId } = {}) => {
+    // Central gate for read-only team members (audit D-1): every editor entry
+    // point funnels through here, so members can't reach the editor and lose
+    // work to the server-authoritative sync (RLS already blocks their writes).
+    if (nextView === 'editor' && guardTeamReadOnly()) return;
     if (!replace) pushHistory(snapshot());
     if (song !== undefined) setCurrentSong(song);
     if (setlist !== undefined) setCurrentSetlist(setlist);
@@ -1383,6 +1397,7 @@ export default function App() {
   };
 
   const handleSmartImport = (mdText) => {
+    if (guardTeamReadOnly()) return; // adds to songs before navigate()'s gate
     try {
       const parsed = parseSongMd(mdText);
       const song = songFromFlat({ ...parsed, id: generateId(), updatedAt: Date.now() });
@@ -1396,6 +1411,7 @@ export default function App() {
 
   const handleImportParsedSongs = (parsedSongs) => {
     if (!parsedSongs || parsedSongs.length === 0) return;
+    if (guardTeamReadOnly()) return;
     setNewSongModal(null);
     if (parsedSongs.length === 1) {
       navigate('editor', { song: parsedSongs[0] });

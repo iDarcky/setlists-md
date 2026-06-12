@@ -532,9 +532,11 @@ treat them as the first work item if the paid tier is ever demoed.
   `profile.plan` for `hasTeamPlan`/`createTeam` (always undefined → team
   creation hit the `plan in ('team','church')` check constraint); it now reads
   `profile.subscription_tier` and stamps a valid tier on create.
-- **Members can edit songs in read-only team libraries** — `App.jsx` computes
-  `isTeamReadOnly` (non-admin/non-editor in a team library), but the editor
-  entry points aren't all gated by it, so members reach the editor anyway.
+- ~~**Members can edit songs in read-only team libraries**~~ — *Fixed (June
+  2026).* `guardTeamReadOnly()` in App.jsx gates `navigate('editor', …)` (the
+  funnel for every editor entry point), the smart-import/multi-import flows
+  (which add songs before navigating), and `handleSaveSong` (defense in depth
+  if the role changes mid-edit). Members get a "Read-only library" toast.
 - ~~**Preference cloud-sync push misses ~11 keys**~~ — *Stale / already fixed.*
   The push effect depends on `portablePrefsSnapshot` (a JSON string of ALL
   `PORTABLE_PREF_KEYS`), so every portable key triggers the debounced push.
