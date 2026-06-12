@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
-import ScreenHeader from './ui/ScreenHeader';
+import PageHeader from './ui/PageHeader';
 
 const Section = ({ icon, title, children }) => (
   <Card className="flex flex-col gap-0 p-0 overflow-hidden border-[var(--ds-gray-400)]">
@@ -37,7 +37,7 @@ export default function HelpPage({ onBack, onMarkSeen }) {
 
   return (
     <div className="min-h-screen material-page pb-8">
-      <ScreenHeader onBack={onBack} title="Welcome to setlists.md" />
+      <PageHeader title="Welcome to setlists.md" onClose={onBack} />
 
       <div className="a4-container py-8 flex flex-col gap-6">
 

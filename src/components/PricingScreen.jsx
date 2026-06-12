@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PageHeader from './ui/PageHeader';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { supabase } from '../auth/supabase';
@@ -260,7 +261,8 @@ export default function PricingScreen({ onBack, onSignIn, settings }) {
   );
 
   return (
-    <div data-theme-variant="modes" className="min-h-full">
+    <div data-theme-variant="modes" className="min-h-full flex flex-col">
+      <PageHeader title="Plans" onClose={onBack} />
       <div className="flex items-start justify-center px-4 py-6 sm:py-10 pb-20">
         <div className="w-full max-w-5xl flex flex-col gap-6">
           {/* Hero */}

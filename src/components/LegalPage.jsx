@@ -3,7 +3,7 @@ import privacyRaw from '../data/privacy.md?raw';
 import termsRaw from '../data/terms.md?raw';
 import copyrightRaw from '../data/copyright.md?raw';
 import { Button } from './ui/Button';
-import ScreenHeader from './ui/ScreenHeader';
+import PageHeader from './ui/PageHeader';
 
 const SOURCES = { privacy: privacyRaw, terms: termsRaw, copyright: copyrightRaw };
 const TITLES = {
@@ -130,7 +130,7 @@ export default function LegalPage({ doc, onBack }) {
   if (onBack) {
     return (
       <div className="flex flex-col h-full">
-        <ScreenHeader onBack={onBack} title={title} />
+        <PageHeader title={title} onClose={onBack} />
         <div className="flex-1 overflow-y-auto">
           <main className="max-w-3xl mx-auto px-6 py-10">
             <article>{body}</article>

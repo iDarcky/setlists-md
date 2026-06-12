@@ -11,7 +11,7 @@ import SectionsPanel from './settings/SectionsPanel';
 import { CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '../data/chartThemes';
 import { HexColorPicker } from 'react-colorful';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
-import ScreenHeader from './ui/ScreenHeader';
+import PageHeader from './ui/PageHeader';
 import BrandWordmark from './ui/BrandWordmark';
 import { Button } from './ui/Button';
 import { useConfirm } from './ui/useConfirmHook';
@@ -1006,7 +1006,11 @@ export default function Settings({
   // Mobile/tablet: existing full-page hub-and-drilldown layout.
   return (
     <div data-theme-variant="modes" className="flex flex-col">
-      <ScreenHeader onBack={onBack} title={PANEL_TITLES[panel]} />
+      <PageHeader
+        title={PANEL_TITLES[panel]}
+        onBack={panel === 'hub' ? undefined : () => onChangePanel('hub')}
+        onClose={onClose || onBack}
+      />
 
       <div className="a4-container py-6 pb-20 flex flex-col gap-6">
         {panel === 'hub' && (
