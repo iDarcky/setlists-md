@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/Button';
-
-const GITHUB_REPO = 'https://github.com/iDarcky/setlists-md';
+import { supabase } from '../auth/supabase';
+import { useAuth } from '../auth/useAuth';
 
 const BugIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -29,9 +29,12 @@ const MessageIcon = () => (
   </svg>
 );
 
-const ChatIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z" />
+// Question mark inside a circle — the feedback/help entry-point glyph.
+const HelpCircleIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
   </svg>
 );
 
@@ -49,10 +52,19 @@ const FEEDBACK_TYPES = [
 ];
 
 export default function FeedbackButton({ variant = 'floating' }) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState('bug');
   const [description, setDescription] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [sent, setSent] = useState(false);
   const modalRef = useRef(null);
+
+  // Clear transient submit state each time the modal opens.
+  useEffect(() => {
+    if (open) { setError(null); setSent(false); }
+  }, [open]);
 
   // Close on Escape
   useEffect(() => {
@@ -81,29 +93,37 @@ export default function FeedbackButton({ variant = 'floating' }) {
     };
   }, [open]);
 
-  const handleSubmit = () => {
-    const feedbackType = FEEDBACK_TYPES.find(t => t.key === type);
-    const title = encodeURIComponent(
-      type === 'bug'
-        ? `[Bug] ${description.slice(0, 60)}`
-        : type === 'feature'
-        ? `[Feature] ${description.slice(0, 60)}`
-        : `[Feedback] ${description.slice(0, 60)}`
-    );
-    const body = encodeURIComponent(
-      `## ${feedbackType.label} Report\n\n${description}\n\n---\n*Submitted via in-app feedback button*\n*User-Agent: ${navigator.userAgent}*`
-    );
-    const label = encodeURIComponent(feedbackType.ghLabel);
-
-    window.open(
-      `${GITHUB_REPO}/issues/new?title=${title}&body=${body}&labels=${label}`,
-      '_blank',
-      'noopener'
-    );
-
-    setDescription('');
-    setType('bug');
-    setOpen(false);
+  const handleSubmit = async () => {
+    if (!description.trim() || busy) return;
+    if (!supabase) {
+      setError('Feedback is temporarily unavailable. Please try again later.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const { error: insertErr } = await supabase
+        .from('feedback')
+        .insert({
+          user_id: user?.id ?? null,
+          type,
+          description: description.trim(),
+          user_agent: navigator.userAgent,
+        });
+      if (insertErr) throw insertErr;
+      setSent(true);
+      setDescription('');
+      setType('bug');
+      // Auto-close shortly after the thank-you confirmation.
+      setTimeout(() => {
+        setOpen(false);
+        setSent(false);
+      }, 1400);
+    } catch (err) {
+      setError(err.message || 'Could not send feedback. Please try again.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -116,7 +136,7 @@ export default function FeedbackButton({ variant = 'floating' }) {
           style={{ WebkitTapHighlightColor: 'transparent' }}
           aria-label="Send feedback"
         >
-          <span className="text-[var(--drawer-text-muted)]"><MessageIcon /></span>
+          <span className="text-[var(--drawer-text-muted)]"><HelpCircleIcon size={20} /></span>
           <span className="flex-1 text-copy-15 text-[var(--drawer-text)] font-medium">Send feedback</span>
         </button>
       ) : variant === 'header' ? (
@@ -126,7 +146,7 @@ export default function FeedbackButton({ variant = 'floating' }) {
           aria-label="Send feedback"
           title="Send feedback"
         >
-          <MessageIcon />
+          <HelpCircleIcon size={20} />
         </button>
       ) : (
         <button
@@ -135,7 +155,7 @@ export default function FeedbackButton({ variant = 'floating' }) {
           style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
           aria-label="Send feedback"
         >
-          <ChatIcon />
+          <HelpCircleIcon size={22} />
         </button>
       )}
 
@@ -205,17 +225,25 @@ export default function FeedbackButton({ variant = 'floating' }) {
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end px-5 py-4 border-t border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
-              <div className="flex gap-2">
-                <Button variant="secondary" size="sm" onClick={() => setOpen(false)}>
-                  Cancel
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
+              <span className="text-copy-13 min-w-0 truncate" role="status" aria-live="polite">
+                {sent
+                  ? <span className="text-[var(--ds-teal-900)] font-medium">Thanks — feedback sent!</span>
+                  : error
+                  ? <span className="text-[var(--ds-red-900)]">{error}</span>
+                  : null}
+              </span>
+              <div className="flex gap-2 shrink-0">
+                <Button variant="secondary" size="sm" onClick={() => setOpen(false)} disabled={busy}>
+                  {sent ? 'Close' : 'Cancel'}
                 </Button>
                 <Button
                   variant="brand"
                   size="sm"
                   onClick={handleSubmit}
-                  disabled={!description.trim()}
-                  className={!description.trim() ? 'opacity-50 cursor-not-allowed' : ''}
+                  loading={busy}
+                  disabled={!description.trim() || busy || sent}
+                  className={!description.trim() || sent ? 'opacity-50 cursor-not-allowed' : ''}
                 >
                   Submit
                 </Button>

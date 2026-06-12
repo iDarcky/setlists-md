@@ -7,7 +7,9 @@
 // shape so most consumers (ChartView, PerformanceView, PDF exporters) keep
 // working unchanged when their callers wrap the song with this helper.
 
-import { generateId } from './parser.js';
+import { generateId, EXTRA_META_FIELDS } from './parser.js';
+
+const EXTRA_KEYS = EXTRA_META_FIELDS.map(([k]) => k);
 
 function arrangementId() {
   return 'arr_' + generateId();
@@ -41,6 +43,7 @@ export function resolveSongView(song, arrangementId) {
     spotify: song.spotify || '',
     youtube: song.youtube || '',
     keyHistory: song.keyHistory || {},
+    ...Object.fromEntries(EXTRA_KEYS.map(k => [k, song[k] ?? ''])),
     key: arr.key,
     tempo: arr.tempo,
     time: arr.time,
@@ -49,6 +52,7 @@ export function resolveSongView(song, arrangementId) {
     notes: arr.notes || '',
     structure: arr.structure || [],
     sections: arr.sections || [],
+    tabLibrary: arr.tabLibrary || [],
     updatedAt: arr.updatedAt || song.updatedAt,
     _arrangementId: arr.id,
     _arrangementName: arr.name,
@@ -71,17 +75,23 @@ export function withArrangement(song, arrangementId, mutator) {
 export function addArrangement(song, name, base) {
   const id = arrangementId();
   const seed = base || (song.arrangements && song.arrangements.find(a => a.id === song.defaultArrangementId)) || (song.arrangements && song.arrangements[0]);
+  // A new arrangement starts as a full copy of its seed (the main arrangement
+  // by default) — same lyrics, structure and chords — so the leader tweaks a
+  // duplicate rather than rebuilding the song from an empty shell. sections and
+  // structure are deep-cloned so edits don't mutate the seed.
+  const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)));
   const arrangement = {
     id,
     name: name || `Arrangement ${(song.arrangements?.length || 0) + 1}`,
     key: seed?.key || 'C',
-    tempo: seed?.tempo || 120,
-    time: seed?.time || '4/4',
+    tempo: seed?.tempo ?? null,
+    time: seed?.time || '',
     duration: seed?.duration || '',
-    capo: 0,
-    notes: '',
-    structure: [],
-    sections: [],
+    capo: seed?.capo || 0,
+    notes: seed?.notes || '',
+    structure: Array.isArray(seed?.structure) ? clone(seed.structure) : [],
+    sections: Array.isArray(seed?.sections) ? clone(seed.sections) : [],
+    tabLibrary: Array.isArray(seed?.tabLibrary) ? clone(seed.tabLibrary) : [],
     updatedAt: Date.now(),
   };
   const next = {
@@ -132,6 +142,7 @@ export function songFromFlat(flat) {
     spotify: flat.spotify || '',
     youtube: flat.youtube || '',
     keyHistory: flat.keyHistory || {},
+    ...Object.fromEntries(EXTRA_KEYS.map(k => [k, flat[k] ?? ''])),
     defaultArrangementId: arrId,
     arrangements: [{
       id: arrId,
@@ -144,6 +155,7 @@ export function songFromFlat(flat) {
       notes: flat.notes || '',
       structure: Array.isArray(flat.structure) ? flat.structure : [],
       sections: Array.isArray(flat.sections) ? flat.sections : [],
+      tabLibrary: Array.isArray(flat.tabLibrary) ? flat.tabLibrary : [],
       updatedAt: Date.now(),
     }],
     updatedAt: Date.now(),

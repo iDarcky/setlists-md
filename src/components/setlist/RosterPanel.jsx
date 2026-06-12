@@ -4,20 +4,29 @@ import { useTeamSchedules } from '../../hooks/useTeamSchedules';
 import { useTeamAvailability } from '../../hooks/useTeamAvailability';
 import { useTeamSetlistMap } from '../../hooks/useTeamSetlistMap';
 import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
 import { IconButton } from '../ui/IconButton';
 import { toast } from '../ui/use-toast';
 import { useConfirm } from '../ui/useConfirmHook';
 
-const PREDEFINED_ROLES = [
+// Instrument is the team_schedules.role column; vocal part is a separate
+// column so a person can have both (e.g. Electric Guitar + Backing).
+const INSTRUMENT_OPTIONS = [
   "Acoustic Guitar",
   "Electric Guitar",
   "Bass",
   "Drums",
   "Keys",
-  "Vocals",
-  "Lead Vocal",
-  "Piano"
+  "Piano",
+];
+
+const VOCAL_PARTS = [
+  "Lead male",
+  "Lead female",
+  "Soprano",
+  "Alto",
+  "Tenor",
+  "Bass",
+  "Backing",
 ];
 
 // Sort priority: available (0) → unknown (1) → maybe (2) → unavailable (3).
@@ -26,7 +35,7 @@ const AVAIL_RANK = { available: 0, maybe: 2, unavailable: 3 };
 function availabilityBadgeClasses(status) {
   if (status === 'available') return 'bg-[var(--ds-green-100)] text-[var(--ds-green-800)]';
   if (status === 'unavailable') return 'bg-[var(--ds-red-100)] text-[var(--ds-red-800)]';
-  if (status === 'maybe') return 'bg-[var(--ds-orange-100)] text-[var(--ds-orange-800)]';
+  if (status === 'maybe') return 'bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)]';
   return 'bg-[var(--ds-gray-200)] text-[var(--ds-gray-600)]';
 }
 
@@ -99,7 +108,8 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
     setIsAdding(true);
     setAddingMemberId(member.user_id);
     try {
-      const defaultRole = (member.instruments && member.instruments[0]) || 'Vocals';
+      // No default part — the leader assigns instrument/vocal explicitly.
+      const defaultRole = (member.instruments && member.instruments[0]) || null;
       await createSchedule(dbSetlistId, member.user_id, defaultRole, 'pending');
       toast({ title: 'Added to roster', description: 'Member has been scheduled.' });
     } catch (err) {
@@ -114,6 +124,14 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
   const handleUpdateRole = async (scheduleId, role) => {
     try {
       await updateSchedule(scheduleId, { role });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdateVocalPart = async (scheduleId, vocal_part) => {
+    try {
+      await updateSchedule(scheduleId, { vocal_part: vocal_part || null });
     } catch (err) {
       console.error(err);
     }
@@ -140,8 +158,8 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
       : 'flex flex-col h-full bg-[var(--ds-background-100)] border-l border-[var(--ds-gray-300)] w-[360px] max-w-full'}>
       {!inline && (
         <div className="p-4 border-b border-[var(--ds-gray-300)] flex items-center justify-between">
-          <h3 className="text-heading-18 font-bold m-0">{readOnly ? 'Roster' : 'Setlist Roster'}</h3>
-          <IconButton size="sm" onClick={onClose} aria-label="Close roster">
+          <h3 className="text-heading-18 font-bold m-0">{readOnly ? 'Band' : 'Setlist Band'}</h3>
+          <IconButton size="sm" onClick={onClose} aria-label="Close band">
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -158,7 +176,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
           <>
             {/* Current Roster */}
             <div className="flex flex-col gap-3">
-              <p className="text-label-12 text-[var(--ds-gray-600)] uppercase tracking-wider font-bold">Scheduled Team</p>
+              <p className="text-label-12 text-[var(--ds-gray-600)] uppercase tracking-wider font-bold">The Band</p>
 
               {setlistSchedules.length === 0 && (
                 <p className="text-copy-14 text-[var(--ds-gray-500)] italic py-4 text-center">
@@ -191,6 +209,11 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                               {schedule.role}
                             </span>
                           )}
+                          {readOnly && schedule.vocal_part && (
+                            <span className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-text)]">
+                              {schedule.vocal_part}
+                            </span>
+                          )}
                         </div>
                         </div>
                       </div>
@@ -204,48 +227,42 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                     </div>
 
                     {!readOnly && (
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold">Role</span>
+                      <div className="grid grid-cols-2 gap-2">
                         <div className="flex flex-col gap-1">
+                          <span className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold">Instrument</span>
                           {(() => {
-                            let availableRoles = (member?.instruments && member.instruments.length > 0)
-                              ? [...member.instruments]
-                              : [...PREDEFINED_ROLES];
-                            
-                            // Ensure current role is in the list if it matches a predefined one,
-                            // or it will fall into 'custom'.
-                            const isCustom = schedule.role && !availableRoles.includes(schedule.role);
-                            
+                            // Offer the member's declared instruments first, then
+                            // the standard list; keep whatever's set even if custom.
+                            const base = (member?.instruments && member.instruments.length > 0)
+                              ? member.instruments
+                              : INSTRUMENT_OPTIONS;
+                            const opts = [...new Set([...base, ...INSTRUMENT_OPTIONS, ...(schedule.role ? [schedule.role] : [])])];
                             return (
-                              <>
-                                <select
-                                  className="w-full bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md text-copy-13 px-2 py-1 outline-none"
-                                  value={isCustom ? 'custom' : (schedule.role || '')}
-                                  onChange={(e) => {
-                                    if (e.target.value !== 'custom') {
-                                      handleUpdateRole(schedule.id, e.target.value);
-                                    }
-                                  }}
-                                >
-                                  <option value="" disabled>Select role...</option>
-                                  {availableRoles.map(role => (
-                                    <option key={role} value={role}>{role}</option>
-                                  ))}
-                                  <option value="custom">Custom...</option>
-                                </select>
-
-                                {isCustom && (
-                                  <Input
-                                    size="sm"
-                                    placeholder="Enter custom role"
-                                    value={schedule.role === 'custom' ? '' : (schedule.role || '')}
-                                    onChange={(e) => handleUpdateRole(schedule.id, e.target.value)}
-                                    className="mt-1"
-                                  />
-                                )}
-                              </>
+                              <select
+                                className="w-full bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md text-copy-13 px-2 py-1 outline-none"
+                                value={schedule.role || ''}
+                                onChange={(e) => handleUpdateRole(schedule.id, e.target.value)}
+                              >
+                                <option value="">None</option>
+                                {opts.map(role => (
+                                  <option key={role} value={role}>{role}</option>
+                                ))}
+                              </select>
                             );
                           })()}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold">Vocal part</span>
+                          <select
+                            className="w-full bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md text-copy-13 px-2 py-1 outline-none"
+                            value={schedule.vocal_part || ''}
+                            onChange={(e) => handleUpdateVocalPart(schedule.id, e.target.value)}
+                          >
+                            <option value="">None</option>
+                            {VOCAL_PARTS.map(part => (
+                              <option key={part} value={part}>{part}</option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     )}
@@ -257,7 +274,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
             {/* Add Member — admins only */}
             {!readOnly && (
               <div className="flex flex-col gap-3">
-                <p className="text-label-12 text-[var(--ds-gray-600)] uppercase tracking-wider font-bold">Add to Roster</p>
+                <p className="text-label-12 text-[var(--ds-gray-600)] uppercase tracking-wider font-bold">Add to the Band</p>
 
                 {!setlistDate && (
                   <p className="text-copy-12 text-[var(--ds-orange-700)] bg-[var(--ds-orange-100)] px-3 py-2 rounded-lg">

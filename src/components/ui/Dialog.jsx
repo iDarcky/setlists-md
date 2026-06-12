@@ -14,24 +14,38 @@ export function Dialog({
 }) {
   const panelRef = useRef(null);
 
+  // Keep a ref so the keydown handler always calls the latest onClose without
+  // it being a dep of the scroll-lock effect — if onClose is an unmemoized
+  // function the combined effect would re-run on every parent render, briefly
+  // removing and re-adding 'dialog-open' and causing the background to flicker.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+
+  // Scroll-lock: only fires when open changes, not on every render.
+  // The app's real scroll container is <main> (not <body>), so locking body
+  // alone leaves the background draggable on iPad/iOS Safari.
+  // The `dialog-open` class on <html> freezes <main> too (see index.css).
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => {
-      if (e.key === 'Escape') onClose?.();
-    };
-    document.addEventListener('keydown', onKey);
-    // Scroll-lock. The app's real scroll container is <main> (not <body>), so
-    // locking body alone leaves the background draggable on iPad/iOS Safari.
-    // The `dialog-open` class on <html> freezes <main> too (see index.css).
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     document.documentElement.classList.add('dialog-open');
     return () => {
-      document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
       document.documentElement.classList.remove('dialog-open');
     };
-  }, [open, onClose]);
+  }, [open]);
+
+  // Keyboard dismiss: separate from scroll-lock so onClose changes don't
+  // cause the scroll-lock effect to re-run.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') onCloseRef.current?.();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
 
   if (!open) return null;
 

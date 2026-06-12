@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'rea
 import SongCard from './SongCard';
 import SidePeek from './shell/SidePeek';
 import { Button } from './ui/Button';
+import WorkspacePickerDialog from './ui/WorkspacePickerDialog';
 import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
@@ -179,6 +180,7 @@ export default function Library({
   onMoveSongs,
   onCopySongs,
   onAddSongsToSetlist,
+  chartMoveCopy,
 }) {
   // Responsive shell. Touch tablets (pointer: coarse) get the two-pane master-
   // detail; true desktops (fine pointer) keep the Phase 1 overlay peek.
@@ -213,6 +215,7 @@ export default function Library({
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [selected, setSelected] = useState([]);
   const [bulkMenu, setBulkMenu] = useState(null); // 'setlist' | 'copy' | 'move' | null
+  const [bulkPicker, setBulkPicker] = useState(null); // 'copy' | 'move' | null — workspace modal
 
   const tagsRef = useRef(null);
   const fabRef = useRef(null);
@@ -647,6 +650,7 @@ export default function Library({
                 onEdit={onEditSong ? () => onEditSong(previewSong) : null}
                 isFullscreen={false}
                 onToggleFullscreen={onToggleFullscreen}
+                {...(chartMoveCopy ? chartMoveCopy(previewSong.id) : {})}
                 {...chartDefaults}
               />
             </Suspense>
@@ -699,29 +703,11 @@ export default function Library({
           )}
 
           {canMoveCopy && onCopySongs && (
-            <div className="relative">
-              <button onClick={() => setBulkMenu(bulkMenu === 'copy' ? null : 'copy')} className="h-8 px-3 rounded-full text-label-14 font-medium cursor-pointer border-none bg-transparent text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-200)] transition-colors">Copy to…</button>
-              {bulkMenu === 'copy' && (
-                <div className="absolute bottom-full mb-2 left-0 w-[220px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg py-1">
-                  {otherWorkspaces.map(w => (
-                    <button key={w.id} onClick={() => runBulk(onCopySongs, w.id)} className="w-full text-left px-4 py-2.5 cursor-pointer border-none bg-transparent text-label-14 text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] transition-colors truncate">{w.name}</button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <button onClick={() => setBulkPicker('copy')} className="h-8 px-3 rounded-full text-label-14 font-medium cursor-pointer border-none bg-transparent text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-200)] transition-colors">Copy to…</button>
           )}
 
           {canMoveCopy && onMoveSongs && (
-            <div className="relative">
-              <button onClick={() => setBulkMenu(bulkMenu === 'move' ? null : 'move')} className="h-8 px-3 rounded-full text-label-14 font-medium cursor-pointer border-none bg-transparent text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-200)] transition-colors">Move to…</button>
-              {bulkMenu === 'move' && (
-                <div className="absolute bottom-full mb-2 left-0 w-[220px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg py-1">
-                  {otherWorkspaces.map(w => (
-                    <button key={w.id} onClick={() => runBulk(onMoveSongs, w.id)} className="w-full text-left px-4 py-2.5 cursor-pointer border-none bg-transparent text-label-14 text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] transition-colors truncate">{w.name}</button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <button onClick={() => setBulkPicker('move')} className="h-8 px-3 rounded-full text-label-14 font-medium cursor-pointer border-none bg-transparent text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-200)] transition-colors">Move to…</button>
           )}
 
           {onDeleteSongs && (
@@ -750,11 +736,27 @@ export default function Library({
               onEdit={onEditSong ? () => onEditSong(previewSong) : null}
               isFullscreen={isFullscreen}
               onToggleFullscreen={onToggleFullscreen}
+              {...(chartMoveCopy ? chartMoveCopy(previewSong.id) : {})}
               {...chartDefaults}
             />
           </Suspense>
         )}
       </SidePeek>
+
+      {/* Bulk move/copy destination picker (shared modal). */}
+      {bulkPicker && (
+        <WorkspacePickerDialog
+          open
+          title={bulkPicker === 'move' ? `Move ${selected.length} song${selected.length === 1 ? '' : 's'} to…` : `Copy ${selected.length} song${selected.length === 1 ? '' : 's'} to…`}
+          description={bulkPicker === 'move'
+            ? 'The selected songs will be moved out of the current workspace.'
+            : 'Copies will be added. The originals stay put.'}
+          confirmLabel={bulkPicker === 'move' ? 'Move' : 'Copy'}
+          workspaces={otherWorkspaces}
+          onSelect={(target) => runBulk(bulkPicker === 'move' ? onMoveSongs : onCopySongs, target)}
+          onClose={() => setBulkPicker(null)}
+        />
+      )}
     </div>
   );
 }

@@ -83,7 +83,7 @@ export default function RecurringPicker({ onApply }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="self-start inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--ds-gray-300)] text-copy-13 text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] transition-colors cursor-pointer bg-transparent"
+        className="self-start inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--modes-border)] text-copy-13 text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)] transition-colors cursor-pointer"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 12a9 9 0 1 0 9-9" />
@@ -95,18 +95,18 @@ export default function RecurringPicker({ onApply }) {
   }
 
   return (
-    <div className="rounded-xl border border-[var(--ds-gray-300)] p-4 flex flex-col gap-3 bg-[var(--ds-background-200)]">
+    <div className="modes-card p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <span className="text-copy-14 font-bold text-[var(--ds-gray-1000)]">Recurring availability</span>
+        <span className="text-copy-14 font-bold text-[var(--modes-text)]">Recurring availability</span>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="text-copy-13 text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-900)] cursor-pointer bg-transparent border-none"
+          className="text-copy-13 text-[var(--modes-text-dim)] hover:text-[var(--modes-text)] cursor-pointer bg-transparent border-none"
         >
           Cancel
         </button>
       </div>
-      <p className="text-copy-13 text-[var(--ds-gray-700)] m-0">
+      <p className="text-copy-13 text-[var(--modes-text-muted)] m-0">
         Mark every matching day in the range as available or unavailable.
       </p>
       <div className="flex flex-wrap items-end gap-3">

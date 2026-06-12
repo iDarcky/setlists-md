@@ -48,7 +48,7 @@ export default function DesktopLayout({
         Personal ↔ team/church switching. Hidden on mobile, which keeps the
         bespoke MobileTopBar + BottomNav shell.
       */}
-      {!isFullscreen && (
+      {!isFullscreen && !(isTablet && activeView === 'editor') && (
         <TopHeader
           className="hidden sm:grid"
           hidePrimaryNav={isTablet}
@@ -82,7 +82,7 @@ export default function DesktopLayout({
       */}
       <main
         ref={mainRef}
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-[var(--ds-background-100)] relative w-full transition-transform duration-300 ease-out"
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] bg-[var(--ds-background-100)] relative w-full transition-transform duration-300 ease-out"
         style={{
           transform: applyDrawerTransform ? 'translateX(72%) scale(0.92)' : undefined,
           transformOrigin: 'left center',

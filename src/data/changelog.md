@@ -2,6 +2,61 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.10.0 — Editor overhaul, teams & scheduling, sharing, and a new look
+*June 2026*
+
+### Added
+- **Share a setlist by link** — publish a read-only snapshot anyone can open (with an optional expiry: 24h / 7 days / 30 days / never) and a QR code. Revoke any time.
+- **Worship Leader role** — a new team role between Admin and Member that can run the schedule and assign the band, without billing or member-management powers.
+- **Rehearsal day** — give a setlist an optional rehearsal date/time; it shows on the schedule as its own entry, separate from the service.
+- **Band assignments** — assign each scheduled person an instrument *and* a vocal part (Lead male/female, Soprano, Alto, Tenor, Bass, Backing).
+- **Team activity feed** — see who added songs, edited setlists, joined, set availability or got scheduled — on the Team page and the dashboard.
+- **Schedule & availability** — a team schedule with a list/agenda and a month calendar, per-day availability, recurring availability, and rosters per service.
+- **Song map** — a chart view showing the whole song's section flow with each section's chord shape; available in chart, practice and live.
+- **Instrument views** — pick your role (Leader / Vocalist / Guitarist / Bassist / Keys / Drummer) from the chart; Bassist collapses chords to root notes.
+- **Tabs by instrument** — tag a tab as acoustic, electric or bass and filter to just yours in chart, practice and live.
+- **Display modes in practice & live** — switch between Chords, Lyrics, Tabs and Song map, not just in the chart view.
+- **Setlist services** (Church) — a Service column + filter on the setlist list, a Services manager in Settings, and Songs-by-Service stats on the team page.
+- **Reusable tab library** — build a tab once, name it, and drop it into any section; edit it once and every placement updates. Tag tabs with an instrument.
+- **Insert anywhere** — a "+" between every line in Arrange adds a lyric, chord line, tab or key change at that exact spot.
+- **Paste to import** — the editor's paste converts Ultimate-Guitar (chords-over-lyrics) and ChordPro into a clean chart, filling in title/key/etc.
+- **Browse songs when creating** — start a New Song from a bundled public-domain song.
+- **Tab colours & separate printing** — set string/fret/background colours and size for tabs (Settings → Chart), and a dedicated Tabs toggle in the PDF/print options.
+- **Reworked song editor** — a compact header (title, arrangement, key/tempo/time, mode toggle) with the chart canvas beneath; Song Details opens from the title.
+- **Visual chord placement** — tap a lyric to drop a chord where you touch, and tap a chord to move or remove it; add chord-only lines for intros/turnarounds.
+- **Key changes & section tools in Arrange** — add/remove modulate markers and manage sections from a per-section menu; sections show their number.
+- **Many more song-info fields** — original title, language, translator, writers, publishers, copyright, album, label, year, themes, genres, verses, vocal range, and more.
+- **Touch-first structure editor** — reorder the section flow with tap-to-add and move/remove controls.
+- **In-app legal pages** — Privacy, Terms, and a Copyright/DMCA page open inside the app; a sign-up legal notice; and a sign-in nudge for guests on the dashboard.
+
+### Improved
+- **New dashboard** — a cleaner home: Next up, your schedule, upcoming services, recent activity and recently edited.
+- **Consistent headers** — Team, Schedule, Preferences, Help, Legal and Plans share one header: a big title on desktop, and on mobile a back chevron in submenus with an X to close.
+- **Richer team page** — upcoming services, next-service readiness, most-used keys, never-played songs, and each member's instruments.
+- **Long tabs wrap** — guitar tabs flow onto multiple lines at the bar instead of scrolling sideways.
+- **Safer member removal** — change role and remove live behind a ⋯ menu, and removing someone asks first.
+- **Multi-tag filtering** on the song and setlist libraries, and a Tabs tab that's always available in the editor.
+- **Unsaved-changes guard** on the song editor, plus an explicit Done on the song-structure sheet.
+- **Editor parity** — the chord tool, coloured section picker, key-change stepper and tab library are the same across Arrange and Advanced; the raw editor edits just the song body.
+- **New Song redesign** — Blank, Import, Paste and Browse as clean tabs; Blank drops you straight into the editor.
+- **Settings sync** — every appearance preference (chart theme, accent, section colours, custom types, and more) now follows you across devices.
+- **Smoother Settings** — no flicker behind the dialog, tap-outside to close, and proper iPad safe-area spacing.
+- **Profile & logo uploads** accept JPEG/PNG/WebP up to 5 MB with clearer guidance.
+
+### Fixed
+- **Schedule/team crash** — fixed an "unexpected error" caused by duplicate realtime subscriptions.
+- **Team stats** — the team page no longer shows 0 setlists when you have some.
+- **Dashboard requests** — pending availability requests now appear and stay actionable.
+- **Setlist preview** — opening a setlist and going back no longer leaves the side panel stuck open.
+- **Saved tabs stick** and the editor opens reliably; single-fret entry no longer doubles (1 → 11); delete-section confirms and reorders everywhere.
+- **Read-only bands** — members of a read-only Space can't reach the editor or save there.
+- **Sign-in on small screens** scrolls properly; deleting your account transfers Space ownership instead of removing everyone's library.
+- **Tablet editor** — restored scrolling, fixed chord placement at line ends, the arrangement dropdown no longer hides behind chords, and tempo entry doesn't drop digits.
+
+### Security
+- Added browser security headers (clickjacking, MIME-sniffing, and transport protections).
+- Hardened the backend: tightened team-function permissions, fixed an authorization edge case in team invites, locked down avatar-file listing, and cleared dependency advisories.
+
 ## 0.9.0-pre-alpha — Spaces: multiple bands & churches
 *June 2026*
 

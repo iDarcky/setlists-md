@@ -115,6 +115,7 @@ export function renderSection(section, transpose, modOffset) {
   const inner = (section.lines || []).map(line => {
     if (typeof line === 'object' && line) {
       if (line.type === 'tab') return renderTab(line);
+      if (line.type === 'tabref') return line.tab ? renderTab(line.tab) : '';
       if (line.type === 'modulate') {
         running += line.semitones;
         return renderModulate(line);
@@ -301,6 +302,8 @@ function buildDocument(song, transpose, initialPrefs = {}) {
   body.no-chords .chord { display: none !important; }
   body.no-chords .cl-line { line-height: 1.4; }
   body.no-chords .cl-pair { margin-right: 0; }
+  /* "no-tabs" mode: hide tab blocks entirely. */
+  body.no-tabs .tab-block { display: none !important; }
 
   /* "bw" (no-color) mode: drop section / chord / structure colors for a
      monochrome print that's friendly to grayscale printers and reduces ink. */
@@ -754,6 +757,9 @@ function buildDocument(song, transpose, initialPrefs = {}) {
         <button type="button" class="toggle" data-control="chords">
           <span class="check"></span>Chords
         </button>
+        <button type="button" class="toggle" data-control="tabs">
+          <span class="check"></span>Tabs
+        </button>
         <button type="button" class="toggle" data-control="colors">
           <span class="check"></span>Colors
         </button>
@@ -781,7 +787,7 @@ function buildDocument(song, transpose, initialPrefs = {}) {
   <script>
     (function () {
       var STORAGE_KEY = 'setlists-md:pdf-prefs';
-      var DEFAULTS = { cols: 1, size: 'M', font: 'sans', chords: true, colors: true, repeats: true };
+      var DEFAULTS = { cols: 1, size: 'M', font: 'sans', chords: true, tabs: true, colors: true, repeats: true };
       var SIZE = { S: '10pt', M: '11pt', L: '12.5pt', XL: '14pt' };
       var FONT = {
         sans:  'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
@@ -829,6 +835,7 @@ function buildDocument(song, transpose, initialPrefs = {}) {
         root.style.setProperty('--body-size', SIZE[prefs.size] || SIZE.M);
         root.style.setProperty('--lyric-font', FONT[prefs.font] || FONT.sans);
         body.classList.toggle('no-chords', !prefs.chords);
+        body.classList.toggle('no-tabs', !prefs.tabs);
         body.classList.toggle('bw', !prefs.colors);
         body.classList.toggle('collapse-repeats', !prefs.repeats);
         // Reflect active state on the controls.
@@ -842,6 +849,7 @@ function buildDocument(song, transpose, initialPrefs = {}) {
           else if (k === 'size')    active = prefs.size === v;
           else if (k === 'font')    active = prefs.font === v;
           else if (k === 'chords')  active = !!prefs.chords;
+          else if (k === 'tabs')    active = !!prefs.tabs;
           else if (k === 'colors')  active = !!prefs.colors;
           else if (k === 'repeats') active = !!prefs.repeats;
           el.classList.toggle('active', active);
@@ -858,6 +866,7 @@ function buildDocument(song, transpose, initialPrefs = {}) {
           else if (k === 'size')   prefs.size   = v;
           else if (k === 'font')   prefs.font   = v;
           else if (k === 'chords') prefs.chords = !prefs.chords;
+          else if (k === 'tabs') prefs.tabs = !prefs.tabs;
           else if (k === 'colors') prefs.colors = !prefs.colors;
           else if (k === 'repeats') prefs.repeats = !prefs.repeats;
           apply();

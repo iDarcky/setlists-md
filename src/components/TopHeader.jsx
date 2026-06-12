@@ -158,19 +158,28 @@ export default function TopHeader({
     <>
       <header
         className={cn(
-          'w-full h-14 shrink-0 items-center gap-3 px-4 xl:px-6',
+          'w-full shrink-0 items-center gap-3 px-4 xl:px-6',
           'bg-[var(--ds-background-200)] border-b border-[var(--ds-gray-200)]',
           'grid-cols-[1fr_auto_1fr]',
           className
         )}
+        style={{
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          minHeight: 'calc(56px + env(safe-area-inset-top, 0px))',
+        }}
       >
         {/* Left — primary nav, or the brand lockup on the tablet shell where
             nav has moved to the bottom bar. */}
         {hidePrimaryNav ? (
-          <div className="flex items-center gap-2.5 min-w-0">
+          <button
+            type="button"
+            onClick={() => onNavigate('home')}
+            aria-label="Home"
+            className="flex items-center gap-2.5 min-w-0 bg-transparent border-none cursor-pointer p-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+          >
             <img src="/setlists-md-mark.svg" alt="" width="26" height="26" className="rounded-[7px]" draggable="false" />
-            <span className="text-label-14 font-bold text-[var(--ds-gray-1000)] tracking-tight truncate">Setlists MD</span>
-          </div>
+            <span className="text-label-14 font-bold text-[var(--ds-gray-1000)] tracking-tight truncate">Setlists.md</span>
+          </button>
         ) : (
           <nav className="flex items-center gap-1 min-w-0">
             {tabs.map(({ id, label }) => {

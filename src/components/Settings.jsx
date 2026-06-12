@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Account from './Account';
 import { useAuth } from '../auth/useAuth';
+import { useEntitlement } from '../hooks/useEntitlement';
+import { Input } from './ui/Input';
 import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '../billing/checkout';
 import SyncSettings from './settings/SyncSettings';
 import WhatsNewPanel from './settings/WhatsNewPanel';
@@ -9,7 +11,7 @@ import SectionsPanel from './settings/SectionsPanel';
 import { CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '../data/chartThemes';
 import { HexColorPicker } from 'react-colorful';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
-import ScreenHeader from './ui/ScreenHeader';
+import PageHeader from './ui/PageHeader';
 import BrandWordmark from './ui/BrandWordmark';
 import { Button } from './ui/Button';
 import { useConfirm } from './ui/useConfirmHook';
@@ -151,6 +153,7 @@ const PANEL_TITLES = {
   'chart-style': 'Chart Style',
   sections: 'Sections',
   sync: 'Cloud Sync',
+  services: 'Services',
   plan: 'Plan & billing',
   data: 'Data',
   whatsnew: "What's New",
@@ -164,7 +167,7 @@ const PLAN_DESCRIPTIONS = {
   church: 'Everything in Team plus multi-service scheduling. Up to 30 seats.',
 };
 
-const PLAN_LABELS = { free: 'Free', sync: 'Sync', team: 'Team', church: 'Church' };
+const PLAN_LABELS = { free: 'Free', pro: 'Pro', sync: 'Sync', team: 'Band', church: 'Church' };
 
 // ─── Sub-panel renderers — pure, just take what they need ────────────────
 
@@ -368,7 +371,79 @@ function ChartPanel({ settings, update }) {
           })}
         </div>
       </Row>
+      <Row label="Tab grid resolution" description="Default subdivisions when creating a new tab. Beats only keeps it simple; finer grids allow 8th/16th-note detail.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: 1, label: '1/4' },
+            { key: 2, label: '1/8' },
+            { key: 4, label: '1/16' },
+          ].map(({ key, label }) => {
+            const active = (settings.tabSubdivision || 1) === key;
+            return (
+              <Button
+                key={key}
+                size="sm"
+                variant={active ? 'secondary' : 'ghost'}
+                onClick={() => update('tabSubdivision', key)}
+                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </div>
+      </Row>
+      <Row label="Tab size" description="How large guitar/bass tabs render in the chart view.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: 0.85, label: 'Small' },
+            { key: 1, label: 'Medium' },
+            { key: 1.25, label: 'Large' },
+          ].map(({ key, label }) => {
+            const active = (settings.tabSize || 1) === key;
+            return (
+              <Button
+                key={key}
+                size="sm"
+                variant={active ? 'secondary' : 'ghost'}
+                onClick={() => update('tabSize', key)}
+                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </div>
+      </Row>
+      <Row label="Tab string colour" description="Colour of the string lines, bar lines and string labels in tabs.">
+        <TabColorControl value={settings.tabStringColor} fallback="#9b9b9b" onChange={v => update('tabStringColor', v)} />
+      </Row>
+      <Row label="Tab number colour" description="Colour of the fret numbers in tabs.">
+        <TabColorControl value={settings.tabNumberColor} fallback="#e0a82e" onChange={v => update('tabNumberColor', v)} />
+      </Row>
+      <Row label="Tab background" description="Fill behind the fret numbers (where the string line is broken).">
+        <TabColorControl value={settings.tabBg} fallback="#101010" onChange={v => update('tabBg', v)} />
+      </Row>
     </Section>
+  );
+}
+
+// Color swatch + native picker with a reset-to-theme option for tab styling.
+function TabColorControl({ value, fallback, onChange }) {
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="color"
+        value={value || fallback}
+        onChange={e => onChange(e.target.value)}
+        className="w-9 h-8 rounded-md border border-[var(--ds-gray-400)] bg-transparent cursor-pointer p-0"
+        aria-label="Pick colour"
+      />
+      <span className="text-label-12 font-mono text-[var(--ds-gray-700)] w-[72px]">{value || 'Theme'}</span>
+      {value && (
+        <Button size="sm" variant="ghost" onClick={() => onChange('')} className="text-[var(--ds-gray-700)]">Reset</Button>
+      )}
+    </div>
   );
 }
 
@@ -535,9 +610,81 @@ function planSummary(plan) {
   return `${label} plan`;
 }
 
-function AboutPanel({ isSignedIn, displayName }) {
-  const linkClass = 'hover:text-[var(--modes-text)] transition-colors underline-offset-4 underline decoration-[var(--modes-border)]';
-  const docBase = 'https://github.com/iDarcky/setlists-md/blob/master/docs';
+function ServicesPanel({ setlists = [], onRemapService }) {
+  const confirm = useConfirm();
+  const services = useMemo(() => {
+    const counts = {};
+    setlists.forEach(sl => {
+      const s = (sl.service || '').trim();
+      if (s) counts[s] = (counts[s] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([name, count]) => ({ name, count }));
+  }, [setlists]);
+
+  const [editing, setEditing] = useState(null);
+  const [draft, setDraft] = useState('');
+
+  const startEdit = (name) => { setEditing(name); setDraft(name); };
+  const saveEdit = (oldName) => {
+    const next = draft.trim();
+    if (next && next !== oldName) onRemapService?.(oldName, next);
+    setEditing(null);
+  };
+  const remove = async (name, count) => {
+    const ok = await confirm({
+      title: `Remove “${name}”?`,
+      description: `This clears the service from ${count} setlist${count === 1 ? '' : 's'}. The setlists themselves are kept.`,
+      confirmLabel: 'Remove service',
+      variant: 'danger',
+    });
+    if (ok) onRemapService?.(name, '');
+  };
+
+  return (
+    <Section subtitle="Services are the slots a setlist belongs to (e.g. Sunday AM). They come from what you type on setlists — rename or remove them here.">
+      {services.length === 0 ? (
+        <div className="modes-card p-6 text-center text-copy-14 text-[var(--modes-text-muted)]">
+          No services yet. Set a service on a setlist and it’ll appear here.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {services.map(svc => (
+            <div key={svc.name} className="modes-card flex items-center gap-2 px-4 py-3">
+              {editing === svc.name ? (
+                <>
+                  <Input
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') saveEdit(svc.name); if (e.key === 'Escape') setEditing(null); }}
+                    autoFocus
+                    className="flex-1"
+                  />
+                  <Button variant="brand" size="sm" onClick={() => saveEdit(svc.name)} disabled={!draft.trim()}>Save</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setEditing(null)}>Cancel</Button>
+                </>
+              ) : (
+                <>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{svc.name}</div>
+                    <div className="text-label-12 text-[var(--modes-text-dim)]">{svc.count} setlist{svc.count === 1 ? '' : 's'}</div>
+                  </div>
+                  <Button variant="secondary" size="sm" onClick={() => startEdit(svc.name)}>Rename</Button>
+                  <Button variant="ghost" size="sm" onClick={() => remove(svc.name, svc.count)} className="text-[var(--ds-red-700)]">Remove</Button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
+  );
+}
+
+function AboutPanel({ isSignedIn, displayName, onShowLegal }) {
+  const linkClass = 'text-left hover:text-[var(--modes-text)] transition-colors underline-offset-4 underline decoration-[var(--modes-border)] bg-transparent border-none p-0 cursor-pointer';
+  const showLegal = onShowLegal || (() => {});
   return (
     <div className="flex flex-col gap-4">
       <div className="modes-card p-5 flex flex-col gap-3">
@@ -586,16 +733,16 @@ function AboutPanel({ isSignedIn, displayName }) {
           setlists.md is a private workspace; you are responsible for licensing
           the content you import. We act on valid copyright takedown notices.
         </p>
-        <div className="flex flex-col gap-2 mt-1 text-copy-14">
-          <a href={`${docBase}/PRIVACY.md`} target="_blank" rel="noopener noreferrer" className={linkClass}>
+        <div className="flex flex-col items-start gap-2 mt-1 text-copy-14">
+          <button type="button" onClick={() => showLegal('privacy')} className={linkClass}>
             Privacy Policy
-          </a>
-          <a href={`${docBase}/TERMS.md`} target="_blank" rel="noopener noreferrer" className={linkClass}>
+          </button>
+          <button type="button" onClick={() => showLegal('terms')} className={linkClass}>
             Terms of Service
-          </a>
-          <a href={`${docBase}/COPYRIGHT.md`} target="_blank" rel="noopener noreferrer" className={linkClass}>
+          </button>
+          <button type="button" onClick={() => showLegal('copyright')} className={linkClass}>
             Copyright Policy &amp; DMCA
-          </a>
+          </button>
           <a
             href="mailto:legal@setlists.md?subject=Content%20report"
             className={linkClass}
@@ -669,6 +816,7 @@ export default function Settings({
   onSyncNow,
   onRequestSignIn,
   onUpgrade,
+  onShowLegal,
   plan = 'Free',
   isSignedIn = false,
   displayName = '',
@@ -681,7 +829,10 @@ export default function Settings({
   onChangePanel = () => {},
   activeLibrary = 'personal',
   team = null,
+  setlists = [],
+  onRemapService,
 }) {
+  const { allowed: canManageServices } = useEntitlement('multi-service');
   // Accepts (key, value) for single-field tweaks or a patch object for
   // multi-field updates done in the same render — without this, two
   // back-to-back update('foo', ...) calls each spread the *stale*
@@ -733,6 +884,8 @@ export default function Settings({
             team={team}
           />
         );
+      case 'services':
+        return <ServicesPanel setlists={setlists} onRemapService={onRemapService} />;
       case 'plan':
         return (
           <PlanPanel
@@ -761,7 +914,7 @@ export default function Settings({
           />
         );
       case 'about':
-        return <AboutPanel isSignedIn={isSignedIn} displayName={displayName} />;
+        return <AboutPanel isSignedIn={isSignedIn} displayName={displayName} onShowLegal={onShowLegal} />;
       default:
         return null;
     }
@@ -853,7 +1006,11 @@ export default function Settings({
   // Mobile/tablet: existing full-page hub-and-drilldown layout.
   return (
     <div data-theme-variant="modes" className="flex flex-col">
-      <ScreenHeader onBack={onBack} title={PANEL_TITLES[panel]} />
+      <PageHeader
+        title={PANEL_TITLES[panel]}
+        onBack={panel === 'hub' ? undefined : () => onChangePanel('hub')}
+        onClose={onClose || onBack}
+      />
 
       <div className="a4-container py-6 pb-20 flex flex-col gap-6">
         {panel === 'hub' && (
@@ -894,6 +1051,14 @@ export default function Settings({
               value={syncSummary(syncState)}
               onClick={() => onChangePanel('sync')}
             />
+            {canManageServices && (
+              <HubRow
+                icon={PlanIcon}
+                label="Services"
+                value={`${new Set(setlists.map(s => (s.service || '').trim()).filter(Boolean)).size} service${new Set(setlists.map(s => (s.service || '').trim()).filter(Boolean)).size === 1 ? '' : 's'}`}
+                onClick={() => onChangePanel('services')}
+              />
+            )}
             <HubRow
               icon={PlanIcon}
               label="Plan & billing"

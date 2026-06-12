@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { transposeKey, compactLabel } from '../music';
 import { resolveSongView } from '../arrangements';
 import { durationToSeconds, formatTotalDuration } from '../lib/duration';
@@ -7,47 +7,39 @@ import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
 import ExportSetlistDialog from './ExportSetlistDialog';
 import { useTeam } from '../auth/useTeam';
+import { useAuth } from '../auth/useAuth';
+import { SHARE_ENABLED } from '../share/setlistShare';
+import ShareSetlistDialog from './ShareSetlistDialog';
 import RosterPanel from './setlist/RosterPanel';
 import { headerFrostStyle } from '../lib/headerFrost';
 import { formatClockTime } from '../lib/dateFormat';
 import { useConfirm } from './ui/useConfirmHook';
+import { useIsTablet, useIsDesktop } from '../lib/useMediaQuery';
 
 export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false, hidePlay = false }) {
   const confirm = useConfirm();
   const { team, isAdmin } = useTeam();
+  const { user } = useAuth();
+  const [shareOpen, setShareOpen] = useState(false);
+  const canShare = SHARE_ENABLED && !!user?.id && !embedded;
+  // "Play live" lives in the BottomNav FAB on mobile + tablet (iPad, both
+  // orientations). Only desktop — which has no bottom nav — needs an in-page
+  // Play button, so we surface it there and nowhere else to avoid duplicates.
+  const isTablet = useIsTablet();
+  const wide = useIsDesktop();
+  const showTopPlay = wide && !isTablet && !hidePlay;
   const [tab, setTab] = useState('setlist'); // 'setlist' | 'roster'
   const getSong = (id, title, arrangementId) => {
     let s = songs.find(s => s.id === id);
     if (!s && title) s = songs.find(s => s.title === title);
     return s ? resolveSongView(s, arrangementId) : null;
   };
-  const [collapsed, setCollapsed] = useState(false);
+  // Header no longer collapses on scroll — it stays expanded (kept as a const so
+  // the existing collapsed/expanded branch in the header markup still resolves).
+  const collapsed = false;
   const [exportOpen, setExportOpen] = useState(false);
   const [showDetails, setShowDetails] = useState(true);
   const scrollRef = useRef(null);
-
-  // Own scroll container (not window) so the overview scrolls correctly when
-  // embedded in the tablet docked pane / side-peek, and so it presents a single
-  // scrollbar inside `<main>` rather than nesting a second one. In the narrow
-  // pane (embedded) we skip the scroll-collapse — the header height swap is
-  // jarring in such a small viewport.
-  useEffect(() => {
-    if (embedded) return;
-    const node = scrollRef.current;
-    if (!node) return;
-    // Full-page: the page scrolls on <main> (or the window), NOT this element —
-    // making this element a scroller too would nest a second scrollbar. Listen
-    // on that ancestor so the header still collapses. Hysteresis (collapse >96,
-    // expand <24) stops the header flip-flopping as the collapse shifts content.
-    const scroller = node.closest('main') || window;
-    const getY = () => (scroller === window ? window.scrollY : scroller.scrollTop);
-    const onScroll = () => {
-      const y = getY();
-      setCollapsed(prev => (prev ? y > 24 : y > 96));
-    };
-    scroller.addEventListener('scroll', onScroll, { passive: true });
-    return () => scroller.removeEventListener('scroll', onScroll);
-  }, [embedded]);
 
   // Open practice; `i` is the item index to start on (tapping a song row),
   // omitted/non-numeric (e.g. from a button's event) starts at the top.
@@ -106,6 +98,24 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
         </svg>
       </IconButton>
+      {canShare && (
+        <IconButton variant="ghost" size="sm" onClick={() => setShareOpen(true)} aria-label="Share setlist" title="Share setlist">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+          </svg>
+        </IconButton>
+      )}
+      {canEdit && onDelete && (
+        <IconButton variant="ghost" size="sm" onClick={handleDelete} aria-label="Delete setlist" title="Delete setlist">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
+          </svg>
+        </IconButton>
+      )}
       {onEdit && (
         <IconButton variant="ghost" size="sm" onClick={onEdit} aria-label="Edit setlist">
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -152,7 +162,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
     <div ref={scrollRef} className={embedded ? 'h-full overflow-y-auto overflow-x-hidden material-page pb-8' : 'material-page pb-8'}>
 
       {/* ── Sticky header ── */}
-      <div className="material-header transition-all duration-200" style={headerFrostStyle}>
+      <div className="material-header" style={headerFrostStyle}>
         <div className="a4-container">
 
           {collapsed ? (
@@ -228,7 +238,7 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
               while the body switches between Set order and Roster. */}
           {team && (
             <div className="inline-flex p-0.5 mt-1 mb-3 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)]">
-              {[['setlist', 'Set order'], ['roster', 'Roster']].map(([id, label]) => (
+              {[['setlist', 'Set order'], ['roster', 'Band']].map(([id, label]) => (
                 <button
                   key={id}
                   type="button"
@@ -248,21 +258,33 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
         </div>
       </div>
 
-      {/* Practice — mobile only (Play live is the BottomNav FAB; desktop/tablet
-          use the floating Practice + Play pills). */}
-      {onPractice && (
-        <div className="sm:hidden a4-container pt-4">
-          <button
-            type="button"
-            onClick={() => practiceAt()}
-            className="w-full h-11 rounded-xl bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] flex items-center justify-center gap-2 text-label-14 font-semibold text-[var(--ds-gray-1000)] cursor-pointer active:scale-[0.99] transition"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
-            Practice this set
-          </button>
+      {/* Top actions — Play live (desktop only; mobile/tablet use the BottomNav
+          FAB) + Practice (every breakpoint). Stacks on phones, sits inline on
+          wider screens. */}
+      {(onPractice || (onPlay && showTopPlay)) && (
+        <div className="a4-container pt-4 flex flex-col sm:flex-row gap-2">
+          {onPlay && showTopPlay && (
+            <Button variant="brand" size="lg" onClick={onPlay} className="justify-center gap-2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              Play live
+            </Button>
+          )}
+          {onPractice && (
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => practiceAt()}
+              className="w-full sm:w-auto justify-center gap-2"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+              Practice this set
+            </Button>
+          )}
         </div>
       )}
 
@@ -294,7 +316,6 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                     className="flex items-center gap-3 px-1 py-2"
                     aria-label="Break"
                   >
-                    <span className="flex-1 border-t border-dashed border-[var(--ds-gray-400)]" aria-hidden="true" />
                     <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--ds-gray-400)] slrow-pill slrow-v-soft">
                       <span className="text-label-13 font-semibold text-[var(--ds-gray-1000)]">
                         {item.label || 'Break'}
@@ -393,14 +414,6 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
         </div>
       </div>
 
-      {/* ── Delete ── */}
-      {canEdit && onDelete && (
-        <div className="px-5 py-6 mt-12 mb-8 mx-auto max-w-sm flex justify-center border-t border-[var(--modes-border-dashed)] border-dashed">
-          <Button variant="danger" onClick={handleDelete} className="w-full justify-center">
-            Delete Setlist
-          </Button>
-        </div>
-      )}
       </>
       )}
 
@@ -417,55 +430,21 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
         </div>
       )}
 
-      {/* ── Floating Practice + Play — desktop/tablet only. On mobile the
-          BottomNav morphing FAB owns "Play live", and Practice lives in the
-          header action row, so this block would duplicate them. ── */}
-      <div
-        className="fixed right-6 z-[150] hidden sm:flex flex-col items-end gap-2"
-        style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
-      >
-        {onPractice && (
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => practiceAt()}
-            onKeyDown={(e) => e.key === 'Enter' && practiceAt()}
-            className="flex items-center gap-2 h-10 px-4 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] shadow-md cursor-pointer hover:bg-[var(--ds-background-100)] transition-all duration-150 active:scale-95 select-none"
-            aria-label="Practice setlist"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--ds-gray-900)]">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
-            <span className="text-label-13 font-semibold text-[var(--ds-gray-900)]">Practice</span>
-          </div>
-        )}
-        {/* On touch tablets the bottom-nav FAB owns "Play live", so the caller
-            passes hidePlay to drop this duplicate and keep only Practice.
-            Desktop (no bottom nav) and the full setlist view keep it as the
-            primary play affordance. */}
-        {!hidePlay && (
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={onPlay}
-            onKeyDown={(e) => e.key === 'Enter' && onPlay?.()}
-            className="w-14 h-14 rounded-full bg-[var(--color-brand)] shadow-lg flex items-center justify-center cursor-pointer hover:opacity-90 transition-all duration-150 active:scale-95"
-            aria-label="Play setlist"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="white" className="ml-0.5">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </div>
-        )}
-      </div>
-
       {exportOpen && (
         <ExportSetlistDialog
           onClose={() => setExportOpen(false)}
           onExportZip={() => { setExportOpen(false); onExportZip?.(); }}
           onExportPdfOverview={() => { setExportOpen(false); onExportPdfOverview?.(); }}
           onExportPdfFull={() => { setExportOpen(false); onExportPdfFull?.(); }}
+        />
+      )}
+
+      {shareOpen && (
+        <ShareSetlistDialog
+          setlist={setlist}
+          songs={songs}
+          ownerId={user?.id}
+          onClose={() => setShareOpen(false)}
         />
       )}
 

@@ -1,7 +1,37 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import ChordPicker from './ChordPicker';
-import TabGridEditor from './TabGridEditor';
-import { parseTabBlock, splitMd, parseFrontmatterFields } from '../../parser';
+import ChordAutocomplete from './ChordAutocomplete';
+import KeyChangeDialog from './KeyChangeDialog';
+import TabGridEditor from './TabGridEditorV2';
+import { parseTabBlock, parseSongMd, serializeTabDef } from '../../parser';
+import { sectionStyle } from '../../music';
+
+function nextTabName(library = []) {
+  const used = new Set(library.map(t => t.name));
+  let n = library.length + 1;
+  while (used.has(`Tab ${n}`)) n++;
+  return `Tab ${n}`;
+}
+
+// The %% tabs library region is kept in the body but hidden from the Advanced
+// editor's textarea — it's managed through the Tab button, not raw text.
+function splitTabsRegion(body) {
+  const m = body.match(/^%% tabs[ \t]*$/m);
+  if (!m) return { visible: body, tabs: '' };
+  return { visible: body.slice(0, m.index).replace(/\s+$/, ''), tabs: body.slice(m.index).replace(/\s+$/, '') };
+}
+function joinTabsRegion(visible, tabs) {
+  const v = visible.replace(/\s+$/, '');
+  return tabs ? `${v}\n\n${tabs.replace(/\s+$/, '')}\n` : `${v}\n`;
+}
+
+function tabObjectFromAscii(ascii) {
+  const tm = ascii.match(/\{tab(?:,\s*time:\s*([^}]+))?\}/);
+  const time = tm && tm[1] ? tm[1].trim() : null;
+  const stringLines = ascii.split('\n').map(l => l.trim()).filter(l => /^[eBGDAE]\|/.test(l));
+  const tab = parseTabBlock(stringLines);
+  tab.time = time;
+  return tab;
+}
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 
@@ -10,22 +40,22 @@ const SECTION_TYPES = [
   'Instrumental', 'Interlude', 'Tag', 'Vamp', 'Outro', 'Ending', 'Refrain',
 ];
 
-export default function WriteTab({ md, onChange, textareaRef, customSectionTypes }) {
+export default function WriteTab({ md, onChange, textareaRef, customSectionTypes, time, songKey = 'C', onUndo, onRedo, onImport }) {
   const sectionTypes = useMemo(() => {
     const custom = (customSectionTypes || [])
       .map(t => t?.name?.trim())
       .filter(Boolean);
     return [...SECTION_TYPES, ...custom];
   }, [customSectionTypes]);
-  const [showChordPicker, setShowChordPicker] = useState(false);
+  const [showChordBar, setShowChordBar] = useState(false);
+  const [chordAnchor, setChordAnchor] = useState(null);
   const [showSectionMenu, setShowSectionMenu] = useState(false);
   const [showCueInput, setShowCueInput] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
-  const [showModMenu, setShowModMenu] = useState(false);
+  const [showKeyChange, setShowKeyChange] = useState(false);
   const [showTabEditor, setShowTabEditor] = useState(false);
-  const [showRef, setShowRef] = useState(false);
   const [tabEditState, setTabEditState] = useState(null);
-  const [chordAnchor, setChordAnchor] = useState(null);
+  const [showTabMenu, setShowTabMenu] = useState(false);
   const [popupAnchor, setPopupAnchor] = useState(null);
   const [cueText, setCueText] = useState('');
   const [noteText, setNoteText] = useState('');
@@ -36,6 +66,11 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
   const [matchIdx, setMatchIdx] = useState(0);
   const [recentChords, setRecentChords] = useState([]);
   const findInputRef = useRef(null);
+
+  // Split off the hidden %% tabs region; the textarea only shows the visible
+  // song body. emit() re-attaches the preserved tabs region on every change.
+  const { visible, tabs } = useMemo(() => splitTabsRegion(md), [md]);
+  const emit = useCallback((newVisible) => onChange(tabs ? joinTabsRegion(newVisible, tabs) : newVisible), [onChange, tabs]);
 
   // ─── Textarea helpers ───
   const insertAtCursor = useCallback((text, opts = {}) => {
@@ -65,13 +100,39 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     }
 
     const newVal = val.substring(0, start) + insert + val.substring(end);
-    onChange(newVal);
+    emit(newVal);
 
     requestAnimationFrame(() => {
       ta.selectionStart = ta.selectionEnd = newCursor;
       ta.focus();
     });
-  }, [onChange, textareaRef]);
+  }, [emit, textareaRef]);
+
+  // The song's reusable tab library, parsed from the body's %% tabs region.
+  const tabLibrary = useMemo(() => {
+    try { return parseSongMd(md).tabLibrary || []; } catch { return []; }
+  }, [md]);
+
+  const insertTabRef = useCallback((name) => {
+    insertAtCursor(`{tabref: ${name}}`, { newLine: true });
+    setShowTabMenu(false);
+  }, [insertAtCursor]);
+
+  // Save a brand-new library tab: append a named def to the %% tabs region and
+  // drop a {tabref} at the cursor — one combined edit so both land together.
+  const saveNewLibraryTab = useCallback((ascii) => {
+    const name = nextTabName(tabLibrary);
+    const tab = tabObjectFromAscii(ascii);
+    const ta = textareaRef.current;
+    const start = ta ? ta.selectionStart : visible.length;
+    const ref = `{tabref: ${name}}`;
+    const before = visible.slice(0, start);
+    const needsNl = before.length > 0 && !before.endsWith('\n');
+    const newVisible = before + (needsNl ? '\n' : '') + ref + visible.slice(start);
+    const def = serializeTabDef({ name, tab });
+    const newTabs = tabs ? `${tabs.replace(/\s+$/, '')}\n\n${def}` : `%% tabs\n\n${def}`;
+    onChange(joinTabsRegion(newVisible, newTabs));
+  }, [visible, tabs, tabLibrary, onChange, textareaRef]);
 
   // Harvest chords currently in the song text (most recent first by appearance)
   const songChords = useMemo(() => {
@@ -79,12 +140,12 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     const out = [];
     const re = /\[([^\]]+)\]/g;
     let m;
-    while ((m = re.exec(md)) !== null) {
+    while ((m = re.exec(visible)) !== null) {
       const c = m[1].trim();
       if (c && !seen.has(c)) { seen.add(c); out.push(c); }
     }
     return out;
-  }, [md]);
+  }, [visible]);
 
   const effectiveRecent = useMemo(() => {
     const merged = [...recentChords];
@@ -113,7 +174,7 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
       const selected = val.substring(start, end);
       const insert = `[${chord}]${selected}`;
       const newVal = val.substring(0, start) + insert + val.substring(end);
-      onChange(newVal);
+      emit(newVal);
       requestAnimationFrame(() => {
         ta.selectionStart = ta.selectionEnd = start + insert.length;
         ta.focus();
@@ -121,26 +182,26 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     } else {
       const insert = `[${chord}]`;
       const newVal = val.substring(0, start) + insert + val.substring(end);
-      onChange(newVal);
+      emit(newVal);
       requestAnimationFrame(() => {
         ta.selectionStart = ta.selectionEnd = start + insert.length;
         ta.focus();
       });
     }
-    setShowChordPicker(false);
+    setShowChordBar(false);
     addRecent(chord);
-  }, [onChange, textareaRef, addRecent]);
+  }, [emit, textareaRef, addRecent]);
 
   // ─── Section insertion with auto-numbering ───
   const handleSectionInsert = useCallback((type) => {
     const regex = new RegExp(`^## ${type}(\\s+\\d+)?$`, 'gm');
-    const matches = md.match(regex);
+    const matches = visible.match(regex);
     const count = matches ? matches.length : 0;
     const needsNumber = ['Verse', 'Pre Chorus', 'Chorus', 'Bridge'].includes(type);
     const label = needsNumber ? `${type} ${count + 1}` : (count > 0 ? `${type} ${count + 1}` : type);
     insertAtCursor(`## ${label}\n`, { newLine: true });
     setShowSectionMenu(false);
-  }, [md, insertAtCursor]);
+  }, [visible, insertAtCursor]);
 
   const handleCueInsert = useCallback(() => {
     if (!cueText.trim()) return;
@@ -157,39 +218,9 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
   }, [noteText, insertAtCursor]);
 
   const handleModInsert = useCallback((n) => {
-    insertAtCursor(`{modulate: +${n}}\n`, { newLine: true });
-    setShowModMenu(false);
+    insertAtCursor(`{modulate: ${n > 0 ? '+' : ''}${n}}\n`, { newLine: true });
+    setShowKeyChange(false);
   }, [insertAtCursor]);
-
-  const handleTabInsert = useCallback(() => {
-    const ta = textareaRef.current;
-    if (!ta) { setTabEditState(null); setShowTabEditor(true); return; }
-    const cursorPos = ta.selectionStart;
-    const val = ta.value;
-
-    const openRegex = /\{tab(?:,\s*[^}]*)?\}/g;
-    let editState = null;
-    let match;
-    while ((match = openRegex.exec(val)) !== null) {
-      const blockStart = match.index;
-      const closeIdx = val.indexOf('{/tab}', match.index + match[0].length);
-      if (closeIdx === -1) continue;
-      const blockEnd = closeIdx + '{/tab}'.length;
-      if (cursorPos >= blockStart && cursorPos <= blockEnd) {
-        const blockText = val.substring(match.index + match[0].length, closeIdx).trim();
-        const rawLines = blockText.split('\n').filter(l => l.trim());
-        const parsed = parseTabBlock(rawLines);
-        const timePart = match[0].match(/time:\s*(\S+)/);
-        const time = timePart ? timePart[1] : null;
-        parsed.time = time;
-        editState = { initialTab: parsed, time, range: { start: blockStart, end: blockEnd } };
-        break;
-      }
-    }
-
-    setTabEditState(editState);
-    setShowTabEditor(true);
-  }, [md, textareaRef]);
 
   const handleTabEditorSave = useCallback((asciiBlock) => {
     if (tabEditState?.range) {
@@ -197,16 +228,16 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
       const newVal = md.substring(0, start) + asciiBlock + md.substring(end);
       onChange(newVal);
     } else {
-      insertAtCursor(asciiBlock, { newLine: true });
+      // New tab → save to the library and reference it (matches Arrange).
+      saveNewLibraryTab(asciiBlock);
     }
     setTabEditState(null);
     setShowTabEditor(false);
-  }, [tabEditState, md, onChange, insertAtCursor]);
+  }, [tabEditState, md, onChange, saveNewLibraryTab]);
 
   const openChordPicker = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setChordAnchor(rect);
-    setShowChordPicker(true);
+    setChordAnchor(e?.currentTarget?.getBoundingClientRect() || null);
+    setShowChordBar(true);
   };
 
   const openPopup = (setter, e) => {
@@ -215,17 +246,15 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     setter(true);
   };
 
-  // Get time sig from frontmatter for TabGridEditor
-  const getTime = () => {
-    const fields = parseFrontmatterFields(splitMd(md).frontmatter);
-    return fields.time || '4/4';
-  };
+  // Time sig for TabGridEditor — passed down from the Editor shell, since the
+  // frontmatter is no longer part of this editor's text.
+  const getTime = () => time || '4/4';
 
   // ─── Find / Replace ───
   const matches = useMemo(() => {
     if (!showFind || !findText) return [];
     const out = [];
-    const hay = caseSensitive ? md : md.toLowerCase();
+    const hay = caseSensitive ? visible : visible.toLowerCase();
     const needle = caseSensitive ? findText : findText.toLowerCase();
     if (!needle) return [];
     let i = 0;
@@ -236,7 +265,7 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
       i = pos + Math.max(needle.length, 1);
     }
     return out;
-  }, [showFind, findText, caseSensitive, md]);
+  }, [showFind, findText, caseSensitive, visible]);
 
   useEffect(() => {
     if (!showFind || matches.length === 0) return;
@@ -265,24 +294,24 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
     if (matches.length === 0 || !findText) return;
     const start = matches[matchIdx];
     const end = start + findText.length;
-    const newVal = md.substring(0, start) + replaceText + md.substring(end);
-    onChange(newVal);
+    const newVal = visible.substring(0, start) + replaceText + visible.substring(end);
+    emit(newVal);
     // stay near current match after replace
     setMatchIdx((m) => Math.min(m, matches.length - 2 < 0 ? 0 : matches.length - 2));
-  }, [matches, matchIdx, findText, replaceText, md, onChange]);
+  }, [matches, matchIdx, findText, replaceText, visible, emit]);
 
   const replaceAll = useCallback(() => {
     if (matches.length === 0 || !findText) return;
     let out = '';
     let cursor = 0;
     for (const pos of matches) {
-      out += md.substring(cursor, pos) + replaceText;
+      out += visible.substring(cursor, pos) + replaceText;
       cursor = pos + findText.length;
     }
-    out += md.substring(cursor);
-    onChange(out);
+    out += visible.substring(cursor);
+    emit(out);
     setMatchIdx(0);
-  }, [matches, findText, replaceText, md, onChange]);
+  }, [matches, findText, replaceText, visible, emit]);
 
   // Cmd/Ctrl+F inside the textarea opens find
   const handleTextareaKeyDown = useCallback((e) => {
@@ -298,16 +327,34 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
   }, [textareaRef]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full pl-3 pr-6">
       {/* ─── Toolbar ─── */}
       <div className="flex flex-wrap gap-1 py-1.5 border-b border-[var(--ds-gray-300)] mb-2">
-        <ToolBtn label="♪" title="Chord" onClick={openChordPicker} />
-        <ToolBtn label="§" title="Section" onClick={(e) => openPopup(setShowSectionMenu, e)} />
-        <ToolBtn label="📢" title="Cue" onClick={(e) => openPopup(setShowCueInput, e)} />
-        <ToolBtn label="💬" title="Note" onClick={(e) => openPopup(setShowNoteInput, e)} />
-        <ToolBtn label="↑" title="Modulate" onClick={(e) => openPopup(setShowModMenu, e)} />
-        <ToolBtn label="┃" title="Tab" onClick={handleTabInsert} />
-        <ToolBtn label="🔍" title="Find" onClick={() => setShowFind(true)} />
+        <ToolBtn label="Chord" onClick={openChordPicker} />
+        <ToolBtn label="Section" onClick={(e) => openPopup(setShowSectionMenu, e)} />
+        <ToolBtn label="Cue" onClick={(e) => openPopup(setShowCueInput, e)} />
+        <ToolBtn label="Note" onClick={(e) => openPopup(setShowNoteInput, e)} />
+        <ToolBtn label="Key change" onClick={() => setShowKeyChange(true)} />
+        <ToolBtn label="Tab" onClick={(e) => openPopup(setShowTabMenu, e)} />
+        <ToolBtn label="Find" onClick={() => setShowFind(true)} />
+        {(onUndo || onRedo || onImport) && (
+          <span className="w-px self-stretch bg-[var(--ds-gray-300)] mx-0.5" aria-hidden="true" />
+        )}
+        {onUndo && (
+          <IconButton variant="secondary" size="sm" onClick={onUndo} aria-label="Undo" title="Undo">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-1" /></svg>
+          </IconButton>
+        )}
+        {onRedo && (
+          <IconButton variant="secondary" size="sm" onClick={onRedo} aria-label="Redo" title="Redo">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 14 5-5-5-5" /><path d="M20 9H9a5 5 0 0 0 0 10h1" /></svg>
+          </IconButton>
+        )}
+        {onImport && (
+          <IconButton variant="secondary" size="sm" onClick={onImport} aria-label="Paste &amp; import a chord sheet" title="Paste &amp; import">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>
+          </IconButton>
+        )}
       </div>
 
       {/* ─── Find / Replace bar ─── */}
@@ -333,70 +380,47 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
       {/* ─── Textarea ─── */}
       <textarea
         ref={textareaRef}
-        value={md}
-        onChange={e => onChange(e.target.value)}
+        value={visible}
+        onChange={e => emit(e.target.value)}
         onKeyDown={handleTextareaKeyDown}
         spellCheck={false}
         className="flex-1 w-full min-h-[50vh] bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg p-4 text-copy-13 leading-relaxed text-[var(--ds-gray-1000)] resize-y outline-none font-mono"
         style={{ caretColor: 'var(--chord)' }}
       />
 
-      {/* ─── Syntax Reference ─── */}
-      <button
-        onClick={() => setShowRef(v => !v)}
-        className="bg-transparent border-none cursor-pointer text-[var(--color-brand-text)] text-label-12 font-semibold font-mono py-2 text-left flex items-center gap-1.5"
-      >
-        <span className="text-[10px]">{showRef ? '▾' : '▸'}</span>
-        Syntax Reference
-      </button>
-
-      {showRef && (
-        <div className="mb-2.5 p-3 rounded-lg bg-[var(--color-brand-soft)] border border-[var(--color-brand-border)] text-copy-11 text-[var(--ds-gray-600)] leading-relaxed font-mono">
-          <div className="mb-1.5">
-            <strong className="text-[var(--ds-gray-1000)]">Frontmatter</strong> (between <code>---</code> delimiters):
-          </div>
-          <div className="pl-2.5 mb-2 text-[var(--ds-gray-500)]">
-            title: Song Name<br />
-            artist: Artist Name<br />
-            key: C<br />
-            tempo: 120<br />
-            time: 4/4<br />
-            structure: [Verse 1, Chorus, Verse 2, Chorus]<br />
-            <span className="opacity-50">tags, ccli, spotify, youtube, capo, notes — optional</span>
-          </div>
-          <div className="mb-1.5">
-            <strong className="text-[var(--ds-gray-1000)]">Sections & Chords:</strong>
-          </div>
-          <div className="pl-2.5 text-[var(--ds-gray-500)] mb-2">
-            <strong className="text-[var(--color-brand-text)]">## Section Name</strong> — starts a section<br />
-            <strong className="text-[var(--chord)]">[Chord]</strong>lyrics — inline chords above lyrics<br />
-            <strong className="text-[var(--ds-gray-600)]">&gt; note</strong> — band cue<br />
-          </div>
-          <div className="mb-1.5">
-            <strong className="text-[var(--ds-gray-1000)]">Tab Blocks:</strong>
-          </div>
-          <div className="pl-2.5 text-[var(--ds-gray-500)]">
-            <strong className="text-[var(--color-brand-text)]">{'{'}</strong>tab{'}'} ... {'{'}/tab{'}'}<br />
-            <span className="text-[var(--chord)]">e|--0--2h3--|</span> — string lines (e B G D A E)<br />
-            <span className="opacity-70">Techniques: </span>
-            <strong className="text-[var(--chord)]">h</strong> hammer &nbsp;
-            <strong className="text-[var(--chord)]">p</strong> pull &nbsp;
-            <strong className="text-[var(--chord)]">s</strong> slide &nbsp;
-            <strong className="text-[var(--chord)]">b</strong> bend &nbsp;
-            <strong className="text-[var(--chord)]">x</strong> mute &nbsp;
-            <strong className="text-[var(--chord)]">~</strong> vibrato
-          </div>
-        </div>
+      {/* ─── Popups ─── */}
+      {showChordBar && (
+        <ChordAutocomplete
+          anchorRect={chordAnchor}
+          songKey={songKey}
+          recents={effectiveRecent}
+          onCommit={handleChordSelect}
+          onClose={() => setShowChordBar(false)}
+        />
       )}
 
-      {/* ─── Popups ─── */}
-      {showChordPicker && (
-        <ChordPicker
-          anchorRect={chordAnchor}
-          onSelect={handleChordSelect}
-          onClose={() => setShowChordPicker(false)}
-          recentChords={effectiveRecent}
-        />
+      {showTabMenu && (
+        <Popup anchor={popupAnchor} onClose={() => setShowTabMenu(false)}>
+          <div className="flex flex-col gap-0.5 min-w-[180px]">
+            {tabLibrary.map(t => (
+              <button
+                key={t.name}
+                onClick={() => insertTabRef(t.name)}
+                className="bg-transparent border-none rounded-md px-3 py-1.5 text-left cursor-pointer text-copy-13 font-medium text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] transition-colors flex items-center gap-2"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-60"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/></svg>
+                {t.name}
+              </button>
+            ))}
+            {tabLibrary.length > 0 && <div className="my-1 border-t border-[var(--ds-gray-300)]" />}
+            <button
+              onClick={() => { setShowTabMenu(false); setTabEditState(null); setShowTabEditor(true); }}
+              className="bg-transparent border-none rounded-md px-3 py-1.5 text-left cursor-pointer text-copy-13 font-semibold text-[var(--color-brand-text)] hover:bg-[var(--ds-gray-200)] transition-colors"
+            >
+              + New tab…
+            </button>
+          </div>
+        </Popup>
       )}
 
       {showSectionMenu && (
@@ -406,7 +430,8 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
               <button
                 key={t}
                 onClick={() => handleSectionInsert(t)}
-                className="bg-transparent border-none rounded-md px-3 py-1.5 text-left cursor-pointer text-copy-13 font-medium text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] transition-colors"
+                className="bg-transparent border-none rounded-md px-3 py-1.5 text-left cursor-pointer text-copy-13 font-bold uppercase tracking-wider hover:bg-[var(--ds-gray-200)] transition-colors"
+                style={{ color: sectionStyle(t, null, customSectionTypes).b }}
               >
                 {t}
               </button>
@@ -447,16 +472,12 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
         </Popup>
       )}
 
-      {showModMenu && (
-        <Popup anchor={popupAnchor} onClose={() => setShowModMenu(false)}>
-          <div className="flex gap-1 flex-wrap">
-            {[1, 2, 3, 4, 5, 6, 7].map(n => (
-              <Button key={n} variant="brand" size="xs" onClick={() => handleModInsert(n)} className="w-9 text-center justify-center">
-                +{n}
-              </Button>
-            ))}
-          </div>
-        </Popup>
+      {showKeyChange && (
+        <KeyChangeDialog
+          showAddChords={false}
+          onConfirm={(steps) => handleModInsert(steps)}
+          onClose={() => setShowKeyChange(false)}
+        />
       )}
 
       {showTabEditor && (
@@ -477,11 +498,10 @@ function ToolBtn({ label, title, onClick }) {
   return (
     <button
       onClick={onClick}
-      title={title}
-      className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg px-2.5 py-1.5 cursor-pointer text-[var(--ds-gray-1000)] text-[14px] font-semibold flex items-center gap-1 whitespace-nowrap hover:bg-[var(--ds-gray-200)] hover:border-[var(--ds-gray-600)] transition-colors"
+      title={title || label}
+      className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg px-3 py-1.5 cursor-pointer text-[var(--ds-gray-1000)] text-label-12 font-semibold whitespace-nowrap hover:bg-[var(--ds-gray-200)] hover:border-[var(--ds-gray-600)] transition-colors"
     >
-      <span className="text-[15px]">{label}</span>
-      <span className="text-label-10 text-[var(--ds-gray-600)] font-mono">{title}</span>
+      {label}
     </button>
   );
 }

@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../auth/supabase';
 import { useTeam } from '../auth/useTeam';
 import { useAuth } from '../auth/useAuth';
-import ScreenHeader from './ui/ScreenHeader';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import UpgradeGate from './ui/UpgradeGate';
+import PageHeader from './ui/PageHeader';
+import ActivityFeed from './team/ActivityFeed';
 import AvatarUploader from './ui/AvatarUploader';
 import { useConfirm } from './ui/useConfirmHook';
 import { BILLING_ENABLED, WORKSPACE_CREATION_LOCKED, startTeamCheckout } from '../billing/checkout';
@@ -77,10 +78,7 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
 
   return (
     <div className="flex-1 flex items-center justify-center px-6 py-12">
-      <div
-        className="w-full max-w-md rounded-2xl p-8 flex flex-col gap-5"
-        style={{ background: 'var(--ds-background-100)', border: '1px solid var(--ds-gray-400)' }}
-      >
+      <div className="modes-card-strong w-full max-w-md p-8 flex flex-col gap-5">
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto"
           style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}
@@ -89,10 +87,10 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
         </div>
 
         <div className="text-center">
-          <h2 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 mb-1">
+          <h2 className="text-heading-24 text-[var(--modes-text)] m-0 mb-1">
             {multiple ? 'Create a new Space' : 'Create your Space'}
           </h2>
-          <p className="text-copy-14 text-[var(--ds-gray-600)] m-0">
+          <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">
             {multiple
               ? 'Spin up another shared Space for a different band or church.'
               : 'Set up a shared Space for your worship band or church.'}
@@ -101,7 +99,7 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1">
-            <span className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider">Team name</span>
+            <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Team name</span>
             <Input
               type="text"
               required
@@ -112,7 +110,7 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider">Location <span className="normal-case tracking-normal text-[var(--ds-gray-500)]">(optional)</span></span>
+            <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Location <span className="normal-case tracking-normal text-[var(--modes-text-dim)]">(optional)</span></span>
             <Input
               type="text"
               value={location}
@@ -123,7 +121,7 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
 
           {/* Tier picker — sets seats/features (and the price at checkout). */}
           <div className="flex flex-col gap-1.5">
-            <span className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider">Plan</span>
+            <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Plan</span>
             <div className="grid grid-cols-2 gap-2">
               {TIERS.map(t => {
                 const active = plan === t.id;
@@ -134,18 +132,18 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
                     onClick={() => setPlan(t.id)}
                     className="text-left rounded-xl p-3 border transition-all"
                     style={{
-                      borderColor: active ? 'var(--color-brand)' : 'var(--ds-gray-400)',
+                      borderColor: active ? 'var(--color-brand)' : 'var(--modes-border)',
                       boxShadow: active ? '0 0 0 1px var(--color-brand)' : 'none',
-                      background: active ? 'var(--color-brand-soft)' : 'var(--ds-background-200)',
+                      background: active ? 'var(--color-brand-soft)' : 'var(--modes-surface)',
                     }}
                     aria-pressed={active}
                   >
                     <div className="flex items-baseline justify-between gap-1">
-                      <span className="text-copy-14 font-semibold text-[var(--ds-gray-1000)]">{t.label}</span>
+                      <span className="text-copy-14 font-semibold text-[var(--modes-text)]">{t.label}</span>
                       {billingLive && <span className="text-label-11 font-bold text-[var(--color-brand)]">{t.price}</span>}
                     </div>
-                    <div className="text-label-11 text-[var(--ds-gray-600)] mt-0.5">{t.seats}</div>
-                    <div className="text-label-11 text-[var(--ds-gray-500)] mt-0.5">{t.blurb}</div>
+                    <div className="text-label-11 text-[var(--modes-text-muted)] mt-0.5">{t.seats}</div>
+                    <div className="text-label-11 text-[var(--modes-text-dim)] mt-0.5">{t.blurb}</div>
                   </button>
                 );
               })}
@@ -174,17 +172,31 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
 
 // ── Team Dashboard ──────────────────────────────────────────────────────────
 
+const MEMBER_ROLES = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'leader', label: 'Leader' },
+  { value: 'editor', label: 'Editor' },
+  { value: 'member', label: 'Member' },
+];
+
 function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
+  const confirm = useConfirm();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
+
   const isOwner = member.role === 'admin';
   const profile = member.profile || {};
   const displayName = profile.display_name || profile.email?.split('@')[0] || member.user_id?.slice(0, 8);
   const initial = displayName?.slice(0, 2)?.toUpperCase() || '??';
 
   return (
-    <div
-      className="flex items-center gap-3 px-4 py-3 rounded-xl"
-      style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}
-    >
+    <div className="modes-card flex items-center gap-3 px-4 py-3">
       {/* Avatar */}
       <div
         className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 overflow-hidden text-label-14 font-bold"
@@ -200,11 +212,11 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-copy-14 font-medium text-[var(--ds-gray-1000)] truncate">
+          <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">
             {displayName}
           </span>
           {isCurrentUser && (
-            <span className="text-label-11 text-[var(--ds-gray-500)]">(you)</span>
+            <span className="text-label-11 text-[var(--modes-text-dim)]">(you)</span>
           )}
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
@@ -213,35 +225,70 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
               <CrownIcon /> Admin
             </span>
           ) : (
-            <span className="text-label-11 font-medium text-[var(--ds-gray-600)] capitalize">{member.role || 'Member'}</span>
+            <span className="text-label-11 font-medium text-[var(--modes-text-muted)] capitalize">{member.role || 'Member'}</span>
           )}
           {profile.email && (
             <>
-              <span className="text-label-11 text-[var(--ds-gray-400)]">•</span>
-              <span className="text-label-11 text-[var(--ds-gray-500)] truncate">{profile.email}</span>
+              <span className="text-label-11 text-[var(--modes-text-dim)]">•</span>
+              <span className="text-label-11 text-[var(--modes-text-dim)] truncate">{profile.email}</span>
             </>
           )}
         </div>
+        {Array.isArray(member.instruments) && member.instruments.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {member.instruments.map(inst => (
+              <span key={inst} className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)]">
+                {inst}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {isAdmin && !isCurrentUser && (
-        <div className="flex items-center gap-3">
-          <select
-            value={member.role || 'member'}
-            onChange={(e) => onRoleChange(member.id, e.target.value)}
-            className="bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md px-2 py-1 text-label-11 font-medium text-[var(--ds-gray-700)] outline-none cursor-pointer hover:border-[var(--ds-gray-400)] focus:border-[var(--color-brand)] transition-colors"
-          >
-            <option value="admin">Admin</option>
-            <option value="editor">Editor</option>
-            <option value="member">Member</option>
-          </select>
+        <div className="relative shrink-0" ref={menuRef}>
           <button
-            onClick={() => onRemove(member.id)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border border-[var(--ds-gray-300)] cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-red-700)] hover:border-[var(--ds-red-400)] transition-colors"
-            title="Remove member"
+            onClick={() => setMenuOpen(o => !o)}
+            aria-label="Member options"
+            className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border-none cursor-pointer text-[var(--modes-text-dim)] hover:text-[var(--modes-text)] hover:bg-[var(--modes-surface-strong)] transition-colors"
           >
-            <TrashIcon />
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg>
           </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-52 rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden py-1">
+              <div className="px-3 pt-1.5 pb-1 text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)] font-semibold">Change role</div>
+              {MEMBER_ROLES.map(r => {
+                const active = (member.role || 'member') === r.value;
+                return (
+                  <button
+                    key={r.value}
+                    onClick={() => { onRoleChange(member.id, r.value); setMenuOpen(false); }}
+                    className="w-full flex items-center justify-between px-3 py-2 text-left text-copy-14 text-[var(--modes-text)] hover:bg-[var(--modes-surface)] bg-transparent border-none cursor-pointer"
+                  >
+                    {r.label}
+                    {active && <span className="text-[var(--color-brand)]">✓</span>}
+                  </button>
+                );
+              })}
+              <div className="border-t border-[var(--modes-border)] my-1" />
+              <button
+                onClick={async () => {
+                  setMenuOpen(false);
+                  const ok = await confirm({
+                    title: `Remove ${displayName}?`,
+                    description: 'They will lose access to this team’s library, schedule, and roster. This cannot be undone — they’d need to be invited again.',
+                    confirmLabel: 'Remove member',
+                    cancelLabel: 'Keep member',
+                    variant: 'danger',
+                  });
+                  if (ok) onRemove(member.id);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-left text-copy-14 text-[var(--ds-red-700)] hover:bg-[var(--ds-red-100)] bg-transparent border-none cursor-pointer"
+              >
+                <TrashIcon /> Remove from team
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -251,8 +298,8 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
 function InviteRow({ invite, isAdmin, onCancel }) {
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 rounded-xl opacity-80"
-      style={{ background: 'var(--ds-background-200)', border: '1px dashed var(--ds-gray-400)' }}
+      className="flex items-center gap-3 px-4 py-3 rounded-2xl opacity-80"
+      style={{ background: 'var(--modes-surface)', border: '1px dashed var(--modes-border)' }}
     >
       <div
         className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-label-14 font-bold"
@@ -266,7 +313,7 @@ function InviteRow({ invite, isAdmin, onCancel }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-copy-14 font-medium text-[var(--ds-gray-900)] truncate">
+          <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">
             {invite.email}
           </span>
           <span className="text-label-11 text-[var(--ds-orange-700)] bg-[var(--ds-orange-200)] px-2 py-0.5 rounded-full">
@@ -274,14 +321,14 @@ function InviteRow({ invite, isAdmin, onCancel }) {
           </span>
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-label-11 text-[var(--ds-gray-500)]">Tell them to sign up to join.</span>
+          <span className="text-label-11 text-[var(--modes-text-dim)]">Tell them to sign up to join.</span>
         </div>
       </div>
 
       {isAdmin && (
         <button
           onClick={() => onCancel(invite.id)}
-          className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border border-[var(--ds-gray-300)] cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--ds-red-700)] hover:border-[var(--ds-red-400)] transition-colors"
+          className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border border-[var(--modes-border)] cursor-pointer text-[var(--modes-text-dim)] hover:text-[var(--ds-red-700)] hover:border-[var(--ds-red-400)] transition-colors"
           title="Cancel invite"
         >
           <TrashIcon />
@@ -315,15 +362,12 @@ function InviteForm({ onInvite, seatsLeft }) {
   };
 
   return (
-    <div
-      className="rounded-xl p-4"
-      style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}
-    >
+    <div className="modes-card p-4">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider font-semibold">
+        <span className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">
           Invite member
         </span>
-        <span className="text-label-11 text-[var(--ds-gray-500)]">
+        <span className="text-label-11 text-[var(--modes-text-dim)]">
           {seatsLeft} seat{seatsLeft !== 1 ? 's' : ''} left
         </span>
       </div>
@@ -339,7 +383,7 @@ function InviteForm({ onInvite, seatsLeft }) {
         <select
           value={role}
           onChange={e => setRole(e.target.value)}
-          className="bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md px-3 text-copy-14 text-[var(--ds-gray-900)] outline-none cursor-pointer focus:border-[var(--color-brand)] transition-colors"
+          className="bg-[var(--ds-background-100)] border border-[var(--modes-border)] rounded-md px-3 text-copy-14 text-[var(--ds-gray-900)] outline-none cursor-pointer focus:border-[var(--color-brand)] transition-colors"
         >
           <option value="admin">Admin</option>
           <option value="editor">Editor</option>
@@ -367,9 +411,11 @@ function InviteForm({ onInvite, seatsLeft }) {
 
 // ── Team Stats ──────────────────────────────────────────────────────────────
 
-function TeamStats({ teamId }) {
+function TeamStats({ teamId, members = [] }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Empty = "All services"; otherwise the union of the picked services.
+  const [selectedServices, setSelectedServices] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -379,41 +425,108 @@ function TeamStats({ teamId }) {
           .select('id', { count: 'exact', head: true })
           .eq('team_id', teamId);
 
+        // NB: team_setlists has no top-level `date` column — the service date
+        // lives inside the `content` jsonb. Selecting/ordering by `date` errors
+        // out the whole query (which is why the count used to read 0). Order by
+        // `updated_at` and pull the date out of `content` instead.
         const { data: setlists } = await supabase
           .from('team_setlists')
-          .select('id, name, date, content')
+          .select('id, name, content, updated_at')
           .eq('team_id', teamId)
-          .order('date', { ascending: false });
+          .order('updated_at', { ascending: false });
 
-        const setlistCount = setlists?.length || 0;
-        
-        let songCounts = {};
+        // Songs (for key spread + stale detection) and availability (readiness).
+        const { data: songRows } = await supabase
+          .from('team_songs')
+          .select('id, title, content')
+          .eq('team_id', teamId);
+        const { data: availRows } = await supabase
+          .from('team_availability')
+          .select('user_id, date, status')
+          .eq('team_id', teamId);
+
+        // Sort by the service date carried inside content (newest first),
+        // falling back to updated_at when a setlist has no date.
+        const ordered = (setlists || []).slice().sort((a, b) => {
+          const da = a.content?.date || a.updated_at || '';
+          const db = b.content?.date || b.updated_at || '';
+          return db.localeCompare(da);
+        });
+
+        const setlistCount = ordered.length;
+
+        // Song play-counts, both overall ("all") and per service, so the team
+        // can see which songs they lean on for each service.
+        const songsByService = { all: {} };
+        const servicesSet = new Set();
         let recentSongs = [];
-        
-        if (setlists) {
-          setlists.forEach((sl, index) => {
-            const items = sl.content?.items || [];
-            items.forEach(item => {
-              if (item.type !== 'break' && item.songTitle) {
-                songCounts[item.songTitle] = (songCounts[item.songTitle] || 0) + 1;
-                if (index < 5 && !recentSongs.find(s => s.title === item.songTitle)) {
-                  recentSongs.push({ title: item.songTitle, date: sl.date });
-                }
+
+        ordered.forEach((sl, index) => {
+          const svc = sl.content?.service?.trim() || null;
+          if (svc) {
+            servicesSet.add(svc);
+            songsByService[svc] = songsByService[svc] || {};
+          }
+          const items = sl.content?.items || [];
+          items.forEach(item => {
+            if (item.type !== 'break' && item.songTitle) {
+              songsByService.all[item.songTitle] = (songsByService.all[item.songTitle] || 0) + 1;
+              if (svc) songsByService[svc][item.songTitle] = (songsByService[svc][item.songTitle] || 0) + 1;
+              if (index < 5 && !recentSongs.find(s => s.title === item.songTitle)) {
+                recentSongs.push({ title: item.songTitle, date: sl.content?.date || null });
               }
-            });
+            }
           });
+        });
+
+        // ── Upcoming services (next future-dated setlists) ──
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const upcoming = ordered
+          .filter(sl => (sl.content?.date || '') >= todayStr)
+          .sort((a, b) => (a.content?.date || '').localeCompare(b.content?.date || ''))
+          .slice(0, 3)
+          .map(sl => ({
+            id: sl.id,
+            name: sl.name || sl.content?.name || 'Untitled',
+            date: sl.content?.date || null,
+            service: sl.content?.service || null,
+            songCount: (sl.content?.items || []).filter(i => i.type !== 'break' && i.songId).length,
+            content: sl.content,
+          }));
+
+        // ── Roster readiness for the very next service ──
+        const next = upcoming[0] || null;
+        let readiness = null;
+        if (next?.date) {
+          const avail = new Set((availRows || []).filter(a => a.date === next.date && a.status === 'available').map(a => a.user_id));
+          readiness = { date: next.date, name: next.name, available: avail.size, total: members.length };
         }
-        
-        const popularSongs = Object.entries(songCounts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 5)
-          .map(([title, count]) => ({ title, count }));
+
+        // ── Most-used keys across the library ──
+        const keyCounts = {};
+        (songRows || []).forEach(s => {
+          const k = s.content?.key || s.content?.arrangements?.[0]?.key;
+          if (k) keyCounts[k] = (keyCounts[k] || 0) + 1;
+        });
+        const topKeys = Object.entries(keyCounts).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([key, count]) => ({ key, count }));
+
+        // ── Stale songs (in the library, never used in a setlist) ──
+        const usedTitles = new Set();
+        ordered.forEach(sl => (sl.content?.items || []).forEach(it => { if (it.songTitle) usedTitles.add(it.songTitle); }));
+        const stale = (songRows || [])
+          .map(s => s.title || s.content?.title)
+          .filter(t => t && !usedTitles.has(t));
 
         setStats({
           songCount: songCount || 0,
           setlistCount,
-          popularSongs,
-          recentSongs: recentSongs.slice(0, 5)
+          songsByService,
+          services: [...servicesSet].sort(),
+          recentSongs: recentSongs.slice(0, 5),
+          upcoming,
+          readiness,
+          topKeys,
+          stale,
         });
       } catch (err) {
         console.error('Failed to load team stats', err);
@@ -421,45 +534,171 @@ function TeamStats({ teamId }) {
         setLoading(false);
       }
     })();
-  }, [teamId]);
+  }, [teamId, members.length]);
 
-  if (loading) return <div className="text-copy-13 text-[var(--ds-gray-500)] py-4">Loading statistics…</div>;
+  if (loading) return <div className="text-copy-13 text-[var(--modes-text-dim)] py-4">Loading statistics…</div>;
 
   return (
     <div className="flex flex-col gap-6 mt-4">
       <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-xl p-4" style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}>
-          <div className="text-label-12 text-[var(--ds-gray-600)] uppercase tracking-wider font-semibold mb-1">Songs</div>
-          <div className="text-heading-24 text-[var(--ds-gray-1000)] m-0 leading-none">{stats?.songCount || 0}</div>
+        <div className="modes-card p-4">
+          <div className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-1">Songs</div>
+          <div className="text-heading-24 text-[var(--modes-text)] m-0 leading-none">{stats?.songCount || 0}</div>
         </div>
-        <div className="rounded-xl p-4" style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}>
-          <div className="text-label-12 text-[var(--ds-gray-600)] uppercase tracking-wider font-semibold mb-1">Setlists</div>
-          <div className="text-heading-24 text-[var(--ds-gray-1000)] m-0 leading-none">{stats?.setlistCount || 0}</div>
+        <div className="modes-card p-4">
+          <div className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-1">Setlists</div>
+          <div className="text-heading-24 text-[var(--modes-text)] m-0 leading-none">{stats?.setlistCount || 0}</div>
         </div>
       </div>
-      
-      {stats?.popularSongs?.length > 0 && (
+
+      {/* Roster readiness for the next service */}
+      {stats?.readiness && stats.readiness.total > 0 && (
+        <div className="modes-card p-4">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="min-w-0">
+              <div className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">Next service readiness</div>
+              <div className="text-copy-14 font-medium text-[var(--modes-text)] truncate mt-0.5">{stats.readiness.name}</div>
+            </div>
+            <div className="text-heading-24 text-[var(--modes-text)] leading-none shrink-0">{stats.readiness.available}<span className="text-copy-14 text-[var(--modes-text-dim)]">/{stats.readiness.total}</span></div>
+          </div>
+          <div className="h-1.5 rounded-full bg-[var(--modes-surface-strong)] overflow-hidden">
+            <div className="h-full rounded-full bg-[var(--color-brand)]" style={{ width: `${Math.round((stats.readiness.available / stats.readiness.total) * 100)}%` }} />
+          </div>
+          <div className="text-label-12 text-[var(--modes-text-dim)] mt-1.5">{stats.readiness.available} available · {new Date(stats.readiness.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+        </div>
+      )}
+
+      {/* Upcoming services */}
+      {stats?.upcoming?.length > 0 && (
         <div>
-          <h3 className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider font-semibold mb-3 px-1">Most Popular Songs</h3>
+          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Upcoming Services</h3>
           <div className="flex flex-col gap-2">
-            {stats.popularSongs.map((song, i) => (
-              <div key={i} className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}>
-                <span className="text-copy-14 font-medium text-[var(--ds-gray-900)] truncate">{song.title}</span>
-                <span className="text-label-12 text-[var(--ds-gray-500)]">{song.count} plays</span>
+            {stats.upcoming.map(sl => (
+              <div key={sl.id} className="modes-card flex items-center gap-3 px-4 py-3">
+                <div className="flex flex-col items-center justify-center w-11 h-11 rounded-lg bg-[var(--modes-surface-strong)] shrink-0">
+                  <span className="text-label-10 uppercase tracking-wider text-[var(--modes-text-dim)] leading-none">{sl.date ? new Date(sl.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short' }) : '—'}</span>
+                  <span className="text-heading-18 leading-none mt-0.5 text-[var(--modes-text)]">{sl.date ? new Date(sl.date + 'T00:00:00').getDate() : '?'}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{sl.name}</div>
+                  <div className="text-label-12 text-[var(--modes-text-dim)] truncate">{sl.service ? `${sl.service} · ` : ''}{sl.songCount} song{sl.songCount !== 1 ? 's' : ''}</div>
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
+      {(() => {
+        const sbs = stats?.songsByService || { all: {} };
+        const hasServices = (stats?.services?.length || 0) > 0;
+        // Aggregate counts across the selected services (or "all" when none).
+        const merged = {};
+        if (selectedServices.length === 0) {
+          Object.assign(merged, sbs.all || {});
+        } else {
+          selectedServices.forEach(svc => {
+            Object.entries(sbs[svc] || {}).forEach(([title, c]) => {
+              merged[title] = (merged[title] || 0) + c;
+            });
+          });
+        }
+        const ranked = Object.entries(merged).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        if (ranked.length === 0 && !hasServices) return null;
+        const toggle = (svc) => setSelectedServices(prev => prev.includes(svc) ? prev.filter(s => s !== svc) : [...prev, svc]);
+        return (
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3 px-1">
+              <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">Songs by Service</h3>
+              {hasServices && <span className="text-label-11 text-[var(--modes-text-dim)]">Tap to combine services</span>}
+            </div>
+            {hasServices && (
+              <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedServices([])}
+                  className={`shrink-0 px-3 h-8 rounded-lg border text-label-12 font-semibold transition-all cursor-pointer ${
+                    selectedServices.length === 0
+                      ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                      : 'border-[var(--modes-border)] text-[var(--modes-text-muted)] bg-[var(--modes-surface)] hover:text-[var(--modes-text)]'
+                  }`}
+                >
+                  All services
+                </button>
+                {stats.services.map(svc => {
+                  const active = selectedServices.includes(svc);
+                  return (
+                    <button
+                      key={svc}
+                      type="button"
+                      onClick={() => toggle(svc)}
+                      className={`shrink-0 px-3 h-8 rounded-lg border text-label-12 font-semibold transition-all cursor-pointer ${
+                        active
+                          ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                          : 'border-[var(--modes-border)] text-[var(--modes-text-muted)] bg-[var(--modes-surface)] hover:text-[var(--modes-text)]'
+                      }`}
+                    >
+                      {active && '✓ '}{svc}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              {ranked.length > 0 ? ranked.map(([title, count], i) => (
+                <div key={i} className="modes-card flex items-center justify-between px-4 py-3">
+                  <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{title}</span>
+                  <span className="text-label-12 text-[var(--modes-text-dim)]">{count} play{count !== 1 ? 's' : ''}</span>
+                </div>
+              )) : (
+                <div className="modes-card px-4 py-6 text-center text-copy-13 text-[var(--modes-text-dim)]">No songs for the selected service{selectedServices.length === 1 ? '' : 's'} yet.</div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Most-used keys */}
+      {stats?.topKeys?.length > 0 && (
+        <div>
+          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Most-used Keys</h3>
+          <div className="flex flex-wrap gap-2">
+            {stats.topKeys.map(k => (
+              <div key={k.key} className="modes-card flex items-center gap-2 px-3 py-2">
+                <span className="text-copy-15 font-bold text-[var(--color-brand-text)] font-mono">{k.key}</span>
+                <span className="text-label-12 text-[var(--modes-text-dim)]">{k.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stale / unused songs */}
+      {stats?.stale?.length > 0 && (
+        <div>
+          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">
+            Never Played <span className="text-[var(--modes-text-dim)] normal-case tracking-normal">({stats.stale.length})</span>
+          </h3>
+          <div className="modes-card px-4 py-3 flex flex-col gap-1.5">
+            <p className="text-label-12 text-[var(--modes-text-dim)] m-0">In your library but not in any setlist — rotate them in or retire them.</p>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {stats.stale.slice(0, 12).map((t, i) => (
+                <span key={i} className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)] truncate max-w-[180px]">{t}</span>
+              ))}
+              {stats.stale.length > 12 && <span className="text-label-12 text-[var(--modes-text-dim)] self-center">+{stats.stale.length - 12} more</span>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {stats?.recentSongs?.length > 0 && (
         <div>
-          <h3 className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider font-semibold mb-3 px-1">Recently Played</h3>
+          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Recently Played</h3>
           <div className="flex flex-col gap-2">
             {stats.recentSongs.map((song, i) => (
-              <div key={i} className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}>
-                <span className="text-copy-14 font-medium text-[var(--ds-gray-900)] truncate">{song.title}</span>
-                <span className="text-label-12 text-[var(--ds-gray-500)]">{new Date(song.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              <div key={i} className="modes-card flex items-center justify-between px-4 py-3">
+                <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{song.title}</span>
+                <span className="text-label-12 text-[var(--modes-text-dim)]">{song.date ? new Date(song.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
               </div>
             ))}
           </div>
@@ -496,10 +735,10 @@ function EditTeamForm({ team, onUpdate }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4 rounded-xl mt-4" style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}>
-      <h3 className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider font-semibold mb-1">Team Settings</h3>
+    <form onSubmit={handleSubmit} className="modes-card flex flex-col gap-4 p-4 mt-4">
+      <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-1">Team Settings</h3>
       <div className="flex flex-col gap-1.5">
-        <span className="text-label-12 text-[var(--ds-gray-700)]">Logo</span>
+        <span className="text-label-12 text-[var(--modes-text-muted)]">Logo</span>
         <AvatarUploader
           url={team.logo_url || null}
           fallback={(team.name || 'T').trim().charAt(0).toUpperCase()}
@@ -510,11 +749,11 @@ function EditTeamForm({ team, onUpdate }) {
         />
       </div>
       <label className="flex flex-col gap-1">
-        <span className="text-label-12 text-[var(--ds-gray-700)]">Team Name</span>
+        <span className="text-label-12 text-[var(--modes-text-muted)]">Team Name</span>
         <Input type="text" required value={name} onChange={e => setName(e.target.value)} />
       </label>
       <label className="flex flex-col gap-1">
-        <span className="text-label-12 text-[var(--ds-gray-700)]">Location (optional)</span>
+        <span className="text-label-12 text-[var(--modes-text-muted)]">Location (optional)</span>
         <Input type="text" value={location} onChange={e => setLocation(e.target.value)} />
       </label>
       {error && <div className="text-copy-13 text-[var(--ds-red-1000)] bg-[var(--ds-red-100)] px-3 py-2 rounded-lg">{error}</div>}
@@ -532,13 +771,10 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
   const seatsLeft = (team.max_seats || 10) - members.length - (invites?.length || 0);
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
-      <div className="max-w-2xl mx-auto flex flex-col gap-6">
+    <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+      <div className="max-w-[1320px] mx-auto flex flex-col gap-6">
         {/* Team header */}
-        <div
-          className="rounded-2xl p-6 pb-0 overflow-hidden"
-          style={{ background: 'var(--ds-background-100)', border: '1px solid var(--ds-gray-400)' }}
-        >
+        <div className="modes-card-strong p-6 pb-0 overflow-hidden">
           <div className="flex items-start gap-4 mb-6">
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden"
@@ -551,9 +787,9 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 mb-0.5 truncate">{team.name}</h2>
+              <h2 className="text-heading-24 text-[var(--modes-text)] m-0 mb-0.5 truncate">{team.name}</h2>
               {team.location && (
-                <div className="flex items-center gap-1.5 text-copy-14 text-[var(--ds-gray-600)]">
+                <div className="flex items-center gap-1.5 text-copy-14 text-[var(--modes-text-muted)]">
                   <LocationIcon />
                   <span>{team.location}</span>
                 </div>
@@ -562,7 +798,7 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
                 <span className="text-label-11 uppercase tracking-wider font-semibold px-2.5 py-1 rounded-md" style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}>
                   {team.plan === 'church' ? 'Church' : 'Teams'} Plan
                 </span>
-                <span className="text-label-12 text-[var(--ds-gray-500)]">
+                <span className="text-label-12 text-[var(--modes-text-dim)]">
                   {members.length}/{team.max_seats} seats
                 </span>
               </div>
@@ -588,13 +824,13 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
           </div>
 
           {/* Tabs */}
-          <div className="flex items-center gap-6 border-b border-[var(--ds-gray-300)]">
+          <div className="flex items-center gap-6 border-b border-[var(--modes-border)]">
             <button
               onClick={() => setActiveTab('members')}
               className={`pb-3 text-label-14 font-semibold border-b-2 transition-colors cursor-pointer bg-transparent px-1 ${
                 activeTab === 'members'
-                  ? 'border-[var(--color-brand)] text-[var(--ds-gray-1000)]'
-                  : 'border-transparent text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-800)]'
+                  ? 'border-[var(--color-brand)] text-[var(--modes-text)]'
+                  : 'border-transparent text-[var(--modes-text-dim)] hover:text-[var(--modes-text)]'
               }`}
             >
               Members
@@ -603,8 +839,8 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
               onClick={() => setActiveTab('info')}
               className={`pb-3 text-label-14 font-semibold border-b-2 transition-colors cursor-pointer bg-transparent px-1 ${
                 activeTab === 'info'
-                  ? 'border-[var(--color-brand)] text-[var(--ds-gray-1000)]'
-                  : 'border-transparent text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-800)]'
+                  ? 'border-[var(--color-brand)] text-[var(--modes-text)]'
+                  : 'border-transparent text-[var(--modes-text-dim)] hover:text-[var(--modes-text)]'
               }`}
             >
               Info & Stats
@@ -619,7 +855,7 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
               <InviteForm onInvite={onInvite} seatsLeft={seatsLeft} />
             )}
             <div>
-              <h3 className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider font-semibold mb-3 px-1">
+              <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">
                 Members ({members.length})
               </h3>
               <div className="flex flex-col gap-2">
@@ -648,16 +884,20 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
 
         {activeTab === 'info' && (
           <div className="flex flex-col gap-6">
-            <TeamStats teamId={team.id} />
+            <TeamStats teamId={team.id} members={members} />
+
+            <div>
+              <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Recent Activity</h3>
+              <div className="modes-card p-2">
+                <ActivityFeed teamId={team.id} members={members} />
+              </div>
+            </div>
 
             {isAdmin && (
               <EditTeamForm team={team} onUpdate={onUpdate} />
             )}
 
-            <div
-              className="rounded-xl p-4 mt-2"
-              style={{ background: 'var(--ds-background-200)', border: '1px solid var(--ds-gray-300)' }}
-            >
+            <div className="modes-card p-4 mt-2">
               <h3 className="text-label-12 text-[var(--ds-red-700)] uppercase tracking-wider font-semibold mb-3">
                 Danger zone
               </h3>
@@ -754,11 +994,14 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
   // creating ADDITIONAL Spaces is gated by `canCreate`.
   const allowThisCreate = team ? canCreate : eligibleToCreate;
 
+  const inCreateSubmenu = creating && team;
+
   return (
-    <div className="flex flex-col h-full">
-      <ScreenHeader
-        onBack={creating && team ? () => setCreating(false) : onBack}
-        title={creating && team ? 'New Space' : 'Your Team'}
+    <div data-theme-variant="modes" className="flex flex-col h-full">
+      <PageHeader
+        title={inCreateSubmenu ? 'New Space' : 'Your Team'}
+        onBack={inCreateSubmenu ? () => setCreating(false) : undefined}
+        onClose={onBack}
         actions={!creating && team && canCreate ? (
           <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
             <span className="flex items-center gap-1.5"><PlusIcon /> New</span>
@@ -768,7 +1011,7 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-copy-14 text-[var(--ds-gray-600)]">Loading team…</div>
+          <div className="text-copy-14 text-[var(--modes-text-muted)]">Loading team…</div>
         </div>
       ) : showCreate ? (
         allowThisCreate ? (

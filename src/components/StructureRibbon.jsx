@@ -9,18 +9,26 @@ export function StructureRibbon({
   sectionLabels,
   customSectionTypes,
 }) {
+  // Collapse consecutive duplicates: "C1, C1, C1" → one chip "C1 ×3".
+  const runs = [];
+  structure.forEach((name, i) => {
+    const last = runs[runs.length - 1];
+    if (last && last.name === name) last.count += 1;
+    else runs.push({ name, count: 1, index: i });
+  });
+
   return (
     <div className="flex gap-1 flex-wrap py-1">
-      {structure.map((name, i) => {
-        const s = sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
+      {runs.map((run, i) => {
+        const s = sectionStyle(run.name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
         const displayName = compact
-          ? compactLabel(name)
-          : sectionLabel(name, sectionLabels);
+          ? compactLabel(run.name)
+          : sectionLabel(run.name, sectionLabels);
         const Tag = onSelect ? 'button' : 'span';
         return (
           <Tag
             key={i}
-            {...(onSelect ? { type: 'button', onClick: () => onSelect(i) } : {})}
+            {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index) } : {})}
             className={cn(
               "inline-flex items-center gap-1 rounded-full border font-medium transition-colors",
               compact ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-[12px]",
@@ -32,11 +40,10 @@ export function StructureRibbon({
               color: s.d,
             }}
           >
-            <span
-              className={cn("rounded-full flex-shrink-0", compact ? "w-1.5 h-1.5" : "w-2 h-2")}
-              style={{ background: s.b }}
-            />
             {displayName}
+            {run.count > 1 && (
+              <span className="opacity-70 font-semibold">×{run.count}</span>
+            )}
           </Tag>
         );
       })}

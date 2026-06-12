@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import ScreenHeader from './ui/ScreenHeader';
+import PageHeader from './ui/PageHeader';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { supabase } from '../auth/supabase';
@@ -36,25 +36,49 @@ function buildPersonalHook({ instruments = [], useCase }) {
   return 'Your library follows you to every device, with end-to-end encryption.';
 }
 
+// Two audiences: solo musicians (Free / Pro / Sync) and teams (Band / Church).
+// Prices are easy to tweak here — they're the single source for the cards.
 function buildTiers() {
   return [
     {
-      id: 'pro',
-      name: 'Pro',
-      price: '$20',
+      id: 'free',
+      group: 'solo',
+      name: 'Free',
+      price: '$0',
       interval: '',
-      altPrice: 'one-time payment · lifetime',
-      tagline: 'Your cloud, your files, forever',
+      altPrice: 'forever',
+      tagline: 'Everything you need to play',
       featured: false,
-      badge: '⭐ Best Value',
+      badge: null,
       features: [
-        'Bring your own cloud — Google Drive, Dropbox, OneDrive',
+        'Full editor — Arrange, Advanced & Tabs',
+        'Unlimited songs & setlists',
+        'Transpose, capo & Nashville numbers',
+        'Chord diagrams & guitar tabs',
+        'Export & import as .md / .zip',
+        'Works fully offline',
+      ],
+      cta: 'Your current plan',
+      ctaVariant: 'secondary',
+      ctaAction: 'back',
+    },
+    {
+      id: 'pro',
+      group: 'solo',
+      name: 'Pro',
+      price: '$25',
+      interval: '',
+      altPrice: 'one-time · yours forever',
+      tagline: 'Own it. Bring your own cloud.',
+      featured: false,
+      badge: '⭐ Best value',
+      features: [
+        'Bring your own cloud — Google Drive (Dropbox & OneDrive soon)',
         'Files live in your own cloud folder',
-        'Advanced layout — themes, colours, fonts',
-        'Separate fonts for chords and lyrics',
         'Smart Import — ChordPro, OpenSong, chord-over-lyric',
-        'Setlist QR sharing',
-        'Pay once, yours forever',
+        'Advanced layout — themes, colours, fonts',
+        'Multiple arrangements per song',
+        'Pay once — no subscription',
         'Everything in Free',
       ],
       cta: 'Buy Pro',
@@ -63,20 +87,20 @@ function buildTiers() {
     },
     {
       id: 'sync',
+      group: 'solo',
       name: 'Sync',
       price: '$5',
       interval: '/mo',
-      altPrice: 'or $49/yr',
+      altPrice: 'or $48/yr',
       tagline: 'Hosted cloud — just works',
       featured: false,
       badge: null,
       features: [
         'Hosted cloud sync — zero setup',
         'Automatic backups across all devices',
-        'Advanced layout — themes, colours, fonts',
+        '30-day version history',
         'Web access from any browser',
-        'Priority support',
-        '14-day free trial',
+        'Multiple arrangements per song',
         'Everything in Pro',
       ],
       cta: 'Start free trial',
@@ -85,20 +109,21 @@ function buildTiers() {
     },
     {
       id: 'band',
+      group: 'team',
       name: 'Band',
-      price: '$12',
+      price: '$15',
       interval: '/mo',
-      altPrice: 'up to 10 members · or $120/yr',
+      altPrice: 'up to 10 members',
       tagline: 'Shared library for your whole band',
       featured: true,
-      badge: '🔥 Most Popular',
+      badge: '🔥 Most popular',
       features: [
         'Shared song library (up to 10 members)',
         'Real-time setlist push',
+        'Member roles — admin, editor, viewer',
         'Rehearsal mode',
-        'Admin dashboard & member roles',
-        '14-day free trial',
-        'Everything in Sync',
+        'All Pro features for every member',
+        'Service planning (rolling out)',
       ],
       cta: 'Start free trial',
       ctaVariant: 'brand',
@@ -106,19 +131,20 @@ function buildTiers() {
     },
     {
       id: 'church',
+      group: 'team',
       name: 'Church',
-      price: '$24',
+      price: '$25',
       interval: '/mo',
-      altPrice: 'up to 30 members',
-      tagline: 'Full suite for multi-service churches',
+      altPrice: 'up to 30 members · +$2/seat after',
+      tagline: 'For multi-service churches',
       featured: false,
       badge: null,
       features: [
         'Up to 30 members',
         'Multi-service setlist management',
-        'Custom onboarding session',
-        'Extra seat packs available',
-        '14-day free trial',
+        'Extra seats at $2/member/mo',
+        'Service planning (rolling out)',
+        'Priority support',
         'Everything in Band',
       ],
       cta: 'Start free trial',
@@ -140,6 +166,9 @@ export default function PricingScreen({ onBack, onSignIn, settings }) {
     instruments: settings?.quizInstruments || [],
     useCase: settings?.quizUseCase,
   });
+
+  const soloTiers = tiers.filter(t => t.group === 'solo');
+  const teamTiers = tiers.filter(t => t.group === 'team');
 
   const handleTierAction = (action) => {
     if (action === 'pro' || action === 'sync' || action === 'band' || action === 'church') {
@@ -168,11 +197,73 @@ export default function PricingScreen({ onBack, onSignIn, settings }) {
     }
   };
 
-  return (
-    <div data-theme-variant="modes" className="h-[100dvh] flex flex-col overflow-y-auto">
-      <ScreenHeader onBack={onBack} title="setlists.md plans" />
+  const renderCard = (tier) => (
+    <div
+      key={tier.id}
+      className={`relative rounded-2xl p-5 flex flex-col gap-4 ${tier.featured ? 'modes-card-strong' : 'modes-card'}`}
+      style={tier.featured ? {
+        borderColor: 'var(--color-brand)',
+        boxShadow: '0 0 0 1px var(--color-brand), 0 8px 32px var(--color-brand-border)',
+      } : {}}
+    >
+      {(tier.featured || tier.badge) && (
+        <div
+          className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-label-11 font-semibold uppercase tracking-widest whitespace-nowrap"
+          style={{ background: tier.featured ? 'var(--color-brand)' : 'var(--modes-surface-strong)', color: tier.featured ? 'white' : 'var(--modes-text)' }}
+        >
+          {tier.badge || 'Most Popular'}
+        </div>
+      )}
 
-      <div className="flex-1 flex items-start justify-center px-4 py-6 sm:py-10 pb-20">
+      <div>
+        <div className="text-copy-15 font-semibold text-[var(--modes-text)]">{tier.name}</div>
+        <div className="text-label-12 text-[var(--modes-text-muted)] mt-0.5">{tier.tagline}</div>
+      </div>
+
+      <div>
+        <div className="flex items-baseline gap-1">
+          <span className="text-heading-32 font-bold text-[var(--modes-text)]">{tier.price}</span>
+          {tier.interval && (
+            <span className="text-copy-14 text-[var(--modes-text-muted)]">{tier.interval}</span>
+          )}
+        </div>
+        {tier.altPrice && (
+          <div className="text-label-11 text-[var(--modes-text-dim)] mt-0.5">{tier.altPrice}</div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2.5">
+        {tier.features.map((f, i) => (
+          <div key={i} className="flex items-start gap-2.5 text-copy-13 text-[var(--modes-text)]">
+            <div
+              className="shrink-0 mt-0.5 w-4 h-4 rounded-full flex items-center justify-center"
+              style={{
+                background: tier.featured ? 'var(--color-brand)' : 'var(--modes-surface-strong)',
+                color: tier.featured ? 'white' : 'var(--color-brand)',
+              }}
+            >
+              {CHECK}
+            </div>
+            <span>{f}</span>
+          </div>
+        ))}
+      </div>
+
+      <Button
+        variant={tier.ctaVariant}
+        size="md"
+        onClick={() => handleTierAction(tier.ctaAction)}
+        className="mt-auto w-full"
+      >
+        {tier.cta}
+      </Button>
+    </div>
+  );
+
+  return (
+    <div data-theme-variant="modes" className="min-h-full flex flex-col">
+      <PageHeader title="Plans" onClose={onBack} />
+      <div className="flex items-start justify-center px-4 py-6 sm:py-10 pb-20">
         <div className="w-full max-w-5xl flex flex-col gap-6">
           {/* Hero */}
           <div className="modes-card-strong p-6 sm:p-8 flex flex-col gap-3 text-center">
@@ -222,70 +313,24 @@ export default function PricingScreen({ onBack, onSignIn, settings }) {
             )}
           </div>
 
-          {/* Tier cards */}
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {tiers.map(tier => (
-              <div
-                key={tier.id}
-                className={`relative rounded-2xl p-5 flex flex-col gap-4 ${tier.featured ? 'modes-card-strong' : 'modes-card'}`}
-                style={tier.featured ? {
-                  borderColor: 'var(--color-brand)',
-                  boxShadow: '0 0 0 1px var(--color-brand), 0 8px 32px var(--color-brand-border)',
-                } : {}}
-              >
-                {(tier.featured || tier.badge) && (
-                  <div
-                    className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-label-11 font-semibold uppercase tracking-widest whitespace-nowrap"
-                    style={{ background: tier.featured ? 'var(--color-brand)' : 'var(--modes-surface-strong)', color: tier.featured ? 'white' : 'var(--modes-text)' }}
-                  >
-                    {tier.badge || 'Most Popular'}
-                  </div>
-                )}
+          {/* Solo tiers */}
+          <div className="flex flex-col gap-3">
+            <div className="text-label-11 font-semibold uppercase tracking-widest text-[var(--modes-text-dim)] px-1">
+              For solo musicians
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {soloTiers.map(renderCard)}
+            </div>
+          </div>
 
-                <div>
-                  <div className="text-copy-15 font-semibold text-[var(--modes-text)]">{tier.name}</div>
-                  <div className="text-label-12 text-[var(--modes-text-muted)] mt-0.5">{tier.tagline}</div>
-                </div>
-
-                <div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-heading-32 font-bold text-[var(--modes-text)]">{tier.price}</span>
-                    {tier.interval && (
-                      <span className="text-copy-14 text-[var(--modes-text-muted)]">{tier.interval}</span>
-                    )}
-                  </div>
-                  {tier.altPrice && (
-                    <div className="text-label-11 text-[var(--modes-text-dim)] mt-0.5">{tier.altPrice}</div>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-2.5">
-                  {tier.features.map((f, i) => (
-                    <div key={i} className="flex items-start gap-2.5 text-copy-13 text-[var(--modes-text)]">
-                      <div
-                        className="shrink-0 mt-0.5 w-4 h-4 rounded-full flex items-center justify-center"
-                        style={{
-                          background: tier.featured ? 'var(--color-brand)' : 'var(--modes-surface-strong)',
-                          color: tier.featured ? 'white' : 'var(--color-brand)',
-                        }}
-                      >
-                        {CHECK}
-                      </div>
-                      <span>{f}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <Button
-                  variant={tier.ctaVariant}
-                  size="md"
-                  onClick={() => handleTierAction(tier.ctaAction)}
-                  className="mt-2 w-full"
-                >
-                  {tier.cta}
-                </Button>
-              </div>
-            ))}
+          {/* Team tiers */}
+          <div className="flex flex-col gap-3">
+            <div className="text-label-11 font-semibold uppercase tracking-widest text-[var(--modes-text-dim)] px-1">
+              For bands & churches
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {teamTiers.map(renderCard)}
+            </div>
           </div>
 
         </div>

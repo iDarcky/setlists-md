@@ -192,6 +192,14 @@ export function TeamProvider({ children }) {
       ? members.some(m => m.user_id === user?.id && m.role === 'member')
       : false;
 
+    const isLeader = team
+      ? members.some(m => m.user_id === user?.id && m.role === 'leader')
+      : false;
+
+    // Who may run the schedule/roster: admins (full power) and leaders (worship
+    // leaders — manage availability + assignments, but not billing/team config).
+    const canManageRoster = isAdmin || isLeader;
+
     return {
       teams,
       activeTeamId,
@@ -203,6 +211,8 @@ export function TeamProvider({ children }) {
       isAdmin,
       isEditor,
       isMember,
+      isLeader,
+      canManageRoster,
       hasTeamPlan,
 
       /**

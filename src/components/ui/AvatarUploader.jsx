@@ -25,13 +25,16 @@ export default function AvatarUploader({
 
   const radius = shape === 'square' ? 'rounded-2xl' : 'rounded-full';
 
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     if (!supabase) { setError('Sign in to upload.'); return; }
-    if (!file.type.startsWith('image/')) { setError('Choose an image file.'); return; }
-    if (file.size > 5 * 1024 * 1024) { setError('Image must be under 5 MB.'); return; }
+    if (!ALLOWED_TYPES.includes(file.type)) { setError('Use a JPEG, PNG, or WebP image.'); return; }
+    if (file.size > MAX_BYTES) { setError('Image must be under 5 MB.'); return; }
     setBusy(true);
     setError(null);
     try {
@@ -75,7 +78,7 @@ export default function AvatarUploader({
         </div>
         {error && <span className="text-label-12 text-[var(--ds-red-700)]">{error}</span>}
       </div>
-      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      <input ref={inputRef} type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" className="hidden" onChange={handleFile} />
     </div>
   );
 }

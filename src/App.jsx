@@ -2,9 +2,11 @@ import { Toaster } from "./components/ui/Toaster";
 import { toast } from "./components/ui/use-toast";
 import { useConfirm } from "./components/ui/useConfirmHook";
 import OfflineBanner from "./components/ui/OfflineBanner";
+import WorkspacePickerDialog from "./components/ui/WorkspacePickerDialog";
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { parseSongMd, songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, getStorageEstimate, clearAll } from './storage';
+import { shareTokenFromUrl } from './share/setlistShare';
 import { withArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
 import { DEMO_SONGS_MD } from './data/demos';
@@ -68,6 +70,7 @@ const Editor = lazy(() => import('./components/Editor'));
 const SetlistBuilder = lazy(() => import('./components/SetlistBuilder'));
 const SetlistPlayer = lazy(() => import('./components/SetlistPlayer'));
 const SetlistOverview = lazy(() => import('./components/SetlistOverview'));
+const SharedSetlistViewer = lazy(() => import('./components/SharedSetlistViewer'));
 const PerformanceView = lazy(() => import('./components/PerformanceView'));
 const PracticeView = lazy(() => import('./components/PracticeView'));
 const LegalPage = lazy(() => import('./components/LegalPage'));
@@ -127,6 +130,11 @@ const PORTABLE_PREF_KEYS = [
   'performanceRail',
   'navStyle',
   'defaultSpaceId',
+  'tabSubdivision',
+  'tabSize',
+  'tabStringColor',
+  'tabNumberColor',
+  'tabBg',
 ];
 
 function extractPortablePrefs(s) {
@@ -152,6 +160,8 @@ export default function App() {
   const canEdit = !team || isAdmin || isEditor;
   const isTeamAdmin = isAdmin;
   const confirm = useConfirm();
+  // Workspace move/copy picker: null, or { action: 'move'|'copy', songId }.
+  const [moveCopyDialog, setMoveCopyDialog] = useState(null);
   // PWA update prompt — toast appears when a new SW is downloaded.
   usePWAUpdate();
   // Native + iOS install affordance.
@@ -174,11 +184,17 @@ export default function App() {
       if (window.location.pathname === '/auth/google-drive') return 'google-drive-callback';
       if (window.location.pathname === '/privacy') return 'legal-privacy';
       if (window.location.pathname === '/terms') return 'legal-terms';
+      if (window.location.pathname === '/copyright') return 'legal-copyright';
       if (/(type=recovery|#access_token=.*type=recovery)/.test(window.location.hash + window.location.search)) return 'recovery';
+      if (shareTokenFromUrl()) return 'share-view';
     }
     return 'loading';
   });
+  const [shareToken] = useState(() => shareTokenFromUrl());
   const [currentSong, setCurrentSong] = useState(null);
+  // Arrangement to open in the editor (the one the user was viewing). Reset
+  // whenever we enter the editor unless an explicit id is passed.
+  const [editArrangementId, setEditArrangementId] = useState(null);
   const [currentSetlist, setCurrentSetlist] = useState(null);
   const [settings, setSettings] = useState(null);
   useChartTheme(settings);
@@ -186,10 +202,17 @@ export default function App() {
   const [syncState, setSyncState] = useState({ state: 'idle', lastSync: null, provider: null });
   const [previewSongId, setPreviewSongId] = useState(null);
   const [previewSetlistId, setPreviewSetlistId] = useState(null);
+  // Schedule list/calendar view — lifted here so the BottomNav morphing FAB can
+  // toggle it (alongside the desktop header switch). Defaults to list on phones.
+  const [scheduleView, setScheduleView] = useState(() =>
+    (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches) ? 'list' : 'calendar'
+  );
   // True while the setlist builder has unsaved edits — drives the discard
   // guard on header nav + browser back (the builder reports it via callback).
   const setlistDirtyRef = useRef(false);
   const markSetlistDirty = useCallback((dirty) => { setlistDirtyRef.current = dirty; }, []);
+  const editorDirtyRef = useRef(false);
+  const markEditorDirty = useCallback((dirty) => { editorDirtyRef.current = dirty; }, []);
   // Which item to open in setlist practice (tapping a song in the overview).
   const [practiceStartIndex, setPracticeStartIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -565,6 +588,11 @@ export default function App() {
     if (!user?.id) prefsHydratedForUserRef.current = null;
   }, [user?.id]);
 
+  // Snapshot of all portable prefs — used as a single stable dep so the push
+  // effect fires whenever *any* of the 30 keys changes, not just the 15 that
+  // were previously listed in the deps array.
+  const portablePrefsSnapshot = settings ? JSON.stringify(extractPortablePrefs(settings)) : null;
+
   // Push portable preference changes to the cloud (debounced, only after
   // hydration so we don't clobber server state with local defaults).
   useEffect(() => {
@@ -580,23 +608,7 @@ export default function App() {
     }, 800);
     return () => clearTimeout(prefsPushTimerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    loaded,
-    user?.id,
-    settings?.theme,
-    settings?.defaultColumns,
-    settings?.defaultFontSize,
-    settings?.pedalNext,
-    settings?.pedalPrev,
-    settings?.showInlineNotes,
-    settings?.inlineNoteStyle,
-    settings?.displayRole,
-    settings?.duplicateSections,
-    settings?.chartLayout,
-    settings?.userName,
-    settings?.firstDayOfWeek,
-    settings?.clockFormat,
-  ]);
+  }, [loaded, user?.id, portablePrefsSnapshot]);
 
   // Sync on tab focus
   useEffect(() => {
@@ -668,10 +680,11 @@ export default function App() {
 
   // Navigation with history stack. Not memoised — captures current state
   // through snapshot() on each call, which is what we want for back/forward.
-  const navigate = (nextView, { song, setlist, replace } = {}) => {
+  const navigate = (nextView, { song, setlist, replace, arrangementId } = {}) => {
     if (!replace) pushHistory(snapshot());
     if (song !== undefined) setCurrentSong(song);
     if (setlist !== undefined) setCurrentSetlist(setlist);
+    if (nextView === 'editor') setEditArrangementId(arrangementId ?? null);
     setView(nextView);
     // Entering Settings fresh always lands on the hub.
     if (nextView === 'settings') setSettingsPanel('hub');
@@ -721,6 +734,15 @@ export default function App() {
         variant: 'danger',
       });
     }
+    if (view === 'editor' && editorDirtyRef.current) {
+      return await confirm({
+        title: 'Discard unsaved changes?',
+        description: 'You have unsaved edits to this song. Leaving now will lose them.',
+        confirmLabel: 'Discard',
+        cancelLabel: 'Keep editing',
+        variant: 'danger',
+      });
+    }
     return true;
   };
 
@@ -741,6 +763,21 @@ export default function App() {
         }).then((ok) => {
           if (!ok) return;
           setlistDirtyRef.current = false;
+          window.history.back();
+        });
+        return;
+      }
+      if (view === 'editor' && editorDirtyRef.current) {
+        window.history.pushState(null, '');
+        confirm({
+          title: 'Discard unsaved changes?',
+          description: 'You have unsaved edits to this song. Leaving now will lose them.',
+          confirmLabel: 'Discard',
+          cancelLabel: 'Keep editing',
+          variant: 'danger',
+        }).then((ok) => {
+          if (!ok) return;
+          editorDirtyRef.current = false;
           window.history.back();
         });
         return;
@@ -821,7 +858,7 @@ export default function App() {
   // Fully close Settings — pop history until we land on a non-settings view,
   // so the desktop modal × button always exits regardless of how many
   // sub-panels the user drilled through.
-  const closeSettings = () => {
+  const closeSettings = useCallback(() => {
     while (historyRef.current.length > 0) {
       const prev = historyRef.current.pop();
       if (prev && prev.view !== 'settings') {
@@ -842,7 +879,7 @@ export default function App() {
     // Nothing else in history — fall back to home.
     setView('home');
     setSettingsPanel('hub');
-  };
+  }, []);
 
   // Modal openers — each one pushes history first so hardware Back closes
   // the modal instead of bypassing it. Modal close handlers call
@@ -930,15 +967,38 @@ export default function App() {
 
   const goLibrary = () => goToMainView('library');
   const goSetlists = () => goToMainView('setlists');
+
+  // Safety net: if a member ends up on an editing surface in a read-only team
+  // library (e.g. they switched into the workspace while the editor was open),
+  // bounce them back to the matching list. The entry points are gated, the save
+  // handlers refuse to write, and this keeps them from staring at a dead editor.
+  useEffect(() => {
+    if (!isTeamReadOnly) return;
+    if (view === 'editor') goToMainView('library');
+    else if (view === 'setlist-build') goToMainView('setlists');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTeamReadOnly, view]);
+
   const goChart = (song) => {
     if (!settings?.firstSongOpened) {
       setSettings(prev => ({ ...prev, firstSongOpened: true }));
     }
     navigate('chart', { song });
   };
-  const goEditor = (song = null) => navigate('editor', { song });
-  const goSetlistBuild = (sl = null) => navigate('setlist-build', { setlist: sl });
-  const goSetlistView = (sl) => navigate('setlist-view', { setlist: sl });
+  const goEditor = (song = null, arrangementId = null) => {
+    if (isTeamReadOnly) return;
+    navigate('editor', { song, arrangementId });
+  };
+  const goSetlistBuild = (sl = null) => {
+    if (isTeamReadOnly) return;
+    navigate('setlist-build', { setlist: sl });
+  };
+  const goSetlistView = (sl) => {
+    // Opening the full overview supersedes any side-peek preview — clear it so
+    // returning to the list doesn't re-open the pane for this setlist.
+    setPreviewSetlistId(null);
+    navigate('setlist-view', { setlist: sl });
+  };
   const goSetlistPlay = (sl) => navigate('setlist-play', { setlist: sl });
   const goSetlistPerformance = (sl) => {
     if (!settings?.firstStageMode) {
@@ -1005,6 +1065,10 @@ export default function App() {
   // and matches an existing song id, we merge into the active/default
   // arrangement so the song's other arrangements are preserved.
   const handleSaveSong = (input, opts = {}) => {
+    if (isTeamReadOnly) {
+      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit songs here.', variant: 'error' });
+      return;
+    }
     const isV2 = !!(input && Array.isArray(input.arrangements) && input.arrangements.length > 0);
     let v2 = input;
     let isNew = false;
@@ -1181,6 +1245,34 @@ export default function App() {
     }
   };
 
+  // Candidate destinations for moving/copying a song — every workspace except
+  // the one currently active.
+  const moveCopyWorkspaces = [
+    { id: 'personal', name: 'Personal' },
+    ...teams.map(t => ({ id: t.id, name: t.name })),
+  ].filter(w => w.id !== activeLibrary);
+
+  // Per-song Move/Copy props for the ChartView kebab (chart reader + library
+  // preview pane). Opens a workspace picker so users choose where to send the
+  // song — Copy is offered whenever another workspace exists; Move also
+  // requires write access to the source (personal, or admin of the team).
+  const buildChartMoveCopy = (songId) => {
+    if (!songId || moveCopyWorkspaces.length === 0) return {};
+    const canMove = activeLibrary === 'personal' || isTeamAdmin;
+    const props = {
+      onCopySong: () => setMoveCopyDialog({ action: 'copy', songId }),
+    };
+    if (canMove) props.onMoveSong = () => setMoveCopyDialog({ action: 'move', songId });
+    return props;
+  };
+
+  const performMoveCopy = (target) => {
+    if (!moveCopyDialog) return;
+    const { action, songId } = moveCopyDialog;
+    if (action === 'move') handleMoveSongToLibrary(songId, target);
+    else handleCopySongToLibrary(songId, target);
+  };
+
   const handleDeleteSong = (id) => {
     const nextSongs = songs.filter((s) => s.id !== id);
     setSongs(nextSongs);
@@ -1216,6 +1308,21 @@ export default function App() {
     }));
     toast({ title: `Deleted ${ids.length} song${ids.length === 1 ? '' : 's'}` });
   };
+
+  // Rename or clear a service across every setlist that uses it. Passing an
+  // empty newName "deletes" the service (it disappears once unused). Mutates
+  // via setSetlists like other setlist edits, so the auto-save effect persists.
+  const handleRemapService = useCallback((oldName, newName) => {
+    const next = (newName || '').trim();
+    setSetlists(prev => prev.map(sl =>
+      (sl.service || '') === oldName
+        ? { ...sl, service: next, updatedAt: Date.now() }
+        : sl
+    ));
+    toast(next
+      ? { title: 'Service renamed', description: `“${oldName}” → “${next}”` }
+      : { title: 'Service removed', description: `“${oldName}” cleared from its setlists` });
+  }, []);
 
   const handleAddSongsToSetlist = (songIds, setlistId) => {
     const target = setlists.find(s => s.id === setlistId);
@@ -1293,6 +1400,10 @@ export default function App() {
 
   // Setlist CRUD
   const handleSaveSetlist = (incomingSl) => {
+    if (isTeamReadOnly) {
+      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit setlists here.', variant: 'error' });
+      return;
+    }
     // Determine isNew / prevSetlist synchronously from the current render's
     // setlists value. We can't read it from inside the setSetlists updater
     // because React 18 defers updaters until the next render, so any closure
@@ -1495,17 +1606,14 @@ export default function App() {
     }
   };
 
-  if (view === 'legal-privacy' || view === 'legal-terms') {
-    const doc = view === 'legal-privacy' ? 'privacy' : 'terms';
+  if (view === 'share-view') {
     return (
       <ErrorBoundary>
         <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
-          <LegalPage
-            doc={doc}
-            onBack={() => {
-              if (typeof window !== 'undefined') {
-                window.history.pushState({}, '', '/');
-              }
+          <SharedSetlistViewer
+            token={shareToken}
+            onExit={() => {
+              window.history.replaceState({}, document.title, '/');
               goToMainView('home');
             }}
           />
@@ -1585,9 +1693,13 @@ export default function App() {
   // already used across this workspace's setlists (foundation for per-service
   // stats; a canonical team_services table can replace this source later).
   const knownServices = [...new Set(setlists.map(s => s.service).filter(Boolean))].sort();
+  // Display label for the personal plan. The internal `team` tier is branded
+  // "Band" in the UI; everything else title-cases its tier key.
+  const PLAN_DISPLAY = { free: 'Free', sync: 'Sync', team: 'Band', church: 'Church' };
   let plan = 'Free';
   if (profile?.subscription_tier) {
-    plan = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
+    const tier = profile.subscription_tier.toLowerCase();
+    plan = PLAN_DISPLAY[tier] || (tier.charAt(0).toUpperCase() + tier.slice(1));
   } else if (profile?.is_pro) {
     plan = 'Pro';
   }
@@ -1614,16 +1726,11 @@ export default function App() {
       <Toaster />
       <OfflineBanner />
       {view === 'signin' && (
-        <AuthScreen onBack={goBack} onSignedIn={() => goToMainView('home')} defaultMode={authStartMode} />
-      )}
-      {view === 'upgrade' && (
-        <PricingScreen
+        <AuthScreen
           onBack={goBack}
-          settings={settings}
-          onSignIn={() => {
-            setAuthStartMode('signup');
-            navigate('signin');
-          }}
+          onSignedIn={() => goToMainView('home')}
+          defaultMode={authStartMode}
+          onShowLegal={(doc) => navigate(`legal-${doc}`)}
         />
       )}
       {view === 'onboarding' && (
@@ -1661,8 +1768,8 @@ export default function App() {
           onDone={() => setView('home')}
         />
       )}
-      {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && (
-        <DesktopLayout 
+      {!['onboarding', 'signin', 'recovery'].includes(view) && (
+        <DesktopLayout
           activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
           onNavigate={goToMainView} 
           isFullscreen={view === 'setlist-performance' || view === 'setlist-play' || view === 'setlist-practice' || (isFullscreen && (view === 'library' || view === 'setlists'))}
@@ -1714,7 +1821,7 @@ export default function App() {
               setlists={setlists}
               settings={settings}
               onSelectSong={goChart}
-              onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
+              onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
               onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onViewSetlist={goSetlistView}
               onPlaySetlist={goSetlistPerformance}
@@ -1727,12 +1834,13 @@ export default function App() {
                   const song = songs.find(s => s.title === 'Amazing Grace') || songs[0];
                   if (song) goChart(song);
                 },
-                newSong: () => openNewSongModal('import'),
+                newSong: () => openNewSongModal(),
                 newSetlist: () => goSetlistBuild(),
                 signIn: () => { setAuthStartMode('signin'); navigate('signin'); },
               }}
               onDismissChecklist={() => setSettings(prev => ({ ...prev, checklistDismissed: true }))}
               canEdit={canEdit}
+              onSignIn={!user ? () => { setAuthStartMode('signin'); navigate('signin'); } : undefined}
             />
           )}
           {view === 'library' && (
@@ -1740,7 +1848,7 @@ export default function App() {
               songs={songs}
               loaded={loaded}
               onSelectSong={goChart}
-              onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
+              onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
               previewSongId={previewSongId}
               onSelectPreview={setPreviewSongId}
               isFullscreen={isFullscreen}
@@ -1754,6 +1862,7 @@ export default function App() {
               onAddSongsToSetlist={isTeamReadOnly ? null : handleAddSongsToSetlist}
               onMoveSongs={!isTeamReadOnly && teams.length > 0 ? handleMoveSongs : null}
               onCopySongs={teams.length > 0 ? handleCopySongs : null}
+              chartMoveCopy={buildChartMoveCopy}
               chartDefaults={{
                 defaultColumns: settings?.defaultColumns,
                 defaultFontSize: settings?.defaultFontSize,
@@ -1807,7 +1916,8 @@ export default function App() {
             <ChartView
               song={currentSong}
               onBack={goBack}
-              onEdit={isTeamReadOnly ? null : () => goEditor(currentSong)}
+              onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
+              {...buildChartMoveCopy(currentSong.id)}
               onSongChange={(updated) => {
                 setSongs(prev => prev.map(s => s.id === updated.id ? { ...updated, updatedAt: Date.now() } : s));
               }}
@@ -1836,8 +1946,10 @@ export default function App() {
             <Editor
               key={currentSong?.id || 'new'}
               song={currentSong}
+              initialArrangementId={editArrangementId}
               onSave={isTeamReadOnly ? null : handleSaveSong}
               onBack={importQueue ? handleSkipQueueSong : goBack}
+              onDirtyChange={markEditorDirty}
               onDelete={currentSong && !isTeamReadOnly ? handleDeleteSong : null}
               customSectionTypes={settings?.customSectionTypes}
               importProgress={importQueue ? {
@@ -1845,11 +1957,8 @@ export default function App() {
                 total: importQueue.total,
                 onSkip: handleSkipQueueSong,
               } : null}
-              onMove={currentSong && team && isTeamAdmin ? (target) => handleMoveSongToLibrary(currentSong.id, target) : null}
-              onCopy={currentSong && team && isTeamAdmin ? (target) => handleCopySongToLibrary(currentSong.id, target) : null}
-              activeLibrary={activeLibrary}
-              team={team}
               readOnly={isTeamReadOnly}
+              onOpenNewSong={isTeamReadOnly ? null : openNewSongModal}
               chartDefaults={{
                 defaultColumns: settings?.defaultColumns,
                 defaultFontSize: settings?.defaultFontSize,
@@ -1964,6 +2073,25 @@ export default function App() {
               onGoHome={handleFinaleGoHome}
             />
           )}
+          {view === 'upgrade' && (
+            <PricingScreen
+              onBack={goBack}
+              settings={settings}
+              onSignIn={() => {
+                setAuthStartMode('signup');
+                navigate('signin');
+              }}
+            />
+          )}
+          {(view === 'legal-privacy' || view === 'legal-terms' || view === 'legal-copyright') && (
+            <LegalPage
+              doc={view === 'legal-privacy' ? 'privacy' : view === 'legal-terms' ? 'terms' : 'copyright'}
+              onBack={() => {
+                if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
+                goToMainView('home');
+              }}
+            />
+          )}
           {view === "design" && (
             <LydianShowcase onBack={goBack} />
           )}
@@ -2009,6 +2137,7 @@ export default function App() {
               onSyncNow={triggerSync}
               onRequestSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
               onUpgrade={() => navigate('upgrade')}
+              onShowLegal={(doc) => navigate(`legal-${doc}`)}
               plan={plan}
               isSignedIn={isSignedIn}
               displayName={displayName}
@@ -2018,6 +2147,8 @@ export default function App() {
               onCreateAccount={() => { setAuthStartMode('signup'); navigate('signin'); }}
               activeLibrary={activeLibrary}
               team={team}
+              setlists={setlists}
+              onRemapService={handleRemapService}
             />
           )}
           {view === "account" && settings && (
@@ -2037,7 +2168,7 @@ export default function App() {
           {view === 'team' && (
             <TeamScreen
               onBack={goBack}
-              onUpgrade={() => navigate('pricing')}
+              onUpgrade={() => navigate('upgrade')}
               onSwitchLibrary={switchWorkspace}
               initialCreate={teamCreateIntent}
               onCreateHandled={() => setTeamCreateIntent(false)}
@@ -2050,6 +2181,8 @@ export default function App() {
               setlists={setlists}
               onBack={goBack}
               onOpenSetlist={goSetlistView}
+              viewMode={scheduleView}
+              onSetView={setScheduleView}
               clockFormat={settings?.clockFormat || '12h'}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />
@@ -2059,13 +2192,15 @@ export default function App() {
       {/* Mobile glass nav lives at the App root (not inside <main>) so the
           drawer's transform/will-change doesn't capture its fixed positioning
           or break the glass backdrop-filter. */}
-      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view'].includes(view) && !drawerOpen && (
+      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule'].includes(view) && !drawerOpen && (
         <BottomNav
           activeView={view}
           onNavigate={goToMainView}
           activeLibrary={activeLibrary}
-          onNewSong={isTeamReadOnly ? null : () => openNewSongModal('import')}
+          onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
           onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+          scheduleView={scheduleView}
+          onToggleScheduleView={() => setScheduleView(v => (v === 'list' ? 'calendar' : 'list'))}
           onPlay={
             view === 'setlist-view' && currentSetlist
               ? () => goSetlistPerformance(currentSetlist)
@@ -2145,6 +2280,24 @@ export default function App() {
             onSmartImport={handleSmartImport}
           />
         </Suspense>
+      )}
+
+      {/* Workspace destination picker for move/copy from the song kebab. */}
+      {moveCopyDialog && (
+        <WorkspacePickerDialog
+          open
+          title={moveCopyDialog.action === 'move' ? 'Move song to…' : 'Copy song to…'}
+          description={(() => {
+            const t = songs.find(s => s.id === moveCopyDialog.songId)?.title || 'this song';
+            return moveCopyDialog.action === 'move'
+              ? `"${t}" will be moved out of the current workspace.`
+              : `A copy of "${t}" will be added. The original stays put.`;
+          })()}
+          confirmLabel={moveCopyDialog.action === 'move' ? 'Move' : 'Copy'}
+          workspaces={moveCopyWorkspaces}
+          onSelect={performMoveCopy}
+          onClose={() => setMoveCopyDialog(null)}
+        />
       )}
 
       {/* One-time pre-permission explainer for stage mode — render is

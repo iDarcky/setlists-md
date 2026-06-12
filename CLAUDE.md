@@ -1,4 +1,4 @@
-# Setlists MD
+# Setlists.md
 
 A Progressive Web App for worship chord charts. Install on iPad/Android tablet, use full-screen, works offline.
 
@@ -23,55 +23,70 @@ npm run lint     # ESLint
 
 ## Versioning
 
-The app follows **Semantic Versioning 2.0.0** (https://semver.org).
-`MAJOR.MINOR.PATCH`, optionally suffixed with a pre-release label
-(`-pre-alpha`, `-alpha`, `-beta`, `-rc.N`).
+The app follows **Semantic Versioning 2.0.0** (https://semver.org):
+`MAJOR.MINOR.PATCH`, with a pre-release suffix while in development.
 
+The release levels describe **a whole release**, not each feature:
 - **MAJOR** — breaking change to stored data shapes, the `.md` format,
   or any user-visible contract that requires migration.
-- **MINOR** — new feature or non-breaking enhancement (added settings,
-  new screens, additive schema fields with safe defaults).
-- **PATCH** — bug fix, copy tweak, visual polish, dependency bumps that
-  don't change behaviour.
-- **Pre-release** — anything not yet considered stable. Order is
-  `pre-alpha < alpha < beta < rc.N < (no suffix)`.
+- **MINOR** — new feature(s) or non-breaking enhancements (added
+  settings, new screens, additive schema fields with safe defaults).
+- **PATCH** — bug fixes, copy tweaks, visual polish, dependency bumps
+  that don't change behaviour.
+
+### Release train (beta → main)
+
+Work flows: short-lived **feature branches off `beta`** → merged into
+`beta` → tested → **`beta` merged into `main`** for a real release. The
+version number reflects this with two phases:
+
+- **During a beta cycle**, `package.json#version` is
+  `<TARGET>-beta.<N>` — e.g. `0.13.0-beta.3`. `<TARGET>` is the version
+  that will release to `main` next; it **stays fixed for the whole
+  cycle**. The **`-beta.<N>` counter increments on each `finish`** of a
+  feature, so a stream of features does NOT inflate the MINOR.
+- **At promotion to `main`**, the suffix is **dropped**: `0.13.0-beta.7
+  → 0.13.0`. That's the one and only time the user-facing number moves
+  up. So `main` goes e.g. `0.12.0 → 0.13.0` cleanly — never a 4-version
+  jump.
+
+Pre-release order (SemVer): `0.13.0-beta.1 < 0.13.0-beta.2 < 0.13.0`.
+(Earlier-stage labels `-pre-alpha`/`-alpha` are still valid if a build
+isn't beta-worthy yet; the mechanics — fixed base, incrementing counter
+— are identical.)
 
 Single source of truth is `package.json#version`. Vite injects it as
 the build-time global `__APP_VERSION__` (`define` in `vite.config.js`),
 declared as a readonly global in `eslint.config.js`. The Settings
-"About" panel and hub row both render `v${__APP_VERSION__}` so they
-stay in lockstep with the package — never hardcode the version in JSX.
+"About" panel and hub row both render `v${__APP_VERSION__}` — never
+hardcode the version in JSX.
 
-To cut a new version: bump `package.json#version`, write a one-line
-note in the commit subject describing the bump (e.g. "Release 0.1.0:
-add finale screens"), then commit + tag.
+## "finish" workflow (on a feature branch → beta bump)
 
-## "Finish" workflow
+When the user says **"finish"** (or "ship it", "wrap up") while on a
+feature/`beta` branch, close out the current batch as a **pre-release
+bump** — do NOT cut a new MINOR. Run, in order:
 
-When the user says **"finish"** (or "ship it", "wrap up", "release"),
-treat it as a request to close out the current batch of work with a
-proper version bump and changelog entry. Run, in order:
+1. **Resolve the version.** Read `package.json#version`.
+   - If it already has a `-beta.<N>` suffix → keep `<TARGET>`, set
+     `N = N + 1`. **Exception:** if this batch is a *higher* level than
+     `<TARGET>` currently reflects over `main`'s last release (e.g.
+     `<TARGET>` is a PATCH but this batch adds a feature → MINOR; or a
+     breaking change → MAJOR), raise `<TARGET>` accordingly and reset to
+     `-beta.1`.
+   - If it has **no** suffix (sitting on a released number) → start a new
+     cycle: `<TARGET>` = current bumped per this batch's highest level
+     (PATCH/MINOR/MAJOR), suffix `-beta.1`.
 
-1. **Pick the next version.** Read the current `package.json#version`
-   and bump it per Semantic Versioning 2.0.0 (https://semver.org):
-   - **PATCH** (`0.0.3 → 0.0.4`) — bug fix, copy tweak, visual polish,
-     dependency bumps with no behaviour change.
-   - **MINOR** (`0.0.3 → 0.1.0`) — new feature, new screen, new setting,
-     additive schema field with a safe default.
-   - **MAJOR** (`0.1.0 → 1.0.0`) — breaking change to stored data, the
-     `.md` format, or any user-visible contract.
-   - Preserve the existing pre-release suffix (`-pre-alpha`, `-alpha`,
-     etc.) unless the user explicitly asks to graduate it. Pre-release
-     order: `pre-alpha < alpha < beta < rc.N < (no suffix)`.
-   - If a single batch contains a mix (e.g. a feature **and** a fix),
-     bump to the highest applicable level (MINOR wins over PATCH).
-
-2. **Update `src/data/changelog.md`.** Insert a new `## <version> — <title>`
-   block directly under the page intro, above the previous newest release.
-   Use this exact shape so `WhatsNewPanel.jsx` parses it correctly:
+2. **Update `src/data/changelog.md` — ONE entry per cycle.** Find the
+   in-progress `## <TARGET> — <title>` block (the newest one). If it
+   exists, **append** this batch's bullets into its `Added`/`Improved`/
+   `Fixed` sections — do **not** add a new heading per feature. If it
+   doesn't exist yet (first feature of a new cycle), create it under the
+   page intro using this exact shape so `WhatsNewPanel.jsx` parses it:
 
    ```md
-   ## 0.0.4-pre-alpha — Short title for the batch
+   ## 0.13.0 — Short title for the release
    *Month YYYY*
 
    ### Added
@@ -84,30 +99,40 @@ proper version bump and changelog entry. Run, in order:
    - One bullet per user-visible bug fix.
    ```
 
-   Only include sections that actually apply (`Added` / `Improved` /
-   `Fixed` / `Removed` / `Security`). Write bullets in the user's voice
-   — what they will notice, not the file you touched. Use today's
-   `currentDate` for the month.
+   Heading version is the bare `<TARGET>` (no `-beta`), since the entry
+   describes what's coming in that release. Only include sections that
+   apply (`Added`/`Improved`/`Fixed`/`Removed`/`Security`). Bullets in
+   the user's voice; use `currentDate` for the month.
 
-3. **Update `package.json#version`** to the new value. Do not edit
-   anywhere else — `__APP_VERSION__` flows automatically from there.
+3. **Set `package.json#version`** to `<TARGET>-beta.<N>`. Nothing else —
+   `__APP_VERSION__` flows from there.
 
-4. **Verify.** Run `npm run build` to make sure the changelog still
-   parses and the version compiles in. Don't run `npm run lint` unless
-   you actually changed code that day; the repo has pre-existing lint
-   noise unrelated to release bumps.
+4. **Verify.** `npm run build` (confirms the changelog parses + version
+   compiles). Skip `npm run lint` unless code changed that day (the repo
+   has pre-existing lint noise).
 
-5. **Commit.** Use a single commit with the subject
-   `Release <version>: <short title>` and the bullet list as the body.
-   Push to the active branch with `git push -u origin <branch>`.
+5. **Commit + push.** Subject `Beta <TARGET>-beta.<N>: <short title>`,
+   bullets as the body. Push to the active branch with
+   `git push -u origin <branch>`. (The user then merges it into `beta`.)
 
-6. **PR.** If a PR is already open for this branch, do nothing extra —
-   the new commit appears on it automatically. If not, ask the user
-   whether to open one before creating it.
+Do **not** tag on feature/`beta` branches.
 
-Do not tag the commit (`git tag`) unless the user explicitly asks; tags
-on this repo are cut from `master` after merge, not from feature
-branches.
+## "release" / "promote" workflow (beta → main)
+
+When the user says **"release"**, **"promote"**, **"ship to main"** (or
+"finish and push to main"), turn the accumulated beta cycle into a real
+release. Run, in order:
+
+1. **Drop the pre-release suffix.** `package.json#version`:
+   `<TARGET>-beta.<N> → <TARGET>` (e.g. `0.13.0-beta.7 → 0.13.0`).
+2. **Finalise the changelog.** The newest `## <TARGET>` block becomes the
+   release entry — confirm the title + `*Month YYYY*` are right.
+3. **Verify** with `npm run build`.
+4. **Commit.** Subject `Release <TARGET>: <short title>`.
+5. **Promote + tag.** Merge `beta` → `main`, and tag the release on
+   `main`: `git tag -a v<TARGET> -m "Release <TARGET>"` then push the
+   tag. Tags are cut from `main` at release — never from feature/`beta`
+   branches.
 
 ## Project Structure
 
@@ -192,7 +217,7 @@ supabase/
 - **Redirect strategy** — OAuth uses `${origin}/auth/callback` (handled by `AuthCallback.jsx`). Magic-links, password resets, and signup confirmations redirect to `${origin}/`; `detectSessionInUrl` consumes the hash and an App.jsx effect strips lingering `access_token` / `type=recovery` / `?code=` so the URL bar stays clean.
 - **Password recovery** — `type=recovery` in the URL hash routes to `RecoveryScreen.jsx`. Navigating Back before completion calls `signOut` so the interim recovery session doesn't linger.
 - **Preferences cloud-sync** — defined in `App.jsx` via `PORTABLE_PREF_KEYS`. On sign-in, App hydrates once from `profile.preferences` (cloud wins). After hydration, local changes are pushed to `updateProfile({ preferences })` debounced 800 ms. Device-local fields (`onboardingComplete`, `helpPageSeen`, `notifications`) never sync.
-- **Display name** — `profile?.display_name || settings?.userName || 'Guest'`. Editing in `Account.jsx` writes to both the local settings and `updateProfile({ display_name })` when signed in. When signed in, the account name replaces the "Setlists MD" label in the drawer footer and Settings about header.
+- **Display name** — `profile?.display_name || settings?.userName || 'Guest'`. Editing in `Account.jsx` writes to both the local settings and `updateProfile({ display_name })` when signed in. When signed in, the account name replaces the "Setlists.md" label in the drawer footer and Settings about header.
 - **Fullscreen performance** — `setlist-performance` and `setlist-play` always pass `isFullscreen={true}` to `DesktopLayout` so the sidebar collapses on desktop/tablet; the existing mobile layout already hides chrome for these views.
 
 ## .md Format Quick Reference
@@ -492,7 +517,7 @@ Each team/church workspace is its own Stripe subscription, paid by the team
 - The `profiles.preferences` column is optional at runtime — `AuthProvider` falls back to a base `select('id, email, display_name, is_pro, subscription_tier')` if the column doesn't exist, so sign-in works even before the migration is applied. The push side swallows the error.
 - Auth callback URL handling is split: OAuth stays on `/auth/callback` (dedicated `AuthCallback.jsx`). Magic links and recovery links land on `/` and rely on App.jsx's cleanup effect — don't add a new redirect target without wiring a matching cleanup branch.
 - `RecoveryScreen.handleBack` calls `signOut()` *before* invoking the parent `onBack`. If you ever route away from it through another path, make sure that path also ends the recovery session.
-- PDF export uses `window.open('about:blank', '_blank', ...)` followed by `document.write(...)` (see `src/pdf/exportSongPdf.js` and `src/pdf/exportSetlistPdf.js`). This is unreliable inside iOS PWAs launched from the Home Screen (manifest declares `display: 'standalone'`) — the popup handle often comes back `null` or bounces out to Safari, breaking the `window.opener.localStorage` pref-sync hook. There is no popup-permission setting in an installed PWA, so the user can't recover. The roadmap (`docs/roadmap.md` §7) tracks an inline-iframe fallback path; until that ships, expect the feature to feel broken on iPad standalone mode.
+- PDF export uses `window.open('about:blank', '_blank', ...)` followed by `document.write(...)` (see `src/pdf/exportSongPdf.js` and `src/pdf/exportSetlistPdf.js`). This is unreliable inside iOS PWAs launched from the Home Screen (manifest declares `display: 'standalone'`) — the popup handle often comes back `null` or bounces out to Safari, breaking the `window.opener.localStorage` pref-sync hook. There is no popup-permission setting in an installed PWA, so the user can't recover. The roadmap (`docs/ROADMAP.md` §7) tracks an inline-iframe fallback path; until that ships, expect the feature to feel broken on iPad standalone mode.
 - `SetlistOverview` is rendered in **two places**: (1) the dedicated `setlist-view` route in `App.jsx`, and (2) the desktop preview pane inside `Setlists.jsx`. Both wire its export callbacks (`onExportZip`, `onExportPdfOverview`, `onExportPdfFull`) — when you add or rename one, update *both* call sites or the desktop preview will silently no-op.
 
 ## Known Correctness Issues (verify before promoting the Church/Team tier)
@@ -525,5 +550,5 @@ independently-mergeable slices** — never a long-lived big-bang branch. Order:
 (Lyrics-only / Chords-only / Song-map, Nashville + Do-Re-Mi notation, condensed
 sections), (4) setlist + notes rework, (5) Church/Team hardening (the bugs
 above). TypeScript migration is deferred and done incrementally per touched
-file, not as a phase. `docs/roadmap.md` holds the longer-horizon list.
+file, not as a phase. `docs/ROADMAP.md` holds the longer-horizon list.
 

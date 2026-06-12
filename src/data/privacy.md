@@ -2,13 +2,13 @@
 
 *Last updated: May 16, 2026*
 
-This Privacy Policy describes how the Setlists MD team ("we", "us", or
-"Setlists MD") collects, uses, and shares information when you use the
-Setlists MD web application available at
+This Privacy Policy describes how the Setlists.md team ("we", "us", or
+"Setlists.md") collects, uses, and shares information when you use the
+Setlists.md web application available at
 [setlistsmd.insideahead.com](https://setlistsmd.insideahead.com) (the
 "Service").
 
-Setlists MD is built privacy-first: your songs and setlists live on
+Setlists.md is built privacy-first: your songs and setlists live on
 your device by default. We only handle the minimum data needed to make
 optional features like accounts, sync, and cloud storage work.
 
@@ -70,18 +70,18 @@ third parties for advertising.
 
 ## 3. Google API Services and Limited Use disclosure
 
-When you connect Google Drive, Setlists MD requests the
+When you connect Google Drive, Setlists.md requests the
 `drive.file` scope. This scope only grants access to files our app
 creates or that you explicitly open with our app. We cannot read or
 modify any other files in your Drive.
 
-Setlists MD's use of information received from Google APIs adheres to
+Setlists.md's use of information received from Google APIs adheres to
 the [Google API Services User Data
 Policy](https://developers.google.com/terms/api-services-user-data-policy),
 including the Limited Use requirements. In particular:
 
 - We use the data only to provide the user-facing features of
-  Setlists MD (storing, listing, reading, and writing your
+  Setlists.md (storing, listing, reading, and writing your
   chord-chart files inside the `SetlistsMD` folder).
 - We do not transfer the data to others unless doing so is necessary
   to provide the Service, comply with the law, or as part of a
@@ -137,14 +137,14 @@ account credentials safe.
 
 ## 8. Children
 
-Setlists MD is not directed to children under 13, and we do not
+Setlists.md is not directed to children under 13, and we do not
 knowingly collect personal information from children under 13. If you
 believe a child has provided us with personal information, please
 contact us so we can delete it.
 
 ## 9. International users
 
-Setlists MD is operated from the United States. By using the Service
+Setlists.md is operated from the United States. By using the Service
 you understand that your information may be processed in the United
 States and other countries where our hosting providers operate.
 

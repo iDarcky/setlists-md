@@ -34,6 +34,9 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   });
   const [items, setItems] = useState(setlist?.items || []);
   const [service, setService] = useState(setlist?.service || '');
+  // Optional rehearsal day — surfaces as a distinct entry on the schedule.
+  const [rehearsalDate, setRehearsalDate] = useState(setlist?.rehearsalDate || '');
+  const [rehearsalTime, setRehearsalTime] = useState(setlist?.rehearsalTime || '19:00');
   // New setlists start as drafts; existing ones without a status are treated as
   // ready (don't surprise-demote a legacy setlist to draft on edit).
   const [status, setStatus] = useState(setlist?.status || (setlist ? 'ready' : 'draft'));
@@ -42,8 +45,8 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
 
   // Snapshot the form on first render so Cancel/back can warn about unsaved
   // changes (only when something actually changed — no nag on a pristine form).
-  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, location, tags, items, service, status }));
-  const isDirty = JSON.stringify({ name, date, time, location, tags, items, service, status }) !== initialSnapshot;
+  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, location, tags, items, service, status, rehearsalDate, rehearsalTime }));
+  const isDirty = JSON.stringify({ name, date, time, location, tags, items, service, status, rehearsalDate, rehearsalTime }) !== initialSnapshot;
 
   // Report dirty state up so App can guard header nav / browser back. Reset on
   // unmount so a stale flag never blocks navigation after we leave.
@@ -232,6 +235,8 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
       ...setlist, // preserve fields the builder doesn't edit (workspace/authorship/etc.)
       id: setlist?.id || generateId(),
       name: name.trim(), date, time, location, tags, items, service, status,
+      rehearsalDate: rehearsalDate || null,
+      rehearsalTime: rehearsalDate ? rehearsalTime : null,
       createdAt: setlist?.createdAt || Date.now(),
     });
   };
@@ -298,7 +303,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
         {/* Tabs — team setlists, once saved, can manage the roster here. */}
         {isTeamContext && setlist && (
           <div className="inline-flex p-0.5 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] mb-6">
-            {[['setlist', 'Set order'], ['roster', 'Roster']].map(([id, label]) => (
+            {[['setlist', 'Set order'], ['roster', 'Band']].map(([id, label]) => (
               <button
                 key={id}
                 type="button"
@@ -331,6 +336,8 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               location={location}
               tags={tags}
               service={service}
+              rehearsalDate={rehearsalDate}
+              rehearsalTime={rehearsalTime}
               firstDayOfWeek={firstDayOfWeek}
               clockFormat={clockFormat}
               onNameChange={setName}
@@ -339,6 +346,8 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               onLocationChange={setLocation}
               onTagsChange={setTags}
               onServiceChange={setService}
+              onRehearsalDateChange={setRehearsalDate}
+              onRehearsalTimeChange={setRehearsalTime}
               knownServices={knownServices}
             />
 

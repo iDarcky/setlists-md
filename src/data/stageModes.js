@@ -58,6 +58,19 @@ export const STAGE_MODES = [
     },
   },
   {
+    id: 'keys',
+    name: 'Keys',
+    description: 'Chord-forward with numbers for quick transposing.',
+    settings: {
+      showChords: true,
+      showInlineNotes: false,
+      lyricFontSize: 16,
+      chordFontSize: 19,
+      nashville: true,
+      showDiagrams: false,
+    },
+  },
+  {
     id: 'drummer',
     name: 'Drummer',
     description: 'Structure-first, minimal lyrics.',

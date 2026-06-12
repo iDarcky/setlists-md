@@ -9,12 +9,54 @@ const NOTE_SEPARATORS = {
   arrow:  ' ----> ',
 };
 
+// The note a bassist actually plays: the slash bass (e.g. C/E → E) when there
+// is one, otherwise the chord root (Gsus4 → G, Bbm7 → Bb).
+function bassNote(chord) {
+  if (!chord) return chord;
+  const parts = String(chord).split('/');
+  const base = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+  const m = base.match(/^[A-G][#b]?/);
+  return m ? m[0] : base;
+}
+
+// Group chord+text pairs into whole words so a lyric line only ever wraps at a
+// space — never in the middle of a word, even when a chord sits mid-word.
+// Returns a list of items: { segments: [{chord, text}] } for a word, or
+// { space: '…' } for the breakable gap between words. A chord that lands on a
+// space carries forward to the start of the next word.
+function groupChordWords(pairs) {
+  const words = [];
+  let cur = [];
+  let pending = null;
+  const flush = () => { if (cur.length) { words.push({ segments: cur }); cur = []; } };
+  for (const p of pairs) {
+    if (p.chord) pending = pending ?? p.chord;
+    const parts = (p.text ?? '').split(/(\s+)/);
+    for (const part of parts) {
+      if (part === '') continue;
+      if (/^\s+$/.test(part)) {
+        flush();
+        words.push({ space: part });
+      } else {
+        cur.push({ chord: pending, text: part });
+        pending = null;
+      }
+    }
+  }
+  if (pending) cur.push({ chord: pending, text: '' });
+  flush();
+  return words;
+}
+
 export default function SectionBlock({
   section, transpose, modOffset = 0, nns, songKey,
-  showChords = true, inlineNotes = true, noteStyle = 'dashes',
-  sectionColors, sectionLabels, customSectionTypes,
+  showChords = true, showLyrics = true, showTabs = true, inlineNotes = true, noteStyle = 'dashes',
+  sectionColors, sectionLabels, customSectionTypes, tabScale = 1, tabColors, tabInstrument = 'all', chordEmphasis = 'full',
 }) {
   const s = sectionStyle(section.type, sectionColors, customSectionTypes);
+  // When an instrument filter is active, only show tabs tagged for it. Untagged
+  // tabs are only shown under "all".
+  const tabMatches = (inst) => !tabInstrument || tabInstrument === 'all' || inst === tabInstrument;
 
   // Pre-compute per-line modulate offsets (cumulative within this section)
   const lineOffsets = useMemo(() => {
@@ -33,7 +75,8 @@ export default function SectionBlock({
 
   const renderLine = (line, idx) => {
     if (typeof line !== 'string') {
-      if (line.type === 'tab') return <TabBlock key={idx} data={line} />;
+      if (line.type === 'tab') return showTabs && tabMatches(line.instrument) ? <TabBlock key={idx} data={line} scale={tabScale} colors={tabColors} /> : null;
+      if (line.type === 'tabref') return showTabs && line.tab && tabMatches(line.tab.instrument) ? <TabBlock key={idx} data={line.tab} scale={tabScale} colors={tabColors} /> : null;
       if (line.type === 'modulate') {
         return (
           <div key={idx} className="my-4 flex items-center gap-4">
@@ -55,8 +98,10 @@ export default function SectionBlock({
     const inlineNote = noteMatch ? noteMatch[1] : null;
     const cleanLine = line.replace(/\{!.*?\}/g, '');
 
-    // Plain text line (no chords) or chords hidden
+    // Plain text line (no chords) or chords hidden — this branch only renders
+    // lyric text, so skip it entirely when lyrics are hidden.
     if (!cleanLine.includes('[') || !showChords) {
+      if (!showLyrics) return null;
       const displayLine = !showChords ? cleanLine.replace(/\[.*?\]/g, '') : cleanLine;
       return (
         <div
@@ -80,55 +125,71 @@ export default function SectionBlock({
       );
     }
 
-    // Parse into chord+text pairs using the parser
-    const pairs = parseLine(cleanLine);
+    // Parse into chord+text pairs using the parser. When lyrics are hidden,
+    // drop the text so the line renders chords-only.
+    const parsedPairs = parseLine(cleanLine);
+    const pairs = showLyrics ? parsedPairs : parsedPairs.map(p => ({ ...p, text: '' }));
     const hasLyrics = pairs.some(p => p.text.trim());
 
-    // Render each chord+text pair as inline-block so they wrap naturally
-    // while keeping each chord positioned above its syllable
+    const renderChord = (rawChord, padded) => {
+      let chord = nns ? getNashvilleNumber(rawChord, songKey) : transposeChord(rawChord, effectiveTranspose);
+      // Bass "root emphasis": collapse each chord to the note a bassist plays —
+      // the slash bass if present, otherwise the chord root.
+      if (chordEmphasis === 'root') chord = bassNote(chord);
+      return (
+        <span
+          className="font-bold text-[var(--chord)] leading-none select-none whitespace-nowrap"
+          style={{
+            paddingBottom: hasLyrics ? 3 : 0,
+            fontFamily: 'var(--chart-font-chord, var(--font-mono))',
+            fontSize: 'var(--chart-font-size-chord, 0.95em)',
+          }}
+        >
+          {chord}{padded ? '\u2003' : ''}
+        </span>
+      );
+    };
+
+    // With lyrics: group into whole words so wrapping happens only at spaces.
+    // Without lyrics (chord-only / instrumental): render chords inline as-is.
     return (
       <div
         key={idx}
-        className={hasLyrics ? "last:mb-0" : "last:mb-0"}
+        className="last:mb-0"
         style={{
           marginBottom: hasLyrics ? 'calc(var(--chart-section-gap, 24px) / 3)' : 0,
           lineHeight: 1,
         }}
       >
         <div className="flex flex-wrap items-end">
-          {pairs.map((p, i) => {
-            const chord = p.chord
-              ? (nns ? getNashvilleNumber(p.chord, songKey) : transposeChord(p.chord, effectiveTranspose))
-              : null;
-
-            return (
-              <span key={i} className="inline-flex flex-col justify-end">
-                {chord && (
-                  <span
-                    className="font-bold text-[var(--chord)] leading-none select-none whitespace-nowrap"
-                    style={{
-                      paddingBottom: hasLyrics ? 3 : 0,
-                      fontFamily: 'var(--chart-font-chord, var(--font-mono))',
-                      fontSize: 'var(--chart-font-size-chord, 0.95em)',
-                    }}
-                  >
-                    {chord}{'\u2003'}
+          {hasLyrics
+            ? groupChordWords(pairs).map((w, wi) => (
+                w.space ? (
+                  <span key={wi} style={{ whiteSpace: 'pre' }}>{w.space}</span>
+                ) : (
+                  <span key={wi} className="inline-flex items-end" style={{ whiteSpace: 'nowrap' }}>
+                    {w.segments.map((seg, si) => (
+                      <span key={si} className="inline-flex flex-col justify-end">
+                        {seg.chord && renderChord(seg.chord, true)}
+                        <span
+                          className="whitespace-pre"
+                          style={{
+                            color: 'var(--chart-text, var(--text-1))',
+                            lineHeight: 'var(--chart-line-height-lyric, 1.25)',
+                          }}
+                        >
+                          {seg.text || (seg.chord ? '\u00A0' : '')}
+                        </span>
+                      </span>
+                    ))}
                   </span>
-                )}
-                {hasLyrics && (
-                  <span
-                    className="whitespace-pre-wrap"
-                    style={{
-                      color: 'var(--chart-text, var(--text-1))',
-                      lineHeight: 'var(--chart-line-height-lyric, 1.25)',
-                    }}
-                  >
-                    {p.text || (chord ? '\u00A0' : '')}
-                  </span>
-                )}
-              </span>
-            );
-          })}
+                )
+              ))
+            : pairs.map((p, i) => (
+                <span key={i} className="inline-flex flex-col justify-end">
+                  {p.chord && renderChord(p.chord, true)}
+                </span>
+              ))}
           {inlineNotes && inlineNote && (
             <span
               className="italic text-[0.8em] self-end"

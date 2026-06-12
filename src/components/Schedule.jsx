@@ -1,6 +1,6 @@
-import { useState, useSyncExternalStore } from 'react';
-import ScreenHeader from './ui/ScreenHeader';
+import { useState } from 'react';
 import { SegmentedControl } from './ui/SegmentedControl';
+import PageHeader from './ui/PageHeader';
 import RecurringPicker from './schedule/RecurringPicker';
 import ScheduleListView from './schedule/ScheduleListView';
 import ScheduleCalendarView from './schedule/ScheduleCalendarView';
@@ -17,36 +17,18 @@ function toLocalDateStr(date) {
   return `${y}-${m}-${d}`;
 }
 
-const MOBILE_QUERY = '(max-width: 639px)';
-
-function subscribeMobile(cb) {
-  const mql = window.matchMedia(MOBILE_QUERY);
-  mql.addEventListener('change', cb);
-  return () => mql.removeEventListener('change', cb);
-}
-
-function useIsMobile() {
-  return useSyncExternalStore(
-    subscribeMobile,
-    () => window.matchMedia(MOBILE_QUERY).matches,
-    () => false,
-  );
-}
-
-export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
-  const { team, members, isAdmin } = useTeam();
+// view mode (list/calendar) is controlled by App so the BottomNav FAB can toggle
+// it alongside the desktop header switch.
+export default function Schedule({ setlists, onBack, onOpenSetlist, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
+  const { team, members, canManageRoster } = useTeam();
   const { user } = useAuth();
   const { availability, setStatus, clearStatus } = useTeamAvailability(team?.id);
-  const isMobile = useIsMobile();
 
-  const [userPick, setUserPick] = useState(null); // null = follow screen size
   const [weeksAhead, setWeeksAhead] = useState(8);
   const [rosterSetlist, setRosterSetlist] = useState(null);
   const [pickerDate, setPickerDate] = useState(null);
 
-  // Default tracks the screen size; user's explicit pick wins once made.
-  const viewMode = userPick ?? (isMobile ? 'list' : 'calendar');
-  const handleSetView = (next) => setUserPick(next);
+  const handleSetView = (next) => onSetView?.(next);
 
   const pickerDateStr = pickerDate ? toLocalDateStr(pickerDate) : null;
   const pickerStatus = pickerDateStr
@@ -55,6 +37,19 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
   const pickerAvailableCount = pickerDateStr
     ? availability.filter(a => a.date === pickerDateStr && a.status === 'available').length
     : 0;
+  // Setlists scheduled on the picked date, and every member's availability for
+  // it — so the day sheet shows what's happening and who can serve.
+  const pickerSetlists = pickerDateStr ? setlists.filter(sl => sl.date === pickerDateStr) : [];
+  const pickerRehearsals = pickerDateStr ? setlists.filter(sl => sl.rehearsalDate === pickerDateStr) : [];
+  const pickerMemberStatuses = pickerDateStr
+    ? members.map(m => ({
+        id: m.user_id,
+        name: m.profile?.display_name || m.profile?.email?.split('@')[0] || 'Member',
+        avatarUrl: m.profile?.avatar_url || null,
+        isYou: m.user_id === user?.id,
+        status: availability.find(a => a.user_id === m.user_id && a.date === pickerDateStr)?.status || 'pending',
+      }))
+    : [];
 
   const handleSetStatus = async (status) => {
     if (!pickerDate) return;
@@ -85,36 +80,41 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
 
   if (!team) {
     return (
-      <div className="material-page min-h-screen pb-8">
-        <ScreenHeader title="Schedule" onBack={onBack} />
-        <div className="a4-container py-12 text-center">
-          <p className="text-copy-14 text-[var(--ds-gray-700)]">
-            Schedule planning is a team feature. Create or join a team to start coordinating availability.
-          </p>
+      <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
+        <PageHeader title="Schedule" onClose={onBack} />
+        <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 py-16">
+          <div className="modes-card p-8 text-center flex flex-col items-center gap-3">
+            <div className="w-14 h-14 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--modes-text-muted)]">
+                <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
+              </svg>
+            </div>
+            <h2 className="text-heading-20 text-[var(--modes-text)] m-0">Schedule is a team feature</h2>
+            <p className="text-copy-14 text-[var(--modes-text-muted)] max-w-sm m-0">
+              Create or join a team to plan services, coordinate availability, and build rosters together.
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="material-page min-h-screen pb-8">
-      <ScreenHeader
+    <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
+      <PageHeader
         title="Schedule"
-        subtitle={team.name}
-        onBack={onBack}
+        onClose={onBack}
         actions={
           <SegmentedControl
             value={viewMode}
             onChange={handleSetView}
-            options={[
-              { value: 'list', label: 'List' },
-              { value: 'calendar', label: 'Calendar' },
-            ]}
+            options={[{ value: 'list', label: 'List' }, { value: 'calendar', label: 'Calendar' }]}
+            size="sm"
           />
         }
       />
 
-      <div className="a4-container pt-6 flex flex-col gap-6">
+      <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 pt-6 pb-28 flex flex-col gap-6">
         <RecurringPicker onApply={handleApplyRecurring} />
 
         {viewMode === 'list' ? (
@@ -125,7 +125,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
             availability={availability}
             members={members}
             userId={user?.id}
-            isAdmin={isAdmin}
+            isAdmin={canManageRoster}
             clockFormat={clockFormat}
             onSelectDate={(date) => setPickerDate(date)}
             onOpenSetlist={(sl) => onOpenSetlist?.(sl)}
@@ -138,7 +138,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
             members={members}
             userId={user?.id}
             firstDayOfWeek={firstDayOfWeek}
-            isAdmin={isAdmin}
+            isAdmin={canManageRoster}
             onSelectDate={(date) => setPickerDate(date)}
             onOpenSetlist={(sl) => onOpenSetlist?.(sl)}
             onOpenRoster={(sl) => setRosterSetlist(sl)}
@@ -156,7 +156,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
               setlistId={rosterSetlist.id}
               setlistDate={rosterSetlist.date}
               onClose={() => setRosterSetlist(null)}
-              readOnly={!isAdmin}
+              readOnly={!canManageRoster}
             />
           </div>
         </div>
@@ -168,8 +168,15 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, clockFormat 
           currentStatus={pickerStatus}
           availableCount={pickerAvailableCount}
           totalMembers={members.length}
+          setlists={pickerSetlists}
+          rehearsals={pickerRehearsals}
+          memberStatuses={pickerMemberStatuses}
+          isAdmin={canManageRoster}
+          clockFormat={clockFormat}
           onSetStatus={handleSetStatus}
           onClear={handleClearStatus}
+          onOpenSetlist={(sl) => { setPickerDate(null); onOpenSetlist?.(sl); }}
+          onOpenRoster={(sl) => { setPickerDate(null); setRosterSetlist(sl); }}
           onClose={() => setPickerDate(null)}
         />
       )}

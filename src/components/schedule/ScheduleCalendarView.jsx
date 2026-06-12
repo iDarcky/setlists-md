@@ -50,8 +50,6 @@ export default function ScheduleCalendarView({
   isAdmin,
   firstDayOfWeek = 'sunday',
   onSelectDate,
-  onOpenSetlist,
-  onOpenRoster,
 }) {
   const weekStart = firstDayOffset(firstDayOfWeek);
   const WEEKDAY_LABELS = weekdayLabels(firstDayOfWeek);
@@ -78,6 +76,7 @@ export default function ScheduleCalendarView({
     availability?.find(a => a.user_id === userId && a.date === dateStr)?.status || null;
 
   const setlistsFor = (dateStr) => setlists.filter(sl => sl.date === dateStr);
+  const rehearsalsFor = (dateStr) => setlists.filter(sl => sl.rehearsalDate === dateStr);
 
   const availableCountFor = (dateStr) =>
     availability?.filter(a => a.date === dateStr && a.status === 'available').length || 0;
@@ -89,7 +88,7 @@ export default function ScheduleCalendarView({
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
         </Button>
         <div className="flex items-center gap-2">
-          <h3 className="text-heading-18 m-0 text-[var(--ds-gray-1000)]">
+          <h3 className="text-heading-18 m-0 text-[var(--modes-text)]">
             {monthLabel}
           </h3>
           <Button variant="ghost" size="xs" onClick={goToday}>Today</Button>
@@ -99,74 +98,72 @@ export default function ScheduleCalendarView({
         </Button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center">
+      <div className="grid grid-cols-7 gap-1 sm:gap-1.5 text-center">
         {WEEKDAY_LABELS.map(label => (
-          <span key={label} className="text-label-11 uppercase tracking-wider text-[var(--ds-gray-600)] py-2">
-            {label}
+          <span key={label} className="text-[10px] sm:text-label-11 uppercase tracking-wide sm:tracking-wider text-[var(--modes-text-dim)] py-1.5 sm:py-2">
+            <span className="sm:hidden">{label.slice(0, 1)}</span>
+            <span className="hidden sm:inline">{label}</span>
           </span>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
         {cells.map((date, idx) => {
           const dateStr = toLocalDateStr(date);
           const inMonth = date.getMonth() === cursor.getMonth();
-          const isPast = date < today;
           const isToday = date.getTime() === today.getTime();
           const myStatus = myAvailFor(dateStr);
           const slOnDay = setlistsFor(dateStr);
+          const rehOnDay = rehearsalsFor(dateStr);
           const availCount = availableCountFor(dateStr);
-
-          const cellBg = isToday
-            ? 'border-[var(--color-brand)] bg-[var(--ds-background-100)]'
-            : 'border-[var(--ds-gray-200)] bg-[var(--ds-background-100)]';
-
-          const opacity = inMonth ? '' : 'opacity-40';
-          const interactive = !isPast;
 
           return (
             <button
               key={idx}
               type="button"
-              disabled={!interactive}
-              onClick={() => interactive ? onSelectDate(date) : null}
-              className={`relative aspect-square flex flex-col items-stretch justify-between rounded-lg border p-1.5 text-left transition-colors ${cellBg} ${opacity} ${interactive ? 'hover:bg-[var(--ds-gray-100)] cursor-pointer' : 'cursor-default'}`}
+              onClick={() => onSelectDate(date)}
+              className={`min-h-[58px] sm:min-h-[124px] flex flex-col gap-0.5 sm:gap-1 rounded-lg sm:rounded-xl border p-1 sm:p-1.5 text-left transition-colors cursor-pointer ${
+                isToday ? 'border-[var(--color-brand)] bg-[var(--modes-surface)]' : 'border-[var(--modes-border)] bg-[var(--modes-surface)]'
+              } hover:bg-[var(--modes-surface-strong)] ${inMonth ? '' : 'opacity-45'}`}
             >
-              <div className="flex items-center justify-between">
-                <span className={`text-label-13 ${isToday ? 'font-bold text-[var(--color-brand)]' : 'text-[var(--ds-gray-1000)]'}`}>
-                  {date.getDate()}
-                </span>
+              <div className="flex items-center justify-between gap-0.5">
+                {isToday ? (
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] sm:min-w-[24px] sm:h-6 px-1 rounded-full bg-[var(--color-brand)] text-white text-[10px] sm:text-label-12 font-bold">
+                    {date.getDate()}
+                  </span>
+                ) : (
+                  <span className="text-label-12 sm:text-label-13 text-[var(--modes-text)] pl-0.5">{date.getDate()}</span>
+                )}
                 {myStatus && (
-                  <span className={`w-2 h-2 rounded-full ${statusDotClass(myStatus)}`} aria-label={myStatus} />
+                  <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${statusDotClass(myStatus)}`} aria-label={myStatus} />
                 )}
               </div>
 
-              <div className="flex flex-col gap-0.5">
-                {slOnDay.length > 0 && (
+              <div className="flex flex-col gap-0.5 sm:gap-1 min-h-0">
+                {slOnDay.slice(0, 2).map(sl => (
                   <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (isAdmin) onOpenRoster(slOnDay[0]);
-                      else onOpenSetlist(slOnDay[0]);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.stopPropagation();
-                        if (isAdmin) onOpenRoster(slOnDay[0]);
-                        else onOpenSetlist(slOnDay[0]);
-                      }
-                    }}
-                    className="block text-label-10 px-1 py-0.5 rounded bg-[var(--color-brand)] text-white truncate cursor-pointer hover:opacity-90"
-                    title={slOnDay[0].name}
+                    key={sl.id}
+                    className="block text-[9px] sm:text-label-10 leading-tight px-1 sm:px-1.5 py-0.5 sm:py-1 rounded sm:rounded-md bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] font-medium truncate"
+                    title={sl.name}
                   >
-                    {slOnDay[0].name || 'Setlist'}
+                    {sl.name || 'Setlist'}
                   </span>
+                ))}
+                {slOnDay.length > 2 && (
+                  <span className="text-[9px] sm:text-label-10 text-[var(--modes-text-dim)] pl-0.5">+{slOnDay.length - 2}</span>
                 )}
+                {rehOnDay.slice(0, 1).map(sl => (
+                  <span
+                    key={`reh-${sl.id}`}
+                    className="block text-[9px] sm:text-label-10 leading-tight px-1 sm:px-1.5 py-0.5 sm:py-1 rounded sm:rounded-md bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)] font-medium truncate"
+                    title={`Rehearsal · ${sl.name}`}
+                  >
+                    ⏱ {sl.name || 'Rehearsal'}
+                  </span>
+                ))}
                 {isAdmin && availCount > 0 && (
-                  <span className="text-label-10 text-[var(--ds-gray-600)]">
-                    {availCount}/{members.length} avail
+                  <span className="text-[9px] sm:text-label-10 text-[var(--modes-text-dim)] pl-0.5 truncate">
+                    {availCount}/{members.length}<span className="hidden sm:inline"> avail</span>
                   </span>
                 )}
               </div>

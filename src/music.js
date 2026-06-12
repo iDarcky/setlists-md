@@ -195,6 +195,23 @@ export function getNashvilleNumber(chord, key) {
   return (map[semitones] || '?') + suffix;
 }
  
+// Convert a chord to movable-Do solfège (Do Re Mi …), relative to the key.
+export function getSolfege(chord, key) {
+  if (!chord || !key) return chord;
+  if (chord.includes('/')) {
+    const [main, bass] = chord.split('/');
+    return getSolfege(main, key) + '/' + getSolfege(bass, key);
+  }
+  const { root, suffix } = parseRoot(chord);
+  const keyRoot = parseRoot(key).root;
+  const fi = CHROMATIC.indexOf(keyRoot);
+  const ti = CHROMATIC.indexOf(root);
+  if (fi === -1 || ti === -1) return chord;
+  const semitones = (ti - fi + 12) % 12;
+  const map = { 0: 'Do', 1: 'Di', 2: 'Re', 3: 'Me', 4: 'Mi', 5: 'Fa', 6: 'Fi', 7: 'Sol', 8: 'Le', 9: 'La', 10: 'Te', 11: 'Ti' };
+  return (map[semitones] || '?') + suffix;
+}
+
 // Diatonic chords for a given key (I, ii, iii, IV, V, vi, vii°)
 const DIATONIC_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
 const DIATONIC_QUALITIES = ['', 'm', 'm', '', '', 'm', 'dim'];

@@ -67,7 +67,7 @@ const AppleIcon = () => (
 
 const APPLE_ENABLED = import.meta.env.VITE_ENABLE_APPLE_SIGNIN === 'true';
 
-export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' }) {
+export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin', onShowLegal }) {
   const {
     signInWithGoogle,
     signInWithApple,
@@ -186,7 +186,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
 
   if (!isConfigured) {
     return (
-      <div data-theme-variant="modes" className="min-h-screen flex flex-col">
+      <div data-theme-variant="modes" className="fixed inset-0 overflow-y-auto flex flex-col">
         <ScreenHeader onBack={onBack} title="Sign In" />
         <div className="flex-1 flex items-center justify-center px-6">
           <div className="modes-card max-w-sm p-6 text-center">
@@ -202,7 +202,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
   }
 
   return (
-    <div data-theme-variant="modes" className="min-h-screen flex flex-col">
+    <div data-theme-variant="modes" className="fixed inset-0 overflow-y-auto flex flex-col">
       <ScreenHeader onBack={onBack} title={isSignUp ? 'Create account' : 'Sign in'} />
 
       <div className="flex-1 flex items-start justify-center px-4 py-6 sm:py-10">
@@ -398,6 +398,26 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin' 
             >
               {isSignUp ? 'Sign in instead' : 'Create an account'}
             </Button>
+
+            {isSignUp && (
+              <p className="text-center text-copy-12 text-[var(--modes-text-dim)] m-0 pt-1 leading-relaxed">
+                By creating an account you agree to our{' '}
+                {onShowLegal ? (
+                  <>
+                    <button type="button" onClick={() => onShowLegal('terms')} className="underline underline-offset-2 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-muted)] text-copy-12">Terms of Service</button>
+                    {' '}and{' '}
+                    <button type="button" onClick={() => onShowLegal('privacy')} className="underline underline-offset-2 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-muted)] text-copy-12">Privacy Policy</button>
+                  </>
+                ) : (
+                  <>
+                    <a href="/terms" className="underline underline-offset-2 text-[var(--modes-text-muted)]">Terms of Service</a>
+                    {' '}and{' '}
+                    <a href="/privacy" className="underline underline-offset-2 text-[var(--modes-text-muted)]">Privacy Policy</a>
+                  </>
+                )}
+                .
+              </p>
+            )}
           </form>
         </div>
       </div>
