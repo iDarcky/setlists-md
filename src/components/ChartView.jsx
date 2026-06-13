@@ -403,13 +403,13 @@ export default function ChartView({
               Compact "Line-2" content collapses on scroll but the title
               itself doesn't resize. */}
           <div className="wide-container flex items-center justify-between gap-3 pt-3 pb-0.5">
-            <div className="min-w-0 flex-1 flex items-baseline gap-3">
+            <div className="min-w-0 flex-1 flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setShowInfo(v => !v)}
                 aria-expanded={showInfo}
                 aria-label="Song details"
-                className="min-w-0 flex items-baseline gap-1.5 bg-transparent border-none cursor-pointer p-0 text-left"
+                className="min-w-0 shrink flex items-center gap-1.5 bg-transparent border-none cursor-pointer p-0 text-left"
               >
                 <h1
                   className="m-0 truncate font-bold leading-tight text-heading-24"
@@ -421,25 +421,27 @@ export default function ChartView({
                   <path d="m6 9 6 6 6-6" />
                 </svg>
               </button>
-              {/* Always-mounted inline meta — visibility toggled via
-                  CSS so the DOM doesn't reflow on scroll. Without this
-                  the flex container reflowed at the moment `scrolled`
-                  toggled and the title's truncate point jumped. */}
-              <div
-                className="flex items-center gap-2 flex-shrink-0 text-label-12 transition-opacity duration-150"
-                style={{
-                  color: 'var(--text-2)',
-                  opacity: scrolled ? 1 : 0,
-                  pointerEvents: scrolled ? 'auto' : 'none',
-                  maxWidth: scrolled ? '100%' : 0,
-                  overflow: 'hidden',
-                }}
-                aria-hidden={!scrolled}
-              >
-                <span aria-hidden="true">·</span>
-                <span className="font-bold whitespace-nowrap" style={{ color: 'var(--text-1)' }}>{selectedKey}</span>
-                {song.tempo && <span className="whitespace-nowrap">{song.tempo} bpm</span>}
-                {song.time && <span className="whitespace-nowrap">{song.time}</span>}
+              {/* Inline meta on the title line: interactive key picker +
+                  tempo + time, always visible (one-line header). */}
+              <div className="flex items-center gap-2 flex-shrink-0 text-label-12" style={{ color: 'var(--text-2)' }}>
+                <Select value={selectedKey} onValueChange={setSelectedKey}>
+                  <SelectTrigger className="h-7 px-1.5 border border-[var(--border-1)] bg-[var(--bg-1)] rounded-lg text-label-13 font-bold text-[var(--text-1)] hover:bg-[var(--bg-2)] gap-1 min-w-0 w-auto focus:ring-0" aria-label="Key">
+                    <span className="text-label-11 font-semibold text-[var(--text-2)] mr-0.5">Key</span>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ALL_KEYS.map(k => (
+                      <SelectItem key={k} value={k}>{k}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {song.tempo && (
+                  <span className="whitespace-nowrap hidden sm:inline">
+                    <span className="font-bold text-[var(--text-1)]">{song.tempo}</span>
+                    <span className="ml-0.5">bpm</span>
+                  </span>
+                )}
+                {song.time && <span className="whitespace-nowrap hidden sm:inline font-bold text-[var(--text-1)]">{song.time}</span>}
               </div>
             </div>
             <div className="flex gap-0.5 items-center flex-shrink-0">
@@ -518,16 +520,18 @@ export default function ChartView({
             </div>
           </div>
 
-          {/* Line 2: Arrangement + Key / Tempo / Time — collapses when scrolled */}
-          <div className={cn(
-            "wide-container flex flex-wrap items-center gap-3 transition-all duration-200 overflow-hidden",
-            scrolled ? "max-h-0 opacity-0 pb-0" : "max-h-12 opacity-100 pb-1.5"
-          )}>
-            {song._arrangementId && (song._allArrangements?.length || 0) > 1 ? (
-              <>
+          {/* Line 2: Arrangement switcher only (key/tempo/time moved onto the
+              title line). Renders just when the song has arrangements; collapses
+              on scroll. */}
+          {song._arrangementId && (
+            <div className={cn(
+              "wide-container flex flex-wrap items-center gap-3 transition-all duration-200 overflow-hidden",
+              scrolled ? "max-h-0 opacity-0 pb-0" : "max-h-12 opacity-100 pb-1.5"
+            )}>
+              {(song._allArrangements?.length || 0) > 1 ? (
                 <Select value={activeArrId} onValueChange={handleSwitchArrangement}>
                   <SelectTrigger
-                    className="h-7 px-1.5 border-transparent bg-transparent hover:bg-[var(--bg-2)] text-label-13 font-semibold text-[var(--text-1)] gap-1.5 max-w-[180px] min-w-0 w-auto focus:ring-0"
+                    className="h-7 px-1.5 border-transparent bg-transparent hover:bg-[var(--bg-2)] text-label-13 font-semibold text-[var(--text-1)] gap-1.5 max-w-[220px] min-w-0 w-auto focus:ring-0"
                     aria-label="Switch arrangement"
                   >
                     <span className="truncate">
@@ -547,42 +551,13 @@ export default function ChartView({
                     ))}
                   </SelectContent>
                 </Select>
-                <span className="text-label-12" style={{ color: 'var(--text-2)' }}>·</span>
-              </>
-            ) : song._arrangementId ? (
-              <>
-                <span className="text-label-13 font-semibold truncate max-w-[180px]" style={{ color: 'var(--text-1)' }}>
+              ) : (
+                <span className="text-label-13 font-semibold truncate max-w-[220px]" style={{ color: 'var(--text-1)' }}>
                   {song._arrangementName}
                 </span>
-                <span className="text-label-12" style={{ color: 'var(--text-2)' }}>·</span>
-              </>
-            ) : null}
-            <Select value={selectedKey} onValueChange={setSelectedKey}>
-              <SelectTrigger className="h-6 px-1.5 border-transparent bg-transparent text-label-14 font-bold text-[var(--text-1)] hover:bg-[var(--bg-2)] gap-1 min-w-0 w-auto focus:ring-0">
-                <span className="text-label-12 font-semibold text-[var(--text-2)] mr-0.5">Key</span>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ALL_KEYS.map(k => (
-                  <SelectItem key={k} value={k}>
-                    {k}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {song.tempo && (
-              <span className="text-label-14 text-[var(--text-2)]">
-                <span className="text-label-12 font-semibold mr-0.5">Tempo</span>
-                <span className="font-bold">{song.tempo}</span>
-              </span>
-            )}
-            {song.time && (
-              <span className="text-label-14 text-[var(--text-2)]">
-                <span className="text-label-12 font-semibold mr-0.5">Time</span>
-                <span className="font-bold">{song.time}</span>
-              </span>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Inline song details — toggled by the title chevron (like the editor) */}
           {showInfo && (
