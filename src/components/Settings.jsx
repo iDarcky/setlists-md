@@ -119,7 +119,7 @@ const Row = ({ label, children, description }) => (
 
 // ─── Hub row — drills into a sub-panel ───────────────────────────────────
 
-function HubRow({ icon: Icon, label, value, onClick }) {
+function HubRow({ label, value, onClick }) {
   return (
     <button
       type="button"
@@ -950,7 +950,7 @@ export default function Settings({
               </p>
             </div>
             <nav className="flex-1 overflow-y-auto px-2 pb-3 flex flex-col gap-0.5">
-              {navItems.map(({ key, label, icon: Icon }) => {
+              {navItems.map(({ key, label }) => {
                 const active = desktopPanel === key;
                 return (
                   <button

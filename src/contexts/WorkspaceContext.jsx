@@ -1,6 +1,5 @@
-import React, { createContext, useContext } from 'react';
-
-const WorkspaceContext = createContext({ activeLibrary: 'personal' });
+import React from 'react';
+import { WorkspaceContext } from './workspace';
 
 export function WorkspaceProvider({ activeLibrary, children }) {
   return (
@@ -8,8 +7,4 @@ export function WorkspaceProvider({ activeLibrary, children }) {
       {children}
     </WorkspaceContext.Provider>
   );
-}
-
-export function useWorkspace() {
-  return useContext(WorkspaceContext);
 }

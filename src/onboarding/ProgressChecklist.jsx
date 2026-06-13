@@ -13,7 +13,7 @@ const CHEVRON = (open) => (
   </svg>
 );
 
-function buildItems({ settings, songs, setlists, hasCloud, actions }) {
+function buildItems({ settings, setlists, hasCloud, actions }) {
   const items = [
     {
       id: 'opened',

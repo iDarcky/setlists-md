@@ -206,7 +206,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   }, [applyStructural]);
 
   // Touch drag for mobile
-  const handleTouchStart = useCallback((idx, e) => {
+  const handleTouchStart = useCallback((idx) => {
     setDragIdx(idx);
   }, []);
 

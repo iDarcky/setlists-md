@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields } from '../../parser';
 import ChipInput from '../ui/ChipInput';
 
@@ -34,27 +34,25 @@ const FIELDS = [
 const INPUT_CLASS = 'w-full px-2.5 py-1.5 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md text-copy-13 text-[var(--ds-gray-1000)] outline-none font-mono';
 
 export default function MetadataPanel({ md, onChange, isOpen, keyHistory }) {
-  const isInternalUpdate = useRef(false);
-
   const [fields, setFields] = useState(() => parseFrontmatterFields(splitMd(md).frontmatter));
 
-  // Sync from external md changes (e.g., WriteTab edited frontmatter directly)
-  useEffect(() => {
-    if (isInternalUpdate.current) {
-      isInternalUpdate.current = false;
-      return;
-    }
+  // Sync from external md changes (e.g., WriteTab edited frontmatter directly).
+  // `syncedMd` records the md we last reconciled with — including the md we
+  // emit ourselves via handleChange — so the echo of our own edit is ignored
+  // and doesn't clobber the field the user is typing in.
+  const [syncedMd, setSyncedMd] = useState(md);
+  if (md !== syncedMd) {
+    setSyncedMd(md);
     setFields(parseFrontmatterFields(splitMd(md).frontmatter));
-  }, [md]);
+  }
 
   const handleChange = useCallback((key, value) => {
-    setFields(prev => {
-      const updated = { ...prev, [key]: value };
-      isInternalUpdate.current = true;
-      onChange(replaceFrontmatter(md, serializeFrontmatterFields(updated)));
-      return updated;
-    });
-  }, [md, onChange]);
+    const updated = { ...fields, [key]: value };
+    const nextMd = replaceFrontmatter(md, serializeFrontmatterFields(updated));
+    setFields(updated);
+    setSyncedMd(nextMd);
+    onChange(nextMd);
+  }, [fields, md, onChange]);
 
   // Per-type input value filtering before it reaches the field.
   const filterValue = (f, raw) => {

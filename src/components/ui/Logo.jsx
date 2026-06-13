@@ -1,8 +1,6 @@
 import React from 'react';
 
 export const Logo = ({ size = 32, variant = 'full', className = '' }) => {
-  const isDark = true; // Could be controlled by a theme context
-
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <svg 

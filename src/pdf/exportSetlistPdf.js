@@ -14,7 +14,7 @@
 // if either file's print styles change meaningfully.
 
 
-import { transposeKey, compactLabel, normalizeSectionName } from '../music';
+import { transposeKey } from '../music';
 import { resolveSongView } from '../arrangements';
 import {
   escapeHtml,
@@ -805,13 +805,6 @@ function renderSongRow(item, songs, songIndex) {
   const capo = item.capo || 0;
   const displayKey = transposeKey(song.key, transpose);
   const note = item.note ? `<p class="note">${escapeHtml(item.note)}</p>` : '';
-
-  // Structure flow with compact labels (V1 · C · B · C)
-  const names = song.structure || song.sections?.map(s => s.type) || [];
-  const structureFlow = names.map(n => compactLabel(n)).join(' · ');
-  const structureHtml = structureFlow
-    ? `<p class="structure">${escapeHtml(structureFlow)}</p>`
-    : '';
 
   return `
     <div class="row">

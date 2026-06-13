@@ -165,7 +165,7 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const { team, teams, setActiveTeam, isAdmin, isEditor, isMember, hasTeamPlan, loading: teamLoading } = useTeam();
+  const { team, teams, setActiveTeam, isAdmin, isEditor, hasTeamPlan, loading: teamLoading } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const canEdit = !team || isAdmin || isEditor;
   const isTeamAdmin = isAdmin;
@@ -959,7 +959,7 @@ export default function App() {
     }));
   }, []);
 
-  const handleNotificationAction = (action) => {
+  const handleNotificationAction = () => {
     // Actions are usually strings like "view_setlist_123" or similar
     // Actually the action might not have been implemented in previous iterations.
     // If we have an actionable notification, we can handle it here if it's not handled internally by the tray
@@ -1031,7 +1031,6 @@ export default function App() {
     setPreviewSetlistId(null);
     navigate('setlist-view', { setlist: sl });
   };
-  const goSetlistPlay = (sl) => navigate('setlist-play', { setlist: sl });
   const goSetlistPerformance = (sl) => {
     if (!settings?.firstStageMode) {
       setSettings(prev => ({ ...prev, firstStageMode: true }));
@@ -1620,9 +1619,6 @@ export default function App() {
     }
   };
 
-  const handleExportSetlistPdf = (sl) => {
-    exportSetlistPdf(sl, songs);
-  };
 
   const handleImportSetlist = async (file) => {
     try {

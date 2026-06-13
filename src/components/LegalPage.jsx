@@ -107,25 +107,6 @@ export default function LegalPage({ doc, onBack }) {
     return () => { document.title = previous; };
   }, [title]);
 
-  // Footer links navigate in-app when onBack is available, otherwise use hrefs.
-  const footerLink = (docKey, label) =>
-    onBack ? (
-      <button
-        key={docKey}
-        type="button"
-        onClick={() => {
-          if (typeof window !== 'undefined') window.history.pushState({}, '', `/${docKey}`);
-          // Caller must handle navigating to the right legal view; we just update the URL.
-          // When accessed standalone, fall back to href navigation.
-        }}
-        className="bg-transparent border-none p-0 cursor-pointer hover:underline text-[var(--ds-gray-700)] text-copy-13"
-      >
-        {label}
-      </button>
-    ) : (
-      <a key={docKey} href={`/${docKey}`} className="hover:underline">{label}</a>
-    );
-
   // Inside app shell: use ScreenHeader + scrollable content (no standalone chrome).
   if (onBack) {
     return (

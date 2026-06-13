@@ -5,7 +5,6 @@ import { Input } from '../ui/Input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/Select';
 import { useConfirm } from '../ui/useConfirmHook';
 import UpgradeGate from '../ui/UpgradeGate';
-import { useEntitlement } from '../../hooks/useEntitlement';
 import {
   CHART_THEMES,
   CHART_FONTS,
@@ -196,7 +195,6 @@ function FontPickerRow({ label, value, onChange, defaultId }) {
 }
 
 export default function ChartStylePanel({ settings, update, onUpgrade }) {
-  const { allowed } = useEntitlement('chart-style');
   const activeThemeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
   const freeThemes = CHART_THEMES.filter(t => FREE_CHART_THEME_IDS.has(t.id));
 

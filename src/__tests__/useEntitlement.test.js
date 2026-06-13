@@ -85,7 +85,7 @@ describe('PLAN_RANK', () => {
 
 describe('FEATURE_GATES', () => {
   it('every gate maps to a valid plan', () => {
-    for (const [feature, plan] of Object.entries(FEATURE_GATES)) {
+    for (const [, plan] of Object.entries(FEATURE_GATES)) {
       expect(PLAN_RANK).toHaveProperty(plan);
     }
   });

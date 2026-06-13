@@ -264,10 +264,13 @@ export default function Library({
   }, [songs, query, selectedTags]);
 
   // Reset pagination + selection when filter criteria change.
-  useEffect(() => {
+  const [prevFilterKey, setPrevFilterKey] = useState(null);
+  const filterKey = JSON.stringify([query, selectedTags, sortMode, sortAsc]);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
     setVisibleCount(INITIAL_VISIBLE);
     setSelected([]);
-  }, [query, selectedTags, sortMode, sortAsc]);
+  }
 
   const truncated = useMemo(
     () => filtered.length > visibleCount ? filtered.slice(0, visibleCount) : filtered,

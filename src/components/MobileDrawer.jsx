@@ -62,7 +62,7 @@ const TeamDrawerIcon = () => (
   </svg>
 );
 
-function Row({ icon: Icon, label, onClick, accessory }) {
+function Row({ label, onClick, accessory }) {
   return (
     <button
       onClick={onClick}

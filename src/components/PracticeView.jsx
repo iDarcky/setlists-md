@@ -964,9 +964,11 @@ function CueCard({ value, sectionLabel, onSave }) {
   const textareaRef = useRef(null);
 
   // Sync draft when value changes externally (e.g. after save propagates)
-  useEffect(() => {
+  const [prevSync, setPrevSync] = useState({ value, editing });
+  if (prevSync.value !== value || prevSync.editing !== editing) {
+    setPrevSync({ value, editing });
     if (!editing) setDraft(value);
-  }, [value, editing]);
+  }
 
   // Auto-focus and move cursor to end
   useEffect(() => {
@@ -1081,9 +1083,11 @@ function SetlistNoteCard({ value, onSave }) {
   const [draft, setDraft] = useState(value);
   const textareaRef = useRef(null);
 
-  useEffect(() => {
+  const [prevSync, setPrevSync] = useState({ value, editing });
+  if (prevSync.value !== value || prevSync.editing !== editing) {
+    setPrevSync({ value, editing });
     if (!editing) setDraft(value);
-  }, [value, editing]);
+  }
 
   useEffect(() => {
     if (editing && textareaRef.current) {

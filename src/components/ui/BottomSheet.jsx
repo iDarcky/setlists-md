@@ -15,12 +15,14 @@ export default function BottomSheet({ open, onClose, title, children }) {
   // close — otherwise dragging it down past the threshold leaves dragY > 120
   // baked into state and the next open renders translated halfway down the
   // screen.
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setDragY(0);
       setDragging(false);
     }
-  }, [open]);
+  }
 
   useEffect(() => {
     if (!open) return;
