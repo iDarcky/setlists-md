@@ -440,6 +440,7 @@ function ChartPanel({ settings, update }) {
           {[
             { key: 'pill', label: 'Floating pill' },
             { key: 'header', label: 'Header buttons' },
+            { key: 'edge', label: 'Edge arrows' },
             { key: 'swipe', label: 'Swipe' },
           ].map(({ key, label }) => {
             const active = (settings.navStyle || 'pill') === key;

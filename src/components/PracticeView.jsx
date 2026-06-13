@@ -16,11 +16,12 @@ import NotesStack from './ui/NotesStack';
 import ViewModePicker from './ui/ViewModePicker';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import NoteContent from './ui/NoteContent';
-import { headerFrostStyle } from '../lib/headerFrost';
+import StageHeader from './ui/StageHeader';
+import EdgeNavArrows from './ui/EdgeNavArrows';
 import { useIsTablet, useIsLandscape, useIsDesktop } from '../lib/useMediaQuery';
 import { STAGE_MODE_MAP } from '../data/stageModes';
 import { resolveChartDisplay, resolveColumns } from '../lib/chartDisplay';
-import { useAutoHideHeader } from '../hooks/useAutoHideHeader';
+import { useStageHeaderCollapse } from '../hooks/useStageHeaderCollapse';
 import { useActiveSection } from '../hooks/useActiveSection';
 import { usePrivateNotes } from '../notes/usePrivateNotes';
 
@@ -83,10 +84,10 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     onUpdateSettings?.('showDiagrams', !!preset.showDiagrams);
   };
   const [showStructureEditor, setShowStructureEditor] = useState(false);
-  const [headerCollapsed, setHeaderCollapsed, onHeaderActivity] = useAutoHideHeader(settings?.autoHideHeader !== false);
   const [setlistSheetOpen, setSetlistSheetOpen] = useState(false);
   const [chartWidth, setChartWidth] = useState(0);
   const scrollRef = useRef(null);
+  const [headerCollapsed, setHeaderCollapsed] = useStageHeaderCollapse(scrollRef, settings?.autoHideHeader !== false);
 
   // Parallel-browsing setlist rail — same affordance as the live Performance
   // view, so the leader can jump songs mid-practice without leaving the chart.
@@ -368,6 +369,13 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           <ViewModePicker value={displayMode} onChange={changeDisplayMode} hasTabs={curHasTabs} />
         </div>
       )}
+      {!cur.isBreak && !cur.isMissing && (
+        <IconButton size="sm" variant="ghost" onClick={() => setShowStructureEditor(true)} aria-label="Edit structure" title="Edit structure" className="hidden sm:inline-flex">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+          </svg>
+        </IconButton>
+      )}
       <IconButton
         size="sm"
         variant="ghost"
@@ -397,9 +405,8 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     >
     <div
       ref={scrollRef}
-      onTouchStart={(e) => { onTouchStart(e); onHeaderActivity(); }}
+      onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
-      onMouseDown={onHeaderActivity}
       className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
@@ -414,8 +421,49 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           (you can still jump between sections), and the title + meta +
           badge tuck away. The dedicated ribbon row below only renders
           when the header is expanded. */}
-      {(() => {
-        const structRibbon = !cur.isBreak && !cur.isMissing && cur.song.sections?.length > 0 ? (
+      <StageHeader
+        collapsed={headerCollapsed}
+        title={(
+          <>
+            {navButtons}
+            <h1 className="text-heading-18 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
+              {cur.isBreak ? (cur.label || 'Break') : cur.song.title}
+            </h1>
+            <span
+              className="hidden sm:inline-flex shrink-0 items-center px-2 py-0.5 rounded-md text-label-10 font-black uppercase tracking-widest"
+              style={{ background: 'var(--color-brand)', color: 'white' }}
+            >
+              Practice
+            </span>
+          </>
+        )}
+        meta={!cur.isBreak && !cur.isMissing && displayKey ? (
+          <>
+            <Select value={displayKey} onValueChange={handleKeyChange}>
+              <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ALL_KEYS.map(k => (
+                  <SelectItem key={k} value={k}>{k}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {cur.capo > 0 && (
+              <span className="text-label-12 font-bold text-[var(--color-brand)] whitespace-nowrap bg-[var(--color-brand-soft)] px-1.5 py-0.5 rounded border border-[var(--color-brand-border)]">
+                Capo {cur.capo}
+              </span>
+            )}
+            {cur.song.tempo && (
+              <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">♩ {cur.song.tempo}</span>
+            )}
+            {cur.song.time && (
+              <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">{cur.song.time}</span>
+            )}
+          </>
+        ) : null}
+        actions={headerControls}
+        ribbon={!cur.isBreak && !cur.isMissing && cur.song.sections?.length > 0 ? (
           <StructureRibbon
             structure={cur.song.structure || cur.song.sections.map(s => s.type)}
             compact
@@ -431,90 +479,8 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
               }
             }}
           />
-        ) : null;
-        return (
-          <div className="material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
-            <div className={`wide-container flex items-center gap-2 ${headerCollapsed ? 'py-1.5' : 'py-3'}`}>
-              {navButtons}
-              {!headerCollapsed && (
-                <>
-                  {/* Title */}
-                  <h1 className="text-heading-16 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
-                    {cur.isBreak ? (cur.label || 'Break') : cur.song.title}
-                  </h1>
-
-                  {/* Meta: key (saves on change) + tempo + time */}
-                  {!cur.isBreak && !cur.isMissing && displayKey && (
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Select value={displayKey} onValueChange={handleKeyChange}>
-                        <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ALL_KEYS.map(k => (
-                            <SelectItem key={k} value={k}>
-                              {k}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {cur.capo > 0 && (
-                        <span className="text-label-12 font-bold text-[var(--color-brand)] whitespace-nowrap bg-[var(--color-brand-soft)] px-1.5 py-0.5 rounded border border-[var(--color-brand-border)]">
-                          Capo {cur.capo}
-                        </span>
-                      )}
-                      {cur.song.tempo && (
-                        <span className="hidden sm:inline text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
-                          ♩ {cur.song.tempo}
-                        </span>
-                      )}
-                      {cur.song.time && (
-                        <span className="hidden sm:inline text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
-                          {cur.song.time}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Practice badge */}
-                  <span
-                    className="hidden sm:inline-flex shrink-0 items-center px-2 py-0.5 rounded-md text-label-10 font-black uppercase tracking-widest"
-                    style={{ background: 'var(--color-brand)', color: 'white' }}
-                  >
-                    Practice
-                  </span>
-                </>
-              )}
-              {headerCollapsed && (
-                <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
-                  {structRibbon}
-                </div>
-              )}
-              {headerControls}
-            </div>
-
-            {/* Dedicated structure-ribbon row — only when expanded. */}
-            {!headerCollapsed && structRibbon && (
-              <div className="wide-container flex items-center gap-1 pb-2 pt-0">
-                <div className="flex-1 overflow-x-auto no-scrollbar">
-                  {structRibbon}
-                </div>
-                <IconButton
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => setShowStructureEditor(true)}
-                  title="Edit structure"
-                  className="shrink-0"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
-                </IconButton>
-              </div>
-            )}
-          </div>
-        );
-      })()}
+        ) : null}
+      />
 
       {/* ── Content ── */}
       <div className="wide-container pt-4 pb-32">
@@ -602,6 +568,16 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           hasPrev={idx > 0}
           hasNext={idx < resolved.length - 1}
           onFinish={onFinish ? handleFinish : undefined}
+        />
+      )}
+      {navStyle === 'edge' && (
+        <EdgeNavArrows
+          onPrev={goPrev}
+          onNext={goNext}
+          hasPrev={idx > 0}
+          hasNext={idx < resolved.length - 1}
+          onFinish={onFinish ? handleFinish : undefined}
+          nextLabel={next?.isBreak ? (next.label || 'Break') : next?.song?.title}
         />
       )}
     </div>
