@@ -2,6 +2,19 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.11.0 — Backend hardening & sync reliability
+*June 2026*
+
+### Fixed
+- **Team library sync rebuilt** — server-authoritative engine with compare-and-swap locking; fixes the endless "Synced" toast loop caused by hash mismatch between push and JSONB pull, and correctly propagates remote deletions locally.
+- **PDF export on all platforms** — print dialog now always uses an in-app overlay (iframe); fixes printing in iOS standalone mode and clears the last blocker for Capacitor webview packaging.
+- **Team read-only enforcement** — members of a read-only team library can no longer reach the song editor, smart-import, or multi-import flows.
+
+### Security
+- Tightened database function permissions: revoked PUBLIC/anon execute on all security-definer RPCs (earlier migration was a no-op against PUBLIC grant).
+- Team schedule writes restricted to admins, leaders and owners; members can no longer assign band slots.
+- Team availability inserts now validated against team membership (prevents cross-team availability injection).
+
 ## 0.10.0 — Editor overhaul, teams & scheduling, sharing, and a new look
 *June 2026*
 

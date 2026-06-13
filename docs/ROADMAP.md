@@ -53,8 +53,9 @@ and email are in place.
 ### 🔴 July — remaining launch blockers
 - [ ] **Unsaved-changes guard** — "are you sure?" before leaving the song editor
       (the setlist builder already has one; the song editor does not).
-- [ ] **iPad PWA PDF export** — popup is blocked in standalone mode; ship the
-      inline-iframe fallback (see §7 below).
+- [x] **iPad PWA PDF export** — popup is blocked in standalone mode; ship the
+      inline-iframe fallback (see §7 below). *Done June 2026 — the iframe
+      overlay is now the only print path on every platform.*
 
 ### 🟡 Beta quality (should ship, won't hard-block)
 - [ ] Display modes: Chords-only / Lyrics-only / Song-map.
@@ -182,24 +183,20 @@ Shipped:
       auto-hide in *overview-only* mode where they don't apply.
 
 Known issues / risks:
-- [ ] **iPad PWA standalone popup blocking** — the manifest declares
-      `display: 'standalone'` (see `vite.config.js`), so when the app
-      is launched from the iPad Home Screen, `window.open('about:blank',
-      '_blank', ...)` (used by both `exportSongPdf.js` and
-      `exportSetlistPdf.js`) is frequently blocked or bounces out to
-      Safari, breaking the `window.opener.localStorage` pref-sync hook
-      and the `document.write(...)` injection. The current fallback is a
-      generic "Could not open the print window" alert, but there is no
-      popup-permission setting inside an installed PWA, so the user has
-      no recovery path. Plan:
-      • Detect `window.matchMedia('(display-mode: standalone)').matches`
-        and switch to an inline-iframe overlay rendered inside the app,
-        then call `iframe.contentWindow.print()` to trigger AirPrint →
-        *Save to Files* / *Save as PDF*. Keeps the user inside the PWA.
-      • Desktop and Android Chrome continue to use the popup (works fine
-        there and gives a richer preview).
-      • Last-resort fallback: offer a Blob-URL `.html` download the user
-        can open in Safari and print/share-sheet from there.
+- [x] **iPad PWA standalone popup blocking** — *Fixed (June 2026).* The
+      print preview no longer uses `window.open` + `document.write` on
+      any platform. `openPrintWindow()` (`src/pdf/pdfDocument.js`) now
+      always renders an in-app overlay with a same-origin
+      `<iframe srcdoc>` and prints via `iframe.contentWindow.print()`.
+      This works in installed PWAs (no popup permission involved),
+      survives popup blockers on desktop, and is the only pattern that
+      will work inside Capacitor/Electron webviews later. The
+      `window.opener.localStorage` pref hook is obsolete (the iframe is
+      same-origin, so it reads `setlists-md:pdf-prefs` directly); the
+      in-document Close button removes the overlay via
+      `window.frameElement`.
+      Residual risk: `contentWindow.print()` on very old iOS versions
+      (< 13) silently no-ops — acceptable.
 
 Planned (highest-value first):
 - [ ] **More print entry points** — today print is reachable only from

@@ -11,6 +11,7 @@ import { withArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
 import { DEMO_SONGS_MD } from './data/demos';
 import { createSyncEngine } from './sync/engine';
+import { createTeamSyncEngine } from './sync/team-engine';
 import { getSyncState, setActiveProvider } from './sync/tokens';
 import OnboardingFlow from './onboarding/OnboardingFlow';
 import Dashboard from './components/Dashboard';
@@ -151,6 +152,15 @@ function prefsEqual(a, b) {
     if ((a?.[k] ?? null) !== (b?.[k] ?? null)) return false;
   }
   return true;
+}
+
+// Team libraries sync directly against the Supabase tables
+// (server-authoritative team engine); the file-manifest engine remains for
+// the personal library's Drive/Dropbox/OneDrive providers.
+function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
+  return libraryId !== 'personal'
+    ? createTeamSyncEngine(onStatusChange, libraryId, opts)
+    : createSyncEngine(onStatusChange, libraryId, opts);
 }
 
 export default function App() {
@@ -304,9 +314,9 @@ export default function App() {
       syncEngineRef.current.cancelDebounce();
     }
 
-    syncEngineRef.current = createSyncEngine((status) => {
+    syncEngineRef.current = createEngineForLibrary(activeLibrary, (status) => {
       setSyncState(prev => ({ ...prev, ...status }));
-    }, activeLibrary, { readOnly: isTeamReadOnly });
+    }, { readOnly: isTeamReadOnly });
   }, [activeLibrary, isTeamReadOnly]);
 
   const triggerSync = useCallback(async () => {
@@ -315,7 +325,12 @@ export default function App() {
     const providerId = activeLibrary !== 'personal' ? `supabase-team:${activeLibrary}` : state?.activeProvider;
     if (!providerId) return;
     const result = await syncEngineRef.current.fullSync(songs, setlists, tombstones);
-    if (result.changed) {
+    if (result.replaced) {
+      // Team engine is server-authoritative — adopt its arrays wholesale so
+      // remote deletions disappear here too.
+      setSongs(result.songs);
+      setSetlists(result.setlists);
+    } else if (result.changed) {
       setSongs(prev => {
         const next = [...prev];
         for (const id of result.pulledSongIds || []) {
@@ -473,7 +488,10 @@ export default function App() {
           const currentSetlists = savedSetlists || [];
           engine.fullSync(currentSongs, currentSetlists, savedTombstones).then(result => {
             if (ignore) return;
-            if (result.changed) {
+            if (result.replaced) {
+              setSongs(result.songs);
+              setSetlists(result.setlists);
+            } else if (result.changed) {
               setSongs(prev => {
                 const next = [...prev];
                 for (const id of result.pulledSongIds || []) {
@@ -678,9 +696,23 @@ export default function App() {
     window.history.pushState(null, '');
   };
 
+  // True (and toasts) when the active team library is read-only for this user.
+  const guardTeamReadOnly = () => {
+    if (!isTeamReadOnly) return false;
+    toast({
+      title: 'Read-only library',
+      description: 'Only team admins and editors can change songs here. Ask a team admin for the editor role.',
+    });
+    return true;
+  };
+
   // Navigation with history stack. Not memoised — captures current state
   // through snapshot() on each call, which is what we want for back/forward.
   const navigate = (nextView, { song, setlist, replace, arrangementId } = {}) => {
+    // Central gate for read-only team members (audit D-1): every editor entry
+    // point funnels through here, so members can't reach the editor and lose
+    // work to the server-authoritative sync (RLS already blocks their writes).
+    if (nextView === 'editor' && guardTeamReadOnly()) return;
     if (!replace) pushHistory(snapshot());
     if (song !== undefined) setCurrentSong(song);
     if (setlist !== undefined) setCurrentSetlist(setlist);
@@ -1196,7 +1228,7 @@ export default function App() {
       // Trigger a background sync on the target library so the cloud gets the file
       if (syncEngineRef.current) {
         // We can instantiate a temporary engine just to push to the target library
-        const tempEngine = createSyncEngine(() => {}, targetLibraryId);
+        const tempEngine = createEngineForLibrary(targetLibraryId, () => {});
         // We need the tombstones of the target library to pass to push
         const targetTombstones = await loadTombstones(targetLibraryId);
         const targetSetlists = await loadSetlists(targetLibraryId);
@@ -1229,7 +1261,7 @@ export default function App() {
 
       // Trigger a background sync on the target library so the cloud gets the file
       if (syncEngineRef.current) {
-        const tempEngine = createSyncEngine(() => {}, targetLibraryId);
+        const tempEngine = createEngineForLibrary(targetLibraryId, () => {});
         const targetTombstones = await loadTombstones(targetLibraryId);
         const targetSetlists = await loadSetlists(targetLibraryId);
         tempEngine.debouncedPush(targetSongs, targetSetlists, targetTombstones, () => {});
@@ -1365,6 +1397,7 @@ export default function App() {
   };
 
   const handleSmartImport = (mdText) => {
+    if (guardTeamReadOnly()) return; // adds to songs before navigate()'s gate
     try {
       const parsed = parseSongMd(mdText);
       const song = songFromFlat({ ...parsed, id: generateId(), updatedAt: Date.now() });
@@ -1378,6 +1411,7 @@ export default function App() {
 
   const handleImportParsedSongs = (parsedSongs) => {
     if (!parsedSongs || parsedSongs.length === 0) return;
+    if (guardTeamReadOnly()) return;
     setNewSongModal(null);
     if (parsedSongs.length === 1) {
       navigate('editor', { song: parsedSongs[0] });

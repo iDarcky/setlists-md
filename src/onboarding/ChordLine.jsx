@@ -32,12 +32,14 @@ function parseChordBlocks(line) {
 
 export default function ChordLine({ line, animateKey }) {
   const blocks = parseChordBlocks(line);
-  let chordIdx = 0;
   return (
     <div className="text-copy-14" style={{ lineHeight: 1.25 }}>
       {blocks.map((b, i) => {
-        const delay = b.chord ? chordIdx * 30 : 0;
-        if (b.chord) chordIdx += 1;
+        // Stagger the chord pop-in by the chord's ordinal position. Counted
+        // functionally (no render-time mutation) to satisfy react-hooks/immutability.
+        const delay = b.chord
+          ? blocks.slice(0, i).filter((x) => x.chord).length * 30
+          : 0;
         return (
           <span
             key={`${animateKey ?? 0}-${i}`}
