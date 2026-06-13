@@ -262,10 +262,10 @@ export default function TopHeader({
                       role="menuitem"
                       href={supportContact ? `mailto:${supportContact}?subject=Additional%20Space` : undefined}
                       className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-[var(--ds-gray-500)] hover:bg-[var(--ds-gray-200)] transition-colors no-underline"
-                      title="Spaces are limited during testing"
+                      title="You've reached the workspace limit"
                     >
                       <span className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"><PlusIcon /></span>
-                      <span className="text-label-13">Contact support for more Spaces</span>
+                      <span className="text-label-13">Workspace limit reached — contact support</span>
                     </a>
                   )}
                   {hasTeamPlan && onManageTeams && (

@@ -9,7 +9,7 @@ import PageHeader from './ui/PageHeader';
 import ActivityFeed from './team/ActivityFeed';
 import AvatarUploader from './ui/AvatarUploader';
 import { useConfirm } from './ui/useConfirmHook';
-import { BILLING_ENABLED, WORKSPACE_CREATION_LOCKED, startTeamCheckout } from '../billing/checkout';
+import { BILLING_ENABLED, startTeamCheckout } from '../billing/checkout';
 
 const TeamIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -938,7 +938,7 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
 
 export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initialCreate = false, onCreateHandled, defaultSpaceId = 'personal', onSetDefaultSpace }) {
   const { user } = useAuth();
-  const { team, members, invites, isAdmin, loading, createTeam, inviteMember, removeMember, updateMemberRole, cancelInvite, leaveTeam, deleteTeam, hasTeamPlan, updateTeam } = useTeam();
+  const { team, members, invites, isAdmin, loading, createTeam, inviteMember, removeMember, updateMemberRole, cancelInvite, leaveTeam, deleteTeam, hasTeamPlan, atWorkspaceLimit, updateTeam } = useTeam();
 
   // Whether the create form is showing. A user can belong to several
   // workspaces, so the form is reachable even when a team is already active
@@ -983,7 +983,7 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
   // Eligible to create additional Spaces — but creation may be temporarily
   // locked for testing (then we show a "contact support" note instead).
   const eligibleToCreate = BILLING_ENABLED || hasTeamPlan;
-  const canCreate = eligibleToCreate && !WORKSPACE_CREATION_LOCKED;
+  const canCreate = eligibleToCreate && !atWorkspaceLimit;
   const ownerTier = team?.owner_id === user?.id ? team?.plan : undefined;
 
   // Show the create form when explicitly creating, or when the user has no

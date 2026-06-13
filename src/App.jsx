@@ -35,7 +35,7 @@ import { useTeamRealtime } from './hooks/useTeamRealtime';
 import { useChartTheme } from './hooks/useChartTheme';
 import { useTeamSchedules } from './hooks/useTeamSchedules';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
-import { BILLING_ENABLED, WORKSPACE_CREATION_LOCKED, SUPPORT_CONTACT } from './billing/checkout';
+import { BILLING_ENABLED, SUPPORT_CONTACT } from './billing/checkout';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 
@@ -167,7 +167,7 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const { team, teams, setActiveTeam, isAdmin, isEditor, hasTeamPlan, loading: teamLoading } = useTeam();
+  const { team, teams, setActiveTeam, isAdmin, isEditor, hasTeamPlan, atWorkspaceLimit, loading: teamLoading } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const canEdit = !team || isAdmin || isEditor;
   const isTeamAdmin = isAdmin;
@@ -1086,10 +1086,12 @@ export default function App() {
   // workspace switcher's "+ New workspace" shortcut so a user can spin up
   // additional bands/churches without first landing on an existing team.
   const goNewWorkspace = () => { setTeamCreateIntent(true); goTeam(); };
-  // Who may create additional Spaces, and whether that's currently locked for
-  // testing. When locked we still surface a "contact support" affordance.
-  const canCreateWorkspace = BILLING_ENABLED || hasTeamPlan;
-  const newWorkspaceLocked = canCreateWorkspace && WORKSPACE_CREATION_LOCKED;
+  // Who may create additional Spaces. Eligible accounts (billing on, or
+  // team/church tier) can create up to the owned-workspace cap; once they hit
+  // it we surface a "limit reached / contact support" affordance instead.
+  const eligibleToCreateWorkspace = BILLING_ENABLED || hasTeamPlan;
+  const canCreateWorkspace = eligibleToCreateWorkspace && !atWorkspaceLimit;
+  const newWorkspaceLocked = eligibleToCreateWorkspace && atWorkspaceLimit;
   const goSchedule = () => navigate('schedule');
 
   // Song CRUD
@@ -1819,7 +1821,7 @@ export default function App() {
           team={team}
           teams={teams}
           onChangeWorkspace={goTeam}
-          onNewWorkspace={canCreateWorkspace && !WORKSPACE_CREATION_LOCKED ? goNewWorkspace : undefined}
+          onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
           newWorkspaceLocked={newWorkspaceLocked}
           supportContact={SUPPORT_CONTACT}
           syncState={syncState}
@@ -1842,7 +1844,7 @@ export default function App() {
                 ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null, status: t.subscription_status })),
               ]}
               setActiveLibrary={switchWorkspace}
-              onNewWorkspace={canCreateWorkspace && !WORKSPACE_CREATION_LOCKED ? goNewWorkspace : undefined}
+              onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
               newWorkspaceLocked={newWorkspaceLocked}
               supportContact={SUPPORT_CONTACT}
             />
