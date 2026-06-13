@@ -113,7 +113,7 @@ function TimeSignatureControl({ value, onChange }) {
 }
 
 const DEFAULT_MD = `---
-title: New Song
+title:
 artist:
 key: C
 ---
@@ -131,7 +131,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   const [workingSong, setWorkingSong] = useState(() => {
     if (song && Array.isArray(song.arrangements)) return song;
     if (song) return songFromFlat(song);
-    return songFromFlat({ id: generateId(), title: 'New Song', artist: '', key: 'C', tempo: null, time: '', sections: [] });
+    return songFromFlat({ id: generateId(), title: '', artist: '', key: 'C', tempo: null, time: '', sections: [] });
   });
 
   const [activeArrangementId, setActiveArrangementId] = useState(() => {
