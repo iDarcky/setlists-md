@@ -132,6 +132,7 @@ const PORTABLE_PREF_KEYS = [
   'navStyle',
   'displayMode',
   'autoHideHeader',
+  'ribbonStyle',
   'landingView',
   'language',
   'confirmBeforeDelete',

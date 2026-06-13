@@ -599,6 +599,7 @@ export default function ChartView({
               <StructureRibbon
                 structure={orderedSections.map(s => s.type)}
                 compact
+                style={settings?.ribbonStyle || 'chips'}
                 sectionColors={settings?.sectionColors}
                 sectionLabels={settings?.sectionLabels}
                 customSectionTypes={settings?.customSectionTypes}

@@ -478,6 +478,28 @@ function ChartPanel({ settings, update }) {
           })}
         </div>
       </Row>
+      <Row label="Structure ribbon" description="How the section flow shows above the chart in chart, practice & live.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: 'chips', label: 'Chips' },
+            { key: 'numbered', label: 'Codes' },
+            { key: 'dots', label: 'Dots' },
+          ].map(({ key, label }) => {
+            const active = (settings.ribbonStyle || 'chips') === key;
+            return (
+              <Button
+                key={key}
+                size="sm"
+                variant={active ? 'secondary' : 'ghost'}
+                onClick={() => update('ribbonStyle', key)}
+                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </div>
+      </Row>
       <Row label="Tab grid resolution" description="Default subdivisions when creating a new tab. Beats only keeps it simple; finer grids allow 8th/16th-note detail.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
           {[

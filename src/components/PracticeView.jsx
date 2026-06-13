@@ -408,6 +408,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           <StructureRibbon
             structure={cur.song.structure || cur.song.sections.map(s => s.type)}
             compact
+            style={settings?.ribbonStyle || 'chips'}
             onSelect={(i) => {
               const struct = cur.song.structure || cur.song.sections.map(s => s.type);
               const name = struct[i];
