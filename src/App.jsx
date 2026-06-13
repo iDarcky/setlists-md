@@ -132,6 +132,9 @@ const PORTABLE_PREF_KEYS = [
   'navStyle',
   'displayMode',
   'autoHideHeader',
+  'landingView',
+  'language',
+  'confirmBeforeDelete',
   'defaultSpaceId',
   'tabSubdivision',
   'tabSize',
@@ -147,6 +150,12 @@ function extractPortablePrefs(s) {
     if (s[k] !== undefined) out[k] = s[k];
   }
   return out;
+}
+
+// Which view to open on launch, from the user's "Default landing page" setting.
+const LANDING_VIEWS = ['home', 'library', 'setlists'];
+function resolveLandingView(v) {
+  return LANDING_VIEWS.includes(v) ? v : 'home';
 }
 
 function prefsEqual(a, b) {
@@ -458,13 +467,13 @@ export default function App() {
         } else if (!savedSettings.onboardingComplete && savedSongs.length === 0) {
           setView('onboarding');
         } else if (!savedSettings.onboardingComplete) {
-          // Existing user who predates onboarding — skip it, go to home
+          // Existing user who predates onboarding — skip it, go to the landing view.
           savedSettings.onboardingComplete = true;
           setSettings(savedSettings);
           await saveSettings(savedSettings);
-          setView('home');
+          setView(resolveLandingView(savedSettings.landingView));
         } else {
-          setView('home');
+          setView(resolveLandingView(savedSettings.landingView));
         }
 
         setLoaded(true);
@@ -1328,13 +1337,15 @@ export default function App() {
   // ----- Bulk song actions (Library selection toolbar) -----
   const handleDeleteSongs = async (ids) => {
     if (!ids || ids.length === 0) return;
-    const ok = await confirm({
-      title: `Delete ${ids.length} song${ids.length === 1 ? '' : 's'}?`,
-      description: 'They are removed from this library across all your devices.',
-      confirmLabel: 'Delete',
-      variant: 'danger',
-    });
-    if (!ok) return;
+    if (settings?.confirmBeforeDelete !== false) {
+      const ok = await confirm({
+        title: `Delete ${ids.length} song${ids.length === 1 ? '' : 's'}?`,
+        description: 'They are removed from this library across all your devices.',
+        confirmLabel: 'Delete',
+        variant: 'danger',
+      });
+      if (!ok) return;
+    }
     const idSet = new Set(ids);
     setSongs(prev => prev.filter(s => !idSet.has(s.id)));
     setTombstones(prev => ({
@@ -1581,13 +1592,15 @@ export default function App() {
 
   const handleDeleteSetlists = async (ids) => {
     if (!ids || ids.length === 0) return;
-    const ok = await confirm({
-      title: `Delete ${ids.length} setlist${ids.length === 1 ? '' : 's'}?`,
-      description: 'They are removed from this Space across all your devices.',
-      confirmLabel: 'Delete',
-      variant: 'danger',
-    });
-    if (!ok) return;
+    if (settings?.confirmBeforeDelete !== false) {
+      const ok = await confirm({
+        title: `Delete ${ids.length} setlist${ids.length === 1 ? '' : 's'}?`,
+        description: 'They are removed from this Space across all your devices.',
+        confirmLabel: 'Delete',
+        variant: 'danger',
+      });
+      if (!ok) return;
+    }
     const idSet = new Set(ids);
     setSetlists(prev => prev.filter(s => !idSet.has(s.id)));
     setTombstones(prev => ({
@@ -2154,6 +2167,8 @@ export default function App() {
               onClose={closeSettings}
               panel={settingsPanel}
               onChangePanel={goSettingsPanel}
+              onShowHelp={() => navigate('help')}
+              onReplayOnboarding={() => { setSettings(prev => ({ ...prev, onboardingComplete: false })); navigate('onboarding'); }}
               onClearAll={handleClearAll}
               onDownloadSongs={() => {
                 songs.forEach(s => {

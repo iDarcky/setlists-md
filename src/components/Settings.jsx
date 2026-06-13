@@ -70,6 +70,13 @@ const AboutIcon = () => (
   </svg>
 );
 
+const GeneralIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+);
+
 const SparkleIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z" />
@@ -117,6 +124,67 @@ const Row = ({ label, children, description }) => (
   </div>
 );
 
+// ─── General panel ───────────────────────────────────────────────────────
+
+function GeneralPanel({ settings, update, onShowHelp, onReplayOnboarding }) {
+  const landing = settings?.landingView || 'home';
+  const confirmDelete = settings?.confirmBeforeDelete !== false;
+  return (
+    <Section subtitle="Language, your landing page, and how the app behaves.">
+      <Row label="Default landing page" description="Where the app opens when you launch it.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: 'home', label: 'Home' },
+            { key: 'library', label: 'Songs' },
+            { key: 'setlists', label: 'Setlists' },
+          ].map(({ key, label }) => (
+            <Button
+              key={key}
+              size="sm"
+              variant={landing === key ? 'secondary' : 'ghost'}
+              onClick={() => update('landingView', key)}
+              className={landing === key ? 'bg-[var(--ds-background-100)] shadow-sm' : 'text-[var(--ds-gray-900)]'}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </Row>
+      <Row label="Language" description="App language. More languages are on the way.">
+        <Select value={settings?.language || 'en'} onValueChange={(v) => update('language', v)}>
+          <SelectTrigger className="h-8 px-2 min-w-[8rem] w-auto">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="en">English</SelectItem>
+          </SelectContent>
+        </Select>
+      </Row>
+      <Row label="Confirm before deleting" description="Ask for confirmation before deleting songs or setlists.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[{ key: true, label: 'On' }, { key: false, label: 'Off' }].map(({ key, label }) => (
+            <Button
+              key={String(key)}
+              size="sm"
+              variant={confirmDelete === key ? 'secondary' : 'ghost'}
+              onClick={() => update('confirmBeforeDelete', key)}
+              className={confirmDelete === key ? 'bg-[var(--ds-background-100)] shadow-sm' : 'text-[var(--ds-gray-900)]'}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </Row>
+      <Row label="Help guide" description="Open the in-app help and feedback.">
+        <Button size="sm" variant="secondary" onClick={() => onShowHelp?.()}>Open Help</Button>
+      </Row>
+      <Row label="Replay onboarding" description="See the first-run welcome flow again.">
+        <Button size="sm" variant="secondary" onClick={() => onReplayOnboarding?.()}>Replay</Button>
+      </Row>
+    </Section>
+  );
+}
+
 // ─── Hub row — drills into a sub-panel ───────────────────────────────────
 
 function HubRow({ icon: Icon, label, value, onClick }) {
@@ -147,6 +215,7 @@ function HubRow({ icon: Icon, label, value, onClick }) {
 
 const PANEL_TITLES = {
   hub: 'Settings',
+  general: 'General',
   account: 'Account',
   appearance: 'Appearance',
   chart: 'Chart Defaults',
@@ -158,6 +227,22 @@ const PANEL_TITLES = {
   data: 'Data',
   whatsnew: "What's New",
   about: 'About',
+};
+
+// Short descriptions under each panel title for the Notion-style content pane.
+const PANEL_SUBTITLES = {
+  general: 'Language, your landing page, and app behaviour.',
+  account: 'Manage your profile, sign-in, and plan.',
+  appearance: 'Theme, accent colour, and date/time format.',
+  chart: 'How charts lay out and which elements show by default.',
+  'chart-style': 'Fine-tune chart colours, fonts, and spacing.',
+  sections: 'Custom section types, colours, and labels.',
+  sync: 'Connect cloud storage to sync across devices.',
+  services: 'Manage the service names used across setlists.',
+  plan: 'Your current plan and billing.',
+  data: 'Export your library or clear all local data.',
+  whatsnew: 'Recent updates and changes.',
+  about: 'Version, legal, and credits.',
 };
 
 const PLAN_DESCRIPTIONS = {
@@ -846,6 +931,8 @@ export default function Settings({
   onSignOut,
   onSignIn,
   onCreateAccount,
+  onShowHelp,
+  onReplayOnboarding,
   // Sub-panel state lives in App.jsx so it participates in the back stack.
   panel = 'hub',
   onChangePanel = () => {},
@@ -887,6 +974,8 @@ export default function Settings({
             onSignOut={onSignOut}
           />
         );
+      case 'general':
+        return <GeneralPanel settings={settings} update={update} onShowHelp={onShowHelp} onReplayOnboarding={onReplayOnboarding} />;
       case 'appearance':
         return <AppearancePanel settings={settings} update={update} isSignedIn={isSignedIn} />;
       case 'chart':
@@ -951,6 +1040,7 @@ export default function Settings({
       title: 'Account',
       items: [
         { key: 'account', label: 'Account', icon: AccountIcon, value: isSignedIn ? (displayEmail || displayName) : 'Sign in' },
+        { key: 'general', label: 'General', icon: GeneralIcon, value: 'Language, landing page' },
         { key: 'plan', label: 'Plan & billing', icon: PlanIcon, value: planSummary(plan) },
       ],
     },
@@ -1032,11 +1122,14 @@ export default function Settings({
 
           {/* Content */}
           <div className="flex-1 min-w-0 flex flex-col bg-[var(--ds-background-100)]">
-            <header className="flex items-center justify-between px-7 pt-5 pb-3 border-b border-[var(--modes-border)]">
-              <div className="flex flex-col">
-                <h3 className="text-heading-20 font-semibold text-[var(--modes-text)] m-0">
+            <header className="flex items-center justify-between px-7 pt-6 pb-4 border-b border-[var(--modes-border)]">
+              <div className="flex flex-col gap-1">
+                <h3 className="text-heading-24 font-semibold text-[var(--modes-text)] m-0">
                   {PANEL_TITLES[desktopPanel] || 'Settings'}
                 </h3>
+                {PANEL_SUBTITLES[desktopPanel] && (
+                  <p className="text-copy-13 text-[var(--modes-text-muted)] m-0">{PANEL_SUBTITLES[desktopPanel]}</p>
+                )}
               </div>
               <button
                 type="button"

@@ -162,64 +162,56 @@ export default function Account({
           onSignOut={onSignOut}
           tone="drawer"
         />
-        {isSignedIn && user && (
-          <div
-            className="rounded-xl border p-4 flex flex-col gap-3"
-            style={{ background: 'var(--drawer-surface)', borderColor: 'var(--drawer-border)' }}
-          >
-            <div className="flex flex-col">
-              <span className="text-copy-14 font-medium" style={{ color: 'var(--drawer-text)' }}>Profile photo</span>
-              <span className="text-copy-13" style={{ color: 'var(--drawer-text-muted)' }}>
-                Shown in the header, drawer, and your workspace switcher.
-              </span>
-            </div>
-            <AvatarUploader
-              url={profile?.avatar_url || null}
-              fallback={(displayName || 'G').trim().charAt(0).toUpperCase()}
-              pathPrefix={`users/${user.id}`}
-              onChange={async (avatarUrl) => { await updateProfile({ avatar_url: avatarUrl }); }}
-            />
-          </div>
-        )}
+        {/* Profile — avatar + name grouped in one card (Notion-style). */}
         <div
-          className="rounded-xl border p-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
+          className="rounded-xl border p-4 flex items-start gap-4"
           style={{ background: 'var(--drawer-surface)', borderColor: 'var(--drawer-border)' }}
         >
-          <div className="flex flex-col">
-            <span className="text-copy-14 font-medium" style={{ color: 'var(--drawer-text)' }}>Your Name</span>
+          {isSignedIn && user && (
+            <div className="shrink-0">
+              <AvatarUploader
+                url={profile?.avatar_url || null}
+                fallback={(displayName || 'G').trim().charAt(0).toUpperCase()}
+                pathPrefix={`users/${user.id}`}
+                onChange={async (avatarUrl) => { await updateProfile({ avatar_url: avatarUrl }); }}
+              />
+            </div>
+          )}
+          <div className="flex-1 min-w-0 flex flex-col gap-1">
+            <span className="text-copy-14 font-medium" style={{ color: 'var(--drawer-text)' }}>Your name</span>
             <span className="text-copy-13" style={{ color: 'var(--drawer-text-muted)' }}>
-              Up to {NAME_MAX} characters. Used in the greeting.
+              Up to {NAME_MAX} characters. Used in the greeting{isSignedIn && user ? ', and your photo shows in the header and switcher' : ''}.
             </span>
-          </div>
-          <div className="flex items-center gap-2 mt-2 sm:mt-0">
-            <input
-              type="text"
-              value={draftName}
-              onChange={e => setDraftName(e.target.value.slice(0, NAME_MAX))}
-              onKeyDown={e => { if (e.key === 'Enter') saveName(); }}
-              maxLength={NAME_MAX}
-              placeholder="Guest"
-              className="h-8 px-3 rounded-lg border outline-none transition-colors text-copy-14 w-full sm:w-40"
-              style={{
-                background: 'var(--drawer-surface)',
-                borderColor: 'var(--drawer-border)',
-                color: 'var(--drawer-text)',
-              }}
-            />
-            <button
-              onClick={saveName}
-              disabled={!dirty}
-              aria-label="Save name"
-              className={`h-8 px-3 rounded-lg text-copy-13 font-medium border-none cursor-pointer transition-all duration-200 ease-out ${
-                dirty ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
-              }`}
-              style={{
-                background: 'var(--color-brand)',
-                color: '#fff',
-              }}
-            >
-              Save
-            </button>
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="text"
+                value={draftName}
+                onChange={e => setDraftName(e.target.value.slice(0, NAME_MAX))}
+                onKeyDown={e => { if (e.key === 'Enter') saveName(); }}
+                maxLength={NAME_MAX}
+                placeholder="Guest"
+                className="h-8 px-3 rounded-lg border outline-none transition-colors text-copy-14 w-full sm:w-48"
+                style={{
+                  background: 'var(--drawer-surface)',
+                  borderColor: 'var(--drawer-border)',
+                  color: 'var(--drawer-text)',
+                }}
+              />
+              <button
+                onClick={saveName}
+                disabled={!dirty}
+                aria-label="Save name"
+                className={`h-8 px-3 rounded-lg text-copy-13 font-medium border-none cursor-pointer transition-all duration-200 ease-out ${
+                  dirty ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
+                }`}
+                style={{
+                  background: 'var(--color-brand)',
+                  color: '#fff',
+                }}
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
         {isSignedIn && (
