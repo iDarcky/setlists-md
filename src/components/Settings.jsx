@@ -146,7 +146,7 @@ function HubRow({ icon: Icon, label, value, onClick }) {
 // ─── Panel labels (also the ScreenHeader title) ──────────────────────────
 
 const PANEL_TITLES = {
-  hub: 'Preferences',
+  hub: 'Settings',
   account: 'Account',
   appearance: 'Appearance',
   chart: 'Chart Defaults',

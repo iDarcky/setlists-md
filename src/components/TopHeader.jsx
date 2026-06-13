@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import NotificationTray from './NotificationTray';
-import FeedbackButton from './FeedbackButton';
 import { cn } from '../lib/utils';
 import { workspaceStatusLabel } from '../billing/checkout';
 
@@ -86,6 +85,7 @@ export default function TopHeader({
   onMarkRead,
   onNotificationAction,
   onManageTeams,
+  onOpenHelp,
   onNewWorkspace,
   newWorkspaceLocked = false,
   supportContact,
@@ -284,10 +284,22 @@ export default function TopHeader({
           )}
         </div>
 
-        {/* Right — feedback, notifications, preferences. Account is reached
-            through Preferences (which opens on the Account panel). */}
+        {/* Right — help, notifications, settings. Account is reached through
+            Settings (which opens on the Account panel). Feedback now lives
+            inside the Help page. */}
         <div className="flex items-center gap-1 justify-self-end">
-          <FeedbackButton variant="header" />
+          <button
+            onClick={() => onOpenHelp?.()}
+            className="relative inline-flex items-center justify-center w-9 h-9 rounded-lg cursor-pointer border-none bg-transparent text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+            aria-label="Help"
+            title="Help"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </button>
           <button onClick={() => setTrayOpen(true)} className={iconBtn} aria-label="Notifications">
             <BellIcon />
             {hasUnreadNotifications && (
@@ -297,7 +309,7 @@ export default function TopHeader({
           <button
             onClick={() => onNavigate('settings')}
             className={cn(iconBtn, (activeView === 'settings' || activeView === 'account') && 'bg-[var(--ds-gray-200)] text-[var(--ds-gray-1000)]')}
-            aria-label="Preferences"
+            aria-label="Settings"
           >
             <SettingsIcon />
           </button>

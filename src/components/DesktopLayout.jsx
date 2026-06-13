@@ -21,6 +21,7 @@ export default function DesktopLayout({
   team,
   teams,
   onChangeWorkspace,
+  onOpenHelp,
   onNewWorkspace,
   newWorkspaceLocked = false,
   supportContact,
@@ -66,6 +67,7 @@ export default function DesktopLayout({
           team={team}
           teams={teams}
           onManageTeams={onChangeWorkspace}
+          onOpenHelp={onOpenHelp}
           onNewWorkspace={onNewWorkspace}
           newWorkspaceLocked={newWorkspaceLocked}
           supportContact={supportContact}

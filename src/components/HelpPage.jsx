@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Button } from './ui/Button';
 import PageHeader from './ui/PageHeader';
+import FeedbackButton from './FeedbackButton';
 
 // ─── Building blocks ─────────────────────────────────────────────────────
 
@@ -132,7 +133,7 @@ export default function HelpPage({ onBack, onMarkSeen }) {
             <Item term="Roles">Pick a role (Leader, Vocalist, Bassist, Drummer…) to tailor what shows — Bassist collapses chords to root notes.</Item>
             <Item term="Structure ribbon">The scrollable bar at the top of a chart is the song flow — tap a section to jump to it.</Item>
           </div>
-          <p className="m-0 text-copy-13 text-[var(--modes-text-muted)]">Set your defaults in Preferences → Chart Defaults and Chart Style.</p>
+          <p className="m-0 text-copy-13 text-[var(--modes-text-muted)]">Set your defaults in Settings → Chart Defaults and Chart Style.</p>
         </Section>
 
         {/* Setlists */}
@@ -153,13 +154,13 @@ export default function HelpPage({ onBack, onMarkSeen }) {
           <p className="m-0">Two stage modes share the same chart, tuned for different moments:</p>
           <div className="flex flex-col gap-2 pl-1">
             <Item term="Practice this set">Rehearsal mode — edit cues, the song structure, and band notes as you go.</Item>
-            <Item term="Play live">A locked-down performance view; it inherits the display options you set in Practice and Preferences.</Item>
+            <Item term="Play live">A locked-down performance view; it inherits the display options you set in Practice and Settings.</Item>
           </div>
           <div className="flex flex-col gap-2 pl-1">
             <Item term="Roles">One tap applies a preset for <strong className="text-[var(--modes-text)]">Leader</strong>, <strong className="text-[var(--modes-text)]">Vocalist</strong>, <strong className="text-[var(--modes-text)]">Guitarist</strong>, <strong className="text-[var(--modes-text)]">Bassist</strong>, <strong className="text-[var(--modes-text)]">Keys</strong>, or <strong className="text-[var(--modes-text)]">Drummer</strong>.</Item>
-            <Item term="Navigation">Choose how you move between songs in Preferences → Navigation controls: a <strong className="text-[var(--modes-text)]">floating pill</strong>, <strong className="text-[var(--modes-text)]">header buttons</strong>, or <strong className="text-[var(--modes-text)]">swipe</strong>. Arrow keys and Bluetooth pedals always work too.</Item>
+            <Item term="Navigation">Choose how you move between songs in Settings → Navigation controls: a <strong className="text-[var(--modes-text)]">floating pill</strong>, <strong className="text-[var(--modes-text)]">header buttons</strong>, or <strong className="text-[var(--modes-text)]">swipe</strong>. Arrow keys and Bluetooth pedals always work too.</Item>
             <Item term="Setlist rail">On a landscape tablet the set sits beside the chart; on a phone tap the list icon to open it as a sheet.</Item>
-            <Item term="Auto-hide title bar">The header tucks away after a few idle seconds for a bigger chart — tap to bring it back, or turn it off in Preferences.</Item>
+            <Item term="Auto-hide title bar">The header tucks away after a few idle seconds for a bigger chart — tap to bring it back, or turn it off in Settings.</Item>
             <Item term="Customize">The sliders icon opens display options without leaving the song.</Item>
           </div>
           <Tip>Install the app via &ldquo;Add to Home Screen&rdquo; for true full-screen — and the screen stays awake while you play.</Tip>
@@ -180,19 +181,20 @@ export default function HelpPage({ onBack, onMarkSeen }) {
         <Section id="help-sync" icon="☁️" title="Sync & your data">
           <div className="flex flex-col gap-2 pl-1">
             <Item term="Your device first">Everything works offline; your songs live in this browser&apos;s storage.</Item>
-            <Item term="Personal cloud sync">Connect Google Drive, Dropbox, or OneDrive in Preferences → Cloud Sync — files stay in your own account.</Item>
+            <Item term="Personal cloud sync">Connect Google Drive, Dropbox, or OneDrive in Settings → Cloud Sync — files stay in your own account.</Item>
             <Item term="Account preferences">Signing in syncs your settings across devices.</Item>
-            <Item term="Export anytime">Download your songs from Preferences → Data; there&apos;s no lock-in.</Item>
+            <Item term="Export anytime">Download your songs from Settings → Data; there&apos;s no lock-in.</Item>
           </div>
           <Tip>On iOS/Safari, always &ldquo;Add to Home Screen&rdquo; — it stops Safari clearing your local data after a week of no use.</Tip>
         </Section>
 
         {/* Footer */}
-        <div className="px-2 pt-2 pb-8 text-center">
-          <p className="text-copy-14 text-[var(--modes-text-muted)] m-0 mb-4">
-            Still stuck? Use the feedback button to reach us.
+        <div className="px-2 pt-2 pb-8 flex flex-col items-center gap-4 text-center">
+          <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">
+            Still stuck, or have an idea? Send us a note.
           </p>
-          <Button variant="brand" onClick={onBack} className="px-8">
+          <FeedbackButton variant="inline" />
+          <Button variant="brand" onClick={onBack} className="px-8 mt-2">
             Back to the app
           </Button>
         </div>

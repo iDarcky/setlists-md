@@ -1821,6 +1821,7 @@ export default function App() {
           team={team}
           teams={teams}
           onChangeWorkspace={goTeam}
+          onOpenHelp={() => navigate('help')}
           onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
           newWorkspaceLocked={newWorkspaceLocked}
           supportContact={SUPPORT_CONTACT}
