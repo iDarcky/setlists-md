@@ -13,6 +13,7 @@ import { cn } from '../lib/utils';
 import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { StructureRibbon } from './StructureRibbon';
 import ViewModePicker from './ui/ViewModePicker';
+import { useActiveSection } from '../hooks/useActiveSection';
 import { exportSongPdf } from '../pdf/exportSongPdf';
 import { OverflowMenu } from './ui/OverflowMenu';
 import BottomSheet, { SheetField } from './ui/BottomSheet';
@@ -218,6 +219,8 @@ export default function ChartView({
   };
 
   const openSheet = (name) => setActiveSheet(name);
+  // Scroll-sync: which section is in view (drives the ribbon highlight).
+  const activeSection = useActiveSection(scrollContainerRef, `${song.id}:${displayMode}:${columns}`);
 
   // Detect scroll position for collapsing header. Uses a wide hysteresis
   // band (must drop under 20 to expand, must climb past 140 to collapse)
@@ -412,7 +415,7 @@ export default function ChartView({
                 className="min-w-0 shrink flex items-center gap-1.5 bg-transparent border-none cursor-pointer p-0 text-left"
               >
                 <h1
-                  className="m-0 truncate font-bold leading-tight text-heading-24"
+                  className="m-0 truncate font-bold leading-tight text-heading-18 sm:text-heading-24"
                   style={{ color: 'var(--text-1)' }}
                 >
                   {song.title}
@@ -426,7 +429,7 @@ export default function ChartView({
               <div className="flex items-center gap-2 flex-shrink-0 text-label-12" style={{ color: 'var(--text-2)' }}>
                 <Select value={selectedKey} onValueChange={setSelectedKey}>
                   <SelectTrigger className="h-7 px-1.5 border border-[var(--border-1)] bg-[var(--bg-1)] rounded-lg text-label-13 font-bold text-[var(--text-1)] hover:bg-[var(--bg-2)] gap-1 min-w-0 w-auto focus:ring-0" aria-label="Key">
-                    <span className="text-label-11 font-semibold text-[var(--text-2)] mr-0.5">Key</span>
+                    <span className="hidden sm:inline text-label-11 font-semibold text-[var(--text-2)] mr-0.5">Key</span>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -576,6 +579,7 @@ export default function ChartView({
               <StructureRibbon
                 structure={orderedSections.map(s => s.type)}
                 compact
+                activeIndex={activeSection}
                 style={settings?.ribbonStyle || 'chips'}
                 sectionColors={settings?.sectionColors}
                 sectionLabels={settings?.sectionLabels}
@@ -860,6 +864,7 @@ export default function ChartView({
             <div
               key={`${section.id || section.type}-${idx}`}
               id={`section-${idx}`}
+              data-section-index={idx}
               style={{ scrollMarginTop: '10rem', breakInside: 'avoid' }}
             >
               <SectionBlock

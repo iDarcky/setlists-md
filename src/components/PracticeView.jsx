@@ -21,6 +21,7 @@ import { useIsTablet, useIsLandscape, useIsDesktop } from '../lib/useMediaQuery'
 import { STAGE_MODE_MAP } from '../data/stageModes';
 import { resolveChartDisplay, resolveColumns } from '../lib/chartDisplay';
 import { useAutoHideHeader } from '../hooks/useAutoHideHeader';
+import { useActiveSection } from '../hooks/useActiveSection';
 import { usePrivateNotes } from '../notes/usePrivateNotes';
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
@@ -144,6 +145,8 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
 
   const cur = resolved[idx] || null;
   const next = resolved[idx + 1] || null;
+  // Scroll-sync: highlight the section currently in view in the ribbon.
+  const activeSection = useActiveSection(scrollRef, `${cur?.song?.id || ''}:${displayMode}:${columns}`);
 
   // Union of tab instruments across the whole set — drives the filter chip.
   const tabInstrumentsPresent = useMemo(() => {
@@ -416,6 +419,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           <StructureRibbon
             structure={cur.song.structure || cur.song.sections.map(s => s.type)}
             compact
+            activeIndex={activeSection}
             style={settings?.ribbonStyle || 'chips'}
             onSelect={(i) => {
               const struct = cur.song.structure || cur.song.sections.map(s => s.type);
@@ -881,7 +885,7 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
         </div>
       )}
       {song.sections.map((section, i) => (
-        <div key={section.id || i} id={`practice-section-${i}`} style={{ scrollMarginTop: '7rem', breakInside: 'avoid' }}>
+        <div key={section.id || i} id={`practice-section-${i}`} data-section-index={i} style={{ scrollMarginTop: '7rem', breakInside: 'avoid' }}>
           <SectionBlock
             section={section}
             transpose={transpose}
