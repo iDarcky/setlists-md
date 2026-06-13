@@ -27,7 +27,11 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Uppercase-prefixed names are component/icon identifiers — this config
+      // has no JSX-usage detection, so an `Icon` used only as <Icon /> reads as
+      // unused. Ignore them for both vars and (destructured) args, matching the
+      // long-standing varsIgnorePattern convention.
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^[A-Z_]' }],
     },
   },
 ])
