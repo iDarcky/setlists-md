@@ -354,13 +354,16 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
         variant="ghost"
         onClick={() => setHeaderCollapsed(c => !c)}
         aria-label={headerCollapsed ? 'Expand header' : 'Collapse header'}
+        className="hidden sm:inline-flex"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
           <path d={headerCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
         </svg>
       </IconButton>
       {!cur.isBreak && !cur.isMissing && (
-        <ViewModePicker value={displayMode} onChange={changeDisplayMode} hasTabs={curHasTabs} />
+        <div className="hidden sm:flex">
+          <ViewModePicker value={displayMode} onChange={changeDisplayMode} hasTabs={curHasTabs} />
+        </div>
       )}
       <IconButton
         size="sm"
@@ -457,12 +460,12 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
                         </span>
                       )}
                       {cur.song.tempo && (
-                        <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
+                        <span className="hidden sm:inline text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
                           ♩ {cur.song.tempo}
                         </span>
                       )}
                       {cur.song.time && (
-                        <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
+                        <span className="hidden sm:inline text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
                           {cur.song.time}
                         </span>
                       )}

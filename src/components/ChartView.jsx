@@ -445,7 +445,10 @@ export default function ChartView({
               </div>
             </div>
             <div className="flex gap-0.5 items-center flex-shrink-0">
-              <ViewModePicker value={displayMode} onChange={setDisplayMode} hasTabs={hasTabs} />
+              <div className="hidden sm:flex">
+                <ViewModePicker value={displayMode} onChange={setDisplayMode} hasTabs={hasTabs} />
+              </div>
+              <div className="hidden sm:flex">
               <OverflowMenu
                 ariaLabel="Song actions"
                 items={[
@@ -489,6 +492,7 @@ export default function ChartView({
                   },
                 ]}
               />
+              </div>
               <IconButton variant="ghost" size="sm" onClick={() => openSheet('layout')} aria-label="Customize" title="Customize">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
@@ -498,7 +502,7 @@ export default function ChartView({
                 </svg>
               </IconButton>
               {onToggleFullscreen && (
-                <IconButton variant="ghost" size="sm" onClick={onToggleFullscreen} aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+                <IconButton variant="ghost" size="sm" onClick={onToggleFullscreen} aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'} className="hidden sm:inline-flex">
                   {isFullscreen ? (
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M8 3v4a1 1 0 0 1-1 1H3" /><path d="M21 8h-4a1 1 0 0 1-1-1V3" /><path d="M3 16h4a1 1 0 0 1 1 1v4" /><path d="M16 21v-4a1 1 0 0 1 1-1h4" />
@@ -641,6 +645,34 @@ export default function ChartView({
             title="Layout"
           >
             <div className="flex flex-col gap-4">
+              <SheetField label="View">
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'chords', label: 'Chords' },
+                    { id: 'lyrics', label: 'Lyrics' },
+                    ...(hasTabs ? [{ id: 'tabs', label: 'Tabs' }] : []),
+                    { id: 'songmap', label: 'Song map' },
+                  ].map(b => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => setDisplayMode(b.id)}
+                      aria-pressed={displayMode === b.id}
+                      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${displayMode === b.id ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </SheetField>
+              <SheetField label="Song">
+                <div className="flex flex-wrap gap-2">
+                  {onEdit && (
+                    <button type="button" onClick={() => { setActiveSheet(null); onEdit(activeArrId); }} className="h-8 px-3 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-12 font-semibold text-[var(--text-1)] hover:border-[var(--border-3)] cursor-pointer">Edit song</button>
+                  )}
+                  <button type="button" onClick={() => exportSongPdf(song, { transpose })} className="h-8 px-3 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-12 font-semibold text-[var(--text-1)] hover:border-[var(--border-3)] cursor-pointer">Print / PDF</button>
+                </div>
+              </SheetField>
               <SheetField label="Instrument">
                 <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
                   {STAGE_MODES.map(m => {
