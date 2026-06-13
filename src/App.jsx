@@ -2067,6 +2067,8 @@ export default function App() {
               navStyle={settings?.navStyle || 'pill'}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              teamId={activeLibrary !== 'personal' ? activeLibrary : null}
+              userId={user?.id}
             />
           )}
           {view === 'setlist-practice' && currentSetlist && (
@@ -2085,6 +2087,9 @@ export default function App() {
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               onOpenAdvancedStyle={() => goToMainView('settings', { settingsPanel: 'chart-style' })}
+              teamId={activeLibrary !== 'personal' ? activeLibrary : null}
+              userId={user?.id}
+              canEditShared={canEdit}
             />
           )}
           {view === 'practice-finale' && currentSetlist && (

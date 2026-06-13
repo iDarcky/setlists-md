@@ -20,10 +20,12 @@ import { useIsTablet, useIsLandscape, useIsDesktop } from '../lib/useMediaQuery'
 import { STAGE_MODE_MAP } from '../data/stageModes';
 import { resolveChartDisplay, resolveColumns } from '../lib/chartDisplay';
 import { useAutoHideHeader } from '../hooks/useAutoHideHeader';
+import { usePrivateNotes } from '../notes/usePrivateNotes';
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
 
-export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, railEnabled = true, navStyle = 'pill', settings, onUpdateSettings, onOpenAdvancedStyle, startIndex = 0 }) {
+export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, railEnabled = true, navStyle = 'pill', settings, onUpdateSettings, onOpenAdvancedStyle, startIndex = 0, teamId = null, userId = null, canEditShared = true }) {
+  const privateNotes = usePrivateNotes(teamId, userId);
   const [layoutOpen, setLayoutOpen] = useState(false);
   // Start at the requested item (e.g. tapping a song in the overview) clamped
   // into range; defaults to the top of the set.
@@ -539,22 +541,38 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             sectionLabels={settings?.sectionLabels}
             customSectionTypes={settings?.customSectionTypes}
             onSaveCue={handleSaveCue}
+            canEditShared={canEditShared}
+            privateNotes={privateNotes}
           />
         ) : null}
 
-        {/* Setlist note for this song (canonical `note`, legacy `notes` fallback) */}
+        {/* Setlist note for this song — Team (shared, canonical `note`) + My
+            note (private). Shared editing is gated to those who can write the
+            library; My note is always editable by its owner. */}
         {!cur.isBreak && !cur.isMissing && (
           <div className="mt-6">
             <NotesStack
               pillLabel="Setlist note"
-              entries={[{
-                key: 'item',
-                value: cur.note ?? cur.notes ?? '',
-                editable: true,
-                onSave: handleSaveNote,
-                placeholder: 'Setlist note for this song…',
-                addLabel: 'Add setlist note for this song',
-              }]}
+              entries={[
+                {
+                  key: 'team',
+                  label: privateNotes.enabled ? 'Team' : undefined,
+                  value: cur.note ?? cur.notes ?? '',
+                  editable: canEditShared,
+                  onSave: handleSaveNote,
+                  placeholder: 'Setlist note for this song…',
+                  addLabel: 'Add setlist note for this song',
+                },
+                ...(privateNotes.enabled ? [{
+                  key: 'mine',
+                  label: 'Mine',
+                  value: privateNotes.getNote({ setlistId: setlist.id, songId: cur.song.id }),
+                  editable: true,
+                  onSave: (t) => privateNotes.setNote({ setlistId: setlist.id, songId: cur.song.id }, t),
+                  placeholder: 'Private note (only you)…',
+                  addLabel: 'Add a private note',
+                }] : []),
+              ]}
             />
           </div>
         )}
@@ -768,7 +786,8 @@ function StructureEditor({ structure, availableSections, onUpdate, onClose }) {
 }
 
 // Chart with editable cue cards between sections
-function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, nashville = false, showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', chordEmphasis = 'full', sectionColors, sectionLabels, customSectionTypes, onSaveCue }) {
+function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, nashville = false, showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', chordEmphasis = 'full', sectionColors, sectionLabels, customSectionTypes, onSaveCue, canEditShared = true, privateNotes }) {
+  const myEnabled = !!privateNotes?.enabled;
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   // Mirror the chart-view display switch.
   const viewChords = displayMode === 'chords';
@@ -833,9 +852,23 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
           ))}
         </div>
       )}
-      {song.notes && (
+      {(song.notes || myEnabled) && (
         <div className="mb-4" style={{ columnSpan: 'all', WebkitColumnSpan: 'all' }}>
-          <NotesStack pillLabel="Song notes" entries={[{ key: 'song', value: song.notes }]} />
+          <NotesStack
+            pillLabel="Song notes"
+            entries={[
+              { key: 'team', label: myEnabled ? 'Team' : undefined, value: song.notes || '' },
+              ...(myEnabled ? [{
+                key: 'mine',
+                label: 'Mine',
+                value: privateNotes.getNote({ songId: song.id }),
+                editable: true,
+                onSave: (t) => privateNotes.setNote({ songId: song.id }, t),
+                placeholder: 'Private note (only you)…',
+                addLabel: 'Add a private note',
+              }] : []),
+            ]}
+          />
         </div>
       )}
       {song.sections.map((section, i) => (
@@ -857,14 +890,26 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
           <div className="mt-1 mb-6">
             <NotesStack
               pillLabel="Band cue"
-              entries={[{
-                key: 'cue',
-                value: section.note || '',
-                editable: true,
-                onSave: (newNote) => onSaveCue(i, newNote),
-                placeholder: 'Band cue…',
-                addLabel: `Add band cue after ${section.type}`,
-              }]}
+              entries={[
+                {
+                  key: 'team',
+                  label: myEnabled ? 'Team' : undefined,
+                  value: section.note || '',
+                  editable: canEditShared,
+                  onSave: (newNote) => onSaveCue(i, newNote),
+                  placeholder: 'Band cue…',
+                  addLabel: `Add band cue after ${section.type}`,
+                },
+                ...(myEnabled ? [{
+                  key: 'mine',
+                  label: 'Mine',
+                  value: privateNotes.getNote({ songId: song.id, sectionKey: section.id || `idx-${i}` }),
+                  editable: true,
+                  onSave: (t) => privateNotes.setNote({ songId: song.id, sectionKey: section.id || `idx-${i}` }, t),
+                  placeholder: 'Private note (only you)…',
+                  addLabel: 'Add a private cue',
+                }] : []),
+              ]}
             />
           </div>
         </div>

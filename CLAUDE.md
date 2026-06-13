@@ -434,6 +434,14 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   practice** — everything defaults to `active` until the Stripe webhook writes
   real statuses. The Stripe integration is **scaffolded but dormant** (see
   "Billing" below); `PricingScreen` still only captures email intent.
+- `20260613_team_notes.sql` — adds the `team_notes` table: per-user **private**
+  notes ("My note") for team workspaces, at song / setlist-item / section
+  scope. Shared/team notes still live on the song & setlist objects; this is
+  only the private layer. Scope columns (`song_id`, `setlist_id`,
+  `section_key`) are NOT NULL default `''` so a plain unique constraint +
+  upsert works across partial scopes. RLS: a user reads/writes only their own
+  rows, scoped to teams they belong to. Client: `src/notes/usePrivateNotes.js`
+  (cloud + IndexedDB cache, offline-capable) surfaced via `ui/NotesStack`.
 
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).
