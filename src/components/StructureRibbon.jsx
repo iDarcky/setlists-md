@@ -18,7 +18,10 @@ export function StructureRibbon({
   });
 
   return (
-    <div className="flex gap-1 flex-wrap py-1">
+    // Single row that scrolls horizontally instead of wrapping — keeps the
+    // ribbon one line tall in chart / practice / live so it never eats vertical
+    // space when a song has many sections.
+    <div className="flex gap-1 flex-nowrap overflow-x-auto no-scrollbar py-1 min-w-0">
       {runs.map((run, i) => {
         const s = sectionStyle(run.name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
         const displayName = compact
@@ -30,7 +33,7 @@ export function StructureRibbon({
             key={i}
             {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index) } : {})}
             className={cn(
-              "inline-flex items-center gap-1 rounded-full border font-medium transition-colors",
+              "inline-flex shrink-0 items-center gap-1 rounded-full border font-medium transition-colors",
               compact ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-[12px]",
               onSelect && "cursor-pointer hover:opacity-80"
             )}

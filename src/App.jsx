@@ -130,6 +130,8 @@ const PORTABLE_PREF_KEYS = [
   'lastChangelogVersion',
   'performanceRail',
   'navStyle',
+  'displayMode',
+  'autoHideHeader',
   'defaultSpaceId',
   'tabSubdivision',
   'tabSize',
@@ -2062,6 +2064,7 @@ export default function App() {
               railEnabled={settings?.performanceRail !== false}
               navStyle={settings?.navStyle || 'pill'}
               settings={settings}
+              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
             />
           )}
           {view === 'setlist-practice' && currentSetlist && (

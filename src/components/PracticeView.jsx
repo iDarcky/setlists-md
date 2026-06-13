@@ -10,16 +10,15 @@ import FloatingNavPill from './ui/FloatingNavPill';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
-import { SegmentedControl } from './ui/SegmentedControl';
-import BottomSheet, { SheetField } from './ui/BottomSheet';
-import ChartStyleControls from './ChartStyleControls';
+import PerformanceLayoutSheet from './PerformanceLayoutSheet';
+import PerformanceSetlistSheet, { SetlistList } from './PerformanceSetlistSheet';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import NoteContent from './ui/NoteContent';
 import { headerFrostStyle } from '../lib/headerFrost';
-import { cn } from '../lib/utils';
 import { useIsTablet, useIsLandscape, useIsDesktop } from '../lib/useMediaQuery';
-import { STAGE_MODES, STAGE_MODE_MAP } from '../data/stageModes';
+import { STAGE_MODE_MAP } from '../data/stageModes';
 import { resolveChartDisplay, resolveColumns } from '../lib/chartDisplay';
+import { useAutoHideHeader } from '../hooks/useAutoHideHeader';
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
 
@@ -44,8 +43,9 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const [showChords, setShowChords] = useState(disp.showChords);
   const [showDiagrams, setShowDiagrams] = useState(disp.showDiagrams);
   // What to show in the chart body: chords / lyrics-only / tabs / song map.
-  // Mirrors the chart-view switch; local to the session like the other knobs.
-  const [displayMode, setDisplayMode] = useState('chords');
+  // Persisted device-wide so the choice carries into the live view (which no
+  // longer has its own picker) and the library chart.
+  const [displayMode, setDisplayMode] = useState(settings?.displayMode || 'chords');
   // Per-session tab-instrument filter (e.g. acoustic player sees acoustic tabs).
   const [tabInstrument, setTabInstrument] = useState('all');
   useEffect(() => {
@@ -54,8 +54,9 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     setNns(disp.nashville);
     setShowChords(disp.showChords);
     setShowDiagrams(disp.showDiagrams);
+    setDisplayMode(settings?.displayMode || 'chords');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.showChords, settings?.showDiagrams, settings?.stageMode]);
+  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.showChords, settings?.showDiagrams, settings?.stageMode, settings?.displayMode]);
 
   // Persisting helpers — update the snappy local mirror and the device setting.
   const changeFontSize = (v) => { const n = Math.max(10, Math.min(30, v)); setFontSize(n); onUpdateSettings?.('defaultFontSize', n); };
@@ -63,6 +64,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const toggleNns = () => { const v = !nns; setNns(v); onUpdateSettings?.('nashville', v); };
   const toggleShowChords = () => { const v = !showChords; setShowChords(v); onUpdateSettings?.('showChords', v); };
   const toggleShowDiagrams = () => { const v = !showDiagrams; setShowDiagrams(v); onUpdateSettings?.('showDiagrams', v); };
+  const changeDisplayMode = (v) => { setDisplayMode(v); onUpdateSettings?.('displayMode', v); };
 
   // Picking a role applies its preset by writing every value through to
   // settings, so the role choice persists across songs and views too.
@@ -76,7 +78,8 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     onUpdateSettings?.('showDiagrams', !!preset.showDiagrams);
   };
   const [showStructureEditor, setShowStructureEditor] = useState(false);
-  const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [headerCollapsed, setHeaderCollapsed, onHeaderActivity] = useAutoHideHeader(settings?.autoHideHeader !== false);
+  const [setlistSheetOpen, setSetlistSheetOpen] = useState(false);
   const [chartWidth, setChartWidth] = useState(0);
   const scrollRef = useRef(null);
 
@@ -87,6 +90,9 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const isLandscape = useIsLandscape();
   const isDesktop = useIsDesktop();
   const showRail = ((isTablet && isLandscape) || isDesktop) && railEnabled;
+  // Where the rail can't fit (phone / portrait tablet) the setlist is reachable
+  // from a header button that opens it as a bottom sheet instead.
+  const showSetlistButton = railEnabled && !showRail;
   // Explicit 1/2 from settings wins; 'auto'/unset goes two-up when the reading
   // area is comfortably wide. A manual pick in the Layout sheet overrides for
   // the session and persists the choice device-wide.
@@ -185,13 +191,15 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     const s = touchRef.current;
     if (!s) return;
     touchRef.current = null;
+    // Swipe only navigates when the leader picked it as the nav method.
+    if (navStyle !== 'swipe') return;
     const t = e.changedTouches[0];
     const dx = t.clientX - s.x;
     const dy = t.clientY - s.y;
     if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
       if (dx < 0) goNext(); else goPrev();
     }
-  }, [goNext, goPrev]);
+  }, [goNext, goPrev, navStyle]);
 
   const handleFinish = useCallback(() => {
     onFinish?.({
@@ -318,6 +326,20 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   // they render with matching color and weight.
   const headerControls = (
     <div className="flex items-center gap-1 shrink-0">
+      {showSetlistButton && (
+        <IconButton
+          size="sm"
+          variant="ghost"
+          onClick={() => setSetlistSheetOpen(true)}
+          aria-label="Open setlist"
+          title="Setlist"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+        </IconButton>
+      )}
       <IconButton
         size="sm"
         variant="ghost"
@@ -357,8 +379,9 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     >
     <div
       ref={scrollRef}
-      onTouchStart={onTouchStart}
+      onTouchStart={(e) => { onTouchStart(e); onHeaderActivity(); }}
       onTouchEnd={onTouchEnd}
+      onMouseDown={onHeaderActivity}
       className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
@@ -525,8 +548,8 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
         )}
       </div>
 
-      {/* ── Floating nav pill (unless the leader chose header buttons) ── */}
-      {navStyle !== 'header' && (
+      {/* ── Floating nav pill (only when the leader chose the pill) ── */}
+      {navStyle === 'pill' && (
         <FloatingNavPill
           current={idx + 1}
           total={resolved.length}
@@ -558,32 +581,8 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
                 </svg>
               </IconButton>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-1">
-              {resolved.map((r, i) => {
-                const active = i === idx;
-                const title = r.isBreak ? (r.label || 'Break') : (r.isMissing ? 'Missing song' : r.song.title);
-                const k = (!r.isBreak && !r.isMissing) ? transposeKey(r.song.key, r.transpose || 0) : null;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => goTo(i)}
-                    aria-current={active ? 'true' : undefined}
-                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${
-                      active
-                        ? 'bg-[var(--color-brand)] text-white'
-                        : 'text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)]'
-                    }`}
-                  >
-                    <span className={`text-label-11-mono shrink-0 ${active ? 'text-white/80' : 'text-[var(--ds-gray-500)]'}`}>
-                      {String(i + 1).padStart(2, '0')}
-                    </span>
-                    <span className="flex-1 min-w-0 truncate text-copy-14">{title}</span>
-                    {k && (
-                      <span className={`text-label-11-mono shrink-0 ${active ? 'text-white/90' : 'text-[var(--chord)]'}`}>{k}</span>
-                    )}
-                  </button>
-                );
-              })}
+            <div className="flex-1 min-h-0 overflow-y-auto p-2">
+              <SetlistList resolved={resolved} idx={idx} onSelect={goTo} />
             </div>
           </>
         ) : (
@@ -612,135 +611,42 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
       />
     )}
 
-    <BottomSheet open={layoutOpen} onClose={() => setLayoutOpen(false)} title="Layout">
-      <div className="flex flex-col gap-4">
-        <SheetField label="Role">
-          <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
-            {STAGE_MODES.map(m => {
-              const active = stageMode === m.id;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => applyRole(m.id)}
-                  className={cn(
-                    "shrink-0 px-3 h-8 rounded-lg border transition-all text-label-12 font-semibold",
-                    active
-                      ? "border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]"
-                      : "border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]"
-                  )}
-                  title={m.description}
-                >
-                  {m.name}
-                </button>
-              );
-            })}
-          </div>
-        </SheetField>
+    <PerformanceLayoutSheet
+      open={layoutOpen}
+      onClose={() => setLayoutOpen(false)}
+      variant="practice"
+      stageMode={stageMode}
+      onApplyRole={applyRole}
+      displayMode={displayMode}
+      onChangeDisplayMode={changeDisplayMode}
+      tabInstrumentsPresent={tabInstrumentsPresent}
+      tabInstrument={tabInstrument}
+      onChangeTabInstrument={setTabInstrument}
+      nns={nns}
+      onToggleNns={toggleNns}
+      showChords={showChords}
+      onToggleShowChords={toggleShowChords}
+      showDiagrams={showDiagrams}
+      onToggleShowDiagrams={toggleShowDiagrams}
+      columns={columns}
+      onChangeColumns={setColumnsManually}
+      fontSize={fontSize}
+      onChangeFontSize={changeFontSize}
+      chordFontSize={chordFontSize}
+      onChangeChordFontSize={changeChordFontSize}
+      settings={settings}
+      onUpdateSettings={onUpdateSettings}
+      onOpenAdvancedStyle={onOpenAdvancedStyle}
+    />
 
-        <SheetField label="View">
-          <SegmentedControl
-            value={displayMode}
-            onChange={setDisplayMode}
-            options={[
-              { value: 'chords', label: 'Chords' },
-              { value: 'lyrics', label: 'Lyrics' },
-              { value: 'tabs', label: 'Tabs' },
-              { value: 'songmap', label: 'Map' },
-            ]}
-            size="sm"
-          />
-        </SheetField>
-
-        {tabInstrumentsPresent.length >= 2 && (
-          <SheetField label="Tab instrument">
-            <div className="flex flex-wrap gap-2">
-              {['all', ...tabInstrumentsPresent].map(id => (
-                <Button
-                  key={id}
-                  variant={tabInstrument === id ? 'brand' : 'secondary'}
-                  size="sm"
-                  onClick={() => setTabInstrument(id)}
-                >
-                  {id === 'all' ? 'All' : (TAB_INSTRUMENTS[id]?.label || id)}
-                </Button>
-              ))}
-            </div>
-          </SheetField>
-        )}
-
-        <SheetField label="Display">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={nns ? 'brand' : 'secondary'}
-              size="sm"
-              onClick={toggleNns}
-            >Numbers</Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={toggleShowChords}
-              className={cn(!showChords && "opacity-40")}
-            >Chords</Button>
-            <Button
-              variant={showDiagrams ? 'brand' : 'secondary'}
-              size="sm"
-              onClick={toggleShowDiagrams}
-            >Diagrams</Button>
-          </div>
-        </SheetField>
-
-        <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-          <SheetField label="Columns">
-            <SegmentedControl
-              value={columns}
-              onChange={setColumnsManually}
-              options={[
-                { value: 1, label: '1 col' },
-                { value: 2, label: '2 col' },
-              ]}
-              size="sm"
-            />
-          </SheetField>
-          <SheetField label="Lyric size">
-            <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-              <IconButton variant="ghost" size="sm" onClick={() => changeFontSize(fontSize - 2)} aria-label="Decrease lyric size">−</IconButton>
-              <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{fontSize}</span>
-              <IconButton variant="ghost" size="sm" onClick={() => changeFontSize(fontSize + 2)} aria-label="Increase lyric size">+</IconButton>
-            </div>
-          </SheetField>
-          <SheetField label="Chord size">
-            <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-              <IconButton variant="ghost" size="sm" onClick={() => changeChordFontSize(chordFontSize - 2)} aria-label="Decrease chord size">−</IconButton>
-              <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{chordFontSize}</span>
-              <IconButton variant="ghost" size="sm" onClick={() => changeChordFontSize(chordFontSize + 2)} aria-label="Increase chord size">+</IconButton>
-            </div>
-          </SheetField>
-        </div>
-
-        <ChartStyleControls
-          settings={settings}
-          onUpdateSettings={onUpdateSettings}
-        />
-
-        {onOpenAdvancedStyle && (
-          <button
-            type="button"
-            onClick={() => {
-              setLayoutOpen(false);
-              onOpenAdvancedStyle();
-            }}
-            className="mt-2 w-full h-11 rounded-xl bg-[var(--ds-background-100)] border border-[var(--border-1)] text-copy-14 font-semibold text-[var(--text-1)] flex items-center justify-center gap-2 hover:bg-[var(--bg-1)] transition-all"
-            style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)' }}
-          >
-            Advanced settings
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        )}
-      </div>
-    </BottomSheet>
+    <PerformanceSetlistSheet
+      open={setlistSheetOpen}
+      onClose={() => setSetlistSheetOpen(false)}
+      title={setlist.name}
+      resolved={resolved}
+      idx={idx}
+      onSelect={goTo}
+    />
     </div>
   );
 }

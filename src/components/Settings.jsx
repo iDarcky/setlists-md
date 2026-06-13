@@ -355,6 +355,7 @@ function ChartPanel({ settings, update }) {
           {[
             { key: 'pill', label: 'Floating pill' },
             { key: 'header', label: 'Header buttons' },
+            { key: 'swipe', label: 'Swipe' },
           ].map(({ key, label }) => {
             const active = (settings.navStyle || 'pill') === key;
             return (
@@ -363,6 +364,27 @@ function ChartPanel({ settings, update }) {
                 size="sm"
                 variant={active ? 'secondary' : 'ghost'}
                 onClick={() => update('navStyle', key)}
+                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </div>
+      </Row>
+      <Row label="Auto-hide title bar" description="Collapse the header in live & practice after a few seconds idle; tap to bring it back.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: true, label: 'On' },
+            { key: false, label: 'Off' },
+          ].map(({ key, label }) => {
+            const active = (settings.autoHideHeader !== false) === key;
+            return (
+              <Button
+                key={String(key)}
+                size="sm"
+                variant={active ? 'secondary' : 'ghost'}
+                onClick={() => update('autoHideHeader', key)}
                 className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
               >
                 {label}
