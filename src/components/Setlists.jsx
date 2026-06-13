@@ -197,7 +197,12 @@ export default function Setlists({
     });
   }, [setlists, query, showService, serviceFilter, selectedTags]);
 
-  useEffect(() => { setSelected([]); }, [query, sortMode, sortAsc, serviceFilter, selectedTags]);
+  const [prevSelKey, setPrevSelKey] = useState(null);
+  const selKey = JSON.stringify([query, sortMode, sortAsc, serviceFilter, selectedTags]);
+  if (selKey !== prevSelKey) {
+    setPrevSelKey(selKey);
+    setSelected([]);
+  }
 
   // Close the tags dropdown on outside click.
   useEffect(() => {

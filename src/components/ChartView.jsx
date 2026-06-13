@@ -1,5 +1,4 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { transposeChord, ALL_KEYS, semitonesBetween, normalizeSectionName } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
@@ -26,7 +25,6 @@ import {
   DEFAULT_CHORD_FONT_ID,
   DEFAULT_LYRIC_FONT_ID,
 } from '../data/chartThemes';
-import { useEntitlement } from '../hooks/useEntitlement';
 import { resolveChartDisplay, resolveColumns, FONT_SIZES } from '../lib/chartDisplay';
 import { STAGE_MODES } from '../data/stageModes';
 import { TAB_INSTRUMENTS } from './editor/tabInstruments';
@@ -45,14 +43,12 @@ export default function ChartView({
   song: songInput, onBack, onEdit, isPreview,
   defaultFontSize = 16,
   showInlineNotes = true, inlineNoteStyle = 'dashes',
-  displayRole = 'leader', duplicateSections = 'full',
   chartLayout = 'columns',
   isFullscreen = false, onToggleFullscreen,
   onTransposed,
   notesPeekDefaultOpen = true,
   arrangementId,
   onArrangementChange,
-  onSongChange,
   settings,
   onUpdateSettings,
   onOpenAdvancedStyle,

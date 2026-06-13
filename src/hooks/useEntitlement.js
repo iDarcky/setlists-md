@@ -1,5 +1,5 @@
 import { useAuth } from '../auth/useAuth';
-import { useWorkspace } from '../contexts/WorkspaceContext';
+import { useWorkspace } from '../contexts/workspace';
 import { useTeam } from '../auth/useTeam';
 
 // Plan hierarchy — higher rank = more access.

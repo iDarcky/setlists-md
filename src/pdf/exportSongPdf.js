@@ -875,7 +875,14 @@ function buildDocument(song, transpose, initialPrefs = {}) {
         var act = e.target.closest('[data-action]');
         if (!act) return;
         if (act.dataset.action === 'print') window.print();
-        if (act.dataset.action === 'close') window.close();
+        if (act.dataset.action === 'close') {
+          // Inside the print-preview iframe (same-origin) remove the host
+          // overlay; window.close() only applies to the legacy popup case.
+          var fe = window.frameElement;
+          var ov = fe && fe.ownerDocument.getElementById('pdf-print-overlay');
+          if (ov) ov.remove();
+          else window.close();
+        }
       });
 
       apply();

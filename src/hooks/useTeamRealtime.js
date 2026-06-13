@@ -15,7 +15,9 @@ import { supabase } from '../auth/supabase';
  */
 export function useTeamRealtime(teamId, onRemoteChange) {
   const callbackRef = useRef(onRemoteChange);
-  callbackRef.current = onRemoteChange;
+  useEffect(() => {
+    callbackRef.current = onRemoteChange;
+  }, [onRemoteChange]);
 
   useEffect(() => {
     if (!supabase || !teamId) return;
@@ -23,7 +25,7 @@ export function useTeamRealtime(teamId, onRemoteChange) {
     let debounceTimer = null;
     const DEBOUNCE_MS = 1500; // Batch rapid changes into one sync
 
-    const handleChange = (payload) => {
+    const handleChange = () => {
       // Ignore events that originated from this client's own writes.
       // Supabase Realtime doesn't natively tag the originator, but we
       // can skip the event if it arrives while we're mid-push (the sync

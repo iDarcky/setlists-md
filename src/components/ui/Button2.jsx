@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo, useImperativeHandle } from 'react';
+import React, { useRef, useState, useImperativeHandle } from 'react';
 import { cn } from '../../lib/utils';
 
 /**

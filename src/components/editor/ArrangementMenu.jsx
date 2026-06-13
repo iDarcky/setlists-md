@@ -178,12 +178,16 @@ export function EditArrangementsDialog({
   // Local mirror of names so the user can edit freely; we commit on blur or
   // Enter so the parent re-render doesn't fight the input.
   const [drafts, setDrafts] = useState({});
-  useEffect(() => {
-    if (!open) return;
-    const next = {};
-    for (const a of arrangements) next[a.id] = a.name;
-    setDrafts(next);
-  }, [open, arrangements]);
+  const [prevOpenKey, setPrevOpenKey] = useState(null);
+  const openKey = open ? arrangements.map(a => `${a.id}:${a.name}`).join('') : '__closed__';
+  if (openKey !== prevOpenKey) {
+    setPrevOpenKey(openKey);
+    if (open) {
+      const next = {};
+      for (const a of arrangements) next[a.id] = a.name;
+      setDrafts(next);
+    }
+  }
 
   const commitName = (id) => {
     const next = (drafts[id] || '').trim();
