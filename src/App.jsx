@@ -1049,6 +1049,17 @@ export default function App() {
     }
     navigate('setlist-performance', { setlist: sl });
   };
+  // Casual "campfire" play: open a single song in Live via an ephemeral,
+  // unsaved one-item setlist (no setlist needed). Suggestions can append to it.
+  const playSongCasually = (song, arrangementId) => {
+    if (!song) return;
+    goSetlistPerformance({
+      id: `campfire-${song.id}`,
+      name: song.title || 'Song',
+      _campfire: true,
+      items: [{ type: 'song', songId: song.id, ...(arrangementId ? { arrangementId } : {}) }],
+    });
+  };
   const goSetlistPractice = (sl, startIndex = 0) => {
     setPracticeStartIndex(Number.isInteger(startIndex) ? startIndex : 0);
     navigate('setlist-practice', { setlist: sl });
@@ -1966,6 +1977,7 @@ export default function App() {
               song={currentSong}
               onBack={goBack}
               onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
+              onPlay={(arrId) => playSongCasually(currentSong, arrId)}
               {...buildChartMoveCopy(currentSong.id)}
               onSongChange={(updated) => {
                 setSongs(prev => prev.map(s => s.id === updated.id ? { ...updated, updatedAt: Date.now() } : s));

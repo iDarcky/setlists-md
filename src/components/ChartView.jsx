@@ -55,6 +55,7 @@ export default function ChartView({
   onUpdateSettings,
   onOpenAdvancedStyle,
   onMoveSong, onCopySong,
+  onPlay,
 }) {
   const initialFontSize = FONT_SIZES[defaultFontSize] || (typeof defaultFontSize === 'number' ? defaultFontSize : 16);
 
@@ -448,6 +449,13 @@ export default function ChartView({
               </div>
             </div>
             <div className="flex gap-0.5 items-center flex-shrink-0">
+              {onPlay && !isPreview && (
+                <IconButton variant="ghost" size="sm" onClick={() => onPlay(activeArrId)} aria-label="Play this song" title="Play (live)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-[var(--color-brand)]">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </IconButton>
+              )}
               <div className="hidden sm:flex">
                 <ViewModePicker value={displayMode} onChange={setDisplayMode} hasTabs={hasTabs} />
               </div>
