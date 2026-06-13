@@ -357,7 +357,7 @@ export default function Library({
   };
 
   return (
-    <div data-theme-variant="modes" className={cn(splitDock ? 'absolute inset-0 flex overflow-hidden' : 'relative h-full overflow-y-auto')}>
+    <div data-theme-variant="modes" className={cn(splitDock ? 'absolute inset-0 flex overflow-hidden' : 'relative min-h-full')}>
       {/* List column — own scroller when a pane is docked beside it. */}
       <div className={splitDock ? 'flex-1 min-w-0 min-h-0 overflow-y-auto' : 'contents'}>
       {/* Header */}
