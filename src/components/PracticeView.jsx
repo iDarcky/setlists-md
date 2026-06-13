@@ -12,6 +12,7 @@ import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import PerformanceLayoutSheet from './PerformanceLayoutSheet';
 import PerformanceSetlistSheet, { SetlistList } from './PerformanceSetlistSheet';
+import NotesStack from './ui/NotesStack';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import NoteContent from './ui/NoteContent';
 import { headerFrostStyle } from '../lib/headerFrost';
@@ -265,15 +266,19 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     });
   }, [cur, onUpdateSong]);
 
-  // Save setlist note → persists to setlist item
+  // Save setlist note → persists to setlist item. Canonical field is `note`;
+  // older builds wrote `notes` here (which the builder/overview/Live never
+  // read), so we write `note` and strip any legacy `notes`.
   const handleSaveNote = useCallback((newNote) => {
     if (!cur || cur.isBreak) return;
     touchedSongIdsRef.current.add(cur.song.id);
     onUpdateSetlist?.({
       ...setlist,
-      items: setlist.items.map((it, i) =>
-        i === cur._rawIdx ? { ...it, notes: newNote } : it
-      ),
+      items: setlist.items.map((it, i) => {
+        if (i !== cur._rawIdx) return it;
+        const { notes: _legacy, ...rest } = it;
+        return { ...rest, note: newNote };
+      }),
     });
   }, [cur, setlist, onUpdateSetlist]);
 
@@ -537,12 +542,19 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           />
         ) : null}
 
-        {/* Setlist note card */}
+        {/* Setlist note for this song (canonical `note`, legacy `notes` fallback) */}
         {!cur.isBreak && !cur.isMissing && (
           <div className="mt-6">
-            <SetlistNoteCard
-              value={cur.notes || ''}
-              onSave={handleSaveNote}
+            <NotesStack
+              pillLabel="Setlist note"
+              entries={[{
+                key: 'item',
+                value: cur.note ?? cur.notes ?? '',
+                editable: true,
+                onSave: handleSaveNote,
+                placeholder: 'Setlist note for this song…',
+                addLabel: 'Add setlist note for this song',
+              }]}
             />
           </div>
         )}
@@ -822,18 +834,8 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
         </div>
       )}
       {song.notes && (
-        <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]" style={{ columnSpan: 'all', WebkitColumnSpan: 'all' }}>
-          <span className="shrink-0 mt-0.5 text-[var(--ds-gray-600)]" aria-hidden="true">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <path d="M14 2v6h6" />
-              <path d="M8 13h6" />
-              <path d="M8 17h4" />
-            </svg>
-          </span>
-          <p className="flex-1 m-0 text-copy-13 text-[var(--ds-gray-1000)] whitespace-pre-wrap" style={{ fontFamily: 'var(--font-sans)' }}>
-            {song.notes}
-          </p>
+        <div className="mb-4" style={{ columnSpan: 'all', WebkitColumnSpan: 'all' }}>
+          <NotesStack pillLabel="Song notes" entries={[{ key: 'song', value: song.notes }]} />
         </div>
       )}
       {song.sections.map((section, i) => (
@@ -852,251 +854,21 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
             inlineNotes
             noteStyle="dashes"
           />
-          <CueCard
-            value={section.note || ''}
-            sectionLabel={section.type}
-            onSave={(newNote) => onSaveCue(i, newNote)}
-          />
+          <div className="mt-1 mb-6">
+            <NotesStack
+              pillLabel="Band cue"
+              entries={[{
+                key: 'cue',
+                value: section.note || '',
+                editable: true,
+                onSave: (newNote) => onSaveCue(i, newNote),
+                placeholder: 'Band cue…',
+                addLabel: `Add band cue after ${section.type}`,
+              }]}
+            />
+          </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-// Tappable cue card for a section's band cue
-function CueCard({ value, sectionLabel, onSave }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  const textareaRef = useRef(null);
-
-  // Sync draft when value changes externally (e.g. after save propagates)
-  const [prevSync, setPrevSync] = useState({ value, editing });
-  if (prevSync.value !== value || prevSync.editing !== editing) {
-    setPrevSync({ value, editing });
-    if (!editing) setDraft(value);
-  }
-
-  // Auto-focus and move cursor to end
-  useEffect(() => {
-    if (editing && textareaRef.current) {
-      const el = textareaRef.current;
-      el.focus();
-      el.selectionStart = el.selectionEnd = el.value.length;
-    }
-  }, [editing]);
-
-  const handleSave = () => {
-    onSave(draft.trim());
-    setEditing(false);
-  };
-
-  const handleCancel = () => {
-    setDraft(value);
-    setEditing(false);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Escape') handleCancel();
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSave();
-  };
-
-  if (!value && !editing) {
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => { setDraft(''); setEditing(true); }}
-        onKeyDown={(e) => e.key === 'Enter' && setEditing(true)}
-        className="mb-6 flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-[var(--ds-gray-400)] text-label-12 text-[var(--ds-gray-500)] cursor-pointer hover:border-[var(--ds-gray-600)] hover:text-[var(--ds-gray-700)] transition-colors select-none"
-        style={{ fontSize: 13 }}
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-        Add band cue after {sectionLabel}
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="mb-6 rounded-lg border overflow-hidden"
-      style={{
-        borderColor: editing ? 'var(--color-brand-border)' : 'var(--ds-gray-400)',
-        background: 'var(--ds-background-200)',
-        fontSize: 13,
-      }}
-    >
-      {editing ? (
-        <div className="p-3">
-          <div className="flex items-start gap-2 mb-2">
-            <span className="text-[var(--color-brand)] font-bold text-label-12 mt-1">▶</span>
-            <textarea
-              ref={textareaRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={2}
-              placeholder="Band cue…"
-              className="flex-1 resize-none bg-transparent outline-none text-[var(--ds-gray-1000)] text-copy-13 leading-snug placeholder:text-[var(--ds-gray-500)]"
-              style={{ fontFamily: 'inherit' }}
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={handleCancel}
-              className="h-7 px-3 rounded-lg text-label-12 text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="h-7 px-3 rounded-lg text-label-12 text-white font-semibold transition-colors"
-              style={{ background: 'var(--color-brand)' }}
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => { setDraft(value); setEditing(true); }}
-          onKeyDown={(e) => e.key === 'Enter' && setEditing(true)}
-          className="flex items-start gap-2 px-3 py-2.5 cursor-pointer group"
-        >
-          <span className="text-[var(--color-brand)] font-bold text-label-12 mt-px">▶</span>
-          <span className="flex-1 text-copy-13 text-[var(--ds-gray-900)] leading-snug">
-            {value}
-          </span>
-          <svg
-            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-            strokeLinecap="round" strokeLinejoin="round"
-            className="shrink-0 mt-0.5 text-[var(--ds-gray-500)] opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-          </svg>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Setlist-level note card — tappable, persists to setlist item
-function SetlistNoteCard({ value, onSave }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  const textareaRef = useRef(null);
-
-  const [prevSync, setPrevSync] = useState({ value, editing });
-  if (prevSync.value !== value || prevSync.editing !== editing) {
-    setPrevSync({ value, editing });
-    if (!editing) setDraft(value);
-  }
-
-  useEffect(() => {
-    if (editing && textareaRef.current) {
-      const el = textareaRef.current;
-      el.focus();
-      el.selectionStart = el.selectionEnd = el.value.length;
-    }
-  }, [editing]);
-
-  const handleSave = () => {
-    onSave(draft.trim());
-    setEditing(false);
-  };
-
-  const handleCancel = () => {
-    setDraft(value);
-    setEditing(false);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Escape') handleCancel();
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSave();
-  };
-
-  if (!value && !editing) {
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => { setDraft(''); setEditing(true); }}
-        onKeyDown={(e) => e.key === 'Enter' && setEditing(true)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-[var(--ds-gray-400)] text-label-12 text-[var(--ds-gray-500)] cursor-pointer hover:border-[var(--ds-gray-600)] hover:text-[var(--ds-gray-700)] transition-colors select-none"
-        style={{ fontSize: 13 }}
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-        Add setlist note for this song
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="rounded-lg border overflow-hidden"
-      style={{
-        borderColor: editing ? 'var(--color-brand-border)' : 'var(--ds-gray-400)',
-        background: 'var(--ds-background-200)',
-        fontSize: 13,
-      }}
-    >
-      {editing ? (
-        <div className="p-3">
-          <div className="flex items-start gap-2 mb-2">
-            <span className="text-label-12 text-[var(--ds-gray-500)] mt-1 shrink-0">📝</span>
-            <textarea
-              ref={textareaRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={2}
-              placeholder="Setlist note for this song…"
-              className="flex-1 resize-none bg-transparent outline-none text-[var(--ds-gray-1000)] text-copy-13 leading-snug placeholder:text-[var(--ds-gray-500)]"
-              style={{ fontFamily: 'inherit' }}
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={handleCancel}
-              className="h-7 px-3 rounded-lg text-label-12 text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="h-7 px-3 rounded-lg text-label-12 text-white font-semibold transition-colors"
-              style={{ background: 'var(--color-brand)' }}
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => { setDraft(value); setEditing(true); }}
-          onKeyDown={(e) => e.key === 'Enter' && setEditing(true)}
-          className="flex items-start gap-2 px-3 py-2.5 cursor-pointer group"
-        >
-          <span className="text-label-12 text-[var(--ds-gray-500)] mt-px shrink-0">📝</span>
-          <span className="flex-1 text-copy-13 text-[var(--ds-gray-900)] leading-snug">
-            {value}
-          </span>
-          <svg
-            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-            strokeLinecap="round" strokeLinejoin="round"
-            className="shrink-0 mt-0.5 text-[var(--ds-gray-500)] opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-          </svg>
-        </div>
-      )}
     </div>
   );
 }
