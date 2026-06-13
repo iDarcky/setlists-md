@@ -942,23 +942,49 @@ export default function Settings({
     }
   };
 
+  // Single source of truth for the settings navigation, grouped into labelled
+  // sections. Both the desktop sidebar and the mobile hub render from this so
+  // they never drift apart. `show: false` items are filtered out.
+  const serviceCount = new Set(setlists.map(s => (s.service || '').trim()).filter(Boolean)).size;
+  const navGroups = [
+    {
+      title: 'Account',
+      items: [
+        { key: 'account', label: 'Account', icon: AccountIcon, value: isSignedIn ? (displayEmail || displayName) : 'Sign in' },
+        { key: 'plan', label: 'Plan & billing', icon: PlanIcon, value: planSummary(plan) },
+      ],
+    },
+    {
+      title: 'Display',
+      items: [
+        { key: 'appearance', label: 'Appearance', icon: AppearanceIcon, value: appearanceSummary(settings) },
+        { key: 'chart', label: 'Chart Defaults', icon: ChartIcon, value: chartSummary(settings) },
+        { key: 'chart-style', label: 'Chart Style', icon: AppearanceIcon, value: chartStyleSummary(settings), badge: 'Pro' },
+        { key: 'sections', label: 'Sections', icon: ChartIcon, value: sectionsSummary(settings), badge: 'Pro' },
+      ],
+    },
+    {
+      title: 'Sync & data',
+      items: [
+        { key: 'sync', label: 'Cloud Sync', icon: CloudIcon, value: syncSummary(syncState) },
+        { key: 'services', label: 'Services', icon: PlanIcon, value: `${serviceCount} service${serviceCount === 1 ? '' : 's'}`, show: canManageServices },
+        { key: 'data', label: 'Data', icon: DataIcon, value: `${songCount} songs · ${setlistCount} setlists` },
+      ],
+    },
+    {
+      title: 'About',
+      items: [
+        { key: 'whatsnew', label: "What's New", icon: SparkleIcon, value: `v${__APP_VERSION__}` },
+        { key: 'about', label: 'About', icon: AboutIcon, value: `v${__APP_VERSION__}` },
+      ],
+    },
+  ].map(g => ({ ...g, items: g.items.filter(it => it.show !== false) }));
+
   // Desktop: Notion-style modal with sidebar nav + content pane.
   if (isDesktop) {
     // Opening Preferences fresh (panel === 'hub') lands on Account on desktop;
     // the sidebar still exposes every other panel.
     const desktopPanel = panel === 'hub' ? 'account' : panel;
-    const navItems = [
-      { key: 'account', label: 'Account', icon: AccountIcon, summary: isSignedIn ? (displayEmail || displayName) : 'Sign in' },
-      { key: 'appearance', label: 'Appearance', icon: AppearanceIcon, summary: appearanceSummary(settings) },
-      { key: 'chart', label: 'Chart Defaults', icon: ChartIcon, summary: chartSummary(settings) },
-      { key: 'chart-style', label: 'Chart Style', icon: AppearanceIcon, summary: chartStyleSummary(settings), badge: 'Pro' },
-      { key: 'sections', label: 'Sections', icon: ChartIcon, summary: sectionsSummary(settings), badge: 'Pro' },
-      { key: 'sync', label: 'Cloud Sync', icon: CloudIcon, summary: syncSummary(syncState) },
-      { key: 'plan', label: 'Plan & billing', icon: PlanIcon, summary: planSummary(plan) },
-      { key: 'data', label: 'Data', icon: DataIcon, summary: `${songCount} songs · ${setlistCount} setlists` },
-      { key: 'whatsnew', label: "What's New", icon: SparkleIcon, summary: `v${__APP_VERSION__}` },
-      { key: 'about', label: 'About', icon: AboutIcon, summary: `v${__APP_VERSION__}` },
-    ];
     const handleClose = onClose || onBack;
     return (
       <Dialog open={true} onClose={handleClose} size="xl" ariaLabel="Settings" className="overflow-hidden">
@@ -971,26 +997,36 @@ export default function Settings({
                 {isSignedIn && displayName ? displayName : 'Local device'}
               </p>
             </div>
-            <nav className="flex-1 overflow-y-auto px-2 pb-3 flex flex-col gap-0.5">
-              {navItems.map(({ key, label, icon: Icon }) => {
-                const active = desktopPanel === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => onChangePanel(key)}
-                    className={
-                      'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left cursor-pointer border-none transition-colors ' +
-                      (active
-                        ? 'bg-[var(--modes-surface-strong)] text-[var(--modes-text)]'
-                        : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)] hover:text-[var(--modes-text)]')
-                    }
-                  >
-                    <span className="shrink-0"><Icon /></span>
-                    <span className="text-copy-14 font-medium">{label}</span>
-                  </button>
-                );
-              })}
+            <nav className="flex-1 overflow-y-auto px-2 pb-3 flex flex-col gap-3">
+              {navGroups.map(group => (
+                <div key={group.title} className="flex flex-col gap-0.5">
+                  <span className="px-3 pt-2 pb-1 text-label-10 uppercase tracking-wider font-semibold text-[var(--modes-text-dim)]">
+                    {group.title}
+                  </span>
+                  {group.items.map(({ key, label, icon: Icon, badge }) => {
+                    const active = desktopPanel === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => onChangePanel(key)}
+                        className={
+                          'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left cursor-pointer border-none transition-colors ' +
+                          (active
+                            ? 'bg-[var(--modes-surface-strong)] text-[var(--modes-text)]'
+                            : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)] hover:text-[var(--modes-text)]')
+                        }
+                      >
+                        <span className="shrink-0"><Icon /></span>
+                        <span className="flex-1 text-copy-14 font-medium">{label}</span>
+                        {badge && (
+                          <span className="shrink-0 text-label-10 font-semibold px-1.5 py-0.5 rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border border-[var(--color-brand-border)]">{badge}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
             </nav>
           </aside>
 
@@ -1035,78 +1071,24 @@ export default function Settings({
       />
 
       <div className="a4-container py-6 pb-20 flex flex-col gap-6">
-        {panel === 'hub' && (
-          <div className="modes-card flex flex-col p-0 overflow-hidden divide-y divide-[var(--modes-border)]">
-            <HubRow
-              icon={AccountIcon}
-              label="Account"
-              value={isSignedIn ? (displayEmail || displayName) : 'Sign in'}
-              onClick={() => onChangePanel('account')}
-            />
-            <HubRow
-              icon={AppearanceIcon}
-              label="Appearance"
-              value={appearanceSummary(settings)}
-              onClick={() => onChangePanel('appearance')}
-            />
-            <HubRow
-              icon={ChartIcon}
-              label="Chart Defaults"
-              value={chartSummary(settings)}
-              onClick={() => onChangePanel('chart')}
-            />
-            <HubRow
-              icon={AppearanceIcon}
-              label="Chart Style"
-              value={chartStyleSummary(settings)}
-              onClick={() => onChangePanel('chart-style')}
-            />
-            <HubRow
-              icon={ChartIcon}
-              label="Sections"
-              value={sectionsSummary(settings)}
-              onClick={() => onChangePanel('sections')}
-            />
-            <HubRow
-              icon={CloudIcon}
-              label="Cloud Sync"
-              value={syncSummary(syncState)}
-              onClick={() => onChangePanel('sync')}
-            />
-            {canManageServices && (
-              <HubRow
-                icon={PlanIcon}
-                label="Services"
-                value={`${new Set(setlists.map(s => (s.service || '').trim()).filter(Boolean)).size} service${new Set(setlists.map(s => (s.service || '').trim()).filter(Boolean)).size === 1 ? '' : 's'}`}
-                onClick={() => onChangePanel('services')}
-              />
-            )}
-            <HubRow
-              icon={PlanIcon}
-              label="Plan & billing"
-              value={planSummary(plan)}
-              onClick={() => onChangePanel('plan')}
-            />
-            <HubRow
-              icon={DataIcon}
-              label="Data"
-              value={`${songCount} songs · ${setlistCount} setlists`}
-              onClick={() => onChangePanel('data')}
-            />
-            <HubRow
-              icon={SparkleIcon}
-              label="What's New"
-              value={`v${__APP_VERSION__}`}
-              onClick={() => onChangePanel('whatsnew')}
-            />
-            <HubRow
-              icon={AboutIcon}
-              label="About"
-              value={`v${__APP_VERSION__}`}
-              onClick={() => onChangePanel('about')}
-            />
-          </div>
-        )}
+        {panel === 'hub' && navGroups.map(group => (
+          <section key={group.title} className="flex flex-col gap-2">
+            <h2 className="px-2 text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold m-0">
+              {group.title}
+            </h2>
+            <div className="modes-card flex flex-col p-0 overflow-hidden divide-y divide-[var(--modes-border)]">
+              {group.items.map(({ key, label, icon, value }) => (
+                <HubRow
+                  key={key}
+                  icon={icon}
+                  label={label}
+                  value={value}
+                  onClick={() => onChangePanel(key)}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
 
         {panel !== 'hub' && renderPanel(panel)}
       </div>
