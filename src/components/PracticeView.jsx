@@ -13,6 +13,7 @@ import { Card } from './ui/Card';
 import PerformanceLayoutSheet from './PerformanceLayoutSheet';
 import PerformanceSetlistSheet, { SetlistList } from './PerformanceSetlistSheet';
 import NotesStack from './ui/NotesStack';
+import ViewModePicker from './ui/ViewModePicker';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import NoteContent from './ui/NoteContent';
 import { headerFrostStyle } from '../lib/headerFrost';
@@ -304,6 +305,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   if (!cur) return null;
 
   const displayKey = cur.isBreak || cur.isMissing ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
+  const curHasTabs = !cur.isBreak && !cur.isMissing && (cur.song.sections || []).some(s => (s.lines || []).some(l => l && typeof l === 'object' && (l.type === 'tab' || l.type === 'tabref')));
 
   // Optional in-header prev/next cluster — an alternative to the floating nav
   // pill. Rendered at the far LEFT of the header (clear of the collapse / menu /
@@ -357,6 +359,9 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           <path d={headerCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
         </svg>
       </IconButton>
+      {!cur.isBreak && !cur.isMissing && (
+        <ViewModePicker value={displayMode} onChange={changeDisplayMode} hasTabs={curHasTabs} />
+      )}
       <IconButton
         size="sm"
         variant="ghost"

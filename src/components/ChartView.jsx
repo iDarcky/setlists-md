@@ -12,6 +12,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import { cn } from '../lib/utils';
 import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { StructureRibbon } from './StructureRibbon';
+import ViewModePicker from './ui/ViewModePicker';
 import { exportSongPdf } from '../pdf/exportSongPdf';
 import { OverflowMenu } from './ui/OverflowMenu';
 import BottomSheet, { SheetField } from './ui/BottomSheet';
@@ -442,6 +443,7 @@ export default function ChartView({
               </div>
             </div>
             <div className="flex gap-0.5 items-center flex-shrink-0">
+              <ViewModePicker value={displayMode} onChange={setDisplayMode} hasTabs={hasTabs} />
               <OverflowMenu
                 ariaLabel="Song actions"
                 items={[
@@ -604,28 +606,6 @@ export default function ChartView({
                   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
               />
-            </div>
-            <div className="shrink-0 flex items-center gap-0.5 pt-0.5 p-0.5 rounded-lg bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)]">
-              {[
-                { id: 'chords', label: 'Chords' },
-                { id: 'lyrics', label: 'Lyrics' },
-                ...(hasTabs ? [{ id: 'tabs', label: 'Tabs' }] : []),
-                { id: 'songmap', label: 'Song map' },
-              ].map(b => (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => setDisplayMode(b.id)}
-                  aria-pressed={displayMode === b.id}
-                  className={`px-2.5 py-0.5 rounded-md text-label-11 font-semibold cursor-pointer border-none transition-colors ${
-                    displayMode === b.id
-                      ? 'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] shadow-sm'
-                      : 'bg-transparent text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'
-                  }`}
-                >
-                  {b.label}
-                </button>
-              ))}
             </div>
           </div>
 
