@@ -14,6 +14,8 @@ import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { StructureRibbon } from './StructureRibbon';
 import ViewModePicker from './ui/ViewModePicker';
 import { useActiveSection } from '../hooks/useActiveSection';
+import { useStageHeaderCollapse } from '../hooks/useStageHeaderCollapse';
+import StageHeader from './ui/StageHeader';
 import { exportSongPdf } from '../pdf/exportSongPdf';
 import { OverflowMenu } from './ui/OverflowMenu';
 import BottomSheet, { SheetField } from './ui/BottomSheet';
@@ -196,10 +198,12 @@ export default function ChartView({
 
   const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'arrangements' | null
   const [showInfo, setShowInfo] = useState(false); // inline song-details panel toggled from the title chevron
-  const [scrolled, setScrolled] = useState(false);
   const [notesPeekOpen, setNotesPeekOpen] = useState(notesPeekDefaultOpen);
 
   const scrollContainerRef = useRef(null);
+  // Three-row header collapse (shared with practice/live): scroll down hides
+  // title+meta, scroll up / tap reveals. Off in the editor preview.
+  const [headerCollapsed, , revealHeader] = useStageHeaderCollapse(scrollContainerRef, !isPreview && settings?.autoHideHeader !== false);
 
   const transpose = semitonesBetween(song.key, selectedKey);
 
@@ -222,31 +226,6 @@ export default function ChartView({
   const openSheet = (name) => setActiveSheet(name);
   // Scroll-sync: which section is in view (drives the ribbon highlight).
   const activeSection = useActiveSection(scrollContainerRef, `${song.id}:${displayMode}:${columns}`);
-
-  // Detect scroll position for collapsing header. Uses a wide hysteresis
-  // band (must drop under 20 to expand, must climb past 140 to collapse)
-  // plus a rAF guard so iOS Safari's momentum scroll can't fire scrollTop
-  // reads back-to-back fast enough to swap the state mid-frame.
-  useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    let pending = false;
-    const onScroll = () => {
-      if (pending) return;
-      pending = true;
-      requestAnimationFrame(() => {
-        pending = false;
-        const y = el.scrollTop;
-        setScrolled((prev) => {
-          if (prev && y < 20) return false;
-          if (!prev && y > 140) return true;
-          return prev;
-        });
-      });
-    };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
-  }, []);
 
   // Track the reading area's width so the adaptive column default (above) can
   // react to the real space available — fullscreen vs. a narrow dock pane vs.
@@ -380,6 +359,7 @@ export default function ChartView({
   return (
     <div
       ref={scrollContainerRef}
+      onPointerDown={isPreview ? undefined : revealHeader}
       style={CHART_THEME_STYLE}
       className={cn(
         // h-full (not 100dvh) so the chart fills its parent slot and owns the
@@ -394,115 +374,95 @@ export default function ChartView({
           theme is active. Children use the app's --text-1/--text-2
           tokens which already follow light/dark/midnight. */}
       {!isPreview && (
-        <div
-          className="material-header transition-all duration-200"
-          style={{
-            color: 'var(--text-1)',
-            fontFamily: 'var(--font-sans)',
-          }}
-        >
-          {/* Line 1: Title + close + dot menu. Title size stays stable on
-              scroll — toggling font-size against the synchronous Line-2
-              collapse was causing the title to flicker for some users.
-              Compact "Line-2" content collapses on scroll but the title
-              itself doesn't resize. */}
-          <div className="wide-container flex items-center justify-between gap-3 pt-3 pb-0.5">
-            <div className="min-w-0 flex-1 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowInfo(v => !v)}
-                aria-expanded={showInfo}
-                aria-label="Song details"
-                className="min-w-0 shrink flex items-center gap-1.5 bg-transparent border-none cursor-pointer p-0 text-left"
-              >
-                <h1
-                  className="m-0 truncate font-bold leading-tight text-heading-18 sm:text-heading-24"
-                  style={{ color: 'var(--text-1)' }}
-                >
-                  {song.title}
-                </h1>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 self-center text-[var(--text-2)] transition-transform duration-200 ${showInfo ? 'rotate-180' : ''}`}>
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-              {/* Inline meta on the title line: interactive key picker +
-                  tempo + time, always visible (one-line header). */}
-              <div className="flex items-center gap-2 flex-shrink-0 text-label-12" style={{ color: 'var(--text-2)' }}>
-                <Select value={selectedKey} onValueChange={setSelectedKey}>
-                  <SelectTrigger className="h-7 px-1.5 border border-[var(--border-1)] bg-[var(--bg-1)] rounded-lg text-label-13 font-bold text-[var(--text-1)] hover:bg-[var(--bg-2)] gap-1 min-w-0 w-auto focus:ring-0" aria-label="Key">
-                    <span className="hidden sm:inline text-label-11 font-semibold text-[var(--text-2)] mr-0.5">Key</span>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ALL_KEYS.map(k => (
-                      <SelectItem key={k} value={k}>{k}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {song.tempo && (
-                  <span className="whitespace-nowrap hidden sm:inline">
-                    <span className="font-bold text-[var(--text-1)]">{song.tempo}</span>
-                    <span className="ml-0.5">bpm</span>
-                  </span>
-                )}
-                {song.time && <span className="whitespace-nowrap hidden sm:inline font-bold text-[var(--text-1)]">{song.time}</span>}
-              </div>
-            </div>
-            <div className="flex gap-0.5 items-center flex-shrink-0">
+        <StageHeader
+          collapsed={headerCollapsed}
+          title={(
+            <button
+              type="button"
+              onClick={() => setShowInfo(v => !v)}
+              aria-expanded={showInfo}
+              aria-label="Song details"
+              className="min-w-0 flex-1 flex items-center gap-1.5 bg-transparent border-none cursor-pointer p-0 text-left"
+            >
+              <h1 className="m-0 truncate font-bold leading-tight text-heading-18 sm:text-heading-24" style={{ color: 'var(--text-1)' }}>
+                {song.title}
+              </h1>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 self-center text-[var(--text-2)] transition-transform duration-200 ${showInfo ? 'rotate-180' : ''}`}>
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+          )}
+          meta={(
+            <>
+              <Select value={selectedKey} onValueChange={setSelectedKey}>
+                <SelectTrigger className="h-7 px-2 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-lg text-label-14 font-bold text-[var(--text-1)] gap-1 min-w-0 w-auto focus:ring-0" aria-label="Key">
+                  <span className="text-label-11 font-semibold text-[var(--text-2)] mr-0.5">Key</span>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ALL_KEYS.map(k => (<SelectItem key={k} value={k}>{k}</SelectItem>))}
+                </SelectContent>
+              </Select>
+              {song.tempo && (
+                <span className="whitespace-nowrap"><span className="font-bold text-[var(--text-1)]">{song.tempo}</span><span className="ml-0.5">bpm</span></span>
+              )}
+              {song.time && <span className="whitespace-nowrap font-bold text-[var(--text-1)]">{song.time}</span>}
+            </>
+          )}
+          actions={(
+            <>
               {onPlay && !isPreview && (
                 <IconButton variant="ghost" size="sm" onClick={() => onPlay(activeArrId)} aria-label="Play this song" title="Play (live)">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-[var(--color-brand)]">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-[var(--color-brand)]"><path d="M8 5v14l11-7z" /></svg>
                 </IconButton>
               )}
               <div className="hidden sm:flex">
                 <ViewModePicker value={displayMode} onChange={setDisplayMode} hasTabs={hasTabs} />
               </div>
               <div className="hidden sm:flex">
-              <OverflowMenu
-                ariaLabel="Song actions"
-                items={[
-                  {
-                    label: 'Print / Save as PDF',
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="6 9 6 2 18 2 18 9" />
-                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                        <rect x="6" y="14" width="12" height="8" />
-                      </svg>
-                    ),
-                    onClick: () => exportSongPdf(song, { transpose }),
-                  },
-                  onEdit && {
-                    label: 'Edit',
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                      </svg>
-                    ),
-                    onClick: () => onEdit(activeArrId),
-                  },
-                  onMoveSong && {
-                    label: 'Move to…',
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14M13 6l6 6-6 6" />
-                      </svg>
-                    ),
-                    onClick: () => onMoveSong(),
-                  },
-                  onCopySong && {
-                    label: 'Copy to…',
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                      </svg>
-                    ),
-                    onClick: () => onCopySong(),
-                  },
-                ]}
-              />
+                <OverflowMenu
+                  ariaLabel="Song actions"
+                  items={[
+                    {
+                      label: 'Print / Save as PDF',
+                      icon: (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="6 9 6 2 18 2 18 9" />
+                          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                          <rect x="6" y="14" width="12" height="8" />
+                        </svg>
+                      ),
+                      onClick: () => exportSongPdf(song, { transpose }),
+                    },
+                    onEdit && {
+                      label: 'Edit',
+                      icon: (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                        </svg>
+                      ),
+                      onClick: () => onEdit(activeArrId),
+                    },
+                    onMoveSong && {
+                      label: 'Move to…',
+                      icon: (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14M13 6l6 6-6 6" />
+                        </svg>
+                      ),
+                      onClick: () => onMoveSong(),
+                    },
+                    onCopySong && {
+                      label: 'Copy to…',
+                      icon: (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                      ),
+                      onClick: () => onCopySong(),
+                    },
+                  ]}
+                />
               </div>
               <IconButton variant="ghost" size="sm" onClick={() => openSheet('layout')} aria-label="Customize" title="Customize">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -532,120 +492,78 @@ export default function ChartView({
                   </svg>
                 </IconButton>
               )}
-            </div>
-          </div>
-
-          {/* Line 2: Arrangement switcher only (key/tempo/time moved onto the
-              title line). Renders just when the song has arrangements; collapses
-              on scroll. */}
-          {song._arrangementId && (
-            <div className={cn(
-              "wide-container flex flex-wrap items-center gap-3 transition-all duration-200 overflow-hidden",
-              scrolled ? "max-h-0 opacity-0 pb-0" : "max-h-12 opacity-100 pb-1.5"
-            )}>
-              {(song._allArrangements?.length || 0) > 1 ? (
-                <Select value={activeArrId} onValueChange={handleSwitchArrangement}>
-                  <SelectTrigger
-                    className="h-7 px-1.5 border-transparent bg-transparent hover:bg-[var(--bg-2)] text-label-13 font-semibold text-[var(--text-1)] gap-1.5 max-w-[220px] min-w-0 w-auto focus:ring-0"
-                    aria-label="Switch arrangement"
-                  >
-                    <span className="truncate">
-                      {song._allArrangements.find(a => a.id === activeArrId)?.name || 'Arrangement'}
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {song._allArrangements.map(a => (
-                      <SelectItem key={a.id} value={a.id}>
-                        <span className="inline-flex items-center gap-1.5">
-                          {a.id === song._defaultArrangementId && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" title="Default" aria-label="Default" />
-                          )}
-                          {a.name || 'Untitled arrangement'}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <span className="text-label-13 font-semibold truncate max-w-[220px]" style={{ color: 'var(--text-1)' }}>
-                  {song._arrangementName}
-                </span>
-              )}
-            </div>
+            </>
           )}
-
-          {/* Inline song details — toggled by the title chevron (like the editor) */}
-          {showInfo && (
-            <div className="wide-container pb-2 mt-1 max-h-[40vh] overflow-y-auto border-t border-[var(--border-1)] pt-2">
-              {songInfoBody}
-            </div>
+          ribbon={(
+            <StructureRibbon
+              structure={orderedSections.map(s => s.type)}
+              compact
+              activeIndex={activeSection}
+              style={settings?.ribbonStyle || 'chips'}
+              sectionColors={settings?.sectionColors}
+              sectionLabels={settings?.sectionLabels}
+              customSectionTypes={settings?.customSectionTypes}
+              onSelect={(i) => {
+                const el = document.getElementById(`section-${i}`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            />
           )}
-
-          {/* Structure ribbon (left) + display filters (right) */}
-          <div className="wide-container pb-2 flex items-start gap-2">
-            <div className="flex-1 min-w-0">
-              <StructureRibbon
-                structure={orderedSections.map(s => s.type)}
-                compact
-                activeIndex={activeSection}
-                style={settings?.ribbonStyle || 'chips'}
-                sectionColors={settings?.sectionColors}
-                sectionLabels={settings?.sectionLabels}
-                customSectionTypes={settings?.customSectionTypes}
-                onSelect={(i) => {
-                  const el = document.getElementById(`section-${i}`);
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Song notes peek strip — collapsible, hidden when song has no notes */}
-          {song.notes && (
-            <div className="wide-container pb-2">
-              {notesPeekOpen ? (
-                <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]">
-                  <span className="shrink-0 mt-0.5 text-[var(--ds-gray-600)]" aria-hidden="true">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <path d="M14 2v6h6" />
-                      <path d="M8 13h6" />
-                      <path d="M8 17h4" />
-                    </svg>
-                  </span>
-                  <p className="flex-1 m-0 text-copy-13 text-[var(--text-1)] whitespace-pre-wrap">
-                    {song.notes}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setNotesPeekOpen(false)}
-                    aria-label="Hide notes"
-                    className="shrink-0 text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] -mr-1 -mt-1 px-1 py-0.5"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+          extras={(
+            <>
+              {song._arrangementId && (
+                <div className="wide-container flex flex-wrap items-center gap-3 pb-1.5">
+                  {(song._allArrangements?.length || 0) > 1 ? (
+                    <Select value={activeArrId} onValueChange={handleSwitchArrangement}>
+                      <SelectTrigger className="h-7 px-1.5 border-transparent bg-transparent hover:bg-[var(--bg-2)] text-label-13 font-semibold text-[var(--text-1)] gap-1.5 max-w-[220px] min-w-0 w-auto focus:ring-0" aria-label="Switch arrangement">
+                        <span className="truncate">{song._allArrangements.find(a => a.id === activeArrId)?.name || 'Arrangement'}</span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {song._allArrangements.map(a => (
+                          <SelectItem key={a.id} value={a.id}>
+                            <span className="inline-flex items-center gap-1.5">
+                              {a.id === song._defaultArrangementId && (<span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" title="Default" aria-label="Default" />)}
+                              {a.name || 'Untitled arrangement'}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <span className="text-label-13 font-semibold truncate max-w-[220px]" style={{ color: 'var(--text-1)' }}>{song._arrangementName}</span>
+                  )}
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setNotesPeekOpen(true)}
-                  aria-label="Show song notes"
-                  aria-expanded="false"
-                  className="inline-flex items-center gap-1.5 px-2.5 h-6 rounded-full border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)] text-label-11 text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors"
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <path d="M14 2v6h6" />
-                  </svg>
-                  Notes
-                </button>
               )}
-            </div>
+              {showInfo && (
+                <div className="wide-container pb-2 mt-1 max-h-[40vh] overflow-y-auto border-t border-[var(--border-1)] pt-2">
+                  {songInfoBody}
+                </div>
+              )}
+              {song.notes && (
+                <div className="wide-container pb-2">
+                  {notesPeekOpen ? (
+                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]">
+                      <span className="shrink-0 mt-0.5 text-[var(--ds-gray-600)]" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M8 13h6" /><path d="M8 17h4" />
+                        </svg>
+                      </span>
+                      <p className="flex-1 m-0 text-copy-13 text-[var(--text-1)] whitespace-pre-wrap">{song.notes}</p>
+                      <button type="button" onClick={() => setNotesPeekOpen(false)} aria-label="Hide notes" className="shrink-0 text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] -mr-1 -mt-1 px-1 py-0.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => setNotesPeekOpen(true)} aria-label="Show song notes" aria-expanded="false" className="inline-flex items-center gap-1.5 px-2.5 h-6 rounded-full border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)] text-label-11 text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>
+                      Notes
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
           )}
-
-        </div>
+        />
       )}
 
       {/* ── Bottom-sheet modals (Layout / Music / Song info) ── */}
