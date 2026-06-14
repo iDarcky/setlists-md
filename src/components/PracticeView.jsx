@@ -87,7 +87,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const [setlistSheetOpen, setSetlistSheetOpen] = useState(false);
   const [chartWidth, setChartWidth] = useState(0);
   const scrollRef = useRef(null);
-  const [headerCollapsed, setHeaderCollapsed] = useStageHeaderCollapse(scrollRef, settings?.autoHideHeader !== false);
+  const [headerCollapsed, setHeaderCollapsed, revealHeader] = useStageHeaderCollapse(scrollRef, settings?.autoHideHeader !== false);
 
   // Parallel-browsing setlist rail — same affordance as the live Performance
   // view, so the leader can jump songs mid-practice without leaving the chart.
@@ -405,8 +405,9 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     >
     <div
       ref={scrollRef}
-      onTouchStart={onTouchStart}
+      onTouchStart={(e) => { onTouchStart(e); revealHeader(); }}
       onTouchEnd={onTouchEnd}
+      onMouseDown={revealHeader}
       className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
@@ -440,7 +441,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
         meta={!cur.isBreak && !cur.isMissing && displayKey ? (
           <>
             <Select value={displayKey} onValueChange={handleKeyChange}>
-              <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
+              <SelectTrigger className="h-7 px-2 border-none bg-transparent hover:bg-[var(--ds-gray-200)] rounded-lg text-label-14 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -578,6 +579,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           hasNext={idx < resolved.length - 1}
           onFinish={onFinish ? handleFinish : undefined}
           nextLabel={next?.isBreak ? (next.label || 'Break') : next?.song?.title}
+          prevLabel={idx > 0 ? (resolved[idx - 1]?.isBreak ? (resolved[idx - 1].label || 'Break') : resolved[idx - 1]?.song?.title) : undefined}
         />
       )}
     </div>
