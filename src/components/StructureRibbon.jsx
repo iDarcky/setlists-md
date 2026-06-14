@@ -40,7 +40,9 @@ export function StructureRibbon({
   }, [activeIndex]);
 
   const isActiveRun = (run) => activeIndex != null && activeIndex >= run.index && activeIndex < run.index + run.count;
-  const rowClass = 'flex gap-1 flex-nowrap overflow-x-auto no-scrollbar py-1 min-w-0';
+  // px-1 keeps the first/last chip (and the active chip's ring) from being
+  // clipped at the scroller's edges.
+  const rowClass = 'flex gap-1 flex-nowrap overflow-x-auto no-scrollbar py-1 px-1 min-w-0';
   const colorOf = (name) => sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
   const labelOf = (name) => (compact ? compactLabel(name) : sectionLabel(name, sectionLabels));
 

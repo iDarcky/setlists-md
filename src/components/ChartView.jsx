@@ -376,12 +376,66 @@ export default function ChartView({
       {!isPreview && (
         <StageHeader
           collapsed={headerCollapsed}
-          close={onBack && (
-            <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </IconButton>
+          close={(
+            <>
+              <OverflowMenu
+                ariaLabel="Song actions"
+                items={[
+                  {
+                    label: 'Display options',
+                    icon: (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+                      </svg>
+                    ),
+                    onClick: () => openSheet('layout'),
+                  },
+                  onPlay && !isPreview && {
+                    label: 'Play (live)',
+                    icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>),
+                    onClick: () => onPlay(activeArrId),
+                  },
+                  {
+                    label: 'Print / Save as PDF',
+                    icon: (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="6 9 6 2 18 2 18 9" />
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                        <rect x="6" y="14" width="12" height="8" />
+                      </svg>
+                    ),
+                    onClick: () => exportSongPdf(song, { transpose }),
+                  },
+                  onEdit && {
+                    label: 'Edit',
+                    icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>),
+                    onClick: () => onEdit(activeArrId),
+                  },
+                  onMoveSong && {
+                    label: 'Move to…',
+                    icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>),
+                    onClick: () => onMoveSong(),
+                  },
+                  onCopySong && {
+                    label: 'Copy to…',
+                    icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>),
+                    onClick: () => onCopySong(),
+                  },
+                  onToggleFullscreen && {
+                    label: isFullscreen ? 'Exit fullscreen' : 'Fullscreen',
+                    icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8V3h5" /><path d="M21 8V3h-5" /><path d="M3 16v5h5" /><path d="M21 16v5h-5" /></svg>),
+                    onClick: onToggleFullscreen,
+                  },
+                ]}
+              />
+              {onBack && (
+                <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </IconButton>
+              )}
+            </>
           )}
           title={(
             <button
@@ -402,8 +456,8 @@ export default function ChartView({
           meta={(
             <>
               <Select value={selectedKey} onValueChange={setSelectedKey}>
-                <SelectTrigger className="h-7 px-2 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-lg text-label-14 font-bold text-[var(--text-1)] gap-1 min-w-0 w-auto focus:ring-0" aria-label="Key">
-                  <span className="text-label-11 font-semibold text-[var(--text-2)] mr-0.5">Key</span>
+                <SelectTrigger className="h-7 px-2 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-lg text-label-12 sm:text-label-14 font-bold text-[var(--text-1)] gap-1 min-w-0 w-auto focus:ring-0" aria-label="Key">
+                  <span className="hidden sm:inline text-label-11 font-semibold text-[var(--text-2)] mr-0.5">Key</span>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -411,88 +465,32 @@ export default function ChartView({
                 </SelectContent>
               </Select>
               {song.tempo && (
-                <span className="whitespace-nowrap"><span className="font-bold text-[var(--text-1)]">{song.tempo}</span><span className="ml-0.5">bpm</span></span>
+                <span className="whitespace-nowrap text-label-11 sm:text-label-13"><span className="font-bold text-[var(--text-1)]">{song.tempo}</span><span className="ml-0.5">bpm</span></span>
               )}
-              {song.time && <span className="whitespace-nowrap font-bold text-[var(--text-1)]">{song.time}</span>}
+              {song.time && <span className="whitespace-nowrap font-bold text-[var(--text-1)] text-label-11 sm:text-label-13">{song.time}</span>}
+              {song._arrangementId && (song._allArrangements?.length || 0) > 1 && (
+                <Select value={activeArrId} onValueChange={handleSwitchArrangement}>
+                  <SelectTrigger className="h-7 px-1.5 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-lg text-label-12 sm:text-label-13 font-semibold text-[var(--text-1)] gap-1 max-w-[120px] sm:max-w-[200px] min-w-0 w-auto focus:ring-0" aria-label="Switch arrangement">
+                    <span className="truncate">{song._allArrangements.find(a => a.id === activeArrId)?.name || 'Arrangement'}</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {song._allArrangements.map(a => (
+                      <SelectItem key={a.id} value={a.id}>
+                        <span className="inline-flex items-center gap-1.5">
+                          {a.id === song._defaultArrangementId && (<span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" title="Default" aria-label="Default" />)}
+                          {a.name || 'Untitled arrangement'}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </>
           )}
           actions={(
-            <>
-              {onPlay && !isPreview && (
-                <IconButton variant="ghost" size="sm" onClick={() => onPlay(activeArrId)} aria-label="Play this song" title="Play (live)">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-[var(--color-brand)]"><path d="M8 5v14l11-7z" /></svg>
-                </IconButton>
-              )}
-              <div className="hidden sm:flex">
-                <ViewModePicker value={displayMode} onChange={setDisplayMode} hasTabs={hasTabs} />
-              </div>
-              <div className="hidden sm:flex">
-                <OverflowMenu
-                  ariaLabel="Song actions"
-                  items={[
-                    {
-                      label: 'Print / Save as PDF',
-                      icon: (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="6 9 6 2 18 2 18 9" />
-                          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                          <rect x="6" y="14" width="12" height="8" />
-                        </svg>
-                      ),
-                      onClick: () => exportSongPdf(song, { transpose }),
-                    },
-                    onEdit && {
-                      label: 'Edit',
-                      icon: (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                        </svg>
-                      ),
-                      onClick: () => onEdit(activeArrId),
-                    },
-                    onMoveSong && {
-                      label: 'Move to…',
-                      icon: (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M5 12h14M13 6l6 6-6 6" />
-                        </svg>
-                      ),
-                      onClick: () => onMoveSong(),
-                    },
-                    onCopySong && {
-                      label: 'Copy to…',
-                      icon: (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                        </svg>
-                      ),
-                      onClick: () => onCopySong(),
-                    },
-                  ]}
-                />
-              </div>
-              <IconButton variant="ghost" size="sm" onClick={() => openSheet('layout')} aria-label="Customize" title="Customize">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
-                  <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
-                  <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
-                  <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
-                </svg>
-              </IconButton>
-              {onToggleFullscreen && (
-                <IconButton variant="ghost" size="sm" onClick={onToggleFullscreen} aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'} className="hidden sm:inline-flex">
-                  {isFullscreen ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M8 3v4a1 1 0 0 1-1 1H3" /><path d="M21 8h-4a1 1 0 0 1-1-1V3" /><path d="M3 16h4a1 1 0 0 1 1 1v4" /><path d="M16 21v-4a1 1 0 0 1 1-1h4" />
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 8V3h5" /><path d="M21 8V3h-5" /><path d="M3 16v5h5" /><path d="M21 16v5h-5" />
-                    </svg>
-                  )}
-                </IconButton>
-              )}
-            </>
+            <div className="hidden sm:flex">
+              <ViewModePicker value={displayMode} onChange={setDisplayMode} hasTabs={hasTabs} />
+            </div>
           )}
           ribbon={(
             <StructureRibbon
@@ -511,29 +509,6 @@ export default function ChartView({
           )}
           extras={(
             <>
-              {song._arrangementId && (
-                <div className="wide-container flex flex-wrap items-center gap-3 pb-1.5">
-                  {(song._allArrangements?.length || 0) > 1 ? (
-                    <Select value={activeArrId} onValueChange={handleSwitchArrangement}>
-                      <SelectTrigger className="h-7 px-1.5 border-transparent bg-transparent hover:bg-[var(--bg-2)] text-label-13 font-semibold text-[var(--text-1)] gap-1.5 max-w-[220px] min-w-0 w-auto focus:ring-0" aria-label="Switch arrangement">
-                        <span className="truncate">{song._allArrangements.find(a => a.id === activeArrId)?.name || 'Arrangement'}</span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {song._allArrangements.map(a => (
-                          <SelectItem key={a.id} value={a.id}>
-                            <span className="inline-flex items-center gap-1.5">
-                              {a.id === song._defaultArrangementId && (<span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" title="Default" aria-label="Default" />)}
-                              {a.name || 'Untitled arrangement'}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <span className="text-label-13 font-semibold truncate max-w-[220px]" style={{ color: 'var(--text-1)' }}>{song._arrangementName}</span>
-                  )}
-                </div>
-              )}
               {showInfo && (
                 <div className="wide-container pb-2 mt-1 max-h-[40vh] overflow-y-auto border-t border-[var(--border-1)] pt-2">
                   {songInfoBody}
