@@ -165,6 +165,14 @@ called out in their own section at the bottom.
   [mobile], [library] · _pri:_ P2
 - **More filters** — needs additional filters (set TBD). _tags:_ [idea],
   [library] · _pri:_ P2 · _Q: which filters?_
+- **Doubled mobile search (global vs in-page)** — the mobile top-bar search is
+  a global cross-search (songs + setlists) meant for the Dashboard, but it also
+  shows on Songs and Setlists where it duplicates each page's own search. Intent:
+  on Songs/Setlists the top-bar search should scope to **that page** (filter the
+  list in place); keep the global cross-search on Dashboard only. Touches
+  `MobileTopBar` + the per-page list filtering. _tags:_ [bug], [ux], [mobile],
+  [search] · _pri:_ P2 · _Q: keep a separate global search anywhere besides
+  Dashboard?_ _(also affects §3 Setlists)_
 
 ## 6. Chart view
 
