@@ -455,20 +455,28 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     debouncedPush(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(async () => {
+        // Don't race a full sync; mark in-flight so a focus-triggered sync waits.
+        if (syncing) return;
         const syncState = await getSyncState(libraryId);
         if (!syncState.activeProvider) return;
 
-        setStatus('syncing');
+        syncing = true;
         try {
           const pushResult = await push(songs, setlists, tombstones);
           if (pushResult?.tombstonesChanged) {
             onTombstonesPruned?.(pushResult.tombstones);
           }
-          const lastSync = new Date().toISOString();
-          setStatus('synced', { lastSync, provider: syncState.activeProvider });
+          // Only surface "synced" when work actually happened — otherwise the
+          // status churns ("Syncing…/Synced") on every keystroke-debounce.
+          const uploaded = (pushResult?.uploaded?.songs || 0) + (pushResult?.uploaded?.setlists || 0);
+          if (uploaded > 0 || pushResult?.tombstonesChanged) {
+            setStatus('synced', { lastSync: new Date().toISOString(), provider: syncState.activeProvider });
+          }
         } catch (err) {
           console.error('Sync push error:', err);
           setStatus('error');
+        } finally {
+          syncing = false;
         }
       }, SYNC_DEBOUNCE_MS);
     },

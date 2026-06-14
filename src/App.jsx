@@ -644,6 +644,9 @@ export default function App() {
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible' && loaded) {
+        // Fold any pending debounced push into this full sync so returning to
+        // the tab doesn't fire two syncs back to back.
+        syncEngineRef.current?.cancelDebounce();
         triggerSync();
       }
     };

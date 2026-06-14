@@ -467,7 +467,6 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
       debounceTimer = setTimeout(async () => {
         if (syncing) return; // a full sync is already in flight
         syncing = true;
-        setStatus('syncing');
         try {
           const syncState = await getSyncState(libraryId);
           const manifest = { ...(syncState.syncManifest || {}) };
@@ -484,11 +483,17 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
           await updateSetlistManifest(result.slManifest, libraryId);
           const keptSongTs = (tombstones.songs || []).filter(t => result.manifest[t.id]);
           const keptSlTs = (tombstones.setlists || []).filter(t => result.slManifest[t.id]);
-          if (keptSongTs.length !== (tombstones.songs?.length || 0)
-            || keptSlTs.length !== (tombstones.setlists?.length || 0)) {
+          const tsPruned = keptSongTs.length !== (tombstones.songs?.length || 0)
+            || keptSlTs.length !== (tombstones.setlists?.length || 0);
+          if (tsPruned) {
             onTombstonesPruned?.({ songs: keptSongTs, setlists: keptSlTs });
           }
-          setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
+          // Only surface "synced" when something actually changed — avoids the
+          // status churn that made team sync feel jittery on every edit.
+          const uploaded = (result.uploaded?.songs || 0) + (result.uploaded?.setlists || 0);
+          if (uploaded > 0 || tsPruned) {
+            setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
+          }
         } catch (err) {
           console.error('[team-sync] Push error:', err);
           setStatus('error');
