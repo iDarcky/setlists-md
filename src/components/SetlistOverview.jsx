@@ -192,14 +192,10 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                 )}
               </h1>
 
-              {/* Row 2b: workspace + authorship — team workspaces only. */}
-              {team && (setlist.workspaceName || setlist.updatedByName) && (
+              {/* Row 2b: authorship — team workspaces only. (Workspace-name
+                  reminder removed; it wasn't relevant here.) */}
+              {team && (setlist.updatedByName || setlist.createdByName) && (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2.5 text-label-12 text-[var(--ds-gray-600)]">
-                  {setlist.workspaceName && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] text-[var(--ds-gray-900)] font-medium">
-                      {setlist.workspaceName}
-                    </span>
-                  )}
                   {setlist.updatedByName && (
                     <span>
                       Edited by {setlist.updatedByName}

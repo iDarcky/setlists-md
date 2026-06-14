@@ -32,7 +32,7 @@ export default function SetlistSongPicker({ songs, currentItems, onAddSong }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="section-title m-0">Song Library</p>
+      <p className="section-title m-0" style={{ textTransform: 'none' }}>Song Library</p>
 
       <Input
         value={search}

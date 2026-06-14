@@ -507,13 +507,13 @@ export default function ChartView({
               }}
             />
           )}
+          info={showInfo && (
+            <div className="wide-container pb-2 mt-1 max-h-[40vh] overflow-y-auto border-t border-[var(--border-1)] pt-2">
+              {songInfoBody}
+            </div>
+          )}
           extras={(
             <>
-              {showInfo && (
-                <div className="wide-container pb-2 mt-1 max-h-[40vh] overflow-y-auto border-t border-[var(--border-1)] pt-2">
-                  {songInfoBody}
-                </div>
-              )}
               {song.notes && (
                 <div className="wide-container pb-2">
                   {notesPeekOpen ? (

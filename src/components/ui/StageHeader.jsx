@@ -11,7 +11,7 @@ import { headerFrostStyle } from '../../lib/headerFrost';
 // When `collapsed`, rows 1+2 animate away (and extras hide), leaving just the
 // ribbon — the immersive reading state. Each view supplies its own controls as
 // nodes; this component owns the layout and the collapse animation only.
-export default function StageHeader({ collapsed = false, title, close, meta, actions, ribbon, extras }) {
+export default function StageHeader({ collapsed = false, title, close, meta, actions, info, ribbon, extras }) {
   return (
     <div className="material-header" style={{ zIndex: 50, color: 'var(--text-1)', fontFamily: 'var(--font-sans)', ...headerFrostStyle }}>
       <div
@@ -32,6 +32,11 @@ export default function StageHeader({ collapsed = false, title, close, meta, act
           </div>
         )}
       </div>
+
+      {/* Optional disclosure (e.g. Chart's song-details) — rendered directly
+          beneath the title/meta block and above the ribbon, outside the
+          collapse-clip so its own scroll container works. */}
+      {!collapsed && info}
 
       {ribbon && (
         <div className={`wide-container ${collapsed ? 'py-1.5' : 'pb-2'}`}>

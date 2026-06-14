@@ -51,9 +51,10 @@ function setlistHash(sl) {
 // preserving local-only extra arrangements. Mirrors the proven merge in
 // engine.js pull(): patch the matching arrangement (by id, falling back to
 // the default), then carry song-level fields from the remote payload.
-function mergeRemoteSong(localSong, parsed) {
+function mergeRemoteSong(localSong, parsed, serverUpdatedAt) {
   if (!Array.isArray(localSong?.arrangements) || localSong.arrangements.length === 0) {
-    return songFromFlat({ ...parsed, id: localSong?.id || parsed.id });
+    const fresh = songFromFlat({ ...parsed, id: localSong?.id || parsed.id });
+    return serverUpdatedAt ? { ...fresh, updatedAt: serverUpdatedAt } : fresh;
   }
   const hasIdMatch = localSong.arrangements.some(a => a.id === parsed.arrangementId);
   const localTargetId = hasIdMatch
@@ -85,6 +86,9 @@ function mergeRemoteSong(localSong, parsed) {
     tags: parsed.tags || next.tags,
     spotify: parsed.spotify || next.spotify,
     youtube: parsed.youtube || next.youtube,
+    // withArrangement stamped Date.now(); restore the server's edit time so a
+    // pulled-but-unedited song doesn't surface as freshly edited.
+    ...(serverUpdatedAt ? { updatedAt: serverUpdatedAt } : {}),
   };
 }
 
@@ -220,9 +224,13 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
             conflicts.push({ kind: 'song', id: itemId, title: local.title });
           }
         }
+        // Stamp the song with the SERVER's edit time, not Date.now(). Pulling
+        // an unchanged-by-us song must not make it look freshly edited (which
+        // polluted "Recently edited" and the team activity feed).
+        const serverTs = entry.updatedAt ? new Date(entry.updatedAt).getTime() : Date.now();
         nextSongs.push(local
-          ? mergeRemoteSong(local, entry.parsed)
-          : songFromFlat({ ...entry.parsed, id: itemId }));
+          ? mergeRemoteSong(local, entry.parsed, serverTs)
+          : { ...songFromFlat({ ...entry.parsed, id: itemId }), updatedAt: serverTs });
         manifest[itemId] = { remoteId: entry.rowId, lastSyncedHash: entry.hash, lastSyncedTime: entry.updatedAt };
       }
       localSongsById.delete(itemId);

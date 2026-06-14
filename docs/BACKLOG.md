@@ -334,45 +334,71 @@ lint clean). Needs manual QA in-app._
 - ✅ **Chart 3-dots menu cut off** (§6) — _blocker_ for the chart rework.
   Fixed: `OverflowMenu` now portals to `<body>` with fixed positioning + a
   `70vh` scroll cap, escaping the sticky-header / overflow clipping.
-- ✅ **Recently-edited shows wrong "latest"** (§2.12) — fixed: Dashboard now
-  sorts by `updatedAt` (was subtracting base-36 id strings → NaN → insertion
-  order). ⚠️ **Deferred (still open):** the *team* "recent activity" false
-  edits — `songFromFlat` stamps `updatedAt: Date.now()` on every sync pull,
-  and the `team_activity` UPDATE trigger logs `song_edited` on sync writes.
-  Fixing needs the server `updated_at` threaded through the team-engine pull
-  **and** a DB-trigger change — riskier, scheduled as its own task. See §13.
+- ✅ **Recently-edited shows wrong "latest"** (§2.12) — fixed: Dashboard sorts
+  by `updatedAt`. **Team "recent activity" false edits — also fixed (2026-06-15):**
+  (a) `team-engine.pull()` now stamps the SERVER's `updated_at` onto pulled
+  songs instead of `Date.now()` (via `mergeRemoteSong(serverUpdatedAt)` +
+  override on the `songFromFlat` path), so synced-but-unedited songs no longer
+  look freshly edited; (b) new migration
+  `supabase/migrations/20260615_team_activity_skip_noop.sql` makes the
+  `team_activity` trigger skip no-op UPDATEs (content+title/name unchanged).
+  ⚠️ **The migration must be applied to Supabase** (`supabase db push` or SQL
+  editor) for the activity-feed half to take effect.
 - ✅ **Setlist side-peek reopens after nav round-trip** (§3) — fixed:
   `goToMainView` now clears `previewSongId`/`previewSetlistId`.
 - ✅ **Missing tab block in editor** (§7) — fixed: added
   `parseSectionLines()` to `parser.js`; `ArrangeTabV2.handleDrawerSave` now
   re-parses drawer text (was `rawText.split('\n')`, which flattened tab
   objects to strings that vanished on the next parse).
-- ✅ **Share — removed "never" expiry** (§3): dropped the `{days:0}` option so
-  setlists always expire. ⚠️ "Share broken" had no confirmed repro in code;
-  needs a concrete repro (error/symptom) to chase the remaining defect.
+- ✅ **Share — removed "never" expiry** (§3): dropped the `{days:0}` option.
+  **Share "broken" — fixed (2026-06-15):** root cause was the onboarding gate
+  overwriting `view='share-view'` on load — a shared link dumped visitors into
+  onboarding → empty dashboard. Added `share-view` to the `isAuthFlow` guard in
+  App.jsx so the public route survives. Also wired a **Play Live** button into
+  `SharedSetlistViewer` (read-only `SetlistPlayer` over the frozen snapshot — no
+  practice, no app shell, no auth), per the intended "open link → setlist +
+  play live" flow.
 - ✅ **Mobile song-details 2-column** (§1) — fixed: `grid-cols-1
   sm:grid-cols-2`.
-- ↩️ **Details panel mis-positioned** (§1) — superseded: `beta` already
-  rewrote the ChartView header (declarative `title`/`meta`/`actions`/`ribbon`)
-  with the title-chevron toggle baked in, so my reposition patch was dropped
-  on rebase. ⚠️ Re-verify the panel position against beta's new header before
-  closing this item.
+- ✅ **Details panel mis-positioned** (§1) — fixed (2026-06-15): added an
+  `info` slot to the shared `StageHeader` (renders directly under the
+  title/meta block, above the ribbon, outside the collapse-clip) and moved
+  ChartView's song-details disclosure from `extras` into it. (User confirmed it
+  was still opening below the meta/ribbon after the first attempt.)
 - ✅ **Settings right-pane scroll-to-top** (§11) — fixed: ref + effect resets
   `scrollTop` on panel change.
-- ✅ **Auto-scroll on add song/break** (§4) — fixed: end-marker `scrollIntoView`
-  after add. ✅ **Delete confirmation** (§4) — added a confirm dialog to
-  `removeItem` (was deleting immediately).
+- ✅ **Auto-scroll on add song/break** (§4) — fixed; **tightened 2026-06-15:**
+  the scroll anchor now sits *below* the add buttons and scrolls to `block:'end'`
+  so the new card AND the add-break control are both revealed (was only nudging
+  partway). ✅ **Delete confirmation** (§4) — confirm dialog added to `removeItem`.
 
 ### Wave 2 — Quick wins (low effort, batch into 1–2 small PRs)
 
 Cheap polish + momentum. Mostly copy/casing/icons.
+_Status: partially shipped 2026-06-15 (build green, lint clean). Done items
+below; the rest deferred with reasons._
 
-- "Search" placeholder (§2); **naming unify "Songs"** + **casing pass**
-  (Title Case headers, date not ALL-CAPS) (§5, §4, §3) — do as one sweep.
-- Location onto date line (§3); reposition "Edited by" (§3); remove workspace
-  reminder copy (§4 + overview); import-setlist icon swap (§3).
-- This-week: hide past programs (§2); Recommended-next **copy** rewrite (§4).
-- Chart view switch → single icon + text-only menu (§6).
+**Done:**
+- ✅ "Search" placeholder — Dashboard search now just says "Search".
+- ✅ Recommended-next **copy** rewrite — removed the em-dash phrasing.
+- ✅ Casing — "Song Library" + "Recommended next" headings no longer ALL-CAPS
+  (inline `textTransform:none` override on the shared `section-title` style).
+- ✅ Remove workspace reminder copy — dropped "This setlist will be saved here."
+  (builder) and the workspace-name chip in the setlist overview.
+- ✅ Import-setlist icon swap — replaced the download-tray glyph with an
+  "import into" arrow-into-container icon.
+- ✅ This-week: hide past programs — the widget now drops events whose
+  date+time has already passed (untimed events linger till end of day).
+
+**Deferred (need care / a decision, not quick after all):**
+- ↩️ **Naming unify "Songs" everywhere** (§5) — touches nav labels/headers in
+  several places; do as one deliberate sweep to avoid missing spots.
+- ↩️ **Location onto date line + date Title-Case** (§3) — entangled with the
+  setlist-overview header layout (better folded into the §3 overview redesign).
+- ↩️ **Reposition "Edited by"** (§3) — its own move-task; left in place for now.
+- ↩️ **Chart view switch → single icon + text-only menu** (§6) — beta replaced
+  this with `ViewModePicker`; revisit as part of the §6 chart rework rather
+  than re-skinning a component that's about to change.
 
 ### Wave 3 — Foundations (read-only audits; no ship risk; do early)
 

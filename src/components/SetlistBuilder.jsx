@@ -126,7 +126,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   useEffect(() => {
     if (scrollPendingRef.current) {
       scrollPendingRef.current = false;
-      listEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      listEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   }, [items]);
 
@@ -311,7 +311,6 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               <span className="inline-flex items-center px-2 py-1 rounded-md bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] text-[var(--ds-gray-900)] font-medium">
                 {workspaceName}
               </span>
-              <span className="hidden sm:inline">This setlist will be saved here.</span>
             </div>
           )}
           <div className="sm:ml-auto">
@@ -450,7 +449,6 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                     />
                   </div>
                 ))}
-                <div ref={listEndRef} />
               </div>
 
               {items.length === 0 && (
@@ -471,6 +469,9 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                   + Add Break
                 </div>
               </div>
+              {/* Scroll anchor below the add buttons so adding an item reveals
+                  the new card AND the add controls, not just the card. */}
+              <div ref={listEndRef} className="h-px" />
             </div>
           </div>
 

@@ -468,8 +468,9 @@ export default function App() {
         }
         setSettings(savedSettings);
 
-        // Determine initial view based on onboarding state
-        const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback';
+        // Determine initial view based on onboarding state. `share-view` is a
+        // public, no-auth route — never override it with onboarding/landing.
+        const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback' || view === 'share-view';
         if (isAuthFlow) {
           // Keep the current auth view
         } else if (!savedSettings.onboardingComplete && savedSongs.length === 0) {

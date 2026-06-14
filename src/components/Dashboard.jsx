@@ -207,12 +207,17 @@ export default function Dashboard({
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const end = new Date(today); end.setDate(end.getDate() + 7);
       const toDate = (ds) => ds ? new Date(ds + 'T12:00:00') : null;
+      // Hide events that have already happened. Timed events drop after their
+      // start time; untimed events linger until the end of their day. Reuse the
+      // component-scope `now` (Date.now() is flagged impure in render).
+      const nowTs = now.getTime();
+      const notPast = (ds, ts) => new Date(`${ds}T${ts || '23:59'}:00`).getTime() >= nowTs;
       const events = [];
       for (const sl of setlists) {
         const sd = toDate(sl.date);
-        if (sd && sd >= today && sd <= end) events.push({ kind: 'service', date: sl.date, time: sl.time, sl });
+        if (sd && sd <= end && notPast(sl.date, sl.time)) events.push({ kind: 'service', date: sl.date, time: sl.time, sl });
         const rd = toDate(sl.rehearsalDate);
-        if (rd && rd >= today && rd <= end) events.push({ kind: 'rehearsal', date: sl.rehearsalDate, time: sl.rehearsalTime, sl });
+        if (rd && rd <= end && notPast(sl.rehearsalDate, sl.rehearsalTime)) events.push({ kind: 'rehearsal', date: sl.rehearsalDate, time: sl.rehearsalTime, sl });
       }
       events.sort((a, b) => new Date(`${a.date}T${a.time || '00:00'}`) - new Date(`${b.date}T${b.time || '00:00'}`));
       if (!events.length) return null;
@@ -437,7 +442,7 @@ export default function Dashboard({
           <div className="relative w-full sm:w-72 hidden sm:block" ref={searchContainerRef}>
             <SearchBar
               ref={searchInputRef}
-              placeholder="Search songs by title or artist…"
+              placeholder="Search"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onFocus={() => setSearchFocused(true)}
