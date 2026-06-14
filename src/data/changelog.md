@@ -2,6 +2,31 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.12.0 — Stage headers, private notes & a customizable dashboard
+*June 2026*
+
+### Added
+- **Private notes** — keep your own "My note" alongside the shared team note on a song, a song-in-a-setlist, or a section. They sync to your account and work offline.
+- **Campfire mode** — hit Play on any song to go live without building a setlist, and get "Up next" suggestions (matched by key, tags and tempo) to keep the night going.
+- **Edge-arrow navigation** — a new way to move between songs in practice/live: big chevrons in the screen corners that stay put when the header tucks away (press-and-hold previews the next song). Pick it under Settings → Navigation controls.
+- **Structure ribbon that follows the song** — the current section highlights and scrolls into view as you go, with three styles to choose from (chips, codes, or dots).
+- **Customizable dashboard** — reorder and show/hide your home widgets, plus new ones: This week, Library stats, Team availability, and Sync status.
+- **Multiple workspaces** — create more than one band/church on your account (up to a sensible limit).
+- **General settings** — choose your default landing page, replay the welcome flow, toggle confirm-before-delete, and an early language switch.
+
+### Improved
+- **Reworked stage header** — Chart, Practice and Live now share a clean three-row header (title · key/tempo/time · structure) that collapses to just the structure as you scroll, with an auto-hide setting and tap-to-reveal.
+- **Unified notes** everywhere — the same notes card in chart, practice, live and the setlist builder.
+- **Settings & Help refreshed** — Settings (renamed from Preferences) is grouped into clear sections with a tidy account card; Help is rewritten to match the app and now opens from the "?" button.
+- **Simpler sign in / sign up** — email + password only, with show/confirm password and a strength meter; fields scroll into view above the keyboard.
+- **My Schedule** colour-codes your services (green) and rehearsals (amber); adding a band member from an instrument tab now fills in that instrument.
+- **Smaller, consistent header** that no longer overflows on small phones; the chords/lyrics/tabs/song-map switcher is one tidy menu.
+
+### Fixed
+- **Sync feels quiet** — the status no longer flickers on every edit; closed a sync race, ignore the echo of your own changes, and always surface team conflicts.
+- **Double scrollbar** on the Songs and Setlists screens is gone.
+- New songs no longer pre-fill the title with "New Song"; the editor's "+ Add" menu no longer hides under the header; and the structure bar no longer clips its first item.
+
 ## 0.11.0 — Backend hardening & sync reliability
 *June 2026*
 
