@@ -32,6 +32,20 @@ function friendlyAuthError(err) {
   return raw || 'Something went wrong.';
 }
 
+// Rough password strength: length + character variety → 1 (weak) … 3 (strong).
+function passwordStrength(pw) {
+  if (!pw) return { score: 0, label: '' };
+  let s = 0;
+  if (pw.length >= 8) s += 1;
+  if (pw.length >= 12) s += 1;
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw) && /\d/.test(pw)) s += 1;
+  if (/[^A-Za-z0-9]/.test(pw)) s += 1;
+  const score = Math.min(3, Math.max(1, s));
+  return { score, label: ['', 'Weak', 'Okay', 'Strong'][score] };
+}
+
+const STRENGTH_COLORS = ['', 'var(--ds-red-700)', 'var(--ds-amber-700)', 'var(--ds-teal-700)'];
+
 const EyeIcon = ({ off = false }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {off ? (
@@ -72,6 +86,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
     try { return window.localStorage.getItem(LAST_EMAIL_KEY) || ''; } catch { return ''; }
   });
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -83,6 +98,8 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
 
   const isSignUp = mode === 'signup';
   const passwordTooShort = isSignUp && password.length > 0 && password.length < 8;
+  const passwordsMismatch = isSignUp && confirmPassword.length > 0 && confirmPassword !== password;
+  const strength = passwordStrength(password);
   const resendSecondsLeft = Math.max(0, Math.ceil((resendAvailableAt - now) / 1000));
 
   useEffect(() => {
@@ -124,6 +141,10 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
     e.preventDefault();
     if (isSignUp && password.length < 8) {
       setMessage({ kind: 'error', text: 'Password must be at least 8 characters.' });
+      return;
+    }
+    if (isSignUp && password !== confirmPassword) {
+      setMessage({ kind: 'error', text: "Passwords don't match." });
       return;
     }
     await runAction('submit', async () => {
@@ -248,9 +269,24 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
                 }
               />
               {isSignUp && (
-                <span className={`text-label-12 mt-1 ${passwordTooShort ? 'text-[var(--ds-amber-900)]' : 'text-[var(--modes-text-dim)]'}`}>
-                  At least 8 characters.
-                </span>
+                password.length > 0 ? (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <div className="flex-1 flex gap-1">
+                      {[1, 2, 3].map(seg => (
+                        <span
+                          key={seg}
+                          className="h-1 flex-1 rounded-full transition-colors"
+                          style={{ background: seg <= strength.score ? STRENGTH_COLORS[strength.score] : 'var(--modes-border)' }}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-label-12 shrink-0" style={{ color: passwordTooShort ? 'var(--ds-amber-900)' : 'var(--modes-text-dim)' }}>
+                      {passwordTooShort ? 'Too short' : strength.label}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-label-12 mt-1 text-[var(--modes-text-dim)]">At least 8 characters.</span>
+                )
               )}
               {!isSignUp && (
                 <button
@@ -264,6 +300,24 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
                 </button>
               )}
             </label>
+
+            {isSignUp && (
+              <label className="flex flex-col gap-1">
+                <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Confirm password</span>
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  required
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  onFocus={scrollFieldIntoView}
+                  placeholder="••••••••"
+                />
+                {passwordsMismatch && (
+                  <span className="text-label-12 mt-1 text-[var(--ds-amber-900)]">Passwords don&apos;t match.</span>
+                )}
+              </label>
+            )}
 
             {message && (
               <div
@@ -298,7 +352,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
               variant="brand"
               size="lg"
               className="w-full"
-              disabled={busy || !email || !password}
+              disabled={busy || !email || !password || (isSignUp && confirmPassword !== password)}
               loading={busyTarget === 'submit'}
             >
               {isSignUp ? 'Create account' : 'Sign in'}
@@ -310,7 +364,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
               size="md"
               className="w-full"
               disabled={busy}
-              onClick={() => { setMode(isSignUp ? 'signin' : 'signup'); setMessage(null); }}
+              onClick={() => { setMode(isSignUp ? 'signin' : 'signup'); setMessage(null); setConfirmPassword(''); }}
             >
               {isSignUp ? 'Sign in instead' : 'Create an account'}
             </Button>
