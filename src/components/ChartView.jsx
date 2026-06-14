@@ -376,6 +376,13 @@ export default function ChartView({
       {!isPreview && (
         <StageHeader
           collapsed={headerCollapsed}
+          close={onBack && (
+            <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </IconButton>
+          )}
           title={(
             <button
               type="button"
@@ -483,13 +490,6 @@ export default function ChartView({
                       <path d="M3 8V3h5" /><path d="M21 8V3h-5" /><path d="M3 16v5h5" /><path d="M21 16v5h-5" />
                     </svg>
                   )}
-                </IconButton>
-              )}
-              {onBack && (
-                <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 6 6 18M6 6l12 12" />
-                  </svg>
                 </IconButton>
               )}
             </>

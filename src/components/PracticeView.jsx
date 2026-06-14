@@ -390,11 +390,6 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
         </svg>
       </IconButton>
-      <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close practice">
-        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </IconButton>
     </div>
   );
 
@@ -424,6 +419,13 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           when the header is expanded. */}
       <StageHeader
         collapsed={headerCollapsed}
+        close={(
+          <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close practice">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </IconButton>
+        )}
         title={(
           <>
             {navButtons}
