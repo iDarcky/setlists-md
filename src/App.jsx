@@ -133,6 +133,8 @@ const PORTABLE_PREF_KEYS = [
   'displayMode',
   'autoHideHeader',
   'ribbonStyle',
+  'dashboardWidgetOrder',
+  'dashboardHidden',
   'landingView',
   'language',
   'confirmBeforeDelete',
@@ -1907,6 +1909,8 @@ export default function App() {
                 signIn: () => { setAuthStartMode('signin'); navigate('signin'); },
               }}
               onDismissChecklist={() => setSettings(prev => ({ ...prev, checklistDismissed: true }))}
+              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              syncState={syncState}
               canEdit={canEdit}
               onSignIn={!user ? () => { setAuthStartMode('signin'); navigate('signin'); } : undefined}
             />
