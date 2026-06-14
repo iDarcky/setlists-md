@@ -2096,6 +2096,9 @@ export default function App() {
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               teamId={activeLibrary !== 'personal' ? activeLibrary : null}
               userId={user?.id}
+              onAppendSong={(songId, arrangementId) => setCurrentSetlist(prev => (
+                prev ? { ...prev, items: [...prev.items, { type: 'song', songId, ...(arrangementId ? { arrangementId } : {}) }] } : prev
+              ))}
             />
           )}
           {view === 'setlist-practice' && currentSetlist && (
