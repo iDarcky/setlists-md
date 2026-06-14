@@ -108,7 +108,7 @@ export default function MobileTopBar({
   const placeholder =
     view === 'setlists' ? 'Search setlists & songs…'
     : view === 'library' ? 'Search songs & setlists…'
-    : 'Search my library…';
+    : 'Search library…';
 
   const closeSearch = () => { setQuery(''); setFocused(false); inputRef.current?.blur(); };
 

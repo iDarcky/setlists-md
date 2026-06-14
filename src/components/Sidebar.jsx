@@ -121,7 +121,7 @@ export default function Sidebar({
   const tabs = [
     { id: 'home', label: 'Dashboard', Icon: HomeIcon },
     { id: 'setlists', label: 'Setlists', Icon: SetlistsIcon },
-    { id: 'library', label: 'Library', Icon: LibraryIcon },
+    { id: 'library', label: 'Songs', Icon: LibraryIcon },
     ...(hasTeamPlan ? [{ id: 'team', label: 'Team', Icon: TeamNavIcon }] : []),
   ];
 

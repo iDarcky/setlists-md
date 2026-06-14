@@ -419,10 +419,10 @@ export default function Setlists({
             <div className="hidden lg:flex items-center gap-2 shrink-0">
               {onImportSetlist && (
                 <IconButton variant="default" size="sm" onClick={() => fileInputRef.current?.click()} aria-label="Import .zip" title="Import .zip">
-                  {/* "Import into" (arrow entering a container) — distinct from a
-                      download tray, which read as a download to users. */}
+                  {/* Folder + down arrow — "import a file into the library". */}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 12h11" /><path d="m10 8 4 4-4 4" /><path d="M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5" />
+                    <path d="M3 8a2 2 0 0 1 2-2h3.6a1 1 0 0 1 .7.3L11 8h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <path d="M12 11v5" /><path d="m9.5 13.5 2.5 2.5 2.5-2.5" />
                   </svg>
                 </IconButton>
               )}

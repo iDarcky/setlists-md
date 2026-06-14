@@ -114,9 +114,21 @@ called out in their own section at the bottom.
 - **Structure pill in setlist song cards** — explore using the chart-view
   song-structure pill inside the song cards on the setlist overview. _tags:_
   [idea], [setlists] · _pri:_ P3
-- **Share broken + remove "never" expiry** — fix sharing; remove the "never"
-  option so setlists always expire after X days. _tags:_ [bug], [setlists],
-  [share] · _pri:_ P1
+- **Share broken + remove "never" expiry** — ✅ fixed (2026-06-15): public
+  share route survives onboarding; "never" removed; Play Live added. _tags:_
+  [bug], [setlists], [share] · _pri:_ P1
+- **Shared-viewer "Open app" → return to setlist?** — after pressing Open app,
+  let the visitor get back to the shared setlist (keep the token / show a
+  back affordance). _tags:_ [idea], [share] · _pri:_ P3 · _Q: in scope?_
+- **Shared-viewer: tap a song to open it directly** — let a visitor jump
+  straight to song N (read-only preview / start Play Live at that index).
+  _tags:_ [idea], [share] · _pri:_ P3
+- **Shared-viewer onboarding for "Open app"** — lightweight onboarding when a
+  share visitor chooses to open the full app. _tags:_ [idea], [share],
+  [onboarding] · _pri:_ P4
+- **Refresh the share UI** — the read-only viewer uses an older UI; redesign
+  later (user wants to keep it for now as inspiration). _tags:_ [ux], [share] ·
+  _pri:_ P3
 - **Rework Set order/Band + Play live/Practice buttons** — Set order/Band
   control needs rework; Play live/Practice should sit inline with Set
   order/Band. (Note: "Practice" here = group Rehearsal mode, see §15.)
@@ -378,35 +390,52 @@ Cheap polish + momentum. Mostly copy/casing/icons.
 _Status: partially shipped 2026-06-15 (build green, lint clean). Done items
 below; the rest deferred with reasons._
 
-**Done:**
-- ✅ "Search" placeholder — Dashboard search now just says "Search".
+**Done (first pass):**
+- ✅ Search placeholders — context-aware copy: mobile top bar drops "my"
+  → "Search library…"; desktop Dashboard search matches. Setlists/Songs
+  contexts already read "Search setlists & songs…" / "Search songs & setlists…".
 - ✅ Recommended-next **copy** rewrite — removed the em-dash phrasing.
-- ✅ Casing — "Song Library" + "Recommended next" headings no longer ALL-CAPS
-  (inline `textTransform:none` override on the shared `section-title` style).
 - ✅ Remove workspace reminder copy — dropped "This setlist will be saved here."
-  (builder) and the workspace-name chip in the setlist overview.
-- ✅ Import-setlist icon swap — replaced the download-tray glyph with an
-  "import into" arrow-into-container icon.
-- ✅ This-week: hide past programs — the widget now drops events whose
-  date+time has already passed (untimed events linger till end of day).
+  + the workspace chip in **both** the overview and the editor.
+- ✅ This-week: hide past programs — drops events past by date+time.
 
-**Deferred (need care / a decision, not quick after all):**
-- ↩️ **Naming unify "Songs" everywhere** (§5) — touches nav labels/headers in
-  several places; do as one deliberate sweep to avoid missing spots.
-- ↩️ **Location onto date line + date Title-Case** (§3) — entangled with the
-  setlist-overview header layout (better folded into the §3 overview redesign).
-- ↩️ **Reposition "Edited by"** (§3) — its own move-task; left in place for now.
+**Done (round 2, 2026-06-15 — addressing user feedback):**
+- ✅ Heading font — "Song Library" / "Recommended next" now use the same
+  `text-label-12 font-semibold` style as the Setlist-Title/Date form labels
+  (no longer ALL-CAPS, matched size).
+- ✅ Setlist add-scroll — anchor now has `scrollMarginBottom` so it clears the
+  fixed Save/Cancel action bar (was hidden under it).
+- ✅ Import-setlist icon — swapped the "import-into" arrow (read as log-out) for
+  a folder + down-arrow. ⚠️ _user wants more options — see open question below._
+- ✅ **Naming unify → "Songs"** (§5) — desktop page title (Library.jsx), top-nav
+  (TopHeader), and sidebar all now say "Songs" (mobile already did).
+
+**Open question:**
+- _Q (import icon): user asked for alternatives. Options on the table — folder
+  + down-arrow (current), document/page + down-arrow, inbox/tray + plus,
+  archive-box. Pick one._
+
+**Deferred (per user — leave for the relevant rework epic):**
+- ↩️ **Location onto date line + date Title-Case** (§3) — fold into §3 overview
+  redesign.
+- ↩️ **Reposition "Edited by"** (§3) — its own move-task within §3.
 - ↩️ **Chart view switch → single icon + text-only menu** (§6) — beta replaced
-  this with `ViewModePicker`; revisit as part of the §6 chart rework rather
-  than re-skinning a component that's about to change.
+  this with `ViewModePicker`; revisit inside the §6 chart rework.
 
 ### Wave 3 — Foundations (read-only audits; no ship risk; do early)
 
-Inform every later editor/sync change. Can run in parallel with Waves 1–2.
+Inform every later editor/sync change. **Full findings:
+`docs/AUDIT-WAVE3-SECURITY-SCALE.md`.**
 
-- **Input sanitization / injection audit** (§14, P1).
-- **Scale readiness assessment** (§14, P1) — pressure is many small team
-  libraries, not one giant one.
+- ✅ **Input sanitization / injection audit** (§14, P1) — done 2026-06-15.
+  Strong baseline, **no critical findings.** Top items: enforce CSP (currently
+  report-only; blocked on PDF inline-script nonce), validate PDF-prefs + ZIP
+  manifest shapes, add input maxLengths (overlaps §1 field-limits), bump share
+  token entropy, make OAuth URL cleanup synchronous. No code changed yet —
+  these are queued as their own small tasks.
+- ⏳ **Scale readiness assessment** (§14, P1) — audit running; findings will be
+  appended to the audit doc. (Pressure is many small team libraries, not one
+  giant one.)
 
 ### Wave 4 — North-star pillar: Scheduling & Notifications
 

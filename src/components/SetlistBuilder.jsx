@@ -18,7 +18,7 @@ import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RecommendedNextPanel from './setlist/RecommendedNextPanel';
 import RosterPanel from './setlist/RosterPanel';
 
-export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, workspaceName = '', knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
+export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
   const confirm = useConfirm();
   const [name, setName] = useState(setlist?.name || '');
   // New setlists default to the upcoming Sunday at 10:00 — the most common
@@ -304,15 +304,8 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
           all available space so the Save/Cancel bar below pins to the
           bottom of <main> even when the form is short. ── */}
       <div className="flex-1 w-full max-w-5xl mx-auto px-5 pt-6 pb-12">
-        {/* Workspace target + draft/ready status. */}
+        {/* Draft/ready status. (Workspace reminder chip removed — not relevant.) */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-4">
-          {workspaceName && (
-            <div className="flex items-center gap-2 text-label-12 text-[var(--ds-gray-600)]">
-              <span className="inline-flex items-center px-2 py-1 rounded-md bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] text-[var(--ds-gray-900)] font-medium">
-                {workspaceName}
-              </span>
-            </div>
-          )}
           <div className="sm:ml-auto">
             <SegmentedControl
               value={status}
@@ -470,8 +463,10 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                 </div>
               </div>
               {/* Scroll anchor below the add buttons so adding an item reveals
-                  the new card AND the add controls, not just the card. */}
-              <div ref={listEndRef} className="h-px" />
+                  the new card AND the add controls. The bottom scroll-margin
+                  clears the fixed Save/Cancel action bar so nothing hides
+                  under it. */}
+              <div ref={listEndRef} className="h-px" style={{ scrollMarginBottom: '7rem' }} />
             </div>
           </div>
 

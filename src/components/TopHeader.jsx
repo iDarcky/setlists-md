@@ -107,7 +107,7 @@ export default function TopHeader({
   const tabs = [
     { id: 'home', label: 'Home' },
     { id: 'setlists', label: 'Setlists' },
-    { id: 'library', label: 'Library' },
+    { id: 'library', label: 'Songs' },
     ...(inTeamWorkspace ? [{ id: 'team', label: 'Team' }] : []),
   ];
 

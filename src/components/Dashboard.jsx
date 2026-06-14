@@ -442,7 +442,7 @@ export default function Dashboard({
           <div className="relative w-full sm:w-72 hidden sm:block" ref={searchContainerRef}>
             <SearchBar
               ref={searchInputRef}
-              placeholder="Search"
+              placeholder="Search library…"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onFocus={() => setSearchFocused(true)}

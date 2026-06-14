@@ -27,7 +27,7 @@ export default function RecommendedNextPanel({ songs, currentItems, onAddSong })
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="section-title m-0" style={{ textTransform: 'none' }}>{heading}</p>
+        <p className="text-label-12 font-semibold text-[var(--ds-gray-600)] m-0">{heading}</p>
         <p className="text-copy-12 text-[var(--ds-gray-600)] m-0 mt-0.5">{subheading}</p>
       </div>
 
