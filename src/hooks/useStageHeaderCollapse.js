@@ -54,11 +54,13 @@ export function useStageHeaderCollapse(scrollRef, enabled, { idleDelay = 4000 } 
       lastYRef.current = y;
       if (Date.now() < lockUntilRef.current) return;       // settle after a toggle
       if (y < 16) { apply(false); return; }                // near the top → show
-      if (Math.abs(dy) < 4) return;                        // deadzone (jitter)
-      // Accumulate movement in one direction; reset when direction flips.
+      if (dy === 0) return;
+      // Accumulate movement in one direction; reset when direction flips. (No
+      // per-event deadzone — smooth/trackpad scroll fires many sub-pixel deltas
+      // that must still add up, or it never crosses the threshold.)
       accumRef.current = Math.sign(dy) === Math.sign(accumRef.current) ? accumRef.current + dy : dy;
-      if (accumRef.current > 40) apply(true);              // sustained down → hide
-      else if (accumRef.current < -40) apply(false);       // sustained up → show
+      if (accumRef.current > 36) apply(true);              // sustained down → hide
+      else if (accumRef.current < -36) apply(false);       // sustained up → show
       armIdle();
     };
 
