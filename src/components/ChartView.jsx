@@ -326,7 +326,7 @@ export default function ChartView({
   // Song details body — shown inline in the header (toggled by the title
   // chevron). Defined once so the header panel stays readable.
   const songInfoBody = hasMetadata ? (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-copy-13 m-0">
+    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-copy-13 m-0">
       {song.artist && <InfoRow label="Artist">{song.artist}</InfoRow>}
       {song.originaltitle && <InfoRow label="Original title">{song.originaltitle}</InfoRow>}
       {song.language && <InfoRow label="Language">{song.language}</InfoRow>}

@@ -7,7 +7,6 @@ const EXPIRY_OPTIONS = [
   { days: 1, label: '24 hours' },
   { days: 7, label: '7 days' },
   { days: 30, label: '30 days' },
-  { days: 0, label: 'Never' },
 ];
 
 // Create / show / revoke a public share link for a setlist. Snapshot-based:

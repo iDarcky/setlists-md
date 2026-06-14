@@ -119,6 +119,17 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
 
+  // Auto-scroll to a freshly added song/break. addSong/addBreak set the flag;
+  // an effect on `items` then scrolls the end marker into view once it mounts.
+  const listEndRef = useRef(null);
+  const scrollPendingRef = useRef(false);
+  useEffect(() => {
+    if (scrollPendingRef.current) {
+      scrollPendingRef.current = false;
+      listEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [items]);
+
   // Adds a song to the setlist. Defaults the transpose so the song lands in
   // its most-played key (when keyHistory has data); otherwise leaves it at 0.
   // overrideKey, when supplied (e.g. from the recommendations panel), wins.
@@ -139,6 +150,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
         description: `Transposed ${transpose > 0 ? '+' : ''}${transpose}`,
       });
     }
+    scrollPendingRef.current = true;
     applyStructural(p => [...p, {
       songId: song.id,
       songTitle: song.title,
@@ -150,9 +162,24 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     }]);
   };
   const addBreak = () => {
+    scrollPendingRef.current = true;
     applyStructural(p => [...p, { type: 'break', label: '', note: '', duration: 0 }]);
   };
-  const removeItem = (idx) => applyStructural(p => p.filter((_, i) => i !== idx));
+  const removeItem = async (idx) => {
+    const item = items[idx];
+    const isBreak = item?.type === 'break';
+    const ok = await confirm({
+      title: isBreak ? 'Remove break?' : 'Remove song?',
+      description: isBreak
+        ? 'This break will be removed from the setlist.'
+        : `"${item?.songTitle || 'This song'}" will be removed from the setlist.`,
+      confirmLabel: 'Remove',
+      cancelLabel: 'Keep',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    applyStructural(p => p.filter((_, i) => i !== idx));
+  };
 
   // Move item up or down by one position (for mobile-friendly reorder buttons)
   const moveItem = useCallback((fromIdx, toIdx) => {
@@ -423,6 +450,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                     />
                   </div>
                 ))}
+                <div ref={listEndRef} />
               </div>
 
               {items.length === 0 && (

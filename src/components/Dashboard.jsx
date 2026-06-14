@@ -92,7 +92,12 @@ export default function Dashboard({
   const searchInputRef = useRef(null);
   const searchContainerRef = useRef(null);
 
-  const latestSongs = [...songs].sort((a, b) => (b.id || 0) - (a.id || 0)).slice(0, 5);
+  // Recently edited songs (latest first). Sort by the real edit timestamp —
+  // ids are base-36 strings, so subtracting them yields NaN and leaves the
+  // list in insertion order (the old bug that showed the wrong "latest").
+  const latestSongs = [...songs]
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+    .slice(0, 5);
 
   const now = new Date();
   const upcomingSetlists = [...setlists]

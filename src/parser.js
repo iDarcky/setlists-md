@@ -455,6 +455,60 @@ export function parseTabBlock(rawLines) {
   return tab;
 }
 
+// Reconstruct a section's `lines[]` (plain strings plus tab / modulate /
+// tabref objects) from a raw multi-line string. Mirrors the per-line handling
+// inside parseSongMd so editing a section as text — e.g. the bottom-sheet
+// drawer in ArrangeTabV2 — round-trips tab blocks instead of flattening them
+// to plain `{tab}` / `e|...` strings (which then vanish on the next parse).
+export function parseSectionLines(rawText) {
+  const lines = String(rawText ?? '').split('\n');
+  const out = [];
+  let inTab = false;
+  let tabAccum = null;
+  for (const line of lines) {
+    const tabOpen = line.match(/^\{tab(?:,\s*(.+?))?\}$/);
+    if (tabOpen) {
+      inTab = true;
+      const meta = tabOpen[1] || '';
+      const timePart = meta.match(/time:\s*(\S+)/);
+      const instPart = meta.match(/instrument:\s*(\w+)/);
+      tabAccum = {
+        type: 'tab',
+        strings: [],
+        time: timePart ? timePart[1] : null,
+        instrument: instPart ? instPart[1] : null,
+        raw: [],
+      };
+      continue;
+    }
+    if (inTab && line.trim() === '{/tab}') {
+      if (tabAccum) out.push(tabAccum);
+      inTab = false;
+      tabAccum = null;
+      continue;
+    }
+    if (inTab && tabAccum) {
+      const strMatch = line.match(/^([eBGDAE])\|(.+)$/);
+      if (strMatch) tabAccum.strings.push({ note: strMatch[1], content: strMatch[2] });
+      tabAccum.raw.push(line);
+      continue;
+    }
+    const modMatch = line.match(/^\{modulate:\s*([+-]?\d+)\}$/);
+    if (modMatch) {
+      out.push({ type: 'modulate', semitones: parseInt(modMatch[1], 10) });
+      continue;
+    }
+    const refMatch = line.match(/^\{tabref:\s*(.+?)\}$/);
+    if (refMatch) {
+      out.push({ type: 'tabref', name: refMatch[1].trim() });
+      continue;
+    }
+    out.push(line);
+  }
+  if (inTab && tabAccum) out.push(tabAccum);
+  return out;
+}
+
 // Extract inline notes {!text} from a line
 // Returns { clean: lineWithoutNotes, notes: ['note1', 'note2'] }
 export function extractInlineNotes(line) {

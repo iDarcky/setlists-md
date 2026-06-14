@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Account from './Account';
 import { useAuth } from '../auth/useAuth';
 import { useEntitlement } from '../hooks/useEntitlement';
@@ -965,6 +965,13 @@ export default function Settings({
   onRemapService,
 }) {
   const { allowed: canManageServices } = useEntitlement('multi-service');
+  // Reset the desktop content pane to the top whenever the active panel
+  // changes — otherwise switching to a shorter panel keeps the previous
+  // scroll offset and lands the user mid-page.
+  const desktopScrollRef = useRef(null);
+  useEffect(() => {
+    if (desktopScrollRef.current) desktopScrollRef.current.scrollTop = 0;
+  }, [panel]);
   // Accepts (key, value) for single-field tweaks or a patch object for
   // multi-field updates done in the same render — without this, two
   // back-to-back update('foo', ...) calls each spread the *stale*
@@ -1166,7 +1173,7 @@ export default function Settings({
                 </svg>
               </button>
             </header>
-            <div className="flex-1 overflow-y-auto px-7 py-6">
+            <div ref={desktopScrollRef} className="flex-1 overflow-y-auto px-7 py-6">
               <div className="flex flex-col gap-6 max-w-[640px]">
                 {renderPanel(desktopPanel)}
               </div>

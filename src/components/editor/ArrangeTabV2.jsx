@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, memo, Fragment } from 'react';
 import { createPortal } from 'react-dom';
-import { parseSongMd, songToMd, placementToLine, parseTabBlock } from '../../parser';
+import { parseSongMd, songToMd, placementToLine, parseTabBlock, parseSectionLines } from '../../parser';
 import { sectionStyle, getNashvilleNumber, getSolfege } from '../../music';
 import TabBlock from '../TabBlock';
 import TabGridEditor from './TabGridEditorV2';
@@ -629,7 +629,11 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   const handleDrawerSave = useCallback((sectionIndex, rawText) => {
     if (!song) return;
-    const sections = song.sections.map((sec, i) => i !== sectionIndex ? sec : ({ ...sec, lines: rawText.split('\n') }));
+    // Re-parse the edited text so tab/modulate/tabref blocks are reconstructed
+    // as objects. A naive rawText.split('\n') flattened `{tab}` blocks into
+    // plain strings, so the tab disappeared on the next parse cycle.
+    const lines = parseSectionLines(rawText);
+    const sections = song.sections.map((sec, i) => i !== sectionIndex ? sec : ({ ...sec, lines }));
     emitSong({ ...song, sections });
     setDrawerTarget(null);
   }, [song, emitSong]);

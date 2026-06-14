@@ -889,6 +889,10 @@ export default function App() {
       setView(viewName);
       setCurrentSong(null);
       setCurrentSetlist(null);
+      // Clear any open side-peek selection so it doesn't auto-reopen when
+      // returning to the library/setlists view after navigating away.
+      setPreviewSongId(null);
+      setPreviewSetlistId(null);
       setIsFullscreen(false);
       if (viewName === 'settings') {
         setSettingsPanel(targetPanel || 'hub');
