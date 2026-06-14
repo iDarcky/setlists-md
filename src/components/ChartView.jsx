@@ -359,7 +359,7 @@ export default function ChartView({
   return (
     <div
       ref={scrollContainerRef}
-      onPointerDown={isPreview ? undefined : revealHeader}
+      onClick={isPreview ? undefined : revealHeader}
       style={CHART_THEME_STYLE}
       className={cn(
         // h-full (not 100dvh) so the chart fills its parent slot and owns the
@@ -384,7 +384,7 @@ export default function ChartView({
               aria-label="Song details"
               className="min-w-0 flex-1 flex items-center gap-1.5 bg-transparent border-none cursor-pointer p-0 text-left"
             >
-              <h1 className="m-0 truncate font-bold leading-tight text-heading-18 sm:text-heading-24" style={{ color: 'var(--text-1)' }}>
+              <h1 className="m-0 truncate font-bold leading-tight text-heading-16 sm:text-heading-20" style={{ color: 'var(--text-1)' }}>
                 {song.title}
               </h1>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 self-center text-[var(--text-2)] transition-transform duration-200 ${showInfo ? 'rotate-180' : ''}`}>

@@ -405,9 +405,9 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     >
     <div
       ref={scrollRef}
-      onTouchStart={(e) => { onTouchStart(e); revealHeader(); }}
+      onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
-      onMouseDown={revealHeader}
+      onClick={revealHeader}
       className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
@@ -427,7 +427,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
         title={(
           <>
             {navButtons}
-            <h1 className="text-heading-18 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
+            <h1 className="text-heading-15 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
               {cur.isBreak ? (cur.label || 'Break') : cur.song.title}
             </h1>
             <span
