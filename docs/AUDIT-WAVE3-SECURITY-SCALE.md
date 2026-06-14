@@ -64,4 +64,51 @@ React escaping; security headers (HSTS, X-Frame-Options, etc.) present.
 
 ## Scale / performance audit
 
-_Pending — running. Findings appended when the audit completes._
+**Overall:** well-architected for small/medium teams. Already solid: CAS
+conflict detection, lazy-loaded views, 30-day tombstone TTL, 2s sync debounce,
+heavy `useMemo` in Library, RLS everywhere. Four bottlenecks bite at the target
+scale (~100 churches × 50 members × up to ~1k songs/library).
+
+### Tier 1 — will break / badly degrade at scale
+- **Full-blob song persistence** — `App.jsx:562` → `storage.js:172`: every
+  single-song edit rewrites the **entire** `{schemaVersion, songs}` blob to
+  IndexedDB. At ~1k songs that's multi-MB per save, every debounce. _Fix:_
+  per-song records / delta writes (write only changed ids). _(Medium effort.)_
+- **Unbounded Supabase selects** — `hooks/useTeamSchedules.js:18` and
+  `hooks/useTeamAvailability.js:30` `select('*')` with **no `.limit()`** and a
+  full re-fetch on every realtime event. (Activity feed already caps at 100.)
+  _Fix:_ add `.limit()` + date-range filter (e.g. next 90 days). _(Low effort.)_
+- **Missing `team_id` index** — `team_songs`/`team_setlists` have a composite
+  `(team_id, title)` unique index but no standalone `team_id` index, so
+  `select().eq('team_id', …)` can seq-scan at 100k rows. _Fix:_
+  `create index … on team_songs(team_id);` (+ setlists). _(1 SQL line.)_
+- **Sync hashes the whole library every pull/push** — `team-engine.js`
+  pull/push loops `quickHash` every row each cycle. _Fix:_ cache per-song hash
+  across the cycle / use server content-hash. _(Medium effort.)_
+
+### Tier 2 — will degrade noticeably
+- **Serial push loop** — `team-engine.js` pushes one row per round-trip; ~1k
+  serial requests on 3G is brutal. _Fix:_ batch with `Promise.all` (e.g. 50 at a
+  time) or a bulk-upsert RPC.
+- **Search not debounced** — `Library.jsx:373` re-filters all songs per
+  keystroke. _Fix:_ `useDeferredValue(query)` (React 19) — tiny change.
+- **`SongCard` not memoized** — `SongCard.jsx:23`: selecting a preview re-renders
+  all ~100 visible rows. _Fix:_ wrap in `React.memo`.
+- _(Note: rendering is already windowed to 100 rows in Library; the in-memory
+  full array is the cost, not the DOM.)_
+
+### Tier 3 — minor / monitor
+- **Realtime echo not cancelled** — `useTeamRealtime.js` doesn't call the
+  existing `recentlyPushed(4000)` guard, so our own push can trigger a redundant
+  full sync. _Fix:_ early-return when `recentlyPushed()`. _(3 lines — easy win.)_
+- Main bundle >500kB (sync engine could be lazy); `team_activity` has no
+  retention policy (grows unbounded).
+
+### Suggested quick wins (small, safe, high value — candidates to do next)
+1. `team_id` indexes (1 migration).
+2. `.limit()` + date filter on schedules/availability queries.
+3. Realtime `recentlyPushed()` echo guard.
+4. `React.memo(SongCard)` + `useDeferredValue` search.
+
+The deeper two (per-song persistence, incremental sync hashing) are ~3–4 days
+total and should be scheduled deliberately, not rushed.

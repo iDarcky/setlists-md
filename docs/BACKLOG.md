@@ -433,9 +433,15 @@ Inform every later editor/sync change. **Full findings:
   manifest shapes, add input maxLengths (overlaps §1 field-limits), bump share
   token entropy, make OAuth URL cleanup synchronous. No code changed yet —
   these are queued as their own small tasks.
-- ⏳ **Scale readiness assessment** (§14, P1) — audit running; findings will be
-  appended to the audit doc. (Pressure is many small team libraries, not one
-  giant one.)
+- ✅ **Scale readiness assessment** (§14, P1) — done 2026-06-15. Well-architected
+  baseline; **4 bottlenecks** at scale: (1) full-blob song saves rewrite the
+  whole library per edit, (2) unbounded `team_schedules`/`team_availability`
+  selects re-fetched on every realtime event, (3) missing standalone `team_id`
+  index, (4) whole-library hashing each sync. **Safe quick wins** (do next):
+  `team_id` indexes, `.limit()`+date-filter on those queries, realtime
+  `recentlyPushed()` echo guard, `React.memo(SongCard)` + `useDeferredValue`
+  search. Deeper (per-song persistence, incremental sync hash) ~3–4 days,
+  schedule deliberately. No code changed yet.
 
 ### Wave 4 — North-star pillar: Scheduling & Notifications
 
