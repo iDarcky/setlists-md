@@ -88,9 +88,10 @@ function mergeRemoteSong(localSong, parsed) {
   };
 }
 
-export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false, client = defaultClient } = {}) {
+export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false, client = defaultClient, onConflicts } = {}) {
   let syncing = false;
   let debounceTimer = null;
+  let lastPushAt = 0; // when we last wrote rows — used to ignore our own realtime echo
   const libraryId = teamId;
 
   const setStatus = (state, extra = {}) => {
@@ -448,6 +449,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
       setStatus('syncing');
       try {
         const result = await runFullSync(songs, setlists, tombstones);
+        if ((result.uploaded?.songs || 0) + (result.uploaded?.setlists || 0) > 0) lastPushAt = Date.now();
         setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
         return result;
       } catch (err) {
@@ -491,9 +493,13 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
           // Only surface "synced" when something actually changed — avoids the
           // status churn that made team sync feel jittery on every edit.
           const uploaded = (result.uploaded?.songs || 0) + (result.uploaded?.setlists || 0);
+          if (uploaded > 0) lastPushAt = Date.now();
           if (uploaded > 0 || tsPruned) {
             setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
           }
+          // Surface CAS conflicts (another member wrote first) so the user knows
+          // their edit was superseded — otherwise the debounced push swallowed them.
+          if (result.conflicts?.length) onConflicts?.(result.conflicts);
         } catch (err) {
           console.error('[team-sync] Push error:', err);
           setStatus('error');
@@ -508,6 +514,12 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         clearTimeout(debounceTimer);
         debounceTimer = null;
       }
+    },
+
+    // True if we wrote rows very recently — lets the realtime listener ignore
+    // the echo of our own writes instead of re-syncing for nothing.
+    recentlyPushed(windowMs = 4000) {
+      return Date.now() - lastPushAt < windowMs;
     },
   };
 }

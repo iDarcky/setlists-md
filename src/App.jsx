@@ -328,7 +328,7 @@ export default function App() {
 
     syncEngineRef.current = createEngineForLibrary(activeLibrary, (status) => {
       setSyncState(prev => ({ ...prev, ...status }));
-    }, { readOnly: isTeamReadOnly });
+    }, { readOnly: isTeamReadOnly, onConflicts: notifyConflicts });
   }, [activeLibrary, isTeamReadOnly]);
 
   const triggerSync = useCallback(async () => {
@@ -391,10 +391,15 @@ export default function App() {
     }
   }, [songs, setlists, tombstones, activeLibrary]);
 
-  // Subscribe to realtime changes for team libraries
+  // Subscribe to realtime changes for team libraries. Ignore the echo of our
+  // own recent writes so a local edit doesn't bounce back as a redundant sync.
+  const handleRemoteChange = useCallback(() => {
+    if (syncEngineRef.current?.recentlyPushed?.()) return;
+    triggerSync();
+  }, [triggerSync]);
   useTeamRealtime(
     activeLibrary !== 'personal' ? activeLibrary : null,
-    triggerSync
+    handleRemoteChange
   );
 
   // Load data on mount or when active library changes
