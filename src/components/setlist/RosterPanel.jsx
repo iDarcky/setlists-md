@@ -108,8 +108,9 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
     setIsAdding(true);
     setAddingMemberId(member.user_id);
     try {
-      // No default part — the leader assigns instrument/vocal explicitly.
-      const defaultRole = (member.instruments && member.instruments[0]) || null;
+      // Adding from a specific instrument tab pre-fills that instrument;
+      // adding from "All" leaves it unset for the leader to assign.
+      const defaultRole = instrumentFilter || null;
       await createSchedule(dbSetlistId, member.user_id, defaultRole, 'pending');
       toast({ title: 'Added to roster', description: 'Member has been scheduled.' });
     } catch (err) {

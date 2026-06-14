@@ -36,14 +36,21 @@ export function CalendarWidget({
     return row?.status || null;
   };
 
-  // Helper to get schedules and setlists for a specific date
+  // Helper: service setlists, rehearsal setlists, and the user's schedules for
+  // each, on a given date.
   const getDataForDate = (date) => {
     const dateStr = toLocalDateStr(date);
-    const daySetlists = setlists.filter(sl => sl.date === dateStr);
-    const daySchedules = schedules?.filter(s =>
-      s.user_id === userId && daySetlists.some(sl => sl.id === s.setlist_id)
+    const serviceSetlists = setlists.filter(sl => sl.date === dateStr);
+    const rehearsalSetlists = setlists.filter(sl => sl.rehearsalDate === dateStr);
+    const mySchedulesFor = (sls) => schedules?.filter(s =>
+      s.user_id === userId && sls.some(sl => sl.id === s.setlist_id)
     ) || [];
-    return { daySetlists, daySchedules };
+    return {
+      serviceSetlists,
+      rehearsalSetlists,
+      serviceSchedules: mySchedulesFor(serviceSetlists),
+      rehearsalSchedules: mySchedulesFor(rehearsalSetlists),
+    };
   };
 
   const scrollLeft = () => {
@@ -85,29 +92,34 @@ export function CalendarWidget({
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {dates.map((date, i) => {
-            const { daySetlists, daySchedules } = getDataForDate(date);
+            const { serviceSetlists, rehearsalSetlists, serviceSchedules, rehearsalSchedules } = getDataForDate(date);
             const isToday = date.getTime() === today.getTime();
             const myAvail = myAvailabilityFor(date);
-            const hasSetlist = daySetlists.length > 0;
+            // What to open when the day is tapped (service first, else rehearsal).
+            const clickSetlist = serviceSetlists[0] || rehearsalSetlists[0] || null;
+            const hasSetlist = !!clickSetlist;
 
-            // Determine status. Setlist takes priority; otherwise show
-            // standalone availability so members get a visual confirmation
-            // that their declared availability "stuck".
+            // Status priority: a service you're on (green) → a rehearsal you're
+            // on (amber) → standalone availability. 'pending' = added but not
+            // yet confirmed.
             let status = 'none';
-
-            if (hasSetlist) {
-              if (daySchedules.length > 0) {
-                const s = daySchedules[0];
+            if (serviceSetlists.length) {
+              if (serviceSchedules.length) {
+                const s = serviceSchedules[0];
                 if (s.availability === 'pending') status = 'pending';
-                else if (s.availability === 'available') status = 'playing';
+                else if (s.availability === 'available') status = 'service';
                 else if (s.availability === 'maybe') status = 'maybe';
-              } else {
-                status = schedules ? 'none' : 'playing';
+                else status = 'service';
+              } else if (!schedules) {
+                status = 'service';
               }
-            } else if (myAvail === 'available') {
-              status = 'avail-yes';
-            } else if (myAvail === 'unavailable') {
-              status = 'avail-no';
+            }
+            if (status === 'none' && rehearsalSetlists.length && (rehearsalSchedules.length || !schedules)) {
+              status = 'rehearsal';
+            }
+            if (status === 'none') {
+              if (myAvail === 'available') status = 'avail-yes';
+              else if (myAvail === 'unavailable') status = 'avail-no';
             }
 
             let bgClass = "bg-[var(--ds-background-200)] border-[var(--ds-gray-300)]";
@@ -116,18 +128,26 @@ export function CalendarWidget({
 
             if (isToday && status === 'none') {
               bgClass = "bg-[var(--ds-background-100)] border-[var(--color-brand)]";
-            } else if (status === 'playing') {
-              bgClass = "bg-[var(--color-brand-soft)] border-[var(--color-brand)]";
-              textClass = "text-[var(--color-brand)] font-bold";
-              dotClass = "bg-[var(--color-brand)]";
+            } else if (status === 'service') {
+              bgClass = "bg-[var(--ds-green-100)] border-[var(--ds-green-400)]";
+              textClass = "text-[var(--ds-green-900)] font-bold";
+              dotClass = "bg-[var(--ds-green-600)]";
+            } else if (status === 'rehearsal') {
+              bgClass = "bg-[var(--ds-amber-100)] border-[var(--ds-amber-400)]";
+              textClass = "text-[var(--ds-amber-900)] font-bold";
+              dotClass = "bg-[var(--ds-amber-600)]";
             } else if (status === 'pending') {
-              bgClass = "bg-[var(--ds-orange-100)] border-[var(--ds-orange-300)]";
-              textClass = "text-[var(--ds-orange-900)]";
-              dotClass = "bg-[var(--ds-orange-600)]";
+              bgClass = "bg-[var(--color-brand-soft)] border-[var(--color-brand-border)]";
+              textClass = "text-[var(--color-brand)]";
+              dotClass = "bg-[var(--color-brand)]";
+            } else if (status === 'maybe') {
+              bgClass = "bg-[var(--ds-background-200)] border-[var(--ds-gray-400)]";
+              textClass = "text-[var(--ds-gray-900)]";
+              dotClass = "bg-[var(--ds-gray-500)]";
             } else if (status === 'avail-yes') {
               bgClass = "bg-[var(--ds-green-100)] border-[var(--ds-green-300)]";
               textClass = "text-[var(--ds-green-900)]";
-              dotClass = "bg-[var(--ds-green-600)]";
+              dotClass = "bg-[var(--ds-green-500)]";
             } else if (status === 'avail-no') {
               bgClass = "bg-[var(--ds-background-200)] border-[var(--ds-gray-400)] opacity-60";
               textClass = "text-[var(--ds-gray-700)] line-through";
@@ -137,7 +157,7 @@ export function CalendarWidget({
             return (
               <button
                 key={i}
-                onClick={() => hasSetlist && onDateClick ? onDateClick(daySetlists[0]) : null}
+                onClick={() => (hasSetlist && onDateClick ? onDateClick(clickSetlist) : null)}
                 className={`snap-start shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-2xl border transition-transform duration-150 active:scale-95 ${bgClass} ${hasSetlist ? 'cursor-pointer hover:shadow-md' : 'cursor-default opacity-80'}`}
               >
                 <span className={`text-label-12 font-semibold uppercase tracking-wider mb-1 ${status !== 'none' ? textClass : 'text-[var(--ds-gray-500)]'}`}>
@@ -159,6 +179,13 @@ export function CalendarWidget({
         {/* Scroll gradients */}
         <div className="absolute top-0 bottom-4 left-0 w-8 bg-gradient-to-r from-[var(--ds-background-100)] to-transparent pointer-events-none sm:hidden"></div>
         <div className="absolute top-0 bottom-4 right-0 w-8 bg-gradient-to-l from-[var(--ds-background-100)] to-transparent pointer-events-none"></div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 px-1 -mt-2 text-label-12 text-[var(--modes-text-muted)]">
+        <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[var(--ds-green-600)]" />Playing</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[var(--ds-amber-600)]" />Rehearsal</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand)]" />Pending</span>
       </div>
     </div>
   );
