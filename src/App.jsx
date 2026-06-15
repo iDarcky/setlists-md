@@ -179,7 +179,7 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const { team, teams, setActiveTeam, isAdmin, isEditor, hasTeamPlan, atWorkspaceLimit, loading: teamLoading } = useTeam();
+  const { team, teams, members, setActiveTeam, isAdmin, isEditor, hasTeamPlan, atWorkspaceLimit, loading: teamLoading } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const canEdit = !team || isAdmin || isEditor;
   const isTeamAdmin = isAdmin;
@@ -992,11 +992,21 @@ export default function App() {
     // If we have an actionable notification, we can handle it here if it's not handled internally by the tray
   };
 
+  // Dismiss a single notification: drop it from the stored list and remember
+  // its id so derived (virtual) notifications stay dismissed too. The dismissed
+  // set is device-local (not a PORTABLE_PREF_KEY) like `notifications` itself.
+  const handleDismissNotification = useCallback((notifId) => {
+    setSettings(prev => ({
+      ...prev,
+      notifications: (prev.notifications || []).filter(n => n.id !== notifId),
+      dismissedNotifications: [...new Set([...(prev.dismissedNotifications || []), notifId])],
+    }));
+  }, []);
+
   // --- Compute Virtual Notifications ---
-  // Pending schedules for the current user are merged into the local notifications array
+  // Pending schedules for the current user → "you've been scheduled" prompts.
   const pendingSchedules = schedules?.filter(s => s.user_id === user?.id && s.availability === 'pending') || [];
   const virtualNotifications = pendingSchedules.map(s => {
-    // Attempt to find the setlist name
     const setlist = setlists.find(sl => sl.id === s.setlist_id) || { name: 'a setlist' };
     return {
       id: `schedule-${s.id}`,
@@ -1009,10 +1019,47 @@ export default function App() {
     };
   });
 
+  // Admins get notified when a member declines an UPCOMING setlist. Derived
+  // client-side (no schema change): any 'unavailable' schedule for a future
+  // setlist we can resolve locally. Dismissible; stays dismissed via the set.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const memberDisplayName = (uid) => {
+    const m = (members || []).find(mm => mm.user_id === uid);
+    return m?.profile?.display_name || m?.profile?.email || 'A member';
+  };
+  const declineNotifications = (isAdmin && team)
+    ? (schedules || [])
+        .filter(s => s.availability === 'unavailable')
+        .map(s => ({ s, setlist: setlists.find(sl => sl.id === s.setlist_id) }))
+        .filter(({ setlist }) => setlist && setlist.date && setlist.date >= todayStr)
+        .map(({ s, setlist }) => ({
+          id: `decline-${s.id}`,
+          type: 'schedule_decline',
+          title: 'Schedule declined',
+          message: `${memberDisplayName(s.user_id)} can't make "${setlist.name}"${s.role ? ` (${s.role})` : ''}.`,
+          read: false,
+          setlistId: s.setlist_id,
+        }))
+    : [];
+
+  const dismissedNotifs = settings?.dismissedNotifications || [];
   const mergedNotifications = [
     ...virtualNotifications,
-    ...(settings?.notifications || [])
-  ];
+    ...declineNotifications,
+    ...(settings?.notifications || []),
+  ].filter(n => !dismissedNotifs.includes(n.id));
+
+  // Clear all dismissible notifications (schedule_request prompts stay — they
+  // still need an Accept/Decline).
+  const handleClearAllNotifications = () => {
+    const ids = mergedNotifications.filter(n => n.type !== 'schedule_request').map(n => n.id);
+    if (ids.length === 0) return;
+    setSettings(prev => ({
+      ...prev,
+      notifications: (prev.notifications || []).filter(n => !ids.includes(n.id)),
+      dismissedNotifications: [...new Set([...(prev.dismissedNotifications || []), ...ids])],
+    }));
+  };
 
   const hasUnreadNotifications = mergedNotifications.some(n => !n.read);
 
@@ -2363,6 +2410,8 @@ export default function App() {
           notifications={mergedNotifications}
           onUpdateSchedule={updateSchedule}
           onMarkRead={handleMarkNotificationRead}
+          onDismiss={handleDismissNotification}
+          onClearAll={handleClearAllNotifications}
           onAction={(action) => {
             setNotifTrayOpen(false);
             handleNotificationAction?.(action);

@@ -454,13 +454,26 @@ Inform every later editor/sync change. **Full findings:
 ### Wave 4 — North-star pillar: Scheduling & Notifications
 
 The strategic core ("replace Planning Center"). Build as one coordinated epic.
+_Started 2026-06-15._
 
-- Real notifications system: dismiss / clear-all (§10).
-- Notify on schedule rejection (§10).
+**Slice 1 — Notifications dismiss/clear-all + decline alerts (done):**
+- ✅ Real notifications: **per-notification dismiss (×)** + **Clear all** in
+  `NotificationTray`, persisted via a device-local `dismissedNotifications`
+  set in settings (derived/virtual notifications stay dismissed too).
+  schedule_request prompts are exempt (they resolve via Accept/Decline).
+- ✅ **Notify on schedule rejection** — admins now get a "Schedule declined"
+  notification when a member sets `unavailable` on an **upcoming** setlist
+  (derived client-side in App.jsx; no schema change). Dismissible.
+  ⚠️ _Limitation:_ only fires for setlists the client can resolve locally + in
+  the future; a DB-trigger/`team_notifications` table would make it robust and
+  add read-state persistence — candidate for a later slice.
+
+**Remaining slices:**
 - My-schedule widget rework: today emphasis, availability colors, play vs
   rehearsal days, day-click modal, maybe→available nudge, drop legend (§2.5).
 - Team availability rework (next-month view) (§2.8); pending-requests
   click-through (§2.6).
+- Harden decline alerts with a DB trigger + persistent read/dismiss state.
 
 ### Wave 5 — Audit remediation (security + scale)
 

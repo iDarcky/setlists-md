@@ -21,7 +21,14 @@ const ArrowIcon = () => (
   </svg>
 );
 
-export default function NotificationTray({ open, onClose, notifications = [], onMarkRead, onAction, onUpdateSchedule }) {
+const DismissIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+export default function NotificationTray({ open, onClose, notifications = [], onMarkRead, onAction, onUpdateSchedule, onDismiss, onClearAll }) {
   const trayRef = useRef(null);
 
   // Close on Escape
@@ -54,6 +61,9 @@ export default function NotificationTray({ open, onClose, notifications = [], on
   if (!open) return null;
 
   const unreadCount = notifications.filter(n => !n.read).length;
+  // schedule_request notifications resolve via Accept/Decline, so they're not
+  // manually dismissible; everything else can be cleared.
+  const dismissible = notifications.filter(n => n.type !== 'schedule_request');
 
   return (
     <>
@@ -174,7 +184,15 @@ export default function NotificationTray({ open, onClose, notifications = [], on
                     )}
                   </div>
 
-                  {notification.action && notification.type !== 'schedule_request' && (
+                  {notification.type !== 'schedule_request' && onDismiss ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDismiss(notification.id); }}
+                      aria-label="Dismiss notification"
+                      className="shrink-0 -mt-1 -mr-1 p-1.5 rounded-lg bg-transparent border-none cursor-pointer text-[var(--ds-gray-500)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors"
+                    >
+                      <DismissIcon />
+                    </button>
+                  ) : notification.action && notification.type !== 'schedule_request' && (
                     <div className="shrink-0 pt-1 text-[var(--ds-gray-500)]">
                       <ArrowIcon />
                     </div>
@@ -185,21 +203,33 @@ export default function NotificationTray({ open, onClose, notifications = [], on
           )}
         </div>
 
-        {/* Footer: Mark all read */}
-        {unreadCount > 0 && (
-          <div className="px-5 py-3 border-t border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                notifications.forEach(n => {
-                  if (!n.read) onMarkRead?.(n.id);
-                });
-              }}
-              className="w-full text-center text-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]"
-            >
-              Mark all as read
-            </Button>
+        {/* Footer: Mark all read + Clear all */}
+        {(unreadCount > 0 || dismissible.length > 0) && (
+          <div className="px-5 py-3 border-t border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] shrink-0 flex gap-2">
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  notifications.forEach(n => {
+                    if (!n.read) onMarkRead?.(n.id);
+                  });
+                }}
+                className="flex-1 text-center text-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]"
+              >
+                Mark all as read
+              </Button>
+            )}
+            {dismissible.length > 0 && onClearAll && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClearAll}
+                className="flex-1 text-center text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)]"
+              >
+                Clear all
+              </Button>
+            )}
           </div>
         )}
       </div>
