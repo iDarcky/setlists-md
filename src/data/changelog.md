@@ -21,11 +21,15 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Simpler sign in / sign up** — email + password only, with show/confirm password and a strength meter; fields scroll into view above the keyboard.
 - **My Schedule** colour-codes your services (green) and rehearsals (amber); adding a band member from an instrument tab now fills in that instrument.
 - **Smaller, consistent header** that no longer overflows on small phones; the chords/lyrics/tabs/song-map switcher is one tidy menu.
+- **Faster with large libraries** — editing a song and syncing now touch only what changed instead of rewriting your whole library each time, so big song lists stay snappy.
 
 ### Fixed
 - **Sync feels quiet** — the status no longer flickers on every edit; closed a sync race, ignore the echo of your own changes, and always surface team conflicts.
 - **Double scrollbar** on the Songs and Setlists screens is gone.
 - New songs no longer pre-fill the title with "New Song"; the editor's "+ Add" menu no longer hides under the header; and the structure bar no longer clips its first item.
+
+### Security
+- **Tighter by default** — the app now runs under an enforced content-security policy (no inline scripts), share links use longer, harder-to-guess tokens, and text fields have sensible length limits.
 
 ## 0.11.0 — Backend hardening & sync reliability
 *June 2026*
