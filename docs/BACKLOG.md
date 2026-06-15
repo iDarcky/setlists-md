@@ -526,19 +526,23 @@ Decisions from user Q&A:
   larger and show the event **name** inside (e.g. "BBPT #403 AM") + a small
   type label/icon; availability-only days stay compact chips. Today keeps its
   ring. Fixes the dashed-border bug by removing the dashed cue entirely.
-- **New separate "Roster" page** (distinct from Schedule): a spreadsheet grid —
-  **members down the left, dates across the top** (Sundays by default,
-  **configurable in settings** to include midweek programs). Header rows carry
-  the date + program description (e.g. "Doar AM", "PM: Duminica familiei").
-- **Combined cells:** a cell shows the assigned **role** (voce, chitară, pian,
-  tobe, bass, chitară el.…) when the member is rostered, otherwise their
-  **availability** (available/maybe/unavailable). Leaders assign roles; members
-  mark availability — same grid, permission-gated editing.
-  - _Open for grid (need a quick spec before building):_ editing/permission
-    model (who edits what inline), the canonical role list + per-role colors,
-    how columns/programs are configured in settings, and data wiring
-    (`team_schedules` for roles × `team_availability` for status). The grid is
-    a **large** build — sequence after My-Schedule v2.
+- **New separate "Scheduling" page** (working name; "Rota" is the alt): a
+  spreadsheet grid — **members down the left, dates across the top**. Header
+  rows carry the date + program description (e.g. "Doar AM", "PM: Duminica
+  familiei").
+- **Columns are data-driven, not a rigid AM/PM toggle.** Columns = the team's
+  actual scheduled services in the visible date range; each service is an event
+  with a *date + name*, so "AM only", "AM+PM", "two AMs", "midweek youth" all
+  fall out for free, labeled by the service's own name. (Later: optional
+  team-defined recurring templates that auto-create those events.)
+- **Combined cells:** a cell shows the assigned **role** when the member is
+  rostered, otherwise their **availability** (available/maybe/unavailable).
+  **Roles come from each member's `team_members.instruments`** (voce, chitară,
+  pian, tobe, bass, chitară el.…); a rostered/selected member uses a
+  **purpleish** cell fill. Leaders assign roles; members mark availability —
+  **same grid, both read + inline edit from day one**, permission-gated.
+  - Data wiring: `team_schedules` (roles) × `team_availability` (status). Large
+    build — sequence **after** My-Schedule v2.
 
 ### Wave 5 — Audit remediation (security + scale)
 

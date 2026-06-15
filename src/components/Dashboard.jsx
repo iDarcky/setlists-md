@@ -274,11 +274,13 @@ export default function Dashboard({
                   </div>
                 </div>
                 <span
-                  className="shrink-0 text-label-11 font-semibold px-2 py-0.5 rounded-full"
-                  style={ev.kind === 'rehearsal'
-                    ? { background: 'var(--ds-amber-100)', color: 'var(--ds-amber-900)' }
-                    : { background: 'var(--ds-green-100)', color: 'var(--ds-green-900)' }}
+                  className="shrink-0 inline-flex items-center gap-1 text-label-11 font-semibold px-2 py-0.5 rounded-full border border-[var(--modes-border)] text-[var(--modes-text-muted)]"
                 >
+                  {ev.kind === 'rehearsal' ? (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                  ) : (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                  )}
                   {ev.kind === 'rehearsal' ? 'Rehearsal' : 'Service'}
                 </span>
               </div>
