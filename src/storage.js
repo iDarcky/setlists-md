@@ -1,9 +1,11 @@
-import { get, set, del } from 'idb-keyval';
+import { get, set, del, getMany, setMany, delMany, keys } from 'idb-keyval';
 
 const OLD_PREFIX = 'Setlists MD:';
 const NEW_PREFIX = 'setlists-md:';
 
-const SONGS_KEY = (lib) => `${NEW_PREFIX}songs:${lib}`;
+const SONGS_KEY = (lib) => `${NEW_PREFIX}songs:${lib}`; // legacy whole-library blob
+const SONG_KEY = (lib, id) => `${NEW_PREFIX}song:${lib}:${id}`; // per-song record
+const SONG_IDX_KEY = (lib) => `${NEW_PREFIX}songidx:${lib}`; // ordered list of song ids
 const SETLISTS_KEY = (lib) => `${NEW_PREFIX}setlists:${lib}`;
 const SETTINGS_KEY = `${NEW_PREFIX}settings`; // Settings remain global
 const SYNC_KEY = (lib) => `${NEW_PREFIX}sync:${lib}`;
@@ -158,18 +160,93 @@ function sanitizeSetlists(raw) {
   return out;
 }
 
+// --- Per-song persistence ---------------------------------------------------
+// Songs are stored one IndexedDB entry per song (`song:<lib>:<id>`) plus an
+// ordered index of ids (`songidx:<lib>`), so editing a single song rewrites
+// only that song's entry instead of the whole library blob. `saveSongs` keeps
+// its whole-array signature; it diffs against a per-library cache of the last
+// persisted object references (React replaces only the edited song's object,
+// so reference identity is a free, exact "changed?" signal) and writes just
+// the songs whose reference changed, deletes removed ids, and rewrites the
+// index only when the id sequence changes.
+
+// lib -> Map<id, songRef> of what we last persisted.
+const songRefCache = new Map();
+// lib -> ids[] of the last persisted index, for cheap sequence comparison.
+const songIdsCache = new Map();
+
+function primeSongCaches(libraryId, songs) {
+  const refs = new Map();
+  for (const s of songs) if (s && typeof s.id === 'string') refs.set(s.id, s);
+  songRefCache.set(libraryId, refs);
+  songIdsCache.set(libraryId, songs.map(s => s.id));
+}
+
+function idsEqual(a, b) {
+  if (!a || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 export async function loadSongs(libraryId = 'personal') {
   try {
-    const raw = (await get(SONGS_KEY(libraryId))) || [];
-    return sanitizeSongs(raw);
+    const idx = await get(SONG_IDX_KEY(libraryId));
+    if (idx && Array.isArray(idx.ids)) {
+      const raw = idx.ids.length
+        ? await getMany(idx.ids.map(id => SONG_KEY(libraryId, id)))
+        : [];
+      const songs = sanitizeSongs(raw);
+      primeSongCaches(libraryId, songs);
+      return songs;
+    }
+    // No per-song index yet: migrate the legacy whole-library blob in place.
+    const blob = await get(SONGS_KEY(libraryId));
+    if (blob !== undefined) {
+      const songs = sanitizeSongs(blob);
+      await writeAllSongs(libraryId, songs);
+      await del(SONGS_KEY(libraryId));
+      return songs;
+    }
+    primeSongCaches(libraryId, []);
+    return [];
   } catch {
     return [];
   }
 }
 
+// Full rewrite of a library's songs (used for migration + first save). Resets
+// the caches to match what we just wrote.
+async function writeAllSongs(libraryId, songs) {
+  const ids = songs.map(s => s.id);
+  await setMany(songs.map(s => [SONG_KEY(libraryId, s.id), s]));
+  await set(SONG_IDX_KEY(libraryId), { schemaVersion: SCHEMA_VERSION, ids });
+  primeSongCaches(libraryId, songs);
+}
+
 export async function saveSongs(songs, libraryId = 'personal') {
-  // Persist with a schemaVersion envelope so future loaders can detect/migrate.
-  await set(SONGS_KEY(libraryId), { schemaVersion: SCHEMA_VERSION, songs });
+  const list = Array.isArray(songs) ? songs.filter(s => s && typeof s.id === 'string') : [];
+  const prev = songRefCache.get(libraryId) || new Map();
+  const nextRefs = new Map();
+  const toSet = [];
+  for (const s of list) {
+    nextRefs.set(s.id, s);
+    if (prev.get(s.id) !== s) toSet.push([SONG_KEY(libraryId, s.id), s]);
+  }
+  const toDel = [];
+  for (const id of prev.keys()) if (!nextRefs.has(id)) toDel.push(SONG_KEY(libraryId, id));
+  const ids = list.map(s => s.id);
+  const idxChanged = !idsEqual(songIdsCache.get(libraryId), ids);
+
+  // Update caches synchronously (before awaiting) so overlapping fire-and-forget
+  // saves diff against the latest intended state, not a stale snapshot.
+  songRefCache.set(libraryId, nextRefs);
+  songIdsCache.set(libraryId, ids);
+
+  const ops = [];
+  if (toSet.length) ops.push(setMany(toSet));
+  if (toDel.length) ops.push(delMany(toDel));
+  if (idxChanged) ops.push(set(SONG_IDX_KEY(libraryId), { schemaVersion: SCHEMA_VERSION, ids }));
+  await Promise.all(ops);
 }
 
 export async function loadSetlists(libraryId = 'personal') {
@@ -265,10 +342,19 @@ export async function saveTombstones(tombstones, libraryId = 'personal') {
 }
 
 export async function clearAll(libraryId = 'personal') {
-  await del(SONGS_KEY(libraryId));
+  // Per-song entries: enumerate keys under the library's song prefix.
+  try {
+    const prefix = `${NEW_PREFIX}song:${libraryId}:`;
+    const songKeys = (await keys()).filter(k => typeof k === 'string' && k.startsWith(prefix));
+    if (songKeys.length) await delMany(songKeys);
+  } catch { /* best-effort */ }
+  await del(SONG_IDX_KEY(libraryId));
+  await del(SONGS_KEY(libraryId)); // legacy blob, if any lingers
   await del(SETLISTS_KEY(libraryId));
   await del(SETTINGS_KEY); // Global
   await del(SYNC_KEY(libraryId));
   await del(TOMBSTONES_KEY(libraryId));
+  songRefCache.delete(libraryId);
+  songIdsCache.delete(libraryId);
 }
 

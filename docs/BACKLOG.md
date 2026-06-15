@@ -613,9 +613,15 @@ safe quick-win batch and deeper scheduled work.
     touching; flagged rather than guessed.
 
 **Deeper (schedule deliberately, ~3–4 days + a CSP pass):**
-- **Scale:** per-song IndexedDB persistence (stop rewriting the whole library
-  blob per edit); incremental sync hashing (cache per-song hash / server
-  content-hash); batch the team-engine push loop.
+- **Scale:**
+  - ✅ **per-song IndexedDB persistence** (2026-06-15) — songs now persist one
+    entry per song (`song:<lib>:<id>`) + an ordered `songidx:<lib>` index.
+    `saveSongs` keeps its whole-array signature but diffs by object-reference
+    identity (React replaces only the edited song's object) and writes just the
+    changed song; the legacy whole-library blob migrates in place on first
+    load. Tests: `src/__tests__/storage-persistence.test.js`.
+  - ⬜ incremental sync hashing (cache per-song hash / server content-hash);
+    batch the team-engine push loop.
 - **Security:** add the PDF inline-script nonce, then flip `vercel.json` CSP
   from report-only to enforcing; `team_activity` retention policy.
 
