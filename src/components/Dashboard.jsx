@@ -10,6 +10,7 @@ import ActivityFeed from './team/ActivityFeed';
 import { useTeam } from '../auth/useTeam';
 import { useTeamSchedules } from '../hooks/useTeamSchedules';
 import { useTeamAvailability } from '../hooks/useTeamAvailability';
+import DateStatusModal from './schedule/DateStatusModal';
 import { useTeamSetlistMap } from '../hooks/useTeamSetlistMap';
 import { useAuth } from '../auth/useAuth';
 import { formatClockTime } from '../lib/dateFormat';
@@ -29,6 +30,14 @@ const WIDGET_META = [
   { id: 'recent', label: 'Recently edited', requires: null },
 ];
 const DEFAULT_ORDER = WIDGET_META.map(w => w.id);
+
+// Local YYYY-MM-DD (avoids UTC shift from toISOString).
+function toLocalDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 // Compact brand-tinted date chip (Month / Day) used on dashboard service rows.
 function DateChip({ date }) {
@@ -78,13 +87,45 @@ export default function Dashboard({
   const { team, members } = useTeam();
   const { user } = useAuth();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
-  const { availability } = useTeamAvailability(team?.id);
+  const { availability, setStatus: setAvailabilityStatus, clearStatus: clearAvailabilityStatus } = useTeamAvailability(team?.id);
   const { map: setlistMap } = useTeamSetlistMap(team?.id);
   const resolveScheduleSetlist = (schedule) =>
     setlists.find(l => l.id === schedule.setlist_id || setlistMap[l.id] === schedule.setlist_id) || null;
   const schedulesForSetlist = (sl) =>
     (schedules || []).filter(s => s.setlist_id === sl.id || setlistMap[sl.id] === s.setlist_id);
   const pendingRequests = (schedules || []).filter(s => s.user_id === user?.id && s.availability === 'pending');
+
+  // Day-detail modal opened from the My-schedule widget. Mirrors the wiring in
+  // Schedule.jsx so the same DateStatusModal works on the dashboard.
+  const [pickerDate, setPickerDate] = useState(null);
+  const pickerDateStr = pickerDate ? toLocalDateStr(pickerDate) : null;
+  const pickerStatus = pickerDateStr
+    ? availability.find(a => a.user_id === user?.id && a.date === pickerDateStr)?.status || null
+    : null;
+  const pickerAvailableCount = pickerDateStr
+    ? availability.filter(a => a.date === pickerDateStr && a.status === 'available').length
+    : 0;
+  const pickerSetlists = pickerDateStr ? setlists.filter(sl => sl.date === pickerDateStr) : [];
+  const pickerRehearsals = pickerDateStr ? setlists.filter(sl => sl.rehearsalDate === pickerDateStr) : [];
+  const pickerMemberStatuses = pickerDateStr
+    ? (members || []).map(m => ({
+        id: m.user_id,
+        name: m.profile?.display_name || m.profile?.email?.split('@')[0] || 'Member',
+        avatarUrl: m.profile?.avatar_url || null,
+        isYou: m.user_id === user?.id,
+        status: availability.find(a => a.user_id === m.user_id && a.date === pickerDateStr)?.status || 'pending',
+      }))
+    : [];
+  const handlePickerSetStatus = async (status) => {
+    if (!pickerDate) return;
+    try { await setAvailabilityStatus(pickerDate, status); } catch (err) { console.error('[dashboard] set availability failed:', err); }
+    setPickerDate(null);
+  };
+  const handlePickerClear = async () => {
+    if (!pickerDate) return;
+    try { await clearAvailabilityStatus(pickerDate); } catch (err) { console.error('[dashboard] clear availability failed:', err); }
+    setPickerDate(null);
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -256,6 +297,7 @@ export default function Dashboard({
           schedules={schedules}
           userId={user.id}
           onDateClick={onViewSetlist}
+          onDayClick={team ? (date) => setPickerDate(date) : undefined}
           availability={team ? availability : null}
           onOpenSchedule={team ? onOpenSchedule : undefined}
         />
@@ -545,6 +587,23 @@ export default function Dashboard({
           })}
         </div>
       </BottomSheet>
+
+      {pickerDate && (
+        <DateStatusModal
+          date={pickerDate}
+          currentStatus={pickerStatus}
+          availableCount={pickerAvailableCount}
+          totalMembers={(members || []).length}
+          setlists={pickerSetlists}
+          rehearsals={pickerRehearsals}
+          memberStatuses={pickerMemberStatuses}
+          clockFormat={settings?.clockFormat || '12h'}
+          onSetStatus={handlePickerSetStatus}
+          onClear={handlePickerClear}
+          onOpenSetlist={(sl) => { setPickerDate(null); onViewSetlist?.(sl); }}
+          onClose={() => setPickerDate(null)}
+        />
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ export function CalendarWidget({
   schedules,
   userId,
   onDateClick,
+  onDayClick,
   availability,
   onOpenSchedule,
 }) {
@@ -126,9 +127,7 @@ export function CalendarWidget({
             let textClass = "text-[var(--ds-gray-900)]";
             let dotClass = "bg-transparent";
 
-            if (isToday && status === 'none') {
-              bgClass = "bg-[var(--ds-background-100)] border-[var(--color-brand)]";
-            } else if (status === 'service') {
+            if (status === 'service') {
               bgClass = "bg-[var(--ds-green-100)] border-[var(--ds-green-400)]";
               textClass = "text-[var(--ds-green-900)] font-bold";
               dotClass = "bg-[var(--ds-green-600)]";
@@ -141,29 +140,55 @@ export function CalendarWidget({
               textClass = "text-[var(--color-brand)]";
               dotClass = "bg-[var(--color-brand)]";
             } else if (status === 'maybe') {
-              bgClass = "bg-[var(--ds-background-200)] border-[var(--ds-gray-400)]";
-              textClass = "text-[var(--ds-gray-900)]";
-              dotClass = "bg-[var(--ds-gray-500)]";
+              // Tentative — amber, matching the availability picker.
+              bgClass = "bg-[var(--ds-amber-100)] border-[var(--ds-amber-300)]";
+              textClass = "text-[var(--ds-amber-900)]";
+              dotClass = "bg-[var(--ds-amber-500)]";
             } else if (status === 'avail-yes') {
               bgClass = "bg-[var(--ds-green-100)] border-[var(--ds-green-300)]";
               textClass = "text-[var(--ds-green-900)]";
               dotClass = "bg-[var(--ds-green-500)]";
             } else if (status === 'avail-no') {
-              bgClass = "bg-[var(--ds-background-200)] border-[var(--ds-gray-400)] opacity-60";
-              textClass = "text-[var(--ds-gray-700)] line-through";
-              dotClass = "bg-[var(--ds-gray-500)]";
+              // Unavailable — red (was a muted strikethrough, which didn't read).
+              bgClass = "bg-[var(--ds-red-100)] border-[var(--ds-red-300)]";
+              textClass = "text-[var(--ds-red-800)]";
+              dotClass = "bg-[var(--ds-red-600)]";
+            } else if (isToday) {
+              bgClass = "bg-[var(--ds-background-100)] border-[var(--ds-gray-400)]";
             }
+
+            // Event-type glyph (▶ play vs ↻ rehearsal) so the two are
+            // distinguishable even when their tint is similar.
+            const eventType = serviceSetlists.length ? 'service'
+              : rehearsalSetlists.length ? 'rehearsal' : null;
+
+            // Clicking any day opens the day detail/availability modal; if the
+            // host didn't wire one, fall back to opening the day's setlist.
+            const handleClick = () => {
+              if (onDayClick) onDayClick(date);
+              else if (hasSetlist && onDateClick) onDateClick(clickSetlist);
+            };
 
             return (
               <button
                 key={i}
-                onClick={() => (hasSetlist && onDateClick ? onDateClick(clickSetlist) : null)}
-                className={`snap-start shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-2xl border transition-transform duration-150 active:scale-95 ${bgClass} ${hasSetlist ? 'cursor-pointer hover:shadow-md' : 'cursor-default opacity-80'}`}
+                onClick={handleClick}
+                aria-current={isToday ? 'date' : undefined}
+                className={`relative snap-start shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-2xl border transition-transform duration-150 active:scale-95 cursor-pointer hover:shadow-md ${bgClass} ${isToday ? 'ring-2 ring-[var(--color-brand)] ring-offset-1 ring-offset-[var(--ds-background-100)]' : ''}`}
               >
+                {eventType && (
+                  <span className="absolute top-1 right-1 text-[var(--ds-gray-500)]" aria-hidden="true" title={eventType === 'service' ? 'Service' : 'Rehearsal'}>
+                    {eventType === 'service' ? (
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                    ) : (
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 3v5h-5" /></svg>
+                    )}
+                  </span>
+                )}
                 <span className={`text-label-12 font-semibold uppercase tracking-wider mb-1 ${status !== 'none' ? textClass : 'text-[var(--ds-gray-500)]'}`}>
-                  {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                  {isToday ? 'Today' : date.toLocaleDateString('en-US', { weekday: 'short' })}
                 </span>
-                <span className={`text-heading-20 m-0 leading-none ${textClass}`}>
+                <span className={`text-heading-20 m-0 leading-none ${isToday ? 'font-extrabold' : ''} ${textClass}`}>
                   {date.getDate()}
                 </span>
                 <div className="h-2 mt-1">
@@ -179,13 +204,6 @@ export function CalendarWidget({
         {/* Scroll gradients */}
         <div className="absolute top-0 bottom-4 left-0 w-8 bg-gradient-to-r from-[var(--ds-background-100)] to-transparent pointer-events-none sm:hidden"></div>
         <div className="absolute top-0 bottom-4 right-0 w-8 bg-gradient-to-l from-[var(--ds-background-100)] to-transparent pointer-events-none"></div>
-      </div>
-
-      {/* Legend */}
-      <div className="flex items-center gap-4 px-1 -mt-2 text-label-12 text-[var(--modes-text-muted)]">
-        <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[var(--ds-green-600)]" />Playing</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[var(--ds-amber-600)]" />Rehearsal</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand)]" />Pending</span>
       </div>
     </div>
   );

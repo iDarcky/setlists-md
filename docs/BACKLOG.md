@@ -468,9 +468,21 @@ _Started 2026-06-15._
   the future; a DB-trigger/`team_notifications` table would make it robust and
   add read-state persistence — candidate for a later slice.
 
+**Slice 2 — My-schedule widget rework (done, 2026-06-15):**
+- ✅ Today emphasis — brand ring + "Today" label + extra-bold date.
+- ✅ Availability colors — unavailable=**red** (was a muted strikethrough),
+  maybe=**amber**, available=**green** (matches the availability picker).
+- ✅ Play vs rehearsal differentiation — a ▶ glyph for service days, a ↻ glyph
+  for rehearsal days (so they're distinct beyond the amber/green tint).
+- ✅ Day-click modal — every day now opens the shared `DateStatusModal`
+  (setlists + rehearsals on the date, set my availability, team status), wired
+  in Dashboard like Schedule.jsx. (Was: only opened a setlist if one existed.)
+- ✅ Dropped the dashboard legend.
+- ↩️ _Deferred:_ maybe→available **nudge** ~2 weeks out — better as a derived
+  notification (build on slice 1's notification infra) than a widget hint.
+
 **Remaining slices:**
-- My-schedule widget rework: today emphasis, availability colors, play vs
-  rehearsal days, day-click modal, maybe→available nudge, drop legend (§2.5).
+- Maybe→available nudge (notification, ~2 weeks out) (§2.5).
 - Team availability rework (next-month view) (§2.8); pending-requests
   click-through (§2.6).
 - Harden decline alerts with a DB trigger + persistent read/dismiss state.
