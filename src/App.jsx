@@ -2364,6 +2364,7 @@ export default function App() {
               setlists={setlists}
               onBack={goSchedule}
               onOpenSetlist={goSetlistView}
+              onAddSetlist={isTeamReadOnly ? null : (dateStr) => goSetlistBuild({ date: dateStr })}
             />
           )}
         </DesktopLayout>

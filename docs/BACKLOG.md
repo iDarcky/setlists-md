@@ -456,6 +456,16 @@ Inform every later editor/sync change. **Full findings:
 The strategic core ("replace Planning Center"). Build as one coordinated epic.
 _Started 2026-06-15._
 
+**Status (2026-06-15): core shipped, not formally closed.** Slices 1–5 are all
+done — notifications dismiss/clear + decline alerts, the My-schedule widget
+(through v2), the maybe-nudge + pending click-through, the leader availability
+widget, and the **Scheduling grid** (roster × every-Sunday). What's left before
+calling Wave 4 *complete*: the **hardening slice** (DB trigger +
+`team_notifications` table for robust, persistent read-state) and the two
+**open QA decisions** below (gate/collapse `DateStatusModal`'s team list).
+Polish carried forward: My-Schedule v2 wider-cell look (user undecided) and the
+grid's mobile-narrow ergonomics.
+
 **Slice 1 — Notifications dismiss/clear-all + decline alerts (done):**
 - ✅ Real notifications: **per-notification dismiss (×)** + **Clear all** in
   `NotificationTray`, persisted via a device-local `dismissedNotifications`
@@ -545,15 +555,21 @@ Decisions from user Q&A:
     build — sequence **after** My-Schedule v2.
   - **Built:** `src/components/SchedulingGrid.jsx`, view `'scheduling'` in
     App.jsx, reached via a **Grid** button on the Schedule page header. Members
-    × service columns (data-driven from dated team setlists, 4/8/12-wk horizon).
-    Cell tap opens a sheet: leaders assign role (purple chip, from instruments);
-    members set their own availability (green/amber/red). Roles write
-    `team_schedules` via `useTeamSchedules` (setlist UUID via
+    down the left × columns = **every Sunday this year merged with the team's
+    dated services** (AM/PM/midweek each get their own column). Sundays with no
+    service are **scaffold columns** with **"+ Add setlist"** that seeds the
+    SetlistBuilder with that date (`goSetlistBuild({ date })`).
+  - Cell tap opens a sheet: leaders assign **Instrument** (purple chip, sourced
+    from each member's `instruments`) **and Vocals** (`vocal_part`, brand chip);
+    members set their own availability (green/amber/red). No status dot on chips.
+    Roles/vocals write `team_schedules` via `useTeamSchedules` (setlist UUID via
     `useTeamSetlistMap`); availability via `useTeamAvailability`. Realtime +
     optimistic through the existing hooks.
-  - _Follow-ups (not yet):_ vocal-part column, mobile-narrow ergonomics for very
-    wide grids, leader-edits-others' availability (RLS currently own-row only),
-    optional recurring-service templates to auto-create columns.
+  - _Follow-ups (not yet):_ **mobile-narrow ergonomics** for the wide grid (user
+    flagged — deferred), leader-edits-others' availability (RLS currently own-row
+    only), optional recurring-service templates / non-Sunday recurrence,
+    next-year roll-over. _Open (user):_ undecided on the My-Schedule v2 **wider
+    event cells** — may revisit the look.
 
 ### Wave 5 — Audit remediation (security + scale)
 
