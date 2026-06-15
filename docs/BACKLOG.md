@@ -513,6 +513,33 @@ leader-focused × tap-through._ Implementation:
 - _(Open from QA)_ optionally gate `DateStatusModal`'s team list to leaders;
   group/collapse it at ~50 members.
 
+**Slice 5 (designed 2026-06-15, not yet built) — My-Schedule v2 + Roster grid.**
+Decisions from user Q&A:
+
+- **Consistent color language (app-wide):** color = **my status only** —
+  green=available, amber=maybe, red=unavailable, neutral=no-response, plus a
+  distinct **playing/rostered** treatment. **Event type (service/rehearsal) is
+  never color** — show it as text/icon. _Implication:_ recolor the "This week"
+  Service/Rehearsal badges to neutral/outline (the text already says which),
+  so green/amber stop doubling as event-type.
+- **My-Schedule day strip → calendar-style cells (idea #3):** event days are
+  larger and show the event **name** inside (e.g. "BBPT #403 AM") + a small
+  type label/icon; availability-only days stay compact chips. Today keeps its
+  ring. Fixes the dashed-border bug by removing the dashed cue entirely.
+- **New separate "Roster" page** (distinct from Schedule): a spreadsheet grid —
+  **members down the left, dates across the top** (Sundays by default,
+  **configurable in settings** to include midweek programs). Header rows carry
+  the date + program description (e.g. "Doar AM", "PM: Duminica familiei").
+- **Combined cells:** a cell shows the assigned **role** (voce, chitară, pian,
+  tobe, bass, chitară el.…) when the member is rostered, otherwise their
+  **availability** (available/maybe/unavailable). Leaders assign roles; members
+  mark availability — same grid, permission-gated editing.
+  - _Open for grid (need a quick spec before building):_ editing/permission
+    model (who edits what inline), the canonical role list + per-role colors,
+    how columns/programs are configured in settings, and data wiring
+    (`team_schedules` for roles × `team_availability` for status). The grid is
+    a **large** build — sequence after My-Schedule v2.
+
 ### Wave 5 — Audit remediation (security + scale)
 
 From the Wave 3 audits (`docs/AUDIT-WAVE3-SECURITY-SCALE.md`). Grouped into a
