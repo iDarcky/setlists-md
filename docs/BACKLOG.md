@@ -456,16 +456,15 @@ Inform every later editor/sync change. **Full findings:
 The strategic core ("replace Planning Center"). Build as one coordinated epic.
 _Started 2026-06-15._
 
-**Status (2026-06-15): core shipped, not formally closed.** Slices 1–5 are all
-done — notifications dismiss/clear + decline alerts, the My-schedule widget
-(through v2), the maybe-nudge + pending click-through, the leader availability
-widget, and the **Scheduling grid** (roster × every-Sunday). What's left before
-calling Wave 4 *complete*: the **hardening slice** (DB trigger +
-`team_notifications` table for robust, persistent read-state) and the two
-**open QA decisions** below (gate/collapse `DateStatusModal`'s team list — the
-**gate-for-non-leaders** decision is now confirmed and in progress). UI/UX
-polish (My-Schedule v2 wider-cell look, grid mobile ergonomics) is split out
-into **Slice 6**.
+**Status (2026-06-15): COMPLETE.** Slices 1–6 done — notifications dismiss/clear
++ decline alerts, the My-schedule widget (through v2), maybe-nudge + pending
+click-through, the leader availability widget, the **Scheduling grid** (roster ×
+every-Sunday), and the **hardening slice** (server-authoritative
+`team_notifications` table + DB trigger; persistent cross-device read/dismiss).
+The non-leader **gate** on `DateStatusModal`'s team-availability list is in.
+Remaining open QA item (collapse the roster at ~50 members) and the maybe-nudge
+persistence (needs a scheduled job) are punted forward. UI/UX polish moved to
+**Wave 6**. Next up: **Wave 5** (audit-remediation quick wins).
 
 **Slice 1 — Notifications dismiss/clear-all + decline alerts (done):**
 - ✅ Real notifications: **per-notification dismiss (×)** + **Clear all** in
@@ -517,12 +516,25 @@ leader-focused × tap-through._ Implementation:
 - ✅ Tapping a service opens the day `DateStatusModal` (detail/roster) +
   a "Full schedule" link in the header.
 
-**Remaining slices:**
-- Harden decline alerts + maybe-nudge with a DB trigger + a `team_notifications`
-  table (persistent read/dismiss, robust resolution) — the deeper version of
-  slices 1 & 3.
-- _(Open from QA)_ optionally gate `DateStatusModal`'s team list to leaders;
-  group/collapse it at ~50 members.
+**Slice 7 — Hardening + gate (done, 2026-06-15):**
+- ✅ **Server-authoritative decline alerts.** New `team_notifications` table +
+  `notify_on_schedule_decline()` trigger (`20260616_team_notifications.sql`):
+  on a `team_schedules` flip to `unavailable`, the DB fans a notification row to
+  every roster manager (admins/leaders/owner, minus the decliner). Lands even if
+  that manager's client never loaded the setlist. RLS: recipient reads/updates/
+  deletes only their own rows; no client INSERT (trigger-only, SECURITY DEFINER).
+- ✅ **Persistent, cross-device read/dismiss** via `read_at`/`dismissed_at` —
+  `src/hooks/useTeamNotifications.js` (realtime + optimistic, graceful when the
+  table/Supabase is absent). App.jsx merges these (`tn-<id>`) in place of the
+  old client-derived decline stream and routes dismiss/markRead/clearAll to the
+  hook; the message is enriched locally (member + setlist name) over the
+  generic stored body.
+- ✅ **Gate team availability for non-leaders** — `DateStatusModal` now takes
+  `canViewTeam` (passed `canManageRoster` from Schedule + Dashboard); the full
+  roster list renders only for leaders/admins. Non-leaders just set their own.
+- ⚠️ _Punted:_ **maybe-nudge** is still client-derived (time-relative → wants a
+  scheduled job, not a row trigger). Open QA: collapse the roster list at ~50
+  members.
 
 **Slice 5 (2026-06-15) — My-Schedule v2 ✅ + Scheduling grid ✅ (both built).**
 Decisions from user Q&A:
@@ -568,17 +580,7 @@ Decisions from user Q&A:
     optimistic through the existing hooks.
   - _Follow-ups:_ leader-edits-others' availability (RLS currently own-row
     only), optional recurring-service templates / non-Sunday recurrence,
-    next-year roll-over. _(The two UI/UX polish items moved to **Slice 6**.)_
-
-**Slice 6 — UI/UX polish (UI/UX work; not started).**
-A grab-bag of look-and-feel refinement carried out of the scheduling build:
-- **My-Schedule v2 wider event cells** — user is undecided on the look. Explore
-  an alternative: keep every day a uniform compact chip and show the event name
-  as a small caption beneath, so the strip stays even instead of mixing
-  chip + wide-card widths.
-- **Scheduling grid mobile-narrow ergonomics** — the members × Sundays grid is
-  wide; needs phone polish (sticky-column sizing, tap targets, horizontal-scroll
-  affordance, maybe a condensed/by-service mobile view).
+    next-year roll-over. _(The two UI/UX polish items moved to **Wave 6**.)_
 
 ### Wave 5 — Audit remediation (security + scale)
 
@@ -605,6 +607,14 @@ safe quick-win batch and deeper scheduled work.
 
 ### Wave 6 — UX epics (bigger, mostly independent)
 
+- **Scheduling UI/UX polish** (carried out of Wave 4):
+  - _My-Schedule v2 wider event cells_ — user undecided on the look. Explore an
+    alternative: keep every day a uniform compact chip and show the event name
+    as a small caption beneath, so the strip stays even instead of mixing
+    chip + wide-card widths.
+  - _Scheduling grid mobile-narrow ergonomics_ — the members × Sundays grid is
+    wide; needs phone polish (sticky-column sizing, tap targets, scroll
+    affordance, maybe a condensed/by-service mobile view).
 - **Chart display-options + layout-menu rework** (§6) — _after_ Wave 1 3-dots
   fix.
 - Setlist overview redesign + buttons rework (§3); desktop 3-pane setlist

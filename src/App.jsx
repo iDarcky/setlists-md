@@ -34,6 +34,7 @@ import { useInstallPrompt } from './hooks/useInstallPrompt';
 import { useTeamRealtime } from './hooks/useTeamRealtime';
 import { useChartTheme } from './hooks/useChartTheme';
 import { useTeamSchedules } from './hooks/useTeamSchedules';
+import { useTeamNotifications } from './hooks/useTeamNotifications';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
 import { BILLING_ENABLED, SUPPORT_CONTACT } from './billing/checkout';
 
@@ -182,6 +183,7 @@ export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
   const { team, teams, members, setActiveTeam, isAdmin, isEditor, hasTeamPlan, atWorkspaceLimit, loading: teamLoading } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
+  const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
   const canEdit = !team || isAdmin || isEditor;
   const isTeamAdmin = isAdmin;
   const confirm = useConfirm();
@@ -979,13 +981,17 @@ export default function App() {
 
   // Notification system
   const handleMarkNotificationRead = useCallback((notifId) => {
+    if (typeof notifId === 'string' && notifId.startsWith('tn-')) {
+      markTeamNotifRead(notifId.slice(3));
+      return;
+    }
     setSettings(prev => ({
       ...prev,
       notifications: (prev.notifications || []).map(n =>
         n.id === notifId ? { ...n, read: true } : n
       ),
     }));
-  }, []);
+  }, [markTeamNotifRead]);
 
   const handleNotificationAction = () => {
     // Actions are usually strings like "view_setlist_123" or similar
@@ -997,12 +1003,16 @@ export default function App() {
   // its id so derived (virtual) notifications stay dismissed too. The dismissed
   // set is device-local (not a PORTABLE_PREF_KEY) like `notifications` itself.
   const handleDismissNotification = useCallback((notifId) => {
+    if (typeof notifId === 'string' && notifId.startsWith('tn-')) {
+      dismissTeamNotif(notifId.slice(3));
+      return;
+    }
     setSettings(prev => ({
       ...prev,
       notifications: (prev.notifications || []).filter(n => n.id !== notifId),
       dismissedNotifications: [...new Set([...(prev.dismissedNotifications || []), notifId])],
     }));
-  }, []);
+  }, [dismissTeamNotif]);
 
   // --- Compute Virtual Notifications ---
   // Pending schedules for the current user → "you've been scheduled" prompts.
@@ -1028,20 +1038,32 @@ export default function App() {
     const m = (members || []).find(mm => mm.user_id === uid);
     return m?.profile?.display_name || m?.profile?.email || 'A member';
   };
-  const declineNotifications = (isAdmin && team)
-    ? (schedules || [])
-        .filter(s => s.availability === 'unavailable')
-        .map(s => ({ s, setlist: setlists.find(sl => sl.id === s.setlist_id) }))
-        .filter(({ setlist }) => setlist && setlist.date && setlist.date >= todayStr)
-        .map(({ s, setlist }) => ({
-          id: `decline-${s.id}`,
-          type: 'schedule_decline',
-          title: 'Schedule declined',
-          message: `${memberDisplayName(s.user_id)} can't make "${setlist.name}"${s.role ? ` (${s.role})` : ''}.`,
-          read: false,
-          setlistId: s.setlist_id,
-        }))
-    : [];
+  // Decline alerts are now server-authoritative: the DB trigger fans a row out
+  // to every roster manager (see 20260616_team_notifications.sql), so they land
+  // even if this client never loaded that setlist, and read/dismiss persists
+  // across devices. We enrich the generic server copy with locally-resolvable
+  // names where possible, falling back to the row's stored body.
+  const resolveSetlistName = (setlistId) =>
+    setlists.find(sl => sl.id === setlistId || sl.remoteId === setlistId)?.name;
+  const serverNotifications = (teamNotifications || []).map(n => {
+    const meta = n.metadata || {};
+    let message = n.body;
+    if (n.type === 'schedule_decline') {
+      const who = meta.declined_by ? memberDisplayName(meta.declined_by) : 'A team member';
+      const name = resolveSetlistName(meta.setlist_id);
+      message = name
+        ? `${who} can't make "${name}"${meta.role ? ` (${meta.role})` : ''}.`
+        : `${who} can't make a service${meta.role ? ` (${meta.role})` : ''}.`;
+    }
+    return {
+      id: `tn-${n.id}`,
+      type: n.type,
+      title: n.title || 'Notification',
+      message,
+      read: !!n.read_at,
+      setlistId: meta.setlist_id,
+    };
+  });
 
   // Nudge: a "maybe" on a setlist coming up within ~2 weeks → ask the user to
   // commit. Reuses the schedule_request Accept/Decline UI (Accept→available,
@@ -1069,7 +1091,7 @@ export default function App() {
   const mergedNotifications = [
     ...virtualNotifications,
     ...maybeNudges,
-    ...declineNotifications,
+    ...serverNotifications,
     ...(settings?.notifications || []),
   ].filter(n => !dismissedNotifs.includes(n.id));
 
@@ -1077,11 +1099,15 @@ export default function App() {
   // still need an Accept/Decline).
   const handleClearAllNotifications = () => {
     const ids = mergedNotifications.filter(n => n.type !== 'schedule_request').map(n => n.id);
-    if (ids.length === 0) return;
+    // Server-backed rows clear via the hook (persists across devices); the rest
+    // go onto the device-local dismissed set.
+    dismissAllTeamNotifs();
+    const localIds = ids.filter(id => !id.startsWith('tn-'));
+    if (localIds.length === 0) return;
     setSettings(prev => ({
       ...prev,
-      notifications: (prev.notifications || []).filter(n => !ids.includes(n.id)),
-      dismissedNotifications: [...new Set([...(prev.dismissedNotifications || []), ...ids])],
+      notifications: (prev.notifications || []).filter(n => !localIds.includes(n.id)),
+      dismissedNotifications: [...new Set([...(prev.dismissedNotifications || []), ...localIds])],
     }));
   };
 

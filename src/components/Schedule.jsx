@@ -183,7 +183,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, 
           setlists={pickerSetlists}
           rehearsals={pickerRehearsals}
           memberStatuses={pickerMemberStatuses}
-          isAdmin={canManageRoster}
+          canViewTeam={canManageRoster}
           clockFormat={clockFormat}
           onSetStatus={handleSetStatus}
           onClear={handleClearStatus}
