@@ -39,6 +39,14 @@ function availabilityBadgeClasses(status) {
   return 'bg-[var(--ds-gray-200)] text-[var(--ds-gray-600)]';
 }
 
+// Solid status dot overlaid on the avatar — same semantics as the badge.
+function availabilityDotClasses(status) {
+  if (status === 'available') return 'bg-[var(--ds-green-700)]';
+  if (status === 'unavailable') return 'bg-[var(--ds-red-700)]';
+  if (status === 'maybe') return 'bg-[var(--ds-amber-700)]';
+  return 'bg-[var(--ds-gray-400)]';
+}
+
 function availabilityLabel(status) {
   if (!status) return '—';
   return status.charAt(0).toUpperCase() + status.slice(1);
@@ -177,7 +185,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
           <>
             {/* Current Roster */}
             <div className="flex flex-col gap-3">
-              <p className="text-label-12 text-[var(--ds-gray-600)] uppercase tracking-wider font-bold">The Band</p>
+              <p className="text-label-13 text-[var(--ds-gray-700)] uppercase tracking-wider font-bold m-0">THE BAND</p>
 
               {setlistSchedules.length === 0 && (
                 <p className="text-copy-14 text-[var(--ds-gray-500)] italic py-4 text-center">
@@ -191,18 +199,27 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                 const avatarUrl = member?.profile?.avatar_url;
 
                 return (
-                  <div key={schedule.id} className="p-3 rounded-xl bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-[var(--ds-gray-200)] flex items-center justify-center text-label-12 font-bold shrink-0 overflow-hidden">
+                  <div key={schedule.id} className="rounded-xl bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] flex flex-col">
+                    <div className="flex items-center gap-3 p-3">
+                      {/* Avatar with an availability status dot overlaid. */}
+                      <div className="relative shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-[var(--ds-gray-200)] flex items-center justify-center text-label-13 font-bold overflow-hidden">
                           {avatarUrl
                             ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
                             : (displayName.slice(0, 2).toUpperCase() || '?')}
                         </div>
-                        <div className="flex flex-col min-w-0">
-                        <span className="text-copy-14 font-bold truncate">{displayName}</span>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className={`text-label-11 px-2 py-0.5 rounded-full ${availabilityBadgeClasses(schedule.availability)}`}>
+                        <span
+                          className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[var(--ds-background-200)] ${availabilityDotClasses(schedule.availability)}`}
+                          title={availabilityLabel(schedule.availability)}
+                          aria-hidden="true"
+                        />
+                      </div>
+
+                      <div className="flex flex-col min-w-0 flex-1 gap-1">
+                        <span className="text-copy-14 font-bold truncate leading-tight">{displayName}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`inline-flex items-center gap-1 text-label-11 px-2 py-0.5 rounded-full ${availabilityBadgeClasses(schedule.availability)}`}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" aria-hidden="true" />
                             {availabilityLabel(schedule.availability)}
                           </span>
                           {readOnly && schedule.role && (
@@ -216,10 +233,10 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                             </span>
                           )}
                         </div>
-                        </div>
                       </div>
+
                       {!readOnly && (
-                        <IconButton size="sm" onClick={() => handleRemove(schedule.id)} variant="ghost" className="text-[var(--ds-gray-400)] hover:text-[var(--ds-red-600)]">
+                        <IconButton size="sm" onClick={() => handleRemove(schedule.id)} variant="ghost" className="shrink-0 text-[var(--ds-gray-400)] hover:text-[var(--ds-red-600)]">
                           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
@@ -228,7 +245,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                     </div>
 
                     {!readOnly && (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-2 px-3 pb-3 pt-3 border-t border-[var(--ds-gray-200)]">
                         <div className="flex flex-col gap-1">
                           <span className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold">Instrument</span>
                           {(() => {
@@ -275,7 +292,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
             {/* Add Member — admins only */}
             {!readOnly && (
               <div className="flex flex-col gap-3">
-                <p className="text-label-12 text-[var(--ds-gray-600)] uppercase tracking-wider font-bold">Add to the Band</p>
+                <p className="text-label-13 text-[var(--ds-gray-700)] uppercase tracking-wider font-bold m-0">ADD TO THE BAND</p>
 
                 {!setlistDate && (
                   <p className="text-copy-12 text-[var(--ds-orange-700)] bg-[var(--ds-orange-100)] px-3 py-2 rounded-lg">

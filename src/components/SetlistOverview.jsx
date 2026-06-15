@@ -1,6 +1,6 @@
 import { useMemo, useState, useRef } from 'react';
 import { transposeKey } from '../music';
-import { StructureRibbon, MetaPill } from './StructureRibbon';
+import { StructureRibbon } from './StructureRibbon';
 import { resolveSongView } from '../arrangements';
 import { durationToSeconds, formatTotalDuration } from '../lib/duration';
 import { Chip } from './ui/Chip';
@@ -215,74 +215,64 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
             </>
           )}
 
-          {/* Tabs (team workspaces only) live in the header so they stay put
-              while the body switches between Set order and Roster. */}
-          {team && (
-            <div className="inline-flex p-0.5 mt-1 mb-3 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)]">
-              {[['setlist', 'Set order'], ['roster', 'Band']].map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setTab(id)}
-                  className={`px-3.5 h-8 rounded-md text-label-13 font-semibold transition-colors border-none cursor-pointer ${
-                    tab === id
-                      ? 'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] shadow-sm'
-                      : 'bg-transparent text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+          {/* Controls row — Set order / Band tabs (team only) on the left, with
+              the Play live (desktop) + Practice actions inline on the right.
+              Lives in the header so it stays put while the body switches. */}
+          {(team || onPractice || (onPlay && showTopPlay)) && (
+            <div className="flex items-center justify-between gap-2 mt-1 mb-3 flex-wrap">
+              {team ? (
+                <div className="inline-flex p-0.5 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)]">
+                  {[['setlist', 'Set order'], ['roster', 'Band']].map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setTab(id)}
+                      className={`px-3.5 h-8 rounded-md text-label-13 font-semibold transition-colors border-none cursor-pointer ${
+                        tab === id
+                          ? 'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] shadow-sm'
+                          : 'bg-transparent text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              ) : <span />}
+
+              {(onPractice || (onPlay && showTopPlay)) && (
+                <div className="flex items-center gap-2">
+                  {onPlay && showTopPlay && (
+                    <Button variant="brand" size="sm" onClick={onPlay} className="gap-1.5">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                      Play live
+                    </Button>
+                  )}
+                  {onPractice && (
+                    <Button variant="secondary" size="sm" onClick={() => practiceAt()} className="gap-1.5">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                      </svg>
+                      Practice this set
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
         </div>
       </div>
 
-      {/* Top actions — Play live (desktop only; mobile/tablet use the BottomNav
-          FAB) + Practice (every breakpoint). Stacks on phones, sits inline on
-          wider screens. */}
-      {(onPractice || (onPlay && showTopPlay)) && (
-        <div className="a4-container pt-4 flex flex-col sm:flex-row gap-2">
-          {onPlay && showTopPlay && (
-            <Button variant="brand" size="lg" onClick={onPlay} className="justify-center gap-2">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-              Play live
-            </Button>
-          )}
-          {onPractice && (
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={() => practiceAt()}
-              className="w-full sm:w-auto justify-center gap-2"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 20h9" />
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-              </svg>
-              Practice this set
-            </Button>
-          )}
-        </div>
-      )}
-
       {(!team || tab === 'setlist') && (
       <>
       {/* ── Set order ── */}
       <div className="a4-container pt-6 pb-4">
-        {/* Stat strip — replaces the old "Set Order" heading with a quick
-            at-a-glance summary, and keeps the Show-details toggle on the right. */}
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            <MetaPill label="Songs" value={songCount} />
-            {breakCount > 0 && <MetaPill label="Breaks" value={breakCount} />}
-            {totalSeconds > 0 && (
-              <MetaPill label="Length" value={`${anyEstimated ? '~' : ''}${formatTotalDuration(totalSeconds)}`} />
-            )}
-          </div>
+        {/* Just the Show-details toggle up top now — the songs/length summary
+            moved to a discreet line at the bottom of the page. */}
+        <div className="flex items-center justify-end mb-4">
           <label className="flex items-center gap-2 cursor-pointer text-label-12 text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] transition-colors select-none">
             <input
               type="checkbox"
@@ -402,6 +392,15 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           })}
         </div>
       </div>
+
+      {/* Discreet summary — songs / breaks / length, as a quiet footnote line. */}
+      {(songCount > 0 || breakCount > 0) && (
+        <div className="a4-container pt-2 pb-1 text-label-12 text-[var(--ds-gray-500)] tabular-nums">
+          {songCount} song{songCount !== 1 ? 's' : ''}
+          {breakCount > 0 && ` · ${breakCount} break${breakCount !== 1 ? 's' : ''}`}
+          {totalSeconds > 0 && ` · ${anyEstimated ? '~' : ''}${formatTotalDuration(totalSeconds)}`}
+        </div>
+      )}
 
       {/* Authorship — team workspaces only. Moved out of the header to the
           bottom of the page so it reads as a footnote, not a headline. */}
