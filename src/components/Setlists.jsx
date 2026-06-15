@@ -341,7 +341,7 @@ export default function Setlists({
           <h1 className="text-heading-32 font-bold text-[var(--modes-text)] m-0 mr-2">Setlists</h1>
           <SearchBar
             className="flex-1 min-w-[200px]"
-            placeholder="Search setlists by name, location, or tag…"
+            placeholder="Search setlists & songs…"
             value={query}
             onChange={e => setQuery(e.target.value)}
           />

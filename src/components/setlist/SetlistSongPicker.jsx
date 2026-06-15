@@ -23,10 +23,15 @@ export default function SetlistSongPicker({ songs, currentItems, onAddSong }) {
   }, [currentItems]);
 
   const results = useMemo(() => {
-    if (!search.trim()) return songs;
-    const q = search.toLowerCase();
-    return songs.filter(s =>
-      s.title.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q)
+    const base = !search.trim()
+      ? songs
+      : songs.filter(s => {
+          const q = search.toLowerCase();
+          return s.title.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q);
+        });
+    // Alphabetical by title so the picker is predictable to scan.
+    return [...base].sort((a, b) =>
+      (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' })
     );
   }, [songs, search]);
 

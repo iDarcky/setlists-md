@@ -1680,6 +1680,16 @@ export default function App() {
     }
   };
 
+  // Open a .zip picker then import — used by the mobile/tablet BottomNav menu,
+  // which (unlike the desktop list header) has no file input of its own.
+  const pickAndImportSetlist = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.zip';
+    input.onchange = (e) => { const f = e.target.files?.[0]; if (f) handleImportSetlist(f); };
+    input.click();
+  };
+
   if (view === 'share-view') {
     return (
       <ErrorBoundary>
@@ -2288,6 +2298,7 @@ export default function App() {
           activeLibrary={activeLibrary}
           onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
           onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+          onImportSetlist={isTeamReadOnly ? null : pickAndImportSetlist}
           scheduleView={scheduleView}
           onToggleScheduleView={() => setScheduleView(v => (v === 'list' ? 'calendar' : 'list'))}
           onPlay={

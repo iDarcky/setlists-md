@@ -368,7 +368,7 @@ export default function Library({
 
             <SearchBar
               className="flex-1 min-w-[200px] hidden sm:flex"
-              placeholder="Search songs by title, artist, key, or tag…"
+              placeholder="Search songs & setlists…"
               value={query}
               onChange={e => setQuery(e.target.value)}
             />
