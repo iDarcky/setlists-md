@@ -462,9 +462,10 @@ done — notifications dismiss/clear + decline alerts, the My-schedule widget
 widget, and the **Scheduling grid** (roster × every-Sunday). What's left before
 calling Wave 4 *complete*: the **hardening slice** (DB trigger +
 `team_notifications` table for robust, persistent read-state) and the two
-**open QA decisions** below (gate/collapse `DateStatusModal`'s team list).
-Polish carried forward: My-Schedule v2 wider-cell look (user undecided) and the
-grid's mobile-narrow ergonomics.
+**open QA decisions** below (gate/collapse `DateStatusModal`'s team list — the
+**gate-for-non-leaders** decision is now confirmed and in progress). UI/UX
+polish (My-Schedule v2 wider-cell look, grid mobile ergonomics) is split out
+into **Slice 6**.
 
 **Slice 1 — Notifications dismiss/clear-all + decline alerts (done):**
 - ✅ Real notifications: **per-notification dismiss (×)** + **Clear all** in
@@ -565,11 +566,19 @@ Decisions from user Q&A:
     Roles/vocals write `team_schedules` via `useTeamSchedules` (setlist UUID via
     `useTeamSetlistMap`); availability via `useTeamAvailability`. Realtime +
     optimistic through the existing hooks.
-  - _Follow-ups (not yet):_ **mobile-narrow ergonomics** for the wide grid (user
-    flagged — deferred), leader-edits-others' availability (RLS currently own-row
+  - _Follow-ups:_ leader-edits-others' availability (RLS currently own-row
     only), optional recurring-service templates / non-Sunday recurrence,
-    next-year roll-over. _Open (user):_ undecided on the My-Schedule v2 **wider
-    event cells** — may revisit the look.
+    next-year roll-over. _(The two UI/UX polish items moved to **Slice 6**.)_
+
+**Slice 6 — UI/UX polish (UI/UX work; not started).**
+A grab-bag of look-and-feel refinement carried out of the scheduling build:
+- **My-Schedule v2 wider event cells** — user is undecided on the look. Explore
+  an alternative: keep every day a uniform compact chip and show the event name
+  as a small caption beneath, so the strip stays even instead of mixing
+  chip + wide-card widths.
+- **Scheduling grid mobile-narrow ergonomics** — the members × Sundays grid is
+  wide; needs phone polish (sticky-column sizing, tap targets, horizontal-scroll
+  affordance, maybe a condensed/by-service mobile view).
 
 ### Wave 5 — Audit remediation (security + scale)
 
