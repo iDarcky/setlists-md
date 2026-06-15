@@ -585,9 +585,11 @@ Decisions from user Q&A:
 ### Wave 5 — Audit remediation (security + scale)
 
 From the Wave 3 audits (`docs/AUDIT-WAVE3-SECURITY-SCALE.md`). Grouped into a
-safe quick-win batch and deeper scheduled work.
+safe quick-win batch and deeper scheduled work. **Status (2026-06-15):** all
+code-side items shipped; only deferred/blocked items remain — see
+"Wave 5 — what's left" below.
 
-**Quick wins (small, safe, high value — _in progress 2026-06-15_):**
+**Quick wins (small, safe, high value — _done 2026-06-15 bar one deferral_):**
 - **Scale (✅ done 2026-06-15):**
   - ✅ standalone `team_id` indexes on `team_songs` + `team_setlists`
     (`20260617_team_scale_indexes.sql`).
@@ -630,8 +632,32 @@ safe quick-win batch and deeper scheduled work.
     each row's update is CAS-guarded on its own `updated_at`, so a bulk upsert
     can't preserve per-row conflict detection. Low value, real risk — revisit
     only if a profiler shows the serial awaits dominating a real-world sync.
-- **Security:** add the PDF inline-script nonce, then flip `vercel.json` CSP
-  from report-only to enforcing; `team_activity` retention policy.
+- **Security:**
+  - ⬜ **PDF inline-script nonce → enforce CSP** — the print document
+    (`pdfDocument.js`) emits inline `<script>`/`<style>` into a same-origin
+    `srcdoc` iframe that inherits the page CSP. To flip `vercel.json` CSP from
+    report-only to **enforcing**, those inline tags need a nonce/hash (vercel.json
+    headers are static → SHA-256 hashes, or refactor to external assets).
+    **Needs live print testing** across browser PWA / Capacitor / Electron
+    (CLAUDE.md gotcha) — do not flip the header blind.
+  - ⬜ **`team_activity` retention policy** — prune old rows on a schedule
+    (pg_cron / Supabase scheduled function). Infra task; blocked behind the
+    same Supabase access needed to apply migrations.
+
+### Wave 5 — what's left
+
+Quick-win batch is done bar **OAuth-cleanup-synchronous** (deferred — needs
+the live auth flow tested). Deeper batch's two scale items shipped; what
+remains is all **deliberately deferred / blocked**, not pending work:
+- ⬜ OAuth URL cleanup synchronous _(needs auth-flow testing)_.
+- ⬜ batch team push loop _(skipped — low value, breaks per-row CAS)_.
+- ⬜ PDF nonce + enforce CSP _(needs cross-platform print testing)_.
+- ⬜ `team_activity` retention _(needs scheduled DB job)_.
+
+⚠️ **Blocker:** the two Wave-4/5 migrations (`20260616_team_notifications.sql`,
+`20260617_team_scale_indexes.sql`) are committed but **not applied** — the
+Supabase MCP connection rejects every call with "requires approval" in the
+remote session. Apply via `supabase db push` or by approving the MCP server.
 
 ### Wave 6 — UX epics (bigger, mostly independent)
 
