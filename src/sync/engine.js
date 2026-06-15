@@ -24,6 +24,32 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
   let syncing = false;
   let debounceTimer = null;
 
+  // Per-engine hash caches keyed by object reference. Serializing every song to
+  // markdown / every setlist to JSON on each sync is the dominant CPU cost for
+  // large libraries; React replaces only an edited item's object, so an
+  // unchanged reference has an unchanged serialization + hash. A miss (new ref)
+  // recomputes. See the matching cache in team-engine.js.
+  const songHashCache = new Map(); // id -> { ref, md, hash }
+  const slHashCache = new Map();   // id -> { ref, json, hash }
+
+  function hashSong(song) {
+    const cached = songHashCache.get(song.id);
+    if (cached && cached.ref === song) return cached;
+    const md = songToMd(song);
+    const entry = { ref: song, md, hash: quickHash(md) };
+    songHashCache.set(song.id, entry);
+    return entry;
+  }
+
+  function hashSetlist(sl) {
+    const cached = slHashCache.get(sl.id);
+    if (cached && cached.ref === sl) return cached;
+    const json = JSON.stringify(sl, null, 2);
+    const entry = { ref: sl, json, hash: quickHash(json) };
+    slHashCache.set(sl.id, entry);
+    return entry;
+  }
+
   const setStatus = (state, extra = {}) => {
     onStatusChange?.({ state, ...extra });
   };
@@ -325,8 +351,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     // Push songs
     for (const song of songs) {
       try {
-        const md = songToMd(song);
-        const hash = quickHash(md);
+        const { md, hash } = hashSong(song);
         const entry = manifest[song.id];
         const fileName = `${sanitizeFilename(song.title)}.md`;
 
@@ -367,8 +392,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     // Push setlists (each as individual .json file)
     for (const sl of setlists) {
       try {
-        const json = JSON.stringify(sl, null, 2);
-        const hash = quickHash(json);
+        const { json, hash } = hashSetlist(sl);
         const entry = slManifest[sl.id];
         const fileName = `${sanitizeFilename(sl.name || 'Untitled Setlist')}.json`;
 

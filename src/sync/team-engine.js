@@ -98,6 +98,31 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
   let lastPushAt = 0; // when we last wrote rows — used to ignore our own realtime echo
   const libraryId = teamId;
 
+  // Per-engine hash caches keyed by object reference. Serializing every song to
+  // markdown (songToMd) and stable-stringifying every setlist on each sync is
+  // the dominant CPU cost for large libraries. React replaces only an edited
+  // item's object, so when the reference is unchanged its serialized form and
+  // hash are too — reuse them and skip the work. A miss (new ref) recomputes.
+  const songHashCache = new Map(); // id -> { ref, md, hash }
+  const slHashCache = new Map();   // id -> { ref, hash }
+
+  function hashSong(song) {
+    const cached = songHashCache.get(song.id);
+    if (cached && cached.ref === song) return cached;
+    const md = songToMd(song);
+    const entry = { ref: song, md, hash: quickHash(md) };
+    songHashCache.set(song.id, entry);
+    return entry;
+  }
+
+  function hashSetlist(sl) {
+    const cached = slHashCache.get(sl.id);
+    if (cached && cached.ref === sl) return cached.hash;
+    const hash = setlistHash(sl);
+    slHashCache.set(sl.id, { ref: sl, hash });
+    return hash;
+  }
+
   const setStatus = (state, extra = {}) => {
     onStatusChange?.({ state, ...extra });
   };
@@ -311,8 +336,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     const nextManifest = { ...manifest };
     for (const song of songs) {
       try {
-        const md = songToMd(song);
-        const hash = quickHash(md);
+        const { md, hash } = hashSong(song);
         const entry = nextManifest[song.id];
         if (entry && entry.lastSyncedHash === hash) continue;
 
@@ -363,7 +387,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     const nextSlManifest = { ...slManifest };
     for (const sl of setlists) {
       try {
-        const hash = setlistHash(sl);
+        const hash = hashSetlist(sl);
         const entry = nextSlManifest[sl.id];
         if (entry && entry.lastSyncedHash === hash) continue;
 

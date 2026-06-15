@@ -620,8 +620,16 @@ safe quick-win batch and deeper scheduled work.
     identity (React replaces only the edited song's object) and writes just the
     changed song; the legacy whole-library blob migrates in place on first
     load. Tests: `src/__tests__/storage-persistence.test.js`.
-  - ⬜ incremental sync hashing (cache per-song hash / server content-hash);
-    batch the team-engine push loop.
+  - ✅ **incremental sync hashing** (2026-06-15) — both sync engines
+    (`engine.js`, `team-engine.js`) now cache each item's serialization
+    (`songToMd`/`JSON.stringify`) + hash keyed by object reference. An
+    unchanged song/setlist reference reuses its cached md/json/hash instead of
+    re-serializing the whole library every sync; a new ref (edit/pull) recomputes.
+  - ⬜ **batch the team-engine push loop** — _deliberately skipped:_ the loop
+    only iterates items whose hash changed (usually 1 per debounced push), and
+    each row's update is CAS-guarded on its own `updated_at`, so a bulk upsert
+    can't preserve per-row conflict detection. Low value, real risk — revisit
+    only if a profiler shows the serial awaits dominating a real-world sync.
 - **Security:** add the PDF inline-script nonce, then flip `vercel.json` CSP
   from report-only to enforcing; `team_activity` retention policy.
 
