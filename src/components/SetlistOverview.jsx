@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef } from 'react';
-import { transposeKey, compactLabel } from '../music';
+import { transposeKey } from '../music';
+import { StructureRibbon, MetaPill } from './StructureRibbon';
 import { resolveSongView } from '../arrangements';
 import { durationToSeconds, formatTotalDuration } from '../lib/duration';
 import { Chip } from './ui/Chip';
@@ -176,11 +177,21 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           ) : (
             /* ── Expanded: date row, title, chip row ── */
             <>
-              {/* Row 1: date + actions */}
-              <div className="flex items-center justify-between pt-3 pb-1">
-                <span className="text-label-11 text-[var(--ds-gray-700)] uppercase tracking-widest">
-                  {dateStr} {timeStr && `• ${timeStr}`}
-                </span>
+              {/* Row 1: date · location + actions. Date renders in Title Case
+                  (no uppercase) and Location sits inline on the same line. */}
+              <div className="flex items-center justify-between gap-3 pt-3 pb-1">
+                <div className="flex items-center gap-x-2 gap-y-0.5 flex-wrap min-w-0 text-label-12 text-[var(--ds-gray-700)]">
+                  <span className="font-medium text-[var(--ds-gray-900)]">
+                    {dateStr}{timeStr && ` • ${timeStr}`}
+                  </span>
+                  {setlist.location && (
+                    <span className="flex items-center gap-1 min-w-0">
+                      <span className="text-[var(--ds-gray-500)]" aria-hidden="true">•</span>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      <span className="truncate">{setlist.location}</span>
+                    </span>
+                  )}
+                </div>
                 {actionIcons}
               </div>
 
@@ -192,41 +203,15 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                 )}
               </h1>
 
-              {/* Row 2b: authorship — team workspaces only. (Workspace-name
-                  reminder removed; it wasn't relevant here.) */}
-              {team && (setlist.updatedByName || setlist.createdByName) && (
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2.5 text-label-12 text-[var(--ds-gray-600)]">
-                  {setlist.updatedByName && (
-                    <span>
-                      Edited by {setlist.updatedByName}
-                      {setlist.updatedAt ? ` · ${new Date(setlist.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
-                    </span>
-                  )}
-                  {setlist.createdByName && setlist.createdByName !== setlist.updatedByName && (
-                    <span>· Created by {setlist.createdByName}</span>
-                  )}
-                </div>
-              )}
-
-              {/* Row 3: tags + song count */}
-              <div className="flex items-center justify-between gap-3 pb-4">
-                <div className="flex items-center gap-1.5 flex-wrap">
+              {/* Row 3: tags. (Authorship moved to the page footer; the
+                  songs/length summary moved to the stat strip below.) */}
+              {(setlist.tags?.length || setlist.service) && (
+                <div className="flex items-center gap-1.5 flex-wrap pb-4">
                   {(setlist.tags?.length ? setlist.tags : setlist.service ? [setlist.service] : []).map((tag, i) => (
                     <Chip key={i} variant="success" className="normal-case tracking-normal">{tag}</Chip>
                   ))}
-                  {setlist.location && (
-                    <span className="flex items-center gap-1 text-label-13 text-[var(--ds-gray-700)] ml-2">
-                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                       {setlist.location}
-                    </span>
-                  )}
                 </div>
-                <span className="text-label-12 text-[var(--ds-gray-700)] shrink-0">
-                  {songCount} song{songCount !== 1 ? 's' : ''}
-                  {breakCount > 0 && ` + ${breakCount} break${breakCount !== 1 ? 's' : ''}`}
-                  {totalSeconds > 0 && ` · ${anyEstimated ? '~' : ''}${formatTotalDuration(totalSeconds)}`}
-                </span>
-              </div>
+              )}
             </>
           )}
 
@@ -288,8 +273,16 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
       <>
       {/* ── Set order ── */}
       <div className="a4-container pt-6 pb-4">
-        <div className="flex items-center justify-between mb-4">
-          <p className="section-title m-0">Set Order</p>
+        {/* Stat strip — replaces the old "Set Order" heading with a quick
+            at-a-glance summary, and keeps the Show-details toggle on the right. */}
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            <MetaPill label="Songs" value={songCount} />
+            {breakCount > 0 && <MetaPill label="Breaks" value={breakCount} />}
+            {totalSeconds > 0 && (
+              <MetaPill label="Length" value={`${anyEstimated ? '~' : ''}${formatTotalDuration(totalSeconds)}`} />
+            )}
+          </div>
           <label className="flex items-center gap-2 cursor-pointer text-label-12 text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] transition-colors select-none">
             <input
               type="checkbox"
@@ -372,14 +365,14 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
                     {song.title}
                   </p>
                   {/* Show the song's section flow instead of the artist — the
-                      structure is the actionable bit in a setlist context. */}
+                      structure is the actionable bit in a setlist context. Uses
+                      the same colour-coded chips as the chart-view ribbon. */}
                   {showDetails && (() => {
                     const names = song.structure || song.sections?.map(s => s.type) || [];
-                    const flow = names.map(n => compactLabel(n)).join(' · ');
-                    return flow ? (
-                      <p className="text-copy-12 text-[var(--ds-gray-700)] m-0 mt-0.5">
-                        {flow}
-                      </p>
+                    return names.length ? (
+                      <div className="mt-0.5 -ml-1">
+                        <StructureRibbon structure={names} compact />
+                      </div>
                     ) : null;
                   })()}
                   {showDetails && item.note && (
@@ -409,6 +402,22 @@ export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExpo
           })}
         </div>
       </div>
+
+      {/* Authorship — team workspaces only. Moved out of the header to the
+          bottom of the page so it reads as a footnote, not a headline. */}
+      {team && (setlist.updatedByName || setlist.createdByName) && (
+        <div className="a4-container pb-6 -mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-label-12 text-[var(--ds-gray-500)]">
+          {setlist.updatedByName && (
+            <span>
+              Edited by {setlist.updatedByName}
+              {setlist.updatedAt ? ` · ${new Date(setlist.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+            </span>
+          )}
+          {setlist.createdByName && setlist.createdByName !== setlist.updatedByName && (
+            <span>· Created by {setlist.createdByName}</span>
+          )}
+        </div>
+      )}
 
       </>
       )}

@@ -277,6 +277,20 @@ called out in their own section at the bottom.
 - **North-star / niche question prompts** — user wants more probing
   questions & big-picture ideas surfaced during these sessions. _tags:_
   [idea], [process] · _pri:_ P3
+- **`CLAUDE.md` rework** — the project memory file has grown large and
+  accretive. Rework it for signal: prune stale/duplicated guidance, tighten
+  the schema/architecture sections, and make sure the "finish"/"release"
+  workflows + gotchas are still accurate. _tags:_ [idea], [docs], [dx] ·
+  _pri:_ P3
+- **Repo file clean-up** — sweep the repo for dead/orphaned files, stale
+  docs, unused assets, and leftover scratch/handoff files; consolidate or
+  delete. Pair with the `CLAUDE.md` rework so structure docs stay in sync.
+  _tags:_ [idea], [chore], [dx] · _pri:_ P3
+- **`skills.md` investigation** — investigate Claude Code skills: what a
+  `skills.md` (or `.claude/skills`) setup would buy us, which repeatable
+  workflows here (finish/release, changelog bump, migration apply, PDF
+  verify) are good skill candidates, and whether to adopt. _tags:_ [idea],
+  [dx], [tooling] · _pri:_ P3
 
 ## 14. Cross-cutting concerns
 
