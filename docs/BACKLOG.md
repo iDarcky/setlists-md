@@ -603,9 +603,10 @@ safe quick-win batch and deeper scheduled work.
   - ✅ **`maxLength` on text inputs** — song metadata fields already capped via
     `MetadataPanel` field `max`; added caps to the setlist **name** (120) and
     **location** (120) in `SetlistMetaForm`.
-  - ⬜ **Validate PDF-prefs + ZIP manifest shapes** — parse untrusted
-    `localStorage['setlists-md:pdf-prefs']` + imported `.zip` manifest
-    defensively (type/shape guards) instead of trusting `JSON.parse`.
+  - ✅ **Validate PDF-prefs + ZIP manifest shapes** — `readInitialPrefs`
+    (`pdfDocument.js`) now rejects non-plain-object JSON; `importSetlistZip`
+    (`setlist-io.js`) guards the manifest is a plain object and coerces
+    `items` to an array before use.
   - ⬜ **OAuth URL cleanup synchronous** — _deliberately deferred:_ stripping
     the auth hash/`?code=` before Supabase's async `detectSessionInUrl` consumes
     it can break sign-in. Needs the live OAuth/magic-link flow tested before

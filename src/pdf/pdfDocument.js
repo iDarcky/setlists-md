@@ -13,7 +13,13 @@ const PREFS_KEY = 'setlists-md:pdf-prefs';
 export function readInitialPrefs() {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
-    return raw ? JSON.parse(raw) : {};
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    // Guard the shape: only a plain object is a valid prefs bag. A tampered or
+    // legacy value (array, string, number, null) must not flow downstream as if
+    // it had pref keys.
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return parsed;
   } catch {
     return {};
   }
