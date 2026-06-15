@@ -47,9 +47,12 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
   const [exportOpen, setExportOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [tab, setTab] = useState('setlist'); // 'setlist' | 'roster'
-  const [density, setDensity] = useState('detailed'); // 'detailed' | 'compact'
-  const showDetails = density === 'detailed';
+  const showDetails = true; // v2 always shows song details (few fields today)
   const scrollRef = useRef(null);
+
+  // Wider than the v1 a4-container, with tighter padding on phones so the
+  // sheet uses more of the screen.
+  const container = 'mx-auto w-full max-w-[960px] px-3 sm:px-6';
 
   const canShare = SHARE_ENABLED && !!user?.id && !embedded;
   const isTablet = useIsTablet();
@@ -127,7 +130,7 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
   const overflowMenu = (
     <div className="relative">
       <IconButton variant="ghost" size="sm" onClick={() => setMenuOpen(o => !o)} aria-label="More actions" aria-expanded={menuOpen}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg>
       </IconButton>
       {menuOpen && (
         <>
@@ -154,16 +157,15 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
 
       {/* ── Sticky header ── */}
       <div className="material-header" style={headerFrostStyle}>
-        <div className="a4-container">
-          {/* Meta row + window actions */}
+        <div className={container}>
+          {/* Row 1: title + window actions */}
           <div className="flex items-start justify-between gap-3 pt-3">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-              <MetaChip icon="calendar">{dateStr}</MetaChip>
-              {timeStr && <MetaChip icon="clock">{timeStr}</MetaChip>}
-              {rehearsalStr && <MetaChip icon="rehearsal">Rehearsal {rehearsalStr}</MetaChip>}
-              {setlist.location && <MetaChip icon="location">{setlist.location}</MetaChip>}
-              {setlist.service && <MetaChip icon="tag">{setlist.service}</MetaChip>}
-            </div>
+            <h1 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 flex items-center gap-2 min-w-0">
+              <span className="truncate">{setlist.name || 'Untitled Setlist'}</span>
+              {setlist.status === 'draft' && (
+                <span className="shrink-0 text-label-11 font-semibold px-1.5 py-0.5 rounded bg-[var(--ds-amber-100)] text-[var(--ds-amber-1000)] border border-[var(--ds-amber-400)]">Draft</span>
+              )}
+            </h1>
             <div className="flex items-center gap-1 shrink-0">
               {overflowMenu}
               {onBack && (
@@ -176,13 +178,14 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
             </div>
           </div>
 
-          {/* Title */}
-          <h1 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 mt-1.5 mb-2 flex items-center gap-2 min-w-0">
-            <span className="truncate">{setlist.name || 'Untitled Setlist'}</span>
-            {setlist.status === 'draft' && (
-              <span className="shrink-0 text-label-11 font-semibold px-1.5 py-0.5 rounded bg-[var(--ds-amber-100)] text-[var(--ds-amber-1000)] border border-[var(--ds-amber-400)]">Draft</span>
-            )}
-          </h1>
+          {/* Row 2: date · time · rehearsal · location · service */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0 mt-1.5 mb-2">
+            <MetaChip icon="calendar">{dateStr}</MetaChip>
+            {timeStr && <MetaChip icon="clock">{timeStr}</MetaChip>}
+            {rehearsalStr && <MetaChip icon="rehearsal">Rehearsal {rehearsalStr}</MetaChip>}
+            {setlist.location && <MetaChip icon="location">{setlist.location}</MetaChip>}
+            {setlist.service && <MetaChip icon="tag">{setlist.service}</MetaChip>}
+          </div>
 
           {/* Tags */}
           {!!setlist.tags?.length && (
@@ -240,34 +243,10 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
 
       {/* ── Set order ── on an elevated sheet */}
       {(!team || tab === 'setlist') && (
-        <div className="a4-container pt-6">
+        <div className={`${container} pt-6`}>
           <div style={sheetStyle} className="overflow-hidden">
-            {/* Toolbar — density control + discreet stats */}
-            <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 border-b border-[var(--ds-gray-200)]">
-              <div className="inline-flex p-0.5 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)]">
-                {[['detailed', 'Detailed'], ['compact', 'Compact']].map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setDensity(id)}
-                    className={`px-3 h-7 rounded-md text-label-12 font-semibold transition-colors border-none cursor-pointer ${
-                      density === id
-                        ? 'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] shadow-sm'
-                        : 'bg-transparent text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <span className="text-label-12 text-[var(--ds-gray-500)] tabular-nums shrink-0">
-                {songCount} song{songCount !== 1 ? 's' : ''}
-                {totalSeconds > 0 && ` · ${anyEstimated ? '~' : ''}${formatTotalDuration(totalSeconds)}`}
-              </span>
-            </div>
-
             {/* Rows */}
-            <div className="p-3 sm:p-4 flex flex-col gap-2">
+            <div className="p-2.5 sm:p-3 flex flex-col gap-2">
               {setlist.items.map((item, idx) => {
                 if (item.type === 'break') {
                   return (
@@ -291,7 +270,7 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
 
                 if (!song) {
                   return (
-                    <div key={idx} className="material-card slrow-v-soft flex items-center gap-3 px-4 py-3 opacity-60">
+                    <div key={idx} className="rounded-xl border border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] flex items-center gap-3 px-4 py-3 opacity-60">
                       <span className="text-label-14 text-[var(--ds-gray-500)] tabular-nums w-7 text-center shrink-0">{num}</span>
                       <p className="text-heading-14 text-[var(--ds-gray-700)] m-0 truncate italic">Missing Song (Waiting for sync)</p>
                     </div>
@@ -311,7 +290,7 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
                       onKeyDown: (e) => { if (e.key === 'Enter') practiceAt(idx); },
                       title: 'Open in practice',
                     } : {})}
-                    className={`material-card slrow-v-soft flex items-center gap-3 px-3 sm:px-4 py-3 ${onPractice ? 'cursor-pointer transition-transform hover:-translate-y-px active:scale-[0.995]' : ''}`}
+                    className={`rounded-xl border border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] flex items-center gap-3 px-3 sm:px-4 py-3 transition-colors ${onPractice ? 'cursor-pointer hover:border-[var(--ds-gray-400)] active:scale-[0.995]' : ''}`}
                   >
                     <span className="grid place-items-center w-7 h-7 rounded-full bg-[var(--ds-gray-alpha-100)] text-label-12 font-bold text-[var(--ds-gray-600)] tabular-nums shrink-0">
                       {num}
@@ -334,7 +313,10 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
                         {(item.capo || 0) > 0 && (
                           <span className="text-label-10 text-[var(--ds-gray-600)] uppercase">Capo {item.capo}</span>
                         )}
-                        <span className="grid place-items-center min-w-[34px] h-7 px-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] text-label-14 font-bold text-[var(--ds-gray-1000)]">
+                        <span
+                          className="grid place-items-center min-w-[36px] h-7 px-2 rounded-lg border text-label-14 font-bold"
+                          style={{ color: 'var(--chord)', borderColor: 'var(--ds-gray-300)', background: 'var(--ds-background-100)' }}
+                        >
                           {displayKey}
                         </span>
                       </span>
@@ -369,7 +351,7 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
 
       {/* ── Roster tab ── */}
       {team && tab === 'roster' && (
-        <div className="a4-container pt-6 pb-10">
+        <div className={`${container} pt-6 pb-10`}>
           <div style={sheetStyle} className="p-4 sm:p-5">
             <RosterPanel
               inline

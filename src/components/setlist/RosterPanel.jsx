@@ -127,7 +127,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
     return Array.from(set).sort();
   }, [members]);
 
-  const handleAddMember = async (member) => {
+  const handleAddMember = async (member, role) => {
     if (!member?.user_id || isAdding) return;
     if (!teamSetlistId) {
       console.warn('[roster] No team setlist UUID for local id:', setlistId);
@@ -137,11 +137,11 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
     setIsAdding(true);
     setAddingMemberId(member.user_id);
     try {
-      // Adding from a specific instrument tab pre-fills that instrument;
-      // adding from "All" leaves it unset for the leader to assign.
-      const defaultRole = instrumentFilter || null;
+      // Quick-assign (tapping an instrument) pre-fills that instrument; the
+      // instrument tab also pre-fills; otherwise it's left for the leader.
+      const defaultRole = role || instrumentFilter || null;
       await createSchedule(dbSetlistId, member.user_id, defaultRole, 'pending');
-      toast({ title: 'Added to roster', description: 'Member has been scheduled.' });
+      toast({ title: 'Added to roster', description: role ? `Scheduled on ${role}.` : 'Member has been scheduled.' });
     } catch (err) {
       console.error(err);
       toast({ title: 'Error', description: err.message || 'Could not add member to roster.', variant: 'error' });
@@ -410,8 +410,8 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                     visibleCandidates.map(member => (
                       <div
                         key={member.id}
-                        className="flex items-start justify-between gap-2 p-2 hover:bg-[var(--ds-gray-100)] rounded-lg cursor-pointer group"
-                        onClick={() => handleAddMember(member)}
+                        className={`flex items-start justify-between gap-2 p-2 rounded-lg group ${v2 ? '' : 'hover:bg-[var(--ds-gray-100)] cursor-pointer'}`}
+                        {...(v2 ? {} : { onClick: () => handleAddMember(member) })}
                       >
                         <div className="flex items-start gap-2 min-w-0 flex-1">
                           <div className="w-8 h-8 rounded-full bg-[var(--ds-gray-200)] flex items-center justify-center text-label-12 font-bold shrink-0 overflow-hidden">
@@ -433,22 +433,44 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                             {member.instruments && member.instruments.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {member.instruments.map(inst => (
-                                  <span
-                                    key={inst}
-                                    className="text-label-11 px-1.5 py-0.5 rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)]"
-                                  >
-                                    {inst}
-                                  </span>
+                                  v2 ? (
+                                    // Tap an instrument to schedule + assign in one step.
+                                    <button
+                                      key={inst}
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleAddMember(member, inst); }}
+                                      disabled={isAdding}
+                                      className="inline-flex items-center gap-0.5 text-label-11 px-2 py-0.5 rounded-full border border-[var(--ds-gray-300)] text-[var(--ds-gray-800)] cursor-pointer hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] transition-colors disabled:opacity-50"
+                                    >
+                                      <span className="text-[13px] leading-none">+</span>{inst}
+                                    </button>
+                                  ) : (
+                                    <span
+                                      key={inst}
+                                      className="text-label-11 px-1.5 py-0.5 rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)]"
+                                    >
+                                      {inst}
+                                    </span>
+                                  )
                                 ))}
                               </div>
+                            )}
+                            {v2 && (!member.instruments || member.instruments.length === 0) && (
+                              <span className="text-label-11 text-[var(--ds-gray-500)] italic mt-1">No instruments set</span>
                             )}
                           </div>
                         </div>
                         <Button
                           size="xs"
                           variant="ghost"
-                          className={`shrink-0 ${isAdding && addingMemberId === member.user_id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                          {...(v2 ? { onClick: (e) => { e.stopPropagation(); handleAddMember(member); } } : {})}
+                          className={`shrink-0 ${
+                            isAdding && addingMemberId === member.user_id
+                              ? 'opacity-100'
+                              : v2 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                          }`}
                           disabled={isAdding && addingMemberId === member.user_id}
+                          title={v2 ? 'Add without an instrument' : undefined}
                         >
                           {isAdding && addingMemberId === member.user_id ? 'Adding...' : 'Add'}
                         </Button>

@@ -84,6 +84,13 @@ const SparkleIcon = () => (
   </svg>
 );
 
+const LabsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 3h6M10 3v6.5L4.5 18a2 2 0 0 0 1.7 3h11.6a2 2 0 0 0 1.7-3L14 9.5V3" />
+    <path d="M7 15h10" />
+  </svg>
+);
+
 const ChevronRight = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="9 18 15 12 9 6" />
@@ -554,7 +561,23 @@ function ChartPanel({ settings, update }) {
       <Row label="Tab background" description="Fill behind the fret numbers (where the string line is broken).">
         <TabColorControl value={settings.tabBg} fallback="#101010" onChange={v => update('tabBg', v)} />
       </Row>
-      <Row label="Setlist overview v2" description="Labs: try the redesigned setlist overview — layered layout, cleaner header, and an improved band view. Off keeps the current design.">
+    </Section>
+  );
+}
+
+// Labs — experimental features & flags. Lives under the About group.
+function LabsPanel({ settings, update }) {
+  return (
+    <Section subtitle="Experimental features. They're a work in progress — expect rough edges, and things may change or break.">
+      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-[var(--ds-amber-100)] border border-[var(--ds-amber-400)] mb-1">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ds-amber-900)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <p className="text-copy-13 text-[var(--ds-amber-1000)] m-0">
+          Heads up: these are experimental and may not work as expected. Turning one on could cause display glitches or unexpected behaviour — switch it back off if something goes wrong.
+        </p>
+      </div>
+      <Row label="Setlist overview v2" description="A redesigned setlist overview — layered layout, cleaner header, and an improved band view. Off keeps the current design.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
           {[
             { key: true, label: 'On' },
@@ -1077,6 +1100,8 @@ export default function Settings({
         );
       case 'about':
         return <AboutPanel isSignedIn={isSignedIn} displayName={displayName} onShowLegal={onShowLegal} />;
+      case 'labs':
+        return <LabsPanel settings={settings} update={update} />;
       default:
         return null;
     }
@@ -1116,6 +1141,7 @@ export default function Settings({
       title: 'About',
       items: [
         { key: 'whatsnew', label: "What's New", icon: SparkleIcon, value: `v${__APP_VERSION__}` },
+        { key: 'labs', label: 'Labs', icon: LabsIcon, value: 'Experimental' },
         { key: 'about', label: 'About', icon: AboutIcon, value: `v${__APP_VERSION__}` },
       ],
     },
