@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense } from 'react';
 import SongCard from './SongCard';
 import SidePeek from './shell/SidePeek';
 import { Button } from './ui/Button';
@@ -244,10 +244,13 @@ export default function Library({
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
+  // Deferred so typing stays responsive: the input updates immediately while
+  // the (potentially large) filtered list recomputes at a lower priority.
+  const deferredQuery = useDeferredValue(query);
   const filtered = useMemo(() => {
     let result = songs;
-    if (query) {
-      const q = query.toLowerCase();
+    if (deferredQuery) {
+      const q = deferredQuery.toLowerCase();
       result = result.filter(s =>
         s.title.toLowerCase().includes(q) ||
         s.artist?.toLowerCase().includes(q) ||
@@ -261,11 +264,11 @@ export default function Library({
       );
     }
     return result;
-  }, [songs, query, selectedTags]);
+  }, [songs, deferredQuery, selectedTags]);
 
   // Reset pagination + selection when filter criteria change.
   const [prevFilterKey, setPrevFilterKey] = useState(null);
-  const filterKey = JSON.stringify([query, selectedTags, sortMode, sortAsc]);
+  const filterKey = JSON.stringify([deferredQuery, selectedTags, sortMode, sortAsc]);
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey);
     setVisibleCount(INITIAL_VISIBLE);

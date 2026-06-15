@@ -587,16 +587,22 @@ Decisions from user Q&A:
 From the Wave 3 audits (`docs/AUDIT-WAVE3-SECURITY-SCALE.md`). Grouped into a
 safe quick-win batch and deeper scheduled work.
 
-**Quick wins (small, safe, high value — do as one batch):**
-- **Scale:** add standalone `team_id` indexes on `team_songs` + `team_setlists`
-  (1 migration); add `.limit()` + date-range filter to
-  `useTeamSchedules`/`useTeamAvailability`; call the existing
-  `recentlyPushed()` guard in `useTeamRealtime` (kills redundant full syncs);
-  `React.memo(SongCard)` + `useDeferredValue` on Library search.
-- **Security:** add `maxLength` to text inputs (song title/artist/notes,
-  setlist name — also satisfies §1 field-limits); validate PDF-prefs + ZIP
-  manifest shapes; bump share-token entropy + raise the regex minimum; make
-  the OAuth URL cleanup synchronous.
+**Quick wins (small, safe, high value — _in progress 2026-06-15_):**
+- **Scale:**
+  - ✅ standalone `team_id` indexes on `team_songs` + `team_setlists`
+    (`20260617_team_scale_indexes.sql`).
+  - ✅ `React.memo(SongCard)` + `useDeferredValue` on Library search.
+  - ⬜ `.limit()` + date-range filter on `useTeamSchedules`/`useTeamAvailability`.
+    ⚠️ **Caveat:** the new Scheduling grid spans the whole year, so any date
+    cutoff must be ≥ this week's Sunday (e.g. `today − 7d`) or the grid loses
+    rows; `team_schedules` has no date column → bound with a generous `.limit()`
+    only.
+  - ⬜ call the existing `recentlyPushed()` guard in `useTeamRealtime` (kills
+    redundant full syncs).
+- **Security (⬜ not started):** add `maxLength` to text inputs (song
+  title/artist/notes, setlist name — also satisfies §1 field-limits); validate
+  PDF-prefs + ZIP manifest shapes; bump share-token entropy + raise the regex
+  minimum; make the OAuth URL cleanup synchronous.
 
 **Deeper (schedule deliberately, ~3–4 days + a CSP pass):**
 - **Scale:** per-song IndexedDB persistence (stop rewriting the whole library
