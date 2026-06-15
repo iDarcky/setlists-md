@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { transposeKey } from '../music';
 import { resolveSongView } from '../arrangements';
 import { durationToSeconds, formatTotalDuration } from '../lib/duration';
@@ -47,8 +47,53 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
   const [exportOpen, setExportOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [tab, setTab] = useState('setlist'); // 'setlist' | 'roster'
+  const [collapsed, setCollapsed] = useState(false);
   const showDetails = true; // v2 always shows song details (few fields today)
   const scrollRef = useRef(null);
+
+  // The page scrolls inside an ancestor (the app's <main>) when not embedded,
+  // or inside our own root when embedded. Find whichever actually scrolls.
+  const getScroller = () => {
+    const el = scrollRef.current;
+    if (!el) return null;
+    if (el.scrollHeight > el.clientHeight && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) return el;
+    let p = el.parentElement;
+    while (p) {
+      if (/(auto|scroll)/.test(getComputedStyle(p).overflowY) && p.scrollHeight > p.clientHeight) return p;
+      p = p.parentElement;
+    }
+    return null;
+  };
+
+  // Fix: opening a setlist sometimes inherited the list page's scroll position
+  // (it shares the main scroller), landing at the bottom. Reset to top on open.
+  useEffect(() => {
+    const s = getScroller();
+    if (s) s.scrollTop = 0; else window.scrollTo?.(0, 0);
+  }, [setlist.id, tab]);
+
+  // Collapse the header's meta block once the user scrolls into the list.
+  useEffect(() => {
+    const s = getScroller();
+    if (!s) return;
+    const onScroll = () => setCollapsed(s.scrollTop > 48);
+    s.addEventListener('scroll', onScroll, { passive: true });
+    return () => s.removeEventListener('scroll', onScroll);
+  }, [setlist.id, tab]);
+
+  // Close the overflow menu on Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') setMenuOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+
+  // A setlist whose date/time has passed gets a quiet "Past" marker. `now` is
+  // captured once on mount (Date.now() is flagged impure if called in render).
+  const [nowTs] = useState(() => Date.now());
+  const eventTime = new Date(setlist.date + 'T' + (setlist.time || '23:59') + ':00').getTime();
+  const isPast = !Number.isNaN(eventTime) && eventTime < nowTs;
 
   // Wider than the v1 a4-container, with tighter padding on phones so the
   // sheet uses more of the screen.
@@ -158,14 +203,24 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
       {/* ── Sticky header ── */}
       <div className="material-header" style={headerFrostStyle}>
         <div className={container}>
-          {/* Row 1: title + window actions */}
+          {/* Row 1: service kicker + title, with window actions */}
           <div className="flex items-start justify-between gap-3 pt-3">
-            <h1 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 flex items-center gap-2 min-w-0">
-              <span className="truncate">{setlist.name || 'Untitled Setlist'}</span>
-              {setlist.status === 'draft' && (
-                <span className="shrink-0 text-label-11 font-semibold px-1.5 py-0.5 rounded bg-[var(--ds-amber-100)] text-[var(--ds-amber-1000)] border border-[var(--ds-amber-400)]">Draft</span>
+            <div className="min-w-0">
+              {!collapsed && setlist.service && (
+                <p className="text-label-11 font-semibold uppercase tracking-wider text-[var(--color-brand)] m-0 mb-0.5 truncate">
+                  {setlist.service}
+                </p>
               )}
-            </h1>
+              <h1 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 flex items-center gap-2 min-w-0">
+                <span className="truncate">{setlist.name || 'Untitled Setlist'}</span>
+                {setlist.status === 'draft' && (
+                  <span className="shrink-0 text-label-11 font-semibold px-1.5 py-0.5 rounded bg-[var(--ds-amber-100)] text-[var(--ds-amber-1000)] border border-[var(--ds-amber-400)]">Draft</span>
+                )}
+                {isPast && (
+                  <span className="shrink-0 text-label-11 font-medium px-1.5 py-0.5 rounded bg-[var(--ds-gray-100)] text-[var(--ds-gray-600)] border border-[var(--ds-gray-300)]">Past</span>
+                )}
+              </h1>
+            </div>
             <div className="flex items-center gap-1 shrink-0">
               {overflowMenu}
               {onBack && (
@@ -178,17 +233,32 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
             </div>
           </div>
 
-          {/* Row 2: date · time · rehearsal · location · service */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0 mt-1.5 mb-2">
-            <MetaChip icon="calendar">{dateStr}</MetaChip>
-            {timeStr && <MetaChip icon="clock">{timeStr}</MetaChip>}
-            {rehearsalStr && <MetaChip icon="rehearsal">Rehearsal {rehearsalStr}</MetaChip>}
-            {setlist.location && <MetaChip icon="location">{setlist.location}</MetaChip>}
-            {setlist.service && <MetaChip icon="tag">{setlist.service}</MetaChip>}
-          </div>
+          {/* Row 2: the live event — date · time · location, all on one line */}
+          {!collapsed && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0 mt-2">
+              <MetaChip icon="calendar">{dateStr}</MetaChip>
+              {timeStr && <MetaChip icon="clock">{timeStr}</MetaChip>}
+              {setlist.location && <MetaChip icon="location">{setlist.location}</MetaChip>}
+            </div>
+          )}
+
+          {/* Row 3: rehearsal — set apart in its own subtle pill */}
+          {!collapsed && rehearsalStr && (
+            <div className="inline-flex items-center gap-1.5 mt-2 mb-1 px-2.5 py-1 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)]">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--ds-gray-500)]">
+                {ICONS.rehearsal}
+              </svg>
+              <span className="text-label-12 text-[var(--ds-gray-700)]">
+                <span className="font-semibold text-[var(--ds-gray-900)]">Rehearsal</span> · {rehearsalStr}
+                {setlist.rehearsalLocation && ` · ${setlist.rehearsalLocation}`}
+              </span>
+            </div>
+          )}
+
+          <div className="h-2" aria-hidden="true" />
 
           {/* Tags */}
-          {!!setlist.tags?.length && (
+          {!collapsed && !!setlist.tags?.length && (
             <div className="flex items-center gap-1.5 flex-wrap mb-3">
               {setlist.tags.map((tag, i) => (
                 <Chip key={i} variant="success" className="normal-case tracking-normal">{tag}</Chip>
@@ -245,7 +315,20 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
       {(!team || tab === 'setlist') && (
         <div className={`${container} pt-6`}>
           <div style={sheetStyle} className="overflow-hidden">
-            {/* Rows */}
+            {setlist.items.length === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center gap-2 py-14 px-6">
+                <div className="w-11 h-11 rounded-full bg-[var(--ds-gray-alpha-100)] grid place-items-center text-[var(--ds-gray-500)]">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
+                </div>
+                <p className="text-heading-14 text-[var(--ds-gray-900)] m-0">No songs yet</p>
+                <p className="text-copy-13 text-[var(--ds-gray-500)] m-0 max-w-xs">
+                  {onEdit ? 'Edit this setlist to add songs and breaks.' : 'Songs added to this setlist will show up here.'}
+                </p>
+                {onEdit && (
+                  <Button variant="secondary" size="sm" onClick={onEdit} className="mt-1">Add songs</Button>
+                )}
+              </div>
+            ) : (
             <div className="p-2.5 sm:p-3 flex flex-col gap-2">
               {setlist.items.map((item, idx) => {
                 if (item.type === 'break') {
@@ -330,6 +413,7 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
                 );
               })}
             </div>
+            )}
           </div>
 
           {/* Footnotes — full breakdown + authorship */}

@@ -37,6 +37,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   // Optional rehearsal day — surfaces as a distinct entry on the schedule.
   const [rehearsalDate, setRehearsalDate] = useState(setlist?.rehearsalDate || '');
   const [rehearsalTime, setRehearsalTime] = useState(setlist?.rehearsalTime || '19:00');
+  const [rehearsalLocation, setRehearsalLocation] = useState(setlist?.rehearsalLocation || '');
   // New setlists start as drafts; existing ones without a status are treated as
   // ready (don't surprise-demote a legacy setlist to draft on edit).
   const [status, setStatus] = useState(setlist?.status || (setlist ? 'ready' : 'draft'));
@@ -45,8 +46,8 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
 
   // Snapshot the form on first render so Cancel/back can warn about unsaved
   // changes (only when something actually changed — no nag on a pristine form).
-  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, location, tags, items, service, status, rehearsalDate, rehearsalTime }));
-  const isDirty = JSON.stringify({ name, date, time, location, tags, items, service, status, rehearsalDate, rehearsalTime }) !== initialSnapshot;
+  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation }));
+  const isDirty = JSON.stringify({ name, date, time, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation }) !== initialSnapshot;
 
   // Report dirty state up so App can guard header nav / browser back. Reset on
   // unmount so a stale flag never blocks navigation after we leave.
@@ -264,6 +265,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
       name: name.trim(), date, time, location, tags, items, service, status,
       rehearsalDate: rehearsalDate || null,
       rehearsalTime: rehearsalDate ? rehearsalTime : null,
+      rehearsalLocation: rehearsalDate ? (rehearsalLocation || null) : null,
       createdAt: setlist?.createdAt || Date.now(),
     });
   };
@@ -357,6 +359,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               service={service}
               rehearsalDate={rehearsalDate}
               rehearsalTime={rehearsalTime}
+              rehearsalLocation={rehearsalLocation}
               firstDayOfWeek={firstDayOfWeek}
               clockFormat={clockFormat}
               onNameChange={setName}
@@ -367,6 +370,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               onServiceChange={setService}
               onRehearsalDateChange={setRehearsalDate}
               onRehearsalTimeChange={setRehearsalTime}
+              onRehearsalLocationChange={setRehearsalLocation}
               knownServices={knownServices}
             />
 
