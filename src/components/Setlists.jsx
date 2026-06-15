@@ -115,6 +115,7 @@ export default function Setlists({
   onEditSetlist,
   readOnly = false,
   clockFormat = '12h',
+  overviewV2 = false,
   onExportSetlistZip,
   onExportSetlistPdfOverview,
   onExportSetlistPdfFull,
@@ -557,6 +558,7 @@ export default function Setlists({
                 hidePlay={isTablet}
                 songs={songs}
                 clockFormat={clockFormat}
+                v2={overviewV2}
                 onBack={closePeek}
                 onToggleFullscreen={onToggleFullscreen}
                 onEdit={canEdit ? () => onEditSetlist?.(previewSetlist) : undefined}

@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef } from 'react';
 import { transposeKey } from '../music';
 import { StructureRibbon } from './StructureRibbon';
+import SetlistOverviewV2 from './SetlistOverviewV2';
 import { resolveSongView } from '../arrangements';
 import { durationToSeconds, formatTotalDuration } from '../lib/duration';
 import { Chip } from './ui/Chip';
@@ -17,7 +18,14 @@ import { formatClockTime } from '../lib/dateFormat';
 import { useConfirm } from './ui/useConfirmHook';
 import { useIsTablet, useIsDesktop } from '../lib/useMediaQuery';
 
-export default function SetlistOverview({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false, hidePlay = false }) {
+// Thin switch: the `v2` flag (Settings → Appearance → "Setlist overview v2")
+// routes to the redesigned overview while the original stays the default.
+export default function SetlistOverview(props) {
+  if (props.v2) return <SetlistOverviewV2 {...props} />;
+  return <SetlistOverviewV1 {...props} />;
+}
+
+function SetlistOverviewV1({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false, hidePlay = false }) {
   const confirm = useConfirm();
   const { team, isAdmin } = useTeam();
   const { user } = useAuth();

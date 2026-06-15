@@ -554,6 +554,27 @@ function ChartPanel({ settings, update }) {
       <Row label="Tab background" description="Fill behind the fret numbers (where the string line is broken).">
         <TabColorControl value={settings.tabBg} fallback="#101010" onChange={v => update('tabBg', v)} />
       </Row>
+      <Row label="Setlist overview v2" description="Labs: try the redesigned setlist overview — layered layout, cleaner header, and an improved band view. Off keeps the current design.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: true, label: 'On' },
+            { key: false, label: 'Off' },
+          ].map(({ key, label }) => {
+            const active = (settings.setlistOverviewV2 === true) === key;
+            return (
+              <Button
+                key={String(key)}
+                size="sm"
+                variant={active ? 'secondary' : 'ghost'}
+                onClick={() => update('setlistOverviewV2', key)}
+                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </div>
+      </Row>
     </Section>
   );
 }

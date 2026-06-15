@@ -17,6 +17,9 @@ export function StructureRibbon({
   //   'numbered' — plain colour-coded short codes, separated by middots
   //   'dots'     — minimal coloured dots, most compact
   style = 'chips',
+  // When true, chips wrap to multiple lines instead of horizontal-scrolling.
+  // Used by the setlist overview v2 song cards (avoids the odd mobile scroll).
+  wrap = false,
 }) {
   // Collapse consecutive duplicates: "C1, C1, C1" → one entry "C1 ×3".
   const runs = [];
@@ -42,7 +45,10 @@ export function StructureRibbon({
   const isActiveRun = (run) => activeIndex != null && activeIndex >= run.index && activeIndex < run.index + run.count;
   // px-1 keeps the first/last chip (and the active chip's ring) from being
   // clipped at the scroller's edges.
-  const rowClass = 'flex gap-1 flex-nowrap overflow-x-auto no-scrollbar py-1 px-1 min-w-0';
+  const rowClass = cn(
+    'flex gap-1 py-1 px-1 min-w-0',
+    wrap ? 'flex-wrap' : 'flex-nowrap overflow-x-auto no-scrollbar',
+  );
   const colorOf = (name) => sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
   const labelOf = (name) => (compact ? compactLabel(name) : sectionLabel(name, sectionLabels));
 

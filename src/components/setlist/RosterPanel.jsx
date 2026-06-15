@@ -52,7 +52,7 @@ function availabilityLabel(status) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly = false, inline = false }) {
+export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly = false, inline = false, v2 = false }) {
   const confirm = useConfirm();
   const { team, members } = useTeam();
   const { schedules, createSchedule, updateSchedule, deleteSchedule, loading } = useTeamSchedules(team?.id);
@@ -64,6 +64,15 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
   const [addingMemberId, setAddingMemberId] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [instrumentFilter, setInstrumentFilter] = useState(null);
+  // v2-only: search + "available only" filter for the add list, and which
+  // scheduled card has its inline edit (instrument/vocal) disclosure open.
+  const [search, setSearch] = useState('');
+  const [availOnly, setAvailOnly] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  // Section labels: v2 uses Title Case; v1 keeps the existing upper-case style.
+  const bandLabel = v2 ? 'The Band' : 'THE BAND';
+  const addLabel = v2 ? 'Add to the Band' : 'ADD TO THE BAND';
+  const labelClass = `text-label-13 text-[var(--ds-gray-700)] ${v2 ? 'font-bold' : 'uppercase tracking-wider font-bold'} m-0`;
 
   // The ID used for DB operations (team_schedules.setlist_id is a UUID FK to
   // team_setlists.id). Local setlists use base-36 IDs from generateId(), so
@@ -98,6 +107,18 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
     });
     return list;
   }, [members, setlistSchedules, availability, setlistDate, instrumentFilter]);
+
+  // v2 add-list refinements: free-text search + an "available only" toggle.
+  const visibleCandidates = useMemo(() => {
+    if (!v2) return candidates;
+    const q = search.trim().toLowerCase();
+    return candidates.filter(m => {
+      if (availOnly && m.availStatus !== 'available') return false;
+      if (!q) return true;
+      const name = (m.profile?.display_name || m.profile?.email || '').toLowerCase();
+      return name.includes(q);
+    });
+  }, [candidates, v2, search, availOnly]);
 
   // Set of distinct instruments across all team members for the filter chips.
   const allInstruments = useMemo(() => {
@@ -185,7 +206,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
           <>
             {/* Current Roster */}
             <div className="flex flex-col gap-3">
-              <p className="text-label-13 text-[var(--ds-gray-700)] uppercase tracking-wider font-bold m-0">THE BAND</p>
+              <p className={labelClass}>{bandLabel}</p>
 
               {setlistSchedules.length === 0 && (
                 <p className="text-copy-14 text-[var(--ds-gray-500)] italic py-4 text-center">
@@ -218,33 +239,56 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                       <div className="flex flex-col min-w-0 flex-1 gap-1">
                         <span className="text-copy-14 font-bold truncate leading-tight">{displayName}</span>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`inline-flex items-center gap-1 text-label-11 px-2 py-0.5 rounded-full ${availabilityBadgeClasses(schedule.availability)}`}>
-                            <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" aria-hidden="true" />
-                            {availabilityLabel(schedule.availability)}
-                          </span>
-                          {readOnly && schedule.role && (
+                          {/* v2: the avatar dot already carries availability, so
+                              only surface the text pill when it needs attention
+                              (anything other than a confirmed "available"). */}
+                          {(!v2 || schedule.availability !== 'available') && (
+                            <span className={`inline-flex items-center gap-1 text-label-11 px-2 py-0.5 rounded-full ${availabilityBadgeClasses(schedule.availability)}`}>
+                              <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" aria-hidden="true" />
+                              {availabilityLabel(schedule.availability)}
+                            </span>
+                          )}
+                          {(readOnly || v2) && schedule.role && (
                             <span className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)]">
                               {schedule.role}
                             </span>
                           )}
-                          {readOnly && schedule.vocal_part && (
+                          {(readOnly || v2) && schedule.vocal_part && (
                             <span className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-text)]">
                               {schedule.vocal_part}
                             </span>
+                          )}
+                          {v2 && !readOnly && !schedule.role && !schedule.vocal_part && (
+                            <span className="text-label-11 text-[var(--ds-gray-500)] italic">No role yet</span>
                           )}
                         </div>
                       </div>
 
                       {!readOnly && (
-                        <IconButton size="sm" onClick={() => handleRemove(schedule.id)} variant="ghost" className="shrink-0 text-[var(--ds-gray-400)] hover:text-[var(--ds-red-600)]">
-                          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </IconButton>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          {v2 && (
+                            <IconButton
+                              size="sm"
+                              onClick={() => setEditingId(id => id === schedule.id ? null : schedule.id)}
+                              variant={editingId === schedule.id ? 'active' : 'ghost'}
+                              aria-label={editingId === schedule.id ? 'Done editing' : 'Edit role'}
+                              title="Edit instrument & vocal"
+                            >
+                              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </IconButton>
+                          )}
+                          <IconButton size="sm" onClick={() => handleRemove(schedule.id)} variant="ghost" className="text-[var(--ds-gray-400)] hover:text-[var(--ds-red-600)]">
+                            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </IconButton>
+                        </div>
                       )}
                     </div>
 
-                    {!readOnly && (
+                    {!readOnly && (!v2 || editingId === schedule.id) && (
                       <div className="grid grid-cols-2 gap-2 px-3 pb-3 pt-3 border-t border-[var(--ds-gray-200)]">
                         <div className="flex flex-col gap-1">
                           <span className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold">Instrument</span>
@@ -292,12 +336,43 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
             {/* Add Member — admins only */}
             {!readOnly && (
               <div className="flex flex-col gap-3">
-                <p className="text-label-13 text-[var(--ds-gray-700)] uppercase tracking-wider font-bold m-0">ADD TO THE BAND</p>
+                <p className={labelClass}>{addLabel}</p>
 
                 {!setlistDate && (
                   <p className="text-copy-12 text-[var(--ds-orange-700)] bg-[var(--ds-orange-100)] px-3 py-2 rounded-lg">
                     Set a date for this setlist to see who's available.
                   </p>
+                )}
+
+                {/* v2: search the team + filter to only those who're available. */}
+                {v2 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="relative flex-1 min-w-[160px]">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--ds-gray-500)] pointer-events-none">
+                        <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />
+                      </svg>
+                      <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search members…"
+                        className="w-full h-9 pl-8 pr-3 rounded-lg bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] text-copy-13 outline-none focus:border-[var(--ds-gray-500)]"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAvailOnly(v => !v)}
+                      disabled={!setlistDate}
+                      className={`h-9 px-3 rounded-lg text-label-12 font-semibold border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                        availOnly
+                          ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white'
+                          : 'bg-transparent border-[var(--ds-gray-300)] text-[var(--ds-gray-700)]'
+                      }`}
+                      title={setlistDate ? 'Show only members available on this date' : 'Set a date to filter by availability'}
+                    >
+                      Available only
+                    </button>
+                  </div>
                 )}
 
                 {allInstruments.length > 0 && (
@@ -331,8 +406,8 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                 )}
 
                 <div className="flex flex-col gap-2">
-                  {candidates.length > 0 ? (
-                    candidates.map(member => (
+                  {visibleCandidates.length > 0 ? (
+                    visibleCandidates.map(member => (
                       <div
                         key={member.id}
                         className="flex items-start justify-between gap-2 p-2 hover:bg-[var(--ds-gray-100)] rounded-lg cursor-pointer group"
@@ -381,7 +456,13 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                     ))
                   ) : (
                     <p className="text-copy-13 text-[var(--ds-gray-500)] py-2">
-                      {instrumentFilter ? `No available members play ${instrumentFilter}.` : 'All members are scheduled.'}
+                      {v2 && search.trim()
+                        ? `No members match “${search.trim()}”.`
+                        : v2 && availOnly
+                          ? 'No one is marked available for this date.'
+                          : instrumentFilter
+                            ? `No available members play ${instrumentFilter}.`
+                            : 'All members are scheduled.'}
                     </p>
                   )}
                 </div>

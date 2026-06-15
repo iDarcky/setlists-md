@@ -146,6 +146,7 @@ const PORTABLE_PREF_KEYS = [
   'tabStringColor',
   'tabNumberColor',
   'tabBg',
+  'setlistOverviewV2',
 ];
 
 function extractPortablePrefs(s) {
@@ -2081,6 +2082,7 @@ export default function App() {
               onEditSetlist={isTeamReadOnly ? null : (sl) => goSetlistBuild(sl)}
               readOnly={isTeamReadOnly}
               clockFormat={settings?.clockFormat || '12h'}
+              overviewV2={settings?.setlistOverviewV2}
               onExportSetlistZip={(sl) => handleExportSetlist(sl)}
               onExportSetlistPdfOverview={(sl) => exportSetlistPdf(sl, songs, { mode: 'overview' })}
               onExportSetlistPdfFull={(sl) => exportSetlistPdf(sl, songs, { mode: 'full' })}
@@ -2171,6 +2173,7 @@ export default function App() {
               onExportPdfOverview={() => exportSetlistPdf(currentSetlist, songs, { mode: 'overview' })}
               onExportPdfFull={() => exportSetlistPdf(currentSetlist, songs, { mode: 'full' })}
               clockFormat={settings?.clockFormat || '12h'}
+              v2={settings?.setlistOverviewV2}
               onPlay={() => goSetlistPerformance(currentSetlist)}
               onPractice={(startIndex) => goSetlistPractice(currentSetlist, startIndex)}
               onDelete={isTeamReadOnly ? null : () => handleDeleteSetlist(currentSetlist.id)}
