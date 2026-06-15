@@ -1042,9 +1042,32 @@ export default function App() {
         }))
     : [];
 
+  // Nudge: a "maybe" on a setlist coming up within ~2 weeks → ask the user to
+  // commit. Reuses the schedule_request Accept/Decline UI (Accept→available,
+  // Decline→unavailable), so resolving it clears the maybe.
+  const MAYBE_NUDGE_DAYS = 14;
+  const maybeNudges = (schedules || [])
+    .filter(s => s.user_id === user?.id && s.availability === 'maybe')
+    .map(s => ({ s, setlist: setlists.find(sl => sl.id === s.setlist_id) }))
+    .filter(({ setlist }) => {
+      if (!setlist?.date) return false;
+      const days = (new Date(`${setlist.date}T00:00:00`) - new Date(`${todayStr}T00:00:00`)) / 86400000;
+      return days >= 0 && days <= MAYBE_NUDGE_DAYS;
+    })
+    .map(({ s, setlist }) => ({
+      id: `maybe-${s.id}`,
+      type: 'schedule_request',
+      title: 'Still a maybe?',
+      message: `"${setlist.name}" is coming up — confirm whether you can make it.`,
+      read: false,
+      scheduleId: s.id,
+      setlistId: s.setlist_id,
+    }));
+
   const dismissedNotifs = settings?.dismissedNotifications || [];
   const mergedNotifications = [
     ...virtualNotifications,
+    ...maybeNudges,
     ...declineNotifications,
     ...(settings?.notifications || []),
   ].filter(n => !dismissedNotifs.includes(n.id));

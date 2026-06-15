@@ -478,14 +478,30 @@ _Started 2026-06-15._
   (setlists + rehearsals on the date, set my availability, team status), wired
   in Dashboard like Schedule.jsx. (Was: only opened a setlist if one existed.)
 - ✅ Dropped the dashboard legend.
-- ↩️ _Deferred:_ maybe→available **nudge** ~2 weeks out — better as a derived
-  notification (build on slice 1's notification infra) than a widget hint.
+**Slice 3 — nudge + pending click-through + widget polish (done, 2026-06-15):**
+- ✅ **Maybe→available nudge** (§2.5) — a "Still a maybe?" notification when the
+  user has a `maybe` on a setlist coming up within 14 days; reuses the
+  Accept/Decline UI (Accept→available, Decline→unavailable).
+- ✅ **Pending-requests click-through** (§2.6) — tapping a pending request opens
+  its setlist (Accept/Decline buttons unchanged).
+- ✅ **Widget polish** — dropped the ▶/↻ glyphs; play vs rehearsal is now
+  **solid card = service, dashed card = rehearsal**. Standalone `maybe`
+  availability now shows **amber** (was rendering as nothing).
+
+**Open decisions (from user QA):**
+- _Q:_ `DateStatusModal` shows the **team availability list to all members**
+  (no admin gate; RLS already permits read). Hide it from non-leaders, or keep
+  it open? Currently kept open.
+- _Q:_ With ~50 members the modal's availability list is a long scroll. Add
+  grouping/collapse by status (it already sorts + shows an X/Y count)?
 
 **Remaining slices:**
-- Maybe→available nudge (notification, ~2 weeks out) (§2.5).
-- Team availability rework (next-month view) (§2.8); pending-requests
-  click-through (§2.6).
-- Harden decline alerts with a DB trigger + persistent read/dismiss state.
+- ↩️ **Team availability widget rework (§2.8)** — _deferred, needs a spec._
+  Currently a single In/Maybe/Pending/Out row for the next service; user idea
+  was "maybe next month?" but it's undecided — don't build until scoped.
+- Harden decline alerts + maybe-nudge with a DB trigger + a `team_notifications`
+  table (persistent read/dismiss, robust resolution) — the deeper version of
+  slices 1 & 3.
 
 ### Wave 5 — Audit remediation (security + scale)
 

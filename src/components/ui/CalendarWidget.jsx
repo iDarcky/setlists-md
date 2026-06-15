@@ -120,6 +120,7 @@ export function CalendarWidget({
             }
             if (status === 'none') {
               if (myAvail === 'available') status = 'avail-yes';
+              else if (myAvail === 'maybe') status = 'maybe';
               else if (myAvail === 'unavailable') status = 'avail-no';
             }
 
@@ -157,10 +158,11 @@ export function CalendarWidget({
               bgClass = "bg-[var(--ds-background-100)] border-[var(--ds-gray-400)]";
             }
 
-            // Event-type glyph (▶ play vs ↻ rehearsal) so the two are
-            // distinguishable even when their tint is similar.
+            // Play vs rehearsal is shown by the card outline (no glyphs):
+            // a service/play day is a solid card, a rehearsal day is dashed.
             const eventType = serviceSetlists.length ? 'service'
               : rehearsalSetlists.length ? 'rehearsal' : null;
+            const outlineClass = eventType === 'rehearsal' ? 'border-2 border-dashed' : '';
 
             // Clicking any day opens the day detail/availability modal; if the
             // host didn't wire one, fall back to opening the day's setlist.
@@ -174,17 +176,9 @@ export function CalendarWidget({
                 key={i}
                 onClick={handleClick}
                 aria-current={isToday ? 'date' : undefined}
-                className={`relative snap-start shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-2xl border transition-transform duration-150 active:scale-95 cursor-pointer hover:shadow-md ${bgClass} ${isToday ? 'ring-2 ring-[var(--color-brand)] ring-offset-1 ring-offset-[var(--ds-background-100)]' : ''}`}
+                aria-label={eventType === 'service' ? 'Service day' : eventType === 'rehearsal' ? 'Rehearsal day' : undefined}
+                className={`relative snap-start shrink-0 flex flex-col items-center justify-center w-16 h-20 rounded-2xl border ${outlineClass} transition-transform duration-150 active:scale-95 cursor-pointer hover:shadow-md ${bgClass} ${isToday ? 'ring-2 ring-[var(--color-brand)] ring-offset-1 ring-offset-[var(--ds-background-100)]' : ''}`}
               >
-                {eventType && (
-                  <span className="absolute top-1 right-1 text-[var(--ds-gray-500)]" aria-hidden="true" title={eventType === 'service' ? 'Service' : 'Rehearsal'}>
-                    {eventType === 'service' ? (
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-                    ) : (
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 3v5h-5" /></svg>
-                    )}
-                  </span>
-                )}
                 <span className={`text-label-12 font-semibold uppercase tracking-wider mb-1 ${status !== 'none' ? textClass : 'text-[var(--ds-gray-500)]'}`}>
                   {isToday ? 'Today' : date.toLocaleDateString('en-US', { weekday: 'short' })}
                 </span>

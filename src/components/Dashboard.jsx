@@ -313,8 +313,14 @@ export default function Dashboard({
             const part = [schedule.role, schedule.vocal_part].filter(Boolean).join(' · ');
             return (
               <div key={schedule.id} className="modes-card p-4 flex items-center justify-between gap-3">
-                <div className="flex flex-col min-w-0">
-                  <span className="text-copy-16 font-bold truncate text-[var(--modes-text)]">{sl?.name || 'Team service'}</span>
+                <div
+                  className={`flex flex-col min-w-0 ${sl ? 'cursor-pointer' : ''}`}
+                  role={sl ? 'button' : undefined}
+                  tabIndex={sl ? 0 : undefined}
+                  onClick={sl ? () => onViewSetlist(sl) : undefined}
+                  onKeyDown={sl ? (e) => { if (e.key === 'Enter') onViewSetlist(sl); } : undefined}
+                >
+                  <span className="text-copy-16 font-bold truncate text-[var(--modes-text)] hover:underline">{sl?.name || 'Team service'}</span>
                   <span className="text-label-13 text-[var(--modes-text-muted)]">
                     {sl?.date
                       ? new Date(sl.date + 'T' + (sl.time || '00:00')).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
