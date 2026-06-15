@@ -49,15 +49,43 @@ drop policy if exists "team_notifications_delete_own" on public.team_notificatio
 create policy "team_notifications_delete_own" on public.team_notifications
   for delete using (user_id = auth.uid());
 
--- Fan a decline out to every roster manager (admins + leaders + owner) of the
--- team, skipping the decliner themselves. SECURITY DEFINER so it can insert
--- rows for other users (bypassing the absent INSERT policy).
+-- Setlist ownership: who created / is responsible for a team setlist. Stamped
+-- automatically from the inserting user's auth.uid() (the sync engine inserts
+-- as the creator), so no client change is needed. Legacy rows stay NULL.
+alter table public.team_setlists
+  add column if not exists created_by uuid references auth.users(id) on delete set null;
+
+create or replace function public.stamp_team_setlist_creator()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if NEW.created_by is null then
+    NEW.created_by := auth.uid();
+  end if;
+  return NEW;
+end;
+$$;
+
+drop trigger if exists trg_stamp_team_setlist_creator on public.team_setlists;
+create trigger trg_stamp_team_setlist_creator
+  before insert on public.team_setlists
+  for each row execute function public.stamp_team_setlist_creator();
+
+-- Fan a decline out to the leader RESPONSIBLE for the setlist (its creator);
+-- if that's unknown (legacy setlists with no created_by), fall back to every
+-- roster manager (admins + leaders + owner). The decliner never notifies
+-- themselves. SECURITY DEFINER so it can insert rows for other users.
 create or replace function public.notify_on_schedule_decline()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_owner uuid;
 begin
   -- Only when availability flips TO 'unavailable'.
   if NEW.availability is distinct from 'unavailable' then
@@ -67,10 +95,13 @@ begin
     return null;
   end if;
 
+  select created_by into v_owner
+    from public.team_setlists where id = NEW.setlist_id;
+
   insert into public.team_notifications (team_id, user_id, actor_id, type, title, body, metadata)
   select
     NEW.team_id,
-    mgr.user_id,
+    recipient.user_id,
     NEW.user_id,
     'schedule_decline',
     'Schedule declined',
@@ -82,16 +113,22 @@ begin
       'role', NEW.role
     )
   from (
+    -- Responsible leader (the setlist creator), when known…
+    select v_owner as user_id where v_owner is not null
+    union
+    -- …otherwise fan out to all roster managers.
     select m.user_id
       from public.team_members m
-     where m.team_id = NEW.team_id and m.role in ('admin', 'leader')
+     where v_owner is null
+       and m.team_id = NEW.team_id and m.role in ('admin', 'leader')
     union
     select t.owner_id as user_id
       from public.teams t
-     where t.id = NEW.team_id and t.owner_id is not null
-  ) mgr
-  where mgr.user_id is not null
-    and mgr.user_id <> NEW.user_id;
+     where v_owner is null
+       and t.id = NEW.team_id and t.owner_id is not null
+  ) recipient
+  where recipient.user_id is not null
+    and recipient.user_id <> NEW.user_id;
 
   return null;
 end;
