@@ -633,13 +633,19 @@ code-side items shipped; only deferred/blocked items remain — see
     can't preserve per-row conflict detection. Low value, real risk — revisit
     only if a profiler shows the serial awaits dominating a real-world sync.
 - **Security:**
-  - ⬜ **PDF inline-script nonce → enforce CSP** — the print document
-    (`pdfDocument.js`) emits inline `<script>`/`<style>` into a same-origin
-    `srcdoc` iframe that inherits the page CSP. To flip `vercel.json` CSP from
-    report-only to **enforcing**, those inline tags need a nonce/hash (vercel.json
-    headers are static → SHA-256 hashes, or refactor to external assets).
-    **Needs live print testing** across browser PWA / Capacitor / Electron
-    (CLAUDE.md gotcha) — do not flip the header blind.
+  - ✅ **PDF inline-script removed → CSP enforcing** (2026-06-15) — the two
+    export documents no longer emit an inline `<script>`; the controls live in a
+    single external `public/pdf-print.js` (precached, `script-src 'self'`), with
+    per-document data passed via a non-executed
+    `<script type="application/json" id="pdf-print-config">` block. `vercel.json`
+    flipped `Content-Security-Policy-Report-Only` → enforcing
+    `Content-Security-Policy` and added `frame-src 'self'` for the print iframe.
+    Inline styles still rely on `style-src 'unsafe-inline'` (kept). Empirically
+    verified the built bundle has no load-time `eval`/`new Function` (the one hit
+    is a lazy `setImmediate(string)` branch never exercised). Shared helper
+    `buildPrintControls()` + test `src/__tests__/pdf-print-controls.test.js`.
+    **⚠️ Needs live print verification** on deploy — see
+    `docs/HANDOFF-WAVE6.md` for the test checklist + one-line rollback.
   - ⬜ **`team_activity` retention policy** — prune old rows on a schedule
     (pg_cron / Supabase scheduled function). Infra task; blocked behind the
     same Supabase access needed to apply migrations.
@@ -647,12 +653,13 @@ code-side items shipped; only deferred/blocked items remain — see
 ### Wave 5 — what's left
 
 Quick-win batch is done bar **OAuth-cleanup-synchronous** (deferred — needs
-the live auth flow tested). Deeper batch's two scale items shipped; what
-remains is all **deliberately deferred / blocked**, not pending work:
+the live auth flow tested). Deeper batch's scale items + the PDF/CSP security
+item shipped; what remains is all **deliberately deferred / blocked**:
 - ⬜ OAuth URL cleanup synchronous _(needs auth-flow testing)_.
 - ⬜ batch team push loop _(skipped — low value, breaks per-row CAS)_.
-- ⬜ PDF nonce + enforce CSP _(needs cross-platform print testing)_.
 - ⬜ `team_activity` retention _(needs scheduled DB job)_.
+- 🔬 PDF/CSP enforcing **shipped** but **needs live print verification** on
+  deploy (PWA + installed app) — checklist + rollback in `docs/HANDOFF-WAVE6.md`.
 
 ⚠️ **Blocker:** the two Wave-4/5 migrations (`20260616_team_notifications.sql`,
 `20260617_team_scale_indexes.sql`) are committed but **not applied** — the

@@ -11,7 +11,7 @@
 
 import { transposeChord, transposeKey, sectionStyle, normalizeSectionName } from '../music';
 import { parseLine, serializeTabBlock } from '../parser';
-import { openPrintWindow, readInitialPrefs } from './pdfDocument';
+import { openPrintWindow, readInitialPrefs, buildPrintControls } from './pdfDocument';
 
 // Print-friendly section accent colors (CMYK-safe approximations of the Geist
 // palette used in-app — we can't rely on CSS vars in the popup window).
@@ -784,110 +784,10 @@ function buildDocument(song, transpose, initialPrefs = {}) {
     </main>
   </div>
 
-  <script>
-    (function () {
-      var STORAGE_KEY = 'setlists-md:pdf-prefs';
-      var DEFAULTS = { cols: 1, size: 'M', font: 'sans', chords: true, tabs: true, colors: true, repeats: true };
-      var SIZE = { S: '10pt', M: '11pt', L: '12.5pt', XL: '14pt' };
-      var FONT = {
-        sans:  'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-        serif: '"Iowan Old Style", Georgia, "Times New Roman", serif',
-        mono:  '"JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace'
-      };
-
-      // Initial prefs are injected by the parent app from its own localStorage
-      // so the popup honours the user's last-used PDF settings even when the
-      // popup's about:blank context can't read them itself.
-      var initial = ${JSON.stringify(initialPrefs).replace(/</g, '\\u003c')};
-      var prefs = Object.assign({}, DEFAULTS, initial);
-
-      function readStored() {
-        // Try opener's localStorage first (parent app's origin) so prefs
-        // survive across exports. Fall back to our own (ephemeral on
-        // about:blank in some browsers, but no-op there is fine).
-        try {
-          if (window.opener && window.opener.localStorage) {
-            var raw = window.opener.localStorage.getItem(STORAGE_KEY);
-            if (raw) return JSON.parse(raw);
-          }
-        } catch (e) { /* cross-origin or closed opener */ }
-        try {
-          var raw2 = localStorage.getItem(STORAGE_KEY);
-          if (raw2) return JSON.parse(raw2);
-        } catch (e) { /* unavailable */ }
-        return null;
-      }
-
-      function writeStored(p) {
-        var s = JSON.stringify(p);
-        try { if (window.opener && window.opener.localStorage) window.opener.localStorage.setItem(STORAGE_KEY, s); } catch (e) {}
-        try { localStorage.setItem(STORAGE_KEY, s); } catch (e) {}
-      }
-
-      var stored = readStored();
-      if (stored) prefs = Object.assign(prefs, stored);
-
-      var root = document.documentElement;
-      var body = document.body;
-
-      function apply() {
-        root.style.setProperty('--col-count', String(prefs.cols));
-        root.style.setProperty('--body-size', SIZE[prefs.size] || SIZE.M);
-        root.style.setProperty('--lyric-font', FONT[prefs.font] || FONT.sans);
-        body.classList.toggle('no-chords', !prefs.chords);
-        body.classList.toggle('no-tabs', !prefs.tabs);
-        body.classList.toggle('bw', !prefs.colors);
-        body.classList.toggle('collapse-repeats', !prefs.repeats);
-        // Reflect active state on the controls.
-        var nodes = document.querySelectorAll('[data-control]');
-        for (var i = 0; i < nodes.length; i++) {
-          var el = nodes[i];
-          var k = el.getAttribute('data-control');
-          var v = el.getAttribute('data-value');
-          var active = false;
-          if      (k === 'cols')    active = String(prefs.cols) === v;
-          else if (k === 'size')    active = prefs.size === v;
-          else if (k === 'font')    active = prefs.font === v;
-          else if (k === 'chords')  active = !!prefs.chords;
-          else if (k === 'tabs')    active = !!prefs.tabs;
-          else if (k === 'colors')  active = !!prefs.colors;
-          else if (k === 'repeats') active = !!prefs.repeats;
-          el.classList.toggle('active', active);
-        }
-        writeStored(prefs);
-      }
-
-      document.addEventListener('click', function (e) {
-        var ctrl = e.target.closest('[data-control]');
-        if (ctrl) {
-          var k = ctrl.getAttribute('data-control');
-          var v = ctrl.getAttribute('data-value');
-          if      (k === 'cols')   prefs.cols   = parseInt(v, 10) || 1;
-          else if (k === 'size')   prefs.size   = v;
-          else if (k === 'font')   prefs.font   = v;
-          else if (k === 'chords') prefs.chords = !prefs.chords;
-          else if (k === 'tabs') prefs.tabs = !prefs.tabs;
-          else if (k === 'colors') prefs.colors = !prefs.colors;
-          else if (k === 'repeats') prefs.repeats = !prefs.repeats;
-          apply();
-          return;
-        }
-        var act = e.target.closest('[data-action]');
-        if (!act) return;
-        if (act.dataset.action === 'print') window.print();
-        if (act.dataset.action === 'close') {
-          // Inside the print-preview iframe (same-origin) remove the host
-          // overlay; window.close() only applies to the legacy popup case.
-          var fe = window.frameElement;
-          var ov = fe && fe.ownerDocument.getElementById('pdf-print-overlay');
-          if (ov) ov.remove();
-          else window.close();
-        }
-      });
-
-      apply();
-    })();
-  </script>
+  ${buildPrintControls({
+    defaults: { cols: 1, size: 'M', font: 'sans', chords: true, tabs: true, colors: true, repeats: true },
+    initialPrefs,
+  })}
 </body>
 </html>`;
 }
