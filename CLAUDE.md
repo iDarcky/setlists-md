@@ -111,9 +111,16 @@ bump** — do NOT cut a new MINOR. Run, in order:
    compiles). Skip `npm run lint` unless code changed that day (the repo
    has pre-existing lint noise).
 
-5. **Commit + push.** Subject `Beta <TARGET>-beta.<N>: <short title>`,
-   bullets as the body. Push to the active branch with
-   `git push -u origin <branch>`. (The user then merges it into `beta`.)
+5. **Commit + push the feature branch.** Subject `Beta <TARGET>-beta.<N>:
+   <short title>`, bullets as the body. Push to the active branch with
+   `git push -u origin <branch>`.
+
+6. **Merge into `beta`.** "finish" includes promoting the batch onto `beta`:
+   `git fetch origin beta`, then fast-forward `beta` to the feature branch
+   (`git push origin <branch>:beta`) when `beta` is a direct ancestor (the
+   normal case — no merge commit). If it's diverged, merge `<branch>` into a
+   local `beta` and push. Never force-push `beta`. Stay on the feature branch
+   afterwards. (Tagging still happens only at "release"/promote, on `main`.)
 
 Do **not** tag on feature/`beta` branches.
 
