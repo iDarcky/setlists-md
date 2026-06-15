@@ -26,10 +26,19 @@ export function useTeamAvailability(teamId) {
     setLoading(true);
     setError(null);
     try {
+      // Bound the query: only fetch from a week back forward. Everything that
+      // reads availability (dashboard calendar −2d, My-Schedule, the Scheduling
+      // grid which starts at this week's Sunday, the schedule page's future
+      // weeks) lives in this window, so older rows are dead weight re-fetched on
+      // every realtime echo. Keep the cutoff ≤ this week's Sunday.
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 7);
       const { data, error: fetchErr } = await supabase
         .from('team_availability')
         .select('*')
-        .eq('team_id', teamId);
+        .eq('team_id', teamId)
+        .gte('date', toDateStr(cutoff))
+        .limit(5000);
       if (fetchErr) throw fetchErr;
       setAvailability(data || []);
     } catch (err) {

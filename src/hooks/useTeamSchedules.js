@@ -16,7 +16,8 @@ export function useTeamSchedules(teamId) {
       const { data, error: fetchErr } = await supabase
         .from('team_schedules')
         .select('*')
-        .eq('team_id', teamId);
+        .eq('team_id', teamId)
+        .limit(5000); // safety cap — team_schedules has no date column to filter on
 
       if (fetchErr) throw fetchErr;
       setSchedules(data || []);
