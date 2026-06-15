@@ -405,15 +405,23 @@ below; the rest deferred with reasons._
   (no longer ALL-CAPS, matched size).
 - ✅ Setlist add-scroll — anchor now has `scrollMarginBottom` so it clears the
   fixed Save/Cancel action bar (was hidden under it).
-- ✅ Import-setlist icon — swapped the "import-into" arrow (read as log-out) for
-  a folder + down-arrow. ⚠️ _user wants more options — see open question below._
+- ✅ Import-setlist icon — folder + down-arrow. **User confirmed: keep it.**
 - ✅ **Naming unify → "Songs"** (§5) — desktop page title (Library.jsx), top-nav
   (TopHeader), and sidebar all now say "Songs" (mobile already did).
 
-**Open question:**
-- _Q (import icon): user asked for alternatives. Options on the table — folder
-  + down-arrow (current), document/page + down-arrow, inbox/tray + plus,
-  archive-box. Pick one._
+**Done (round 3, 2026-06-15):**
+- ✅ **Mobile/tablet setlist import** — the BottomNav Setlists FAB is now a
+  New/Import menu (was create-only on mobile + touch tablets; import had only
+  existed on desktop and the empty state). Picks a `.zip` via a programmatic
+  file input.
+- ✅ **Picker sorted alphabetically** (idea §I-1) — `SetlistSongPicker` now
+  sorts the library by title (was raw insertion order).
+- ✅ **Desktop search placeholder parity** — Songs/Setlists pages now read
+  "Search songs & setlists…" / "Search setlists & songs…" (matching mobile).
+  ⚠️ **Behavior caveat:** these desktop page searches are still **page-scoped**
+  (Songs page filters songs only, Setlists page setlists only); only the mobile
+  top bar is truly cross-type. Making the desktop searches cross-type to honor
+  the copy is the same work as the §5 "doubled search" unified-search task.
 
 **Deferred (per user — leave for the relevant rework epic):**
 - ↩️ **Location onto date line + date Title-Case** (§3) — fold into §3 overview
@@ -454,7 +462,30 @@ The strategic core ("replace Planning Center"). Build as one coordinated epic.
 - Team availability rework (next-month view) (§2.8); pending-requests
   click-through (§2.6).
 
-### Wave 5 — UX epics (bigger, mostly independent)
+### Wave 5 — Audit remediation (security + scale)
+
+From the Wave 3 audits (`docs/AUDIT-WAVE3-SECURITY-SCALE.md`). Grouped into a
+safe quick-win batch and deeper scheduled work.
+
+**Quick wins (small, safe, high value — do as one batch):**
+- **Scale:** add standalone `team_id` indexes on `team_songs` + `team_setlists`
+  (1 migration); add `.limit()` + date-range filter to
+  `useTeamSchedules`/`useTeamAvailability`; call the existing
+  `recentlyPushed()` guard in `useTeamRealtime` (kills redundant full syncs);
+  `React.memo(SongCard)` + `useDeferredValue` on Library search.
+- **Security:** add `maxLength` to text inputs (song title/artist/notes,
+  setlist name — also satisfies §1 field-limits); validate PDF-prefs + ZIP
+  manifest shapes; bump share-token entropy + raise the regex minimum; make
+  the OAuth URL cleanup synchronous.
+
+**Deeper (schedule deliberately, ~3–4 days + a CSP pass):**
+- **Scale:** per-song IndexedDB persistence (stop rewriting the whole library
+  blob per edit); incremental sync hashing (cache per-song hash / server
+  content-hash); batch the team-engine push loop.
+- **Security:** add the PDF inline-script nonce, then flip `vercel.json` CSP
+  from report-only to enforcing; `team_activity` retention policy.
+
+### Wave 6 — UX epics (bigger, mostly independent)
 
 - **Chart display-options + layout-menu rework** (§6) — _after_ Wave 1 3-dots
   fix.
@@ -474,13 +505,13 @@ The strategic core ("replace Planning Center"). Build as one coordinated epic.
 - **Rehearsal vs Practice split** (§15) — rename current → Rehearsal, add solo
   Practice + minute tracking + dashboard widget.
 
-### Wave 6 — Anchor epic (deepest; schedule deliberately)
+### Wave 7 — Anchor epic (deepest; schedule deliberately)
 
 - **Member suggestions / approvals** (§16) — touches arrangements + team roles
   + notifications. Natural integration point that ties Wave 4 together; do it
   *after* notifications exist so approvals have a delivery channel.
 
-### Wave 7 — Future horizon
+### Wave 8 — Future horizon
 
 - Integrations: projection (ProPresenter/Proclaim), tracks (Ableton), and the
   integration-strategy item first (§17).
