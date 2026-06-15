@@ -597,10 +597,19 @@ safe quick-win batch and deeper scheduled work.
     `useTeamSchedules` gets a 5000 cap (no date column to filter on).
   - ✅ `recentlyPushed()` echo guard — already wired in `App.jsx`
     (`handleRemoteChange`), confirmed.
-- **Security (⬜ not started):** add `maxLength` to text inputs (song
-  title/artist/notes, setlist name — also satisfies §1 field-limits); validate
-  PDF-prefs + ZIP manifest shapes; bump share-token entropy + raise the regex
-  minimum; make the OAuth URL cleanup synchronous.
+- **Security (partly done 2026-06-15):**
+  - ✅ **Share-token entropy** — token bumped 16→22 chars (~113 bits) and the
+    `shareTokenFromUrl` regex minimum raised 8→16 (`src/share/setlistShare.js`).
+  - ✅ **`maxLength` on text inputs** — song metadata fields already capped via
+    `MetadataPanel` field `max`; added caps to the setlist **name** (120) and
+    **location** (120) in `SetlistMetaForm`.
+  - ⬜ **Validate PDF-prefs + ZIP manifest shapes** — parse untrusted
+    `localStorage['setlists-md:pdf-prefs']` + imported `.zip` manifest
+    defensively (type/shape guards) instead of trusting `JSON.parse`.
+  - ⬜ **OAuth URL cleanup synchronous** — _deliberately deferred:_ stripping
+    the auth hash/`?code=` before Supabase's async `detectSessionInUrl` consumes
+    it can break sign-in. Needs the live OAuth/magic-link flow tested before
+    touching; flagged rather than guessed.
 
 **Deeper (schedule deliberately, ~3–4 days + a CSP pass):**
 - **Scale:** per-song IndexedDB persistence (stop rewriting the whole library

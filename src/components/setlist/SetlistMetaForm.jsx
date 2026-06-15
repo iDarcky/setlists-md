@@ -94,6 +94,7 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
           value={name}
           onChange={e => onNameChange(e.target.value)}
           placeholder="e.g. Sunday Morning Service"
+          maxLength={120}
         />
       </div>
 
@@ -148,6 +149,7 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
           value={location}
           onChange={e => onLocationChange(e.target.value)}
           placeholder="e.g. The Blue Note"
+          maxLength={120}
         />
       </div>
 
