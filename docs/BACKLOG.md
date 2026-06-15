@@ -513,7 +513,7 @@ leader-focused × tap-through._ Implementation:
 - _(Open from QA)_ optionally gate `DateStatusModal`'s team list to leaders;
   group/collapse it at ~50 members.
 
-**Slice 5 (designed 2026-06-15, not yet built) — My-Schedule v2 + Roster grid.**
+**Slice 5 (2026-06-15) — My-Schedule v2 ✅ + Scheduling grid ✅ (both built).**
 Decisions from user Q&A:
 
 - **Consistent color language (app-wide):** color = **my status only** —
@@ -543,6 +543,17 @@ Decisions from user Q&A:
   **same grid, both read + inline edit from day one**, permission-gated.
   - Data wiring: `team_schedules` (roles) × `team_availability` (status). Large
     build — sequence **after** My-Schedule v2.
+  - **Built:** `src/components/SchedulingGrid.jsx`, view `'scheduling'` in
+    App.jsx, reached via a **Grid** button on the Schedule page header. Members
+    × service columns (data-driven from dated team setlists, 4/8/12-wk horizon).
+    Cell tap opens a sheet: leaders assign role (purple chip, from instruments);
+    members set their own availability (green/amber/red). Roles write
+    `team_schedules` via `useTeamSchedules` (setlist UUID via
+    `useTeamSetlistMap`); availability via `useTeamAvailability`. Realtime +
+    optimistic through the existing hooks.
+  - _Follow-ups (not yet):_ vocal-part column, mobile-narrow ergonomics for very
+    wide grids, leader-edits-others' availability (RLS currently own-row only),
+    optional recurring-service templates to auto-create columns.
 
 ### Wave 5 — Audit remediation (security + scale)
 

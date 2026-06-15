@@ -19,7 +19,7 @@ function toLocalDateStr(date) {
 
 // view mode (list/calendar) is controlled by App so the BottomNav FAB can toggle
 // it alongside the desktop header switch.
-export default function Schedule({ setlists, onBack, onOpenSetlist, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
+export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
   const { team, members, canManageRoster } = useTeam();
   const { user } = useAuth();
   const { availability, setStatus, clearStatus } = useTeamAvailability(team?.id);
@@ -105,12 +105,24 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, viewMode = '
         title="Schedule"
         onClose={onBack}
         actions={
-          <SegmentedControl
-            value={viewMode}
-            onChange={handleSetView}
-            options={[{ value: 'list', label: 'List' }, { value: 'calendar', label: 'Calendar' }]}
-            size="sm"
-          />
+          <div className="flex items-center gap-2">
+            <SegmentedControl
+              value={viewMode}
+              onChange={handleSetView}
+              options={[{ value: 'list', label: 'List' }, { value: 'calendar', label: 'Calendar' }]}
+              size="sm"
+            />
+            {onOpenGrid && (
+              <button
+                type="button"
+                onClick={onOpenGrid}
+                className="inline-flex items-center gap-1.5 text-label-12 font-semibold px-3 py-1.5 rounded-lg bg-[var(--modes-surface)] text-[var(--modes-text)] border border-[var(--modes-border)] cursor-pointer hover:bg-[var(--modes-surface-strong)] transition-colors"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+                Grid
+              </button>
+            )}
+          </div>
         }
       />
 

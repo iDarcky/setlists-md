@@ -87,6 +87,7 @@ const RecoveryScreen = lazy(() => import('./components/auth/RecoveryScreen'));
 const PricingScreen = lazy(() => import('./components/PricingScreen'));
 const TeamScreen = lazy(() => import('./components/TeamScreen'));
 const Schedule = lazy(() => import('./components/Schedule'));
+const SchedulingGrid = lazy(() => import('./components/SchedulingGrid'));
 const WakeLockExplainer = lazy(() => import('./components/WakeLockExplainer'));
 const AccountWall = lazy(() => import('./components/AccountWall'));
 const FounderNote = lazy(() => import('./components/FounderNote'));
@@ -1199,6 +1200,7 @@ export default function App() {
   const canCreateWorkspace = eligibleToCreateWorkspace && !atWorkspaceLimit;
   const newWorkspaceLocked = eligibleToCreateWorkspace && atWorkspaceLimit;
   const goSchedule = () => navigate('schedule');
+  const goScheduling = () => navigate('scheduling');
 
   // Song CRUD
   // Accepts either a v2-shaped song (with arrangements[]) or a flat shape
@@ -2350,10 +2352,18 @@ export default function App() {
               setlists={setlists}
               onBack={goBack}
               onOpenSetlist={goSetlistView}
+              onOpenGrid={goScheduling}
               viewMode={scheduleView}
               onSetView={setScheduleView}
               clockFormat={settings?.clockFormat || '12h'}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
+            />
+          )}
+          {view === 'scheduling' && (
+            <SchedulingGrid
+              setlists={setlists}
+              onBack={goSchedule}
+              onOpenSetlist={goSetlistView}
             />
           )}
         </DesktopLayout>
@@ -2361,7 +2371,7 @@ export default function App() {
       {/* Mobile glass nav lives at the App root (not inside <main>) so the
           drawer's transform/will-change doesn't capture its fixed positioning
           or break the glass backdrop-filter. */}
-      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule'].includes(view) && !drawerOpen && (
+      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule', 'scheduling'].includes(view) && !drawerOpen && (
         <BottomNav
           activeView={view}
           onNavigate={goToMainView}
