@@ -84,15 +84,13 @@ export default function Dashboard({
   canEdit = true,
   onSignIn,
 }) {
-  const { team, members } = useTeam();
+  const { team, members, isAdmin } = useTeam();
   const { user } = useAuth();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const { availability, setStatus: setAvailabilityStatus, clearStatus: clearAvailabilityStatus } = useTeamAvailability(team?.id);
   const { map: setlistMap } = useTeamSetlistMap(team?.id);
   const resolveScheduleSetlist = (schedule) =>
     setlists.find(l => l.id === schedule.setlist_id || setlistMap[l.id] === schedule.setlist_id) || null;
-  const schedulesForSetlist = (sl) =>
-    (schedules || []).filter(s => s.setlist_id === sl.id || setlistMap[sl.id] === s.setlist_id);
   const pendingRequests = (schedules || []).filter(s => s.user_id === user?.id && s.availability === 'pending');
 
   // Day-detail modal opened from the My-schedule widget. Mirrors the wiring in
@@ -368,29 +366,69 @@ export default function Dashboard({
     ),
 
     availability: () => {
-      if (!team || !upcomingSetlists.length) return null;
-      const sl = upcomingSetlists[0];
-      const sched = schedulesForSetlist(sl);
-      if (!sched.length) return null;
-      const counts = { available: 0, pending: 0, unavailable: 0, maybe: 0 };
-      for (const s of sched) counts[s.availability] = (counts[s.availability] || 0) + 1;
-      const Stat = ({ n, label, color }) => (
-        <div className="flex-1 flex flex-col items-center py-2">
-          <span className="text-heading-24 font-bold" style={{ color }}>{n}</span>
-          <span className="text-label-12 text-[var(--modes-text-muted)]">{label}</span>
-        </div>
-      );
+      // Leader tool: spot coverage gaps across the next month of services,
+      // using the team's date availability (team_availability). Hidden for
+      // non-leaders — members get their own "My schedule" widget instead.
+      if (!team || !isAdmin) return null;
+      const totalMembers = (members || []).length;
+      const nowTs = now.getTime();
+      const monthEnd = new Date(now); monthEnd.setDate(monthEnd.getDate() + 31);
+      const services = [...setlists]
+        .filter(sl => sl.date)
+        .map(sl => ({ sl, dt: new Date(`${sl.date}T${sl.time || '23:59'}:00`) }))
+        .filter(({ dt }) => dt.getTime() >= nowTs && dt <= monthEnd)
+        .sort((a, b) => a.dt - b.dt)
+        .slice(0, 6);
+      if (!services.length) return null;
+
+      const statsFor = (dateStr) => {
+        const rows = (availability || []).filter(a => a.date === dateStr);
+        const available = rows.filter(a => a.status === 'available').length;
+        const maybe = rows.filter(a => a.status === 'maybe').length;
+        const unavailable = rows.filter(a => a.status === 'unavailable').length;
+        const noReply = Math.max(0, totalMembers - rows.length);
+        // Flag a gap when nobody's confirmed yet, or confirmed < half the team.
+        const needsAttention = available === 0 || (totalMembers > 0 && available < Math.ceil(totalMembers / 2));
+        return { available, maybe, unavailable, noReply, needsAttention };
+      };
+
       return (
         <section className="flex flex-col gap-3 sm:gap-4">
-          <SectionHeading title="Team availability" />
-          <div className="modes-card p-3">
-            <div className="text-label-13 text-[var(--modes-text-muted)] px-1 pb-1 truncate">For {sl.name || 'next service'} · {formatDateFriendly(sl.date)}</div>
-            <div className="flex divide-x divide-[var(--modes-border)]">
-              <Stat n={counts.available} label="In" color="var(--ds-green-700)" />
-              <Stat n={counts.maybe} label="Maybe" color="var(--ds-amber-700)" />
-              <Stat n={counts.pending} label="Pending" color="var(--color-brand)" />
-              <Stat n={counts.unavailable} label="Out" color="var(--ds-red-700)" />
-            </div>
+          <SectionHeading
+            title="Team availability"
+            action={onOpenSchedule && <Button variant="ghost" size="sm" onClick={onOpenSchedule} className="text-[var(--color-brand)] hover:text-[var(--color-brand)] hover:bg-white/5">Full schedule</Button>}
+          />
+          <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]">
+            {services.map(({ sl }) => {
+              const st = statsFor(sl.date);
+              return (
+                <button
+                  key={sl.id}
+                  type="button"
+                  onClick={() => setPickerDate(new Date(`${sl.date}T12:00:00`))}
+                  className="w-full flex items-center gap-3 px-4 py-3 bg-transparent border-none text-left cursor-pointer hover:bg-[var(--modes-surface)] transition-colors"
+                >
+                  <DateChip date={sl.date} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-copy-15 font-semibold text-[var(--modes-text)] truncate">{sl.name || 'Untitled service'}</span>
+                      {st.needsAttention && (
+                        <span className="shrink-0 text-label-11 font-semibold px-2 py-0.5 rounded-full" style={{ background: 'var(--ds-red-100)', color: 'var(--ds-red-800)' }}>
+                          Needs cover
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-3 text-label-12 text-[var(--modes-text-muted)]">
+                      <span style={{ color: 'var(--ds-green-700)' }}>{st.available} in</span>
+                      {st.maybe > 0 && <span style={{ color: 'var(--ds-amber-700)' }}>{st.maybe} maybe</span>}
+                      {st.unavailable > 0 && <span style={{ color: 'var(--ds-red-700)' }}>{st.unavailable} out</span>}
+                      {st.noReply > 0 && <span>{st.noReply} no reply</span>}
+                    </div>
+                  </div>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--modes-text-dim)]"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
+              );
+            })}
           </div>
         </section>
       );

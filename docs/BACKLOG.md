@@ -495,13 +495,23 @@ _Started 2026-06-15._
 - _Q:_ With ~50 members the modal's availability list is a long scroll. Add
   grouping/collapse by status (it already sorts + shows an X/Y count)?
 
+**Slice 4 — Team availability widget rework (done, 2026-06-15):**
+Spec settled via Q&A — _next month of services × general date availability ×
+leader-focused × tap-through._ Implementation:
+- ✅ Leader-only widget (`isAdmin`); lists the next ~month of services (max 6).
+- ✅ Each row shows team **date availability** for that service's date
+  (in / maybe / out / no-reply) from `team_availability`.
+- ✅ **"Needs cover"** badge flags gaps (nobody confirmed, or confirmed < half
+  the team) — the spot-gaps goal.
+- ✅ Tapping a service opens the day `DateStatusModal` (detail/roster) +
+  a "Full schedule" link in the header.
+
 **Remaining slices:**
-- ↩️ **Team availability widget rework (§2.8)** — _deferred, needs a spec._
-  Currently a single In/Maybe/Pending/Out row for the next service; user idea
-  was "maybe next month?" but it's undecided — don't build until scoped.
 - Harden decline alerts + maybe-nudge with a DB trigger + a `team_notifications`
   table (persistent read/dismiss, robust resolution) — the deeper version of
   slices 1 & 3.
+- _(Open from QA)_ optionally gate `DateStatusModal`'s team list to leaders;
+  group/collapse it at ~50 members.
 
 ### Wave 5 — Audit remediation (security + scale)
 
