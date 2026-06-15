@@ -15,6 +15,19 @@ function songCount(sl) {
   return (sl.items || []).filter(i => i.songId).length;
 }
 
+// Full start datetime (date + time) in ms; used for upcoming/past split + sort.
+const SETLIST_GRACE_MS = 60 * 60 * 1000; // stay "upcoming" up to 1h after start
+function setlistStartMs(sl) {
+  return new Date((sl.date || '') + 'T' + (sl.time || '00:00') + ':00').getTime();
+}
+// Sort key for the Past group: newest day first, but earliest service first
+// within a day (so Sun AM reads above Sun PM under that day).
+function comparePast(a, b) {
+  const da = a.date || '', db = b.date || '';
+  if (da !== db) return da < db ? 1 : -1;          // date descending
+  return setlistStartMs(a) - setlistStartMs(b);     // time ascending within day
+}
+
 function formatDate(date) {
   if (!date) return '—';
   const d = new Date(date + 'T12:00:00');
@@ -213,19 +226,24 @@ export default function Setlists({
     return () => document.removeEventListener('mousedown', handler);
   }, [tagsOpen]);
 
-  const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
+  // Captured once on mount (Date.now() is flagged impure if called in render).
+  const [nowTs] = useState(() => Date.now());
+
+  // A setlist is "upcoming" until 1h after its start time, then it's "past".
+  const isUpcoming = (sl) => {
+    const t = setlistStartMs(sl);
+    return !Number.isNaN(t) && t + SETLIST_GRACE_MS > nowTs;
+  };
 
   // Gallery grouping (Upcoming / Past)
   const { upcoming, past } = useMemo(() => {
     const up = [], pa = [];
-    filtered.forEach(sl => {
-      const slDate = new Date(sl.date + 'T12:00:00');
-      if (slDate >= today) up.push(sl); else pa.push(sl);
-    });
-    up.sort((a, b) => new Date(a.date) - new Date(b.date));
-    pa.sort((a, b) => new Date(b.date) - new Date(a.date));
+    filtered.forEach(sl => { if (isUpcoming(sl)) up.push(sl); else pa.push(sl); });
+    up.sort((a, b) => setlistStartMs(a) - setlistStartMs(b)); // soonest first
+    pa.sort(comparePast);
     return { upcoming: up, past: pa };
-  }, [filtered, today]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, nowTs]);
 
   // Flat table rows
   const flatRows = useMemo(() => {
@@ -241,16 +259,21 @@ export default function Setlists({
     });
   }, [filtered, sortMode, sortAsc]);
 
-  // Table view splits the (sorted) rows into Upcoming / Past, preserving the
-  // active column sort within each group. Undated setlists fall into Past.
+  // Table view splits the (sorted) rows into Upcoming / Past. For the default
+  // Date sort each group gets its own natural order — upcoming soonest-first,
+  // past newest-day-first (AM before PM) — reversed when the user toggles the
+  // Date header. Name/Songs sorts keep the uniform column order.
   const { tableUpcoming, tablePast } = useMemo(() => {
     const up = [], pa = [];
-    flatRows.forEach(sl => {
-      const d = new Date((sl.date || '') + 'T12:00:00');
-      if (!isNaN(d) && d >= today) up.push(sl); else pa.push(sl);
-    });
+    flatRows.forEach(sl => { if (isUpcoming(sl)) up.push(sl); else pa.push(sl); });
+    if (sortMode === 'date') {
+      const flip = sortAsc ? -1 : 1;
+      up.sort((a, b) => (setlistStartMs(a) - setlistStartMs(b)) * flip);
+      pa.sort((a, b) => comparePast(a, b) * flip);
+    }
     return { tableUpcoming: up, tablePast: pa };
-  }, [flatRows, today]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flatRows, nowTs, sortMode, sortAsc]);
 
   const handleSortClick = (modeKey) => {
     if (sortMode === modeKey) setSortAsc(p => !p);

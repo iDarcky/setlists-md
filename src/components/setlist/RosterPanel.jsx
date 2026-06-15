@@ -69,6 +69,22 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
   const [search, setSearch] = useState('');
   const [availOnly, setAvailOnly] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  // v2 add-member picker: which candidate is being scheduled + the chosen
+  // instrument/vocal before confirming.
+  const [pickFor, setPickFor] = useState(null);
+  const [pickInstrument, setPickInstrument] = useState('');
+  const [pickVocal, setPickVocal] = useState('');
+
+  const openPicker = (member) => {
+    setPickFor(member);
+    setPickInstrument(instrumentFilter || member.instruments?.[0] || '');
+    setPickVocal('');
+  };
+  const confirmPicker = async () => {
+    const member = pickFor;
+    setPickFor(null);
+    await handleAddMember(member, pickInstrument || null, pickVocal || null);
+  };
   // Section labels: v2 uses Title Case; v1 keeps the existing upper-case style.
   const bandLabel = v2 ? 'The Band' : 'THE BAND';
   const addLabel = v2 ? 'Add to the Band' : 'ADD TO THE BAND';
@@ -127,7 +143,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
     return Array.from(set).sort();
   }, [members]);
 
-  const handleAddMember = async (member, role) => {
+  const handleAddMember = async (member, role, vocal) => {
     if (!member?.user_id || isAdding) return;
     if (!teamSetlistId) {
       console.warn('[roster] No team setlist UUID for local id:', setlistId);
@@ -137,11 +153,13 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
     setIsAdding(true);
     setAddingMemberId(member.user_id);
     try {
-      // Quick-assign (tapping an instrument) pre-fills that instrument; the
-      // instrument tab also pre-fills; otherwise it's left for the leader.
+      // The picker (or instrument tab) pre-fills the instrument; vocal part is
+      // optional and applied right after the row is created.
       const defaultRole = role || instrumentFilter || null;
-      await createSchedule(dbSetlistId, member.user_id, defaultRole, 'pending');
-      toast({ title: 'Added to roster', description: role ? `Scheduled on ${role}.` : 'Member has been scheduled.' });
+      const created = await createSchedule(dbSetlistId, member.user_id, defaultRole, 'pending');
+      if (vocal && created?.id) await updateSchedule(created.id, { vocal_part: vocal });
+      const parts = [defaultRole, vocal].filter(Boolean).join(' · ');
+      toast({ title: 'Added to roster', description: parts ? `Scheduled on ${parts}.` : 'Member has been scheduled.' });
     } catch (err) {
       console.error(err);
       toast({ title: 'Error', description: err.message || 'Could not add member to roster.', variant: 'error' });
@@ -409,18 +427,15 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                   {visibleCandidates.length > 0 ? (
                     visibleCandidates.map(member => {
                       const adding = isAdding && addingMemberId === member.user_id;
-                      const rowAdd = () => handleAddMember(member);
-                      // v2: tapping the whole row adds (using the active
-                      // instrument filter as the role). When no filter is
-                      // active, the member's own instruments show as quick
-                      // chips so the leader can assign a specific one.
-                      const showChips = v2 && !instrumentFilter && member.instruments && member.instruments.length > 0;
+                      // v1: clicking the row schedules immediately. v2: clicking
+                      // opens a picker to choose instrument + vocal first.
+                      const rowAct = () => (v2 ? openPicker(member) : handleAddMember(member));
                       return (
                       <div
                         key={member.id}
                         className={`flex items-start justify-between gap-2 p-2 rounded-lg group cursor-pointer hover:bg-[var(--ds-gray-100)] ${adding ? 'opacity-60' : ''}`}
-                        onClick={rowAdd}
-                        {...(v2 ? { role: 'button', tabIndex: 0, onKeyDown: (e) => { if (e.key === 'Enter') rowAdd(); } } : {})}
+                        onClick={rowAct}
+                        {...(v2 ? { role: 'button', tabIndex: 0, onKeyDown: (e) => { if (e.key === 'Enter') rowAct(); } } : {})}
                       >
                         <div className="flex items-start gap-2 min-w-0 flex-1">
                           <div className="w-8 h-8 rounded-full bg-[var(--ds-gray-200)] flex items-center justify-center text-label-12 font-bold shrink-0 overflow-hidden">
@@ -439,8 +454,8 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                                 </span>
                               )}
                             </div>
-                            {/* v1: static instrument tags */}
-                            {!v2 && member.instruments && member.instruments.length > 0 && (
+                            {/* Static instrument display (both v1 and v2). */}
+                            {member.instruments && member.instruments.length > 0 ? (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {member.instruments.map(inst => (
                                   <span key={inst} className="text-label-11 px-1.5 py-0.5 rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)]">
@@ -448,25 +463,8 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                                   </span>
                                 ))}
                               </div>
-                            )}
-                            {/* v2: quick-assign chips (only when no instrument filter) */}
-                            {showChips && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {member.instruments.map(inst => (
-                                  <button
-                                    key={inst}
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); handleAddMember(member, inst); }}
-                                    disabled={isAdding}
-                                    className="inline-flex items-center gap-0.5 text-label-11 px-2 py-0.5 rounded-full border border-[var(--ds-gray-300)] text-[var(--ds-gray-800)] cursor-pointer hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] transition-colors disabled:opacity-50"
-                                  >
-                                    <span className="text-[13px] leading-none">+</span>{inst}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                            {v2 && !instrumentFilter && (!member.instruments || member.instruments.length === 0) && (
-                              <span className="text-label-11 text-[var(--ds-gray-500)] italic mt-1">No instruments set</span>
+                            ) : (
+                              v2 && <span className="text-label-11 text-[var(--ds-gray-500)] italic mt-1">No instruments set</span>
                             )}
                           </div>
                         </div>
@@ -510,13 +508,77 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
         )}
       </div>
 
-      <div className="p-4 border-t border-[var(--ds-gray-300)] bg-[var(--ds-background-200)]">
-        <p className="text-label-11 text-[var(--ds-gray-500)] text-center">
-          {readOnly
-            ? 'Members will see their assignments on their dashboard calendar.'
-            : 'Members will see their assignments on their dashboard calendar.'}
-        </p>
-      </div>
+      {!inline && (
+        <div className="p-4 border-t border-[var(--ds-gray-300)] bg-[var(--ds-background-200)]">
+          <p className="text-label-11 text-[var(--ds-gray-500)] text-center">
+            Members will see their assignments on their dashboard calendar.
+          </p>
+        </div>
+      )}
+
+      {/* v2 add-member picker — choose instrument + vocal before scheduling. */}
+      {pickFor && (
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setPickFor(null)} aria-hidden="true" />
+          <div className="relative w-full sm:max-w-sm bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-t-2xl sm:rounded-2xl shadow-2xl p-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-9 h-9 rounded-full bg-[var(--ds-gray-200)] flex items-center justify-center text-label-12 font-bold shrink-0 overflow-hidden">
+                {pickFor.profile?.avatar_url
+                  ? <img src={pickFor.profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  : (pickFor.profile?.display_name?.slice(0, 2).toUpperCase() || '?')}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-copy-14 font-bold truncate m-0">{pickFor.profile?.display_name || pickFor.profile?.email || 'Member'}</p>
+                <p className="text-label-11 text-[var(--ds-gray-500)] m-0">Pick a role to schedule</p>
+              </div>
+              <IconButton size="sm" variant="ghost" onClick={() => setPickFor(null)} aria-label="Cancel">
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </IconButton>
+            </div>
+
+            <p className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold mb-1.5">Instrument</p>
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {[...new Set([...(pickFor.instruments || []), ...INSTRUMENT_OPTIONS])].map(inst => (
+                <button
+                  key={inst}
+                  type="button"
+                  onClick={() => setPickInstrument(p => p === inst ? '' : inst)}
+                  className={`text-label-12 px-2.5 py-1 rounded-full border cursor-pointer transition-colors ${
+                    pickInstrument === inst
+                      ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white'
+                      : 'bg-transparent border-[var(--ds-gray-300)] text-[var(--ds-gray-800)] hover:border-[var(--ds-gray-500)]'
+                  }`}
+                >
+                  {inst}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold mb-1.5">Vocal part</p>
+            <div className="flex flex-wrap gap-1.5 mb-5">
+              {VOCAL_PARTS.map(part => (
+                <button
+                  key={part}
+                  type="button"
+                  onClick={() => setPickVocal(p => p === part ? '' : part)}
+                  className={`text-label-12 px-2.5 py-1 rounded-full border cursor-pointer transition-colors ${
+                    pickVocal === part
+                      ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white'
+                      : 'bg-transparent border-[var(--ds-gray-300)] text-[var(--ds-gray-800)] hover:border-[var(--ds-gray-500)]'
+                  }`}
+                >
+                  {part}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setPickFor(null)}>Cancel</Button>
+              <Button size="sm" variant="brand" onClick={confirmPicker} disabled={isAdding}>Add to set</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

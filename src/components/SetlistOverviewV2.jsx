@@ -50,6 +50,7 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
   const [collapsed, setCollapsed] = useState(false);
   const showDetails = true; // v2 always shows song details (few fields today)
   const scrollRef = useRef(null);
+  const sentinelRef = useRef(null);
 
   // The page scrolls inside an ancestor (the app's <main>) when not embedded,
   // or inside our own root when embedded. Find whichever actually scrolls.
@@ -72,13 +73,20 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
     if (s) s.scrollTop = 0; else window.scrollTo?.(0, 0);
   }, [setlist.id, tab]);
 
-  // Collapse the header's meta block once the user scrolls into the list.
+  // Collapse the header's meta block once the user scrolls into the list. A
+  // sentinel + IntersectionObserver avoids the feedback loop a scroll-position
+  // threshold has (collapsing shrinks the header, which moves the scroll back
+  // under the threshold → flicker).
   useEffect(() => {
-    const s = getScroller();
-    if (!s) return;
-    const onScroll = () => setCollapsed(s.scrollTop > 48);
-    s.addEventListener('scroll', onScroll, { passive: true });
-    return () => s.removeEventListener('scroll', onScroll);
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const root = getScroller();
+    const io = new IntersectionObserver(
+      ([entry]) => setCollapsed(!entry.isIntersecting),
+      { root: root || null, threshold: 0, rootMargin: '0px 0px 0px 0px' },
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
   }, [setlist.id, tab]);
 
   // Close the overflow menu on Escape.
@@ -206,11 +214,6 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
           {/* Row 1: service kicker + title, with window actions */}
           <div className="flex items-start justify-between gap-3 pt-3">
             <div className="min-w-0">
-              {!collapsed && setlist.service && (
-                <p className="text-label-11 font-semibold uppercase tracking-wider text-[var(--color-brand)] m-0 mb-0.5 truncate">
-                  {setlist.service}
-                </p>
-              )}
               <h1 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 flex items-center gap-2 min-w-0">
                 <span className="truncate">{setlist.name || 'Untitled Setlist'}</span>
                 {setlist.status === 'draft' && (
@@ -257,10 +260,18 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
 
           <div className="h-2" aria-hidden="true" />
 
-          {/* Tags */}
-          {!collapsed && !!setlist.tags?.length && (
+          {/* Service + tags on one line — service first, styled distinctly. */}
+          {!collapsed && (setlist.service || !!setlist.tags?.length) && (
             <div className="flex items-center gap-1.5 flex-wrap mb-3">
-              {setlist.tags.map((tag, i) => (
+              {setlist.service && (
+                <span
+                  className="inline-flex items-center text-label-12 font-semibold px-2 py-0.5 rounded-full"
+                  style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}
+                >
+                  {setlist.service}
+                </span>
+              )}
+              {setlist.tags?.map((tag, i) => (
                 <Chip key={i} variant="success" className="normal-case tracking-normal">{tag}</Chip>
               ))}
             </div>
@@ -310,6 +321,9 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
           )}
         </div>
       </div>
+
+      {/* Sentinel just below the header — drives the collapse via IO. */}
+      <div ref={sentinelRef} aria-hidden="true" className="h-px w-full" />
 
       {/* ── Set order ── on an elevated sheet */}
       {(!team || tab === 'setlist') && (
