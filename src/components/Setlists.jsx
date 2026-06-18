@@ -8,6 +8,9 @@ import { cn } from '../lib/utils';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { useResizablePane } from '../lib/useResizablePane';
 import { useEntitlement } from '../hooks/useEntitlement';
+import { useTeam } from '../auth/useTeam';
+import { useTeamSchedules } from '../hooks/useTeamSchedules';
+import { useTeamSetlistMap } from '../hooks/useTeamSetlistMap';
 
 const SetlistOverview = lazy(() => import('./SetlistOverview'));
 
@@ -82,7 +85,7 @@ function HeaderSort({ label, modeKey, sortMode, sortAsc, onSort }) {
 }
 
 // A titled table section (Upcoming / Past) sharing one column layout.
-function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onToggleAll, sortMode, sortAsc, onSort, compact = false, showService = false }) {
+function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onToggleAll, sortMode, sortAsc, onSort, compact = false, showService = false, showSchedule = false }) {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-baseline gap-2 px-1">
@@ -99,6 +102,13 @@ function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onTog
               <th className="text-left px-5 py-3"><HeaderSort label="Name" modeKey="name" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
               <th className="text-left px-5 py-3 w-[180px]"><HeaderSort label="Date" modeKey="date" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
               <th className="text-left px-5 py-3 hidden md:table-cell w-[90px]"><HeaderSort label="Songs" modeKey="songs" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
+              {showSchedule && (
+                <>
+                  <th title="Instrumentalists scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[80px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Instr.</th>
+                  <th title="Vocalists scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[80px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Vocals</th>
+                  <th title="Total members scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[90px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Sched.</th>
+                </>
+              )}
               {showService && <th className="text-left px-5 py-3 hidden md:table-cell w-[150px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Service</th>}
               {!compact && <th className="text-left px-5 py-3 hidden lg:table-cell w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>}
             </tr>
@@ -129,6 +139,7 @@ export default function Setlists({
   readOnly = false,
   clockFormat = '12h',
   overviewV2 = false,
+  scheduleColumns = false,
   onExportSetlistZip,
   onExportSetlistPdfOverview,
   onExportSetlistPdfFull,
@@ -228,6 +239,26 @@ export default function Setlists({
 
   // Captured once on mount (Date.now() is flagged impure if called in render).
   const [nowTs] = useState(() => Date.now());
+
+  // Optional Labs feature: per-setlist schedule counts (team workspaces only).
+  const { team } = useTeam();
+  const { schedules } = useTeamSchedules(scheduleColumns ? team?.id : null);
+  const { map: setlistIdMap } = useTeamSetlistMap(scheduleColumns ? team?.id : null);
+  const showSchedule = scheduleColumns && !!team;
+  const scheduleStats = useMemo(() => {
+    const stats = {};
+    if (!showSchedule) return stats;
+    for (const sl of setlists) {
+      const dbId = setlistIdMap[sl.id] || sl.id;
+      const rows = schedules.filter(s => s.setlist_id === dbId);
+      stats[sl.id] = {
+        total: rows.length,
+        instrumentalists: rows.filter(r => r.role).length,
+        vocalists: rows.filter(r => r.vocal_part).length,
+      };
+    }
+    return stats;
+  }, [showSchedule, setlists, schedules, setlistIdMap]);
 
   // A setlist is "upcoming" until 1h after its start time, then it's "past".
   const isUpcoming = (sl) => {
@@ -335,6 +366,19 @@ export default function Setlists({
         </td>
         <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap">{formatDate(sl.date)}</td>
         <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] hidden md:table-cell">{songCount(sl)}</td>
+        {showSchedule && (() => {
+          const st = scheduleStats[sl.id] || { total: 0, instrumentalists: 0, vocalists: 0 };
+          const cell = (n) => n > 0
+            ? <span className="text-copy-14 text-[var(--modes-text)] tabular-nums">{n}</span>
+            : <span className="text-copy-14 text-[var(--modes-text-dim)]">—</span>;
+          return (
+            <>
+              <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.instrumentalists)}</td>
+              <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.vocalists)}</td>
+              <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.total)}</td>
+            </>
+          );
+        })()}
         {showService && (
           <td className="px-5 py-3.5 hidden md:table-cell">
             {sl.service
@@ -501,6 +545,7 @@ export default function Setlists({
                 onSort={handleSortClick}
                 compact={splitDock}
                 showService={showService}
+                showSchedule={showSchedule}
               />
             )}
             {tablePast.length > 0 && (
@@ -517,6 +562,7 @@ export default function Setlists({
                 onSort={handleSortClick}
                 compact={splitDock}
                 showService={showService}
+                showSchedule={showSchedule}
               />
             )}
           </div>

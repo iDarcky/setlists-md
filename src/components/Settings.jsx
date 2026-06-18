@@ -577,28 +577,40 @@ function LabsPanel({ settings, update }) {
           Heads up: these are experimental and may not work as expected. Turning one on could cause display glitches or unexpected behaviour — switch it back off if something goes wrong.
         </p>
       </div>
-      <Row label="Setlist overview v2" description="A redesigned setlist overview — layered layout, cleaner header, and an improved band view. Off keeps the current design.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {[
-            { key: true, label: 'On' },
-            { key: false, label: 'Off' },
-          ].map(({ key, label }) => {
-            const active = (settings.setlistOverviewV2 === true) === key;
-            return (
-              <Button
-                key={String(key)}
-                size="sm"
-                variant={active ? 'secondary' : 'ghost'}
-                onClick={() => update('setlistOverviewV2', key)}
-                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </div>
-      </Row>
+      <LabsToggle settings={settings} update={update} flag="setlistOverviewV2"
+        label="Setlist overview v2"
+        description="A redesigned setlist overview — layered layout, cleaner header, and an improved band view. Off keeps the current design." />
+      <LabsToggle settings={settings} update={update} flag="setlistScheduleColumns"
+        label="Setlist schedule columns"
+        description="In team workspaces, show Instrumentalists, Vocalists, and Scheduled counts as extra columns in the setlist tables." />
     </Section>
+  );
+}
+
+// On/Off toggle row for a Labs flag.
+function LabsToggle({ settings, update, flag, label, description }) {
+  return (
+    <Row label={label} description={description}>
+      <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+        {[
+          { key: true, label: 'On' },
+          { key: false, label: 'Off' },
+        ].map(({ key, label: optLabel }) => {
+          const active = (settings[flag] === true) === key;
+          return (
+            <Button
+              key={String(key)}
+              size="sm"
+              variant={active ? 'secondary' : 'ghost'}
+              onClick={() => update(flag, key)}
+              className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+            >
+              {optLabel}
+            </Button>
+          );
+        })}
+      </div>
+    </Row>
   );
 }
 

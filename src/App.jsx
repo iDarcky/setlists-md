@@ -147,6 +147,7 @@ const PORTABLE_PREF_KEYS = [
   'tabNumberColor',
   'tabBg',
   'setlistOverviewV2',
+  'setlistScheduleColumns',
 ];
 
 function extractPortablePrefs(s) {
@@ -2083,6 +2084,7 @@ export default function App() {
               readOnly={isTeamReadOnly}
               clockFormat={settings?.clockFormat || '12h'}
               overviewV2={settings?.setlistOverviewV2}
+              scheduleColumns={settings?.setlistScheduleColumns}
               onExportSetlistZip={(sl) => handleExportSetlist(sl)}
               onExportSetlistPdfOverview={(sl) => exportSetlistPdf(sl, songs, { mode: 'overview' })}
               onExportSetlistPdfFull={(sl) => exportSetlistPdf(sl, songs, { mode: 'full' })}
