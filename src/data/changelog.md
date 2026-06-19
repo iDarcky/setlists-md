@@ -13,6 +13,10 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Customizable dashboard** — reorder and show/hide your home widgets, plus new ones: This week, Library stats, Team availability, and Sync status.
 - **Multiple workspaces** — create more than one band/church on your account (up to a sensible limit).
 - **General settings** — choose your default landing page, replay the welcome flow, toggle confirm-before-delete, and an early language switch.
+- **Rehearsal location** — give a rehearsal its own location for when you practise somewhere other than the service venue.
+- **Over-scheduling warning** *(Labs)* — get a heads-up when you're about to schedule someone who's already played several services in a row; choose how many in a row triggers it under Settings → Labs.
+- **Schedule counts in setlist tables** — team setlist tables show how many instrumentalists, vocalists and total members are scheduled.
+- **Labs settings** — a new Settings → Labs area for trying experimental features early.
 
 ### Improved
 - **Reworked stage header** — Chart, Practice and Live now share a clean three-row header (title · key/tempo/time · structure) that collapses to just the structure as you scroll, with an auto-hide setting and tap-to-reveal.
@@ -22,11 +26,17 @@ A running log of what's new in setlists.md. Newest releases first.
 - **My Schedule** colour-codes your services (green) and rehearsals (amber); adding a band member from an instrument tab now fills in that instrument.
 - **Smaller, consistent header** that no longer overflows on small phones; the chords/lyrics/tabs/song-map switcher is one tidy menu.
 - **Faster with large libraries** — editing a song and syncing now touch only what changed instead of rewriting your whole library each time, so big song lists stay snappy.
+- **Setlist overview, redesigned** — a cleaner, layered layout: a tidy header (date · time · location, with the rehearsal called out on its own), the song key shown in your chord colour, and section flow as colour-coded chips.
+- **Smoother band picking** — adding a member opens a quick picker to set their instrument and vocal part in one step, with search and an "available only" filter; the roster card is calmer.
+- **Consistent schedule colours** — services are teal, rehearsals blue, and your availability is a green/amber/red dot — the same across the dashboard widget, calendar and list.
+- **Smarter setlist ordering** — upcoming setlists list soonest-first and stay "upcoming" until an hour after they start; past ones group newest day first (morning before evening within a day).
+- **Tidier setlist editor** — Draft/Ready moved into the header, and the band is now managed from the setlist overview; the service filter is a proper dropdown.
 
 ### Fixed
 - **Sync feels quiet** — the status no longer flickers on every edit; closed a sync race, ignore the echo of your own changes, and always surface team conflicts.
 - **Double scrollbar** on the Songs and Setlists screens is gone.
 - New songs no longer pre-fill the title with "New Song"; the editor's "+ Add" menu no longer hides under the header; and the structure bar no longer clips its first item.
+- Opening a setlist no longer jumps you to the bottom of the list.
 
 ### Security
 - **Tighter by default** — the app now runs under an enforced content-security policy (no inline scripts), share links use longer, harder-to-guess tokens, and text fields have sensible length limits.
