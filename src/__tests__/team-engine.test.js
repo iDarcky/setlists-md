@@ -266,6 +266,22 @@ describe('team engine — deletes and tombstones', () => {
     expect(second.tombstones.songs).toHaveLength(0); // pruned after remote delete
   });
 
+  it('circuit breaker: refuses to delete a large share of the library in one sync', async () => {
+    // 10 songs synced; a desync tombstones 9 of them at once.
+    const songs = Array.from({ length: 10 }, (_, i) => mkSong(`s${i}`, `Song ${i}`));
+    const db = { team_songs: songs.map(s => songRow(s)), team_setlists: [] };
+    const engine = makeEngine(db);
+    await engine.fullSync(songs, [], noTombstones());
+
+    const now = Date.now();
+    const tombstones = { songs: songs.slice(0, 9).map(s => ({ id: s.id, deletedAt: now })), setlists: [] };
+    const result = await engine.fullSync([songs[9]], [], tombstones);
+
+    // No rows deleted, and an error explains why.
+    expect(db.team_songs).toHaveLength(10);
+    expect(result.errors.some(e => /Safety guard/.test(e.message || ''))).toBe(true);
+  });
+
   it('resurrects a song when the server row was edited after the local delete', async () => {
     const db = { team_songs: [songRow(mkSong('s1', 'Kept'), '2026-06-10T00:00:00.000Z')], team_setlists: [] };
     const engine = makeEngine(db);

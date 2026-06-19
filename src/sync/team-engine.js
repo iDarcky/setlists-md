@@ -390,14 +390,29 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     }
 
     // Locally-deleted songs: pull() marked their manifest entries `deleted`.
-    for (const [id, entry] of Object.entries(nextManifest)) {
-      if (!entry.deleted) continue;
-      try {
-        const { error } = await client.from('team_songs').delete().eq('id', entry.remoteId).eq('team_id', teamId);
-        if (error) throw new Error(error.message);
-        delete nextManifest[id];
-      } catch (err) {
-        errors.push({ kind: 'song', id, message: err?.message || String(err) });
+    // CIRCUIT BREAKER: refuse to delete a large share of the library in a
+    // single sync. A desync/identity-churn can mark dozens of songs "deleted"
+    // at once (this wiped a church library once); a real user deleting that
+    // many in one tick is implausible. Block the destructive batch, keep the
+    // rows, and surface an error so a human investigates instead of silently
+    // wiping every member's copy.
+    const songDeletes = Object.entries(nextManifest).filter(([, e]) => e.deleted);
+    const syncedSongs = Object.keys(nextManifest).length;
+    const massDelete = songDeletes.length >= 8 && songDeletes.length > syncedSongs * 0.5;
+    if (massDelete) {
+      errors.push({
+        kind: 'song',
+        message: `Safety guard: refused to delete ${songDeletes.length} of ${syncedSongs} songs in one sync. No songs were removed — if this was intentional, delete them in smaller batches.`,
+      });
+    } else {
+      for (const [id, entry] of songDeletes) {
+        try {
+          const { error } = await client.from('team_songs').delete().eq('id', entry.remoteId).eq('team_id', teamId);
+          if (error) throw new Error(error.message);
+          delete nextManifest[id];
+        } catch (err) {
+          errors.push({ kind: 'song', id, message: err?.message || String(err) });
+        }
       }
     }
 
