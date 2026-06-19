@@ -46,15 +46,18 @@ export default function ChordDiagram({ chord, size = 80 }) {
             el.setAttribute('fill', 'var(--color-brand)');
           }
         });
+        // Render on a light "paper" card with dark fretboard lines — a printed
+        // chord-box look that stays legible under any app/chart theme (the dark
+        // card + faint grid was the unreadable culprit).
         svg.querySelectorAll('text').forEach(el => {
-          el.setAttribute('fill', 'var(--ds-gray-600)');
+          el.setAttribute('fill', '#3f3a36');
         });
         svg.querySelectorAll('line, path, rect').forEach(el => {
           if (el.getAttribute('stroke') && el.getAttribute('stroke') !== 'none') {
-            el.setAttribute('stroke', 'var(--ds-gray-400)');
+            el.setAttribute('stroke', '#57534e');
           }
           if (el.getAttribute('fill') && el.getAttribute('fill') !== 'none' && el.tagName !== 'circle') {
-            el.setAttribute('fill', 'var(--ds-gray-500)');
+            el.setAttribute('fill', '#57534e');
           }
         });
         // Set SVG dimensions (no title row, so square)

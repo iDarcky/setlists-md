@@ -13,7 +13,22 @@ import { headerFrostStyle } from '../../lib/headerFrost';
 // nodes; this component owns the layout and the collapse animation only.
 export default function StageHeader({ collapsed = false, title, close, meta, actions, info, ribbon, extras }) {
   return (
-    <div className="material-header" style={{ zIndex: 50, color: 'var(--text-1)', fontFamily: 'var(--font-sans)', ...headerFrostStyle }}>
+    <div
+      className="material-header"
+      style={{
+        zIndex: 50,
+        color: 'var(--chart-text, var(--text-1))',
+        fontFamily: 'var(--font-sans)',
+        // Re-map the foreground tokens the header's controls read so they track
+        // the chart theme too (the header bg already does, via useChartTheme).
+        // Popover menus portal to <body>, so they keep the app-theme tokens.
+        '--text-1': 'var(--chart-text, var(--ds-gray-1000))',
+        '--text-2': 'var(--chart-subtle, var(--ds-gray-900))',
+        '--ds-gray-1000': 'var(--chart-text, var(--ds-gray-1000))',
+        '--ds-gray-700': 'var(--chart-subtle, var(--ds-gray-700))',
+        ...headerFrostStyle,
+      }}
+    >
       <div
         className="overflow-hidden transition-[max-height,opacity] duration-200 ease-out"
         style={{ maxHeight: collapsed ? 0 : '12rem', opacity: collapsed ? 0 : 1 }}
