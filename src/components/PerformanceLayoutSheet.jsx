@@ -51,17 +51,30 @@ export default function PerformanceLayoutSheet({
         {/* ── Display ── */}
         <div className="flex flex-col gap-4">
           <SheetField label="View">
-            <SegmentedControl
-              value={displayMode}
-              onChange={onChangeDisplayMode}
-              options={[
-                { value: 'chords', label: 'Chords' },
-                { value: 'lyrics', label: 'Lyrics' },
-                { value: 'tabs', label: 'Tabs' },
-                { value: 'songmap', label: 'Map' },
-              ]}
-              size="sm"
-            />
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { id: 'chords', label: 'Chords' },
+                { id: 'chordsonly', label: 'Chords only' },
+                { id: 'lyrics', label: 'Lyrics' },
+                { id: 'tabs', label: 'Tabs' },
+                { id: 'songmap', label: 'Map' },
+              ].map(b => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => onChangeDisplayMode(b.id)}
+                  aria-pressed={displayMode === b.id}
+                  className={cn(
+                    'px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors',
+                    displayMode === b.id
+                      ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                      : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]',
+                  )}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
           </SheetField>
 
           {tabInstrumentsPresent.length >= 2 && (

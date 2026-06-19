@@ -784,9 +784,9 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
   const myEnabled = !!privateNotes?.enabled;
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   // Mirror the chart-view display switch.
-  const viewChords = displayMode === 'chords';
-  const viewLyrics = displayMode !== 'tabs';
-  const viewTabs = displayMode !== 'lyrics';
+  const viewChords = displayMode === 'chords' || displayMode === 'chordsonly';
+  const viewLyrics = displayMode === 'chords' || displayMode === 'lyrics';
+  const viewTabs = displayMode === 'chords' || displayMode === 'tabs';
 
   const allChords = useMemo(() => Array.from(new Set(
     song.sections.flatMap(s => s.lines)

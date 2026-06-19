@@ -125,11 +125,12 @@ export default function ChartView({
   const [showChords, setShowChords] = useState(disp.showChords);
   const [showDiagrams, setShowDiagrams] = useState(disp.showDiagrams);
   // Quick view mode (session-local) from the structure row:
-  //   chords → chords + lyrics (+ tabs); lyrics → lyrics only; tabs → tabs only.
+  //   chords → chords + lyrics (+ tabs); chordsonly → chords, no lyrics/tabs;
+  //   lyrics → lyrics only; tabs → tabs only.
   const [displayMode, setDisplayMode] = useState('chords');
-  const viewChords = displayMode === 'chords';
-  const viewLyrics = displayMode !== 'tabs';
-  const viewTabs = displayMode !== 'lyrics';
+  const viewChords = displayMode === 'chords' || displayMode === 'chordsonly';
+  const viewLyrics = displayMode === 'chords' || displayMode === 'lyrics';
+  const viewTabs = displayMode === 'chords' || displayMode === 'tabs';
 
   // Does this song actually contain any tabs? Drives whether the "Tabs" view
   // option is offered at all.
@@ -557,6 +558,7 @@ export default function ChartView({
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     { id: 'chords', label: 'Chords' },
+                    { id: 'chordsonly', label: 'Chords only' },
                     { id: 'lyrics', label: 'Lyrics' },
                     ...(hasTabs ? [{ id: 'tabs', label: 'Tabs' }] : []),
                     { id: 'songmap', label: 'Song map' },
