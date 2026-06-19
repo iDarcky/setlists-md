@@ -52,7 +52,7 @@ function availabilityLabel(status) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly = false, inline = false, v2 = false }) {
+export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly = false, inline = false, v2 = false, setlists = [], overscheduleWarn = false, streakLimit = 3 }) {
   const confirm = useConfirm();
   const { team, members } = useTeam();
   const { schedules, createSchedule, updateSchedule, deleteSchedule, loading } = useTeamSchedules(team?.id);
@@ -135,6 +135,32 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
       return name.includes(q);
     });
   }, [candidates, v2, search, availOnly]);
+
+  // Over-scheduling streaks (v2 Labs): for each member, how many consecutive
+  // most-recent services *before this one* they were already scheduled on.
+  const streakByUser = useMemo(() => {
+    const result = {};
+    if (!overscheduleWarn || !v2) return result;
+    const dated = setlists
+      .map(s => ({
+        dbId: setlistIdMap[s.id] || s.id,
+        ts: new Date((s.date || '') + 'T' + (s.time || '00:00') + ':00').getTime(),
+      }))
+      .filter(s => !Number.isNaN(s.ts));
+    const currentTs = new Date((setlistDate || '') + 'T00:00:00').getTime();
+    // Services strictly before the current one, most-recent first.
+    const prior = dated.filter(s => s.ts < currentTs).sort((a, b) => b.ts - a.ts);
+    const usersByDbId = {};
+    for (const sc of schedules) (usersByDbId[sc.setlist_id] ||= new Set()).add(sc.user_id);
+    for (const m of members) {
+      let n = 0;
+      for (const s of prior) {
+        if (usersByDbId[s.dbId]?.has(m.user_id)) n++; else break;
+      }
+      if (n > 0) result[m.user_id] = n;
+    }
+    return result;
+  }, [overscheduleWarn, v2, setlists, setlistIdMap, schedules, members, setlistDate]);
 
   // Set of distinct instruments across all team members for the filter chips.
   const allInstruments = useMemo(() => {
@@ -444,13 +470,19 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                               : (member.profile?.display_name?.slice(0, 2).toUpperCase() || '?')}
                           </div>
                           <div className="flex flex-col min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-copy-14 truncate">
                                 {member.profile?.display_name || member.profile?.email || 'Member'}
                               </span>
                               {setlistDate && (
                                 <span className={`text-label-11 px-1.5 py-0.5 rounded-full shrink-0 ${availabilityBadgeClasses(member.availStatus)}`}>
                                   {availabilityLabel(member.availStatus)}
+                                </span>
+                              )}
+                              {(streakByUser[member.user_id] || 0) >= streakLimit && (
+                                <span className="inline-flex items-center gap-1 text-label-11 px-1.5 py-0.5 rounded-full shrink-0 bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)]" title={`Scheduled for the last ${streakByUser[member.user_id]} services`}>
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                                  {streakByUser[member.user_id]}× in a row
                                 </span>
                               )}
                             </div>
@@ -535,6 +567,15 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                 <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </IconButton>
             </div>
+
+            {(streakByUser[pickFor.user_id] || 0) >= streakLimit && (
+              <div className="flex items-start gap-2 p-2.5 mb-4 rounded-lg bg-[var(--ds-amber-100)] border border-[var(--ds-amber-400)]">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ds-amber-900)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                <p className="text-label-12 text-[var(--ds-amber-1000)] m-0">
+                  {pickFor.profile?.display_name || 'This member'} has been scheduled for the last {streakByUser[pickFor.user_id]} services in a row. Consider spreading the load.
+                </p>
+              </div>
+            )}
 
             <p className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold mb-1.5">Instrument</p>
             <div className="flex flex-wrap gap-1.5 mb-4">

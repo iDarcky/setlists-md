@@ -583,6 +583,29 @@ function LabsPanel({ settings, update }) {
       <LabsToggle settings={settings} update={update} flag="setlistScheduleColumns"
         label="Setlist schedule columns"
         description="In team workspaces, show Instrumentalists, Vocalists, and Scheduled counts as extra columns in the setlist tables." />
+      <LabsToggle settings={settings} update={update} flag="rosterOverscheduleWarning"
+        label="Over-scheduling warning"
+        description="Warn in the band picker when a member has already been scheduled for several services in a row, so you can spread the load." />
+      {settings.rosterOverscheduleWarning && (
+        <Row label="Warn after… (services in a row)" description="How many consecutive services a member can be scheduled for before the warning shows.">
+          <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+            {[2, 3, 4, 5].map(n => {
+              const active = (settings.rosterStreakLimit || 3) === n;
+              return (
+                <Button
+                  key={n}
+                  size="sm"
+                  variant={active ? 'secondary' : 'ghost'}
+                  onClick={() => update('rosterStreakLimit', n)}
+                  className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+                >
+                  {n}
+                </Button>
+              );
+            })}
+          </div>
+        </Row>
+      )}
     </Section>
   );
 }

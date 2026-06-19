@@ -140,6 +140,8 @@ export default function Setlists({
   clockFormat = '12h',
   overviewV2 = false,
   scheduleColumns = false,
+  overscheduleWarn = false,
+  streakLimit = 3,
   onExportSetlistZip,
   onExportSetlistPdfOverview,
   onExportSetlistPdfFull,
@@ -628,6 +630,9 @@ export default function Setlists({
                 songs={songs}
                 clockFormat={clockFormat}
                 v2={overviewV2}
+                setlists={setlists}
+                overscheduleWarn={overscheduleWarn}
+                streakLimit={streakLimit}
                 onBack={closePeek}
                 onToggleFullscreen={onToggleFullscreen}
                 onEdit={canEdit ? () => onEditSetlist?.(previewSetlist) : undefined}

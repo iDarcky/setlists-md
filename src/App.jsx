@@ -148,6 +148,8 @@ const PORTABLE_PREF_KEYS = [
   'tabBg',
   'setlistOverviewV2',
   'setlistScheduleColumns',
+  'rosterOverscheduleWarning',
+  'rosterStreakLimit',
 ];
 
 function extractPortablePrefs(s) {
@@ -2085,6 +2087,8 @@ export default function App() {
               clockFormat={settings?.clockFormat || '12h'}
               overviewV2={settings?.setlistOverviewV2}
               scheduleColumns={settings?.setlistScheduleColumns}
+              overscheduleWarn={settings?.rosterOverscheduleWarning}
+              streakLimit={settings?.rosterStreakLimit || 3}
               onExportSetlistZip={(sl) => handleExportSetlist(sl)}
               onExportSetlistPdfOverview={(sl) => exportSetlistPdf(sl, songs, { mode: 'overview' })}
               onExportSetlistPdfFull={(sl) => exportSetlistPdf(sl, songs, { mode: 'full' })}
@@ -2176,6 +2180,9 @@ export default function App() {
               onExportPdfFull={() => exportSetlistPdf(currentSetlist, songs, { mode: 'full' })}
               clockFormat={settings?.clockFormat || '12h'}
               v2={settings?.setlistOverviewV2}
+              setlists={setlists}
+              overscheduleWarn={settings?.rosterOverscheduleWarning}
+              streakLimit={settings?.rosterStreakLimit || 3}
               onPlay={() => goSetlistPerformance(currentSetlist)}
               onPractice={(startIndex) => goSetlistPractice(currentSetlist, startIndex)}
               onDelete={isTeamReadOnly ? null : () => handleDeleteSetlist(currentSetlist.id)}

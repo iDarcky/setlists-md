@@ -39,7 +39,7 @@ function MetaChip({ icon, children }) {
   );
 }
 
-export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false, hidePlay = false }) {
+export default function SetlistOverviewV2({ setlist, songs, setlists = [], onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false, hidePlay = false, overscheduleWarn = false, streakLimit = 3 }) {
   const confirm = useConfirm();
   const { team, isAdmin } = useTeam();
   const { user } = useAuth();
@@ -456,6 +456,9 @@ export default function SetlistOverviewV2({ setlist, songs, onBack, onEdit, onEx
               v2
               setlistId={setlist.id}
               setlistDate={setlist.date}
+              setlists={setlists}
+              overscheduleWarn={overscheduleWarn}
+              streakLimit={streakLimit}
               readOnly={!isAdmin}
               onClose={() => setTab('setlist')}
             />
