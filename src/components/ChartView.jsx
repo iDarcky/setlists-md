@@ -176,6 +176,7 @@ export default function ChartView({
   // the legacy `nashville` boolean so older surfaces/prefs stay consistent.
   const changeNotation = (v) => { setNotation(v); onUpdateSettings?.('notation', v); onUpdateSettings?.('nashville', v === 'nashville'); };
   const toggleShowDiagrams = () => { const v = !showDiagrams; setShowDiagrams(v); onUpdateSettings?.('showDiagrams', v); };
+  const toggleShowChords = () => { const v = !showChords; setShowChords(v); onUpdateSettings?.('showChords', v); };
 
   // Instrument presets (stage modes) — pick a band role and the chart switches
   // to a layout tuned for it. Writes every value through settings so the choice
@@ -385,15 +386,6 @@ export default function ChartView({
               <OverflowMenu
                 ariaLabel="Song actions"
                 items={[
-                  {
-                    label: 'Display options',
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
-                      </svg>
-                    ),
-                    onClick: () => openSheet('layout'),
-                  },
                   onPlay && !isPreview && {
                     label: 'Play (live)',
                     icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>),
@@ -492,8 +484,18 @@ export default function ChartView({
             </>
           )}
           actions={(
-            <div className="hidden sm:flex">
+            <div className="flex items-center gap-0.5">
               <ViewModePicker value={displayMode} onChange={setDisplayMode} hasTabs={hasTabs} />
+              <IconButton variant="ghost" size="sm" onClick={() => openSheet('display')} aria-label="Display options">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+                </svg>
+              </IconButton>
+              <IconButton variant="ghost" size="sm" onClick={() => openSheet('layout')} aria-label="Layout">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="18" rx="1" /><rect x="14" y="3" width="7" height="18" rx="1" />
+                </svg>
+              </IconButton>
             </div>
           )}
           ribbon={(
@@ -548,39 +550,44 @@ export default function ChartView({
       {/* ── Bottom-sheet modals (Layout / Music / Song info) ── */}
       {!isPreview && (
         <>
+          {/* ── Display menu — what's shown (notation, chord aids, role, style) ── */}
           <BottomSheet
-            open={activeSheet === 'layout'}
+            open={activeSheet === 'display'}
             onClose={() => setActiveSheet(null)}
-            title="Layout"
+            title="Display"
           >
             <div className="flex flex-col gap-4">
-              <SheetField label="View">
+              <SheetField label="Notation">
                 <div className="flex flex-wrap gap-1.5">
                   {[
-                    { id: 'chords', label: 'Chords' },
-                    { id: 'chordsonly', label: 'Chords only' },
-                    { id: 'lyrics', label: 'Lyrics' },
-                    ...(hasTabs ? [{ id: 'tabs', label: 'Tabs' }] : []),
-                    { id: 'songmap', label: 'Song map' },
+                    { id: 'letters', label: 'Letters' },
+                    { id: 'nashville', label: 'Nashville' },
+                    { id: 'solfege', label: 'Do-Re-Mi' },
                   ].map(b => (
                     <button
                       key={b.id}
                       type="button"
-                      onClick={() => setDisplayMode(b.id)}
-                      aria-pressed={displayMode === b.id}
-                      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${displayMode === b.id ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
+                      onClick={() => changeNotation(b.id)}
+                      aria-pressed={notation === b.id}
+                      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${notation === b.id ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
                     >
                       {b.label}
                     </button>
                   ))}
                 </div>
               </SheetField>
-              <SheetField label="Song">
+              <SheetField label="Show">
                 <div className="flex flex-wrap gap-2">
-                  {onEdit && (
-                    <button type="button" onClick={() => { setActiveSheet(null); onEdit(activeArrId); }} className="h-8 px-3 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-12 font-semibold text-[var(--text-1)] hover:border-[var(--border-3)] cursor-pointer">Edit song</button>
-                  )}
-                  <button type="button" onClick={() => exportSongPdf(song, { transpose })} className="h-8 px-3 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-12 font-semibold text-[var(--text-1)] hover:border-[var(--border-3)] cursor-pointer">Print / PDF</button>
+                  <Button
+                    variant={showChords ? 'brand' : 'secondary'}
+                    size="sm"
+                    onClick={toggleShowChords}
+                  >Chords</Button>
+                  <Button
+                    variant={showDiagrams ? 'brand' : 'secondary'}
+                    size="sm"
+                    onClick={toggleShowDiagrams}
+                  >Diagrams</Button>
                 </div>
               </SheetField>
               <SheetField label="Instrument">
@@ -607,73 +614,38 @@ export default function ChartView({
                 </div>
               </SheetField>
 
-              {tabInstrumentsPresent.length >= 2 && (
-                <SheetField label="Tab instrument">
-                  <div className="flex flex-wrap gap-2">
-                    {['all', ...tabInstrumentsPresent].map(id => (
-                      <Button
-                        key={id}
-                        variant={tabInstrument === id ? 'brand' : 'secondary'}
-                        size="sm"
-                        onClick={() => setTabInstrument(id)}
-                      >
-                        {id === 'all' ? 'All' : (TAB_INSTRUMENTS[id]?.label || id)}
-                      </Button>
-                    ))}
-                  </div>
-                </SheetField>
-              )}
+              <div className="pt-1 border-t border-[var(--border-1)]">
+                <ChartStyleControls
+                  settings={settings}
+                  onUpdateSettings={onUpdateSettings}
+                />
+                {onOpenAdvancedStyle && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSheet(null);
+                      onOpenAdvancedStyle();
+                    }}
+                    className="mt-3 w-full h-11 rounded-xl bg-[var(--ds-background-100)] border border-[var(--border-1)] text-copy-14 font-semibold text-[var(--text-1)] flex items-center justify-center gap-2 hover:bg-[var(--bg-1)] transition-all"
+                    style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)' }}
+                  >
+                    Advanced settings
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+          </BottomSheet>
 
-              <SheetField label="Notation">
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { id: 'letters', label: 'Letters' },
-                    { id: 'nashville', label: 'Nashville' },
-                    { id: 'solfege', label: 'Do-Re-Mi' },
-                  ].map(b => (
-                    <button
-                      key={b.id}
-                      type="button"
-                      onClick={() => changeNotation(b.id)}
-                      aria-pressed={notation === b.id}
-                      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${notation === b.id ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
-                    >
-                      {b.label}
-                    </button>
-                  ))}
-                </div>
-              </SheetField>
-              <SheetField label="Chords">
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={showDiagrams ? 'brand' : 'secondary'}
-                    size="sm"
-                    onClick={toggleShowDiagrams}
-                  >Diagrams</Button>
-                </div>
-              </SheetField>
-
-              <SheetField label="Spacing">
-                <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-label-10 uppercase tracking-wider text-[var(--text-2)]">Section gap</span>
-                    <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                      <IconButton variant="ghost" size="sm" onClick={() => changeSectionSpacing(sectionSpacing - 4)} aria-label="Less section gap">−</IconButton>
-                      <span className="w-8 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{sectionSpacing}</span>
-                      <IconButton variant="ghost" size="sm" onClick={() => changeSectionSpacing(sectionSpacing + 4)} aria-label="More section gap">+</IconButton>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-label-10 uppercase tracking-wider text-[var(--text-2)]">Line height</span>
-                    <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                      <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight - 0.1)} aria-label="Tighter line height">−</IconButton>
-                      <span className="w-8 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{lyricLineHeight.toFixed(2)}</span>
-                      <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight + 0.1)} aria-label="Looser line height">+</IconButton>
-                    </div>
-                  </div>
-                </div>
-              </SheetField>
-
+          {/* ── Layout menu — how it's arranged (columns, sizes, spacing) ── */}
+          <BottomSheet
+            open={activeSheet === 'layout'}
+            onClose={() => setActiveSheet(null)}
+            title="Layout"
+          >
+            <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
                 <SheetField label="Columns">
                   <SegmentedControl
@@ -702,26 +674,42 @@ export default function ChartView({
                 </SheetField>
               </div>
 
-              <ChartStyleControls
-                settings={settings}
-                onUpdateSettings={onUpdateSettings}
-              />
+              <SheetField label="Spacing">
+                <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-label-10 uppercase tracking-wider text-[var(--text-2)]">Section gap</span>
+                    <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+                      <IconButton variant="ghost" size="sm" onClick={() => changeSectionSpacing(sectionSpacing - 4)} aria-label="Less section gap">−</IconButton>
+                      <span className="w-8 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{sectionSpacing}</span>
+                      <IconButton variant="ghost" size="sm" onClick={() => changeSectionSpacing(sectionSpacing + 4)} aria-label="More section gap">+</IconButton>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-label-10 uppercase tracking-wider text-[var(--text-2)]">Line height</span>
+                    <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+                      <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight - 0.1)} aria-label="Tighter line height">−</IconButton>
+                      <span className="w-8 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{lyricLineHeight.toFixed(2)}</span>
+                      <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight + 0.1)} aria-label="Looser line height">+</IconButton>
+                    </div>
+                  </div>
+                </div>
+              </SheetField>
 
-              {onOpenAdvancedStyle && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveSheet(null);
-                    onOpenAdvancedStyle();
-                  }}
-                  className="mt-2 w-full h-11 rounded-xl bg-[var(--ds-background-100)] border border-[var(--border-1)] text-copy-14 font-semibold text-[var(--text-1)] flex items-center justify-center gap-2 hover:bg-[var(--bg-1)] transition-all"
-                  style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)' }}
-                >
-                  Advanced settings
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </button>
+              {tabInstrumentsPresent.length >= 2 && (
+                <SheetField label="Tab instrument">
+                  <div className="flex flex-wrap gap-2">
+                    {['all', ...tabInstrumentsPresent].map(id => (
+                      <Button
+                        key={id}
+                        variant={tabInstrument === id ? 'brand' : 'secondary'}
+                        size="sm"
+                        onClick={() => setTabInstrument(id)}
+                      >
+                        {id === 'all' ? 'All' : (TAB_INSTRUMENTS[id]?.label || id)}
+                      </Button>
+                    ))}
+                  </div>
+                </SheetField>
               )}
             </div>
           </BottomSheet>

@@ -10,7 +10,7 @@ const ViewIcon = () => (
 );
 
 // Canonical chart view modes. `chordsonly` = chords without lyrics.
-export const VIEW_MODES = [
+const VIEW_MODES = [
   { id: 'chords', label: 'Chords' },
   { id: 'chordsonly', label: 'Chords only' },
   { id: 'lyrics', label: 'Lyrics' },
