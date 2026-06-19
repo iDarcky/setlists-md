@@ -375,12 +375,41 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
           }
           nextManifest[song.id] = { remoteId: data.id, lastSyncedHash: hash, lastSyncedTime: data.updated_at };
         } else {
-          const { data, error } = await client
+          const ins = await client
             .from('team_songs')
             .insert(payload)
             .select('id, updated_at')
             .single();
-          if (error) throw new Error(error.message);
+          let data = ins.data;
+          if (ins.error) {
+            // A unique (team_id, title) index means a row with this title
+            // already exists. After an id-drift (e.g. the churn that renamed
+            // songs), our local copy no longer maps to that row, so we'd try to
+            // INSERT a "new" song and collide. ADOPT the existing row instead:
+            // update it and bind our id to it. This heals the id↔row link and
+            // stops both the hard sync failure (team) and duplicate creation.
+            if (/duplicate key|unique/i.test(ins.error.message || '')) {
+              const found = await client
+                .from('team_songs')
+                .select('id, updated_at')
+                .eq('team_id', teamId)
+                .eq('title', payload.title)
+                .limit(1)
+                .maybeSingle();
+              if (found.data) {
+                const upd = await client
+                  .from('team_songs')
+                  .update(payload)
+                  .eq('id', found.data.id)
+                  .eq('team_id', teamId)
+                  .select('id, updated_at')
+                  .maybeSingle();
+                if (upd.error) throw new Error(upd.error.message);
+                data = upd.data;
+              }
+            }
+            if (!data) throw new Error(ins.error.message);
+          }
           nextManifest[song.id] = { remoteId: data.id, lastSyncedHash: hash, lastSyncedTime: data.updated_at };
         }
         uploaded.songs += 1;
