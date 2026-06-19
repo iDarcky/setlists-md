@@ -10,6 +10,7 @@ const SETLISTS_KEY = (lib) => `${NEW_PREFIX}setlists:${lib}`;
 const SETTINGS_KEY = `${NEW_PREFIX}settings`; // Settings remain global
 const SYNC_KEY = (lib) => `${NEW_PREFIX}sync:${lib}`;
 const TOMBSTONES_KEY = (lib) => `${NEW_PREFIX}tombstones:${lib}`;
+const TRASH_KEY = (lib) => `${NEW_PREFIX}trash:${lib}`; // soft-deleted songs (30-day recovery)
 
 /**
  * Migrates data from legacy 'Setlists MD:' keys to new 'setlists-md:' keys.
@@ -341,6 +342,26 @@ export async function saveTombstones(tombstones, libraryId = 'personal') {
   await set(TOMBSTONES_KEY(libraryId), pruneTombstones(tombstones));
 }
 
+// ----- Trash (soft-deleted songs, recoverable for 30 days) -----
+// Each entry is { song, deletedAt }. Same TTL as tombstones; entries older
+// than 30 days are pruned on read/write so the bin self-empties.
+function pruneTrash(list) {
+  const cutoff = Date.now() - TOMBSTONE_TTL_MS;
+  return (Array.isArray(list) ? list : []).filter(e => e && e.song && e.deletedAt > cutoff);
+}
+
+export async function loadTrash(libraryId = 'personal') {
+  try {
+    return pruneTrash(await get(TRASH_KEY(libraryId)));
+  } catch {
+    return [];
+  }
+}
+
+export async function saveTrash(list, libraryId = 'personal') {
+  await set(TRASH_KEY(libraryId), pruneTrash(list));
+}
+
 export async function clearAll(libraryId = 'personal') {
   // Per-song entries: enumerate keys under the library's song prefix.
   try {
@@ -354,6 +375,7 @@ export async function clearAll(libraryId = 'personal') {
   await del(SETTINGS_KEY); // Global
   await del(SYNC_KEY(libraryId));
   await del(TOMBSTONES_KEY(libraryId));
+  await del(TRASH_KEY(libraryId));
   songRefCache.delete(libraryId);
   songIdsCache.delete(libraryId);
 }

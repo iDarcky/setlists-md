@@ -674,8 +674,13 @@ function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, a
   );
 }
 
-function DataPanel({ songCount, setlistCount, onDownloadSongs, onClearAll }) {
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function DataPanel({ songCount, setlistCount, onDownloadSongs, onClearAll, trash = [], onRestoreSong, onPurgeSong, onEmptyTrash }) {
   const confirm = useConfirm();
+  // Capture "now" once (lazy init) so the per-item countdown doesn't call an
+  // impure function during render.
+  const [now] = useState(() => Date.now());
   const handleClear = async () => {
     const ok = await confirm({
       title: 'Clear all local data?',
@@ -685,15 +690,49 @@ function DataPanel({ songCount, setlistCount, onDownloadSongs, onClearAll }) {
     });
     if (ok) onClearAll();
   };
+  // Newest deletions first.
+  const items = [...trash].sort((a, b) => b.deletedAt - a.deletedAt);
   return (
-    <Section subtitle={`${songCount} songs, ${setlistCount} setlists saved on this device.`}>
-      <Row label="Export library" description="Download every song as a separate .md file.">
-        <Button size="sm" variant="secondary" onClick={onDownloadSongs}>Download all</Button>
-      </Row>
-      <Row label="Clear all data" description="Wipe every song and setlist on this device. Cloud copies are kept.">
-        <Button size="sm" variant="error" onClick={handleClear}>Clear all</Button>
-      </Row>
-    </Section>
+    <>
+      <Section subtitle={`${songCount} songs, ${setlistCount} setlists saved on this device.`}>
+        <Row label="Export library" description="Download every song as a separate .md file.">
+          <Button size="sm" variant="secondary" onClick={onDownloadSongs}>Download all</Button>
+        </Row>
+        <Row label="Clear all data" description="Wipe every song and setlist on this device. Cloud copies are kept.">
+          <Button size="sm" variant="error" onClick={handleClear}>Clear all</Button>
+        </Row>
+      </Section>
+
+      <Section
+        title="Recently deleted"
+        subtitle="Deleted songs are kept here for 30 days, then removed for good. Restore one to bring it back to your library."
+      >
+        {items.length === 0 ? (
+          <div className="text-copy-13 text-[var(--ds-gray-700)] py-2">Nothing in the trash.</div>
+        ) : (
+          <>
+            {items.map(({ song, deletedAt }) => {
+              const daysLeft = Math.max(0, 30 - Math.floor((now - deletedAt) / DAY_MS));
+              return (
+                <Row
+                  key={song.id}
+                  label={song.title || 'Untitled song'}
+                  description={`${song.artist ? song.artist + ' · ' : ''}${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => onRestoreSong?.(song.id)}>Restore</Button>
+                    <Button size="sm" variant="error" onClick={() => onPurgeSong?.(song.id)}>Delete</Button>
+                  </div>
+                </Row>
+              );
+            })}
+            <Row label="Empty trash" description="Permanently delete everything in the trash now.">
+              <Button size="sm" variant="error" onClick={onEmptyTrash}>Empty trash</Button>
+            </Row>
+          </>
+        )}
+      </Section>
+    </>
   );
 }
 
@@ -1036,6 +1075,10 @@ export default function Settings({
   team = null,
   setlists = [],
   onRemapService,
+  trash = [],
+  onRestoreSong,
+  onPurgeSong,
+  onEmptyTrash,
 }) {
   const { allowed: canManageServices } = useEntitlement('multi-service');
   // Reset the desktop content pane to the top whenever the active panel
@@ -1118,6 +1161,10 @@ export default function Settings({
             setlistCount={setlistCount}
             onDownloadSongs={onDownloadSongs}
             onClearAll={onClearAll}
+            trash={trash}
+            onRestoreSong={onRestoreSong}
+            onPurgeSong={onPurgeSong}
+            onEmptyTrash={onEmptyTrash}
           />
         );
       case 'whatsnew':

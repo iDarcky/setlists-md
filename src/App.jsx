@@ -5,7 +5,7 @@ import OfflineBanner from "./components/ui/OfflineBanner";
 import WorkspacePickerDialog from "./components/ui/WorkspacePickerDialog";
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { parseSongMd, songToMd, generateId } from './parser';
-import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, getStorageEstimate, clearAll } from './storage';
+import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, getStorageEstimate, clearAll } from './storage';
 import { shareTokenFromUrl } from './share/setlistShare';
 import { withArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
@@ -203,6 +203,7 @@ export default function App() {
   const [songs, setSongs] = useState([]);
   const [setlists, setSetlists] = useState([]);
   const [tombstones, setTombstones] = useState({ songs: [], setlists: [] });
+  const [trash, setTrash] = useState([]); // soft-deleted songs, recoverable 30 days
   const [view, setView] = useState(() => {
     // OAuth / magic-link callbacks land on /auth/callback. Detect that up
     // front so the first render doesn't flash the Welcome screen. Password
@@ -456,6 +457,10 @@ export default function App() {
       if (ignore) return;
       setTombstones(savedTombstones);
 
+      const savedTrash = await loadTrash(activeLibrary);
+      if (ignore) return;
+      setTrash(savedTrash);
+
       // Settings remain global, so only load on initial mount
       if (!loaded) {
         const savedSettings = await loadSettings();
@@ -577,9 +582,12 @@ export default function App() {
       maybeWarnQuota(quotaWarnedRef);
     }
   }, [setlists, loaded, activeLibrary]);
-  useEffect(() => { 
-    if (loaded && !isSwitchingLibraryRef.current) saveTombstones(tombstones, activeLibrary); 
+  useEffect(() => {
+    if (loaded && !isSwitchingLibraryRef.current) saveTombstones(tombstones, activeLibrary);
   }, [tombstones, loaded, activeLibrary]);
+  useEffect(() => {
+    if (loaded && !isSwitchingLibraryRef.current) saveTrash(trash, activeLibrary);
+  }, [trash, loaded, activeLibrary]);
   useEffect(() => { if (loaded && settings) saveSettings(settings); }, [settings, loaded]);
 
   // Clean up Supabase auth tokens from the URL after magic-link / password
@@ -1446,8 +1454,12 @@ export default function App() {
   };
 
   const handleDeleteSong = (id) => {
+    const removed = songs.find((s) => s.id === id);
     const nextSongs = songs.filter((s) => s.id !== id);
     setSongs(nextSongs);
+    if (removed) {
+      setTrash(prev => [...prev.filter(e => e.song?.id !== id), { song: removed, deletedAt: Date.now() }]);
+    }
     setTombstones(prev => ({
       ...prev,
       songs: [...prev.songs.filter(t => t.id !== id), { id, deletedAt: Date.now() }],
@@ -1475,12 +1487,46 @@ export default function App() {
       if (!ok) return;
     }
     const idSet = new Set(ids);
+    const removed = songs.filter(s => idSet.has(s.id));
     setSongs(prev => prev.filter(s => !idSet.has(s.id)));
+    const now = Date.now();
+    if (removed.length) {
+      setTrash(prev => [...prev.filter(e => !idSet.has(e.song?.id)), ...removed.map(song => ({ song, deletedAt: now }))]);
+    }
     setTombstones(prev => ({
       ...prev,
-      songs: [...prev.songs.filter(t => !idSet.has(t.id)), ...ids.map(id => ({ id, deletedAt: Date.now() }))],
+      songs: [...prev.songs.filter(t => !idSet.has(t.id)), ...ids.map(id => ({ id, deletedAt: now }))],
     }));
     toast({ title: `Deleted ${ids.length} song${ids.length === 1 ? '' : 's'}` });
+  };
+
+  // ----- Trash bin (recover soft-deleted songs within 30 days) -----
+  // Restore re-adds the song to the library and clears its tombstone so cloud
+  // sync won't re-delete it. Purge just drops it from the bin (the tombstone
+  // stays, keeping the deletion propagated across devices).
+  const handleRestoreSong = (id) => {
+    const entry = trash.find(e => e.song?.id === id);
+    if (!entry) return;
+    setSongs(prev => prev.some(s => s.id === id) ? prev : [...prev, entry.song]);
+    setTrash(prev => prev.filter(e => e.song?.id !== id));
+    setTombstones(prev => ({ ...prev, songs: prev.songs.filter(t => t.id !== id) }));
+    toast({ title: `Restored "${entry.song.title || 'song'}"` });
+  };
+
+  const handlePurgeSong = (id) => {
+    setTrash(prev => prev.filter(e => e.song?.id !== id));
+  };
+
+  const handleEmptyTrash = async () => {
+    if (trash.length === 0) return;
+    const ok = await confirm({
+      title: `Empty trash?`,
+      description: `${trash.length} song${trash.length === 1 ? '' : 's'} will be permanently deleted. This cannot be undone.`,
+      confirmLabel: 'Delete forever',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    setTrash([]);
   };
 
   // Rename or clear a service across every setlist that uses it. Passing an
@@ -1744,6 +1790,7 @@ export default function App() {
     setSongs([]);
     setSetlists([]);
     setTombstones({ songs: [], setlists: [] });
+    setTrash([]);
     historyRef.current = [];
     setView('home');
   };
@@ -2356,6 +2403,10 @@ export default function App() {
               team={team}
               setlists={setlists}
               onRemapService={handleRemapService}
+              trash={trash}
+              onRestoreSong={handleRestoreSong}
+              onPurgeSong={handlePurgeSong}
+              onEmptyTrash={handleEmptyTrash}
             />
           )}
           {view === "account" && settings && (

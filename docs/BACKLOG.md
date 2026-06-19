@@ -223,9 +223,15 @@ called out in their own section at the bottom.
 - **Admin/leader-only Options tab** — move team settings into an
   admin-visible Options tab (maybe leader-visible extras). _tags:_ [idea],
   [team] · _pri:_ P2
-- **30-day soft team deletion** — initiate a 30-day deletion window; show a
-  big red banner across all menu views to all users during the window.
-  _tags:_ [idea], [team], [safety] · _pri:_ P2
+- **30-day soft team/account deletion w/ countdown** — when a user requests to
+  delete a band/team **or their account**, don't delete immediately: open a
+  30-day deletion window. Show a modal/banner to **all affected users** —
+  "This {account|band} will be deleted in N days" — with a live countdown that
+  ticks down one day at a time, and a Cancel/Restore action to abort. Mirrors
+  the song trash-bin safety model (soft delete + recovery) at the account/team
+  scope. Needs server-side scheduling (the actual purge) + a `deletion_at`
+  column on `profiles`/`teams`. _tags:_ [idea], [team], [account], [safety] ·
+  _pri:_ P2 · _Q: who can cancel (owner only?) and what notification channel?_
 
 ## 9. Help & guide
 
@@ -265,6 +271,13 @@ called out in their own section at the bottom.
   _tags:_ [idea], [nav] · _pri:_ P3 · _Q: keep or drop?_
 
 ## 13. Misc bugs & ideas
+
+- **Song trash bin (soft delete)** — ✅ shipped. Deleting a song now moves it to
+  a per-library trash (IndexedDB, `storage.js` `loadTrash`/`saveTrash`) instead
+  of dropping it; recoverable for 30 days from **Settings → Data → Recently
+  deleted** (Restore re-adds + clears the sync tombstone; entries self-purge
+  after 30 days). _Follow-up:_ extend the same model to setlists, and surface a
+  bin for team libraries. _tags:_ [safety], [data], [songs] · _pri:_ P0
 
 - **Recent-activity false "edited song" entries** — keeps showing songs as
   edited that weren't. (Likely same root cause as Dashboard "Recently Edited"
