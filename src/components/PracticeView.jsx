@@ -420,6 +420,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           when the header is expanded. */}
       <StageHeader
         collapsed={headerCollapsed}
+        onExpand={() => setHeaderCollapsed(false)}
         close={(
           <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close practice">
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">

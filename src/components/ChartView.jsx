@@ -398,6 +398,7 @@ export default function ChartView({
       {!isPreview && (
         <StageHeader
           collapsed={headerCollapsed}
+          onExpand={revealHeader}
           close={(
             <>
               <OverflowMenu
