@@ -9,10 +9,12 @@ function toLocalDateStr(date) {
   return `${y}-${m}-${d}`;
 }
 
+// Availability dot colours — kept in sync with the My Schedule widget.
 function statusDotClass(status) {
-  if (status === 'available') return 'bg-[var(--ds-green-600)]';
-  if (status === 'unavailable') return 'bg-[var(--ds-gray-500)]';
-  if (status === 'maybe') return 'bg-[var(--ds-orange-600)]';
+  if (status === 'available') return 'bg-[var(--ds-green-500)]';
+  if (status === 'unavailable') return 'bg-[var(--ds-red-600)]';
+  if (status === 'maybe') return 'bg-[var(--ds-amber-500)]';
+  if (status === 'pending') return 'bg-[var(--ds-gray-400)]';
   return 'bg-transparent';
 }
 
@@ -155,10 +157,10 @@ export default function ScheduleCalendarView({
                 {rehOnDay.slice(0, 1).map(sl => (
                   <span
                     key={`reh-${sl.id}`}
-                    className="block text-[9px] sm:text-label-10 leading-tight px-1 sm:px-1.5 py-0.5 sm:py-1 rounded sm:rounded-md bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)] font-medium truncate"
+                    className="block text-[9px] sm:text-label-10 leading-tight px-1 sm:px-1.5 py-0.5 sm:py-1 rounded sm:rounded-md bg-[var(--ds-blue-100)] text-[var(--ds-blue-900)] font-medium truncate"
                     title={`Rehearsal · ${sl.name}`}
                   >
-                    ⏱ {sl.name || 'Rehearsal'}
+                    {sl.name || 'Rehearsal'}
                   </span>
                 ))}
                 {isAdmin && availCount > 0 && (

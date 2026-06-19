@@ -69,7 +69,7 @@ export function CalendarWidget({
   //     unavailable = red, pending = grey. (No dot when there's no response.)
   const EVENT_STYLE = {
     service:   { bg: 'bg-[var(--color-brand-soft)]', border: 'border-[var(--color-brand-border)]', text: 'text-[var(--color-brand)]' },
-    rehearsal: { bg: 'bg-[var(--ds-purple-100)]',    border: 'border-[var(--ds-purple-300)]',      text: 'text-[var(--ds-purple-900)]' },
+    rehearsal: { bg: 'bg-[var(--ds-blue-100)]',     border: 'border-[var(--ds-blue-300)]',        text: 'text-[var(--ds-blue-900)]' },
     none:      { bg: 'bg-[var(--ds-background-200)]', border: 'border-[var(--ds-gray-300)]',        text: 'text-[var(--ds-gray-900)]' },
   };
   const AVAIL_DOT = {

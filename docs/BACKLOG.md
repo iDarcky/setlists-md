@@ -304,11 +304,12 @@ called out in their own section at the bottom.
   the set's references back-to-back. Investigate embedding/Spotify+YouTube
   APIs and what's feasible offline/in-PWA. _tags:_ [idea], [setlists],
   [integrations] · _pri:_ P3
-- **Editable setlist table fields (full column picker)** — the Labs "schedule
-  columns" flag adds Instrumentalists/Vocalists/Scheduled as a fixed set. The
-  richer version: let users choose which columns show in the setlist tables
-  (drag/toggle any field). _tags:_ [idea], [setlists], [labs] · _pri:_ P3 ·
-  _later_
+- **Setlist table rework + editable fields (full column picker)** — the
+  Instrumentalists/Vocalists/Scheduled columns now show by default for team
+  workspaces (the Labs flag was removed). Planned rework: a proper column
+  picker so users choose which fields show in the setlist tables (drag/toggle
+  any field), as part of a broader table redesign. _tags:_ [idea], [setlists] ·
+  _pri:_ P2 · _next-ish_
 
 ## 14. Cross-cutting concerns
 

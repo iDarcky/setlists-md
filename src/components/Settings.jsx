@@ -577,9 +577,6 @@ function LabsPanel({ settings, update }) {
           Heads up: these are experimental and may not work as expected. Turning one on could cause display glitches or unexpected behaviour — switch it back off if something goes wrong.
         </p>
       </div>
-      <LabsToggle settings={settings} update={update} flag="setlistScheduleColumns"
-        label="Setlist schedule columns"
-        description="In team workspaces, show Instrumentalists, Vocalists, and Scheduled counts as extra columns in the setlist tables." />
       <LabsToggle settings={settings} update={update} flag="rosterOverscheduleWarning"
         label="Over-scheduling warning"
         description="Warn in the band picker when a member has already been scheduled for several services in a row, so you can spread the load." />

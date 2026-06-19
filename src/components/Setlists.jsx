@@ -139,7 +139,6 @@ export default function Setlists({
   readOnly = false,
   clockFormat = '12h',
   overviewV2 = false,
-  scheduleColumns = false,
   overscheduleWarn = false,
   streakLimit = 3,
   onExportSetlistZip,
@@ -175,6 +174,8 @@ export default function Setlists({
   const [selectedTags, setSelectedTags] = useState([]);
   const [tagsOpen, setTagsOpen] = useState(false);
   const tagsRef = useRef(null);
+  const [serviceOpen, setServiceOpen] = useState(false);
+  const serviceRef = useRef(null);
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'gallery'
   const [sortMode, setSortMode] = useState('date');   // 'name' | 'date' | 'songs'
   const [sortAsc, setSortAsc] = useState(false);
@@ -239,14 +240,23 @@ export default function Setlists({
     return () => document.removeEventListener('mousedown', handler);
   }, [tagsOpen]);
 
+  useEffect(() => {
+    if (!serviceOpen) return;
+    const handler = (e) => { if (serviceRef.current && !serviceRef.current.contains(e.target)) setServiceOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [serviceOpen]);
+
   // Captured once on mount (Date.now() is flagged impure if called in render).
   const [nowTs] = useState(() => Date.now());
 
-  // Optional Labs feature: per-setlist schedule counts (team workspaces only).
+  // Per-setlist schedule counts (team workspaces only). NOTE: shown by default
+  // for now — the whole setlist table is slated for a rework with a proper
+  // column picker (see BACKLOG "Editable setlist table fields").
   const { team } = useTeam();
-  const { schedules } = useTeamSchedules(scheduleColumns ? team?.id : null);
-  const { map: setlistIdMap } = useTeamSetlistMap(scheduleColumns ? team?.id : null);
-  const showSchedule = scheduleColumns && !!team;
+  const { schedules } = useTeamSchedules(team?.id);
+  const { map: setlistIdMap } = useTeamSetlistMap(team?.id);
+  const showSchedule = !!team;
   const scheduleStats = useMemo(() => {
     const stats = {};
     if (!showSchedule) return stats;
@@ -417,22 +427,44 @@ export default function Setlists({
           />
 
           {showService && serviceOptions.length > 0 && (
-            <select
-              value={serviceFilter}
-              onChange={e => setServiceFilter(e.target.value)}
-              aria-label="Filter by service"
-              className={cn(
-                'h-9 px-3 rounded-lg border text-label-14 cursor-pointer bg-[var(--modes-surface)] outline-none transition-colors focus:border-[var(--color-brand)]',
-                serviceFilter !== 'all'
-                  ? 'border-[var(--color-brand)] text-[var(--color-brand)]'
-                  : 'border-[var(--modes-border)] text-[var(--modes-text)] hover:bg-[var(--modes-surface-strong)]',
+            <div ref={serviceRef} className="relative">
+              <button
+                onClick={() => setServiceOpen(o => !o)}
+                className={cn(
+                  'h-9 px-4 rounded-lg border cursor-pointer flex items-center gap-2 text-label-14 transition-all duration-150',
+                  serviceFilter !== 'all'
+                    ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--modes-surface)]'
+                    : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]',
+                )}
+              >
+                {serviceFilter !== 'all' && <span className="w-2 h-2 rounded-full bg-[var(--color-brand)]" />}
+                {serviceFilter === 'all' ? 'All services' : serviceFilter}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn('transition-transform duration-150', serviceOpen && 'rotate-180')}>
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+              {serviceOpen && (
+                <div className="absolute right-0 top-full mt-2 w-[220px] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden">
+                  <div className="flex flex-col py-1 max-h-[320px] overflow-y-auto">
+                    {[['all', 'All services'], ...serviceOptions.map(s => [s, s])].map(([val, label]) => (
+                      <button
+                        key={val}
+                        onClick={() => { setServiceFilter(val); setServiceOpen(false); }}
+                        className={cn(
+                          'flex items-center justify-between gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--modes-surface)] transition-colors text-left border-none bg-transparent',
+                          serviceFilter === val ? 'text-[var(--color-brand)]' : 'text-[var(--modes-text)]',
+                        )}
+                      >
+                        <span className="text-copy-14 truncate">{label}</span>
+                        {serviceFilter === val && (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M20 6 9 17l-5-5" /></svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
-            >
-              <option value="all">All services</option>
-              {serviceOptions.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+            </div>
           )}
 
           {allTags.length > 0 && (

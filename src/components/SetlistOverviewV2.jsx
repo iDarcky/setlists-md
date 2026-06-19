@@ -246,7 +246,7 @@ export default function SetlistOverviewV2({ setlist, songs, setlists = [], onBac
               {rehearsalStr && (
                 <span
                   className="inline-flex items-center gap-1.5 text-label-12 px-2 py-0.5 rounded-full"
-                  style={{ background: 'var(--ds-purple-100)', color: 'var(--ds-purple-900)' }}
+                  style={{ background: 'var(--ds-blue-100)', color: 'var(--ds-blue-900)' }}
                   title={`Rehearsal${setlist.rehearsalLocation ? ` · ${setlist.rehearsalLocation}` : ''}`}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">{ICONS.rehearsal}</svg>

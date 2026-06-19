@@ -16,9 +16,8 @@ import SetlistMetaForm from './setlist/SetlistMetaForm';
 import SetlistItemRow from './setlist/SetlistItemRow';
 import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RecommendedNextPanel from './setlist/RecommendedNextPanel';
-import RosterPanel from './setlist/RosterPanel';
 
-export default function SetlistBuilder({ songs, setlist, setlists = [], onSave, onBack, onDelete, isTeamContext, knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h', overscheduleWarn = false, streakLimit = 3 }) {
+export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
   const confirm = useConfirm();
   const [name, setName] = useState(setlist?.name || '');
   // New setlists default to the upcoming Sunday at 10:00 — the most common
@@ -42,7 +41,6 @@ export default function SetlistBuilder({ songs, setlist, setlists = [], onSave, 
   // ready (don't surprise-demote a legacy setlist to draft on edit).
   const [status, setStatus] = useState(setlist?.status || (setlist ? 'ready' : 'draft'));
   // Builder tabs — Roster only available once the setlist has been saved.
-  const [tab, setTab] = useState('setlist'); // 'setlist' | 'roster'
 
   // Snapshot the form on first render so Cancel/back can warn about unsaved
   // changes (only when something actually changed — no nag on a pristine form).
@@ -306,27 +304,9 @@ export default function SetlistBuilder({ songs, setlist, setlists = [], onSave, 
           all available space so the Save/Cancel bar below pins to the
           bottom of <main> even when the form is short. ── */}
       <div className="flex-1 w-full max-w-5xl mx-auto px-5 pt-6 pb-12">
-        {/* Toolbar — Set order / Band tabs (team, once saved) on the left,
-            Draft / Ready on the right, aligned on one row. */}
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
-          {isTeamContext && setlist ? (
-            <div className="inline-flex p-0.5 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)]">
-              {[['setlist', 'Set order'], ['roster', 'Band']].map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setTab(id)}
-                  className={`px-3.5 h-8 rounded-md text-label-13 font-semibold transition-colors border-none cursor-pointer ${
-                    tab === id
-                      ? 'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] shadow-sm'
-                      : 'bg-transparent text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          ) : <span />}
+        {/* Draft / Ready — the band/roster is managed from the setlist overview,
+            not here (it needs the setlist to exist + sync first). */}
+        <div className="flex items-center justify-end gap-3 flex-wrap mb-6">
           <SegmentedControl
             value={status}
             onChange={setStatus}
@@ -338,9 +318,6 @@ export default function SetlistBuilder({ songs, setlist, setlists = [], onSave, 
           />
         </div>
 
-        {isTeamContext && setlist && tab === 'roster' ? (
-          <RosterPanel inline v2 setlistId={setlist.id} setlistDate={date} setlists={setlists} overscheduleWarn={overscheduleWarn} streakLimit={streakLimit} onClose={() => setTab('setlist')} />
-        ) : (
         <div className="flex flex-col lg:flex-row gap-8">
 
           {/* Left column: meta + current set */}
@@ -489,7 +466,6 @@ export default function SetlistBuilder({ songs, setlist, setlists = [], onSave, 
           </div>
 
         </div>
-        )}
       </div>
 
       {/* ── Sticky bottom action bar ──
