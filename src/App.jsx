@@ -103,6 +103,7 @@ const PORTABLE_PREF_KEYS = [
   'defaultFontSize',
   'chordFontSize',
   'nashville',
+  'notation',
   'showChords',
   'showDiagrams',
   'pedalNext',

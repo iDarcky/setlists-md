@@ -121,7 +121,7 @@ export default function ChartView({
 
   const [fontSize, setFontSize] = useState(disp.lyricFontSize);
   const [chordFontSize, setChordFontSize] = useState(disp.chordFontSize);
-  const [nns, setNns] = useState(disp.nashville);
+  const [notation, setNotation] = useState(disp.notation);
   const [showChords, setShowChords] = useState(disp.showChords);
   const [showDiagrams, setShowDiagrams] = useState(disp.showDiagrams);
   // Quick view mode (session-local) from the structure row:
@@ -162,16 +162,18 @@ export default function ChartView({
   useEffect(() => {
     setFontSize(disp.lyricFontSize);
     setChordFontSize(disp.chordFontSize);
-    setNns(disp.nashville);
+    setNotation(disp.notation);
     setShowChords(disp.showChords);
     setShowDiagrams(disp.showDiagrams);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.showChords, settings?.showDiagrams, settings?.stageMode]);
+  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.notation, settings?.showChords, settings?.showDiagrams, settings?.stageMode]);
 
   // Persisting helpers — update the snappy local mirror and the device setting.
   const changeFontSize = (v) => { const n = Math.max(10, Math.min(30, v)); setFontSize(n); onUpdateSettings?.('defaultFontSize', n); };
   const changeChordFontSize = (v) => { const n = Math.max(8, Math.min(30, v)); setChordFontSize(n); onUpdateSettings?.('chordFontSize', n); };
-  const toggleNns = () => { const v = !nns; setNns(v); onUpdateSettings?.('nashville', v); };
+  // Reader notation: Letters / Nashville numbers / Do-Re-Mi solfège. Also writes
+  // the legacy `nashville` boolean so older surfaces/prefs stay consistent.
+  const changeNotation = (v) => { setNotation(v); onUpdateSettings?.('notation', v); onUpdateSettings?.('nashville', v === 'nashville'); };
   const toggleShowDiagrams = () => { const v = !showDiagrams; setShowDiagrams(v); onUpdateSettings?.('showDiagrams', v); };
 
   // Instrument presets (stage modes) — pick a band role and the chart switches
@@ -185,6 +187,7 @@ export default function ChartView({
     if (preset.lyricFontSize != null) onUpdateSettings?.('defaultFontSize', preset.lyricFontSize);
     if (preset.chordFontSize != null) onUpdateSettings?.('chordFontSize', preset.chordFontSize);
     onUpdateSettings?.('nashville', !!preset.nashville);
+    onUpdateSettings?.('notation', preset.notation || (preset.nashville ? 'nashville' : 'letters'));
     onUpdateSettings?.('showChords', preset.showChords !== false);
     onUpdateSettings?.('showDiagrams', !!preset.showDiagrams);
     if (preset.showInlineNotes != null) onUpdateSettings?.('showInlineNotes', preset.showInlineNotes);
@@ -619,13 +622,27 @@ export default function ChartView({
                 </SheetField>
               )}
 
+              <SheetField label="Notation">
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'letters', label: 'Letters' },
+                    { id: 'nashville', label: 'Nashville' },
+                    { id: 'solfege', label: 'Do-Re-Mi' },
+                  ].map(b => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => changeNotation(b.id)}
+                      aria-pressed={notation === b.id}
+                      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${notation === b.id ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </SheetField>
               <SheetField label="Chords">
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={nns ? 'brand' : 'secondary'}
-                    size="sm"
-                    onClick={toggleNns}
-                  >Nashville numbers</Button>
                   <Button
                     variant={showDiagrams ? 'brand' : 'secondary'}
                     size="sm"
@@ -772,7 +789,7 @@ export default function ChartView({
                 section={section}
                 transpose={transpose}
                 modOffset={sectionModOffsets[idx]}
-                nns={nns}
+                notation={notation}
                 songKey={song.key}
                 showChords={showChords && viewChords}
                 showLyrics={viewLyrics}

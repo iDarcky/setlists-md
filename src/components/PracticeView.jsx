@@ -45,7 +45,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const stageMode = settings?.stageMode || 'leader';
   const [fontSize, setFontSize] = useState(disp.lyricFontSize);
   const [chordFontSize, setChordFontSize] = useState(disp.chordFontSize);
-  const [nns, setNns] = useState(disp.nashville);
+  const [notation, setNotation] = useState(disp.notation);
   const [showChords, setShowChords] = useState(disp.showChords);
   const [showDiagrams, setShowDiagrams] = useState(disp.showDiagrams);
   // What to show in the chart body: chords / lyrics-only / tabs / song map.
@@ -57,17 +57,17 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   useEffect(() => {
     setFontSize(disp.lyricFontSize);
     setChordFontSize(disp.chordFontSize);
-    setNns(disp.nashville);
+    setNotation(disp.notation);
     setShowChords(disp.showChords);
     setShowDiagrams(disp.showDiagrams);
     setDisplayMode(settings?.displayMode || 'chords');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.showChords, settings?.showDiagrams, settings?.stageMode, settings?.displayMode]);
+  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.notation, settings?.showChords, settings?.showDiagrams, settings?.stageMode, settings?.displayMode]);
 
   // Persisting helpers — update the snappy local mirror and the device setting.
   const changeFontSize = (v) => { const n = Math.max(10, Math.min(30, v)); setFontSize(n); onUpdateSettings?.('defaultFontSize', n); };
   const changeChordFontSize = (v) => { const n = Math.max(8, Math.min(30, v)); setChordFontSize(n); onUpdateSettings?.('chordFontSize', n); };
-  const toggleNns = () => { const v = !nns; setNns(v); onUpdateSettings?.('nashville', v); };
+  const changeNotation = (v) => { setNotation(v); onUpdateSettings?.('notation', v); onUpdateSettings?.('nashville', v === 'nashville'); };
   const toggleShowChords = () => { const v = !showChords; setShowChords(v); onUpdateSettings?.('showChords', v); };
   const toggleShowDiagrams = () => { const v = !showDiagrams; setShowDiagrams(v); onUpdateSettings?.('showDiagrams', v); };
   const changeDisplayMode = (v) => { setDisplayMode(v); onUpdateSettings?.('displayMode', v); };
@@ -80,6 +80,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     if (preset.lyricFontSize != null) onUpdateSettings?.('defaultFontSize', preset.lyricFontSize);
     if (preset.chordFontSize != null) onUpdateSettings?.('chordFontSize', preset.chordFontSize);
     onUpdateSettings?.('nashville', !!preset.nashville);
+    onUpdateSettings?.('notation', preset.notation || (preset.nashville ? 'nashville' : 'letters'));
     onUpdateSettings?.('showChords', preset.showChords !== false);
     onUpdateSettings?.('showDiagrams', !!preset.showDiagrams);
   };
@@ -513,7 +514,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             fontSize={fontSize}
             columns={columns}
             chordFontSize={chordFontSize}
-            nashville={nns}
+            notation={notation}
             showChords={showChords}
             showDiagrams={showDiagrams}
             displayMode={displayMode}
@@ -645,8 +646,8 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
       tabInstrumentsPresent={tabInstrumentsPresent}
       tabInstrument={tabInstrument}
       onChangeTabInstrument={setTabInstrument}
-      nns={nns}
-      onToggleNns={toggleNns}
+      notation={notation}
+      onChangeNotation={changeNotation}
       showChords={showChords}
       onToggleShowChords={toggleShowChords}
       showDiagrams={showDiagrams}
@@ -779,7 +780,7 @@ function StructureEditor({ structure, availableSections, onUpdate, onClose }) {
 }
 
 // Chart with editable cue cards between sections
-function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, nashville = false, showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', chordEmphasis = 'full', sectionColors, sectionLabels, customSectionTypes, onSaveCue, canEditShared = true, privateNotes }) {
+function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, notation = 'letters', showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', chordEmphasis = 'full', sectionColors, sectionLabels, customSectionTypes, onSaveCue, canEditShared = true, privateNotes }) {
   const myEnabled = !!privateNotes?.enabled;
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   // Mirror the chart-view display switch.
@@ -870,7 +871,7 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
             section={section}
             transpose={transpose}
             modOffset={sectionModOffsets[i]}
-            nns={nashville}
+            notation={notation}
             songKey={song.key}
             showChords={showChords && viewChords}
             showLyrics={viewLyrics}

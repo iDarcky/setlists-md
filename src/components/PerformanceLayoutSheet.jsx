@@ -27,8 +27,8 @@ export default function PerformanceLayoutSheet({
   tabInstrumentsPresent = [],
   tabInstrument,
   onChangeTabInstrument,
-  nns,
-  onToggleNns,
+  notation,
+  onChangeNotation,
   showChords,
   onToggleShowChords,
   showDiagrams,
@@ -81,9 +81,21 @@ export default function PerformanceLayoutSheet({
             </SheetField>
           )}
 
+          <SheetField label="Notation">
+            <SegmentedControl
+              value={notation}
+              onChange={onChangeNotation}
+              options={[
+                { value: 'letters', label: 'Letters' },
+                { value: 'nashville', label: 'Nashville' },
+                { value: 'solfege', label: 'Do-Re-Mi' },
+              ]}
+              size="sm"
+            />
+          </SheetField>
+
           <SheetField label="Show">
             <div className="flex flex-wrap gap-2">
-              <Button variant={nns ? 'brand' : 'secondary'} size="sm" onClick={onToggleNns}>Numbers</Button>
               <Button variant="secondary" size="sm" onClick={onToggleShowChords} className={cn(!showChords && 'opacity-40')}>Chords</Button>
               <Button variant={showDiagrams ? 'brand' : 'secondary'} size="sm" onClick={onToggleShowDiagrams}>Diagrams</Button>
             </div>

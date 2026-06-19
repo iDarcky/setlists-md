@@ -212,6 +212,17 @@ export function getSolfege(chord, key) {
   return (map[semitones] || '?') + suffix;
 }
 
+// Render a chord in the reader's chosen notation. The single branch point shared
+// by every reading surface (ChartView, PerformanceView, PracticeView):
+//   'letters'  → transposed letter chord (honours the user's transpose)
+//   'nashville'→ Nashville number relative to `key` (transpose-independent)
+//   'solfege'  → movable-Do solfège relative to `key` (transpose-independent)
+export function notateChord(chord, { key, notation = 'letters', transpose = 0 } = {}) {
+  if (notation === 'nashville') return getNashvilleNumber(chord, key);
+  if (notation === 'solfege') return getSolfege(chord, key);
+  return transposeChord(chord, transpose);
+}
+
 // Diatonic chords for a given key (I, ii, iii, IV, V, vi, vii°)
 const DIATONIC_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
 const DIATONIC_QUALITIES = ['', 'm', 'm', '', '', 'm', 'dim'];

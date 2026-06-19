@@ -4,6 +4,8 @@ import {
   transposeKey,
   semitonesBetween,
   getNashvilleNumber,
+  getSolfege,
+  notateChord,
   getDiatonicChords,
   sectionStyle,
   compactLabel,
@@ -117,6 +119,43 @@ describe('getNashvilleNumber', () => {
 
   it('preserves suffix on slash chords', () => {
     expect(getNashvilleNumber('C/E', 'C')).toBe('1/3');
+  });
+});
+
+describe('getSolfege', () => {
+  it('returns Do for the tonic', () => {
+    expect(getSolfege('C', 'C')).toBe('Do');
+    expect(getSolfege('G', 'G')).toBe('Do');
+  });
+
+  it('maps diatonic degrees relative to the key', () => {
+    expect(getSolfege('D', 'C')).toBe('Re');
+    expect(getSolfege('Em', 'C')).toBe('Mim');
+    expect(getSolfege('G', 'C')).toBe('Sol');
+  });
+
+  it('preserves suffix on slash chords', () => {
+    expect(getSolfege('C/E', 'C')).toBe('Do/Mi');
+  });
+});
+
+describe('notateChord', () => {
+  it('transposes letter chords (letters notation)', () => {
+    expect(notateChord('C', { key: 'C', notation: 'letters', transpose: 2 })).toBe('D');
+    expect(notateChord('C', { key: 'C' })).toBe('C'); // defaults to letters, no transpose
+  });
+
+  it('renders Nashville numbers relative to key, ignoring transpose', () => {
+    expect(notateChord('G', { key: 'C', notation: 'nashville', transpose: 5 })).toBe('5');
+  });
+
+  it('renders solfège relative to key, ignoring transpose', () => {
+    expect(notateChord('G', { key: 'C', notation: 'solfege', transpose: 5 })).toBe('Sol');
+  });
+
+  it('handles slash chords across notations', () => {
+    expect(notateChord('C/E', { key: 'C', notation: 'nashville' })).toBe('1/3');
+    expect(notateChord('C/E', { key: 'C', notation: 'solfege' })).toBe('Do/Mi');
   });
 });
 

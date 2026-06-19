@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { transposeChord, sectionStyle, sectionLabel, getNashvilleNumber } from '../music';
+import { notateChord, sectionStyle, sectionLabel } from '../music';
 import { parseLine } from '../parser';
 import TabBlock from './TabBlock';
 
@@ -49,10 +49,13 @@ function groupChordWords(pairs) {
 }
 
 export default function SectionBlock({
-  section, transpose, modOffset = 0, nns, songKey,
+  section, transpose, modOffset = 0, nns, notation, songKey,
   showChords = true, showLyrics = true, showTabs = true, inlineNotes = true, noteStyle = 'dashes',
   sectionColors, sectionLabels, customSectionTypes, tabScale = 1, tabColors, tabInstrument = 'all', chordEmphasis = 'full',
 }) {
+  // Reader notation: prefer the explicit `notation` prop; fall back to the
+  // legacy boolean `nns` (Nashville on/off) for callers not yet migrated.
+  const notationMode = notation ?? (nns ? 'nashville' : 'letters');
   const s = sectionStyle(section.type, sectionColors, customSectionTypes);
   // When an instrument filter is active, only show tabs tagged for it. Untagged
   // tabs are only shown under "all".
@@ -132,7 +135,7 @@ export default function SectionBlock({
     const hasLyrics = pairs.some(p => p.text.trim());
 
     const renderChord = (rawChord, padded) => {
-      let chord = nns ? getNashvilleNumber(rawChord, songKey) : transposeChord(rawChord, effectiveTranspose);
+      let chord = notateChord(rawChord, { key: songKey, notation: notationMode, transpose: effectiveTranspose });
       // Bass "root emphasis": collapse each chord to the note a bassist plays —
       // the slash bass if present, otherwise the chord root.
       if (chordEmphasis === 'root') chord = bassNote(chord);
