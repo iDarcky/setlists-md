@@ -471,7 +471,7 @@ function ChartPanel({ settings, update }) {
             { key: true, label: 'On' },
             { key: false, label: 'Off' },
           ].map(({ key, label }) => {
-            const active = (settings.autoHideHeader !== false) === key;
+            const active = (settings.autoHideHeader === true) === key;
             return (
               <Button
                 key={String(key)}

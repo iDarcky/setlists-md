@@ -122,20 +122,26 @@ describe('getNashvilleNumber', () => {
   });
 });
 
-describe('getSolfege', () => {
-  it('returns Do for the tonic', () => {
-    expect(getSolfege('C', 'C')).toBe('Do');
-    expect(getSolfege('G', 'G')).toBe('Do');
+describe('getSolfege (fixed-do)', () => {
+  it('maps each letter to its fixed-do syllable, B→Si', () => {
+    expect(getSolfege('C')).toBe('Do');
+    expect(getSolfege('D')).toBe('Re');
+    expect(getSolfege('E')).toBe('Mi');
+    expect(getSolfege('F')).toBe('Fa');
+    expect(getSolfege('G')).toBe('Sol');
+    expect(getSolfege('A')).toBe('La');
+    expect(getSolfege('B')).toBe('Si');
   });
 
-  it('maps diatonic degrees relative to the key', () => {
-    expect(getSolfege('D', 'C')).toBe('Re');
-    expect(getSolfege('Em', 'C')).toBe('Mim');
-    expect(getSolfege('G', 'C')).toBe('Sol');
+  it('preserves accidentals and suffixes', () => {
+    expect(getSolfege('Bb')).toBe('Sib');
+    expect(getSolfege('F#m7')).toBe('Fa#m7');
+    expect(getSolfege('Am')).toBe('Lam');
   });
 
-  it('preserves suffix on slash chords', () => {
-    expect(getSolfege('C/E', 'C')).toBe('Do/Mi');
+  it('handles slash chords', () => {
+    expect(getSolfege('C/E')).toBe('Do/Mi');
+    expect(getSolfege('G/B')).toBe('Sol/Si');
   });
 });
 
@@ -149,8 +155,10 @@ describe('notateChord', () => {
     expect(notateChord('G', { key: 'C', notation: 'nashville', transpose: 5 })).toBe('5');
   });
 
-  it('renders solfège relative to key, ignoring transpose', () => {
-    expect(notateChord('G', { key: 'C', notation: 'solfege', transpose: 5 })).toBe('Sol');
+  it('renders fixed-do solfège that follows transpose like letters', () => {
+    expect(notateChord('G', { notation: 'solfege', transpose: 0 })).toBe('Sol');
+    expect(notateChord('G', { notation: 'solfege', transpose: 2 })).toBe('La'); // G+2 = A
+    expect(notateChord('G', { notation: 'solfege', transpose: 5 })).toBe('Do'); // G+5 = C
   });
 
   it('handles slash chords across notations', () => {

@@ -195,31 +195,31 @@ export function getNashvilleNumber(chord, key) {
   return (map[semitones] || '?') + suffix;
 }
  
-// Convert a chord to movable-Do solfège (Do Re Mi …), relative to the key.
-export function getSolfege(chord, key) {
-  if (!chord || !key) return chord;
+// Convert a chord to fixed-Do solfège (the Latin/Romanian convention):
+// absolute pitch naming — C=Do, D=Re, E=Mi, F=Fa, G=Sol, A=La, B=Si — with the
+// accidental preserved (Bb→Sib, F#→Fa#) and the suffix kept. Like the letter
+// names, just in solfège; transpose is applied by the caller, not here.
+const SOLFEGE_LETTERS = { C: 'Do', D: 'Re', E: 'Mi', F: 'Fa', G: 'Sol', A: 'La', B: 'Si' };
+export function getSolfege(chord) {
+  if (!chord) return chord;
   if (chord.includes('/')) {
     const [main, bass] = chord.split('/');
-    return getSolfege(main, key) + '/' + getSolfege(bass, key);
+    return getSolfege(main) + '/' + getSolfege(bass);
   }
-  const { root, suffix } = parseRoot(chord);
-  const keyRoot = parseRoot(key).root;
-  const fi = CHROMATIC.indexOf(keyRoot);
-  const ti = CHROMATIC.indexOf(root);
-  if (fi === -1 || ti === -1) return chord;
-  const semitones = (ti - fi + 12) % 12;
-  const map = { 0: 'Do', 1: 'Di', 2: 'Re', 3: 'Me', 4: 'Mi', 5: 'Fa', 6: 'Fi', 7: 'Sol', 8: 'Le', 9: 'La', 10: 'Te', 11: 'Ti' };
-  return (map[semitones] || '?') + suffix;
+  const m = String(chord).match(/^([A-G])([#b]?)(.*)$/);
+  if (!m) return chord;
+  const [, letter, accidental, suffix] = m;
+  return SOLFEGE_LETTERS[letter] + accidental + suffix;
 }
 
 // Render a chord in the reader's chosen notation. The single branch point shared
 // by every reading surface (ChartView, PerformanceView, PracticeView):
 //   'letters'  → transposed letter chord (honours the user's transpose)
 //   'nashville'→ Nashville number relative to `key` (transpose-independent)
-//   'solfege'  → movable-Do solfège relative to `key` (transpose-independent)
+//   'solfege'  → fixed-Do solfège of the transposed chord (tracks pitch like letters)
 export function notateChord(chord, { key, notation = 'letters', transpose = 0 } = {}) {
   if (notation === 'nashville') return getNashvilleNumber(chord, key);
-  if (notation === 'solfege') return getSolfege(chord, key);
+  if (notation === 'solfege') return getSolfege(transposeChord(chord, transpose));
   return transposeChord(chord, transpose);
 }
 

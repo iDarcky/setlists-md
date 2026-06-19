@@ -42,7 +42,7 @@ function tabObjectFromEditor(saved) {
 // Display a chord in the chosen notation (reading aid; data stays as chords).
 function formatChord(chord, notation, key) {
   if (notation === 'nashville') return getNashvilleNumber(chord, key);
-  if (notation === 'solfege') return getSolfege(chord, key);
+  if (notation === 'solfege') return getSolfege(chord);
   return chord;
 }
 

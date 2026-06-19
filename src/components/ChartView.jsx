@@ -208,7 +208,7 @@ export default function ChartView({
   const scrollContainerRef = useRef(null);
   // Three-row header collapse (shared with practice/live): scroll down hides
   // title+meta, scroll up / tap reveals. Off in the editor preview.
-  const [headerCollapsed, , revealHeader] = useStageHeaderCollapse(scrollContainerRef, !isPreview && settings?.autoHideHeader !== false);
+  const [headerCollapsed, , revealHeader] = useStageHeaderCollapse(scrollContainerRef, !isPreview && settings?.autoHideHeader === true);
 
   const transpose = semitonesBetween(song.key, selectedKey);
 
@@ -613,33 +613,10 @@ export default function ChartView({
                   })}
                 </div>
               </SheetField>
-
-              <div className="pt-1 border-t border-[var(--border-1)]">
-                <ChartStyleControls
-                  settings={settings}
-                  onUpdateSettings={onUpdateSettings}
-                />
-                {onOpenAdvancedStyle && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveSheet(null);
-                      onOpenAdvancedStyle();
-                    }}
-                    className="mt-3 w-full h-11 rounded-xl bg-[var(--ds-background-100)] border border-[var(--border-1)] text-copy-14 font-semibold text-[var(--text-1)] flex items-center justify-center gap-2 hover:bg-[var(--bg-1)] transition-all"
-                    style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)' }}
-                  >
-                    Advanced settings
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </button>
-                )}
-              </div>
             </div>
           </BottomSheet>
 
-          {/* ── Layout menu — how it's arranged (columns, sizes, spacing) ── */}
+          {/* ── Layout menu — how it's arranged (columns, sizes, spacing, style) ── */}
           <BottomSheet
             open={activeSheet === 'layout'}
             onClose={() => setActiveSheet(null)}
@@ -711,6 +688,29 @@ export default function ChartView({
                   </div>
                 </SheetField>
               )}
+
+              <div className="pt-1 border-t border-[var(--border-1)]">
+                <ChartStyleControls
+                  settings={settings}
+                  onUpdateSettings={onUpdateSettings}
+                />
+                {onOpenAdvancedStyle && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSheet(null);
+                      onOpenAdvancedStyle();
+                    }}
+                    className="mt-3 w-full h-11 rounded-xl bg-[var(--ds-background-100)] border border-[var(--border-1)] text-copy-14 font-semibold text-[var(--text-1)] flex items-center justify-center gap-2 hover:bg-[var(--bg-1)] transition-all"
+                    style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)' }}
+                  >
+                    Advanced settings
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
           </BottomSheet>
 
