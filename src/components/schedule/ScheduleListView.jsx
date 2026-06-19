@@ -139,7 +139,7 @@ export default function ScheduleListView({
                 className="flex items-center justify-between gap-3 pl-15 border-t border-dashed border-[var(--modes-border)] pt-2"
               >
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <Chip variant="success" size="sm">Setlist</Chip>
+                  <Chip variant="brand" size="sm">Setlist</Chip>
                   <span className="text-copy-13 text-[var(--modes-text)] font-medium truncate">
                     {sl.name || 'Untitled Setlist'}
                   </span>
@@ -165,7 +165,7 @@ export default function ScheduleListView({
                 className="flex items-center justify-between gap-3 pl-15 border-t border-dashed border-[var(--modes-border)] pt-2"
               >
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)] shrink-0">Rehearsal</span>
+                  <span className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--ds-blue-100)] text-[var(--ds-blue-900)] shrink-0">Rehearsal</span>
                   <span className="text-copy-13 text-[var(--modes-text)] font-medium truncate">{sl.name || 'Untitled Setlist'}</span>
                   {sl.rehearsalTime && (
                     <span className="text-copy-12 text-[var(--modes-text-dim)] shrink-0">{formatClockTime(sl.rehearsalTime, clockFormat)}</span>

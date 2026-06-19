@@ -288,7 +288,16 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
       <ScreenHeader
         title={setlist ? 'Edit Setlist' : 'New Setlist'}
         actions={
-          <>
+          <div className="flex items-center gap-2">
+             <SegmentedControl
+               value={status}
+               onChange={setStatus}
+               size="sm"
+               options={[
+                 { value: 'draft', label: 'Draft' },
+                 { value: 'ready', label: 'Ready' },
+               ]}
+             />
              {setlist && onDelete && (
                <IconButton variant="error" size="sm" onClick={handleDelete} aria-label="Delete setlist">
                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -296,7 +305,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                  </svg>
                </IconButton>
              )}
-           </>
+           </div>
         }
       />
 
@@ -304,20 +313,6 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
           all available space so the Save/Cancel bar below pins to the
           bottom of <main> even when the form is short. ── */}
       <div className="flex-1 w-full max-w-5xl mx-auto px-5 pt-6 pb-12">
-        {/* Draft / Ready — the band/roster is managed from the setlist overview,
-            not here (it needs the setlist to exist + sync first). */}
-        <div className="flex items-center justify-end gap-3 flex-wrap mb-6">
-          <SegmentedControl
-            value={status}
-            onChange={setStatus}
-            size="sm"
-            options={[
-              { value: 'draft', label: 'Draft' },
-              { value: 'ready', label: 'Ready' },
-            ]}
-          />
-        </div>
-
         <div className="flex flex-col lg:flex-row gap-8">
 
           {/* Left column: meta + current set */}

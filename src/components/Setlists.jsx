@@ -437,7 +437,6 @@ export default function Setlists({
                     : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]',
                 )}
               >
-                {serviceFilter !== 'all' && <span className="w-2 h-2 rounded-full bg-[var(--color-brand)]" />}
                 {serviceFilter === 'all' ? 'All services' : serviceFilter}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn('transition-transform duration-150', serviceOpen && 'rotate-180')}>
                   <path d="m6 9 6 6 6-6" />
@@ -478,7 +477,6 @@ export default function Setlists({
                     : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]',
                 )}
               >
-                {selectedTags.length > 0 && <span className="w-2 h-2 rounded-full bg-[var(--color-brand)]" />}
                 Tags{selectedTags.length > 0 ? ` (${selectedTags.length})` : ''}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn('transition-transform duration-150', tagsOpen && 'rotate-180')}>
                   <path d="m6 9 6 6 6-6" />
