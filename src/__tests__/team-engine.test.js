@@ -35,10 +35,18 @@ function createFakeClient(db) {
       return {
         select() {
           return {
-            eq: (col, val) => Promise.resolve({
-              data: rows.filter(r => r[col] === val).map(r => ({ ...r })),
-              error: null,
-            }),
+            // fetchRows paginates: .eq(...).order(...).range(from, to)
+            eq: (col, val) => {
+              const filtered = rows.filter(r => r[col] === val).map(r => ({ ...r }));
+              return {
+                order: () => ({
+                  range: (from, to) => Promise.resolve({
+                    data: filtered.slice(from, to + 1),
+                    error: null,
+                  }),
+                }),
+              };
+            },
           };
         },
         insert(payload) {

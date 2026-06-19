@@ -348,7 +348,22 @@ export default function App() {
     const result = await syncEngineRef.current.fullSync(songs, setlists, tombstones);
     if (result.replaced) {
       // Team engine is server-authoritative — adopt its arrays wholesale so
-      // remote deletions disappear here too.
+      // remote deletions disappear here too. SAFETY NET: any song that was
+      // present locally but is gone from the adopted set — and that the user
+      // did NOT delete (no local tombstone) — is moved to the trash instead of
+      // vanishing, so a server-wins drop (truncated fetch, unparseable row, a
+      // teammate's delete, a race) stays recoverable for 30 days.
+      const nextIds = new Set(result.songs.map(s => s.id));
+      const deletedIds = new Set((tombstones.songs || []).map(t => t.id));
+      const dropped = songs.filter(s => s?.id && !nextIds.has(s.id) && !deletedIds.has(s.id));
+      if (dropped.length) {
+        const now = Date.now();
+        setTrash(prev => {
+          const have = new Set(prev.map(e => e.song?.id));
+          const add = dropped.filter(s => !have.has(s.id)).map(song => ({ song, deletedAt: now }));
+          return add.length ? [...prev, ...add] : prev;
+        });
+      }
       setSongs(result.songs);
       setSetlists(result.setlists);
     } else if (result.changed) {
@@ -520,6 +535,19 @@ export default function App() {
           engine.fullSync(currentSongs, currentSetlists, savedTombstones).then(result => {
             if (ignore) return;
             if (result.replaced) {
+              // Safety net (see handleSync): trash any locally-present song the
+              // server-authoritative sync drops and the user didn't delete.
+              const nextIds = new Set(result.songs.map(s => s.id));
+              const deletedIds = new Set((savedTombstones?.songs || []).map(t => t.id));
+              const dropped = currentSongs.filter(s => s?.id && !nextIds.has(s.id) && !deletedIds.has(s.id));
+              if (dropped.length) {
+                const now = Date.now();
+                setTrash(prev => {
+                  const have = new Set(prev.map(e => e.song?.id));
+                  const add = dropped.filter(s => !have.has(s.id)).map(song => ({ song, deletedAt: now }));
+                  return add.length ? [...prev, ...add] : prev;
+                });
+              }
               setSongs(result.songs);
               setSetlists(result.setlists);
             } else if (result.changed) {

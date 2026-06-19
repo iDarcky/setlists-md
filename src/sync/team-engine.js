@@ -129,9 +129,26 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
 
   async function fetchRows(table) {
     const cols = table === 'team_songs' ? 'id, title, content, updated_at' : 'id, name, content, updated_at';
-    const { data, error } = await client.from(table).select(cols).eq('team_id', teamId);
-    if (error) throw new Error(`${table}: ${error.message}`);
-    return data || [];
+    // Paginate in pages of 1000 — Supabase caps a single select at 1000 rows by
+    // default. Without this a church library over 1000 items would fetch only a
+    // slice, and the pull below would treat every un-fetched (but previously
+    // synced) song as "deleted on the server" and drop it locally. That silent
+    // truncation is a data-loss vector, so we must read the FULL set.
+    const PAGE = 1000;
+    const out = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await client
+        .from(table)
+        .select(cols)
+        .eq('team_id', teamId)
+        .order('updated_at', { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) throw new Error(`${table}: ${error.message}`);
+      const batch = data || [];
+      out.push(...batch);
+      if (batch.length < PAGE) break;
+    }
+    return out;
   }
 
   // Resolve each row to { itemId, rowId, item, hash, updatedAt }. The item id
