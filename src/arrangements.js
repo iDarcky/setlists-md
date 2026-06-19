@@ -54,6 +54,7 @@ export function resolveSongView(song, arrangementId) {
     sections: arr.sections || [],
     tabLibrary: arr.tabLibrary || [],
     updatedAt: arr.updatedAt || song.updatedAt,
+    _songId: song.id,
     _arrangementId: arr.id,
     _arrangementName: arr.name,
     _arrangementCount: song.arrangements.length,

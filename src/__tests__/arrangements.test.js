@@ -9,6 +9,7 @@ import {
   setDefaultArrangement,
   songFromFlat,
 } from '../arrangements';
+import { parseSongMd, songToMd } from '../parser';
 
 // ─── fixtures ────────────────────────────────────────────────────────────────
 
@@ -349,5 +350,68 @@ describe('songFromFlat', () => {
     const song = songFromFlat({ id: 'x' });
     expect(song.title).toBe('Untitled');
     expect(song.artist).toBe('Unknown');
+  });
+});
+
+// The sync engine compares a hash of the STORED markdown against a hash of the
+// freshly re-serialized song. If the round-trip isn't byte-stable, every sync
+// thinks the song changed and re-uploads it forever — which caused "edited"
+// spam, identity churn, and duplicate/lost songs. resolveSongView must carry
+// `_songId` so songToMd re-emits the `songId:` identity it was stored with.
+describe('markdown round-trip is byte-stable (sync stability)', () => {
+  const roundTrip = (content) => {
+    const parsed = parseSongMd(content);
+    const rebuilt = songFromFlat({ ...parsed, id: parsed.id || parsed.songId || 'x' });
+    const view = resolveSongView(rebuilt, rebuilt.defaultArrangementId);
+    return songToMd(view);
+  };
+
+  it('preserves songId/arrangementId identity across a re-serialize', () => {
+    const content = [
+      '---',
+      'title: Aduceți ca jerfă mulțumiri',
+      'artist: Chris Tomlin',
+      'key: G',
+      'tempo: 127',
+      'time: 4/4',
+      'structure: [Verse 1, Chorus 1]',
+      'songId: mppfa60mx7t2lr',
+      'arrangementId: arr_mppfa60mudrn9f',
+      'arrangementName: Main Arrangement',
+      '---',
+      '',
+      '## Verse 1',
+      'Ad[G]uceți ca jertfă mulțumiri',
+      '',
+      '## Chorus 1',
+      'În ve[G]ci El e puternic!',
+      '',
+    ].join('\n');
+    expect(roundTrip(content).trim()).toBe(content.trim());
+    expect(roundTrip(content)).toContain('songId: mppfa60mx7t2lr');
+    expect(roundTrip(content)).not.toMatch(/\nid: /);
+  });
+
+  it('is idempotent (a second pass equals the first)', () => {
+    const content = [
+      '---',
+      'title: Tu ești sfânt',
+      'artist: Hillsong',
+      'key: C',
+      'writers: Marty Sampson',
+      'year: 2001',
+      'structure: [Verse 1]',
+      'songId: mq9c63c4qk4sbd',
+      'arrangementId: arr_mq9c63c4u0mkzj',
+      'arrangementName: Main Arrangement',
+      '---',
+      '',
+      '## Verse 1',
+      '[C]Pe Tine, D[F]oamne',
+      '',
+    ].join('\n');
+    const once = roundTrip(content);
+    const twice = roundTrip(once);
+    expect(twice).toBe(once);
   });
 });
