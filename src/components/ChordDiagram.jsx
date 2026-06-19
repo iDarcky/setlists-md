@@ -21,9 +21,8 @@ export default function ChordDiagram({ chord, size = 80 }) {
           strings: 6,
           frets: 4,
           position: shape.position || 1,
-          title: chord,
-          titleFontSize: 28,
-          titleBottomMargin: 8,
+          // No title — the strip renders the chord name above the card, so
+          // svguitar's own title would just duplicate it (and waste height).
           color: '#666',
           emptyStringIndicatorSize: 0.5,
           strokeWidth: 1,
@@ -58,12 +57,9 @@ export default function ChordDiagram({ chord, size = 80 }) {
             el.setAttribute('fill', 'var(--ds-gray-500)');
           }
         });
-        // Title text brighter
-        const titleEl = svg.querySelector('text');
-        if (titleEl) titleEl.setAttribute('fill', 'var(--ds-gray-1000)');
-        // Set SVG dimensions
+        // Set SVG dimensions (no title row, so square)
         svg.setAttribute('width', size);
-        svg.setAttribute('height', size + 16);
+        svg.setAttribute('height', size);
       }
     } catch {
       // Silently fail for unsupported chords
@@ -82,8 +78,8 @@ export default function ChordDiagram({ chord, size = 80 }) {
     <div
       ref={containerRef}
       title={chord}
-      className="inline-flex shrink-0 items-center justify-center bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg p-0.5"
-      style={{ width: size, height: size + 16 }}
+      className="inline-flex shrink-0 items-center justify-center"
+      style={{ width: size, height: size }}
     />
   );
 }

@@ -764,8 +764,8 @@ export default function ChartView({
           <div className="flex gap-4 overflow-x-auto no-scrollbar pb-8 mb-8 border-b border-[var(--border-1)]">
             {allChords.map(chord => (
               <div key={chord} className="flex flex-col items-center gap-1 flex-shrink-0">
-                <div className="text-label-10-mono font-bold text-[var(--text-2)]">{transposeChord(chord, transpose)}</div>
-                <Card className="w-24 h-28 flex items-center justify-center p-2">
+                <div className="text-label-12-mono font-bold text-[var(--text-1)]">{transposeChord(chord, transpose)}</div>
+                <Card className="w-24 h-24 flex items-center justify-center p-2">
                    <ChordDiagram chord={transposeChord(chord, transpose)} />
                 </Card>
               </div>
