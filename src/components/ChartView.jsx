@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { transposeChord, ALL_KEYS, semitonesBetween, normalizeSectionName } from '../music';
+import { transposeChord, keysInQualityOf, semitonesBetween, normalizeSectionName } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
 import SongMap from './SongMap';
@@ -474,7 +474,7 @@ export default function ChartView({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ALL_KEYS.map(k => (<SelectItem key={k} value={k}>{k}</SelectItem>))}
+                  {keysInQualityOf(song.key).map(k => (<SelectItem key={k} value={k}>{k}</SelectItem>))}
                 </SelectContent>
               </Select>
               {song.tempo && (

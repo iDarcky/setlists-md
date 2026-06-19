@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { transposeKey, transposeChord, ALL_KEYS, semitonesBetween } from '../music';
+import { transposeKey, transposeChord, keysInQualityOf, semitonesBetween } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
 import SongMap from './SongMap';
@@ -448,7 +448,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {ALL_KEYS.map(k => (
+                {keysInQualityOf(cur.song.key).map(k => (
                   <SelectItem key={k} value={k}>{k}</SelectItem>
                 ))}
               </SelectContent>

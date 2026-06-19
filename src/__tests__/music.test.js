@@ -10,6 +10,8 @@ import {
   sectionStyle,
   compactLabel,
   ALL_KEYS,
+  isMinorKey,
+  keysInQualityOf,
   circleOfFifthsDistance,
   keyCompatibilityScore,
   tempoProximityScore,
@@ -210,6 +212,31 @@ describe('ALL_KEYS', () => {
   it('has 12 unique keys', () => {
     expect(ALL_KEYS).toHaveLength(12);
     expect(new Set(ALL_KEYS).size).toBe(12);
+  });
+});
+
+describe('minor keys', () => {
+  it('detects minor vs major (and ignores maj)', () => {
+    expect(isMinorKey('Am')).toBe(true);
+    expect(isMinorKey('Bbm')).toBe(true);
+    expect(isMinorKey('A')).toBe(false);
+    expect(isMinorKey('Cmaj7')).toBe(false);
+  });
+
+  it('computes semitones between minor keys by root', () => {
+    expect(semitonesBetween('Am', 'Bm')).toBe(2);
+    expect(semitonesBetween('Em', 'Gm')).toBe(3);
+    expect(semitonesBetween('Bbm', 'Cm')).toBe(2);
+  });
+
+  it('transposes a minor key and preserves the quality', () => {
+    expect(transposeKey('Am', 2)).toBe('Bm');
+    expect(transposeKey('Em', 3)).toBe('Gm');
+  });
+
+  it('lists keys in the song quality', () => {
+    expect(keysInQualityOf('C')).toEqual(ALL_KEYS);
+    expect(keysInQualityOf('Am')).toEqual(ALL_KEYS.map(k => k + 'm'));
   });
 });
 

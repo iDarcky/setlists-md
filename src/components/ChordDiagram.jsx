@@ -13,23 +13,33 @@ export default function ChordDiagram({ chord, size = 80 }) {
     // Clear previous render
     containerRef.current.innerHTML = '';
 
+    // Resolve the brand accent (honours a Pro accent override) for the dots,
+    // falling back to the app teal. svguitar needs a real colour, not a var().
+    const brand = (getComputedStyle(document.documentElement)
+      .getPropertyValue('--color-brand').trim()) || '#0ea5a4';
+
     try {
       const chart = new SVGuitarChord(containerRef.current);
 
+      // Render as a printed chord box: light "paper" background, dark fretboard
+      // lines/text, brand-coloured finger dots. Colours are configured natively
+      // (not post-processed) so the fretboard fill and the lines never collapse
+      // to the same colour — that was the "invisible diagram" bug.
       chart
         .configure({
           strings: 6,
           frets: 4,
           position: shape.position || 1,
-          // No title — the strip renders the chord name above the card, so
-          // svguitar's own title would just duplicate it (and waste height).
-          color: '#666',
+          // No title — the strip labels each diagram above the card.
+          backgroundColor: '#f7f5f1',
+          color: '#3a342f',
+          fingerColor: brand,
+          fingerTextColor: '#ffffff',
           emptyStringIndicatorSize: 0.5,
-          strokeWidth: 1,
-          nutWidth: 4,
+          strokeWidth: 1.6,
+          nutWidth: 5,
           fretLabelFontSize: 20,
-          fingerSize: 0.6,
-          backgroundColor: 'transparent',
+          fingerSize: 0.65,
           fontFamily: 'var(--fm, monospace)',
         })
         .chord({
@@ -38,29 +48,9 @@ export default function ChordDiagram({ chord, size = 80 }) {
         })
         .draw();
 
-      // Post-process SVG to inject CSS variable colors
       const svg = containerRef.current.querySelector('svg');
       if (svg) {
-        svg.querySelectorAll('circle[fill]').forEach(el => {
-          if (el.getAttribute('fill') !== 'none') {
-            el.setAttribute('fill', 'var(--color-brand)');
-          }
-        });
-        // Render on a light "paper" card with dark fretboard lines — a printed
-        // chord-box look that stays legible under any app/chart theme (the dark
-        // card + faint grid was the unreadable culprit).
-        svg.querySelectorAll('text').forEach(el => {
-          el.setAttribute('fill', '#3f3a36');
-        });
-        svg.querySelectorAll('line, path, rect').forEach(el => {
-          if (el.getAttribute('stroke') && el.getAttribute('stroke') !== 'none') {
-            el.setAttribute('stroke', '#57534e');
-          }
-          if (el.getAttribute('fill') && el.getAttribute('fill') !== 'none' && el.tagName !== 'circle') {
-            el.setAttribute('fill', '#57534e');
-          }
-        });
-        // Set SVG dimensions (no title row, so square)
+        // Square it (no title row).
         svg.setAttribute('width', size);
         svg.setAttribute('height', size);
       }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { smartImport, detectFormat } from '../../importer';
-import { ALL_KEYS } from '../../music';
+import { ALL_KEYS_ALL } from '../../music';
 
 const FORMAT_OPTIONS = [
   { value: 'auto', label: 'Auto-detect' },
@@ -95,7 +95,7 @@ export default function PasteTab({ onSubmit, isMobile = false }) {
             className="w-full h-9 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 text-copy-13 text-[var(--ds-gray-1000)] outline-none"
           >
             <option value="">—</option>
-            {ALL_KEYS.map(k => (
+            {ALL_KEYS_ALL.map(k => (
               <option key={k} value={k}>{k}</option>
             ))}
           </select>

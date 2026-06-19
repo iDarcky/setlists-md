@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import ChartView from './ChartView';
 import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields, EXTRA_META_KEYS } from '../parser';
-import { ALL_KEYS, transposeChord, semitonesBetween } from '../music';
+import { ALL_KEYS_ALL, transposeChord, semitonesBetween } from '../music';
 import { isChordToken } from '../importer';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
 import { importChartText } from '../lib/importChords';
@@ -557,7 +557,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="font-mono">
-            {ALL_KEYS.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+            {ALL_KEYS_ALL.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
           </SelectContent>
         </Select>
         <input

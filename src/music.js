@@ -44,13 +44,29 @@ export function transposeKey(key, semitones) {
 
 // All display keys for selectors
 export const ALL_KEYS = ['A','Bb','B','C','Db','D','Eb','E','F','Gb','G','Ab'];
+// Minor counterparts (root + "m"), same root spelling as the major list.
+export const ALL_KEYS_MINOR = ALL_KEYS.map(k => k + 'm');
+// Every selectable key (major then minor) — used where a song's key is *defined*.
+export const ALL_KEYS_ALL = [...ALL_KEYS, ...ALL_KEYS_MINOR];
 
-// Calculate semitones from one key to another
+// A key is minor when its quality suffix starts with "m" (but not "maj").
+export function isMinorKey(key) {
+  const { suffix } = parseRoot(key || 'C');
+  return /^m(?!aj)/i.test(suffix);
+}
+
+// The 12 keys in the same quality (major/minor) as `key`. Transpose controls use
+// this so changing the displayed key shifts pitch without flipping major↔minor.
+export function keysInQualityOf(key) {
+  return isMinorKey(key) ? ALL_KEYS_MINOR : ALL_KEYS;
+}
+
+// Calculate semitones from one key to another. Parses each key's *root* so
+// minor keys (e.g. "Am", "Bbm") and accidentals resolve correctly — using the
+// whole string would miss the "m"/flat and silently return 0.
 export function semitonesBetween(fromKey, toKey) {
-  const fromRoot = FLAT_MAP[fromKey] || fromKey;
-  const toRoot = FLAT_MAP[toKey] || toKey;
-  const fi = CHROMATIC.indexOf(fromRoot);
-  const ti = CHROMATIC.indexOf(toRoot);
+  const fi = CHROMATIC.indexOf(parseRoot(fromKey || 'C').root);
+  const ti = CHROMATIC.indexOf(parseRoot(toKey || 'C').root);
   if (fi === -1 || ti === -1) return 0;
   return (ti - fi + 12) % 12;
 }
