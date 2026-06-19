@@ -47,6 +47,7 @@ export default function ChartView({
   song: songInput, onBack, onEdit, isPreview,
   defaultFontSize = 16,
   showInlineNotes = true, inlineNoteStyle = 'dashes',
+  duplicateSections = 'full',
   chartLayout = 'columns',
   isFullscreen = false, onToggleFullscreen,
   onTransposed,
@@ -311,6 +312,22 @@ export default function ChartView({
       return offset;
     });
   }, [orderedSections]);
+
+  // Condensed repeats: for each playback slot, the index of the first occurrence
+  // it duplicates, or -1 when it's the first/only occurrence. A repeat only
+  // condenses when its chords render identically to the first — i.e. the same
+  // section id AND the same cumulative modulate offset (a repeat after a key
+  // change has different chords and must render in full).
+  const repeatFirstIndex = useMemo(() => {
+    const firstSeen = new Map();
+    return orderedSections.map((section, idx) => {
+      const key = section.id || normalizeSectionName(section.type);
+      const prior = firstSeen.get(key);
+      if (prior != null && prior.mod === sectionModOffsets[idx]) return prior.idx;
+      if (prior == null) firstSeen.set(key, { idx, mod: sectionModOffsets[idx] });
+      return -1;
+    });
+  }, [orderedSections, sectionModOffsets]);
 
   // Extract all unique chords for diagrams
   const allChords = Array.from(new Set(
@@ -590,6 +607,24 @@ export default function ChartView({
                   >Diagrams</Button>
                 </div>
               </SheetField>
+              <SheetField label="Repeated sections">
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'full', label: 'Full' },
+                    { id: 'condensed', label: 'Condensed' },
+                  ].map(b => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => onUpdateSettings?.('duplicateSections', b.id)}
+                      aria-pressed={duplicateSections === b.id}
+                      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${duplicateSections === b.id ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </SheetField>
               <SheetField label="Instrument">
                 <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
                   {STAGE_MODES.map(m => {
@@ -781,6 +816,11 @@ export default function ChartView({
                 modOffset={sectionModOffsets[idx]}
                 notation={notation}
                 songKey={song.key}
+                condensed={duplicateSections === 'condensed' && repeatFirstIndex[idx] >= 0}
+                onJumpToFirst={() => {
+                  const el = document.getElementById(`section-${repeatFirstIndex[idx]}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
                 showChords={showChords && viewChords}
                 showLyrics={viewLyrics}
                 showTabs={viewTabs}
