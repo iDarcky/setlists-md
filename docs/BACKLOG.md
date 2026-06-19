@@ -291,6 +291,24 @@ called out in their own section at the bottom.
   workflows here (finish/release, changelog bump, migration apply, PDF
   verify) are good skill candidates, and whether to adopt. _tags:_ [idea],
   [dx], [tooling] · _pri:_ P3
+- **More / custom instruments** — the roster instrument list is a fixed set
+  (Acoustic/Electric/Bass/Drums/Keys/Piano). Expand it and allow per-team
+  custom instruments (and surface them in the band picker + member profile).
+  _tags:_ [idea], [team], [roster] · _pri:_ P3 · _later_
+- **Companion congregation songbook app** — a separate, lightweight app that
+  connects to Setlists.md and acts as a read-only songbook/lyrics view for the
+  congregation (follow-along during a service). Big-picture idea — scope TBD.
+  _tags:_ [idea], [product], [horizon] · _pri:_ P4
+- **Auto-playlist tab in setlist overview** — a new tab that builds a playlist
+  from the songs' YouTube/Spotify links (where present), so a leader can play
+  the set's references back-to-back. Investigate embedding/Spotify+YouTube
+  APIs and what's feasible offline/in-PWA. _tags:_ [idea], [setlists],
+  [integrations] · _pri:_ P3
+- **Editable setlist table fields (full column picker)** — the Labs "schedule
+  columns" flag adds Instrumentalists/Vocalists/Scheduled as a fixed set. The
+  richer version: let users choose which columns show in the setlist tables
+  (drag/toggle any field). _tags:_ [idea], [setlists], [labs] · _pri:_ P3 ·
+  _later_
 
 ## 14. Cross-cutting concerns
 
