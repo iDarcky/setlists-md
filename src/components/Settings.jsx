@@ -577,9 +577,6 @@ function LabsPanel({ settings, update }) {
           Heads up: these are experimental and may not work as expected. Turning one on could cause display glitches or unexpected behaviour — switch it back off if something goes wrong.
         </p>
       </div>
-      <LabsToggle settings={settings} update={update} flag="setlistOverviewV2"
-        label="Setlist overview v2"
-        description="A redesigned setlist overview — layered layout, cleaner header, and an improved band view. Off keeps the current design." />
       <LabsToggle settings={settings} update={update} flag="setlistScheduleColumns"
         label="Setlist schedule columns"
         description="In team workspaces, show Instrumentalists, Vocalists, and Scheduled counts as extra columns in the setlist tables." />

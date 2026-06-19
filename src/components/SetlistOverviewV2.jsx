@@ -236,29 +236,25 @@ export default function SetlistOverviewV2({ setlist, songs, setlists = [], onBac
             </div>
           </div>
 
-          {/* Row 2: the live event — date · time · location, all on one line */}
+          {/* Row 2: the event meta on one line — date · time · location, with
+              the rehearsal as a distinct (purple) chip so it reads apart. */}
           {!collapsed && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0 mt-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 min-w-0 mt-2 mb-3">
               <MetaChip icon="calendar">{dateStr}</MetaChip>
               {timeStr && <MetaChip icon="clock">{timeStr}</MetaChip>}
               {setlist.location && <MetaChip icon="location">{setlist.location}</MetaChip>}
+              {rehearsalStr && (
+                <span
+                  className="inline-flex items-center gap-1.5 text-label-12 px-2 py-0.5 rounded-full"
+                  style={{ background: 'var(--ds-purple-100)', color: 'var(--ds-purple-900)' }}
+                  title={`Rehearsal${setlist.rehearsalLocation ? ` · ${setlist.rehearsalLocation}` : ''}`}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">{ICONS.rehearsal}</svg>
+                  <span className="font-semibold">Rehearsal</span> {rehearsalStr}
+                </span>
+              )}
             </div>
           )}
-
-          {/* Row 3: rehearsal — set apart in its own subtle pill */}
-          {!collapsed && rehearsalStr && (
-            <div className="inline-flex items-center gap-1.5 mt-2 mb-1 px-2.5 py-1 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)]">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--ds-gray-500)]">
-                {ICONS.rehearsal}
-              </svg>
-              <span className="text-label-12 text-[var(--ds-gray-700)]">
-                <span className="font-semibold text-[var(--ds-gray-900)]">Rehearsal</span> · {rehearsalStr}
-                {setlist.rehearsalLocation && ` · ${setlist.rehearsalLocation}`}
-              </span>
-            </div>
-          )}
-
-          <div className="h-2" aria-hidden="true" />
 
           {/* Service + tags on one line — service first, styled distinctly. */}
           {!collapsed && (setlist.service || !!setlist.tags?.length) && (

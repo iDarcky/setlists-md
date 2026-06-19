@@ -18,7 +18,7 @@ import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RecommendedNextPanel from './setlist/RecommendedNextPanel';
 import RosterPanel from './setlist/RosterPanel';
 
-export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
+export default function SetlistBuilder({ songs, setlist, setlists = [], onSave, onBack, onDelete, isTeamContext, knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h', overscheduleWarn = false, streakLimit = 3 }) {
   const confirm = useConfirm();
   const [name, setName] = useState(setlist?.name || '');
   // New setlists default to the upcoming Sunday at 10:00 — the most common
@@ -306,43 +306,40 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
           all available space so the Save/Cancel bar below pins to the
           bottom of <main> even when the form is short. ── */}
       <div className="flex-1 w-full max-w-5xl mx-auto px-5 pt-6 pb-12">
-        {/* Draft/ready status. (Workspace reminder chip removed — not relevant.) */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-4">
-          <div className="sm:ml-auto">
-            <SegmentedControl
-              value={status}
-              onChange={setStatus}
-              size="sm"
-              options={[
-                { value: 'draft', label: 'Draft' },
-                { value: 'ready', label: 'Ready' },
-              ]}
-            />
-          </div>
+        {/* Toolbar — Set order / Band tabs (team, once saved) on the left,
+            Draft / Ready on the right, aligned on one row. */}
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
+          {isTeamContext && setlist ? (
+            <div className="inline-flex p-0.5 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)]">
+              {[['setlist', 'Set order'], ['roster', 'Band']].map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTab(id)}
+                  className={`px-3.5 h-8 rounded-md text-label-13 font-semibold transition-colors border-none cursor-pointer ${
+                    tab === id
+                      ? 'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] shadow-sm'
+                      : 'bg-transparent text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : <span />}
+          <SegmentedControl
+            value={status}
+            onChange={setStatus}
+            size="sm"
+            options={[
+              { value: 'draft', label: 'Draft' },
+              { value: 'ready', label: 'Ready' },
+            ]}
+          />
         </div>
 
-        {/* Tabs — team setlists, once saved, can manage the roster here. */}
-        {isTeamContext && setlist && (
-          <div className="inline-flex p-0.5 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] mb-6">
-            {[['setlist', 'Set order'], ['roster', 'Band']].map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTab(id)}
-                className={`px-3.5 h-8 rounded-md text-label-13 font-semibold transition-colors border-none cursor-pointer ${
-                  tab === id
-                    ? 'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] shadow-sm'
-                    : 'bg-transparent text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-
         {isTeamContext && setlist && tab === 'roster' ? (
-          <RosterPanel inline setlistId={setlist.id} setlistDate={date} onClose={() => setTab('setlist')} />
+          <RosterPanel inline v2 setlistId={setlist.id} setlistDate={date} setlists={setlists} overscheduleWarn={overscheduleWarn} streakLimit={streakLimit} onClose={() => setTab('setlist')} />
         ) : (
         <div className="flex flex-col lg:flex-row gap-8">
 

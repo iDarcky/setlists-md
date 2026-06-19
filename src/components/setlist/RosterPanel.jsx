@@ -283,6 +283,12 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
                       <div className="flex flex-col min-w-0 flex-1 gap-1">
                         <span className="text-copy-14 font-bold truncate leading-tight">{displayName}</span>
                         <div className="flex items-center gap-1.5 flex-wrap">
+                          {(streakByUser[schedule.user_id] || 0) >= streakLimit && (
+                            <span className="inline-flex items-center gap-1 text-label-11 px-2 py-0.5 rounded-full bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)]" title={`Scheduled for the last ${streakByUser[schedule.user_id]} services`}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                              {streakByUser[schedule.user_id]}× in a row
+                            </span>
+                          )}
                           {/* v2: the avatar dot already carries availability, so
                               only surface the text pill when it needs attention
                               (anything other than a confirmed "available"). */}

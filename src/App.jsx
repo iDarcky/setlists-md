@@ -146,7 +146,6 @@ const PORTABLE_PREF_KEYS = [
   'tabStringColor',
   'tabNumberColor',
   'tabBg',
-  'setlistOverviewV2',
   'setlistScheduleColumns',
   'rosterOverscheduleWarning',
   'rosterStreakLimit',
@@ -2193,12 +2192,15 @@ export default function App() {
             <SetlistBuilder
               songs={songs}
               setlist={currentSetlist}
+              setlists={setlists}
               onSave={handleSaveSetlist}
               onBack={goBack}
               onDelete={currentSetlist && !isTeamReadOnly ? handleDeleteSetlist : null}
               isTeamContext={activeLibrary !== 'personal'}
               workspaceName={currentWorkspaceName}
               knownServices={knownServices}
+              overscheduleWarn={settings?.rosterOverscheduleWarning}
+              streakLimit={settings?.rosterStreakLimit || 3}
               onDirtyChange={markSetlistDirty}
               onUpdateSong={handleUpdateSong}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}

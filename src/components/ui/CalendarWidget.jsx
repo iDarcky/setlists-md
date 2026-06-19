@@ -19,7 +19,7 @@ export function CalendarWidget({
 }) {
   const scrollRef = useRef(null);
 
-  // Generate an array of dates starting from 2 days ago up to 12 days ahead
+  // Generate an array of dates starting from 2 days ago up to 14 days ahead
   const dates = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -62,8 +62,27 @@ export function CalendarWidget({
     if (scrollRef.current) scrollRef.current.scrollBy({ left: 200, behavior: 'smooth' });
   };
 
+  // ── Colour language ──────────────────────────────────────────────────────
+  // Two independent axes, never mixed onto one swatch:
+  //   • Event TYPE colours the cell:  Service = brand (teal), Rehearsal = purple.
+  //   • My AVAILABILITY is a small dot: available = green, maybe = amber,
+  //     unavailable = red, pending = grey. (No dot when there's no response.)
+  const EVENT_STYLE = {
+    service:   { bg: 'bg-[var(--color-brand-soft)]', border: 'border-[var(--color-brand-border)]', text: 'text-[var(--color-brand)]' },
+    rehearsal: { bg: 'bg-[var(--ds-purple-100)]',    border: 'border-[var(--ds-purple-300)]',      text: 'text-[var(--ds-purple-900)]' },
+    none:      { bg: 'bg-[var(--ds-background-200)]', border: 'border-[var(--ds-gray-300)]',        text: 'text-[var(--ds-gray-900)]' },
+  };
+  const AVAIL_DOT = {
+    playing:     'bg-[var(--ds-green-500)]',
+    available:   'bg-[var(--ds-green-500)]',
+    maybe:       'bg-[var(--ds-amber-500)]',
+    unavailable: 'bg-[var(--ds-red-600)]',
+    pending:     'bg-[var(--ds-gray-400)]',
+    none:        '',
+  };
+
   return (
-    <div className="w-full flex flex-col gap-3">
+    <div className="w-full min-w-0 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2 className="text-heading-20 font-bold text-[var(--modes-text)]">
           My Schedule
@@ -86,10 +105,10 @@ export function CalendarWidget({
         </div>
       </div>
 
-      <div className="relative">
+      <div className="relative min-w-0">
         <div
           ref={scrollRef}
-          className="flex items-start gap-2 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory hide-scrollbar"
+          className="flex items-start gap-2 overflow-x-auto pb-3 pt-1 snap-x snap-mandatory hide-scrollbar"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {dates.map((date, i) => {
@@ -97,8 +116,8 @@ export function CalendarWidget({
             const isToday = date.getTime() === today.getTime();
             const myAvail = myAvailabilityFor(date);
 
-            // Event identity (what's happening that day) — kept SEPARATE from my
-            // status. Service wins over rehearsal for the headline.
+            // Event identity (what's happening that day). Service wins over
+            // rehearsal for the headline.
             const eventType = serviceSetlists.length ? 'service'
               : rehearsalSetlists.length ? 'rehearsal' : null;
             const eventSetlist = serviceSetlists[0] || rehearsalSetlists[0] || null;
@@ -106,9 +125,7 @@ export function CalendarWidget({
             const extraEvents = (serviceSetlists.length + rehearsalSetlists.length) - 1;
             const hasSetlist = !!eventSetlist;
 
-            // Status = MY status only (color language). playing/rostered →
-            // distinct brand; available → green; maybe → amber; unavailable →
-            // red; pending = invited but not replied; none = no response.
+            // My availability for the day (drives the dot only).
             const mySched = serviceSchedules[0] || rehearsalSchedules[0] || null;
             let status = 'none';
             if (mySched) {
@@ -117,8 +134,7 @@ export function CalendarWidget({
               else if (mySched.availability === 'maybe') status = 'maybe';
               else if (mySched.availability === 'unavailable') status = 'unavailable';
             } else if (eventType && !schedules) {
-              // Personal mode (no team scheduling) — your own event = you're on.
-              status = 'playing';
+              status = 'playing'; // personal mode — your own event = you're on
             }
             if (status === 'none') {
               if (myAvail === 'available') status = 'available';
@@ -126,17 +142,13 @@ export function CalendarWidget({
               else if (myAvail === 'unavailable') status = 'unavailable';
             }
 
-            const PALETTE = {
-              playing:     { bg: 'bg-[var(--color-brand-soft)]', border: 'border-[var(--color-brand)]',        text: 'text-[var(--color-brand)]',   dot: 'bg-[var(--color-brand)]' },
-              available:   { bg: 'bg-[var(--ds-green-100)]',     border: 'border-[var(--ds-green-300)]',       text: 'text-[var(--ds-green-900)]',  dot: 'bg-[var(--ds-green-500)]' },
-              maybe:       { bg: 'bg-[var(--ds-amber-100)]',     border: 'border-[var(--ds-amber-300)]',       text: 'text-[var(--ds-amber-900)]',  dot: 'bg-[var(--ds-amber-500)]' },
-              unavailable: { bg: 'bg-[var(--ds-red-100)]',       border: 'border-[var(--ds-red-300)]',         text: 'text-[var(--ds-red-800)]',    dot: 'bg-[var(--ds-red-600)]' },
-              pending:     { bg: 'bg-[var(--ds-background-200)]', border: 'border-[var(--color-brand-border)]', text: 'text-[var(--color-brand)]',   dot: 'bg-[var(--color-brand)]' },
-              none:        { bg: 'bg-[var(--ds-background-200)]', border: 'border-[var(--ds-gray-300)]',        text: 'text-[var(--ds-gray-900)]',   dot: 'bg-transparent' },
-            };
-            const pal = (status === 'none' && isToday)
-              ? { ...PALETTE.none, bg: 'bg-[var(--ds-background-100)]', border: 'border-[var(--ds-gray-400)]' }
-              : PALETTE[status];
+            const ev = EVENT_STYLE[eventType || 'none'];
+            const dotClass = AVAIL_DOT[status] || '';
+            const isTodayNoEvent = !eventType && isToday;
+            const cellBg = isTodayNoEvent ? 'bg-[var(--ds-background-100)]' : ev.bg;
+            const cellBorder = isTodayNoEvent ? 'border-[var(--ds-gray-400)]' : ev.border;
+            const ringClass = isToday ? 'ring-2 ring-[var(--color-brand)] ring-offset-1 ring-offset-[var(--ds-background-100)]' : '';
+            const weekday = isToday ? 'Today' : date.toLocaleDateString('en-US', { weekday: 'short' });
 
             // Clicking any day opens the day detail/availability modal; if the
             // host didn't wire one, fall back to opening the day's setlist.
@@ -145,69 +157,41 @@ export function CalendarWidget({
               else if (hasSetlist && onDateClick) onDateClick(eventSetlist);
             };
 
-            const weekday = isToday ? 'Today' : date.toLocaleDateString('en-US', { weekday: 'short' });
-            const ringClass = isToday ? 'ring-2 ring-[var(--color-brand)] ring-offset-1 ring-offset-[var(--ds-background-100)]' : '';
-            const baseClass = `relative snap-start shrink-0 rounded-2xl border transition-transform duration-150 active:scale-95 cursor-pointer hover:shadow-md ${pal.bg} ${pal.border} ${ringClass}`;
-
-            // Event days are wider calendar cells showing the event NAME + a
-            // neutral type tag (type is text/icon, never color). Plain days
-            // stay compact chips.
-            if (eventType) {
-              return (
+            // Uniform compact chips keep the strip even; the event name hangs
+            // beneath as a caption (full name in the title/aria) so longer names
+            // never crowd the cell.
+            return (
+              <div key={i} className="flex flex-col items-center gap-1.5 shrink-0 snap-start w-[72px]">
                 <button
-                  key={i}
                   onClick={handleClick}
                   aria-current={isToday ? 'date' : undefined}
-                  aria-label={`${eventType === 'service' ? 'Service' : 'Rehearsal'}: ${eventName}`}
-                  className={`${baseClass} w-32 h-20 flex flex-col justify-between text-left px-3 py-2`}
+                  aria-label={eventType ? `${eventType === 'service' ? 'Service' : 'Rehearsal'}: ${eventName}` : `${weekday} ${date.getDate()}`}
+                  className={`w-16 h-[72px] rounded-2xl border flex flex-col items-center justify-center transition-transform duration-150 active:scale-95 cursor-pointer hover:shadow-md ${cellBg} ${cellBorder} ${ringClass}`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-label-12 font-semibold uppercase tracking-wider ${pal.text}`}>
-                      {weekday} {date.getDate()}
-                    </span>
-                    {status !== 'none' && <div className={`w-1.5 h-1.5 rounded-full ${pal.dot}`}></div>}
-                  </div>
-                  <span className={`text-copy-14 font-bold leading-tight line-clamp-2 ${pal.text}`}>
-                    {eventName}{extraEvents > 0 ? ` +${extraEvents}` : ''}
+                  <span className={`text-label-11 font-semibold uppercase tracking-wider ${eventType ? ev.text : 'text-[var(--ds-gray-500)]'}`}>
+                    {weekday}
                   </span>
-                  <span className="inline-flex items-center gap-1 text-label-11 font-medium text-[var(--ds-gray-600)]">
-                    {eventType === 'rehearsal' ? (
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    ) : (
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-                    )}
-                    {eventType === 'rehearsal' ? 'Rehearsal' : 'Service'}
+                  <span className={`text-heading-20 leading-none ${isToday ? 'font-extrabold' : 'font-bold'} ${eventType ? ev.text : 'text-[var(--ds-gray-900)]'}`}>
+                    {date.getDate()}
+                  </span>
+                  <span className="h-2 mt-1 flex items-center">
+                    {dotClass && <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />}
                   </span>
                 </button>
-              );
-            }
-
-            return (
-              <button
-                key={i}
-                onClick={handleClick}
-                aria-current={isToday ? 'date' : undefined}
-                className={`${baseClass} w-16 h-20 flex flex-col items-center justify-center`}
-              >
-                <span className={`text-label-12 font-semibold uppercase tracking-wider mb-1 ${status !== 'none' ? pal.text : 'text-[var(--ds-gray-500)]'}`}>
-                  {weekday}
+                <span
+                  className={`text-label-11 leading-tight text-center w-full truncate min-h-[14px] ${eventType ? ev.text : 'text-transparent'}`}
+                  title={eventType ? eventName : undefined}
+                >
+                  {eventType ? `${eventName}${extraEvents > 0 ? ` +${extraEvents}` : ''}` : ' '}
                 </span>
-                <span className={`text-heading-20 m-0 leading-none ${isToday ? 'font-extrabold' : ''} ${pal.text}`}>
-                  {date.getDate()}
-                </span>
-                <div className="h-2 mt-1">
-                  {status !== 'none' && (
-                    <div className={`w-1.5 h-1.5 rounded-full ${pal.dot}`}></div>
-                  )}
-                </div>
-              </button>
+              </div>
             );
           })}
         </div>
 
         {/* Scroll gradients */}
-        <div className="absolute top-0 bottom-4 left-0 w-8 bg-gradient-to-r from-[var(--ds-background-100)] to-transparent pointer-events-none sm:hidden"></div>
-        <div className="absolute top-0 bottom-4 right-0 w-8 bg-gradient-to-l from-[var(--ds-background-100)] to-transparent pointer-events-none"></div>
+        <div className="absolute top-0 bottom-3 left-0 w-8 bg-gradient-to-r from-[var(--ds-background-100)] to-transparent pointer-events-none sm:hidden"></div>
+        <div className="absolute top-0 bottom-3 right-0 w-8 bg-gradient-to-l from-[var(--ds-background-100)] to-transparent pointer-events-none"></div>
       </div>
     </div>
   );
