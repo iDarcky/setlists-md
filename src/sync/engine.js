@@ -378,11 +378,20 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
       }
     }
 
-    // Delete remote files for songs removed locally
+    // Delete remote files for songs removed locally.
+    // CIRCUIT BREAKER: refuse to delete a large share of the library in one
+    // sync. This loop deletes by ABSENCE from the local array, so a momentarily
+    // empty/truncated local state (bad pull, library-switch race) would wipe
+    // every remote file. A real user removing that many at once is implausible;
+    // block the destructive batch and surface an error instead.
     const currentSongIds = new Set(songs.map(s => s.id));
-    for (const [id, entry] of Object.entries(manifest)) {
-      if (!currentSongIds.has(id)) {
-        try { await provider.deleteFile(entry.remoteId); } catch { /* may not exist */ }
+    const songDeletes = Object.keys(manifest).filter(id => !currentSongIds.has(id));
+    const songMass = songDeletes.length >= 8 && songDeletes.length > Object.keys(manifest).length * 0.5;
+    if (songMass) {
+      errors.push({ kind: 'song', message: `Safety guard: refused to delete ${songDeletes.length} of ${Object.keys(manifest).length} songs in one sync. No files were removed.` });
+    } else {
+      for (const id of songDeletes) {
+        try { await provider.deleteFile(manifest[id].remoteId); } catch { /* may not exist */ }
         delete manifest[id];
       }
     }
@@ -419,11 +428,15 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
       }
     }
 
-    // Delete remote files for setlists removed locally
+    // Delete remote files for setlists removed locally (same circuit breaker).
     const currentSetlistIds = new Set(setlists.map(sl => sl.id));
-    for (const [id, entry] of Object.entries(slManifest)) {
-      if (!currentSetlistIds.has(id)) {
-        try { await provider.deleteFile(entry.remoteId); } catch { /* may not exist */ }
+    const slDeletes = Object.keys(slManifest).filter(id => !currentSetlistIds.has(id));
+    const slMass = slDeletes.length >= 8 && slDeletes.length > Object.keys(slManifest).length * 0.5;
+    if (slMass) {
+      errors.push({ kind: 'setlist', message: `Safety guard: refused to delete ${slDeletes.length} of ${Object.keys(slManifest).length} setlists in one sync. No files were removed.` });
+    } else {
+      for (const id of slDeletes) {
+        try { await provider.deleteFile(slManifest[id].remoteId); } catch { /* may not exist */ }
         delete slManifest[id];
       }
     }
