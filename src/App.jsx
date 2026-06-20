@@ -1272,10 +1272,28 @@ export default function App() {
   // emitted by the Editor (parseSongMd returns flat). When the input is flat
   // and matches an existing song id, we merge into the active/default
   // arrangement so the song's other arrangements are preserved.
-  const handleSaveSong = (input, opts = {}) => {
+  const handleSaveSong = async (input, opts = {}) => {
     if (isTeamReadOnly) {
       toast({ title: 'Read-only library', description: 'You don\'t have permission to edit songs here.', variant: 'error' });
-      return;
+      return false;
+    }
+    // Duplicate-title guard for brand-new songs (covers create, copy, and the
+    // import flow — every imported song persists through here on Save). Stops
+    // accidentally piling up a second copy of a song that's already in the
+    // library. `opts.allowDuplicate` bypasses it for intentional duplicates.
+    const existsById = !!(input?.id && songs.some(s => s.id === input.id));
+    if (!existsById && !opts.allowDuplicate) {
+      const norm = (t) => (t || '').trim().toLowerCase();
+      const title = norm(input?.title);
+      const dup = title && songs.find(s => norm(s.title) === title);
+      if (dup) {
+        const ok = await confirm({
+          title: 'Song already exists',
+          description: `"${dup.title}" is already in your library. Add this as a separate copy anyway?`,
+          confirmLabel: 'Add anyway',
+        });
+        if (!ok) return false;
+      }
     }
     const isV2 = !!(input && Array.isArray(input.arrangements) && input.arrangements.length > 0);
     let v2 = input;

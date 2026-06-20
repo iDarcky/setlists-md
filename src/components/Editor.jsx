@@ -227,7 +227,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     return () => clearTimeout(timer);
   }, [md, savedMd, draftKey]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!preview) return;
     // Build the next v2 song by patching the active arrangement's content
     // from the freshly parsed preview, plus carrying over the song-level
@@ -253,8 +253,11 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     for (const k of EXTRA_META_KEYS) {
       if (preview[k] !== undefined) nextSong[k] = preview[k];
     }
+    // onSave may prompt (e.g. duplicate-title guard) and return false if the
+    // user backs out — don't claim "saved" or clear the draft in that case.
+    const result = await onSave(nextSong);
+    if (result === false) return;
     setWorkingSong(nextSong);
-    onSave(nextSong);
     setSavedMd(md);
     clearDraft();
     setDraftFound(null);
