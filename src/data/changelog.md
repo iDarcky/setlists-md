@@ -17,6 +17,11 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Over-scheduling warning** *(Labs)* — get a heads-up when you're about to schedule someone who's already played several services in a row; choose how many in a row triggers it under Settings → Labs.
 - **Schedule counts in setlist tables** — team setlist tables show how many instrumentalists, vocalists and total members are scheduled.
 - **Labs settings** — a new Settings → Labs area for trying experimental features early.
+- **Minor keys** — set a song's key as minor (e.g. Am) and transpose within minor keys everywhere you change key.
+- **More chord notations** — show chords as Letters, Nashville numbers, or Do‑Re‑Mi (fixed‑do), plus a new Chords‑only view.
+- **Condensed repeats** — a section that repeats (a chorus played several times) can collapse to a tappable "Repeat" line instead of reprinting the whole thing.
+- **Recently deleted** — deleting a song now keeps it for 30 days under Settings → Data, so an accidental delete is recoverable.
+- **Duplicate check** — creating or importing a song that's already in your library asks first, so a re‑import won't quietly pile up copies.
 
 ### Improved
 - **Reworked stage header** — Chart, Practice and Live now share a clean three-row header (title · key/tempo/time · structure) that collapses to just the structure as you scroll, with an auto-hide setting and tap-to-reveal.
@@ -31,12 +36,14 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Consistent schedule colours** — services are teal, rehearsals blue, and your availability is a green/amber/red dot — the same across the dashboard widget, calendar and list.
 - **Smarter setlist ordering** — upcoming setlists list soonest-first and stay "upcoming" until an hour after they start; past ones group newest day first (morning before evening within a day).
 - **Tidier setlist editor** — Draft/Ready moved into the header, and the band is now managed from the setlist overview; the service filter is a proper dropdown.
+- **Chart display, reorganized** — separate Display / Layout / Actions menus, with theme and sizes under Layout; clearer, easier‑to‑read chord diagrams; the header now matches your chart theme; and the title bar stays put by default with a one‑tap show/hide.
 
 ### Fixed
 - **Sync feels quiet** — the status no longer flickers on every edit; closed a sync race, ignore the echo of your own changes, and always surface team conflicts.
 - **Double scrollbar** on the Songs and Setlists screens is gone.
 - New songs no longer pre-fill the title with "New Song"; the editor's "+ Add" menu no longer hides under the header; and the structure bar no longer clips its first item.
 - Opening a setlist no longer jumps you to the bottom of the list.
+- **Sync safety** — a guard now blocks any single sync from deleting most of your library; team libraries automatically heal songs whose id drifted (no more "duplicate" sync failures); routine syncs no longer log false "edited" activity; and a sync that would drop a song now keeps it in Recently deleted instead of losing it.
 
 ### Security
 - **Tighter by default** — the app now runs under an enforced content-security policy (no inline scripts), share links use longer, harder-to-guess tokens, and text fields have sensible length limits.
