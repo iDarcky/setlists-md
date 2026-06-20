@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { transposeChord, sectionStyle, sectionLabel, getNashvilleNumber } from '../music';
+import { notateChord, sectionStyle, sectionLabel } from '../music';
 import { parseLine } from '../parser';
 import TabBlock from './TabBlock';
 
@@ -49,10 +49,14 @@ function groupChordWords(pairs) {
 }
 
 export default function SectionBlock({
-  section, transpose, modOffset = 0, nns, songKey,
+  section, transpose, modOffset = 0, nns, notation, songKey,
   showChords = true, showLyrics = true, showTabs = true, inlineNotes = true, noteStyle = 'dashes',
   sectionColors, sectionLabels, customSectionTypes, tabScale = 1, tabColors, tabInstrument = 'all', chordEmphasis = 'full',
+  condensed = false, onJumpToFirst,
 }) {
+  // Reader notation: prefer the explicit `notation` prop; fall back to the
+  // legacy boolean `nns` (Nashville on/off) for callers not yet migrated.
+  const notationMode = notation ?? (nns ? 'nashville' : 'letters');
   const s = sectionStyle(section.type, sectionColors, customSectionTypes);
   // When an instrument filter is active, only show tabs tagged for it. Untagged
   // tabs are only shown under "all".
@@ -132,7 +136,7 @@ export default function SectionBlock({
     const hasLyrics = pairs.some(p => p.text.trim());
 
     const renderChord = (rawChord, padded) => {
-      let chord = nns ? getNashvilleNumber(rawChord, songKey) : transposeChord(rawChord, effectiveTranspose);
+      let chord = notateChord(rawChord, { key: songKey, notation: notationMode, transpose: effectiveTranspose });
       // Bass "root emphasis": collapse each chord to the note a bassist plays —
       // the slash bass if present, otherwise the chord root.
       if (chordEmphasis === 'root') chord = bassNote(chord);
@@ -202,6 +206,36 @@ export default function SectionBlock({
       </div>
     );
   };
+
+  // Condensed: a repeated section collapses to just its header + a "repeat"
+  // affordance (no chords/lyrics/tabs). Tapping jumps to the first occurrence.
+  if (condensed) {
+    const Tag = onJumpToFirst ? 'button' : 'div';
+    return (
+      <Tag
+        type={onJumpToFirst ? 'button' : undefined}
+        onClick={onJumpToFirst}
+        aria-label={onJumpToFirst ? `${displayLabel} — repeat, jump to first occurrence` : undefined}
+        className={`break-inside-avoid w-full flex items-center gap-3 text-left rounded-lg px-3 py-2 border bg-[var(--bg-1)] ${onJumpToFirst ? 'cursor-pointer hover:border-[var(--border-3)] transition-colors' : ''}`}
+        style={{ marginBottom: 'var(--chart-section-gap, 24px)', borderColor: s.br }}
+      >
+        <span className="text-label-14 font-black uppercase tracking-[0.15em]" style={{ color: s.b }}>
+          {displayLabel}
+        </span>
+        {section.note && (
+          <span className="text-label-11 italic px-1 border-l-2" style={{ borderColor: s.br, color: 'var(--chart-subtle, var(--text-2))' }}>
+            {section.note}
+          </span>
+        )}
+        <span className="ml-auto inline-flex items-center gap-1 text-label-11 text-[var(--text-2)] shrink-0">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+          </svg>
+          Repeat
+        </span>
+      </Tag>
+    );
+  }
 
   return (
     <div

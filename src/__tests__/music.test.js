@@ -4,10 +4,14 @@ import {
   transposeKey,
   semitonesBetween,
   getNashvilleNumber,
+  getSolfege,
+  notateChord,
   getDiatonicChords,
   sectionStyle,
   compactLabel,
   ALL_KEYS,
+  isMinorKey,
+  keysInQualityOf,
   circleOfFifthsDistance,
   keyCompatibilityScore,
   tempoProximityScore,
@@ -120,6 +124,51 @@ describe('getNashvilleNumber', () => {
   });
 });
 
+describe('getSolfege (fixed-do)', () => {
+  it('maps each letter to its fixed-do syllable, B→Si', () => {
+    expect(getSolfege('C')).toBe('Do');
+    expect(getSolfege('D')).toBe('Re');
+    expect(getSolfege('E')).toBe('Mi');
+    expect(getSolfege('F')).toBe('Fa');
+    expect(getSolfege('G')).toBe('Sol');
+    expect(getSolfege('A')).toBe('La');
+    expect(getSolfege('B')).toBe('Si');
+  });
+
+  it('preserves accidentals and suffixes', () => {
+    expect(getSolfege('Bb')).toBe('Sib');
+    expect(getSolfege('F#m7')).toBe('Fa#m7');
+    expect(getSolfege('Am')).toBe('Lam');
+  });
+
+  it('handles slash chords', () => {
+    expect(getSolfege('C/E')).toBe('Do/Mi');
+    expect(getSolfege('G/B')).toBe('Sol/Si');
+  });
+});
+
+describe('notateChord', () => {
+  it('transposes letter chords (letters notation)', () => {
+    expect(notateChord('C', { key: 'C', notation: 'letters', transpose: 2 })).toBe('D');
+    expect(notateChord('C', { key: 'C' })).toBe('C'); // defaults to letters, no transpose
+  });
+
+  it('renders Nashville numbers relative to key, ignoring transpose', () => {
+    expect(notateChord('G', { key: 'C', notation: 'nashville', transpose: 5 })).toBe('5');
+  });
+
+  it('renders fixed-do solfège that follows transpose like letters', () => {
+    expect(notateChord('G', { notation: 'solfege', transpose: 0 })).toBe('Sol');
+    expect(notateChord('G', { notation: 'solfege', transpose: 2 })).toBe('La'); // G+2 = A
+    expect(notateChord('G', { notation: 'solfege', transpose: 5 })).toBe('Do'); // G+5 = C
+  });
+
+  it('handles slash chords across notations', () => {
+    expect(notateChord('C/E', { key: 'C', notation: 'nashville' })).toBe('1/3');
+    expect(notateChord('C/E', { key: 'C', notation: 'solfege' })).toBe('Do/Mi');
+  });
+});
+
 describe('getDiatonicChords', () => {
   it('produces 7 chords for C major', () => {
     const diatonic = getDiatonicChords('C');
@@ -163,6 +212,31 @@ describe('ALL_KEYS', () => {
   it('has 12 unique keys', () => {
     expect(ALL_KEYS).toHaveLength(12);
     expect(new Set(ALL_KEYS).size).toBe(12);
+  });
+});
+
+describe('minor keys', () => {
+  it('detects minor vs major (and ignores maj)', () => {
+    expect(isMinorKey('Am')).toBe(true);
+    expect(isMinorKey('Bbm')).toBe(true);
+    expect(isMinorKey('A')).toBe(false);
+    expect(isMinorKey('Cmaj7')).toBe(false);
+  });
+
+  it('computes semitones between minor keys by root', () => {
+    expect(semitonesBetween('Am', 'Bm')).toBe(2);
+    expect(semitonesBetween('Em', 'Gm')).toBe(3);
+    expect(semitonesBetween('Bbm', 'Cm')).toBe(2);
+  });
+
+  it('transposes a minor key and preserves the quality', () => {
+    expect(transposeKey('Am', 2)).toBe('Bm');
+    expect(transposeKey('Em', 3)).toBe('Gm');
+  });
+
+  it('lists keys in the song quality', () => {
+    expect(keysInQualityOf('C')).toEqual(ALL_KEYS);
+    expect(keysInQualityOf('Am')).toEqual(ALL_KEYS.map(k => k + 'm'));
   });
 });
 

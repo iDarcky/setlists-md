@@ -34,17 +34,30 @@ function createFakeClient(db) {
       const rows = db[table];
       return {
         select() {
-          return {
-            eq: (col, val) => Promise.resolve({
-              data: rows.filter(r => r[col] === val).map(r => ({ ...r })),
-              error: null,
-            }),
+          // Unified chain: fetchRows uses .eq().order().range(); adoption uses
+          // .eq().eq().limit().maybeSingle().
+          const filters = [];
+          const matching = () => rows.filter(r => filters.every(([c, v]) => r[c] === v)).map(r => ({ ...r }));
+          const chain = {
+            eq: (col, val) => { filters.push([col, val]); return chain; },
+            order: () => chain,
+            limit: () => chain,
+            range: (from, to) => Promise.resolve({ data: matching().slice(from, to + 1), error: null }),
+            maybeSingle: async () => {
+              const m = matching();
+              return { data: m[0] ? { id: m[0].id, updated_at: m[0].updated_at } : null, error: null };
+            },
           };
+          return chain;
         },
         insert(payload) {
           return {
             select: () => ({
               single: async () => {
+                // Emulate the unique (team_id, title) index on team_songs.
+                if (table === 'team_songs' && rows.some(r => r.team_id === payload.team_id && r.title === payload.title)) {
+                  return { data: null, error: { message: 'duplicate key value violates unique constraint "idx_team_songs_team_title"' } };
+                }
                 const row = { id: `row_${++rowSeq}`, ...payload };
                 rows.push(row);
                 return { data: { id: row.id, updated_at: row.updated_at }, error: null };
@@ -256,6 +269,39 @@ describe('team engine — deletes and tombstones', () => {
     expect(db.team_songs).toHaveLength(0);
     expect(second.songs).toHaveLength(0);
     expect(second.tombstones.songs).toHaveLength(0); // pruned after remote delete
+  });
+
+  it('adopts an existing row on a unique-title conflict instead of failing/duplicating', async () => {
+    // Server has the song under one id; locally it drifted to a different id
+    // (e.g. after the churn). Pushing the local copy would INSERT and collide
+    // with the unique (team_id, title) index.
+    const serverSong = mkSong('server-id', 'Same Title', 'server body');
+    const db = { team_songs: [songRow(serverSong)], team_setlists: [] };
+    const engine = makeEngine(db);
+
+    const localDrifted = mkSong('drifted-id', 'Same Title', 'local body');
+    const result = await engine.fullSync([localDrifted], [], noTombstones());
+
+    // No hard failure, no duplicate row — the existing row was adopted/updated.
+    expect(result.errors).toHaveLength(0);
+    expect(db.team_songs).toHaveLength(1);
+    expect(db.team_songs[0].content).toContain('local body');
+  });
+
+  it('circuit breaker: refuses to delete a large share of the library in one sync', async () => {
+    // 10 songs synced; a desync tombstones 9 of them at once.
+    const songs = Array.from({ length: 10 }, (_, i) => mkSong(`s${i}`, `Song ${i}`));
+    const db = { team_songs: songs.map(s => songRow(s)), team_setlists: [] };
+    const engine = makeEngine(db);
+    await engine.fullSync(songs, [], noTombstones());
+
+    const now = Date.now();
+    const tombstones = { songs: songs.slice(0, 9).map(s => ({ id: s.id, deletedAt: now })), setlists: [] };
+    const result = await engine.fullSync([songs[9]], [], tombstones);
+
+    // No rows deleted, and an error explains why.
+    expect(db.team_songs).toHaveLength(10);
+    expect(result.errors.some(e => /Safety guard/.test(e.message || ''))).toBe(true);
   });
 
   it('resurrects a song when the server row was edited after the local delete', async () => {

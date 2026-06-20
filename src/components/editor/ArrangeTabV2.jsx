@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, memo, Fragment } from 'react';
-import { parseSongMd, songToMd, placementToLine, parseTabBlock } from '../../parser';
+import { createPortal } from 'react-dom';
+import { parseSongMd, songToMd, placementToLine, parseTabBlock, parseSectionLines } from '../../parser';
 import { sectionStyle, getNashvilleNumber, getSolfege } from '../../music';
 import TabBlock from '../TabBlock';
 import TabGridEditor from './TabGridEditorV2';
@@ -41,7 +42,7 @@ function tabObjectFromEditor(saved) {
 // Display a chord in the chosen notation (reading aid; data stays as chords).
 function formatChord(chord, notation, key) {
   if (notation === 'nashville') return getNashvilleNumber(chord, key);
-  if (notation === 'solfege') return getSolfege(chord, key);
+  if (notation === 'solfege') return getSolfege(chord);
   return chord;
 }
 
@@ -196,24 +197,75 @@ const InteractiveLine = memo(function InteractiveLine({
 });
 
 // ─── Popover menu ─────────────────────────────────────────────────
+// The menu is rendered in a portal (fixed, anchored to the trigger) so it
+// escapes the Arrange scroll container's `overflow-auto` clip and sits above
+// the editor's sticky header — otherwise an upward-opening "+ Add" menu got
+// cut off / hidden under the header.
 function PopMenu({ trigger, align = 'right', up = false, children }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [coords, setCoords] = useState(null);
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
+
+  // Measure the trigger and open. Coords are computed at toggle time (not in an
+  // effect) so the fixed-positioned portal lands without a cascading render.
+  const toggle = useCallback(() => {
+    setOpen((wasOpen) => {
+      if (wasOpen) return false;
+      const el = triggerRef.current;
+      if (el) {
+        const r = el.getBoundingClientRect();
+        setCoords({
+          left: align === 'right' ? null : r.left,
+          right: align === 'right' ? window.innerWidth - r.right : null,
+          top: up ? null : r.bottom + 4,
+          bottom: up ? window.innerHeight - r.top + 4 : null,
+        });
+      }
+      return true;
+    });
+  }, [align, up]);
+
   useEffect(() => {
     if (!open) return;
-    const onPointer = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const inside = (t) => triggerRef.current?.contains(t) || menuRef.current?.contains(t);
+    const onPointer = (e) => { if (!inside(e.target)) setOpen(false); };
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    // Close when an ancestor scrolls (the menu is fixed, so it would detach).
+    // Ignore scrolling inside the menu's own overflow.
+    const onScroll = (e) => { if (!menuRef.current?.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', onPointer);
     document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onPointer); document.removeEventListener('keydown', onKey); };
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
+    };
   }, [open]);
+
   return (
-    <div ref={ref} className="relative inline-block">
-      <span onClick={() => setOpen(v => !v)}>{trigger}</span>
-      {open && (
-        <div role="menu" onClick={() => setOpen(false)} className={`absolute z-50 ${up ? 'bottom-full mb-1' : 'mt-1'} ${align === 'right' ? 'right-0' : 'left-0'} min-w-[180px] max-h-[60vh] overflow-y-auto rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1`}>
+    <div ref={triggerRef} className="relative inline-block">
+      <span onClick={toggle}>{trigger}</span>
+      {open && coords && createPortal(
+        <div
+          ref={menuRef}
+          role="menu"
+          onClick={() => setOpen(false)}
+          style={{
+            position: 'fixed',
+            left: coords.left != null ? coords.left : undefined,
+            right: coords.right != null ? coords.right : undefined,
+            top: coords.top != null ? coords.top : undefined,
+            bottom: coords.bottom != null ? coords.bottom : undefined,
+          }}
+          className="z-[80] min-w-[180px] max-h-[60vh] overflow-y-auto rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1"
+        >
           {children}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -577,7 +629,11 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   const handleDrawerSave = useCallback((sectionIndex, rawText) => {
     if (!song) return;
-    const sections = song.sections.map((sec, i) => i !== sectionIndex ? sec : ({ ...sec, lines: rawText.split('\n') }));
+    // Re-parse the edited text so tab/modulate/tabref blocks are reconstructed
+    // as objects. A naive rawText.split('\n') flattened `{tab}` blocks into
+    // plain strings, so the tab disappeared on the next parse cycle.
+    const lines = parseSectionLines(rawText);
+    const sections = song.sections.map((sec, i) => i !== sectionIndex ? sec : ({ ...sec, lines }));
     emitSong({ ...song, sections });
     setDrawerTarget(null);
   }, [song, emitSong]);

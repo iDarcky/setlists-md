@@ -5,7 +5,7 @@ import OfflineBanner from "./components/ui/OfflineBanner";
 import WorkspacePickerDialog from "./components/ui/WorkspacePickerDialog";
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { parseSongMd, songToMd, generateId } from './parser';
-import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, getStorageEstimate, clearAll } from './storage';
+import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, getStorageEstimate, clearAll } from './storage';
 import { shareTokenFromUrl } from './share/setlistShare';
 import { withArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
@@ -34,8 +34,9 @@ import { useInstallPrompt } from './hooks/useInstallPrompt';
 import { useTeamRealtime } from './hooks/useTeamRealtime';
 import { useChartTheme } from './hooks/useChartTheme';
 import { useTeamSchedules } from './hooks/useTeamSchedules';
+import { useTeamNotifications } from './hooks/useTeamNotifications';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
-import { BILLING_ENABLED, WORKSPACE_CREATION_LOCKED, SUPPORT_CONTACT } from './billing/checkout';
+import { BILLING_ENABLED, SUPPORT_CONTACT } from './billing/checkout';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 
@@ -87,6 +88,7 @@ const RecoveryScreen = lazy(() => import('./components/auth/RecoveryScreen'));
 const PricingScreen = lazy(() => import('./components/PricingScreen'));
 const TeamScreen = lazy(() => import('./components/TeamScreen'));
 const Schedule = lazy(() => import('./components/Schedule'));
+const SchedulingGrid = lazy(() => import('./components/SchedulingGrid'));
 const WakeLockExplainer = lazy(() => import('./components/WakeLockExplainer'));
 const AccountWall = lazy(() => import('./components/AccountWall'));
 const FounderNote = lazy(() => import('./components/FounderNote'));
@@ -101,6 +103,7 @@ const PORTABLE_PREF_KEYS = [
   'defaultFontSize',
   'chordFontSize',
   'nashville',
+  'notation',
   'showChords',
   'showDiagrams',
   'pedalNext',
@@ -130,12 +133,22 @@ const PORTABLE_PREF_KEYS = [
   'lastChangelogVersion',
   'performanceRail',
   'navStyle',
+  'displayMode',
+  'autoHideHeader',
+  'ribbonStyle',
+  'dashboardWidgetOrder',
+  'dashboardHidden',
+  'landingView',
+  'language',
+  'confirmBeforeDelete',
   'defaultSpaceId',
   'tabSubdivision',
   'tabSize',
   'tabStringColor',
   'tabNumberColor',
   'tabBg',
+  'rosterOverscheduleWarning',
+  'rosterStreakLimit',
 ];
 
 function extractPortablePrefs(s) {
@@ -145,6 +158,12 @@ function extractPortablePrefs(s) {
     if (s[k] !== undefined) out[k] = s[k];
   }
   return out;
+}
+
+// Which view to open on launch, from the user's "Default landing page" setting.
+const LANDING_VIEWS = ['home', 'library', 'setlists'];
+function resolveLandingView(v) {
+  return LANDING_VIEWS.includes(v) ? v : 'home';
 }
 
 function prefsEqual(a, b) {
@@ -165,8 +184,9 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const { team, teams, setActiveTeam, isAdmin, isEditor, hasTeamPlan, loading: teamLoading } = useTeam();
+  const { team, teams, members, setActiveTeam, isAdmin, isEditor, hasTeamPlan, atWorkspaceLimit, loading: teamLoading } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
+  const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
   const canEdit = !team || isAdmin || isEditor;
   const isTeamAdmin = isAdmin;
   const confirm = useConfirm();
@@ -183,6 +203,7 @@ export default function App() {
   const [songs, setSongs] = useState([]);
   const [setlists, setSetlists] = useState([]);
   const [tombstones, setTombstones] = useState({ songs: [], setlists: [] });
+  const [trash, setTrash] = useState([]); // soft-deleted songs, recoverable 30 days
   const [view, setView] = useState(() => {
     // OAuth / magic-link callbacks land on /auth/callback. Detect that up
     // front so the first render doesn't flash the Welcome screen. Password
@@ -316,7 +337,7 @@ export default function App() {
 
     syncEngineRef.current = createEngineForLibrary(activeLibrary, (status) => {
       setSyncState(prev => ({ ...prev, ...status }));
-    }, { readOnly: isTeamReadOnly });
+    }, { readOnly: isTeamReadOnly, onConflicts: notifyConflicts });
   }, [activeLibrary, isTeamReadOnly]);
 
   const triggerSync = useCallback(async () => {
@@ -327,7 +348,22 @@ export default function App() {
     const result = await syncEngineRef.current.fullSync(songs, setlists, tombstones);
     if (result.replaced) {
       // Team engine is server-authoritative — adopt its arrays wholesale so
-      // remote deletions disappear here too.
+      // remote deletions disappear here too. SAFETY NET: any song that was
+      // present locally but is gone from the adopted set — and that the user
+      // did NOT delete (no local tombstone) — is moved to the trash instead of
+      // vanishing, so a server-wins drop (truncated fetch, unparseable row, a
+      // teammate's delete, a race) stays recoverable for 30 days.
+      const nextIds = new Set(result.songs.map(s => s.id));
+      const deletedIds = new Set((tombstones.songs || []).map(t => t.id));
+      const dropped = songs.filter(s => s?.id && !nextIds.has(s.id) && !deletedIds.has(s.id));
+      if (dropped.length) {
+        const now = Date.now();
+        setTrash(prev => {
+          const have = new Set(prev.map(e => e.song?.id));
+          const add = dropped.filter(s => !have.has(s.id)).map(song => ({ song, deletedAt: now }));
+          return add.length ? [...prev, ...add] : prev;
+        });
+      }
       setSongs(result.songs);
       setSetlists(result.setlists);
     } else if (result.changed) {
@@ -379,10 +415,15 @@ export default function App() {
     }
   }, [songs, setlists, tombstones, activeLibrary]);
 
-  // Subscribe to realtime changes for team libraries
+  // Subscribe to realtime changes for team libraries. Ignore the echo of our
+  // own recent writes so a local edit doesn't bounce back as a redundant sync.
+  const handleRemoteChange = useCallback(() => {
+    if (syncEngineRef.current?.recentlyPushed?.()) return;
+    triggerSync();
+  }, [triggerSync]);
   useTeamRealtime(
     activeLibrary !== 'personal' ? activeLibrary : null,
-    triggerSync
+    handleRemoteChange
   );
 
   // Load data on mount or when active library changes
@@ -431,6 +472,10 @@ export default function App() {
       if (ignore) return;
       setTombstones(savedTombstones);
 
+      const savedTrash = await loadTrash(activeLibrary);
+      if (ignore) return;
+      setTrash(savedTrash);
+
       // Settings remain global, so only load on initial mount
       if (!loaded) {
         const savedSettings = await loadSettings();
@@ -449,20 +494,21 @@ export default function App() {
         }
         setSettings(savedSettings);
 
-        // Determine initial view based on onboarding state
-        const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback';
+        // Determine initial view based on onboarding state. `share-view` is a
+        // public, no-auth route — never override it with onboarding/landing.
+        const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback' || view === 'share-view';
         if (isAuthFlow) {
           // Keep the current auth view
         } else if (!savedSettings.onboardingComplete && savedSongs.length === 0) {
           setView('onboarding');
         } else if (!savedSettings.onboardingComplete) {
-          // Existing user who predates onboarding — skip it, go to home
+          // Existing user who predates onboarding — skip it, go to the landing view.
           savedSettings.onboardingComplete = true;
           setSettings(savedSettings);
           await saveSettings(savedSettings);
-          setView('home');
+          setView(resolveLandingView(savedSettings.landingView));
         } else {
-          setView('home');
+          setView(resolveLandingView(savedSettings.landingView));
         }
 
         setLoaded(true);
@@ -489,6 +535,19 @@ export default function App() {
           engine.fullSync(currentSongs, currentSetlists, savedTombstones).then(result => {
             if (ignore) return;
             if (result.replaced) {
+              // Safety net (see handleSync): trash any locally-present song the
+              // server-authoritative sync drops and the user didn't delete.
+              const nextIds = new Set(result.songs.map(s => s.id));
+              const deletedIds = new Set((savedTombstones?.songs || []).map(t => t.id));
+              const dropped = currentSongs.filter(s => s?.id && !nextIds.has(s.id) && !deletedIds.has(s.id));
+              if (dropped.length) {
+                const now = Date.now();
+                setTrash(prev => {
+                  const have = new Set(prev.map(e => e.song?.id));
+                  const add = dropped.filter(s => !have.has(s.id)).map(song => ({ song, deletedAt: now }));
+                  return add.length ? [...prev, ...add] : prev;
+                });
+              }
               setSongs(result.songs);
               setSetlists(result.setlists);
             } else if (result.changed) {
@@ -551,9 +610,12 @@ export default function App() {
       maybeWarnQuota(quotaWarnedRef);
     }
   }, [setlists, loaded, activeLibrary]);
-  useEffect(() => { 
-    if (loaded && !isSwitchingLibraryRef.current) saveTombstones(tombstones, activeLibrary); 
+  useEffect(() => {
+    if (loaded && !isSwitchingLibraryRef.current) saveTombstones(tombstones, activeLibrary);
   }, [tombstones, loaded, activeLibrary]);
+  useEffect(() => {
+    if (loaded && !isSwitchingLibraryRef.current) saveTrash(trash, activeLibrary);
+  }, [trash, loaded, activeLibrary]);
   useEffect(() => { if (loaded && settings) saveSettings(settings); }, [settings, loaded]);
 
   // Clean up Supabase auth tokens from the URL after magic-link / password
@@ -632,6 +694,9 @@ export default function App() {
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible' && loaded) {
+        // Fold any pending debounced push into this full sync so returning to
+        // the tab doesn't fire two syncs back to back.
+        syncEngineRef.current?.cancelDebounce();
         triggerSync();
       }
     };
@@ -867,6 +932,10 @@ export default function App() {
       setView(viewName);
       setCurrentSong(null);
       setCurrentSetlist(null);
+      // Clear any open side-peek selection so it doesn't auto-reopen when
+      // returning to the library/setlists view after navigating away.
+      setPreviewSongId(null);
+      setPreviewSetlistId(null);
       setIsFullscreen(false);
       if (viewName === 'settings') {
         setSettingsPanel(targetPanel || 'hub');
@@ -951,13 +1020,17 @@ export default function App() {
 
   // Notification system
   const handleMarkNotificationRead = useCallback((notifId) => {
+    if (typeof notifId === 'string' && notifId.startsWith('tn-')) {
+      markTeamNotifRead(notifId.slice(3));
+      return;
+    }
     setSettings(prev => ({
       ...prev,
       notifications: (prev.notifications || []).map(n =>
         n.id === notifId ? { ...n, read: true } : n
       ),
     }));
-  }, []);
+  }, [markTeamNotifRead]);
 
   const handleNotificationAction = () => {
     // Actions are usually strings like "view_setlist_123" or similar
@@ -965,11 +1038,25 @@ export default function App() {
     // If we have an actionable notification, we can handle it here if it's not handled internally by the tray
   };
 
+  // Dismiss a single notification: drop it from the stored list and remember
+  // its id so derived (virtual) notifications stay dismissed too. The dismissed
+  // set is device-local (not a PORTABLE_PREF_KEY) like `notifications` itself.
+  const handleDismissNotification = useCallback((notifId) => {
+    if (typeof notifId === 'string' && notifId.startsWith('tn-')) {
+      dismissTeamNotif(notifId.slice(3));
+      return;
+    }
+    setSettings(prev => ({
+      ...prev,
+      notifications: (prev.notifications || []).filter(n => n.id !== notifId),
+      dismissedNotifications: [...new Set([...(prev.dismissedNotifications || []), notifId])],
+    }));
+  }, [dismissTeamNotif]);
+
   // --- Compute Virtual Notifications ---
-  // Pending schedules for the current user are merged into the local notifications array
+  // Pending schedules for the current user → "you've been scheduled" prompts.
   const pendingSchedules = schedules?.filter(s => s.user_id === user?.id && s.availability === 'pending') || [];
   const virtualNotifications = pendingSchedules.map(s => {
-    // Attempt to find the setlist name
     const setlist = setlists.find(sl => sl.id === s.setlist_id) || { name: 'a setlist' };
     return {
       id: `schedule-${s.id}`,
@@ -982,10 +1069,86 @@ export default function App() {
     };
   });
 
+  // Admins get notified when a member declines an UPCOMING setlist. Derived
+  // client-side (no schema change): any 'unavailable' schedule for a future
+  // setlist we can resolve locally. Dismissible; stays dismissed via the set.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const memberDisplayName = (uid) => {
+    const m = (members || []).find(mm => mm.user_id === uid);
+    return m?.profile?.display_name || m?.profile?.email || 'A member';
+  };
+  // Decline alerts are now server-authoritative: the DB trigger fans a row out
+  // to every roster manager (see 20260616_team_notifications.sql), so they land
+  // even if this client never loaded that setlist, and read/dismiss persists
+  // across devices. We enrich the generic server copy with locally-resolvable
+  // names where possible, falling back to the row's stored body.
+  const resolveSetlistName = (setlistId) =>
+    setlists.find(sl => sl.id === setlistId || sl.remoteId === setlistId)?.name;
+  const serverNotifications = (teamNotifications || []).map(n => {
+    const meta = n.metadata || {};
+    let message = n.body;
+    if (n.type === 'schedule_decline') {
+      const who = meta.declined_by ? memberDisplayName(meta.declined_by) : 'A team member';
+      const name = resolveSetlistName(meta.setlist_id);
+      message = name
+        ? `${who} can't make "${name}"${meta.role ? ` (${meta.role})` : ''}.`
+        : `${who} can't make a service${meta.role ? ` (${meta.role})` : ''}.`;
+    }
+    return {
+      id: `tn-${n.id}`,
+      type: n.type,
+      title: n.title || 'Notification',
+      message,
+      read: !!n.read_at,
+      setlistId: meta.setlist_id,
+    };
+  });
+
+  // Nudge: a "maybe" on a setlist coming up within ~2 weeks → ask the user to
+  // commit. Reuses the schedule_request Accept/Decline UI (Accept→available,
+  // Decline→unavailable), so resolving it clears the maybe.
+  const MAYBE_NUDGE_DAYS = 14;
+  const maybeNudges = (schedules || [])
+    .filter(s => s.user_id === user?.id && s.availability === 'maybe')
+    .map(s => ({ s, setlist: setlists.find(sl => sl.id === s.setlist_id) }))
+    .filter(({ setlist }) => {
+      if (!setlist?.date) return false;
+      const days = (new Date(`${setlist.date}T00:00:00`) - new Date(`${todayStr}T00:00:00`)) / 86400000;
+      return days >= 0 && days <= MAYBE_NUDGE_DAYS;
+    })
+    .map(({ s, setlist }) => ({
+      id: `maybe-${s.id}`,
+      type: 'schedule_request',
+      title: 'Still a maybe?',
+      message: `"${setlist.name}" is coming up — confirm whether you can make it.`,
+      read: false,
+      scheduleId: s.id,
+      setlistId: s.setlist_id,
+    }));
+
+  const dismissedNotifs = settings?.dismissedNotifications || [];
   const mergedNotifications = [
     ...virtualNotifications,
-    ...(settings?.notifications || [])
-  ];
+    ...maybeNudges,
+    ...serverNotifications,
+    ...(settings?.notifications || []),
+  ].filter(n => !dismissedNotifs.includes(n.id));
+
+  // Clear all dismissible notifications (schedule_request prompts stay — they
+  // still need an Accept/Decline).
+  const handleClearAllNotifications = () => {
+    const ids = mergedNotifications.filter(n => n.type !== 'schedule_request').map(n => n.id);
+    // Server-backed rows clear via the hook (persists across devices); the rest
+    // go onto the device-local dismissed set.
+    dismissAllTeamNotifs();
+    const localIds = ids.filter(id => !id.startsWith('tn-'));
+    if (localIds.length === 0) return;
+    setSettings(prev => ({
+      ...prev,
+      notifications: (prev.notifications || []).filter(n => !localIds.includes(n.id)),
+      dismissedNotifications: [...new Set([...(prev.dismissedNotifications || []), ...localIds])],
+    }));
+  };
 
   const hasUnreadNotifications = mergedNotifications.some(n => !n.read);
 
@@ -1037,6 +1200,17 @@ export default function App() {
     }
     navigate('setlist-performance', { setlist: sl });
   };
+  // Casual "campfire" play: open a single song in Live via an ephemeral,
+  // unsaved one-item setlist (no setlist needed). Suggestions can append to it.
+  const playSongCasually = (song, arrangementId) => {
+    if (!song) return;
+    goSetlistPerformance({
+      id: `campfire-${song.id}`,
+      name: song.title || 'Song',
+      _campfire: true,
+      items: [{ type: 'song', songId: song.id, ...(arrangementId ? { arrangementId } : {}) }],
+    });
+  };
   const goSetlistPractice = (sl, startIndex = 0) => {
     setPracticeStartIndex(Number.isInteger(startIndex) ? startIndex : 0);
     navigate('setlist-practice', { setlist: sl });
@@ -1084,21 +1258,42 @@ export default function App() {
   // workspace switcher's "+ New workspace" shortcut so a user can spin up
   // additional bands/churches without first landing on an existing team.
   const goNewWorkspace = () => { setTeamCreateIntent(true); goTeam(); };
-  // Who may create additional Spaces, and whether that's currently locked for
-  // testing. When locked we still surface a "contact support" affordance.
-  const canCreateWorkspace = BILLING_ENABLED || hasTeamPlan;
-  const newWorkspaceLocked = canCreateWorkspace && WORKSPACE_CREATION_LOCKED;
+  // Who may create additional Spaces. Eligible accounts (billing on, or
+  // team/church tier) can create up to the owned-workspace cap; once they hit
+  // it we surface a "limit reached / contact support" affordance instead.
+  const eligibleToCreateWorkspace = BILLING_ENABLED || hasTeamPlan;
+  const canCreateWorkspace = eligibleToCreateWorkspace && !atWorkspaceLimit;
+  const newWorkspaceLocked = eligibleToCreateWorkspace && atWorkspaceLimit;
   const goSchedule = () => navigate('schedule');
+  const goScheduling = () => navigate('scheduling');
 
   // Song CRUD
   // Accepts either a v2-shaped song (with arrangements[]) or a flat shape
   // emitted by the Editor (parseSongMd returns flat). When the input is flat
   // and matches an existing song id, we merge into the active/default
   // arrangement so the song's other arrangements are preserved.
-  const handleSaveSong = (input, opts = {}) => {
+  const handleSaveSong = async (input, opts = {}) => {
     if (isTeamReadOnly) {
       toast({ title: 'Read-only library', description: 'You don\'t have permission to edit songs here.', variant: 'error' });
-      return;
+      return false;
+    }
+    // Duplicate-title guard for brand-new songs (covers create, copy, and the
+    // import flow — every imported song persists through here on Save). Stops
+    // accidentally piling up a second copy of a song that's already in the
+    // library. `opts.allowDuplicate` bypasses it for intentional duplicates.
+    const existsById = !!(input?.id && songs.some(s => s.id === input.id));
+    if (!existsById && !opts.allowDuplicate) {
+      const norm = (t) => (t || '').trim().toLowerCase();
+      const title = norm(input?.title);
+      const dup = title && songs.find(s => norm(s.title) === title);
+      if (dup) {
+        const ok = await confirm({
+          title: 'Song already exists',
+          description: `"${dup.title}" is already in your library. Add this as a separate copy anyway?`,
+          confirmLabel: 'Add anyway',
+        });
+        if (!ok) return false;
+      }
     }
     const isV2 = !!(input && Array.isArray(input.arrangements) && input.arrangements.length > 0);
     let v2 = input;
@@ -1305,8 +1500,12 @@ export default function App() {
   };
 
   const handleDeleteSong = (id) => {
+    const removed = songs.find((s) => s.id === id);
     const nextSongs = songs.filter((s) => s.id !== id);
     setSongs(nextSongs);
+    if (removed) {
+      setTrash(prev => [...prev.filter(e => e.song?.id !== id), { song: removed, deletedAt: Date.now() }]);
+    }
     setTombstones(prev => ({
       ...prev,
       songs: [...prev.songs.filter(t => t.id !== id), { id, deletedAt: Date.now() }],
@@ -1324,20 +1523,56 @@ export default function App() {
   // ----- Bulk song actions (Library selection toolbar) -----
   const handleDeleteSongs = async (ids) => {
     if (!ids || ids.length === 0) return;
+    if (settings?.confirmBeforeDelete !== false) {
+      const ok = await confirm({
+        title: `Delete ${ids.length} song${ids.length === 1 ? '' : 's'}?`,
+        description: 'They are removed from this library across all your devices.',
+        confirmLabel: 'Delete',
+        variant: 'danger',
+      });
+      if (!ok) return;
+    }
+    const idSet = new Set(ids);
+    const removed = songs.filter(s => idSet.has(s.id));
+    setSongs(prev => prev.filter(s => !idSet.has(s.id)));
+    const now = Date.now();
+    if (removed.length) {
+      setTrash(prev => [...prev.filter(e => !idSet.has(e.song?.id)), ...removed.map(song => ({ song, deletedAt: now }))]);
+    }
+    setTombstones(prev => ({
+      ...prev,
+      songs: [...prev.songs.filter(t => !idSet.has(t.id)), ...ids.map(id => ({ id, deletedAt: now }))],
+    }));
+    toast({ title: `Deleted ${ids.length} song${ids.length === 1 ? '' : 's'}` });
+  };
+
+  // ----- Trash bin (recover soft-deleted songs within 30 days) -----
+  // Restore re-adds the song to the library and clears its tombstone so cloud
+  // sync won't re-delete it. Purge just drops it from the bin (the tombstone
+  // stays, keeping the deletion propagated across devices).
+  const handleRestoreSong = (id) => {
+    const entry = trash.find(e => e.song?.id === id);
+    if (!entry) return;
+    setSongs(prev => prev.some(s => s.id === id) ? prev : [...prev, entry.song]);
+    setTrash(prev => prev.filter(e => e.song?.id !== id));
+    setTombstones(prev => ({ ...prev, songs: prev.songs.filter(t => t.id !== id) }));
+    toast({ title: `Restored "${entry.song.title || 'song'}"` });
+  };
+
+  const handlePurgeSong = (id) => {
+    setTrash(prev => prev.filter(e => e.song?.id !== id));
+  };
+
+  const handleEmptyTrash = async () => {
+    if (trash.length === 0) return;
     const ok = await confirm({
-      title: `Delete ${ids.length} song${ids.length === 1 ? '' : 's'}?`,
-      description: 'They are removed from this library across all your devices.',
-      confirmLabel: 'Delete',
+      title: `Empty trash?`,
+      description: `${trash.length} song${trash.length === 1 ? '' : 's'} will be permanently deleted. This cannot be undone.`,
+      confirmLabel: 'Delete forever',
       variant: 'danger',
     });
     if (!ok) return;
-    const idSet = new Set(ids);
-    setSongs(prev => prev.filter(s => !idSet.has(s.id)));
-    setTombstones(prev => ({
-      ...prev,
-      songs: [...prev.songs.filter(t => !idSet.has(t.id)), ...ids.map(id => ({ id, deletedAt: Date.now() }))],
-    }));
-    toast({ title: `Deleted ${ids.length} song${ids.length === 1 ? '' : 's'}` });
+    setTrash([]);
   };
 
   // Rename or clear a service across every setlist that uses it. Passing an
@@ -1577,13 +1812,15 @@ export default function App() {
 
   const handleDeleteSetlists = async (ids) => {
     if (!ids || ids.length === 0) return;
-    const ok = await confirm({
-      title: `Delete ${ids.length} setlist${ids.length === 1 ? '' : 's'}?`,
-      description: 'They are removed from this Space across all your devices.',
-      confirmLabel: 'Delete',
-      variant: 'danger',
-    });
-    if (!ok) return;
+    if (settings?.confirmBeforeDelete !== false) {
+      const ok = await confirm({
+        title: `Delete ${ids.length} setlist${ids.length === 1 ? '' : 's'}?`,
+        description: 'They are removed from this Space across all your devices.',
+        confirmLabel: 'Delete',
+        variant: 'danger',
+      });
+      if (!ok) return;
+    }
     const idSet = new Set(ids);
     setSetlists(prev => prev.filter(s => !idSet.has(s.id)));
     setTombstones(prev => ({
@@ -1599,6 +1836,7 @@ export default function App() {
     setSongs([]);
     setSetlists([]);
     setTombstones({ songs: [], setlists: [] });
+    setTrash([]);
     historyRef.current = [];
     setView('home');
   };
@@ -1634,6 +1872,16 @@ export default function App() {
     } catch {
       toast({ title: 'Import failed', description: 'Could not read setlist zip.', variant: 'error' });
     }
+  };
+
+  // Open a .zip picker then import — used by the mobile/tablet BottomNav menu,
+  // which (unlike the desktop list header) has no file input of its own.
+  const pickAndImportSetlist = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.zip';
+    input.onchange = (e) => { const f = e.target.files?.[0]; if (f) handleImportSetlist(f); };
+    input.click();
   };
 
   if (view === 'share-view') {
@@ -1817,7 +2065,8 @@ export default function App() {
           team={team}
           teams={teams}
           onChangeWorkspace={goTeam}
-          onNewWorkspace={canCreateWorkspace && !WORKSPACE_CREATION_LOCKED ? goNewWorkspace : undefined}
+          onOpenHelp={() => navigate('help')}
+          onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
           newWorkspaceLocked={newWorkspaceLocked}
           supportContact={SUPPORT_CONTACT}
           syncState={syncState}
@@ -1840,7 +2089,7 @@ export default function App() {
                 ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null, status: t.subscription_status })),
               ]}
               setActiveLibrary={switchWorkspace}
-              onNewWorkspace={canCreateWorkspace && !WORKSPACE_CREATION_LOCKED ? goNewWorkspace : undefined}
+              onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
               newWorkspaceLocked={newWorkspaceLocked}
               supportContact={SUPPORT_CONTACT}
             />
@@ -1869,6 +2118,8 @@ export default function App() {
                 signIn: () => { setAuthStartMode('signin'); navigate('signin'); },
               }}
               onDismissChecklist={() => setSettings(prev => ({ ...prev, checklistDismissed: true }))}
+              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              syncState={syncState}
               canEdit={canEdit}
               onSignIn={!user ? () => { setAuthStartMode('signin'); navigate('signin'); } : undefined}
             />
@@ -1926,6 +2177,9 @@ export default function App() {
               onEditSetlist={isTeamReadOnly ? null : (sl) => goSetlistBuild(sl)}
               readOnly={isTeamReadOnly}
               clockFormat={settings?.clockFormat || '12h'}
+              overviewV2={settings?.setlistOverviewV2}
+              overscheduleWarn={settings?.rosterOverscheduleWarning}
+              streakLimit={settings?.rosterStreakLimit || 3}
               onExportSetlistZip={(sl) => handleExportSetlist(sl)}
               onExportSetlistPdfOverview={(sl) => exportSetlistPdf(sl, songs, { mode: 'overview' })}
               onExportSetlistPdfFull={(sl) => exportSetlistPdf(sl, songs, { mode: 'full' })}
@@ -1947,6 +2201,7 @@ export default function App() {
               song={currentSong}
               onBack={goBack}
               onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
+              onPlay={(arrId) => playSongCasually(currentSong, arrId)}
               {...buildChartMoveCopy(currentSong.id)}
               onSongChange={(updated) => {
                 setSongs(prev => prev.map(s => s.id === updated.id ? { ...updated, updatedAt: Date.now() } : s));
@@ -2015,6 +2270,10 @@ export default function App() {
               onExportPdfOverview={() => exportSetlistPdf(currentSetlist, songs, { mode: 'overview' })}
               onExportPdfFull={() => exportSetlistPdf(currentSetlist, songs, { mode: 'full' })}
               clockFormat={settings?.clockFormat || '12h'}
+              v2={settings?.setlistOverviewV2}
+              setlists={setlists}
+              overscheduleWarn={settings?.rosterOverscheduleWarning}
+              streakLimit={settings?.rosterStreakLimit || 3}
               onPlay={() => goSetlistPerformance(currentSetlist)}
               onPractice={(startIndex) => goSetlistPractice(currentSetlist, startIndex)}
               onDelete={isTeamReadOnly ? null : () => handleDeleteSetlist(currentSetlist.id)}
@@ -2062,6 +2321,12 @@ export default function App() {
               railEnabled={settings?.performanceRail !== false}
               navStyle={settings?.navStyle || 'pill'}
               settings={settings}
+              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              teamId={activeLibrary !== 'personal' ? activeLibrary : null}
+              userId={user?.id}
+              onAppendSong={(songId, arrangementId) => setCurrentSetlist(prev => (
+                prev ? { ...prev, items: [...prev.items, { type: 'song', songId, ...(arrangementId ? { arrangementId } : {}) }] } : prev
+              ))}
             />
           )}
           {view === 'setlist-practice' && currentSetlist && (
@@ -2080,6 +2345,9 @@ export default function App() {
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               onOpenAdvancedStyle={() => goToMainView('settings', { settingsPanel: 'chart-style' })}
+              teamId={activeLibrary !== 'personal' ? activeLibrary : null}
+              userId={user?.id}
+              canEditShared={canEdit}
             />
           )}
           {view === 'practice-finale' && currentSetlist && (
@@ -2143,6 +2411,8 @@ export default function App() {
               onClose={closeSettings}
               panel={settingsPanel}
               onChangePanel={goSettingsPanel}
+              onShowHelp={() => navigate('help')}
+              onReplayOnboarding={() => { setSettings(prev => ({ ...prev, onboardingComplete: false })); navigate('onboarding'); }}
               onClearAll={handleClearAll}
               onDownloadSongs={() => {
                 songs.forEach(s => {
@@ -2179,6 +2449,10 @@ export default function App() {
               team={team}
               setlists={setlists}
               onRemapService={handleRemapService}
+              trash={trash}
+              onRestoreSong={handleRestoreSong}
+              onPurgeSong={handlePurgeSong}
+              onEmptyTrash={handleEmptyTrash}
             />
           )}
           {view === "account" && settings && (
@@ -2211,10 +2485,19 @@ export default function App() {
               setlists={setlists}
               onBack={goBack}
               onOpenSetlist={goSetlistView}
+              onOpenGrid={goScheduling}
               viewMode={scheduleView}
               onSetView={setScheduleView}
               clockFormat={settings?.clockFormat || '12h'}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
+            />
+          )}
+          {view === 'scheduling' && (
+            <SchedulingGrid
+              setlists={setlists}
+              onBack={goSchedule}
+              onOpenSetlist={goSetlistView}
+              onAddSetlist={isTeamReadOnly ? null : (dateStr) => goSetlistBuild({ date: dateStr })}
             />
           )}
         </DesktopLayout>
@@ -2222,13 +2505,14 @@ export default function App() {
       {/* Mobile glass nav lives at the App root (not inside <main>) so the
           drawer's transform/will-change doesn't capture its fixed positioning
           or break the glass backdrop-filter. */}
-      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule'].includes(view) && !drawerOpen && (
+      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule', 'scheduling'].includes(view) && !drawerOpen && (
         <BottomNav
           activeView={view}
           onNavigate={goToMainView}
           activeLibrary={activeLibrary}
           onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
           onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+          onImportSetlist={isTeamReadOnly ? null : pickAndImportSetlist}
           scheduleView={scheduleView}
           onToggleScheduleView={() => setScheduleView(v => (v === 'list' ? 'calendar' : 'list'))}
           onPlay={
@@ -2293,6 +2577,8 @@ export default function App() {
           notifications={mergedNotifications}
           onUpdateSchedule={updateSchedule}
           onMarkRead={handleMarkNotificationRead}
+          onDismiss={handleDismissNotification}
+          onClearAll={handleClearAllNotifications}
           onAction={(action) => {
             setNotifTrayOpen(false);
             handleNotificationAction?.(action);

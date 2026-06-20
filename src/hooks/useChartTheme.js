@@ -12,6 +12,20 @@ import {
 // the same font twice doesn't double-inject a <link>.
 const loadedFonts = new Set();
 
+// Rough perceived-lightness of a #rrggbb (or #rgb) colour, 0–1. Used to pick a
+// light-on-dark vs dark-on-light hairline for the themed chart header.
+function isLightColor(hex) {
+  if (typeof hex !== 'string') return false;
+  let h = hex.trim().replace('#', '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  if (h.length !== 6) return false;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  // Perceptual luminance (sRGB weights).
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55;
+}
+
 function ensureGoogleFont(fontId) {
   if (!fontId || loadedFonts.has(fontId)) return;
   const font = CHART_FONT_MAP[fontId];
@@ -50,6 +64,12 @@ export function useChartTheme(settings) {
     root.style.setProperty('--chart-text', text);
     root.style.setProperty('--chart-subtle', subtle);
     root.style.setProperty('--chord', chord);
+    // Make the sticky stage header match the chart theme rather than the app
+    // theme, so a light chart under a dark app (or vice-versa) doesn't leave a
+    // mismatched bar pinned on top. The bg is opaque (theme presets are solid),
+    // and the hairline flips with the background's lightness.
+    root.style.setProperty('--chart-header-bg', bg);
+    root.style.setProperty('--chart-header-border', isLightColor(bg) ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)');
     root.style.setProperty('--chart-font-chord', chartFontStack(chordFontId, DEFAULT_CHORD_FONT_ID));
     root.style.setProperty('--chart-font-lyric', chartFontStack(lyricFontId, DEFAULT_LYRIC_FONT_ID));
 

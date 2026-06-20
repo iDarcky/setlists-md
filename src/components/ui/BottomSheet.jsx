@@ -97,9 +97,9 @@ export default function BottomSheet({ open, onClose, title, children }) {
   );
 }
 
-export function SheetField({ label, children }) {
+export function SheetField({ label, children, className }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={`flex flex-col gap-1.5${className ? ` ${className}` : ''}`}>
       <span className="text-label-12 font-semibold text-[var(--text-2)]">{label}</span>
       {children}
     </div>

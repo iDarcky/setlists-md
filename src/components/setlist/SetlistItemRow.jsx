@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { transposeKey, ALL_KEYS, semitonesBetween } from '../../music';
+import { transposeKey, keysInQualityOf, semitonesBetween } from '../../music';
 import { IconButton } from '../ui/IconButton';
 import { Input } from '../ui/Input';
 
@@ -341,7 +341,7 @@ export default function SetlistItemRow({
               }`}
               style={{ minHeight: 'auto' }}
             >
-              {ALL_KEYS.map(k => (
+              {keysInQualityOf(song.key).map(k => (
                 <option key={k} value={k}>{k}{k === song.key ? ' (orig)' : ''}</option>
               ))}
             </select>

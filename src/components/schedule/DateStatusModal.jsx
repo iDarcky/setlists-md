@@ -55,6 +55,7 @@ export default function DateStatusModal({
   setlists = [],
   memberStatuses = [],
   rehearsals = [],
+  canViewTeam = false,
   clockFormat = '12h',
   onSetStatus,
   onClear,
@@ -195,8 +196,9 @@ export default function DateStatusModal({
           </div>
         )}
 
-        {/* Team availability */}
-        {sortedMembers.length > 0 && (
+        {/* Team availability — leaders/admins only (everyone else just sets
+            their own status; the full roster is gated). */}
+        {canViewTeam && sortedMembers.length > 0 && (
           <div className="flex flex-col gap-2 pt-2 border-t border-[var(--modes-border)]">
             <div className="flex items-center justify-between">
               <span className="text-label-12 uppercase tracking-wider font-semibold text-[var(--modes-text-dim)]">Team availability</span>

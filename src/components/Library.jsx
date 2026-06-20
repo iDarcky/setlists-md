@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense } from 'react';
 import SongCard from './SongCard';
 import SidePeek from './shell/SidePeek';
 import { Button } from './ui/Button';
@@ -244,10 +244,13 @@ export default function Library({
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
+  // Deferred so typing stays responsive: the input updates immediately while
+  // the (potentially large) filtered list recomputes at a lower priority.
+  const deferredQuery = useDeferredValue(query);
   const filtered = useMemo(() => {
     let result = songs;
-    if (query) {
-      const q = query.toLowerCase();
+    if (deferredQuery) {
+      const q = deferredQuery.toLowerCase();
       result = result.filter(s =>
         s.title.toLowerCase().includes(q) ||
         s.artist?.toLowerCase().includes(q) ||
@@ -261,11 +264,11 @@ export default function Library({
       );
     }
     return result;
-  }, [songs, query, selectedTags]);
+  }, [songs, deferredQuery, selectedTags]);
 
   // Reset pagination + selection when filter criteria change.
   const [prevFilterKey, setPrevFilterKey] = useState(null);
-  const filterKey = JSON.stringify([query, selectedTags, sortMode, sortAsc]);
+  const filterKey = JSON.stringify([deferredQuery, selectedTags, sortMode, sortAsc]);
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey);
     setVisibleCount(INITIAL_VISIBLE);
@@ -357,18 +360,18 @@ export default function Library({
   };
 
   return (
-    <div data-theme-variant="modes" className={cn(splitDock ? 'absolute inset-0 flex overflow-hidden' : 'relative h-full overflow-y-auto')}>
+    <div data-theme-variant="modes" className={cn(splitDock ? 'absolute inset-0 flex overflow-hidden' : 'relative min-h-full')}>
       {/* List column — own scroller when a pane is docked beside it. */}
       <div className={splitDock ? 'flex-1 min-w-0 min-h-0 overflow-y-auto' : 'contents'}>
       {/* Header */}
       <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]">
         <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 pt-5 sm:pt-7 pb-4 flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-heading-32 font-bold text-[var(--modes-text)] m-0 mr-2 hidden sm:block">Library</h1>
+            <h1 className="text-heading-32 font-bold text-[var(--modes-text)] m-0 mr-2 hidden sm:block">Songs</h1>
 
             <SearchBar
               className="flex-1 min-w-[200px] hidden sm:flex"
-              placeholder="Search songs by title, artist, key, or tag…"
+              placeholder="Search songs & setlists…"
               value={query}
               onChange={e => setQuery(e.target.value)}
             />

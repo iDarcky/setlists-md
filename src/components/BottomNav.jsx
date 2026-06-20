@@ -49,6 +49,12 @@ const SetlistMenuIcon = () => (
     <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
   </svg>
 );
+const ImportMenuIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 8a2 2 0 0 1 2-2h3.6a1 1 0 0 1 .7.3L11 8h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <path d="M12 11v5" /><path d="m9.5 13.5 2.5 2.5 2.5-2.5" />
+  </svg>
+);
 // Team only appears in the tablet bottom nav (on mobile it lives in the
 // drawer). The tablet shell moves primary nav out of the top bar, so Team
 // needs a home down here when the user has a team/church plan.
@@ -88,7 +94,7 @@ const GLASS = {
  * a pure primary action — a create menu on Home, + on Songs/Setlists, and Play
  * on a setlist. Workspace switching lives in the top bar.
  */
-export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onPlay, activeLibrary, scheduleView, onToggleScheduleView }) {
+export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onImportSetlist, onPlay, activeLibrary, scheduleView, onToggleScheduleView }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const fabRef = useRef(null);
 
@@ -122,7 +128,7 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
   // Resolve the morphing FAB for the current view.
   let fab = null;
   if (activeView === 'home' && (onNewSong || onNewSetlist)) {
-    fab = { kind: 'menu', label: 'Create', icon: <PlusIcon open={menuOpen} /> };
+    fab = { kind: 'menu', menu: 'create', label: 'Create', icon: <PlusIcon open={menuOpen} /> };
   } else if (activeView === 'library' && onNewSong) {
     fab = { kind: 'action', label: 'New song', onClick: onNewSong, icon: <PlusIcon /> };
   } else if (activeView === 'setlists' && onPlay) {
@@ -130,7 +136,11 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
     // to go live, not to create. (Creating still lives in the list header.)
     fab = { kind: 'action', label: 'Play live', onClick: onPlay, icon: <PlayIcon /> };
   } else if (activeView === 'setlists' && onNewSetlist) {
-    fab = { kind: 'action', label: 'New setlist', onClick: onNewSetlist, icon: <PlusIcon /> };
+    // Offer New + Import as a menu when import is available, so mobile / touch
+    // tablets (which only ever see this FAB) can still import a .zip.
+    fab = onImportSetlist
+      ? { kind: 'menu', menu: 'setlist', label: 'Create', icon: <PlusIcon open={menuOpen} /> }
+      : { kind: 'action', label: 'New setlist', onClick: onNewSetlist, icon: <PlusIcon /> };
   } else if (activeView === 'setlist-view' && onPlay) {
     fab = { kind: 'action', label: 'Play live', onClick: onPlay, icon: <PlayIcon /> };
   } else if (activeView === 'schedule' && onToggleScheduleView) {
@@ -180,15 +190,26 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
         <div ref={fabRef} className="relative shrink-0">
           {fab.kind === 'menu' && menuOpen && (
             <div className="absolute bottom-full right-0 mb-3 w-52 rounded-2xl border border-white/10 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150" style={GLASS}>
-              {onNewSong && (
+              {fab.menu === 'create' && onNewSong && (
                 <button onClick={() => { setMenuOpen(false); onNewSong(); }} className="w-full flex items-center gap-3 px-4 py-3.5 bg-transparent border-none text-left text-copy-15 text-[var(--ds-gray-1000)] cursor-pointer active:bg-white/10">
                   <SongMenuIcon /> New Song
                 </button>
               )}
-              {onNewSong && onNewSetlist && <div className="h-px bg-white/10" />}
-              {onNewSetlist && (
+              {fab.menu === 'create' && onNewSong && onNewSetlist && <div className="h-px bg-white/10" />}
+              {fab.menu === 'create' && onNewSetlist && (
                 <button onClick={() => { setMenuOpen(false); onNewSetlist(); }} className="w-full flex items-center gap-3 px-4 py-3.5 bg-transparent border-none text-left text-copy-15 text-[var(--ds-gray-1000)] cursor-pointer active:bg-white/10">
                   <SetlistMenuIcon /> New Setlist
+                </button>
+              )}
+              {fab.menu === 'setlist' && onNewSetlist && (
+                <button onClick={() => { setMenuOpen(false); onNewSetlist(); }} className="w-full flex items-center gap-3 px-4 py-3.5 bg-transparent border-none text-left text-copy-15 text-[var(--ds-gray-1000)] cursor-pointer active:bg-white/10">
+                  <SetlistMenuIcon /> New Setlist
+                </button>
+              )}
+              {fab.menu === 'setlist' && onNewSetlist && onImportSetlist && <div className="h-px bg-white/10" />}
+              {fab.menu === 'setlist' && onImportSetlist && (
+                <button onClick={() => { setMenuOpen(false); onImportSetlist(); }} className="w-full flex items-center gap-3 px-4 py-3.5 bg-transparent border-none text-left text-copy-15 text-[var(--ds-gray-1000)] cursor-pointer active:bg-white/10">
+                  <ImportMenuIcon /> Import Setlist
                 </button>
               )}
             </div>

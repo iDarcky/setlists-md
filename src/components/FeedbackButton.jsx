@@ -129,7 +129,16 @@ export default function FeedbackButton({ variant = 'floating' }) {
   return (
     <>
       {/* Trigger — header icon, mobile-drawer row, or a floating bubble. */}
-      {variant === 'drawer' ? (
+      {variant === 'inline' ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-2 px-4 h-10 rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] text-copy-14 font-semibold text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] transition-colors cursor-pointer"
+          aria-label="Send feedback"
+        >
+          <MessageIcon />
+          Send feedback
+        </button>
+      ) : variant === 'drawer' ? (
         <button
           onClick={() => setOpen(true)}
           className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-[var(--drawer-surface)] hover:bg-[var(--drawer-surface-hover)] border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all duration-150 text-left"

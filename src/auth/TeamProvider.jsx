@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { supabase } from './supabase';
 import { useAuth } from './useAuth';
 import { TeamContext } from './TeamContext';
-import { BILLING_ENABLED } from '../billing/checkout';
+import { BILLING_ENABLED, MAX_OWNED_WORKSPACES } from '../billing/checkout';
 
 /**
  * Provides team state to the component tree. Only fetches from Supabase when
@@ -180,6 +180,10 @@ export function TeamProvider({ children }) {
       if (!user?.id) throw new Error('No user signed in.');
     };
 
+    // How many Spaces this account owns, and whether that's hit the cap.
+    const ownedWorkspaceCount = teams.filter(t => t.owner_id === user?.id).length;
+    const atWorkspaceLimit = ownedWorkspaceCount >= MAX_OWNED_WORKSPACES;
+
     const isAdmin = team
       ? members.some(m => m.user_id === user?.id && m.role === 'admin')
       : false;
@@ -214,6 +218,9 @@ export function TeamProvider({ children }) {
       isLeader,
       canManageRoster,
       hasTeamPlan,
+      ownedWorkspaceCount,
+      atWorkspaceLimit,
+      maxOwnedWorkspaces: MAX_OWNED_WORKSPACES,
 
       /**
        * Create a new team. The caller becomes the owner + admin member, and
@@ -222,6 +229,10 @@ export function TeamProvider({ children }) {
        */
       createTeam: async ({ name, location, plan: planArg }) => {
         guard();
+        // Cap how many Spaces one account can own (see MAX_OWNED_WORKSPACES).
+        if (ownedWorkspaceCount >= MAX_OWNED_WORKSPACES) {
+          throw new Error(`You can create up to ${MAX_OWNED_WORKSPACES} workspaces. Contact support if you need more.`);
+        }
         // Each workspace is its own billing unit. The `teams.plan` check
         // constraint only allows 'team' | 'church' — never 'free'/'sync' — so
         // we resolve a valid tier: an explicit choice wins, else fall back to

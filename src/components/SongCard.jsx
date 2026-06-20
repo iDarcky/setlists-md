@@ -20,7 +20,7 @@ function formatRelativeTime(ts) {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function SongCard({ song, onClick, variant = 'card', showTags = false, selected = false }) {
+function SongCard({ song, onClick, variant = 'card', showTags = false, selected = false }) {
   const arr = defaultArr(song);
   const songKey = arr?.key || song?.key || 'C';
   const songTempo = arr?.tempo ?? song?.tempo;
@@ -105,3 +105,7 @@ export default function SongCard({ song, onClick, variant = 'card', showTags = f
     </Card>
   );
 }
+
+// Memoized: the Library re-renders on every keystroke (search) and selection
+// change, but a card's props only change when its own song/selection does.
+export default React.memo(SongCard);

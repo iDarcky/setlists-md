@@ -8,11 +8,27 @@ import { cn } from '../lib/utils';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { useResizablePane } from '../lib/useResizablePane';
 import { useEntitlement } from '../hooks/useEntitlement';
+import { useTeam } from '../auth/useTeam';
+import { useTeamSchedules } from '../hooks/useTeamSchedules';
+import { useTeamSetlistMap } from '../hooks/useTeamSetlistMap';
 
 const SetlistOverview = lazy(() => import('./SetlistOverview'));
 
 function songCount(sl) {
   return (sl.items || []).filter(i => i.songId).length;
+}
+
+// Full start datetime (date + time) in ms; used for upcoming/past split + sort.
+const SETLIST_GRACE_MS = 60 * 60 * 1000; // stay "upcoming" up to 1h after start
+function setlistStartMs(sl) {
+  return new Date((sl.date || '') + 'T' + (sl.time || '00:00') + ':00').getTime();
+}
+// Sort key for the Past group: newest day first, but earliest service first
+// within a day (so Sun AM reads above Sun PM under that day).
+function comparePast(a, b) {
+  const da = a.date || '', db = b.date || '';
+  if (da !== db) return da < db ? 1 : -1;          // date descending
+  return setlistStartMs(a) - setlistStartMs(b);     // time ascending within day
 }
 
 function formatDate(date) {
@@ -69,7 +85,7 @@ function HeaderSort({ label, modeKey, sortMode, sortAsc, onSort }) {
 }
 
 // A titled table section (Upcoming / Past) sharing one column layout.
-function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onToggleAll, sortMode, sortAsc, onSort, compact = false, showService = false }) {
+function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onToggleAll, sortMode, sortAsc, onSort, compact = false, showService = false, showSchedule = false }) {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-baseline gap-2 px-1">
@@ -86,6 +102,13 @@ function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onTog
               <th className="text-left px-5 py-3"><HeaderSort label="Name" modeKey="name" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
               <th className="text-left px-5 py-3 w-[180px]"><HeaderSort label="Date" modeKey="date" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
               <th className="text-left px-5 py-3 hidden md:table-cell w-[90px]"><HeaderSort label="Songs" modeKey="songs" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
+              {showSchedule && (
+                <>
+                  <th title="Instrumentalists scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[80px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Instr.</th>
+                  <th title="Vocalists scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[80px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Vocals</th>
+                  <th title="Total members scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[90px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Sched.</th>
+                </>
+              )}
               {showService && <th className="text-left px-5 py-3 hidden md:table-cell w-[150px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Service</th>}
               {!compact && <th className="text-left px-5 py-3 hidden lg:table-cell w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>}
             </tr>
@@ -115,6 +138,9 @@ export default function Setlists({
   onEditSetlist,
   readOnly = false,
   clockFormat = '12h',
+  overviewV2 = false,
+  overscheduleWarn = false,
+  streakLimit = 3,
   onExportSetlistZip,
   onExportSetlistPdfOverview,
   onExportSetlistPdfFull,
@@ -148,6 +174,8 @@ export default function Setlists({
   const [selectedTags, setSelectedTags] = useState([]);
   const [tagsOpen, setTagsOpen] = useState(false);
   const tagsRef = useRef(null);
+  const [serviceOpen, setServiceOpen] = useState(false);
+  const serviceRef = useRef(null);
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'gallery'
   const [sortMode, setSortMode] = useState('date');   // 'name' | 'date' | 'songs'
   const [sortAsc, setSortAsc] = useState(false);
@@ -212,19 +240,53 @@ export default function Setlists({
     return () => document.removeEventListener('mousedown', handler);
   }, [tagsOpen]);
 
-  const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
+  useEffect(() => {
+    if (!serviceOpen) return;
+    const handler = (e) => { if (serviceRef.current && !serviceRef.current.contains(e.target)) setServiceOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [serviceOpen]);
+
+  // Captured once on mount (Date.now() is flagged impure if called in render).
+  const [nowTs] = useState(() => Date.now());
+
+  // Per-setlist schedule counts (team workspaces only). NOTE: shown by default
+  // for now — the whole setlist table is slated for a rework with a proper
+  // column picker (see BACKLOG "Editable setlist table fields").
+  const { team } = useTeam();
+  const { schedules } = useTeamSchedules(team?.id);
+  const { map: setlistIdMap } = useTeamSetlistMap(team?.id);
+  const showSchedule = !!team;
+  const scheduleStats = useMemo(() => {
+    const stats = {};
+    if (!showSchedule) return stats;
+    for (const sl of setlists) {
+      const dbId = setlistIdMap[sl.id] || sl.id;
+      const rows = schedules.filter(s => s.setlist_id === dbId);
+      stats[sl.id] = {
+        total: rows.length,
+        instrumentalists: rows.filter(r => r.role).length,
+        vocalists: rows.filter(r => r.vocal_part).length,
+      };
+    }
+    return stats;
+  }, [showSchedule, setlists, schedules, setlistIdMap]);
+
+  // A setlist is "upcoming" until 1h after its start time, then it's "past".
+  const isUpcoming = (sl) => {
+    const t = setlistStartMs(sl);
+    return !Number.isNaN(t) && t + SETLIST_GRACE_MS > nowTs;
+  };
 
   // Gallery grouping (Upcoming / Past)
   const { upcoming, past } = useMemo(() => {
     const up = [], pa = [];
-    filtered.forEach(sl => {
-      const slDate = new Date(sl.date + 'T12:00:00');
-      if (slDate >= today) up.push(sl); else pa.push(sl);
-    });
-    up.sort((a, b) => new Date(a.date) - new Date(b.date));
-    pa.sort((a, b) => new Date(b.date) - new Date(a.date));
+    filtered.forEach(sl => { if (isUpcoming(sl)) up.push(sl); else pa.push(sl); });
+    up.sort((a, b) => setlistStartMs(a) - setlistStartMs(b)); // soonest first
+    pa.sort(comparePast);
     return { upcoming: up, past: pa };
-  }, [filtered, today]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, nowTs]);
 
   // Flat table rows
   const flatRows = useMemo(() => {
@@ -240,16 +302,21 @@ export default function Setlists({
     });
   }, [filtered, sortMode, sortAsc]);
 
-  // Table view splits the (sorted) rows into Upcoming / Past, preserving the
-  // active column sort within each group. Undated setlists fall into Past.
+  // Table view splits the (sorted) rows into Upcoming / Past. For the default
+  // Date sort each group gets its own natural order — upcoming soonest-first,
+  // past newest-day-first (AM before PM) — reversed when the user toggles the
+  // Date header. Name/Songs sorts keep the uniform column order.
   const { tableUpcoming, tablePast } = useMemo(() => {
     const up = [], pa = [];
-    flatRows.forEach(sl => {
-      const d = new Date((sl.date || '') + 'T12:00:00');
-      if (!isNaN(d) && d >= today) up.push(sl); else pa.push(sl);
-    });
+    flatRows.forEach(sl => { if (isUpcoming(sl)) up.push(sl); else pa.push(sl); });
+    if (sortMode === 'date') {
+      const flip = sortAsc ? -1 : 1;
+      up.sort((a, b) => (setlistStartMs(a) - setlistStartMs(b)) * flip);
+      pa.sort((a, b) => comparePast(a, b) * flip);
+    }
     return { tableUpcoming: up, tablePast: pa };
-  }, [flatRows, today]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flatRows, nowTs, sortMode, sortAsc]);
 
   const handleSortClick = (modeKey) => {
     if (sortMode === modeKey) setSortAsc(p => !p);
@@ -311,6 +378,19 @@ export default function Setlists({
         </td>
         <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap">{formatDate(sl.date)}</td>
         <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] hidden md:table-cell">{songCount(sl)}</td>
+        {showSchedule && (() => {
+          const st = scheduleStats[sl.id] || { total: 0, instrumentalists: 0, vocalists: 0 };
+          const cell = (n) => n > 0
+            ? <span className="text-copy-14 text-[var(--modes-text)] tabular-nums">{n}</span>
+            : <span className="text-copy-14 text-[var(--modes-text-dim)]">—</span>;
+          return (
+            <>
+              <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.instrumentalists)}</td>
+              <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.vocalists)}</td>
+              <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.total)}</td>
+            </>
+          );
+        })()}
         {showService && (
           <td className="px-5 py-3.5 hidden md:table-cell">
             {sl.service
@@ -332,7 +412,7 @@ export default function Setlists({
   };
 
   return (
-    <div data-theme-variant="modes" className={cn(splitDock ? 'absolute inset-0 flex overflow-hidden' : 'relative h-full overflow-y-auto')}>
+    <div data-theme-variant="modes" className={cn(splitDock ? 'absolute inset-0 flex overflow-hidden' : 'relative min-h-full')}>
       {/* List column — own scroller when a pane is docked beside it. */}
       <div className={splitDock ? 'flex-1 min-w-0 min-h-0 overflow-y-auto' : 'contents'}>
       {/* Header */}
@@ -341,28 +421,49 @@ export default function Setlists({
           <h1 className="text-heading-32 font-bold text-[var(--modes-text)] m-0 mr-2">Setlists</h1>
           <SearchBar
             className="flex-1 min-w-[200px]"
-            placeholder="Search setlists by name, location, or tag…"
+            placeholder="Search setlists & songs…"
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
 
           {showService && serviceOptions.length > 0 && (
-            <select
-              value={serviceFilter}
-              onChange={e => setServiceFilter(e.target.value)}
-              aria-label="Filter by service"
-              className={cn(
-                'h-9 px-3 rounded-lg border text-label-14 cursor-pointer bg-[var(--modes-surface)] outline-none transition-colors focus:border-[var(--color-brand)]',
-                serviceFilter !== 'all'
-                  ? 'border-[var(--color-brand)] text-[var(--color-brand)]'
-                  : 'border-[var(--modes-border)] text-[var(--modes-text)] hover:bg-[var(--modes-surface-strong)]',
+            <div ref={serviceRef} className="relative">
+              <button
+                onClick={() => setServiceOpen(o => !o)}
+                className={cn(
+                  'h-9 px-4 rounded-lg border cursor-pointer flex items-center gap-2 text-label-14 transition-all duration-150',
+                  serviceFilter !== 'all'
+                    ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--modes-surface)]'
+                    : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]',
+                )}
+              >
+                {serviceFilter === 'all' ? 'All services' : serviceFilter}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn('transition-transform duration-150', serviceOpen && 'rotate-180')}>
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+              {serviceOpen && (
+                <div className="absolute right-0 top-full mt-2 w-[220px] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden">
+                  <div className="flex flex-col py-1 max-h-[320px] overflow-y-auto">
+                    {[['all', 'All services'], ...serviceOptions.map(s => [s, s])].map(([val, label]) => (
+                      <button
+                        key={val}
+                        onClick={() => { setServiceFilter(val); setServiceOpen(false); }}
+                        className={cn(
+                          'flex items-center justify-between gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--modes-surface)] transition-colors text-left border-none bg-transparent',
+                          serviceFilter === val ? 'text-[var(--color-brand)]' : 'text-[var(--modes-text)]',
+                        )}
+                      >
+                        <span className="text-copy-14 truncate">{label}</span>
+                        {serviceFilter === val && (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M20 6 9 17l-5-5" /></svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
-            >
-              <option value="all">All services</option>
-              {serviceOptions.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+            </div>
           )}
 
           {allTags.length > 0 && (
@@ -376,7 +477,6 @@ export default function Setlists({
                     : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]',
                 )}
               >
-                {selectedTags.length > 0 && <span className="w-2 h-2 rounded-full bg-[var(--color-brand)]" />}
                 Tags{selectedTags.length > 0 ? ` (${selectedTags.length})` : ''}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn('transition-transform duration-150', tagsOpen && 'rotate-180')}>
                   <path d="m6 9 6 6 6-6" />
@@ -419,8 +519,10 @@ export default function Setlists({
             <div className="hidden lg:flex items-center gap-2 shrink-0">
               {onImportSetlist && (
                 <IconButton variant="default" size="sm" onClick={() => fileInputRef.current?.click()} aria-label="Import .zip" title="Import .zip">
+                  {/* Folder + down arrow — "import a file into the library". */}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+                    <path d="M3 8a2 2 0 0 1 2-2h3.6a1 1 0 0 1 .7.3L11 8h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <path d="M12 11v5" /><path d="m9.5 13.5 2.5 2.5 2.5-2.5" />
                   </svg>
                 </IconButton>
               )}
@@ -475,6 +577,7 @@ export default function Setlists({
                 onSort={handleSortClick}
                 compact={splitDock}
                 showService={showService}
+                showSchedule={showSchedule}
               />
             )}
             {tablePast.length > 0 && (
@@ -491,6 +594,7 @@ export default function Setlists({
                 onSort={handleSortClick}
                 compact={splitDock}
                 showService={showService}
+                showSchedule={showSchedule}
               />
             )}
           </div>
@@ -555,6 +659,10 @@ export default function Setlists({
                 hidePlay={isTablet}
                 songs={songs}
                 clockFormat={clockFormat}
+                v2={overviewV2}
+                setlists={setlists}
+                overscheduleWarn={overscheduleWarn}
+                streakLimit={streakLimit}
                 onBack={closePeek}
                 onToggleFullscreen={onToggleFullscreen}
                 onEdit={canEdit ? () => onEditSetlist?.(previewSetlist) : undefined}

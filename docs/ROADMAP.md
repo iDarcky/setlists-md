@@ -58,17 +58,19 @@ and email are in place.
       overlay is now the only print path on every platform.*
 
 ### 🟡 Beta quality (should ship, won't hard-block)
-- [ ] Display modes: Chords-only / Lyrics-only / Song-map.
+- [x] Display modes: Chords-only / Lyrics-only / Song-map (chart/practice/live
+      view picker; Nashville + Do-Re-Mi notation also shipped).
 - [ ] ChordPro / OnSong import (migration is the #1 new-user friction point).
-- [ ] Notes per setlist.
-- [ ] WakeLock (stop the screen sleeping mid-performance).
+- [x] Notes per setlist (unified notes: team + private "My note" at song /
+      setlist-item / section scope; `team_notes` table).
+- [x] WakeLock (stop the screen sleeping mid-performance).
 - [ ] Public-domain starter pack (~20 hymns) for first-run.
 - [ ] Setlist QR / URL share (a paid-tier feature — must exist if sold).
 - [ ] Replace remaining native `confirm()`/`alert()` with custom dialogs.
 - [ ] Multi-filter library view.
-- [ ] **Team optimistic locking** — concurrent team edits silently overwrite;
-      the sync engine detects hash conflicts but there's no merge/warn UX yet.
-      Needs a product decision (warn-and-merge vs last-write-wins).
+- [x] **Team optimistic locking** — CAS-guarded writes; conflicts are detected
+      and surfaced ("Cloud overwrote local changes") on both full sync and the
+      debounced push. Current policy: last-write-wins + warn (no 3-way merge).
 
 ### 🎨 Page redesigns to match the new app shell
 These screens were updated for content but still need a visual pass to sit
@@ -77,14 +79,16 @@ natively inside the new app shell (top header, modes theme, consistent cards):
       match the new Dashboard aesthetic rather than the legacy `modes` overlay.
 - [ ] **Team page** (`TeamScreen.jsx`) — align create/manage flows and the
       tier picker with the new design; reflect Band/Church naming.
-- [ ] **Preferences/Settings** (`Settings.jsx`) — modernise the panel layout and
-      the plan/about sections to match the shell.
+- [x] **Preferences/Settings** (`Settings.jsx`) — grouped nav (Account /
+      Display / Sync & data / About), Notion-style account card, bigger panel
+      titles; renamed "Preferences" → "Settings".
 
 ### Suggested cadence
 | Month | Theme | Status |
 | :--- | :--- | :--- |
 | **June** | Pipeline (CI, branch protection) + legal + security + bug fixes | ✅ shipped (0.11.0) |
-| **July** | Remaining blockers (iPad PDF, unsaved guard) + App-shell redesign slices | up next |
+| **June** | App-shell redesign slices (headers, notes, dashboard, settings, auth) + sync reliability | ✅ shipped (0.12.0) |
+| **July** | Remaining blockers (unsaved guard) + import (ChordPro/OnSong) + polish | up next |
 | **August** | Custom domain + Resend email + Google/Apple login + cookie notice + leaked-password toggle + first features | planned |
 | **September** | Polish + private soft-launch to 5–10 worship teams | planned |
 | **October 1** | **Public beta** | planned |
@@ -92,11 +96,22 @@ natively inside the new app shell (top header, modes theme, consistent cards):
 ### App Shell redesign — independently-mergeable slices
 Shipped as small slices, never a long-lived branch. Order:
 1. [x] Settings-modal backdrop-close + scroll-lock + iPad header safe-area.
-2. [ ] Dashboard + Schedule redesign.
-3. [ ] Chart/performance display options (Lyrics-only / Chords-only / Song-map,
-       Nashville + Do-Re-Mi notation, condensed sections).
-4. [ ] Setlist + notes rework.
-5. [ ] Church/Team hardening (read-only gating done; optimistic locking left).
+2. [x] Dashboard + Schedule redesign — customizable widgets (reorder + show/
+       hide, synced) with This week / Library stats / Team availability / Sync
+       widgets; "My Schedule" colour-codes services (green) vs rehearsals
+       (amber).
+3. [x] Chart/performance display options (Lyrics-only / Chords-only / Song-map
+       via the view picker, Nashville + Do-Re-Mi notation). Condensed/duplicate-
+       section handling still open.
+4. [x] Setlist + notes rework (unified team + private notes; per-item notes).
+5. [x] Church/Team hardening (read-only gating + optimistic-lock conflict
+       surfacing; own-realtime-echo suppression; owned-workspace cap).
+
+Shipped in **0.12.0** beyond the slices above: a shared three-row stage header
+(Chart/Practice/Live) that scroll-collapses to the structure ribbon, edge-arrow
+nav + scroll-synced ribbon + selectable ribbon styles, campfire single-song
+Play with key/tag/tempo "Up next" suggestions, password-only sign-in/up rework,
+and a sync-reliability pass (no status churn, debounce/full-sync race closed).
 
 ### Production pipeline gaps
 - [x] **CI** — GitHub Actions `lint + test + build` on every PR/push.

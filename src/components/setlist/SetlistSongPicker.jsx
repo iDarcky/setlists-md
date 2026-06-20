@@ -23,16 +23,21 @@ export default function SetlistSongPicker({ songs, currentItems, onAddSong }) {
   }, [currentItems]);
 
   const results = useMemo(() => {
-    if (!search.trim()) return songs;
-    const q = search.toLowerCase();
-    return songs.filter(s =>
-      s.title.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q)
+    const base = !search.trim()
+      ? songs
+      : songs.filter(s => {
+          const q = search.toLowerCase();
+          return s.title.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q);
+        });
+    // Alphabetical by title so the picker is predictable to scan.
+    return [...base].sort((a, b) =>
+      (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' })
     );
   }, [songs, search]);
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="section-title m-0">Song Library</p>
+      <p className="text-label-12 font-semibold text-[var(--ds-gray-600)] m-0">Song Library</p>
 
       <Input
         value={search}

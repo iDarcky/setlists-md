@@ -3,12 +3,14 @@ import { fetchSharedSetlist } from '../share/setlistShare';
 import { Button } from './ui/Button';
 
 const SetlistOverview = lazy(() => import('./SetlistOverview'));
+const SetlistPlayer = lazy(() => import('./SetlistPlayer'));
 
 // Public, read-only viewer for a shared setlist link (`/?setlist=<token>`).
 // Renders without auth or the user's local library — everything comes from the
 // frozen snapshot stored under the token. Expired/missing links show a notice.
 export default function SharedSetlistViewer({ token, onExit }) {
   const [state, setState] = useState({ status: 'loading', data: null });
+  const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -57,13 +59,32 @@ export default function SharedSetlistViewer({ token, onExit }) {
   }
 
   const { setlist, songs } = state.data;
+
+  // Play Live: a public, read-only live player over the frozen snapshot. No
+  // practice mode, no app shell — just the live chart navigation.
+  if (playing) {
+    return (
+      <Suspense fallback={<div className="min-h-[100dvh] bg-[var(--ds-background-100)]" />}>
+        <SetlistPlayer
+          setlist={setlist}
+          songs={songs || []}
+          onBack={() => setPlaying(false)}
+          onFinish={() => setPlaying(false)}
+        />
+      </Suspense>
+    );
+  }
+
   return (
     <div className="min-h-[100dvh] bg-[var(--ds-background-100)] flex flex-col">
       <div className="shrink-0 flex items-center justify-between gap-3 px-4 h-12 border-b border-[var(--ds-gray-300)] bg-[var(--ds-background-200)]">
         <span className="text-label-12 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">
           Shared setlist · read-only
         </span>
-        <Button variant="secondary" size="sm" onClick={onExit}>Open app</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="brand" size="sm" onClick={() => setPlaying(true)}>Play Live</Button>
+          <Button variant="secondary" size="sm" onClick={onExit}>Open app</Button>
+        </div>
       </div>
       <div className="flex-1 min-h-0">
         <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-600)]">Loading…</div>}>

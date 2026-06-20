@@ -22,11 +22,17 @@ export function resolveChartDisplay(settings, { fallbackLyric = 16 } = {}) {
   const stage = STAGE_MODE_MAP[settings?.stageMode || 'leader']?.settings
     || STAGE_MODE_MAP.leader.settings;
   const lyric = asNumber(settings?.defaultFontSize) ?? stage.lyricFontSize ?? fallbackLyric;
+  const nashville = settings?.nashville ?? !!stage.nashville;
+  // `notation` is the three-way successor to the legacy `nashville` boolean.
+  // Prefer an explicit setting, then the stage preset's, then fall back to the
+  // boolean so pre-migration prefs keep rendering Nashville.
+  const notation = settings?.notation ?? stage.notation ?? (nashville ? 'nashville' : 'letters');
   return {
     columns: settings?.defaultColumns,
     lyricFontSize: lyric,
     chordFontSize: asNumber(settings?.chordFontSize) ?? stage.chordFontSize ?? Math.round(lyric * 0.95),
-    nashville: settings?.nashville ?? !!stage.nashville,
+    nashville,
+    notation,
     showChords: settings?.showChords ?? (stage.showChords !== false),
     showDiagrams: settings?.showDiagrams ?? !!stage.showDiagrams,
   };

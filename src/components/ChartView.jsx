@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { transposeChord, ALL_KEYS, semitonesBetween, normalizeSectionName } from '../music';
+import { transposeChord, keysInQualityOf, semitonesBetween, normalizeSectionName } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
 import SongMap from './SongMap';
@@ -12,6 +12,10 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import { cn } from '../lib/utils';
 import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { StructureRibbon } from './StructureRibbon';
+import ViewModePicker from './ui/ViewModePicker';
+import { useActiveSection } from '../hooks/useActiveSection';
+import { useStageHeaderCollapse } from '../hooks/useStageHeaderCollapse';
+import StageHeader from './ui/StageHeader';
 import { exportSongPdf } from '../pdf/exportSongPdf';
 import { OverflowMenu } from './ui/OverflowMenu';
 import BottomSheet, { SheetField } from './ui/BottomSheet';
@@ -43,6 +47,7 @@ export default function ChartView({
   song: songInput, onBack, onEdit, isPreview,
   defaultFontSize = 16,
   showInlineNotes = true, inlineNoteStyle = 'dashes',
+  duplicateSections = 'full',
   chartLayout = 'columns',
   isFullscreen = false, onToggleFullscreen,
   onTransposed,
@@ -53,6 +58,7 @@ export default function ChartView({
   onUpdateSettings,
   onOpenAdvancedStyle,
   onMoveSong, onCopySong,
+  onPlay,
 }) {
   const initialFontSize = FONT_SIZES[defaultFontSize] || (typeof defaultFontSize === 'number' ? defaultFontSize : 16);
 
@@ -116,15 +122,16 @@ export default function ChartView({
 
   const [fontSize, setFontSize] = useState(disp.lyricFontSize);
   const [chordFontSize, setChordFontSize] = useState(disp.chordFontSize);
-  const [nns, setNns] = useState(disp.nashville);
+  const [notation, setNotation] = useState(disp.notation);
   const [showChords, setShowChords] = useState(disp.showChords);
   const [showDiagrams, setShowDiagrams] = useState(disp.showDiagrams);
   // Quick view mode (session-local) from the structure row:
-  //   chords → chords + lyrics (+ tabs); lyrics → lyrics only; tabs → tabs only.
+  //   chords → chords + lyrics (+ tabs); chordsonly → chords, no lyrics/tabs;
+  //   lyrics → lyrics only; tabs → tabs only.
   const [displayMode, setDisplayMode] = useState('chords');
-  const viewChords = displayMode === 'chords';
-  const viewLyrics = displayMode !== 'tabs';
-  const viewTabs = displayMode !== 'lyrics';
+  const viewChords = displayMode === 'chords' || displayMode === 'chordsonly';
+  const viewLyrics = displayMode === 'chords' || displayMode === 'lyrics';
+  const viewTabs = displayMode === 'chords' || displayMode === 'tabs';
 
   // Does this song actually contain any tabs? Drives whether the "Tabs" view
   // option is offered at all.
@@ -157,17 +164,20 @@ export default function ChartView({
   useEffect(() => {
     setFontSize(disp.lyricFontSize);
     setChordFontSize(disp.chordFontSize);
-    setNns(disp.nashville);
+    setNotation(disp.notation);
     setShowChords(disp.showChords);
     setShowDiagrams(disp.showDiagrams);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.showChords, settings?.showDiagrams, settings?.stageMode]);
+  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.notation, settings?.showChords, settings?.showDiagrams, settings?.stageMode]);
 
   // Persisting helpers — update the snappy local mirror and the device setting.
   const changeFontSize = (v) => { const n = Math.max(10, Math.min(30, v)); setFontSize(n); onUpdateSettings?.('defaultFontSize', n); };
   const changeChordFontSize = (v) => { const n = Math.max(8, Math.min(30, v)); setChordFontSize(n); onUpdateSettings?.('chordFontSize', n); };
-  const toggleNns = () => { const v = !nns; setNns(v); onUpdateSettings?.('nashville', v); };
+  // Reader notation: Letters / Nashville numbers / Do-Re-Mi solfège. Also writes
+  // the legacy `nashville` boolean so older surfaces/prefs stay consistent.
+  const changeNotation = (v) => { setNotation(v); onUpdateSettings?.('notation', v); onUpdateSettings?.('nashville', v === 'nashville'); };
   const toggleShowDiagrams = () => { const v = !showDiagrams; setShowDiagrams(v); onUpdateSettings?.('showDiagrams', v); };
+  const toggleShowChords = () => { const v = !showChords; setShowChords(v); onUpdateSettings?.('showChords', v); };
 
   // Instrument presets (stage modes) — pick a band role and the chart switches
   // to a layout tuned for it. Writes every value through settings so the choice
@@ -180,6 +190,7 @@ export default function ChartView({
     if (preset.lyricFontSize != null) onUpdateSettings?.('defaultFontSize', preset.lyricFontSize);
     if (preset.chordFontSize != null) onUpdateSettings?.('chordFontSize', preset.chordFontSize);
     onUpdateSettings?.('nashville', !!preset.nashville);
+    onUpdateSettings?.('notation', preset.notation || (preset.nashville ? 'nashville' : 'letters'));
     onUpdateSettings?.('showChords', preset.showChords !== false);
     onUpdateSettings?.('showDiagrams', !!preset.showDiagrams);
     if (preset.showInlineNotes != null) onUpdateSettings?.('showInlineNotes', preset.showInlineNotes);
@@ -193,10 +204,12 @@ export default function ChartView({
 
   const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'arrangements' | null
   const [showInfo, setShowInfo] = useState(false); // inline song-details panel toggled from the title chevron
-  const [scrolled, setScrolled] = useState(false);
   const [notesPeekOpen, setNotesPeekOpen] = useState(notesPeekDefaultOpen);
 
   const scrollContainerRef = useRef(null);
+  // Three-row header collapse (shared with practice/live): scroll down hides
+  // title+meta, scroll up / tap reveals. Off in the editor preview.
+  const [headerCollapsed, , revealHeader] = useStageHeaderCollapse(scrollContainerRef, !isPreview && settings?.autoHideHeader === true);
 
   const transpose = semitonesBetween(song.key, selectedKey);
 
@@ -217,31 +230,8 @@ export default function ChartView({
   };
 
   const openSheet = (name) => setActiveSheet(name);
-
-  // Detect scroll position for collapsing header. Uses a wide hysteresis
-  // band (must drop under 20 to expand, must climb past 140 to collapse)
-  // plus a rAF guard so iOS Safari's momentum scroll can't fire scrollTop
-  // reads back-to-back fast enough to swap the state mid-frame.
-  useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    let pending = false;
-    const onScroll = () => {
-      if (pending) return;
-      pending = true;
-      requestAnimationFrame(() => {
-        pending = false;
-        const y = el.scrollTop;
-        setScrolled((prev) => {
-          if (prev && y < 20) return false;
-          if (!prev && y > 140) return true;
-          return prev;
-        });
-      });
-    };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
-  }, []);
+  // Scroll-sync: which section is in view (drives the ribbon highlight).
+  const activeSection = useActiveSection(scrollContainerRef, `${song.id}:${displayMode}:${columns}`);
 
   // Track the reading area's width so the adaptive column default (above) can
   // react to the real space available — fullscreen vs. a narrow dock pane vs.
@@ -323,6 +313,22 @@ export default function ChartView({
     });
   }, [orderedSections]);
 
+  // Condensed repeats: for each playback slot, the index of the first occurrence
+  // it duplicates, or -1 when it's the first/only occurrence. A repeat only
+  // condenses when its chords render identically to the first — i.e. the same
+  // section id AND the same cumulative modulate offset (a repeat after a key
+  // change has different chords and must render in full).
+  const repeatFirstIndex = useMemo(() => {
+    const firstSeen = new Map();
+    return orderedSections.map((section, idx) => {
+      const key = section.id || normalizeSectionName(section.type);
+      const prior = firstSeen.get(key);
+      if (prior != null && prior.mod === sectionModOffsets[idx]) return prior.idx;
+      if (prior == null) firstSeen.set(key, { idx, mod: sectionModOffsets[idx] });
+      return -1;
+    });
+  }, [orderedSections, sectionModOffsets]);
+
   // Extract all unique chords for diagrams
   const allChords = Array.from(new Set(
     song.sections.flatMap(s => s.lines)
@@ -342,7 +348,7 @@ export default function ChartView({
   // Song details body — shown inline in the header (toggled by the title
   // chevron). Defined once so the header panel stays readable.
   const songInfoBody = hasMetadata ? (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-copy-13 m-0">
+    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-copy-13 m-0">
       {song.artist && <InfoRow label="Artist">{song.artist}</InfoRow>}
       {song.originaltitle && <InfoRow label="Original title">{song.originaltitle}</InfoRow>}
       {song.language && <InfoRow label="Language">{song.language}</InfoRow>}
@@ -375,6 +381,7 @@ export default function ChartView({
   return (
     <div
       ref={scrollContainerRef}
+      onClick={isPreview ? undefined : revealHeader}
       style={CHART_THEME_STYLE}
       className={cn(
         // h-full (not 100dvh) so the chart fills its parent slot and owns the
@@ -389,62 +396,19 @@ export default function ChartView({
           theme is active. Children use the app's --text-1/--text-2
           tokens which already follow light/dark/midnight. */}
       {!isPreview && (
-        <div
-          className="material-header transition-all duration-200"
-          style={{
-            color: 'var(--text-1)',
-            fontFamily: 'var(--font-sans)',
-          }}
-        >
-          {/* Line 1: Title + close + dot menu. Title size stays stable on
-              scroll — toggling font-size against the synchronous Line-2
-              collapse was causing the title to flicker for some users.
-              Compact "Line-2" content collapses on scroll but the title
-              itself doesn't resize. */}
-          <div className="wide-container flex items-center justify-between gap-3 pt-3 pb-0.5">
-            <div className="min-w-0 flex-1 flex items-baseline gap-3">
-              <button
-                type="button"
-                onClick={() => setShowInfo(v => !v)}
-                aria-expanded={showInfo}
-                aria-label="Song details"
-                className="min-w-0 flex items-baseline gap-1.5 bg-transparent border-none cursor-pointer p-0 text-left"
-              >
-                <h1
-                  className="m-0 truncate font-bold leading-tight text-heading-24"
-                  style={{ color: 'var(--text-1)' }}
-                >
-                  {song.title}
-                </h1>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 self-center text-[var(--text-2)] transition-transform duration-200 ${showInfo ? 'rotate-180' : ''}`}>
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-              {/* Always-mounted inline meta — visibility toggled via
-                  CSS so the DOM doesn't reflow on scroll. Without this
-                  the flex container reflowed at the moment `scrolled`
-                  toggled and the title's truncate point jumped. */}
-              <div
-                className="flex items-center gap-2 flex-shrink-0 text-label-12 transition-opacity duration-150"
-                style={{
-                  color: 'var(--text-2)',
-                  opacity: scrolled ? 1 : 0,
-                  pointerEvents: scrolled ? 'auto' : 'none',
-                  maxWidth: scrolled ? '100%' : 0,
-                  overflow: 'hidden',
-                }}
-                aria-hidden={!scrolled}
-              >
-                <span aria-hidden="true">·</span>
-                <span className="font-bold whitespace-nowrap" style={{ color: 'var(--text-1)' }}>{selectedKey}</span>
-                {song.tempo && <span className="whitespace-nowrap">{song.tempo} bpm</span>}
-                {song.time && <span className="whitespace-nowrap">{song.time}</span>}
-              </div>
-            </div>
-            <div className="flex gap-0.5 items-center flex-shrink-0">
+        <StageHeader
+          collapsed={headerCollapsed}
+          onExpand={revealHeader}
+          close={(
+            <>
               <OverflowMenu
                 ariaLabel="Song actions"
                 items={[
+                  onPlay && !isPreview && {
+                    label: 'Play (live)',
+                    icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>),
+                    onClick: () => onPlay(activeArrId),
+                  },
                   {
                     label: 'Print / Save as PDF',
                     icon: (
@@ -458,58 +422,26 @@ export default function ChartView({
                   },
                   onEdit && {
                     label: 'Edit',
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                      </svg>
-                    ),
+                    icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>),
                     onClick: () => onEdit(activeArrId),
-                  },
-                  {
-                    label: 'Customize',
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
-                        <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
-                        <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
-                        <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
-                      </svg>
-                    ),
-                    onClick: () => openSheet('layout'),
                   },
                   onMoveSong && {
                     label: 'Move to…',
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14M13 6l6 6-6 6" />
-                      </svg>
-                    ),
+                    icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>),
                     onClick: () => onMoveSong(),
                   },
                   onCopySong && {
                     label: 'Copy to…',
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                      </svg>
-                    ),
+                    icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>),
                     onClick: () => onCopySong(),
+                  },
+                  onToggleFullscreen && {
+                    label: isFullscreen ? 'Exit fullscreen' : 'Fullscreen',
+                    icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8V3h5" /><path d="M21 8V3h-5" /><path d="M3 16v5h5" /><path d="M21 16v5h-5" /></svg>),
+                    onClick: onToggleFullscreen,
                   },
                 ]}
               />
-              {onToggleFullscreen && (
-                <IconButton variant="ghost" size="sm" onClick={onToggleFullscreen} aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
-                  {isFullscreen ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M8 3v4a1 1 0 0 1-1 1H3" /><path d="M21 8h-4a1 1 0 0 1-1-1V3" /><path d="M3 16h4a1 1 0 0 1 1 1v4" /><path d="M16 21v-4a1 1 0 0 1 1-1h4" />
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 8V3h5" /><path d="M21 8V3h-5" /><path d="M3 16v5h5" /><path d="M21 16v5h-5" />
-                    </svg>
-                  )}
-                </IconButton>
-              )}
               {onBack && (
                 <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -517,178 +449,183 @@ export default function ChartView({
                   </svg>
                 </IconButton>
               )}
-            </div>
-          </div>
-
-          {/* Line 2: Arrangement + Key / Tempo / Time — collapses when scrolled */}
-          <div className={cn(
-            "wide-container flex flex-wrap items-center gap-3 transition-all duration-200 overflow-hidden",
-            scrolled ? "max-h-0 opacity-0 pb-0" : "max-h-12 opacity-100 pb-1.5"
-          )}>
-            {song._arrangementId && (song._allArrangements?.length || 0) > 1 ? (
-              <>
+            </>
+          )}
+          title={(
+            <button
+              type="button"
+              onClick={() => setShowInfo(v => !v)}
+              aria-expanded={showInfo}
+              aria-label="Song details"
+              className="min-w-0 flex-1 flex items-center gap-1.5 bg-transparent border-none cursor-pointer p-0 text-left"
+            >
+              <h1 className="m-0 truncate font-bold leading-tight text-heading-16 sm:text-heading-20" style={{ color: 'var(--text-1)' }}>
+                {song.title}
+              </h1>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 self-center text-[var(--text-2)] transition-transform duration-200 ${showInfo ? 'rotate-180' : ''}`}>
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+          )}
+          meta={(
+            <>
+              <Select value={selectedKey} onValueChange={setSelectedKey}>
+                <SelectTrigger className="h-7 px-2 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-lg text-label-12 sm:text-label-14 font-bold text-[var(--text-1)] gap-1 min-w-0 w-auto focus:ring-0" aria-label="Key">
+                  <span className="hidden sm:inline text-label-11 font-semibold text-[var(--text-2)] mr-0.5">Key</span>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {keysInQualityOf(song.key).map(k => (<SelectItem key={k} value={k}>{k}</SelectItem>))}
+                </SelectContent>
+              </Select>
+              {song.tempo && (
+                <span className="whitespace-nowrap text-label-11 sm:text-label-13"><span className="font-bold text-[var(--text-1)]">{song.tempo}</span><span className="ml-0.5">bpm</span></span>
+              )}
+              {song.time && <span className="whitespace-nowrap font-bold text-[var(--text-1)] text-label-11 sm:text-label-13">{song.time}</span>}
+              {song._arrangementId && (song._allArrangements?.length || 0) > 1 && (
                 <Select value={activeArrId} onValueChange={handleSwitchArrangement}>
-                  <SelectTrigger
-                    className="h-7 px-1.5 border-transparent bg-transparent hover:bg-[var(--bg-2)] text-label-13 font-semibold text-[var(--text-1)] gap-1.5 max-w-[180px] min-w-0 w-auto focus:ring-0"
-                    aria-label="Switch arrangement"
-                  >
-                    <span className="truncate">
-                      {song._allArrangements.find(a => a.id === activeArrId)?.name || 'Arrangement'}
-                    </span>
+                  <SelectTrigger className="h-7 px-1.5 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-lg text-label-12 sm:text-label-13 font-semibold text-[var(--text-1)] gap-1 max-w-[120px] sm:max-w-[200px] min-w-0 w-auto focus:ring-0" aria-label="Switch arrangement">
+                    <span className="truncate">{song._allArrangements.find(a => a.id === activeArrId)?.name || 'Arrangement'}</span>
                   </SelectTrigger>
                   <SelectContent>
                     {song._allArrangements.map(a => (
                       <SelectItem key={a.id} value={a.id}>
                         <span className="inline-flex items-center gap-1.5">
-                          {a.id === song._defaultArrangementId && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" title="Default" aria-label="Default" />
-                          )}
+                          {a.id === song._defaultArrangementId && (<span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" title="Default" aria-label="Default" />)}
                           {a.name || 'Untitled arrangement'}
                         </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <span className="text-label-12" style={{ color: 'var(--text-2)' }}>·</span>
-              </>
-            ) : song._arrangementId ? (
-              <>
-                <span className="text-label-13 font-semibold truncate max-w-[180px]" style={{ color: 'var(--text-1)' }}>
-                  {song._arrangementName}
-                </span>
-                <span className="text-label-12" style={{ color: 'var(--text-2)' }}>·</span>
-              </>
-            ) : null}
-            <Select value={selectedKey} onValueChange={setSelectedKey}>
-              <SelectTrigger className="h-6 px-1.5 border-transparent bg-transparent text-label-14 font-bold text-[var(--text-1)] hover:bg-[var(--bg-2)] gap-1 min-w-0 w-auto focus:ring-0">
-                <span className="text-label-12 font-semibold text-[var(--text-2)] mr-0.5">Key</span>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ALL_KEYS.map(k => (
-                  <SelectItem key={k} value={k}>
-                    {k}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {song.tempo && (
-              <span className="text-label-14 text-[var(--text-2)]">
-                <span className="text-label-12 font-semibold mr-0.5">Tempo</span>
-                <span className="font-bold">{song.tempo}</span>
-              </span>
-            )}
-            {song.time && (
-              <span className="text-label-14 text-[var(--text-2)]">
-                <span className="text-label-12 font-semibold mr-0.5">Time</span>
-                <span className="font-bold">{song.time}</span>
-              </span>
-            )}
-          </div>
-
-          {/* Inline song details — toggled by the title chevron (like the editor) */}
-          {showInfo && (
+              )}
+            </>
+          )}
+          actions={(
+            <div className="flex items-center gap-0.5">
+              <ViewModePicker value={displayMode} onChange={setDisplayMode} hasTabs={hasTabs} />
+              <IconButton variant="ghost" size="sm" onClick={() => openSheet('display')} aria-label="Display options">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+                </svg>
+              </IconButton>
+              <IconButton variant="ghost" size="sm" onClick={() => openSheet('layout')} aria-label="Layout">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="18" rx="1" /><rect x="14" y="3" width="7" height="18" rx="1" />
+                </svg>
+              </IconButton>
+            </div>
+          )}
+          ribbon={(
+            <StructureRibbon
+              structure={orderedSections.map(s => s.type)}
+              compact
+              activeIndex={activeSection}
+              style={settings?.ribbonStyle || 'chips'}
+              sectionColors={settings?.sectionColors}
+              sectionLabels={settings?.sectionLabels}
+              customSectionTypes={settings?.customSectionTypes}
+              onSelect={(i) => {
+                const el = document.getElementById(`section-${i}`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            />
+          )}
+          info={showInfo && (
             <div className="wide-container pb-2 mt-1 max-h-[40vh] overflow-y-auto border-t border-[var(--border-1)] pt-2">
               {songInfoBody}
             </div>
           )}
-
-          {/* Structure ribbon (left) + display filters (right) */}
-          <div className="wide-container pb-2 flex items-start gap-2">
-            <div className="flex-1 min-w-0">
-              <StructureRibbon
-                structure={orderedSections.map(s => s.type)}
-                compact
-                sectionColors={settings?.sectionColors}
-                sectionLabels={settings?.sectionLabels}
-                customSectionTypes={settings?.customSectionTypes}
-                onSelect={(i) => {
-                  const el = document.getElementById(`section-${i}`);
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }}
-              />
-            </div>
-            <div className="shrink-0 flex items-center gap-0.5 pt-0.5 p-0.5 rounded-lg bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)]">
-              {[
-                { id: 'chords', label: 'Chords' },
-                { id: 'lyrics', label: 'Lyrics' },
-                ...(hasTabs ? [{ id: 'tabs', label: 'Tabs' }] : []),
-                { id: 'songmap', label: 'Song map' },
-              ].map(b => (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => setDisplayMode(b.id)}
-                  aria-pressed={displayMode === b.id}
-                  className={`px-2.5 py-0.5 rounded-md text-label-11 font-semibold cursor-pointer border-none transition-colors ${
-                    displayMode === b.id
-                      ? 'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] shadow-sm'
-                      : 'bg-transparent text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'
-                  }`}
-                >
-                  {b.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Song notes peek strip — collapsible, hidden when song has no notes */}
-          {song.notes && (
-            <div className="wide-container pb-2">
-              {notesPeekOpen ? (
-                <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]">
-                  <span className="shrink-0 mt-0.5 text-[var(--ds-gray-600)]" aria-hidden="true">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <path d="M14 2v6h6" />
-                      <path d="M8 13h6" />
-                      <path d="M8 17h4" />
-                    </svg>
-                  </span>
-                  <p className="flex-1 m-0 text-copy-13 text-[var(--text-1)] whitespace-pre-wrap">
-                    {song.notes}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setNotesPeekOpen(false)}
-                    aria-label="Hide notes"
-                    className="shrink-0 text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] -mr-1 -mt-1 px-1 py-0.5"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+          extras={(
+            <>
+              {song.notes && (
+                <div className="wide-container pb-2">
+                  {notesPeekOpen ? (
+                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]">
+                      <span className="shrink-0 mt-0.5 text-[var(--ds-gray-600)]" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M8 13h6" /><path d="M8 17h4" />
+                        </svg>
+                      </span>
+                      <p className="flex-1 m-0 text-copy-13 text-[var(--text-1)] whitespace-pre-wrap">{song.notes}</p>
+                      <button type="button" onClick={() => setNotesPeekOpen(false)} aria-label="Hide notes" className="shrink-0 text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] -mr-1 -mt-1 px-1 py-0.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => setNotesPeekOpen(true)} aria-label="Show song notes" aria-expanded="false" className="inline-flex items-center gap-1.5 px-2.5 h-6 rounded-full border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)] text-label-11 text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>
+                      Notes
+                    </button>
+                  )}
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setNotesPeekOpen(true)}
-                  aria-label="Show song notes"
-                  aria-expanded="false"
-                  className="inline-flex items-center gap-1.5 px-2.5 h-6 rounded-full border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)] text-label-11 text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors"
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <path d="M14 2v6h6" />
-                  </svg>
-                  Notes
-                </button>
               )}
-            </div>
+            </>
           )}
-
-        </div>
+        />
       )}
 
       {/* ── Bottom-sheet modals (Layout / Music / Song info) ── */}
       {!isPreview && (
         <>
+          {/* ── Display menu — what's shown (notation, chord aids, role, style) ── */}
           <BottomSheet
-            open={activeSheet === 'layout'}
+            open={activeSheet === 'display'}
             onClose={() => setActiveSheet(null)}
-            title="Layout"
+            title="Display"
           >
             <div className="flex flex-col gap-4">
+              <SheetField label="Notation">
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'letters', label: 'Letters' },
+                    { id: 'nashville', label: 'Nashville' },
+                    { id: 'solfege', label: 'Do-Re-Mi' },
+                  ].map(b => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => changeNotation(b.id)}
+                      aria-pressed={notation === b.id}
+                      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${notation === b.id ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </SheetField>
+              <SheetField label="Show">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={showChords ? 'brand' : 'secondary'}
+                    size="sm"
+                    onClick={toggleShowChords}
+                  >Chords</Button>
+                  <Button
+                    variant={showDiagrams ? 'brand' : 'secondary'}
+                    size="sm"
+                    onClick={toggleShowDiagrams}
+                  >Diagrams</Button>
+                </div>
+              </SheetField>
+              <SheetField label="Repeated sections">
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'full', label: 'Full' },
+                    { id: 'condensed', label: 'Condensed' },
+                  ].map(b => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => onUpdateSettings?.('duplicateSections', b.id)}
+                      aria-pressed={duplicateSections === b.id}
+                      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${duplicateSections === b.id ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </SheetField>
               <SheetField label="Instrument">
                 <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
                   {STAGE_MODES.map(m => {
@@ -712,60 +649,16 @@ export default function ChartView({
                   })}
                 </div>
               </SheetField>
+            </div>
+          </BottomSheet>
 
-              {tabInstrumentsPresent.length >= 2 && (
-                <SheetField label="Tab instrument">
-                  <div className="flex flex-wrap gap-2">
-                    {['all', ...tabInstrumentsPresent].map(id => (
-                      <Button
-                        key={id}
-                        variant={tabInstrument === id ? 'brand' : 'secondary'}
-                        size="sm"
-                        onClick={() => setTabInstrument(id)}
-                      >
-                        {id === 'all' ? 'All' : (TAB_INSTRUMENTS[id]?.label || id)}
-                      </Button>
-                    ))}
-                  </div>
-                </SheetField>
-              )}
-
-              <SheetField label="Chords">
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={nns ? 'brand' : 'secondary'}
-                    size="sm"
-                    onClick={toggleNns}
-                  >Nashville numbers</Button>
-                  <Button
-                    variant={showDiagrams ? 'brand' : 'secondary'}
-                    size="sm"
-                    onClick={toggleShowDiagrams}
-                  >Diagrams</Button>
-                </div>
-              </SheetField>
-
-              <SheetField label="Spacing">
-                <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-label-10 uppercase tracking-wider text-[var(--text-2)]">Section gap</span>
-                    <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                      <IconButton variant="ghost" size="sm" onClick={() => changeSectionSpacing(sectionSpacing - 4)} aria-label="Less section gap">−</IconButton>
-                      <span className="w-8 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{sectionSpacing}</span>
-                      <IconButton variant="ghost" size="sm" onClick={() => changeSectionSpacing(sectionSpacing + 4)} aria-label="More section gap">+</IconButton>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-label-10 uppercase tracking-wider text-[var(--text-2)]">Line height</span>
-                    <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                      <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight - 0.1)} aria-label="Tighter line height">−</IconButton>
-                      <span className="w-8 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{lyricLineHeight.toFixed(2)}</span>
-                      <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight + 0.1)} aria-label="Looser line height">+</IconButton>
-                    </div>
-                  </div>
-                </div>
-              </SheetField>
-
+          {/* ── Layout menu — how it's arranged (columns, sizes, spacing, style) ── */}
+          <BottomSheet
+            open={activeSheet === 'layout'}
+            onClose={() => setActiveSheet(null)}
+            title="Layout"
+          >
+            <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
                 <SheetField label="Columns">
                   <SegmentedControl
@@ -794,27 +687,66 @@ export default function ChartView({
                 </SheetField>
               </div>
 
-              <ChartStyleControls
-                settings={settings}
-                onUpdateSettings={onUpdateSettings}
-              />
+              <SheetField label="Spacing">
+                <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-label-10 uppercase tracking-wider text-[var(--text-2)]">Section gap</span>
+                    <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+                      <IconButton variant="ghost" size="sm" onClick={() => changeSectionSpacing(sectionSpacing - 4)} aria-label="Less section gap">−</IconButton>
+                      <span className="w-8 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{sectionSpacing}</span>
+                      <IconButton variant="ghost" size="sm" onClick={() => changeSectionSpacing(sectionSpacing + 4)} aria-label="More section gap">+</IconButton>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-label-10 uppercase tracking-wider text-[var(--text-2)]">Line height</span>
+                    <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+                      <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight - 0.1)} aria-label="Tighter line height">−</IconButton>
+                      <span className="w-8 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{lyricLineHeight.toFixed(2)}</span>
+                      <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight + 0.1)} aria-label="Looser line height">+</IconButton>
+                    </div>
+                  </div>
+                </div>
+              </SheetField>
 
-              {onOpenAdvancedStyle && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveSheet(null);
-                    onOpenAdvancedStyle();
-                  }}
-                  className="mt-2 w-full h-11 rounded-xl bg-[var(--ds-background-100)] border border-[var(--border-1)] text-copy-14 font-semibold text-[var(--text-1)] flex items-center justify-center gap-2 hover:bg-[var(--bg-1)] transition-all"
-                  style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)' }}
-                >
-                  Advanced settings
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </button>
+              {tabInstrumentsPresent.length >= 2 && (
+                <SheetField label="Tab instrument">
+                  <div className="flex flex-wrap gap-2">
+                    {['all', ...tabInstrumentsPresent].map(id => (
+                      <Button
+                        key={id}
+                        variant={tabInstrument === id ? 'brand' : 'secondary'}
+                        size="sm"
+                        onClick={() => setTabInstrument(id)}
+                      >
+                        {id === 'all' ? 'All' : (TAB_INSTRUMENTS[id]?.label || id)}
+                      </Button>
+                    ))}
+                  </div>
+                </SheetField>
               )}
+
+              <div className="pt-1 border-t border-[var(--border-1)]">
+                <ChartStyleControls
+                  settings={settings}
+                  onUpdateSettings={onUpdateSettings}
+                />
+                {onOpenAdvancedStyle && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSheet(null);
+                      onOpenAdvancedStyle();
+                    }}
+                    className="mt-3 w-full h-11 rounded-xl bg-[var(--ds-background-100)] border border-[var(--border-1)] text-copy-14 font-semibold text-[var(--text-1)] flex items-center justify-center gap-2 hover:bg-[var(--bg-1)] transition-all"
+                    style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)' }}
+                  >
+                    Advanced settings
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
           </BottomSheet>
 
@@ -833,8 +765,8 @@ export default function ChartView({
           <div className="flex gap-4 overflow-x-auto no-scrollbar pb-8 mb-8 border-b border-[var(--border-1)]">
             {allChords.map(chord => (
               <div key={chord} className="flex flex-col items-center gap-1 flex-shrink-0">
-                <div className="text-label-10-mono font-bold text-[var(--text-2)]">{transposeChord(chord, transpose)}</div>
-                <Card className="w-24 h-28 flex items-center justify-center p-2">
+                <div className="text-label-12-mono font-bold text-[var(--text-1)]">{transposeChord(chord, transpose)}</div>
+                <Card className="w-24 h-24 flex items-center justify-center p-2" style={{ background: '#f7f5f1', borderColor: '#e4e0d8' }}>
                    <ChordDiagram chord={transposeChord(chord, transpose)} />
                 </Card>
               </div>
@@ -876,14 +808,20 @@ export default function ChartView({
             <div
               key={`${section.id || section.type}-${idx}`}
               id={`section-${idx}`}
+              data-section-index={idx}
               style={{ scrollMarginTop: '10rem', breakInside: 'avoid' }}
             >
               <SectionBlock
                 section={section}
                 transpose={transpose}
                 modOffset={sectionModOffsets[idx]}
-                nns={nns}
+                notation={notation}
                 songKey={song.key}
+                condensed={duplicateSections === 'condensed' && repeatFirstIndex[idx] >= 0}
+                onJumpToFirst={() => {
+                  const el = document.getElementById(`section-${repeatFirstIndex[idx]}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
                 showChords={showChords && viewChords}
                 showLyrics={viewLyrics}
                 showTabs={viewTabs}

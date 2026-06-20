@@ -22,12 +22,12 @@ export default function RecommendedNextPanel({ songs, currentItems, onAddSong })
   const heading = isEmpty ? 'Fresh picks' : 'Recommended next';
   const subheading = isEmpty
     ? 'Songs your team hasn’t played in a while.'
-    : 'Songs that flow well from the last one — by key, tempo, and freshness.';
+    : 'Songs that pair well with your last pick, by key, tempo and freshness.';
 
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="section-title m-0">{heading}</p>
+        <p className="text-label-12 font-semibold text-[var(--ds-gray-600)] m-0">{heading}</p>
         <p className="text-copy-12 text-[var(--ds-gray-600)] m-0 mt-0.5">{subheading}</p>
       </div>
 

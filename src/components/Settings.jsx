@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Account from './Account';
 import { useAuth } from '../auth/useAuth';
 import { useEntitlement } from '../hooks/useEntitlement';
@@ -70,10 +70,24 @@ const AboutIcon = () => (
   </svg>
 );
 
+const GeneralIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+);
+
 const SparkleIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z" />
     <path d="M19 14l.7 1.7L21.5 16.5l-1.8.7L19 19l-.7-1.7-1.7-.8 1.7-.8z" />
+  </svg>
+);
+
+const LabsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 3h6M10 3v6.5L4.5 18a2 2 0 0 0 1.7 3h11.6a2 2 0 0 0 1.7-3L14 9.5V3" />
+    <path d="M7 15h10" />
   </svg>
 );
 
@@ -117,6 +131,67 @@ const Row = ({ label, children, description }) => (
   </div>
 );
 
+// ─── General panel ───────────────────────────────────────────────────────
+
+function GeneralPanel({ settings, update, onShowHelp, onReplayOnboarding }) {
+  const landing = settings?.landingView || 'home';
+  const confirmDelete = settings?.confirmBeforeDelete !== false;
+  return (
+    <Section subtitle="Language, your landing page, and how the app behaves.">
+      <Row label="Default landing page" description="Where the app opens when you launch it.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: 'home', label: 'Home' },
+            { key: 'library', label: 'Songs' },
+            { key: 'setlists', label: 'Setlists' },
+          ].map(({ key, label }) => (
+            <Button
+              key={key}
+              size="sm"
+              variant={landing === key ? 'secondary' : 'ghost'}
+              onClick={() => update('landingView', key)}
+              className={landing === key ? 'bg-[var(--ds-background-100)] shadow-sm' : 'text-[var(--ds-gray-900)]'}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </Row>
+      <Row label="Language" description="App language. More languages are on the way.">
+        <Select value={settings?.language || 'en'} onValueChange={(v) => update('language', v)}>
+          <SelectTrigger className="h-8 px-2 min-w-[8rem] w-auto">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="en">English</SelectItem>
+          </SelectContent>
+        </Select>
+      </Row>
+      <Row label="Confirm before deleting" description="Ask for confirmation before deleting songs or setlists.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[{ key: true, label: 'On' }, { key: false, label: 'Off' }].map(({ key, label }) => (
+            <Button
+              key={String(key)}
+              size="sm"
+              variant={confirmDelete === key ? 'secondary' : 'ghost'}
+              onClick={() => update('confirmBeforeDelete', key)}
+              className={confirmDelete === key ? 'bg-[var(--ds-background-100)] shadow-sm' : 'text-[var(--ds-gray-900)]'}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </Row>
+      <Row label="Help guide" description="Open the in-app help and feedback.">
+        <Button size="sm" variant="secondary" onClick={() => onShowHelp?.()}>Open Help</Button>
+      </Row>
+      <Row label="Replay onboarding" description="See the first-run welcome flow again.">
+        <Button size="sm" variant="secondary" onClick={() => onReplayOnboarding?.()}>Replay</Button>
+      </Row>
+    </Section>
+  );
+}
+
 // ─── Hub row — drills into a sub-panel ───────────────────────────────────
 
 function HubRow({ icon: Icon, label, value, onClick }) {
@@ -146,7 +221,8 @@ function HubRow({ icon: Icon, label, value, onClick }) {
 // ─── Panel labels (also the ScreenHeader title) ──────────────────────────
 
 const PANEL_TITLES = {
-  hub: 'Preferences',
+  hub: 'Settings',
+  general: 'General',
   account: 'Account',
   appearance: 'Appearance',
   chart: 'Chart Defaults',
@@ -158,6 +234,22 @@ const PANEL_TITLES = {
   data: 'Data',
   whatsnew: "What's New",
   about: 'About',
+};
+
+// Short descriptions under each panel title for the Notion-style content pane.
+const PANEL_SUBTITLES = {
+  general: 'Language, your landing page, and app behaviour.',
+  account: 'Manage your profile, sign-in, and plan.',
+  appearance: 'Theme, accent colour, and date/time format.',
+  chart: 'How charts lay out and which elements show by default.',
+  'chart-style': 'Fine-tune chart colours, fonts, and spacing.',
+  sections: 'Custom section types, colours, and labels.',
+  sync: 'Connect cloud storage to sync across devices.',
+  services: 'Manage the service names used across setlists.',
+  plan: 'Your current plan and billing.',
+  data: 'Export your library or clear all local data.',
+  whatsnew: 'Recent updates and changes.',
+  about: 'Version, legal, and credits.',
 };
 
 const PLAN_DESCRIPTIONS = {
@@ -355,6 +447,8 @@ function ChartPanel({ settings, update }) {
           {[
             { key: 'pill', label: 'Floating pill' },
             { key: 'header', label: 'Header buttons' },
+            { key: 'edge', label: 'Edge arrows' },
+            { key: 'swipe', label: 'Swipe' },
           ].map(({ key, label }) => {
             const active = (settings.navStyle || 'pill') === key;
             return (
@@ -363,6 +457,49 @@ function ChartPanel({ settings, update }) {
                 size="sm"
                 variant={active ? 'secondary' : 'ghost'}
                 onClick={() => update('navStyle', key)}
+                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </div>
+      </Row>
+      <Row label="Auto-hide title bar" description="Collapse the header in live & practice after a few seconds idle; tap to bring it back.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: true, label: 'On' },
+            { key: false, label: 'Off' },
+          ].map(({ key, label }) => {
+            const active = (settings.autoHideHeader === true) === key;
+            return (
+              <Button
+                key={String(key)}
+                size="sm"
+                variant={active ? 'secondary' : 'ghost'}
+                onClick={() => update('autoHideHeader', key)}
+                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </div>
+      </Row>
+      <Row label="Structure ribbon" description="How the section flow shows above the chart in chart, practice & live.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: 'chips', label: 'Chips' },
+            { key: 'numbered', label: 'Codes' },
+            { key: 'dots', label: 'Dots' },
+          ].map(({ key, label }) => {
+            const active = (settings.ribbonStyle || 'chips') === key;
+            return (
+              <Button
+                key={key}
+                size="sm"
+                variant={active ? 'secondary' : 'ghost'}
+                onClick={() => update('ribbonStyle', key)}
                 className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
               >
                 {label}
@@ -428,6 +565,72 @@ function ChartPanel({ settings, update }) {
   );
 }
 
+// Labs — experimental features & flags. Lives under the About group.
+function LabsPanel({ settings, update }) {
+  return (
+    <Section subtitle="Experimental features. They're a work in progress — expect rough edges, and things may change or break.">
+      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-[var(--ds-amber-100)] border border-[var(--ds-amber-400)] mb-1">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ds-amber-900)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <p className="text-copy-13 text-[var(--ds-amber-1000)] m-0">
+          Heads up: these are experimental and may not work as expected. Turning one on could cause display glitches or unexpected behaviour — switch it back off if something goes wrong.
+        </p>
+      </div>
+      <LabsToggle settings={settings} update={update} flag="rosterOverscheduleWarning"
+        label="Over-scheduling warning"
+        description="Warn in the band picker when a member has already been scheduled for several services in a row, so you can spread the load." />
+      {settings.rosterOverscheduleWarning && (
+        <Row label="Warn after… (services in a row)" description="How many consecutive services a member can be scheduled for before the warning shows.">
+          <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+            {[2, 3, 4, 5].map(n => {
+              const active = (settings.rosterStreakLimit || 3) === n;
+              return (
+                <Button
+                  key={n}
+                  size="sm"
+                  variant={active ? 'secondary' : 'ghost'}
+                  onClick={() => update('rosterStreakLimit', n)}
+                  className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+                >
+                  {n}
+                </Button>
+              );
+            })}
+          </div>
+        </Row>
+      )}
+    </Section>
+  );
+}
+
+// On/Off toggle row for a Labs flag.
+function LabsToggle({ settings, update, flag, label, description }) {
+  return (
+    <Row label={label} description={description}>
+      <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+        {[
+          { key: true, label: 'On' },
+          { key: false, label: 'Off' },
+        ].map(({ key, label: optLabel }) => {
+          const active = (settings[flag] === true) === key;
+          return (
+            <Button
+              key={String(key)}
+              size="sm"
+              variant={active ? 'secondary' : 'ghost'}
+              onClick={() => update(flag, key)}
+              className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+            >
+              {optLabel}
+            </Button>
+          );
+        })}
+      </div>
+    </Row>
+  );
+}
+
 // Color swatch + native picker with a reset-to-theme option for tab styling.
 function TabColorControl({ value, fallback, onChange }) {
   return (
@@ -471,8 +674,13 @@ function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, a
   );
 }
 
-function DataPanel({ songCount, setlistCount, onDownloadSongs, onClearAll }) {
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function DataPanel({ songCount, setlistCount, onDownloadSongs, onClearAll, trash = [], onRestoreSong, onPurgeSong, onEmptyTrash }) {
   const confirm = useConfirm();
+  // Capture "now" once (lazy init) so the per-item countdown doesn't call an
+  // impure function during render.
+  const [now] = useState(() => Date.now());
   const handleClear = async () => {
     const ok = await confirm({
       title: 'Clear all local data?',
@@ -482,15 +690,49 @@ function DataPanel({ songCount, setlistCount, onDownloadSongs, onClearAll }) {
     });
     if (ok) onClearAll();
   };
+  // Newest deletions first.
+  const items = [...trash].sort((a, b) => b.deletedAt - a.deletedAt);
   return (
-    <Section subtitle={`${songCount} songs, ${setlistCount} setlists saved on this device.`}>
-      <Row label="Export library" description="Download every song as a separate .md file.">
-        <Button size="sm" variant="secondary" onClick={onDownloadSongs}>Download all</Button>
-      </Row>
-      <Row label="Clear all data" description="Wipe every song and setlist on this device. Cloud copies are kept.">
-        <Button size="sm" variant="error" onClick={handleClear}>Clear all</Button>
-      </Row>
-    </Section>
+    <>
+      <Section subtitle={`${songCount} songs, ${setlistCount} setlists saved on this device.`}>
+        <Row label="Export library" description="Download every song as a separate .md file.">
+          <Button size="sm" variant="secondary" onClick={onDownloadSongs}>Download all</Button>
+        </Row>
+        <Row label="Clear all data" description="Wipe every song and setlist on this device. Cloud copies are kept.">
+          <Button size="sm" variant="error" onClick={handleClear}>Clear all</Button>
+        </Row>
+      </Section>
+
+      <Section
+        title="Recently deleted"
+        subtitle="Deleted songs are kept here for 30 days, then removed for good. Restore one to bring it back to your library."
+      >
+        {items.length === 0 ? (
+          <div className="text-copy-13 text-[var(--ds-gray-700)] py-2">Nothing in the trash.</div>
+        ) : (
+          <>
+            {items.map(({ song, deletedAt }) => {
+              const daysLeft = Math.max(0, 30 - Math.floor((now - deletedAt) / DAY_MS));
+              return (
+                <Row
+                  key={song.id}
+                  label={song.title || 'Untitled song'}
+                  description={`${song.artist ? song.artist + ' · ' : ''}${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => onRestoreSong?.(song.id)}>Restore</Button>
+                    <Button size="sm" variant="error" onClick={() => onPurgeSong?.(song.id)}>Delete</Button>
+                  </div>
+                </Row>
+              );
+            })}
+            <Row label="Empty trash" description="Permanently delete everything in the trash now.">
+              <Button size="sm" variant="error" onClick={onEmptyTrash}>Empty trash</Button>
+            </Row>
+          </>
+        )}
+      </Section>
+    </>
   );
 }
 
@@ -824,6 +1066,8 @@ export default function Settings({
   onSignOut,
   onSignIn,
   onCreateAccount,
+  onShowHelp,
+  onReplayOnboarding,
   // Sub-panel state lives in App.jsx so it participates in the back stack.
   panel = 'hub',
   onChangePanel = () => {},
@@ -831,8 +1075,19 @@ export default function Settings({
   team = null,
   setlists = [],
   onRemapService,
+  trash = [],
+  onRestoreSong,
+  onPurgeSong,
+  onEmptyTrash,
 }) {
   const { allowed: canManageServices } = useEntitlement('multi-service');
+  // Reset the desktop content pane to the top whenever the active panel
+  // changes — otherwise switching to a shorter panel keeps the previous
+  // scroll offset and lands the user mid-page.
+  const desktopScrollRef = useRef(null);
+  useEffect(() => {
+    if (desktopScrollRef.current) desktopScrollRef.current.scrollTop = 0;
+  }, [panel]);
   // Accepts (key, value) for single-field tweaks or a patch object for
   // multi-field updates done in the same render — without this, two
   // back-to-back update('foo', ...) calls each spread the *stale*
@@ -865,6 +1120,8 @@ export default function Settings({
             onSignOut={onSignOut}
           />
         );
+      case 'general':
+        return <GeneralPanel settings={settings} update={update} onShowHelp={onShowHelp} onReplayOnboarding={onReplayOnboarding} />;
       case 'appearance':
         return <AppearancePanel settings={settings} update={update} isSignedIn={isSignedIn} />;
       case 'chart':
@@ -904,6 +1161,10 @@ export default function Settings({
             setlistCount={setlistCount}
             onDownloadSongs={onDownloadSongs}
             onClearAll={onClearAll}
+            trash={trash}
+            onRestoreSong={onRestoreSong}
+            onPurgeSong={onPurgeSong}
+            onEmptyTrash={onEmptyTrash}
           />
         );
       case 'whatsnew':
@@ -915,28 +1176,58 @@ export default function Settings({
         );
       case 'about':
         return <AboutPanel isSignedIn={isSignedIn} displayName={displayName} onShowLegal={onShowLegal} />;
+      case 'labs':
+        return <LabsPanel settings={settings} update={update} />;
       default:
         return null;
     }
   };
+
+  // Single source of truth for the settings navigation, grouped into labelled
+  // sections. Both the desktop sidebar and the mobile hub render from this so
+  // they never drift apart. `show: false` items are filtered out.
+  const serviceCount = new Set(setlists.map(s => (s.service || '').trim()).filter(Boolean)).size;
+  const navGroups = [
+    {
+      title: 'Account',
+      items: [
+        { key: 'account', label: 'Account', icon: AccountIcon, value: isSignedIn ? (displayEmail || displayName) : 'Sign in' },
+        { key: 'general', label: 'General', icon: GeneralIcon, value: 'Language, landing page' },
+        { key: 'plan', label: 'Plan & billing', icon: PlanIcon, value: planSummary(plan) },
+      ],
+    },
+    {
+      title: 'Display',
+      items: [
+        { key: 'appearance', label: 'Appearance', icon: AppearanceIcon, value: appearanceSummary(settings) },
+        { key: 'chart', label: 'Chart Defaults', icon: ChartIcon, value: chartSummary(settings) },
+        { key: 'chart-style', label: 'Chart Style', icon: AppearanceIcon, value: chartStyleSummary(settings), badge: 'Pro' },
+        { key: 'sections', label: 'Sections', icon: ChartIcon, value: sectionsSummary(settings), badge: 'Pro' },
+      ],
+    },
+    {
+      title: 'Sync & data',
+      items: [
+        { key: 'sync', label: 'Cloud Sync', icon: CloudIcon, value: syncSummary(syncState) },
+        { key: 'services', label: 'Services', icon: PlanIcon, value: `${serviceCount} service${serviceCount === 1 ? '' : 's'}`, show: canManageServices },
+        { key: 'data', label: 'Data', icon: DataIcon, value: `${songCount} songs · ${setlistCount} setlists` },
+      ],
+    },
+    {
+      title: 'About',
+      items: [
+        { key: 'whatsnew', label: "What's New", icon: SparkleIcon, value: `v${__APP_VERSION__}` },
+        { key: 'labs', label: 'Labs', icon: LabsIcon, value: 'Experimental' },
+        { key: 'about', label: 'About', icon: AboutIcon, value: `v${__APP_VERSION__}` },
+      ],
+    },
+  ].map(g => ({ ...g, items: g.items.filter(it => it.show !== false) }));
 
   // Desktop: Notion-style modal with sidebar nav + content pane.
   if (isDesktop) {
     // Opening Preferences fresh (panel === 'hub') lands on Account on desktop;
     // the sidebar still exposes every other panel.
     const desktopPanel = panel === 'hub' ? 'account' : panel;
-    const navItems = [
-      { key: 'account', label: 'Account', icon: AccountIcon, summary: isSignedIn ? (displayEmail || displayName) : 'Sign in' },
-      { key: 'appearance', label: 'Appearance', icon: AppearanceIcon, summary: appearanceSummary(settings) },
-      { key: 'chart', label: 'Chart Defaults', icon: ChartIcon, summary: chartSummary(settings) },
-      { key: 'chart-style', label: 'Chart Style', icon: AppearanceIcon, summary: chartStyleSummary(settings), badge: 'Pro' },
-      { key: 'sections', label: 'Sections', icon: ChartIcon, summary: sectionsSummary(settings), badge: 'Pro' },
-      { key: 'sync', label: 'Cloud Sync', icon: CloudIcon, summary: syncSummary(syncState) },
-      { key: 'plan', label: 'Plan & billing', icon: PlanIcon, summary: planSummary(plan) },
-      { key: 'data', label: 'Data', icon: DataIcon, summary: `${songCount} songs · ${setlistCount} setlists` },
-      { key: 'whatsnew', label: "What's New", icon: SparkleIcon, summary: `v${__APP_VERSION__}` },
-      { key: 'about', label: 'About', icon: AboutIcon, summary: `v${__APP_VERSION__}` },
-    ];
     const handleClose = onClose || onBack;
     return (
       <Dialog open={true} onClose={handleClose} size="xl" ariaLabel="Settings" className="overflow-hidden">
@@ -949,36 +1240,49 @@ export default function Settings({
                 {isSignedIn && displayName ? displayName : 'Local device'}
               </p>
             </div>
-            <nav className="flex-1 overflow-y-auto px-2 pb-3 flex flex-col gap-0.5">
-              {navItems.map(({ key, label, icon: Icon }) => {
-                const active = desktopPanel === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => onChangePanel(key)}
-                    className={
-                      'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left cursor-pointer border-none transition-colors ' +
-                      (active
-                        ? 'bg-[var(--modes-surface-strong)] text-[var(--modes-text)]'
-                        : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)] hover:text-[var(--modes-text)]')
-                    }
-                  >
-                    <span className="shrink-0"><Icon /></span>
-                    <span className="text-copy-14 font-medium">{label}</span>
-                  </button>
-                );
-              })}
+            <nav className="flex-1 overflow-y-auto px-2 pb-3 flex flex-col gap-3">
+              {navGroups.map(group => (
+                <div key={group.title} className="flex flex-col gap-0.5">
+                  <span className="px-3 pt-2 pb-1 text-label-10 uppercase tracking-wider font-semibold text-[var(--modes-text-dim)]">
+                    {group.title}
+                  </span>
+                  {group.items.map(({ key, label, icon: Icon, badge }) => {
+                    const active = desktopPanel === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => onChangePanel(key)}
+                        className={
+                          'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left cursor-pointer border-none transition-colors ' +
+                          (active
+                            ? 'bg-[var(--modes-surface-strong)] text-[var(--modes-text)]'
+                            : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)] hover:text-[var(--modes-text)]')
+                        }
+                      >
+                        <span className="shrink-0"><Icon /></span>
+                        <span className="flex-1 text-copy-14 font-medium">{label}</span>
+                        {badge && (
+                          <span className="shrink-0 text-label-10 font-semibold px-1.5 py-0.5 rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border border-[var(--color-brand-border)]">{badge}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
             </nav>
           </aside>
 
           {/* Content */}
           <div className="flex-1 min-w-0 flex flex-col bg-[var(--ds-background-100)]">
-            <header className="flex items-center justify-between px-7 pt-5 pb-3 border-b border-[var(--modes-border)]">
-              <div className="flex flex-col">
-                <h3 className="text-heading-20 font-semibold text-[var(--modes-text)] m-0">
+            <header className="flex items-center justify-between px-7 pt-6 pb-4 border-b border-[var(--modes-border)]">
+              <div className="flex flex-col gap-1">
+                <h3 className="text-heading-24 font-semibold text-[var(--modes-text)] m-0">
                   {PANEL_TITLES[desktopPanel] || 'Settings'}
                 </h3>
+                {PANEL_SUBTITLES[desktopPanel] && (
+                  <p className="text-copy-13 text-[var(--modes-text-muted)] m-0">{PANEL_SUBTITLES[desktopPanel]}</p>
+                )}
               </div>
               <button
                 type="button"
@@ -992,7 +1296,7 @@ export default function Settings({
                 </svg>
               </button>
             </header>
-            <div className="flex-1 overflow-y-auto px-7 py-6">
+            <div ref={desktopScrollRef} className="flex-1 overflow-y-auto px-7 py-6">
               <div className="flex flex-col gap-6 max-w-[640px]">
                 {renderPanel(desktopPanel)}
               </div>
@@ -1013,78 +1317,24 @@ export default function Settings({
       />
 
       <div className="a4-container py-6 pb-20 flex flex-col gap-6">
-        {panel === 'hub' && (
-          <div className="modes-card flex flex-col p-0 overflow-hidden divide-y divide-[var(--modes-border)]">
-            <HubRow
-              icon={AccountIcon}
-              label="Account"
-              value={isSignedIn ? (displayEmail || displayName) : 'Sign in'}
-              onClick={() => onChangePanel('account')}
-            />
-            <HubRow
-              icon={AppearanceIcon}
-              label="Appearance"
-              value={appearanceSummary(settings)}
-              onClick={() => onChangePanel('appearance')}
-            />
-            <HubRow
-              icon={ChartIcon}
-              label="Chart Defaults"
-              value={chartSummary(settings)}
-              onClick={() => onChangePanel('chart')}
-            />
-            <HubRow
-              icon={AppearanceIcon}
-              label="Chart Style"
-              value={chartStyleSummary(settings)}
-              onClick={() => onChangePanel('chart-style')}
-            />
-            <HubRow
-              icon={ChartIcon}
-              label="Sections"
-              value={sectionsSummary(settings)}
-              onClick={() => onChangePanel('sections')}
-            />
-            <HubRow
-              icon={CloudIcon}
-              label="Cloud Sync"
-              value={syncSummary(syncState)}
-              onClick={() => onChangePanel('sync')}
-            />
-            {canManageServices && (
-              <HubRow
-                icon={PlanIcon}
-                label="Services"
-                value={`${new Set(setlists.map(s => (s.service || '').trim()).filter(Boolean)).size} service${new Set(setlists.map(s => (s.service || '').trim()).filter(Boolean)).size === 1 ? '' : 's'}`}
-                onClick={() => onChangePanel('services')}
-              />
-            )}
-            <HubRow
-              icon={PlanIcon}
-              label="Plan & billing"
-              value={planSummary(plan)}
-              onClick={() => onChangePanel('plan')}
-            />
-            <HubRow
-              icon={DataIcon}
-              label="Data"
-              value={`${songCount} songs · ${setlistCount} setlists`}
-              onClick={() => onChangePanel('data')}
-            />
-            <HubRow
-              icon={SparkleIcon}
-              label="What's New"
-              value={`v${__APP_VERSION__}`}
-              onClick={() => onChangePanel('whatsnew')}
-            />
-            <HubRow
-              icon={AboutIcon}
-              label="About"
-              value={`v${__APP_VERSION__}`}
-              onClick={() => onChangePanel('about')}
-            />
-          </div>
-        )}
+        {panel === 'hub' && navGroups.map(group => (
+          <section key={group.title} className="flex flex-col gap-2">
+            <h2 className="px-2 text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold m-0">
+              {group.title}
+            </h2>
+            <div className="modes-card flex flex-col p-0 overflow-hidden divide-y divide-[var(--modes-border)]">
+              {group.items.map(({ key, label, icon, value }) => (
+                <HubRow
+                  key={key}
+                  icon={icon}
+                  label={label}
+                  value={value}
+                  onClick={() => onChangePanel(key)}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
 
         {panel !== 'hub' && renderPanel(panel)}
       </div>

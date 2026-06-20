@@ -24,6 +24,32 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
   let syncing = false;
   let debounceTimer = null;
 
+  // Per-engine hash caches keyed by object reference. Serializing every song to
+  // markdown / every setlist to JSON on each sync is the dominant CPU cost for
+  // large libraries; React replaces only an edited item's object, so an
+  // unchanged reference has an unchanged serialization + hash. A miss (new ref)
+  // recomputes. See the matching cache in team-engine.js.
+  const songHashCache = new Map(); // id -> { ref, md, hash }
+  const slHashCache = new Map();   // id -> { ref, json, hash }
+
+  function hashSong(song) {
+    const cached = songHashCache.get(song.id);
+    if (cached && cached.ref === song) return cached;
+    const md = songToMd(song);
+    const entry = { ref: song, md, hash: quickHash(md) };
+    songHashCache.set(song.id, entry);
+    return entry;
+  }
+
+  function hashSetlist(sl) {
+    const cached = slHashCache.get(sl.id);
+    if (cached && cached.ref === sl) return cached;
+    const json = JSON.stringify(sl, null, 2);
+    const entry = { ref: sl, json, hash: quickHash(json) };
+    slHashCache.set(sl.id, entry);
+    return entry;
+  }
+
   const setStatus = (state, extra = {}) => {
     onStatusChange?.({ state, ...extra });
   };
@@ -325,8 +351,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     // Push songs
     for (const song of songs) {
       try {
-        const md = songToMd(song);
-        const hash = quickHash(md);
+        const { md, hash } = hashSong(song);
         const entry = manifest[song.id];
         const fileName = `${sanitizeFilename(song.title)}.md`;
 
@@ -353,11 +378,20 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
       }
     }
 
-    // Delete remote files for songs removed locally
+    // Delete remote files for songs removed locally.
+    // CIRCUIT BREAKER: refuse to delete a large share of the library in one
+    // sync. This loop deletes by ABSENCE from the local array, so a momentarily
+    // empty/truncated local state (bad pull, library-switch race) would wipe
+    // every remote file. A real user removing that many at once is implausible;
+    // block the destructive batch and surface an error instead.
     const currentSongIds = new Set(songs.map(s => s.id));
-    for (const [id, entry] of Object.entries(manifest)) {
-      if (!currentSongIds.has(id)) {
-        try { await provider.deleteFile(entry.remoteId); } catch { /* may not exist */ }
+    const songDeletes = Object.keys(manifest).filter(id => !currentSongIds.has(id));
+    const songMass = songDeletes.length >= 8 && songDeletes.length > Object.keys(manifest).length * 0.5;
+    if (songMass) {
+      errors.push({ kind: 'song', message: `Safety guard: refused to delete ${songDeletes.length} of ${Object.keys(manifest).length} songs in one sync. No files were removed.` });
+    } else {
+      for (const id of songDeletes) {
+        try { await provider.deleteFile(manifest[id].remoteId); } catch { /* may not exist */ }
         delete manifest[id];
       }
     }
@@ -367,8 +401,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     // Push setlists (each as individual .json file)
     for (const sl of setlists) {
       try {
-        const json = JSON.stringify(sl, null, 2);
-        const hash = quickHash(json);
+        const { json, hash } = hashSetlist(sl);
         const entry = slManifest[sl.id];
         const fileName = `${sanitizeFilename(sl.name || 'Untitled Setlist')}.json`;
 
@@ -395,11 +428,15 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
       }
     }
 
-    // Delete remote files for setlists removed locally
+    // Delete remote files for setlists removed locally (same circuit breaker).
     const currentSetlistIds = new Set(setlists.map(sl => sl.id));
-    for (const [id, entry] of Object.entries(slManifest)) {
-      if (!currentSetlistIds.has(id)) {
-        try { await provider.deleteFile(entry.remoteId); } catch { /* may not exist */ }
+    const slDeletes = Object.keys(slManifest).filter(id => !currentSetlistIds.has(id));
+    const slMass = slDeletes.length >= 8 && slDeletes.length > Object.keys(slManifest).length * 0.5;
+    if (slMass) {
+      errors.push({ kind: 'setlist', message: `Safety guard: refused to delete ${slDeletes.length} of ${Object.keys(slManifest).length} setlists in one sync. No files were removed.` });
+    } else {
+      for (const id of slDeletes) {
+        try { await provider.deleteFile(slManifest[id].remoteId); } catch { /* may not exist */ }
         delete slManifest[id];
       }
     }
@@ -455,20 +492,28 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     debouncedPush(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(async () => {
+        // Don't race a full sync; mark in-flight so a focus-triggered sync waits.
+        if (syncing) return;
         const syncState = await getSyncState(libraryId);
         if (!syncState.activeProvider) return;
 
-        setStatus('syncing');
+        syncing = true;
         try {
           const pushResult = await push(songs, setlists, tombstones);
           if (pushResult?.tombstonesChanged) {
             onTombstonesPruned?.(pushResult.tombstones);
           }
-          const lastSync = new Date().toISOString();
-          setStatus('synced', { lastSync, provider: syncState.activeProvider });
+          // Only surface "synced" when work actually happened — otherwise the
+          // status churns ("Syncing…/Synced") on every keystroke-debounce.
+          const uploaded = (pushResult?.uploaded?.songs || 0) + (pushResult?.uploaded?.setlists || 0);
+          if (uploaded > 0 || pushResult?.tombstonesChanged) {
+            setStatus('synced', { lastSync: new Date().toISOString(), provider: syncState.activeProvider });
+          }
         } catch (err) {
           console.error('Sync push error:', err);
           setStatus('error');
+        } finally {
+          syncing = false;
         }
       }, SYNC_DEBOUNCE_MS);
     },

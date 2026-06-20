@@ -10,10 +10,11 @@ import { supabase } from '../auth/supabase';
 // Sharing needs a backend — degrade gracefully when Supabase isn't configured.
 export const SHARE_ENABLED = !!supabase;
 
-// URL-safe random token. 16 chars from a 32-symbol alphabet ≈ 80 bits.
+// URL-safe random token. 22 chars from a 36-symbol alphabet ≈ 113 bits —
+// well past brute-force range for a public, expiring read link.
 function makeToken() {
   const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  const bytes = new Uint8Array(16);
+  const bytes = new Uint8Array(22);
   (globalThis.crypto || window.crypto).getRandomValues(bytes);
   let out = '';
   for (const b of bytes) out += alphabet[b % alphabet.length];
@@ -29,7 +30,9 @@ export function buildShareUrl(token) {
 export function shareTokenFromUrl() {
   if (typeof window === 'undefined') return null;
   const t = new URLSearchParams(window.location.search).get('setlist');
-  return t && /^[a-z0-9]{8,32}$/.test(t) ? t : null;
+  // Minimum raised to 16 (legacy tokens were 16 chars; current are 22) so a
+  // short, guessable token can't even be attempted.
+  return t && /^[a-z0-9]{16,32}$/.test(t) ? t : null;
 }
 
 // Collect just the songs a setlist references, so the public snapshot doesn't

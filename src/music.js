@@ -44,13 +44,29 @@ export function transposeKey(key, semitones) {
 
 // All display keys for selectors
 export const ALL_KEYS = ['A','Bb','B','C','Db','D','Eb','E','F','Gb','G','Ab'];
+// Minor counterparts (root + "m"), same root spelling as the major list.
+export const ALL_KEYS_MINOR = ALL_KEYS.map(k => k + 'm');
+// Every selectable key (major then minor) — used where a song's key is *defined*.
+export const ALL_KEYS_ALL = [...ALL_KEYS, ...ALL_KEYS_MINOR];
 
-// Calculate semitones from one key to another
+// A key is minor when its quality suffix starts with "m" (but not "maj").
+export function isMinorKey(key) {
+  const { suffix } = parseRoot(key || 'C');
+  return /^m(?!aj)/i.test(suffix);
+}
+
+// The 12 keys in the same quality (major/minor) as `key`. Transpose controls use
+// this so changing the displayed key shifts pitch without flipping major↔minor.
+export function keysInQualityOf(key) {
+  return isMinorKey(key) ? ALL_KEYS_MINOR : ALL_KEYS;
+}
+
+// Calculate semitones from one key to another. Parses each key's *root* so
+// minor keys (e.g. "Am", "Bbm") and accidentals resolve correctly — using the
+// whole string would miss the "m"/flat and silently return 0.
 export function semitonesBetween(fromKey, toKey) {
-  const fromRoot = FLAT_MAP[fromKey] || fromKey;
-  const toRoot = FLAT_MAP[toKey] || toKey;
-  const fi = CHROMATIC.indexOf(fromRoot);
-  const ti = CHROMATIC.indexOf(toRoot);
+  const fi = CHROMATIC.indexOf(parseRoot(fromKey || 'C').root);
+  const ti = CHROMATIC.indexOf(parseRoot(toKey || 'C').root);
   if (fi === -1 || ti === -1) return 0;
   return (ti - fi + 12) % 12;
 }
@@ -195,21 +211,32 @@ export function getNashvilleNumber(chord, key) {
   return (map[semitones] || '?') + suffix;
 }
  
-// Convert a chord to movable-Do solfège (Do Re Mi …), relative to the key.
-export function getSolfege(chord, key) {
-  if (!chord || !key) return chord;
+// Convert a chord to fixed-Do solfège (the Latin/Romanian convention):
+// absolute pitch naming — C=Do, D=Re, E=Mi, F=Fa, G=Sol, A=La, B=Si — with the
+// accidental preserved (Bb→Sib, F#→Fa#) and the suffix kept. Like the letter
+// names, just in solfège; transpose is applied by the caller, not here.
+const SOLFEGE_LETTERS = { C: 'Do', D: 'Re', E: 'Mi', F: 'Fa', G: 'Sol', A: 'La', B: 'Si' };
+export function getSolfege(chord) {
+  if (!chord) return chord;
   if (chord.includes('/')) {
     const [main, bass] = chord.split('/');
-    return getSolfege(main, key) + '/' + getSolfege(bass, key);
+    return getSolfege(main) + '/' + getSolfege(bass);
   }
-  const { root, suffix } = parseRoot(chord);
-  const keyRoot = parseRoot(key).root;
-  const fi = CHROMATIC.indexOf(keyRoot);
-  const ti = CHROMATIC.indexOf(root);
-  if (fi === -1 || ti === -1) return chord;
-  const semitones = (ti - fi + 12) % 12;
-  const map = { 0: 'Do', 1: 'Di', 2: 'Re', 3: 'Me', 4: 'Mi', 5: 'Fa', 6: 'Fi', 7: 'Sol', 8: 'Le', 9: 'La', 10: 'Te', 11: 'Ti' };
-  return (map[semitones] || '?') + suffix;
+  const m = String(chord).match(/^([A-G])([#b]?)(.*)$/);
+  if (!m) return chord;
+  const [, letter, accidental, suffix] = m;
+  return SOLFEGE_LETTERS[letter] + accidental + suffix;
+}
+
+// Render a chord in the reader's chosen notation. The single branch point shared
+// by every reading surface (ChartView, PerformanceView, PracticeView):
+//   'letters'  → transposed letter chord (honours the user's transpose)
+//   'nashville'→ Nashville number relative to `key` (transpose-independent)
+//   'solfege'  → fixed-Do solfège of the transposed chord (tracks pitch like letters)
+export function notateChord(chord, { key, notation = 'letters', transpose = 0 } = {}) {
+  if (notation === 'nashville') return getNashvilleNumber(chord, key);
+  if (notation === 'solfege') return getSolfege(transposeChord(chord, transpose));
+  return transposeChord(chord, transpose);
 }
 
 // Diatonic chords for a given key (I, ii, iii, IV, V, vi, vii°)

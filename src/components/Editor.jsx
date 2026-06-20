@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import ChartView from './ChartView';
 import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields, EXTRA_META_KEYS } from '../parser';
-import { ALL_KEYS, transposeChord, semitonesBetween } from '../music';
+import { ALL_KEYS_ALL, transposeChord, semitonesBetween } from '../music';
 import { isChordToken } from '../importer';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
 import { importChartText } from '../lib/importChords';
@@ -113,7 +113,7 @@ function TimeSignatureControl({ value, onChange }) {
 }
 
 const DEFAULT_MD = `---
-title: New Song
+title:
 artist:
 key: C
 ---
@@ -131,7 +131,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   const [workingSong, setWorkingSong] = useState(() => {
     if (song && Array.isArray(song.arrangements)) return song;
     if (song) return songFromFlat(song);
-    return songFromFlat({ id: generateId(), title: 'New Song', artist: '', key: 'C', tempo: null, time: '', sections: [] });
+    return songFromFlat({ id: generateId(), title: '', artist: '', key: 'C', tempo: null, time: '', sections: [] });
   });
 
   const [activeArrangementId, setActiveArrangementId] = useState(() => {
@@ -227,7 +227,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     return () => clearTimeout(timer);
   }, [md, savedMd, draftKey]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!preview) return;
     // Build the next v2 song by patching the active arrangement's content
     // from the freshly parsed preview, plus carrying over the song-level
@@ -253,8 +253,11 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     for (const k of EXTRA_META_KEYS) {
       if (preview[k] !== undefined) nextSong[k] = preview[k];
     }
+    // onSave may prompt (e.g. duplicate-title guard) and return false if the
+    // user backs out — don't claim "saved" or clear the draft in that case.
+    const result = await onSave(nextSong);
+    if (result === false) return;
     setWorkingSong(nextSong);
-    onSave(nextSong);
     setSavedMd(md);
     clearDraft();
     setDraftFound(null);
@@ -557,7 +560,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="font-mono">
-            {ALL_KEYS.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+            {ALL_KEYS_ALL.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
           </SelectContent>
         </Select>
         <input

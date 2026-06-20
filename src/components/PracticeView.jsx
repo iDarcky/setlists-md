@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { transposeKey, transposeChord, ALL_KEYS, semitonesBetween } from '../music';
+import { transposeKey, transposeChord, keysInQualityOf, semitonesBetween } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
 import SongMap from './SongMap';
@@ -10,20 +10,25 @@ import FloatingNavPill from './ui/FloatingNavPill';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
-import { SegmentedControl } from './ui/SegmentedControl';
-import BottomSheet, { SheetField } from './ui/BottomSheet';
-import ChartStyleControls from './ChartStyleControls';
+import PerformanceLayoutSheet from './PerformanceLayoutSheet';
+import PerformanceSetlistSheet, { SetlistList } from './PerformanceSetlistSheet';
+import NotesStack from './ui/NotesStack';
+import ViewModePicker from './ui/ViewModePicker';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import NoteContent from './ui/NoteContent';
-import { headerFrostStyle } from '../lib/headerFrost';
-import { cn } from '../lib/utils';
+import StageHeader from './ui/StageHeader';
+import EdgeNavArrows from './ui/EdgeNavArrows';
 import { useIsTablet, useIsLandscape, useIsDesktop } from '../lib/useMediaQuery';
-import { STAGE_MODES, STAGE_MODE_MAP } from '../data/stageModes';
+import { STAGE_MODE_MAP } from '../data/stageModes';
 import { resolveChartDisplay, resolveColumns } from '../lib/chartDisplay';
+import { useStageHeaderCollapse } from '../hooks/useStageHeaderCollapse';
+import { useActiveSection } from '../hooks/useActiveSection';
+import { usePrivateNotes } from '../notes/usePrivateNotes';
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
 
-export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, railEnabled = true, navStyle = 'pill', settings, onUpdateSettings, onOpenAdvancedStyle, startIndex = 0 }) {
+export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdateSong, onUpdateSetlist, defaultFontSize, railEnabled = true, navStyle = 'pill', settings, onUpdateSettings, onOpenAdvancedStyle, startIndex = 0, teamId = null, userId = null, canEditShared = true }) {
+  const privateNotes = usePrivateNotes(teamId, userId);
   const [layoutOpen, setLayoutOpen] = useState(false);
   // Start at the requested item (e.g. tapping a song in the overview) clamped
   // into range; defaults to the top of the set.
@@ -40,29 +45,32 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const stageMode = settings?.stageMode || 'leader';
   const [fontSize, setFontSize] = useState(disp.lyricFontSize);
   const [chordFontSize, setChordFontSize] = useState(disp.chordFontSize);
-  const [nns, setNns] = useState(disp.nashville);
+  const [notation, setNotation] = useState(disp.notation);
   const [showChords, setShowChords] = useState(disp.showChords);
   const [showDiagrams, setShowDiagrams] = useState(disp.showDiagrams);
   // What to show in the chart body: chords / lyrics-only / tabs / song map.
-  // Mirrors the chart-view switch; local to the session like the other knobs.
-  const [displayMode, setDisplayMode] = useState('chords');
+  // Persisted device-wide so the choice carries into the live view (which no
+  // longer has its own picker) and the library chart.
+  const [displayMode, setDisplayMode] = useState(settings?.displayMode || 'chords');
   // Per-session tab-instrument filter (e.g. acoustic player sees acoustic tabs).
   const [tabInstrument, setTabInstrument] = useState('all');
   useEffect(() => {
     setFontSize(disp.lyricFontSize);
     setChordFontSize(disp.chordFontSize);
-    setNns(disp.nashville);
+    setNotation(disp.notation);
     setShowChords(disp.showChords);
     setShowDiagrams(disp.showDiagrams);
+    setDisplayMode(settings?.displayMode || 'chords');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.showChords, settings?.showDiagrams, settings?.stageMode]);
+  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.notation, settings?.showChords, settings?.showDiagrams, settings?.stageMode, settings?.displayMode]);
 
   // Persisting helpers — update the snappy local mirror and the device setting.
   const changeFontSize = (v) => { const n = Math.max(10, Math.min(30, v)); setFontSize(n); onUpdateSettings?.('defaultFontSize', n); };
   const changeChordFontSize = (v) => { const n = Math.max(8, Math.min(30, v)); setChordFontSize(n); onUpdateSettings?.('chordFontSize', n); };
-  const toggleNns = () => { const v = !nns; setNns(v); onUpdateSettings?.('nashville', v); };
+  const changeNotation = (v) => { setNotation(v); onUpdateSettings?.('notation', v); onUpdateSettings?.('nashville', v === 'nashville'); };
   const toggleShowChords = () => { const v = !showChords; setShowChords(v); onUpdateSettings?.('showChords', v); };
   const toggleShowDiagrams = () => { const v = !showDiagrams; setShowDiagrams(v); onUpdateSettings?.('showDiagrams', v); };
+  const changeDisplayMode = (v) => { setDisplayMode(v); onUpdateSettings?.('displayMode', v); };
 
   // Picking a role applies its preset by writing every value through to
   // settings, so the role choice persists across songs and views too.
@@ -72,13 +80,15 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     if (preset.lyricFontSize != null) onUpdateSettings?.('defaultFontSize', preset.lyricFontSize);
     if (preset.chordFontSize != null) onUpdateSettings?.('chordFontSize', preset.chordFontSize);
     onUpdateSettings?.('nashville', !!preset.nashville);
+    onUpdateSettings?.('notation', preset.notation || (preset.nashville ? 'nashville' : 'letters'));
     onUpdateSettings?.('showChords', preset.showChords !== false);
     onUpdateSettings?.('showDiagrams', !!preset.showDiagrams);
   };
   const [showStructureEditor, setShowStructureEditor] = useState(false);
-  const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [setlistSheetOpen, setSetlistSheetOpen] = useState(false);
   const [chartWidth, setChartWidth] = useState(0);
   const scrollRef = useRef(null);
+  const [headerCollapsed, setHeaderCollapsed, revealHeader] = useStageHeaderCollapse(scrollRef, settings?.autoHideHeader === true);
 
   // Parallel-browsing setlist rail — same affordance as the live Performance
   // view, so the leader can jump songs mid-practice without leaving the chart.
@@ -87,6 +97,9 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const isLandscape = useIsLandscape();
   const isDesktop = useIsDesktop();
   const showRail = ((isTablet && isLandscape) || isDesktop) && railEnabled;
+  // Where the rail can't fit (phone / portrait tablet) the setlist is reachable
+  // from a header button that opens it as a bottom sheet instead.
+  const showSetlistButton = railEnabled && !showRail;
   // Explicit 1/2 from settings wins; 'auto'/unset goes two-up when the reading
   // area is comfortably wide. A manual pick in the Layout sheet overrides for
   // the session and persists the choice device-wide.
@@ -134,6 +147,8 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
 
   const cur = resolved[idx] || null;
   const next = resolved[idx + 1] || null;
+  // Scroll-sync: highlight the section currently in view in the ribbon.
+  const activeSection = useActiveSection(scrollRef, `${cur?.song?.id || ''}:${displayMode}:${columns}`);
 
   // Union of tab instruments across the whole set — drives the filter chip.
   const tabInstrumentsPresent = useMemo(() => {
@@ -185,13 +200,15 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     const s = touchRef.current;
     if (!s) return;
     touchRef.current = null;
+    // Swipe only navigates when the leader picked it as the nav method.
+    if (navStyle !== 'swipe') return;
     const t = e.changedTouches[0];
     const dx = t.clientX - s.x;
     const dy = t.clientY - s.y;
     if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
       if (dx < 0) goNext(); else goPrev();
     }
-  }, [goNext, goPrev]);
+  }, [goNext, goPrev, navStyle]);
 
   const handleFinish = useCallback(() => {
     onFinish?.({
@@ -257,15 +274,19 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     });
   }, [cur, onUpdateSong]);
 
-  // Save setlist note → persists to setlist item
+  // Save setlist note → persists to setlist item. Canonical field is `note`;
+  // older builds wrote `notes` here (which the builder/overview/Live never
+  // read), so we write `note` and strip any legacy `notes`.
   const handleSaveNote = useCallback((newNote) => {
     if (!cur || cur.isBreak) return;
     touchedSongIdsRef.current.add(cur.song.id);
     onUpdateSetlist?.({
       ...setlist,
-      items: setlist.items.map((it, i) =>
-        i === cur._rawIdx ? { ...it, notes: newNote } : it
-      ),
+      items: setlist.items.map((it, i) => {
+        if (i !== cur._rawIdx) return it;
+        const { notes: _legacy, ...rest } = it;
+        return { ...rest, note: newNote };
+      }),
     });
   }, [cur, setlist, onUpdateSetlist]);
 
@@ -289,6 +310,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   if (!cur) return null;
 
   const displayKey = cur.isBreak || cur.isMissing ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
+  const curHasTabs = !cur.isBreak && !cur.isMissing && (cur.song.sections || []).some(s => (s.lines || []).some(l => l && typeof l === 'object' && (l.type === 'tab' || l.type === 'tabref')));
 
   // Optional in-header prev/next cluster — an alternative to the floating nav
   // pill. Rendered at the far LEFT of the header (clear of the collapse / menu /
@@ -318,16 +340,43 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   // they render with matching color and weight.
   const headerControls = (
     <div className="flex items-center gap-1 shrink-0">
+      {showSetlistButton && (
+        <IconButton
+          size="sm"
+          variant="ghost"
+          onClick={() => setSetlistSheetOpen(true)}
+          aria-label="Open setlist"
+          title="Setlist"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+        </IconButton>
+      )}
       <IconButton
         size="sm"
         variant="ghost"
         onClick={() => setHeaderCollapsed(c => !c)}
         aria-label={headerCollapsed ? 'Expand header' : 'Collapse header'}
+        className="hidden sm:inline-flex"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
           <path d={headerCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
         </svg>
       </IconButton>
+      {!cur.isBreak && !cur.isMissing && (
+        <div className="hidden sm:flex">
+          <ViewModePicker value={displayMode} onChange={changeDisplayMode} hasTabs={curHasTabs} />
+        </div>
+      )}
+      {!cur.isBreak && !cur.isMissing && (
+        <IconButton size="sm" variant="ghost" onClick={() => setShowStructureEditor(true)} aria-label="Edit structure" title="Edit structure" className="hidden sm:inline-flex">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+          </svg>
+        </IconButton>
+      )}
       <IconButton
         size="sm"
         variant="ghost"
@@ -342,11 +391,6 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
         </svg>
       </IconButton>
-      <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close practice">
-        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </IconButton>
     </div>
   );
 
@@ -359,6 +403,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
       ref={scrollRef}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
+      onClick={revealHeader}
       className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
@@ -373,11 +418,62 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           (you can still jump between sections), and the title + meta +
           badge tuck away. The dedicated ribbon row below only renders
           when the header is expanded. */}
-      {(() => {
-        const structRibbon = !cur.isBreak && !cur.isMissing && cur.song.sections?.length > 0 ? (
+      <StageHeader
+        collapsed={headerCollapsed}
+        onExpand={() => setHeaderCollapsed(false)}
+        close={(
+          <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close practice">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </IconButton>
+        )}
+        title={(
+          <>
+            {navButtons}
+            <h1 className="text-heading-15 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
+              {cur.isBreak ? (cur.label || 'Break') : cur.song.title}
+            </h1>
+            <span
+              className="hidden sm:inline-flex shrink-0 items-center px-2 py-0.5 rounded-md text-label-10 font-black uppercase tracking-widest"
+              style={{ background: 'var(--color-brand)', color: 'white' }}
+            >
+              Practice
+            </span>
+          </>
+        )}
+        meta={!cur.isBreak && !cur.isMissing && displayKey ? (
+          <>
+            <Select value={displayKey} onValueChange={handleKeyChange}>
+              <SelectTrigger className="h-7 px-2 border-none bg-transparent hover:bg-[var(--ds-gray-200)] rounded-lg text-label-14 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {keysInQualityOf(cur.song.key).map(k => (
+                  <SelectItem key={k} value={k}>{k}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {cur.capo > 0 && (
+              <span className="text-label-12 font-bold text-[var(--color-brand)] whitespace-nowrap bg-[var(--color-brand-soft)] px-1.5 py-0.5 rounded border border-[var(--color-brand-border)]">
+                Capo {cur.capo}
+              </span>
+            )}
+            {cur.song.tempo && (
+              <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">♩ {cur.song.tempo}</span>
+            )}
+            {cur.song.time && (
+              <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">{cur.song.time}</span>
+            )}
+          </>
+        ) : null}
+        actions={headerControls}
+        ribbon={!cur.isBreak && !cur.isMissing && cur.song.sections?.length > 0 ? (
           <StructureRibbon
             structure={cur.song.structure || cur.song.sections.map(s => s.type)}
             compact
+            activeIndex={activeSection}
+            style={settings?.ribbonStyle || 'chips'}
             onSelect={(i) => {
               const struct = cur.song.structure || cur.song.sections.map(s => s.type);
               const name = struct[i];
@@ -388,90 +484,8 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
               }
             }}
           />
-        ) : null;
-        return (
-          <div className="material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
-            <div className={`wide-container flex items-center gap-2 ${headerCollapsed ? 'py-1.5' : 'py-3'}`}>
-              {navButtons}
-              {!headerCollapsed && (
-                <>
-                  {/* Title */}
-                  <h1 className="text-heading-16 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
-                    {cur.isBreak ? (cur.label || 'Break') : cur.song.title}
-                  </h1>
-
-                  {/* Meta: key (saves on change) + tempo + time */}
-                  {!cur.isBreak && !cur.isMissing && displayKey && (
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Select value={displayKey} onValueChange={handleKeyChange}>
-                        <SelectTrigger className="h-7 px-2 border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] rounded-lg text-label-13 font-bold text-[var(--ds-gray-1000)] gap-1 min-w-0 w-auto focus:ring-0">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ALL_KEYS.map(k => (
-                            <SelectItem key={k} value={k}>
-                              {k}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {cur.capo > 0 && (
-                        <span className="text-label-12 font-bold text-[var(--color-brand)] whitespace-nowrap bg-[var(--color-brand-soft)] px-1.5 py-0.5 rounded border border-[var(--color-brand-border)]">
-                          Capo {cur.capo}
-                        </span>
-                      )}
-                      {cur.song.tempo && (
-                        <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
-                          ♩ {cur.song.tempo}
-                        </span>
-                      )}
-                      {cur.song.time && (
-                        <span className="text-label-12 text-[var(--ds-gray-700)] whitespace-nowrap">
-                          {cur.song.time}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Practice badge */}
-                  <span
-                    className="hidden sm:inline-flex shrink-0 items-center px-2 py-0.5 rounded-md text-label-10 font-black uppercase tracking-widest"
-                    style={{ background: 'var(--color-brand)', color: 'white' }}
-                  >
-                    Practice
-                  </span>
-                </>
-              )}
-              {headerCollapsed && (
-                <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
-                  {structRibbon}
-                </div>
-              )}
-              {headerControls}
-            </div>
-
-            {/* Dedicated structure-ribbon row — only when expanded. */}
-            {!headerCollapsed && structRibbon && (
-              <div className="wide-container flex items-center gap-1 pb-2 pt-0">
-                <div className="flex-1 overflow-x-auto no-scrollbar">
-                  {structRibbon}
-                </div>
-                <IconButton
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => setShowStructureEditor(true)}
-                  title="Edit structure"
-                  className="shrink-0"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
-                </IconButton>
-              </div>
-            )}
-          </div>
-        );
-      })()}
+        ) : null}
+      />
 
       {/* ── Content ── */}
       <div className="wide-container pt-4 pb-32">
@@ -501,7 +515,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             fontSize={fontSize}
             columns={columns}
             chordFontSize={chordFontSize}
-            nashville={nns}
+            notation={notation}
             showChords={showChords}
             showDiagrams={showDiagrams}
             displayMode={displayMode}
@@ -511,22 +525,45 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             sectionLabels={settings?.sectionLabels}
             customSectionTypes={settings?.customSectionTypes}
             onSaveCue={handleSaveCue}
+            canEditShared={canEditShared}
+            privateNotes={privateNotes}
           />
         ) : null}
 
-        {/* Setlist note card */}
+        {/* Setlist note for this song — Team (shared, canonical `note`) + My
+            note (private). Shared editing is gated to those who can write the
+            library; My note is always editable by its owner. */}
         {!cur.isBreak && !cur.isMissing && (
           <div className="mt-6">
-            <SetlistNoteCard
-              value={cur.notes || ''}
-              onSave={handleSaveNote}
+            <NotesStack
+              pillLabel="Setlist note"
+              entries={[
+                {
+                  key: 'team',
+                  label: privateNotes.enabled ? 'Team' : undefined,
+                  value: cur.note ?? cur.notes ?? '',
+                  editable: canEditShared,
+                  onSave: handleSaveNote,
+                  placeholder: 'Setlist note for this song…',
+                  addLabel: 'Add setlist note for this song',
+                },
+                ...(privateNotes.enabled ? [{
+                  key: 'mine',
+                  label: 'Mine',
+                  value: privateNotes.getNote({ setlistId: setlist.id, songId: cur.song.id }),
+                  editable: true,
+                  onSave: (t) => privateNotes.setNote({ setlistId: setlist.id, songId: cur.song.id }, t),
+                  placeholder: 'Private note (only you)…',
+                  addLabel: 'Add a private note',
+                }] : []),
+              ]}
             />
           </div>
         )}
       </div>
 
-      {/* ── Floating nav pill (unless the leader chose header buttons) ── */}
-      {navStyle !== 'header' && (
+      {/* ── Floating nav pill (only when the leader chose the pill) ── */}
+      {navStyle === 'pill' && (
         <FloatingNavPill
           current={idx + 1}
           total={resolved.length}
@@ -536,6 +573,17 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           hasPrev={idx > 0}
           hasNext={idx < resolved.length - 1}
           onFinish={onFinish ? handleFinish : undefined}
+        />
+      )}
+      {navStyle === 'edge' && (
+        <EdgeNavArrows
+          onPrev={goPrev}
+          onNext={goNext}
+          hasPrev={idx > 0}
+          hasNext={idx < resolved.length - 1}
+          onFinish={onFinish ? handleFinish : undefined}
+          nextLabel={next?.isBreak ? (next.label || 'Break') : next?.song?.title}
+          prevLabel={idx > 0 ? (resolved[idx - 1]?.isBreak ? (resolved[idx - 1].label || 'Break') : resolved[idx - 1]?.song?.title) : undefined}
         />
       )}
     </div>
@@ -558,32 +606,8 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
                 </svg>
               </IconButton>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-1">
-              {resolved.map((r, i) => {
-                const active = i === idx;
-                const title = r.isBreak ? (r.label || 'Break') : (r.isMissing ? 'Missing song' : r.song.title);
-                const k = (!r.isBreak && !r.isMissing) ? transposeKey(r.song.key, r.transpose || 0) : null;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => goTo(i)}
-                    aria-current={active ? 'true' : undefined}
-                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${
-                      active
-                        ? 'bg-[var(--color-brand)] text-white'
-                        : 'text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)]'
-                    }`}
-                  >
-                    <span className={`text-label-11-mono shrink-0 ${active ? 'text-white/80' : 'text-[var(--ds-gray-500)]'}`}>
-                      {String(i + 1).padStart(2, '0')}
-                    </span>
-                    <span className="flex-1 min-w-0 truncate text-copy-14">{title}</span>
-                    {k && (
-                      <span className={`text-label-11-mono shrink-0 ${active ? 'text-white/90' : 'text-[var(--chord)]'}`}>{k}</span>
-                    )}
-                  </button>
-                );
-              })}
+            <div className="flex-1 min-h-0 overflow-y-auto p-2">
+              <SetlistList resolved={resolved} idx={idx} onSelect={goTo} />
             </div>
           </>
         ) : (
@@ -612,135 +636,42 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
       />
     )}
 
-    <BottomSheet open={layoutOpen} onClose={() => setLayoutOpen(false)} title="Layout">
-      <div className="flex flex-col gap-4">
-        <SheetField label="Role">
-          <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
-            {STAGE_MODES.map(m => {
-              const active = stageMode === m.id;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => applyRole(m.id)}
-                  className={cn(
-                    "shrink-0 px-3 h-8 rounded-lg border transition-all text-label-12 font-semibold",
-                    active
-                      ? "border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]"
-                      : "border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]"
-                  )}
-                  title={m.description}
-                >
-                  {m.name}
-                </button>
-              );
-            })}
-          </div>
-        </SheetField>
+    <PerformanceLayoutSheet
+      open={layoutOpen}
+      onClose={() => setLayoutOpen(false)}
+      variant="practice"
+      stageMode={stageMode}
+      onApplyRole={applyRole}
+      displayMode={displayMode}
+      onChangeDisplayMode={changeDisplayMode}
+      tabInstrumentsPresent={tabInstrumentsPresent}
+      tabInstrument={tabInstrument}
+      onChangeTabInstrument={setTabInstrument}
+      notation={notation}
+      onChangeNotation={changeNotation}
+      showChords={showChords}
+      onToggleShowChords={toggleShowChords}
+      showDiagrams={showDiagrams}
+      onToggleShowDiagrams={toggleShowDiagrams}
+      columns={columns}
+      onChangeColumns={setColumnsManually}
+      fontSize={fontSize}
+      onChangeFontSize={changeFontSize}
+      chordFontSize={chordFontSize}
+      onChangeChordFontSize={changeChordFontSize}
+      settings={settings}
+      onUpdateSettings={onUpdateSettings}
+      onOpenAdvancedStyle={onOpenAdvancedStyle}
+    />
 
-        <SheetField label="View">
-          <SegmentedControl
-            value={displayMode}
-            onChange={setDisplayMode}
-            options={[
-              { value: 'chords', label: 'Chords' },
-              { value: 'lyrics', label: 'Lyrics' },
-              { value: 'tabs', label: 'Tabs' },
-              { value: 'songmap', label: 'Map' },
-            ]}
-            size="sm"
-          />
-        </SheetField>
-
-        {tabInstrumentsPresent.length >= 2 && (
-          <SheetField label="Tab instrument">
-            <div className="flex flex-wrap gap-2">
-              {['all', ...tabInstrumentsPresent].map(id => (
-                <Button
-                  key={id}
-                  variant={tabInstrument === id ? 'brand' : 'secondary'}
-                  size="sm"
-                  onClick={() => setTabInstrument(id)}
-                >
-                  {id === 'all' ? 'All' : (TAB_INSTRUMENTS[id]?.label || id)}
-                </Button>
-              ))}
-            </div>
-          </SheetField>
-        )}
-
-        <SheetField label="Display">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={nns ? 'brand' : 'secondary'}
-              size="sm"
-              onClick={toggleNns}
-            >Numbers</Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={toggleShowChords}
-              className={cn(!showChords && "opacity-40")}
-            >Chords</Button>
-            <Button
-              variant={showDiagrams ? 'brand' : 'secondary'}
-              size="sm"
-              onClick={toggleShowDiagrams}
-            >Diagrams</Button>
-          </div>
-        </SheetField>
-
-        <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-          <SheetField label="Columns">
-            <SegmentedControl
-              value={columns}
-              onChange={setColumnsManually}
-              options={[
-                { value: 1, label: '1 col' },
-                { value: 2, label: '2 col' },
-              ]}
-              size="sm"
-            />
-          </SheetField>
-          <SheetField label="Lyric size">
-            <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-              <IconButton variant="ghost" size="sm" onClick={() => changeFontSize(fontSize - 2)} aria-label="Decrease lyric size">−</IconButton>
-              <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{fontSize}</span>
-              <IconButton variant="ghost" size="sm" onClick={() => changeFontSize(fontSize + 2)} aria-label="Increase lyric size">+</IconButton>
-            </div>
-          </SheetField>
-          <SheetField label="Chord size">
-            <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-              <IconButton variant="ghost" size="sm" onClick={() => changeChordFontSize(chordFontSize - 2)} aria-label="Decrease chord size">−</IconButton>
-              <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{chordFontSize}</span>
-              <IconButton variant="ghost" size="sm" onClick={() => changeChordFontSize(chordFontSize + 2)} aria-label="Increase chord size">+</IconButton>
-            </div>
-          </SheetField>
-        </div>
-
-        <ChartStyleControls
-          settings={settings}
-          onUpdateSettings={onUpdateSettings}
-        />
-
-        {onOpenAdvancedStyle && (
-          <button
-            type="button"
-            onClick={() => {
-              setLayoutOpen(false);
-              onOpenAdvancedStyle();
-            }}
-            className="mt-2 w-full h-11 rounded-xl bg-[var(--ds-background-100)] border border-[var(--border-1)] text-copy-14 font-semibold text-[var(--text-1)] flex items-center justify-center gap-2 hover:bg-[var(--bg-1)] transition-all"
-            style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06)' }}
-          >
-            Advanced settings
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        )}
-      </div>
-    </BottomSheet>
+    <PerformanceSetlistSheet
+      open={setlistSheetOpen}
+      onClose={() => setSetlistSheetOpen(false)}
+      title={setlist.name}
+      resolved={resolved}
+      idx={idx}
+      onSelect={goTo}
+    />
     </div>
   );
 }
@@ -850,12 +781,13 @@ function StructureEditor({ structure, availableSections, onUpdate, onClose }) {
 }
 
 // Chart with editable cue cards between sections
-function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, nashville = false, showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', chordEmphasis = 'full', sectionColors, sectionLabels, customSectionTypes, onSaveCue }) {
+function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, notation = 'letters', showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', chordEmphasis = 'full', sectionColors, sectionLabels, customSectionTypes, onSaveCue, canEditShared = true, privateNotes }) {
+  const myEnabled = !!privateNotes?.enabled;
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   // Mirror the chart-view display switch.
-  const viewChords = displayMode === 'chords';
-  const viewLyrics = displayMode !== 'tabs';
-  const viewTabs = displayMode !== 'lyrics';
+  const viewChords = displayMode === 'chords' || displayMode === 'chordsonly';
+  const viewLyrics = displayMode === 'chords' || displayMode === 'lyrics';
+  const viewTabs = displayMode === 'chords' || displayMode === 'tabs';
 
   const allChords = useMemo(() => Array.from(new Set(
     song.sections.flatMap(s => s.lines)
@@ -915,28 +847,32 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
           ))}
         </div>
       )}
-      {song.notes && (
-        <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-alpha-100)]" style={{ columnSpan: 'all', WebkitColumnSpan: 'all' }}>
-          <span className="shrink-0 mt-0.5 text-[var(--ds-gray-600)]" aria-hidden="true">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <path d="M14 2v6h6" />
-              <path d="M8 13h6" />
-              <path d="M8 17h4" />
-            </svg>
-          </span>
-          <p className="flex-1 m-0 text-copy-13 text-[var(--ds-gray-1000)] whitespace-pre-wrap" style={{ fontFamily: 'var(--font-sans)' }}>
-            {song.notes}
-          </p>
+      {(song.notes || myEnabled) && (
+        <div className="mb-4" style={{ columnSpan: 'all', WebkitColumnSpan: 'all' }}>
+          <NotesStack
+            pillLabel="Song notes"
+            entries={[
+              { key: 'team', label: myEnabled ? 'Team' : undefined, value: song.notes || '' },
+              ...(myEnabled ? [{
+                key: 'mine',
+                label: 'Mine',
+                value: privateNotes.getNote({ songId: song.id }),
+                editable: true,
+                onSave: (t) => privateNotes.setNote({ songId: song.id }, t),
+                placeholder: 'Private note (only you)…',
+                addLabel: 'Add a private note',
+              }] : []),
+            ]}
+          />
         </div>
       )}
       {song.sections.map((section, i) => (
-        <div key={section.id || i} id={`practice-section-${i}`} style={{ scrollMarginTop: '7rem', breakInside: 'avoid' }}>
+        <div key={section.id || i} id={`practice-section-${i}`} data-section-index={i} style={{ scrollMarginTop: '7rem', breakInside: 'avoid' }}>
           <SectionBlock
             section={section}
             transpose={transpose}
             modOffset={sectionModOffsets[i]}
-            nns={nashville}
+            notation={notation}
             songKey={song.key}
             showChords={showChords && viewChords}
             showLyrics={viewLyrics}
@@ -946,251 +882,33 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
             inlineNotes
             noteStyle="dashes"
           />
-          <CueCard
-            value={section.note || ''}
-            sectionLabel={section.type}
-            onSave={(newNote) => onSaveCue(i, newNote)}
-          />
+          <div className="mt-1 mb-6">
+            <NotesStack
+              pillLabel="Band cue"
+              entries={[
+                {
+                  key: 'team',
+                  label: myEnabled ? 'Team' : undefined,
+                  value: section.note || '',
+                  editable: canEditShared,
+                  onSave: (newNote) => onSaveCue(i, newNote),
+                  placeholder: 'Band cue…',
+                  addLabel: `Add band cue after ${section.type}`,
+                },
+                ...(myEnabled ? [{
+                  key: 'mine',
+                  label: 'Mine',
+                  value: privateNotes.getNote({ songId: song.id, sectionKey: section.id || `idx-${i}` }),
+                  editable: true,
+                  onSave: (t) => privateNotes.setNote({ songId: song.id, sectionKey: section.id || `idx-${i}` }, t),
+                  placeholder: 'Private note (only you)…',
+                  addLabel: 'Add a private cue',
+                }] : []),
+              ]}
+            />
+          </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-// Tappable cue card for a section's band cue
-function CueCard({ value, sectionLabel, onSave }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  const textareaRef = useRef(null);
-
-  // Sync draft when value changes externally (e.g. after save propagates)
-  const [prevSync, setPrevSync] = useState({ value, editing });
-  if (prevSync.value !== value || prevSync.editing !== editing) {
-    setPrevSync({ value, editing });
-    if (!editing) setDraft(value);
-  }
-
-  // Auto-focus and move cursor to end
-  useEffect(() => {
-    if (editing && textareaRef.current) {
-      const el = textareaRef.current;
-      el.focus();
-      el.selectionStart = el.selectionEnd = el.value.length;
-    }
-  }, [editing]);
-
-  const handleSave = () => {
-    onSave(draft.trim());
-    setEditing(false);
-  };
-
-  const handleCancel = () => {
-    setDraft(value);
-    setEditing(false);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Escape') handleCancel();
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSave();
-  };
-
-  if (!value && !editing) {
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => { setDraft(''); setEditing(true); }}
-        onKeyDown={(e) => e.key === 'Enter' && setEditing(true)}
-        className="mb-6 flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-[var(--ds-gray-400)] text-label-12 text-[var(--ds-gray-500)] cursor-pointer hover:border-[var(--ds-gray-600)] hover:text-[var(--ds-gray-700)] transition-colors select-none"
-        style={{ fontSize: 13 }}
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-        Add band cue after {sectionLabel}
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="mb-6 rounded-lg border overflow-hidden"
-      style={{
-        borderColor: editing ? 'var(--color-brand-border)' : 'var(--ds-gray-400)',
-        background: 'var(--ds-background-200)',
-        fontSize: 13,
-      }}
-    >
-      {editing ? (
-        <div className="p-3">
-          <div className="flex items-start gap-2 mb-2">
-            <span className="text-[var(--color-brand)] font-bold text-label-12 mt-1">▶</span>
-            <textarea
-              ref={textareaRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={2}
-              placeholder="Band cue…"
-              className="flex-1 resize-none bg-transparent outline-none text-[var(--ds-gray-1000)] text-copy-13 leading-snug placeholder:text-[var(--ds-gray-500)]"
-              style={{ fontFamily: 'inherit' }}
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={handleCancel}
-              className="h-7 px-3 rounded-lg text-label-12 text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="h-7 px-3 rounded-lg text-label-12 text-white font-semibold transition-colors"
-              style={{ background: 'var(--color-brand)' }}
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => { setDraft(value); setEditing(true); }}
-          onKeyDown={(e) => e.key === 'Enter' && setEditing(true)}
-          className="flex items-start gap-2 px-3 py-2.5 cursor-pointer group"
-        >
-          <span className="text-[var(--color-brand)] font-bold text-label-12 mt-px">▶</span>
-          <span className="flex-1 text-copy-13 text-[var(--ds-gray-900)] leading-snug">
-            {value}
-          </span>
-          <svg
-            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-            strokeLinecap="round" strokeLinejoin="round"
-            className="shrink-0 mt-0.5 text-[var(--ds-gray-500)] opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-          </svg>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Setlist-level note card — tappable, persists to setlist item
-function SetlistNoteCard({ value, onSave }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  const textareaRef = useRef(null);
-
-  const [prevSync, setPrevSync] = useState({ value, editing });
-  if (prevSync.value !== value || prevSync.editing !== editing) {
-    setPrevSync({ value, editing });
-    if (!editing) setDraft(value);
-  }
-
-  useEffect(() => {
-    if (editing && textareaRef.current) {
-      const el = textareaRef.current;
-      el.focus();
-      el.selectionStart = el.selectionEnd = el.value.length;
-    }
-  }, [editing]);
-
-  const handleSave = () => {
-    onSave(draft.trim());
-    setEditing(false);
-  };
-
-  const handleCancel = () => {
-    setDraft(value);
-    setEditing(false);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Escape') handleCancel();
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSave();
-  };
-
-  if (!value && !editing) {
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => { setDraft(''); setEditing(true); }}
-        onKeyDown={(e) => e.key === 'Enter' && setEditing(true)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-[var(--ds-gray-400)] text-label-12 text-[var(--ds-gray-500)] cursor-pointer hover:border-[var(--ds-gray-600)] hover:text-[var(--ds-gray-700)] transition-colors select-none"
-        style={{ fontSize: 13 }}
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-        Add setlist note for this song
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="rounded-lg border overflow-hidden"
-      style={{
-        borderColor: editing ? 'var(--color-brand-border)' : 'var(--ds-gray-400)',
-        background: 'var(--ds-background-200)',
-        fontSize: 13,
-      }}
-    >
-      {editing ? (
-        <div className="p-3">
-          <div className="flex items-start gap-2 mb-2">
-            <span className="text-label-12 text-[var(--ds-gray-500)] mt-1 shrink-0">📝</span>
-            <textarea
-              ref={textareaRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={2}
-              placeholder="Setlist note for this song…"
-              className="flex-1 resize-none bg-transparent outline-none text-[var(--ds-gray-1000)] text-copy-13 leading-snug placeholder:text-[var(--ds-gray-500)]"
-              style={{ fontFamily: 'inherit' }}
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={handleCancel}
-              className="h-7 px-3 rounded-lg text-label-12 text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="h-7 px-3 rounded-lg text-label-12 text-white font-semibold transition-colors"
-              style={{ background: 'var(--color-brand)' }}
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => { setDraft(value); setEditing(true); }}
-          onKeyDown={(e) => e.key === 'Enter' && setEditing(true)}
-          className="flex items-start gap-2 px-3 py-2.5 cursor-pointer group"
-        >
-          <span className="text-label-12 text-[var(--ds-gray-500)] mt-px shrink-0">📝</span>
-          <span className="flex-1 text-copy-13 text-[var(--ds-gray-900)] leading-snug">
-            {value}
-          </span>
-          <svg
-            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-            strokeLinecap="round" strokeLinejoin="round"
-            className="shrink-0 mt-0.5 text-[var(--ds-gray-500)] opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-          </svg>
-        </div>
-      )}
     </div>
   );
 }

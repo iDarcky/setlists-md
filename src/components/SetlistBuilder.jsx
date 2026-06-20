@@ -16,9 +16,8 @@ import SetlistMetaForm from './setlist/SetlistMetaForm';
 import SetlistItemRow from './setlist/SetlistItemRow';
 import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RecommendedNextPanel from './setlist/RecommendedNextPanel';
-import RosterPanel from './setlist/RosterPanel';
 
-export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, isTeamContext, workspaceName = '', knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
+export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
   const confirm = useConfirm();
   const [name, setName] = useState(setlist?.name || '');
   // New setlists default to the upcoming Sunday at 10:00 — the most common
@@ -37,16 +36,16 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   // Optional rehearsal day — surfaces as a distinct entry on the schedule.
   const [rehearsalDate, setRehearsalDate] = useState(setlist?.rehearsalDate || '');
   const [rehearsalTime, setRehearsalTime] = useState(setlist?.rehearsalTime || '19:00');
+  const [rehearsalLocation, setRehearsalLocation] = useState(setlist?.rehearsalLocation || '');
   // New setlists start as drafts; existing ones without a status are treated as
   // ready (don't surprise-demote a legacy setlist to draft on edit).
   const [status, setStatus] = useState(setlist?.status || (setlist ? 'ready' : 'draft'));
   // Builder tabs — Roster only available once the setlist has been saved.
-  const [tab, setTab] = useState('setlist'); // 'setlist' | 'roster'
 
   // Snapshot the form on first render so Cancel/back can warn about unsaved
   // changes (only when something actually changed — no nag on a pristine form).
-  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, location, tags, items, service, status, rehearsalDate, rehearsalTime }));
-  const isDirty = JSON.stringify({ name, date, time, location, tags, items, service, status, rehearsalDate, rehearsalTime }) !== initialSnapshot;
+  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation }));
+  const isDirty = JSON.stringify({ name, date, time, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation }) !== initialSnapshot;
 
   // Report dirty state up so App can guard header nav / browser back. Reset on
   // unmount so a stale flag never blocks navigation after we leave.
@@ -119,6 +118,17 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
 
+  // Auto-scroll to a freshly added song/break. addSong/addBreak set the flag;
+  // an effect on `items` then scrolls the end marker into view once it mounts.
+  const listEndRef = useRef(null);
+  const scrollPendingRef = useRef(false);
+  useEffect(() => {
+    if (scrollPendingRef.current) {
+      scrollPendingRef.current = false;
+      listEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [items]);
+
   // Adds a song to the setlist. Defaults the transpose so the song lands in
   // its most-played key (when keyHistory has data); otherwise leaves it at 0.
   // overrideKey, when supplied (e.g. from the recommendations panel), wins.
@@ -139,6 +149,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
         description: `Transposed ${transpose > 0 ? '+' : ''}${transpose}`,
       });
     }
+    scrollPendingRef.current = true;
     applyStructural(p => [...p, {
       songId: song.id,
       songTitle: song.title,
@@ -150,9 +161,24 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     }]);
   };
   const addBreak = () => {
+    scrollPendingRef.current = true;
     applyStructural(p => [...p, { type: 'break', label: '', note: '', duration: 0 }]);
   };
-  const removeItem = (idx) => applyStructural(p => p.filter((_, i) => i !== idx));
+  const removeItem = async (idx) => {
+    const item = items[idx];
+    const isBreak = item?.type === 'break';
+    const ok = await confirm({
+      title: isBreak ? 'Remove break?' : 'Remove song?',
+      description: isBreak
+        ? 'This break will be removed from the setlist.'
+        : `"${item?.songTitle || 'This song'}" will be removed from the setlist.`,
+      confirmLabel: 'Remove',
+      cancelLabel: 'Keep',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    applyStructural(p => p.filter((_, i) => i !== idx));
+  };
 
   // Move item up or down by one position (for mobile-friendly reorder buttons)
   const moveItem = useCallback((fromIdx, toIdx) => {
@@ -237,6 +263,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
       name: name.trim(), date, time, location, tags, items, service, status,
       rehearsalDate: rehearsalDate || null,
       rehearsalTime: rehearsalDate ? rehearsalTime : null,
+      rehearsalLocation: rehearsalDate ? (rehearsalLocation || null) : null,
       createdAt: setlist?.createdAt || Date.now(),
     });
   };
@@ -261,7 +288,16 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
       <ScreenHeader
         title={setlist ? 'Edit Setlist' : 'New Setlist'}
         actions={
-          <>
+          <div className="flex items-center gap-2">
+             <SegmentedControl
+               value={status}
+               onChange={setStatus}
+               size="sm"
+               options={[
+                 { value: 'draft', label: 'Draft' },
+                 { value: 'ready', label: 'Ready' },
+               ]}
+             />
              {setlist && onDelete && (
                <IconButton variant="error" size="sm" onClick={handleDelete} aria-label="Delete setlist">
                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -269,7 +305,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                  </svg>
                </IconButton>
              )}
-           </>
+           </div>
         }
       />
 
@@ -277,52 +313,6 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
           all available space so the Save/Cancel bar below pins to the
           bottom of <main> even when the form is short. ── */}
       <div className="flex-1 w-full max-w-5xl mx-auto px-5 pt-6 pb-12">
-        {/* Workspace target + draft/ready status. */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-4">
-          {workspaceName && (
-            <div className="flex items-center gap-2 text-label-12 text-[var(--ds-gray-600)]">
-              <span className="inline-flex items-center px-2 py-1 rounded-md bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] text-[var(--ds-gray-900)] font-medium">
-                {workspaceName}
-              </span>
-              <span className="hidden sm:inline">This setlist will be saved here.</span>
-            </div>
-          )}
-          <div className="sm:ml-auto">
-            <SegmentedControl
-              value={status}
-              onChange={setStatus}
-              size="sm"
-              options={[
-                { value: 'draft', label: 'Draft' },
-                { value: 'ready', label: 'Ready' },
-              ]}
-            />
-          </div>
-        </div>
-
-        {/* Tabs — team setlists, once saved, can manage the roster here. */}
-        {isTeamContext && setlist && (
-          <div className="inline-flex p-0.5 rounded-lg bg-[var(--ds-gray-alpha-100)] border border-[var(--ds-gray-300)] mb-6">
-            {[['setlist', 'Set order'], ['roster', 'Band']].map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTab(id)}
-                className={`px-3.5 h-8 rounded-md text-label-13 font-semibold transition-colors border-none cursor-pointer ${
-                  tab === id
-                    ? 'bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] shadow-sm'
-                    : 'bg-transparent text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)]'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {isTeamContext && setlist && tab === 'roster' ? (
-          <RosterPanel inline setlistId={setlist.id} setlistDate={date} onClose={() => setTab('setlist')} />
-        ) : (
         <div className="flex flex-col lg:flex-row gap-8">
 
           {/* Left column: meta + current set */}
@@ -338,6 +328,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               service={service}
               rehearsalDate={rehearsalDate}
               rehearsalTime={rehearsalTime}
+              rehearsalLocation={rehearsalLocation}
               firstDayOfWeek={firstDayOfWeek}
               clockFormat={clockFormat}
               onNameChange={setName}
@@ -348,6 +339,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               onServiceChange={setService}
               onRehearsalDateChange={setRehearsalDate}
               onRehearsalTimeChange={setRehearsalTime}
+              onRehearsalLocationChange={setRehearsalLocation}
               knownServices={knownServices}
             />
 
@@ -443,6 +435,11 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                   + Add Break
                 </div>
               </div>
+              {/* Scroll anchor below the add buttons so adding an item reveals
+                  the new card AND the add controls. The bottom scroll-margin
+                  clears the fixed Save/Cancel action bar so nothing hides
+                  under it. */}
+              <div ref={listEndRef} className="h-px" style={{ scrollMarginBottom: '7rem' }} />
             </div>
           </div>
 
@@ -464,7 +461,6 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
           </div>
 
         </div>
-        )}
       </div>
 
       {/* ── Sticky bottom action bar ──

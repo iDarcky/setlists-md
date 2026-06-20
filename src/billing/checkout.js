@@ -15,14 +15,13 @@ import { callEdgeFunction } from '../sync/edge';
 export const BILLING_ENABLED =
   String(import.meta.env.VITE_STRIPE_ENABLED || '').toLowerCase() === 'true';
 
-// Temporary kill-switch while multi-Space is being tested: block creating
-// ADDITIONAL Spaces and show a "contact support" label instead. Locked by
-// default (prod is locked right now) — set VITE_WORKSPACE_CREATION_LOCKED=false
-// to re-open creation. First-Space onboarding is unaffected by this flag.
-export const WORKSPACE_CREATION_LOCKED =
-  String(import.meta.env.VITE_WORKSPACE_CREATION_LOCKED ?? 'true').toLowerCase() !== 'false';
+// Cap how many workspaces one account may OWN. Without live billing there is
+// nothing stopping a user creating endless Spaces, so we limit creation to a
+// sane number for now (church/team tier is still granted manually in the DB).
+// First-Space onboarding counts toward the cap like any other owned Space.
+export const MAX_OWNED_WORKSPACES = Number(import.meta.env.VITE_MAX_OWNED_WORKSPACES) || 4;
 
-// Where to point users who want more Spaces while creation is locked.
+// Where to point users who want more Spaces than the cap allows.
 export const SUPPORT_CONTACT = 'support@setlists.md';
 
 /**

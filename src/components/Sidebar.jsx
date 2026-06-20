@@ -121,7 +121,7 @@ export default function Sidebar({
   const tabs = [
     { id: 'home', label: 'Dashboard', Icon: HomeIcon },
     { id: 'setlists', label: 'Setlists', Icon: SetlistsIcon },
-    { id: 'library', label: 'Library', Icon: LibraryIcon },
+    { id: 'library', label: 'Songs', Icon: LibraryIcon },
     ...(hasTeamPlan ? [{ id: 'team', label: 'Team', Icon: TeamNavIcon }] : []),
   ];
 
@@ -224,7 +224,7 @@ export default function Sidebar({
             className={navButtonClass(activeView === 'settings')}
           >
             <SettingsIcon />
-            <span className={`hidden xl:block text-label-14 text-left ${activeView === 'settings' ? 'font-bold' : 'font-medium'}`}>Preferences</span>
+            <span className={`hidden xl:block text-label-14 text-left ${activeView === 'settings' ? 'font-bold' : 'font-medium'}`}>Settings</span>
           </button>
         </div>
 

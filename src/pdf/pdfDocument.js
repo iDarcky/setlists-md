@@ -1,19 +1,38 @@
-// Shared HTML document shell for the PDF export popup.
+// Shared helpers for the PDF export popup: reading last-used prefs, opening the
+// in-app print overlay, and emitting the print-controls markup.
 //
-// Both exportSongPdf and exportSetlistPdf hand `buildPdfDocument` a title and
-// a body (cover HTML + content HTML). This module owns the CSS, the controls
-// toolbar, the brand footer, and the in-popup script that drives the live
-// layout controls (cols / size / font / chords / colors, plus an optional
-// mode toggle for setlist exports).
+// The live exporters (exportSongPdf / exportSetlistPdf) build their own document
+// shells (title, CSS, toolbar, body) and call `buildPrintControls()` for the
+// footer script. That helper emits an EXTERNAL `<script src="/pdf-print.js">`
+// plus a non-executed JSON config block — no inline script — so the app can run
+// under an enforcing CSP (`script-src 'self'`). (`buildPdfDocument` below is a
+// legacy, currently-unused shell kept for reference.)
 
 const PREFS_KEY = 'setlists-md:pdf-prefs';
+
+// Emit the print-controls markup for an export document: a non-executed JSON
+// config block (defaults + the user's last-used prefs) followed by the external
+// controls script. Neither is an inline executable script, so both pass an
+// enforcing `script-src 'self'` CSP. `<` is escaped so a stray `</script>` in a
+// pref value can't break out of the JSON block.
+export function buildPrintControls({ defaults = {}, initialPrefs = {} } = {}) {
+  const json = JSON.stringify({ defaults, initialPrefs }).replace(/</g, '\\u003c');
+  return `<script type="application/json" id="pdf-print-config">${json}</script>
+  <script src="/pdf-print.js"></script>`;
+}
 
 // Read the user's last-used PDF prefs from the parent app's localStorage so
 // the popup boots with their preferred layout.
 export function readInitialPrefs() {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
-    return raw ? JSON.parse(raw) : {};
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    // Guard the shape: only a plain object is a valid prefs bag. A tampered or
+    // legacy value (array, string, number, null) must not flow downstream as if
+    // it had pref keys.
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return parsed;
   } catch {
     return {};
   }
