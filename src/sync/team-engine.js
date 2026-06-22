@@ -351,6 +351,35 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     if (readOnly) return { manifest, slManifest, uploaded, errors, conflicts };
 
     const nextManifest = { ...manifest };
+
+    // CIRCUIT BREAKER (updates): refuse to REWRITE a large share of the
+    // library's existing rows in a single sync. A serialization regression
+    // (e.g. the _songId round-trip bug) can make every song's hash differ from
+    // the manifest at once, so the engine "helpfully" re-uploads the entire
+    // library — churn that drift song ids, spams the activity feed, and wakes
+    // realtime in a loop. New songs (no remoteId) are exempt: a first upload /
+    // import legitimately writes many rows. If too many EXISTING rows look
+    // dirty at once, that is not a human editing — halt, keep the server copies,
+    // and surface an error so a person investigates.
+    const pendingUpdates = songs.filter(song => {
+      const entry = nextManifest[song.id];
+      return entry?.remoteId && entry.lastSyncedHash !== hashSong(song).hash;
+    });
+    const syncedSongCount = Object.values(nextManifest).filter(e => e.remoteId).length;
+    const massUpdate = pendingUpdates.length >= 8 && pendingUpdates.length > syncedSongCount * 0.5;
+    if (massUpdate) {
+      return {
+        manifest,
+        slManifest,
+        uploaded,
+        conflicts,
+        errors: [{
+          kind: 'song',
+          message: `Safety guard: refused to re-upload ${pendingUpdates.length} of ${syncedSongCount} songs in one sync. This usually means a sync glitch, not real edits — nothing was changed on the server. Reload the app; if it repeats, report it.`,
+        }],
+      };
+    }
+
     for (const song of songs) {
       try {
         const { md, hash } = hashSong(song);

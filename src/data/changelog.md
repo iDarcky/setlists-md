@@ -2,6 +2,15 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.12.1 — Reliable live mode & steadier sync
+*June 2026*
+
+### Fixed
+- **Live and Performance mode no longer crash** when a setlist points at a song whose link drifted — the song now resolves by its title and plays as normal, and anything that genuinely can't be found shows a tidy "Missing Song" placeholder you can skip past instead of a blank screen.
+
+### Improved
+- **Sync is harder to spook** — added a safety guard that stops a sync glitch from re-uploading your whole library at once (which could shuffle song links and spam "edited" activity). If something looks off, sync now pauses and tells you rather than churning in the background.
+
 ## 0.12.0 — Stage headers, private notes & a customizable dashboard
 *June 2026*
 
