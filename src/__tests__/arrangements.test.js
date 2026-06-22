@@ -414,4 +414,44 @@ describe('markdown round-trip is byte-stable (sync stability)', () => {
     const twice = roundTrip(once);
     expect(twice).toBe(once);
   });
+
+  // Corpus guard: the churn that broke sync came from songToMd → parse not
+  // settling to a fixed point for some content shape. Each tricky format below
+  // must reach a stable fixed point after one normalization pass — otherwise
+  // every sync re-uploads it forever. If you add/alter a serializer, a failure
+  // here means the new format is not round-trip stable; fix the serializer
+  // (don't relax the assertion).
+  describe('corpus is idempotent for every supported format', () => {
+    const cases = {
+      'tab block': '## Riff\n{tab, time: 4/4}\ne|--0--2--3--|\nB|--1--3--5--|\nG|--0--2--4--|\nD|-----------|\nA|--3--------|\nE|-----------|\n{/tab}',
+      'tabref': '## Intro 1\n{tabref: Tab 1}',
+      'modulate marker': '## Bridge\n[C]Before the change\n{modulate: +2}\n[Bm]After the change',
+      'inline note': '## Verse 1\n[Am]More [F]lyrics {!watch the dynamics}',
+      'band cue': '## Chorus\n> Build here, drummer in\n[G]Sing it out',
+      'minor key + slash chords': '## Verse 1\n[Am]Walking [G/B]through the [C]valley [F/A]low',
+      'romanian diacritics': '## Vers 1\n[C]Pe Tine, D[F]oamne, Te lăud[G]ăm și ne-nchin[Am]ăm',
+      'empty lines between sections': '## Verse 1\n[C]Line one\n\n\n## Verse 2\n[G]Line two',
+    };
+    const frontmatter = (extra = '') => [
+      '---',
+      'title: Corpus Song',
+      'key: Am',
+      'capo: 2',
+      'ccli: "1234567"',
+      'tags: [worship, fast]',
+      extra,
+      'songId: corpus123',
+      'arrangementId: arr_corpus123',
+      'arrangementName: Main Arrangement',
+      '---',
+      '',
+    ].filter(Boolean).join('\n');
+
+    for (const [name, body] of Object.entries(cases)) {
+      it(name, () => {
+        const once = roundTrip(frontmatter() + body + '\n');
+        expect(roundTrip(once)).toBe(once);
+      });
+    }
+  });
 });

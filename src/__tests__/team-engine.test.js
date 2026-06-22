@@ -304,6 +304,38 @@ describe('team engine — deletes and tombstones', () => {
     expect(result.errors.some(e => /Safety guard/.test(e.message || ''))).toBe(true);
   });
 
+  it('circuit breaker: refuses to re-upload a large share of the library in one sync', async () => {
+    // 10 songs synced clean. Then every song's serialized form differs from the
+    // manifest at once (the signature of a serialization regression, not a human
+    // editing). The breaker must halt the mass re-upload and leave the server
+    // rows untouched.
+    const songs = Array.from({ length: 10 }, (_, i) => mkSong(`s${i}`, `Song ${i}`, 'original'));
+    const db = { team_songs: songs.map(s => songRow(s)), team_setlists: [] };
+    const engine = makeEngine(db);
+    await engine.fullSync(songs, [], noTombstones());
+    const serverContentBefore = db.team_songs.map(r => r.content);
+
+    // Re-mint each song with changed content but the SAME id (so they map to
+    // existing rows → the update path, not inserts).
+    const churned = songs.map((_, i) => mkSong(`s${i}`, `Song ${i}`, 'churned-body'));
+    const result = await engine.fullSync(churned, [], noTombstones());
+
+    expect(result.errors.some(e => /Safety guard/.test(e.message || ''))).toBe(true);
+    expect(db.team_songs.map(r => r.content)).toEqual(serverContentBefore); // nothing rewritten
+  });
+
+  it('does NOT trip the update breaker for a legitimate first upload of many songs', async () => {
+    // New songs (no remoteId yet) are inserts, not rewrites — importing a
+    // library must never be blocked.
+    const songs = Array.from({ length: 12 }, (_, i) => mkSong(`n${i}`, `New ${i}`));
+    const db = { team_songs: [], team_setlists: [] };
+    const engine = makeEngine(db);
+    const result = await engine.fullSync(songs, [], noTombstones());
+
+    expect(result.errors).toHaveLength(0);
+    expect(db.team_songs).toHaveLength(12);
+  });
+
   it('resurrects a song when the server row was edited after the local delete', async () => {
     const db = { team_songs: [songRow(mkSong('s1', 'Kept'), '2026-06-10T00:00:00.000Z')], team_setlists: [] };
     const engine = makeEngine(db);
