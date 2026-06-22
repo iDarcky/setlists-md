@@ -135,7 +135,7 @@ export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaul
   const progress = (
     <div className="flex gap-0.5 px-5 pt-2 overflow-hidden">
       {resolved.map((r, i) => {
-        const color = r.isBreak
+        const color = r.isBreak || r.isMissing
           ? '#6b7280'
           : sectionStyle(r.song.sections?.[0]?.type || 'Verse').b;
         return (
@@ -179,6 +179,26 @@ export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaul
               </svg>
               <span className={`text-copy-11 whitespace-nowrap italic ${active ? 'font-semibold text-[var(--ds-gray-1000)]' : 'text-[var(--ds-gray-600)]'}`}>
                 {r.label || 'Break'}
+              </span>
+            </button>
+          );
+        }
+        if (r.isMissing) {
+          return (
+            <button
+              key={i}
+              onClick={() => setIdx(i)}
+              aria-label="Missing song"
+              className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-dashed cursor-pointer transition-all duration-150 bg-transparent ${
+                active ? 'border-[var(--ds-gray-600)] bg-[var(--ds-gray-200)]' : 'border-[var(--ds-gray-400)]'
+              }`}
+              style={{ minHeight: 'auto' }}
+            >
+              <span className="text-label-11-mono font-bold text-[var(--ds-gray-500)]">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <span className={`text-copy-11 whitespace-nowrap italic ${active ? 'font-semibold text-[var(--ds-gray-1000)]' : 'text-[var(--ds-gray-600)]'}`}>
+                Missing song
               </span>
             </button>
           );
