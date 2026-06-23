@@ -1,5 +1,5 @@
 import { supabase as defaultClient } from '../auth/supabase';
-import { getSyncState, updateSyncManifest, updateSetlistManifest } from './tokens';
+import { getSyncState, updateSyncManifest, updateSetlistManifest, setPendingPush } from './tokens';
 import { parseSongMd, songToMd } from '../parser';
 import { songFromFlat, withArrangement } from '../arrangements';
 import { SYNC_DEBOUNCE_MS } from './constants';
@@ -602,6 +602,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
       try {
         const result = await runFullSync(songs, setlists, tombstones);
         if ((result.uploaded?.songs || 0) + (result.uploaded?.setlists || 0) > 0) lastPushAt = Date.now();
+        await setPendingPush(false, libraryId);
         setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
         return result;
       } catch (err) {
@@ -618,47 +619,19 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     debouncedPush(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
       if (readOnly || !client) return;
       if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(async () => {
-        if (syncing) return; // a full sync is already in flight
-        syncing = true;
-        try {
-          const syncState = await getSyncState(libraryId);
-          const manifest = { ...(syncState.syncManifest || {}) };
-          const slManifest = { ...(syncState.setlistManifest || {}) };
-          // Mark tombstoned items for deletion, mirroring pull()'s contract.
-          for (const t of tombstones.songs || []) {
-            if (manifest[t.id]) manifest[t.id] = { ...manifest[t.id], deleted: true };
-          }
-          for (const t of tombstones.setlists || []) {
-            if (slManifest[t.id]) slManifest[t.id] = { ...slManifest[t.id], deleted: true };
-          }
-          const result = await push(songs, setlists, manifest, slManifest);
-          await updateSyncManifest(result.manifest, libraryId);
-          await updateSetlistManifest(result.slManifest, libraryId);
-          const keptSongTs = (tombstones.songs || []).filter(t => result.manifest[t.id]);
-          const keptSlTs = (tombstones.setlists || []).filter(t => result.slManifest[t.id]);
-          const tsPruned = keptSongTs.length !== (tombstones.songs?.length || 0)
-            || keptSlTs.length !== (tombstones.setlists?.length || 0);
-          if (tsPruned) {
-            onTombstonesPruned?.({ songs: keptSongTs, setlists: keptSlTs });
-          }
-          // Only surface "synced" when something actually changed — avoids the
-          // status churn that made team sync feel jittery on every edit.
-          const uploaded = (result.uploaded?.songs || 0) + (result.uploaded?.setlists || 0);
-          if (uploaded > 0) lastPushAt = Date.now();
-          if (uploaded > 0 || tsPruned) {
-            setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
-          }
-          // Surface CAS conflicts (another member wrote first) so the user knows
-          // their edit was superseded — otherwise the debounced push swallowed them.
-          if (result.conflicts?.length) onConflicts?.(result.conflicts);
-        } catch (err) {
-          console.error('[team-sync] Push error:', err);
-          setStatus('error');
-        } finally {
-          syncing = false;
-        }
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        runPush(songs, setlists, tombstones, onTombstonesPruned);
       }, SYNC_DEBOUNCE_MS);
+    },
+
+    // Run a pending debounced push immediately (tab hide/close), so an edit made
+    // inside the 2s debounce window still reaches the server.
+    flushPending(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
+      if (readOnly || !client || !debounceTimer) return;
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+      return runPush(songs, setlists, tombstones, onTombstonesPruned);
     },
 
     cancelDebounce() {
@@ -674,4 +647,51 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
       return Date.now() - lastPushAt < windowMs;
     },
   };
+
+  // Shared push-now used by the debounce timer and flushPending. Sets the
+  // pending-push flag before writing so an interrupted/failed push is retried
+  // on next launch, and clears it once the push confirms.
+  async function runPush(songs, setlists, tombstones, onTombstonesPruned) {
+    if (syncing) return; // a full sync is already in flight
+    syncing = true;
+    await setPendingPush(true, libraryId);
+    try {
+      const syncState = await getSyncState(libraryId);
+      const manifest = { ...(syncState.syncManifest || {}) };
+      const slManifest = { ...(syncState.setlistManifest || {}) };
+      // Mark tombstoned items for deletion, mirroring pull()'s contract.
+      for (const t of tombstones.songs || []) {
+        if (manifest[t.id]) manifest[t.id] = { ...manifest[t.id], deleted: true };
+      }
+      for (const t of tombstones.setlists || []) {
+        if (slManifest[t.id]) slManifest[t.id] = { ...slManifest[t.id], deleted: true };
+      }
+      const result = await push(songs, setlists, manifest, slManifest);
+      await updateSyncManifest(result.manifest, libraryId);
+      await updateSetlistManifest(result.slManifest, libraryId);
+      await setPendingPush(false, libraryId);
+      const keptSongTs = (tombstones.songs || []).filter(t => result.manifest[t.id]);
+      const keptSlTs = (tombstones.setlists || []).filter(t => result.slManifest[t.id]);
+      const tsPruned = keptSongTs.length !== (tombstones.songs?.length || 0)
+        || keptSlTs.length !== (tombstones.setlists?.length || 0);
+      if (tsPruned) {
+        onTombstonesPruned?.({ songs: keptSongTs, setlists: keptSlTs });
+      }
+      // Only surface "synced" when something actually changed — avoids the
+      // status churn that made team sync feel jittery on every edit.
+      const uploaded = (result.uploaded?.songs || 0) + (result.uploaded?.setlists || 0);
+      if (uploaded > 0) lastPushAt = Date.now();
+      if (uploaded > 0 || tsPruned) {
+        setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
+      }
+      // Surface CAS conflicts (another member wrote first) so the user knows
+      // their edit was superseded — otherwise the debounced push swallowed them.
+      if (result.conflicts?.length) onConflicts?.(result.conflicts);
+    } catch (err) {
+      console.error('[team-sync] Push error:', err);
+      setStatus('error');
+    } finally {
+      syncing = false;
+    }
+  }
 }

@@ -1,5 +1,5 @@
 import { getProvider } from './provider';
-import { getSyncState, updateSyncManifest, updateSetlistManifest, updateTokens, isTokenExpired } from './tokens';
+import { getSyncState, updateSyncManifest, updateSetlistManifest, updateTokens, isTokenExpired, setPendingPush } from './tokens';
 import { SONGS_FOLDER, SETLISTS_FOLDER, SYNC_DEBOUNCE_MS } from './constants';
 import { parseSongMd, songToMd, generateId } from '../parser';
 import { songFromFlat, withArrangement } from '../arrangements';
@@ -473,6 +473,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
 
         const lastSync = new Date().toISOString();
         const syncState = await getSyncState(libraryId);
+        await setPendingPush(false, libraryId);
         setStatus('synced', { lastSync, provider: syncState.activeProvider });
 
         return {
@@ -493,31 +494,21 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
 
     debouncedPush(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
       if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(async () => {
-        // Don't race a full sync; mark in-flight so a focus-triggered sync waits.
-        if (syncing) return;
-        const syncState = await getSyncState(libraryId);
-        if (!syncState.activeProvider) return;
-
-        syncing = true;
-        try {
-          const pushResult = await push(songs, setlists, tombstones);
-          if (pushResult?.tombstonesChanged) {
-            onTombstonesPruned?.(pushResult.tombstones);
-          }
-          // Only surface "synced" when work actually happened — otherwise the
-          // status churns ("Syncing…/Synced") on every keystroke-debounce.
-          const uploaded = (pushResult?.uploaded?.songs || 0) + (pushResult?.uploaded?.setlists || 0);
-          if (uploaded > 0 || pushResult?.tombstonesChanged) {
-            setStatus('synced', { lastSync: new Date().toISOString(), provider: syncState.activeProvider });
-          }
-        } catch (err) {
-          console.error('Sync push error:', err);
-          setStatus('error');
-        } finally {
-          syncing = false;
-        }
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        runPush(songs, setlists, tombstones, onTombstonesPruned);
       }, SYNC_DEBOUNCE_MS);
+    },
+
+    // Run any pending debounced push immediately. Called when the tab is about
+    // to be hidden/closed so an edit made inside the 2s debounce window still
+    // reaches the cloud (and the pendingPush flag is set first, so even an
+    // interrupted push resumes on next launch).
+    flushPending(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
+      if (!debounceTimer) return;
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+      return runPush(songs, setlists, tombstones, onTombstonesPruned);
     },
 
     cancelDebounce() {
@@ -527,4 +518,35 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
       }
     },
   };
+
+  // Shared push-now used by both the debounce timer and flushPending. Marks the
+  // pending-push flag before writing so an interrupted/failed push is retried
+  // on the next launch, and clears it once the push confirms.
+  async function runPush(songs, setlists, tombstones, onTombstonesPruned) {
+    // Don't race a full sync; a focus/startup full sync will cover these edits.
+    if (syncing) return;
+    const syncState = await getSyncState(libraryId);
+    if (!syncState.activeProvider) return;
+
+    syncing = true;
+    await setPendingPush(true, libraryId);
+    try {
+      const pushResult = await push(songs, setlists, tombstones);
+      if (pushResult?.tombstonesChanged) {
+        onTombstonesPruned?.(pushResult.tombstones);
+      }
+      await setPendingPush(false, libraryId);
+      // Only surface "synced" when work actually happened — otherwise the
+      // status churns ("Syncing…/Synced") on every keystroke-debounce.
+      const uploaded = (pushResult?.uploaded?.songs || 0) + (pushResult?.uploaded?.setlists || 0);
+      if (uploaded > 0 || pushResult?.tombstonesChanged) {
+        setStatus('synced', { lastSync: new Date().toISOString(), provider: syncState.activeProvider });
+      }
+    } catch (err) {
+      console.error('Sync push error:', err);
+      setStatus('error');
+    } finally {
+      syncing = false;
+    }
+  }
 }

@@ -17,6 +17,7 @@ vi.mock('../sync/tokens', () => {
     getSyncState: vi.fn(async (lib) => ({ ...get(lib) })),
     updateSyncManifest: vi.fn(async (m, lib) => { get(lib).syncManifest = m; }),
     updateSetlistManifest: vi.fn(async (m, lib) => { get(lib).setlistManifest = m; }),
+    setPendingPush: vi.fn(async (p, lib) => { get(lib).pendingPush = p; }),
     updateTokens: vi.fn(),
     isTokenExpired: vi.fn(() => false),
     __resetSyncStates: () => states.clear(),
@@ -403,6 +404,24 @@ describe('team engine — concurrent edit safety (CAS)', () => {
     engine.debouncedPush([mine], first.setlists, noTombstones(), () => {});
     await vi.advanceTimersByTimeAsync(SYNC_DEBOUNCE_MS + 50);
 
+    expect(db.team_songs[0].content).toBe(songToMd(mine));
+  });
+
+  it('flushPending pushes a pending debounced edit immediately (tab close)', async () => {
+    const db = { team_songs: [songRow(mkSong('s1', 'Original'))], team_setlists: [] };
+    const engine = makeEngine(db);
+    const first = await engine.fullSync([], [], noTombstones());
+
+    vi.useFakeTimers();
+    const mine = mkSong('s1', 'Edited Then Closed');
+    engine.debouncedPush([mine], first.setlists, noTombstones(), () => {});
+    // Simulate the tab being hidden before the 2s debounce fires.
+    await engine.flushPending([mine], first.setlists, noTombstones(), () => {});
+
+    // The edit was written without waiting for the debounce timer…
+    expect(db.team_songs[0].content).toBe(songToMd(mine));
+    // …and the now-spent timer does nothing if it later elapses.
+    await vi.advanceTimersByTimeAsync(SYNC_DEBOUNCE_MS + 50);
     expect(db.team_songs[0].content).toBe(songToMd(mine));
   });
 });

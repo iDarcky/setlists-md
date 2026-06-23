@@ -6,6 +6,10 @@ const SYNC_DEFAULTS = {
   lastSyncTime: null,
   syncManifest: {},
   setlistManifest: {},
+  // True while there are local edits that haven't been confirmed pushed to the
+  // cloud — set when a debounced push starts, cleared when it succeeds. Persisted
+  // so a push interrupted by an app close (or a failure) is retried next launch.
+  pendingPush: false,
 };
 
 export async function getSyncState(libraryId = 'personal') {
@@ -47,6 +51,14 @@ export async function updateSetlistManifest(manifest, libraryId = 'personal') {
   const state = await getSyncState(libraryId);
   state.setlistManifest = manifest;
   state.lastSyncTime = new Date().toISOString();
+  await saveSyncState(state, libraryId);
+  return state;
+}
+
+export async function setPendingPush(pending, libraryId = 'personal') {
+  const state = await getSyncState(libraryId);
+  if (state.pendingPush === pending) return state;
+  state.pendingPush = pending;
   await saveSyncState(state, libraryId);
   return state;
 }

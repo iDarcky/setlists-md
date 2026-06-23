@@ -734,6 +734,25 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [loaded, triggerSync]);
 
+  // Flush any pending debounced push when the tab is hidden or closed, so an
+  // edit made inside the 2s debounce window still reaches the cloud. pagehide
+  // is the most reliable "app is going away" signal on mobile. The engine also
+  // persists a pendingPush flag, so even a push cut short here resumes on the
+  // next launch.
+  useEffect(() => {
+    if (!loaded) return;
+    const flush = () => {
+      syncEngineRef.current?.flushPending?.(songs, setlists, tombstones, setTombstones);
+    };
+    const onVisibility = () => { if (document.visibilityState === 'hidden') flush(); };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [loaded, songs, setlists, tombstones]);
+
   // Apply theme to document — 'default' follows system preference.
   // Also keeps the active <meta name="theme-color"> in sync so Android's system
   // bars (status bar + navigation pill) tint to match the current theme.
