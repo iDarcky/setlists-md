@@ -6,6 +6,8 @@ export default function SyncStatus({ syncState, onClick }) {
     syncing: 'var(--color-brand)',
     synced: 'var(--ds-success-900)',
     error: 'var(--ds-error-900)',
+    offline: 'var(--ds-gray-500)',
+    'needs-reconnect': 'var(--ds-error-900)',
   };
 
   const labels = {
@@ -13,6 +15,8 @@ export default function SyncStatus({ syncState, onClick }) {
     syncing: 'Syncing…',
     synced: lastSync ? formatRelative(lastSync) : 'Synced',
     error: 'Sync error',
+    offline: 'Offline — will sync',
+    'needs-reconnect': 'Reconnect',
   };
 
   return (

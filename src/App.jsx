@@ -269,7 +269,12 @@ export default function App() {
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOffline = () => {
+      setIsOnline(false);
+      // Reflect the dropped connection in the sync badge; the reconnect handler
+      // flips it back to syncing/synced once connectivity returns.
+      setSyncState(prev => (prev.provider ? { ...prev, state: 'offline' } : prev));
+    };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
@@ -368,6 +373,10 @@ export default function App() {
     const state = await getSyncState(activeLibrary);
     const providerId = activeLibrary !== 'personal' ? `supabase-team:${activeLibrary}` : state?.activeProvider;
     if (!providerId) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setSyncState(prev => ({ ...prev, state: 'offline', provider: providerId }));
+      return;
+    }
     const result = await syncEngineRef.current.fullSync(songs, setlists, tombstones);
     if (result.replaced) {
       // Team engine is server-authoritative — adopt its arrays wholesale so
@@ -626,14 +635,16 @@ export default function App() {
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) {
       saveSongs(songs, activeLibrary);
-      syncEngineRef.current?.debouncedPush(songs, setlists, tombstones, setTombstones);
+      // Offline: the edit is durably saved locally above; skip the network push
+      // and let the reconnect handler flush it via a full sync.
+      if (navigator.onLine) syncEngineRef.current?.debouncedPush(songs, setlists, tombstones, setTombstones);
       maybeWarnQuota(quotaWarnedRef);
     }
   }, [songs, loaded, activeLibrary]);
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) {
       saveSetlists(setlists, activeLibrary);
-      syncEngineRef.current?.debouncedPush(songs, setlists, tombstones, setTombstones);
+      if (navigator.onLine) syncEngineRef.current?.debouncedPush(songs, setlists, tombstones, setTombstones);
       maybeWarnQuota(quotaWarnedRef);
     }
   }, [setlists, loaded, activeLibrary]);
@@ -733,6 +744,18 @@ export default function App() {
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [loaded, triggerSync]);
+
+  // When connectivity returns, flush edits queued while offline via a full sync.
+  // Only fires on an actual offline→online transition (not on initial mount,
+  // where the startup sync already runs).
+  const wasOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    if (isOnline && !wasOnlineRef.current && loaded) {
+      syncEngineRef.current?.cancelDebounce();
+      triggerSync();
+    }
+    wasOnlineRef.current = isOnline;
+  }, [isOnline, loaded, triggerSync]);
 
   // Flush any pending debounced push when the tab is hidden or closed, so an
   // edit made inside the 2s debounce window still reaches the cloud. pagehide

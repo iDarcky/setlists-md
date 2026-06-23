@@ -1,6 +1,7 @@
 import { getProvider } from './provider';
 import { getSyncState, updateSyncManifest, updateSetlistManifest, updateTokens, isTokenExpired, setPendingPush } from './tokens';
 import { SONGS_FOLDER, SETLISTS_FOLDER, SYNC_DEBOUNCE_MS } from './constants';
+import { withRetry } from './retry';
 import { parseSongMd, songToMd, generateId } from '../parser';
 import { songFromFlat, withArrangement } from '../arrangements';
 
@@ -86,7 +87,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
 
     const provider = getProvider(syncState.activeProvider, { readOnly });
     await ensureAuth(provider, syncState);
-    await provider.ensureFolder();
+    await withRetry(() => provider.ensureFolder());
 
     const manifest = { ...syncState.syncManifest };
     const slManifest = { ...syncState.setlistManifest };
@@ -104,7 +105,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     const pulledSetlistIds = new Set();
 
     // Pull songs from Songs subfolder
-    const songFiles = await provider.listFiles(SONGS_FOLDER);
+    const songFiles = await withRetry(() => provider.listFiles(SONGS_FOLDER));
     for (const file of songFiles) {
       if (!file.name.endsWith('.md')) continue;
 
@@ -135,7 +136,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
           tombstonesChanged = true;
         }
 
-        const content = await provider.downloadFile(file.id, SONGS_FOLDER);
+        const content = await withRetry(() => provider.downloadFile(file.id, SONGS_FOLDER));
         const parsed = parseSongMd(content);
 
         if (songId) {
@@ -220,7 +221,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     }
 
     // Pull setlists from Setlists subfolder
-    const setlistFiles = await provider.listFiles(SETLISTS_FOLDER);
+    const setlistFiles = await withRetry(() => provider.listFiles(SETLISTS_FOLDER));
     for (const file of setlistFiles) {
       if (!file.name.endsWith('.json')) continue;
 
@@ -248,7 +249,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
           tombstonesChanged = true;
         }
 
-        const content = await provider.downloadFile(file.id, SETLISTS_FOLDER);
+        const content = await withRetry(() => provider.downloadFile(file.id, SETLISTS_FOLDER));
         try {
           const remoteSetlist = JSON.parse(content);
           if (setlistId) {
@@ -342,7 +343,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
 
     const provider = getProvider(syncState.activeProvider, { readOnly });
     await ensureAuth(provider, syncState);
-    await provider.ensureFolder();
+    await withRetry(() => provider.ensureFolder());
 
     const manifest = { ...syncState.syncManifest };
     const slManifest = { ...syncState.setlistManifest };

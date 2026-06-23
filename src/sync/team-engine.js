@@ -3,6 +3,7 @@ import { getSyncState, updateSyncManifest, updateSetlistManifest, setPendingPush
 import { parseSongMd, songToMd } from '../parser';
 import { songFromFlat, withArrangement } from '../arrangements';
 import { SYNC_DEBOUNCE_MS } from './constants';
+import { withRetry } from './retry';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Team library sync — direct table sync against Supabase (team_songs /
@@ -161,12 +162,14 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     const PAGE = 1000;
     const out = [];
     for (let from = 0; ; from += PAGE) {
-      const { data, error } = await client
+      // Retry only transient network failures (the query builder *rejects* on
+      // those); PostgREST errors come back in `error` and are not retried.
+      const { data, error } = await withRetry(() => client
         .from(table)
         .select(cols)
         .eq('team_id', teamId)
         .order('updated_at', { ascending: true })
-        .range(from, from + PAGE - 1);
+        .range(from, from + PAGE - 1));
       if (error) throw new Error(`${table}: ${error.message}`);
       const batch = data || [];
       out.push(...batch);
