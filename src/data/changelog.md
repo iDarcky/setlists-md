@@ -2,6 +2,17 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.13.0 — Sync you can trust
+*June 2026*
+
+### Added
+- **Sync conflict resolver** — if the same song or setlist was changed on two devices before they synced, you now choose what to keep: your version, the cloud version, or both (your copy is saved alongside as a "conflicted copy"). The cloud no longer quietly wins and overwrites your work.
+
+### Improved
+- **Sync rides out network hiccups** — a brief connection drop now retries automatically instead of failing the whole sync.
+- **Offline edits queue up** — keep editing with no connection and everything uploads the moment you're back online. A new "Offline — will sync" badge tells you exactly where things stand.
+- **Closing the app won't lose a last-second edit** — pending changes are flushed when you leave, and finished off on your next launch.
+
 ## 0.12.1 — Reliable live mode & steadier sync
 *June 2026*
 
