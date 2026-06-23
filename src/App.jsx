@@ -5,7 +5,7 @@ import OfflineBanner from "./components/ui/OfflineBanner";
 import WorkspacePickerDialog from "./components/ui/WorkspacePickerDialog";
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { parseSongMd, songToMd, generateId } from './parser';
-import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, getStorageEstimate, clearAll } from './storage';
+import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate, clearAll } from './storage';
 import { shareTokenFromUrl } from './share/setlistShare';
 import { withArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
@@ -24,6 +24,7 @@ import DesktopLayout from './components/DesktopLayout';
 import MobileTopBar from './components/MobileTopBar';
 import MobileDrawer from './components/MobileDrawer';
 import NotificationTray from './components/NotificationTray';
+import ConflictResolver from './components/ConflictResolver';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useAuth } from './auth/useAuth';
 import { useTeam } from './auth/useTeam';
@@ -49,19 +50,6 @@ async function maybeWarnQuota(warnedRef) {
   toast({
     title: 'Storage almost full',
     description: `This device has used ${pct}% of its browser storage. Consider exporting and archiving older songs.`,
-    variant: 'error',
-  });
-}
-
-function notifyConflicts(conflicts) {
-  const titles = conflicts
-    .map(c => c.title || (c.kind === 'song' ? 'Untitled song' : 'Untitled setlist'))
-    .slice(0, 3)
-    .join(', ');
-  const extra = conflicts.length > 3 ? ` and ${conflicts.length - 3} more` : '';
-  toast({
-    title: 'Cloud overwrote local changes',
-    description: `Your edits to ${titles}${extra} were replaced with the cloud version.`,
     variant: 'error',
   });
 }
@@ -204,6 +192,7 @@ export default function App() {
   const [setlists, setSetlists] = useState([]);
   const [tombstones, setTombstones] = useState({ songs: [], setlists: [] });
   const [trash, setTrash] = useState([]); // soft-deleted songs, recoverable 30 days
+  const [pendingConflicts, setPendingConflicts] = useState([]); // sync conflicts awaiting user choice
   const [view, setView] = useState(() => {
     // OAuth / magic-link callbacks land on /auth/callback. Detect that up
     // front so the first render doesn't flash the Welcome screen. Password
@@ -328,6 +317,40 @@ export default function App() {
     }
   }, [loaded, user?.id, teamLoading, teams, activeLibrary, settings?.defaultSpaceId]);
 
+  // Queue sync conflicts for the user to resolve. The cloud copy has already
+  // been adopted into local state by the engine; the divergent local copy
+  // rides in each conflict object so nothing is lost. De-dupe by kind+id so a
+  // re-sync of the same item replaces (not stacks) its pending entry.
+  const enqueueConflicts = useCallback((incoming) => {
+    if (!incoming?.length) return;
+    setPendingConflicts(prev => {
+      const map = new Map(prev.map(c => [`${c.kind}:${c.id}`, c]));
+      for (const c of incoming) map.set(`${c.kind}:${c.id}`, c);
+      return [...map.values()];
+    });
+  }, []);
+
+  // Apply the user's choice for one conflict. 'cloud' is a no-op (the cloud
+  // copy is already in state); 'mine' restores the local copy (which then
+  // re-pushes via the auto-save effect, overwriting the cloud); 'both' keeps
+  // the cloud copy and re-adds the local one as a new "(conflicted copy)" item.
+  const resolveConflict = useCallback((conflict, choice) => {
+    const { kind, id, local } = conflict;
+    if (choice === 'mine' && local) {
+      if (kind === 'song') setSongs(prev => prev.map(s => s.id === id ? local : s));
+      else setSetlists(prev => prev.map(sl => sl.id === id ? local : sl));
+    } else if (choice === 'both' && local) {
+      if (kind === 'song') {
+        const copy = { ...local, id: generateId(), title: `${local.title || 'Untitled'} (conflicted copy)` };
+        setSongs(prev => [...prev, copy]);
+      } else {
+        const copy = { ...local, id: generateId(), name: `${local.name || 'Untitled Setlist'} (conflicted copy)` };
+        setSetlists(prev => [...prev, copy]);
+      }
+    }
+    setPendingConflicts(prev => prev.filter(c => !(c.kind === kind && c.id === id)));
+  }, []);
+
   // Initialize sync engine for the active library
   const isTeamReadOnly = activeLibrary !== 'personal' && !isAdmin && !isEditor;
   useEffect(() => {
@@ -337,8 +360,8 @@ export default function App() {
 
     syncEngineRef.current = createEngineForLibrary(activeLibrary, (status) => {
       setSyncState(prev => ({ ...prev, ...status }));
-    }, { readOnly: isTeamReadOnly, onConflicts: notifyConflicts });
-  }, [activeLibrary, isTeamReadOnly]);
+    }, { readOnly: isTeamReadOnly, onConflicts: enqueueConflicts });
+  }, [activeLibrary, isTeamReadOnly, enqueueConflicts]);
 
   const triggerSync = useCallback(async () => {
     if (isSwitchingLibraryRef.current) return;
@@ -396,7 +419,7 @@ export default function App() {
       setTombstones(result.tombstones);
     }
     if (result.conflicts?.length > 0) {
-      notifyConflicts(result.conflicts);
+      enqueueConflicts(result.conflicts);
     }
     if (result.errors?.length > 0) {
       const first = result.errors[0];
@@ -413,7 +436,7 @@ export default function App() {
       if (result.uploaded.setlists) parts.push(`${result.uploaded.setlists} setlist${result.uploaded.setlists === 1 ? '' : 's'}`);
       toast({ title: 'Synced', description: `Uploaded ${parts.join(', ')}.` });
     }
-  }, [songs, setlists, tombstones, activeLibrary]);
+  }, [songs, setlists, tombstones, activeLibrary, enqueueConflicts]);
 
   // Subscribe to realtime changes for team libraries. Ignore the echo of our
   // own recent writes so a local edit doesn't bounce back as a redundant sync.
@@ -475,6 +498,10 @@ export default function App() {
       const savedTrash = await loadTrash(activeLibrary);
       if (ignore) return;
       setTrash(savedTrash);
+
+      const savedConflicts = await loadConflicts(activeLibrary);
+      if (ignore) return;
+      setPendingConflicts(savedConflicts);
 
       // Settings remain global, so only load on initial mount
       if (!loaded) {
@@ -580,7 +607,7 @@ export default function App() {
               setTombstones(result.tombstones);
             }
             if (result.conflicts?.length > 0) {
-              notifyConflicts(result.conflicts);
+              enqueueConflicts(result.conflicts);
             }
           }).catch(err => console.error('Startup sync failed:', err));
         }
@@ -616,6 +643,9 @@ export default function App() {
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) saveTrash(trash, activeLibrary);
   }, [trash, loaded, activeLibrary]);
+  useEffect(() => {
+    if (loaded && !isSwitchingLibraryRef.current) saveConflicts(pendingConflicts, activeLibrary);
+  }, [pendingConflicts, loaded, activeLibrary]);
   useEffect(() => { if (loaded && settings) saveSettings(settings); }, [settings, loaded]);
 
   // Clean up Supabase auth tokens from the URL after magic-link / password
@@ -2003,6 +2033,7 @@ export default function App() {
     <Suspense fallback={lazyFallback}>
       <Toaster />
       <OfflineBanner />
+      <ConflictResolver conflicts={pendingConflicts} onResolve={resolveConflict} />
       {view === 'signin' && (
         <AuthScreen
           onBack={goBack}

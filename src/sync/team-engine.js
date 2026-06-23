@@ -47,6 +47,30 @@ function setlistHash(sl) {
   return quickHash(stableStringify(sl));
 }
 
+// On a push compare-and-swap miss, fetch the server's current copy so the
+// conflict surfaced to the user carries both sides (mine + cloud). Best-effort:
+// returns null if the row can't be read, and the next pull will re-surface it.
+async function fetchConflictSong(client, teamId, rowId, id) {
+  try {
+    const { data } = await client
+      .from('team_songs').select('content, updated_at')
+      .eq('id', rowId).eq('team_id', teamId).maybeSingle();
+    if (!data?.content) return null;
+    const ts = data.updated_at ? new Date(data.updated_at).getTime() : Date.now();
+    return { ...songFromFlat({ ...parseSongMd(data.content), id }), updatedAt: ts };
+  } catch { return null; }
+}
+
+async function fetchConflictSetlist(client, teamId, rowId, id) {
+  try {
+    const { data } = await client
+      .from('team_setlists').select('content')
+      .eq('id', rowId).eq('team_id', teamId).maybeSingle();
+    if (!data?.content) return null;
+    return { ...data.content, id };
+  } catch { return null; }
+}
+
 // Merge a freshly-pulled flat song (parsed .md) into an existing local song,
 // preserving local-only extra arrangements. Mirrors the proven merge in
 // engine.js pull(): patch the matching arrangement (by id, falling back to
@@ -259,20 +283,23 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         nextSongs.push(local);
         manifest[itemId] = { remoteId: entry.rowId, lastSyncedHash: entry.hash, lastSyncedTime: entry.updatedAt };
       } else {
-        // Server wins. If the local copy had diverged too, surface a conflict.
+        // Server wins. Stamp the song with the SERVER's edit time, not
+        // Date.now(). Pulling an unchanged-by-us song must not make it look
+        // freshly edited (which polluted "Recently edited" and the team
+        // activity feed).
+        const serverTs = entry.updatedAt ? new Date(entry.updatedAt).getTime() : Date.now();
+        const mergedRemote = local
+          ? mergeRemoteSong(local, entry.parsed, serverTs)
+          : { ...songFromFlat({ ...entry.parsed, id: itemId }), updatedAt: serverTs };
+        // If the local copy had diverged too, surface a conflict carrying both
+        // versions so the user can choose (server copy is adopted meanwhile).
         if (local && remoteChanged && prevEntry?.lastSyncedHash != null) {
           const localHash = quickHash(songToMd(local));
           if (localHash !== prevEntry.lastSyncedHash) {
-            conflicts.push({ kind: 'song', id: itemId, title: local.title });
+            conflicts.push({ kind: 'song', id: itemId, title: local.title, local, remote: mergedRemote });
           }
         }
-        // Stamp the song with the SERVER's edit time, not Date.now(). Pulling
-        // an unchanged-by-us song must not make it look freshly edited (which
-        // polluted "Recently edited" and the team activity feed).
-        const serverTs = entry.updatedAt ? new Date(entry.updatedAt).getTime() : Date.now();
-        nextSongs.push(local
-          ? mergeRemoteSong(local, entry.parsed, serverTs)
-          : { ...songFromFlat({ ...entry.parsed, id: itemId }), updatedAt: serverTs });
+        nextSongs.push(mergedRemote);
         manifest[itemId] = { remoteId: entry.rowId, lastSyncedHash: entry.hash, lastSyncedTime: entry.updatedAt };
       }
       localSongsById.delete(itemId);
@@ -307,12 +334,13 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
       if (local && !remoteChanged) {
         nextSetlists.push(local);
       } else {
+        const remoteSl = { ...entry.content, id: itemId };
         if (local && remoteChanged && prevEntry?.lastSyncedHash != null) {
           if (setlistHash(local) !== prevEntry.lastSyncedHash) {
-            conflicts.push({ kind: 'setlist', id: itemId, title: local.name });
+            conflicts.push({ kind: 'setlist', id: itemId, title: local.name, local, remote: remoteSl });
           }
         }
-        nextSetlists.push({ ...entry.content, id: itemId });
+        nextSetlists.push(remoteSl);
       }
       slManifest[itemId] = { remoteId: entry.rowId, lastSyncedHash: entry.hash, lastSyncedTime: entry.updatedAt };
       localSlById.delete(itemId);
@@ -399,7 +427,8 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
           if (error) throw new Error(error.message);
           if (!data) {
             // CAS miss — the row changed (or vanished) since our pull.
-            conflicts.push({ kind: 'song', id: song.id, title: song.title });
+            const remote = await fetchConflictSong(client, teamId, entry.remoteId, song.id);
+            conflicts.push({ kind: 'song', id: song.id, title: song.title, local: song, remote });
             continue;
           }
           nextManifest[song.id] = { remoteId: data.id, lastSyncedHash: hash, lastSyncedTime: data.updated_at };
@@ -493,7 +522,8 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
             .maybeSingle();
           if (error) throw new Error(error.message);
           if (!data) {
-            conflicts.push({ kind: 'setlist', id: sl.id, title: sl.name });
+            const remote = await fetchConflictSetlist(client, teamId, entry.remoteId, sl.id);
+            conflicts.push({ kind: 'setlist', id: sl.id, title: sl.name, local: sl, remote });
             continue;
           }
           nextSlManifest[sl.id] = { remoteId: data.id, lastSyncedHash: hash, lastSyncedTime: data.updated_at };

@@ -189,6 +189,13 @@ describe('team engine — pull (server-authoritative)', () => {
     const second = await engine.fullSync([localEdit], [], noTombstones());
     expect(second.songs[0].title).toBe('Their Edit'); // server wins
     expect(second.conflicts).toContainEqual(expect.objectContaining({ kind: 'song', id: 's1' }));
+    // The conflict must carry BOTH sides so the resolver can offer a choice and
+    // the divergent local edit is never silently lost.
+    const conflict = second.conflicts.find(c => c.id === 's1');
+    expect(conflict.local).toBeTruthy();
+    expect(conflict.remote).toBeTruthy();
+    expect(conflict.local.title).toBe('My Edit');
+    expect(conflict.remote.title).toBe('Their Edit');
     void first;
   });
 

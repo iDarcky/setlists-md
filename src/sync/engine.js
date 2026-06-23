@@ -145,12 +145,8 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
             // Detect conflict: local diverged from last-synced before remote changed
             const localSong = updatedSongs[existingIdx];
             const lastSyncedHash = manifestEntry?.lastSyncedHash;
-            if (lastSyncedHash != null) {
-              const localHash = quickHash(songToMd(localSong));
-              if (localHash !== lastSyncedHash) {
-                conflicts.push({ kind: 'song', id: songId, title: localSong.title });
-              }
-            }
+            const isConflict = lastSyncedHash != null
+              && quickHash(songToMd(localSong)) !== lastSyncedHash;
             // For v2 songs, merge the remote arrangement into the existing
             // arrangements rather than replacing the whole song object.
             // Pick the local arrangement to patch. Prefer an id match
@@ -185,7 +181,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
               };
             }
             // Carry song-level fields from the remote payload.
-            updatedSongs[existingIdx] = {
+            const remoteVersion = {
               ...next,
               title: parsed.title || next.title,
               artist: parsed.artist || next.artist,
@@ -194,6 +190,13 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
               spotify: parsed.spotify || next.spotify,
               youtube: parsed.youtube || next.youtube,
             };
+            // Adopt remote so the immediate post-pull push can't clobber it.
+            // On conflict, the divergent local copy travels in the conflict
+            // object (not lost) for the user to resolve.
+            updatedSongs[existingIdx] = remoteVersion;
+            if (isConflict) {
+              conflicts.push({ kind: 'song', id: songId, title: localSong.title, local: localSong, remote: remoteVersion });
+            }
           } else {
             updatedSongs.push(songFromFlat({ ...parsed, id: songId }));
           }
@@ -254,13 +257,12 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
             if (existingIdx >= 0) {
               const localSl = updatedSetlists[existingIdx];
               const lastSyncedHash = manifestEntry?.lastSyncedHash;
-              if (lastSyncedHash != null) {
-                const localHash = quickHash(JSON.stringify(localSl, null, 2));
-                if (localHash !== lastSyncedHash) {
-                  conflicts.push({ kind: 'setlist', id: setlistId, title: localSl.name });
-                }
-              }
+              const isConflict = lastSyncedHash != null
+                && quickHash(JSON.stringify(localSl, null, 2)) !== lastSyncedHash;
               updatedSetlists[existingIdx] = remoteSetlist;
+              if (isConflict) {
+                conflicts.push({ kind: 'setlist', id: setlistId, title: localSl.name, local: localSl, remote: remoteSetlist });
+              }
             } else {
               updatedSetlists.push(remoteSetlist);
             }
