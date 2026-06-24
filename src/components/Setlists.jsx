@@ -5,6 +5,7 @@ import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
+import { searchSetlists } from '../lib/search';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { useResizablePane } from '../lib/useResizablePane';
 import { useEntitlement } from '../hooks/useEntitlement';
@@ -212,17 +213,14 @@ export default function Setlists({
   const toggleTag = (tag) => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
 
   const filtered = useMemo(() => {
-    const q = query.toLowerCase();
-    return setlists.filter(sl => {
+    // Service + tag chips are orthogonal filters; apply them first, then run
+    // the shared ultra-search over the text query.
+    const scoped = setlists.filter(sl => {
       if (showService && serviceFilter !== 'all' && (sl.service || '') !== serviceFilter) return false;
       if (selectedTags.length > 0 && !selectedTags.every(t => (sl.tags || []).includes(t))) return false;
-      if (!q) return true;
-      return (
-        (sl.name || '').toLowerCase().includes(q) ||
-        (sl.service || '').toLowerCase().includes(q) ||
-        (sl.tags || []).some(t => t.toLowerCase().includes(q))
-      );
+      return true;
     });
+    return searchSetlists(scoped, query);
   }, [setlists, query, showService, serviceFilter, selectedTags]);
 
   const [prevSelKey, setPrevSelKey] = useState(null);

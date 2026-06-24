@@ -5,6 +5,7 @@ import { Button } from './ui/Button';
 import WorkspacePickerDialog from './ui/WorkspacePickerDialog';
 import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
+import { searchSongs } from '../lib/search';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { useResizablePane } from '../lib/useResizablePane';
 
@@ -248,22 +249,16 @@ export default function Library({
   // the (potentially large) filtered list recomputes at a lower priority.
   const deferredQuery = useDeferredValue(query);
   const filtered = useMemo(() => {
+    // Apply the tag chips first (orthogonal to the text query), then run the
+    // shared ultra-search over what's left. The list is re-sorted below by the
+    // user's chosen sortMode, so we only need search membership here.
     let result = songs;
-    if (deferredQuery) {
-      const q = deferredQuery.toLowerCase();
-      result = result.filter(s =>
-        s.title.toLowerCase().includes(q) ||
-        s.artist?.toLowerCase().includes(q) ||
-        (s.key || '').toLowerCase().includes(q) ||
-        s.tags?.some(t => t.toLowerCase().includes(q))
-      );
-    }
     if (selectedTags.length > 0) {
       result = result.filter(s =>
         selectedTags.every(tag => s.tags?.includes(tag))
       );
     }
-    return result;
+    return searchSongs(result, deferredQuery);
   }, [songs, deferredQuery, selectedTags]);
 
   // Reset pagination + selection when filter criteria change.

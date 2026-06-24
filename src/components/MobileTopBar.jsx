@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import SongCard from './SongCard';
 import { workspaceStatusLabel } from '../billing/checkout';
+import { searchSongs, searchSetlists } from '../lib/search';
 
 const HamburgerIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -66,24 +67,13 @@ export default function MobileTopBar({
   const menuRef = useRef(null);
   const containerRef = useRef(null);
 
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
   const results = useMemo(() => {
     if (!q) return { songs: [], setlists: [] };
-    const matchedSongs = songs
-      .filter(s =>
-        s.title?.toLowerCase().includes(q) ||
-        s.artist?.toLowerCase().includes(q) ||
-        (s.tags || []).some(t => t.toLowerCase().includes(q))
-      )
-      .slice(0, 6);
-    const matchedSetlists = setlists
-      .filter(sl =>
-        (sl.name || '').toLowerCase().includes(q) ||
-        (sl.service || '').toLowerCase().includes(q) ||
-        (sl.tags || []).some(t => t.toLowerCase().includes(q))
-      )
-      .slice(0, 4);
-    return { songs: matchedSongs, setlists: matchedSetlists };
+    return {
+      songs: searchSongs(songs, q, { limit: 6 }),
+      setlists: searchSetlists(setlists, q, { limit: 4 }),
+    };
   }, [q, songs, setlists]);
 
   useEffect(() => {

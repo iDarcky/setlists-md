@@ -3,6 +3,7 @@ import { useTeam } from '../../auth/useTeam';
 import { useTeamSchedules } from '../../hooks/useTeamSchedules';
 import { useTeamAvailability } from '../../hooks/useTeamAvailability';
 import { useTeamSetlistMap } from '../../hooks/useTeamSetlistMap';
+import { normalizeText } from '../../lib/search';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { toast } from '../ui/use-toast';
@@ -127,11 +128,11 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
   // v2 add-list refinements: free-text search + an "available only" toggle.
   const visibleCandidates = useMemo(() => {
     if (!v2) return candidates;
-    const q = search.trim().toLowerCase();
+    const q = normalizeText(search);
     return candidates.filter(m => {
       if (availOnly && m.availStatus !== 'available') return false;
       if (!q) return true;
-      const name = (m.profile?.display_name || m.profile?.email || '').toLowerCase();
+      const name = normalizeText(m.profile?.display_name || m.profile?.email || '');
       return name.includes(q);
     });
   }, [candidates, v2, search, availOnly]);
