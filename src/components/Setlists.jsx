@@ -11,6 +11,7 @@ import ColumnsMenu from './ui/ColumnsMenu';
 import SetlistFilters from './setlist/SetlistFilters';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { useResizablePane } from '../lib/useResizablePane';
+import { usePersistentView } from '../lib/usePersistentView';
 import { useEntitlement } from '../hooks/useEntitlement';
 import { useTeam } from '../auth/useTeam';
 import { useTeamSchedules } from '../hooks/useTeamSchedules';
@@ -180,7 +181,8 @@ export default function Setlists({
   const [query, setQuery] = useState('');
   const [serviceFilter, setServiceFilter] = useState('all');
   const [selectedTags, setSelectedTags] = useState([]);
-  const [viewMode, setViewMode] = useState(null); // null = auto per device; 'gallery' | 'compact' | 'table'
+  // Persisted per device (localStorage); null = auto per-device default.
+  const [viewMode, setViewMode] = usePersistentView('setlists-md:setlists-view'); // 'gallery' | 'compact' | 'table'
   const [sortMode, setSortMode] = useState('date');   // 'name' | 'date' | 'songs'
   const [sortAsc, setSortAsc] = useState(false);
   const [selected, setSelected] = useState([]);

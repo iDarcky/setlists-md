@@ -12,6 +12,7 @@ import { resolveVisibleColumns } from '../lib/tableColumns';
 import ColumnsMenu from './ui/ColumnsMenu';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { useResizablePane } from '../lib/useResizablePane';
+import { usePersistentView } from '../lib/usePersistentView';
 
 const ChartView = lazy(() => import('./ChartView'));
 
@@ -224,7 +225,8 @@ export default function Library({
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState('title');
   const [sortAsc, setSortAsc] = useState(true);
-  const [viewMode, setViewMode] = useState(null); // null = auto per device; 'table' | 'compact' | 'gallery'
+  // Persisted per device (localStorage); null = auto per-device default.
+  const [viewMode, setViewMode] = usePersistentView('setlists-md:songs-view'); // 'table' | 'compact' | 'gallery'
   const [selectedTags, setSelectedTags] = useState([]);
   const [facetSel, setFacetSel] = useState({}); // { facetKey: string[] }
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
