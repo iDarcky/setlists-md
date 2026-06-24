@@ -51,8 +51,12 @@ and email are in place.
       is wired and dormant.
 
 ### 🔴 July — remaining launch blockers
-- [ ] **Unsaved-changes guard** — "are you sure?" before leaving the song editor
-      (the setlist builder already has one; the song editor does not).
+- [x] **Unsaved-changes guard** — "are you sure?" before leaving the song editor
+      (the setlist builder already has one). *Done June 2026 — `Editor.jsx`
+      tracks `isDirty = md !== savedMd`, `handleBack()` shows the custom
+      `useConfirm()` "Discard unsaved changes?" dialog, a `beforeunload`
+      listener warns on tab close, and `App.jsx`'s `popstate` handler guards the
+      `editor` view via `editorDirtyRef` (mirrors the `setlist-build` guard).*
 - [x] **iPad PWA PDF export** — popup is blocked in standalone mode; ship the
       inline-iframe fallback (see §7 below). *Done June 2026 — the iframe
       overlay is now the only print path on every platform.*
@@ -60,13 +64,22 @@ and email are in place.
 ### 🟡 Beta quality (should ship, won't hard-block)
 - [x] Display modes: Chords-only / Lyrics-only / Song-map (chart/practice/live
       view picker; Nashville + Do-Re-Mi notation also shipped).
-- [ ] ChordPro / OnSong import (migration is the #1 new-user friction point).
+- [~] ChordPro / OnSong import (migration is the #1 new-user friction point).
+      *Partial — `smartImport()` (`src/importer.js`) already converts ChordPro,
+      OpenSong XML, Ultimate Guitar, and plain text, surfaced via
+      `components/newSong/ImportTab.jsx` (gated behind `sync` / `smart-import`).
+      Remaining: a dedicated `.onsong` parser and per-file success/failure
+      reporting in the import UI.*
 - [x] Notes per setlist (unified notes: team + private "My note" at song /
       setlist-item / section scope; `team_notes` table).
 - [x] WakeLock (stop the screen sleeping mid-performance).
 - [ ] Public-domain starter pack (~20 hymns) for first-run.
 - [ ] Setlist QR / URL share (a paid-tier feature — must exist if sold).
-- [ ] Replace remaining native `confirm()`/`alert()` with custom dialogs.
+- [x] Replace remaining native `confirm()`/`alert()` with custom dialogs.
+      *Done June 2026 — every confirm routes through `useConfirm()` →
+      `ConfirmDialog`; the only `window.confirm` left is the intentional
+      no-provider fallback in `ui/useConfirmHook.js`, and no native `alert()`
+      remains in `src/`.*
 - [ ] Multi-filter library view.
 - [x] **Team optimistic locking** — CAS-guarded writes; conflicts are detected
       and surfaced ("Cloud overwrote local changes") on both full sync and the
@@ -130,7 +143,7 @@ and a sync-reliability pass (no status churn, debounce/full-sync race closed).
 - [x] Build core UI components (`Button`, `Card`, `Badge`, `Tabs`, `Input`, `Toast`, etc.)
 - [x] Complete refactoring of complex views (`ChartView`, `Editor`, `Settings`).
 - [x] Modernize layout components (`BottomNav`, `PageHeader`, `SongCard`, `SetlistCard`)
-- [ ] *Remaining Task*: Ensure custom dialogs/modals fully replace native browser prompts across all UX flows.
+- [x] *Remaining Task*: Ensure custom dialogs/modals fully replace native browser prompts across all UX flows. *(Done June 2026 — see "Replace remaining native `confirm()`/`alert()`" above; all confirms go through `useConfirm()`/`ConfirmDialog`.)*
 
 ## 2. Core App Capabilities (v1/v1.5)
 - [x] Song library with search and filters.
@@ -147,7 +160,7 @@ and a sync-reliability pass (no status churn, debounce/full-sync race closed).
 - [x] Tab block parsing & SVG interactive rendering map.
 - [x] Chord diagram engine rendering.
 - [ ] Instrument role profiles (vocalist, guitar, bass, keys, drums views).
-- [ ] Smart import from ChordPro (`.cho`), SongSelect (`.usr`), OnSong, generic Text/PDF/Word parsing contexts.
+- [~] Smart import from ChordPro (`.cho`), SongSelect (`.usr`), OnSong, generic Text/PDF/Word parsing contexts. *(Partial — `smartImport()` handles ChordPro, OpenSong XML, Ultimate Guitar, and plain text via `ImportTab.jsx`. Remaining: a dedicated `.onsong` parser, SongSelect `.usr`, PDF/Word extraction, and per-file import reporting.)*
 - [ ] Enhanced playback modes: Explicit Rehearsal vs Live sub-modes.
 - [ ] Display customizations: Nashville number system toggle, Duplicate section handling rules, Chords-only/Lyrics-only displays.
 - [x] Print single song / setlist to PDF
