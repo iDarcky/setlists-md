@@ -366,9 +366,15 @@ export default function Library({
   const otherWorkspaces = workspaces.filter(w => w.id !== activeLibrary);
   const canMoveCopy = otherWorkspaces.length > 0;
 
-  // Table view + master-detail are available on desktop and tablet; phones keep
-  // the grouped card list.
-  const effectiveView = advanced ? viewMode : 'gallery';
+  // Phones can now pick Cards / Compact / Table. Compact is a mobile-only mode;
+  // if a phone choice carries to desktop it falls back to the card gallery.
+  const effectiveView = advanced
+    ? (viewMode === 'compact' ? 'gallery' : viewMode)
+    : viewMode;
+  // Mobile full-table mode scrolls horizontally and drops the responsive column
+  // floors so the user's chosen columns all show (see colFloor below).
+  const mobileTable = !advanced && effectiveView === 'table';
+  const colFloor = (cls) => (mobileTable ? '' : cls);
   // On tablet a row tap loads the detail pane; desktop keeps row → full chart
   // with a dedicated pane button.
   const onRowActivate = isTablet ? openPeek : openFull;
@@ -395,21 +401,31 @@ export default function Library({
               onChange={e => setQuery(e.target.value)}
             />
 
-            {/* View switcher — desktop + tablet */}
-            <div className={cn('items-center rounded-lg border border-[var(--modes-border)] overflow-hidden', advanced ? 'flex' : 'hidden')}>
+            {/* View switcher — Table / Compact (mobile-only) / Cards. */}
+            <div className="flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
               <button
                 onClick={() => setViewMode('table')}
                 aria-label="Table view" title="Table view"
                 className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
-                  viewMode === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
+                  effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
               >
                 <TableViewIcon />
               </button>
               <button
+                onClick={() => setViewMode('compact')}
+                aria-label="Compact list view" title="Compact list"
+                className={cn('w-9 h-9 sm:hidden items-center justify-center cursor-pointer border-none transition-colors flex',
+                  viewMode === 'compact' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" />
+                </svg>
+              </button>
+              <button
                 onClick={() => setViewMode('gallery')}
-                aria-label="List view" title="List view"
+                aria-label="Card view" title="Card view"
                 className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
-                  viewMode === 'gallery' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
+                  effectiveView === 'gallery' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
               >
                 <GalleryViewIcon />
               </button>
@@ -484,8 +500,8 @@ export default function Library({
             </div>
           )
         ) : effectiveView === 'table' ? (
-          <div className="modes-card overflow-hidden">
-            <table className="w-full border-collapse table-fixed">
+          <div className={cn('modes-card', mobileTable ? 'overflow-x-auto' : 'overflow-hidden')}>
+            <table className={cn('w-full border-collapse table-fixed', mobileTable && 'min-w-[640px]')}>
               <thead>
                 <tr className="border-b border-[var(--modes-border)]">
                   <th className="w-[44px] px-4 py-3">
@@ -499,7 +515,7 @@ export default function Library({
                     </button>
                   </th>
                   {!splitDock && columnVisible.has('artist') && (
-                    <th className="text-left px-5 py-3 hidden md:table-cell w-[34%]">
+                    <th className={cn('text-left px-5 py-3 w-[34%]', colFloor('hidden md:table-cell'))}>
                       <button onClick={() => handleSortClick('artist')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
                         Artist {sortMode === 'artist' && <SortArrow asc={sortAsc} />}
                       </button>
@@ -513,13 +529,13 @@ export default function Library({
                     </th>
                   )}
                   {!splitDock && columnVisible.has('tempo') && (
-                    <th className="text-left px-5 py-3 hidden lg:table-cell w-[90px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tempo</th>
+                    <th className={cn('text-left px-5 py-3 w-[90px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', colFloor('hidden lg:table-cell'))}>Tempo</th>
                   )}
                   {!splitDock && columnVisible.has('tags') && (
-                    <th className="text-left px-5 py-3 hidden lg:table-cell w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>
+                    <th className={cn('text-left px-5 py-3 w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', colFloor('hidden lg:table-cell'))}>Tags</th>
                   )}
                   {!splitDock && columnVisible.has('updated') && (
-                    <th className="text-left px-5 py-3 hidden xl:table-cell w-[130px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Updated</th>
+                    <th className={cn('text-left px-5 py-3 w-[130px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', colFloor('hidden xl:table-cell'))}>Updated</th>
                   )}
                 </tr>
               </thead>
@@ -556,21 +572,21 @@ export default function Library({
                             </button>
                           )}
                         </div>
-                        <div className="md:hidden text-copy-13 text-[var(--modes-text-muted)] truncate mt-0.5">{song.artist}</div>
+                        <div className={cn('text-copy-13 text-[var(--modes-text-muted)] truncate mt-0.5', mobileTable ? 'hidden' : 'md:hidden')}>{song.artist}</div>
                       </td>
                       {!splitDock && columnVisible.has('artist') && (
-                        <td className="px-5 py-3.5 hidden md:table-cell text-copy-14 text-[var(--modes-text-muted)] truncate">{song.artist}</td>
+                        <td className={cn('px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] truncate', colFloor('hidden md:table-cell'))}>{song.artist}</td>
                       )}
                       {columnVisible.has('key') && (
                         <td className="px-5 py-3.5"><KeyChip value={defaultArrangementKey(song)} /></td>
                       )}
                       {!splitDock && columnVisible.has('tempo') && (
-                        <td className="px-5 py-3.5 hidden lg:table-cell text-copy-14 text-[var(--modes-text-muted)] tabular-nums">
+                        <td className={cn('px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] tabular-nums', colFloor('hidden lg:table-cell'))}>
                           {defaultArrangementTempo(song) ? `${defaultArrangementTempo(song)}` : '—'}
                         </td>
                       )}
                       {!splitDock && columnVisible.has('tags') && (
-                        <td className="px-5 py-3.5 hidden lg:table-cell">
+                        <td className={cn('px-5 py-3.5', colFloor('hidden lg:table-cell'))}>
                           <div className="flex flex-wrap gap-1">
                             {(song.tags || []).slice(0, 3).map(t => (
                               <span key={t} className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface)] text-[var(--modes-text-muted)] border border-[var(--modes-border)]">{t}</span>
@@ -579,13 +595,31 @@ export default function Library({
                         </td>
                       )}
                       {!splitDock && columnVisible.has('updated') && (
-                        <td className="px-5 py-3.5 hidden xl:table-cell text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap">{formatUpdated(song.updatedAt)}</td>
+                        <td className={cn('px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap', colFloor('hidden xl:table-cell'))}>{formatUpdated(song.updatedAt)}</td>
                       )}
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+            {hasMore && (
+              <div ref={sentinelRef} className="py-5 text-center text-copy-12 text-[var(--modes-text-dim)]">
+                Loading more… ({truncated.length} of {filtered.length})
+              </div>
+            )}
+          </div>
+        ) : effectiveView === 'compact' ? (
+          <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
+            {flatRows.map(song => (
+              <SongCard
+                key={song.id}
+                song={song}
+                variant="compact"
+                highlight={deferredQuery}
+                selected={advanced && song.id === previewSongId}
+                onClick={() => onRowActivate(song)}
+              />
+            ))}
             {hasMore && (
               <div ref={sentinelRef} className="py-5 text-center text-copy-12 text-[var(--modes-text-dim)]">
                 Loading more… ({truncated.length} of {filtered.length})

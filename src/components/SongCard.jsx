@@ -26,6 +26,37 @@ function SongCard({ song, onClick, variant = 'card', showTags = false, selected 
   const songKey = arr?.key || song?.key || 'C';
   const songTempo = arr?.tempo ?? song?.tempo;
   const arrCount = Array.isArray(song?.arrangements) ? song.arrangements.length : 1;
+  if (variant === 'compact') {
+    const tempo = arr?.tempo ?? song?.tempo;
+    return (
+      <div
+        onClick={onClick}
+        className={cn(
+          'flex items-center justify-between gap-3 px-4 py-2.5 cursor-pointer transition-colors duration-150 hover:bg-[var(--bg-2)] active:bg-[var(--bg-2)]',
+          selected && 'bg-[var(--ds-teal-100)] hover:bg-[var(--ds-teal-100)]',
+        )}
+        style={{ WebkitTapHighlightColor: 'transparent' }}
+      >
+        <div className="min-w-0 flex-1">
+          <span className="block text-copy-15 font-medium text-[var(--text-1)] truncate">
+            {highlight ? <Highlight text={song.title} query={highlight} /> : (song.title || 'Untitled')}
+          </span>
+          {song.artist && (
+            <span className="block text-label-12 text-[var(--text-2)] truncate">
+              {highlight ? <Highlight text={song.artist} query={highlight} /> : song.artist}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {arrCount > 1 && (
+            <span className="text-label-11 text-[var(--text-2)] px-1.5 py-0.5 rounded border border-[var(--border-1)]">{arrCount}</span>
+          )}
+          <span className="text-label-12-mono text-[var(--chord)] font-semibold">{songKey}</span>
+          {tempo && <span className="text-label-12-mono text-[var(--text-2)]">{tempo}</span>}
+        </div>
+      </div>
+    );
+  }
   if (variant === 'row') {
     return (
       <div

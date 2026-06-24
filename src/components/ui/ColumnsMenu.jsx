@@ -40,7 +40,7 @@ export default function ColumnsMenu({ table, context = {}, saved, onChange }) {
   const isCustomized = saved && Array.isArray(saved[table]);
 
   return (
-    <div ref={ref} className="relative hidden sm:block">
+    <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
         className="h-9 px-4 rounded-lg border border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)] cursor-pointer flex items-center gap-2 text-label-14 transition-all duration-150"
@@ -54,7 +54,7 @@ export default function ColumnsMenu({ table, context = {}, saved, onChange }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-[230px] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden flex flex-col">
+        <div className="absolute right-0 top-full mt-2 w-[230px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden flex flex-col">
           <div className="py-1 max-h-[320px] overflow-y-auto">
             {columns.map(col => (
               <label key={col.id} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--bg-2)] transition-colors">
