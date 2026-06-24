@@ -18,6 +18,7 @@ vi.mock('../sync/tokens', () => {
     updateSyncManifest: vi.fn(async (m, lib) => { get(lib).syncManifest = m; }),
     updateSetlistManifest: vi.fn(async (m, lib) => { get(lib).setlistManifest = m; }),
     setPendingPush: vi.fn(async (p, lib) => { get(lib).pendingPush = p; }),
+    setHashVersion: vi.fn(async (v, lib) => { get(lib).hashVersion = v; }),
     updateTokens: vi.fn(),
     isTokenExpired: vi.fn(() => false),
     __resetSyncStates: () => states.clear(),
@@ -236,6 +237,65 @@ describe('team engine — migration from the file-manifest engine', () => {
 });
 
 describe('team engine — steady state (no toast spam)', () => {
+  it('does NOT re-upload a row serialized in a different style (version skew)', async () => {
+    // Simulate a row written by a DIFFERENT app version: same song + same
+    // fields, but the frontmatter is in a different ORDER than this build's
+    // songToMd emits (and the identity handles differ — they're excluded from
+    // the content fingerprint). With byte-hashing this re-uploaded forever (the
+    // phantom "edited" loop); canonical hashing must see it as unchanged.
+    const otherVersionContent = `---
+title: Cosmetic Drift
+key: G
+artist: Test Artist
+tempo: 120
+arrangementName: Main Arrangement
+structure: [Verse 1]
+songId: legacy_song_id
+arrangementId: arr_legacy_id
+---
+
+## Verse 1
+[G]Hello [C]world
+`;
+    const db = { team_songs: [{ id: 'row1', team_id: TEAM, title: 'Cosmetic Drift', content: otherVersionContent, updated_at: '2026-06-01T00:00:00.000Z' }], team_setlists: [] };
+    const engine = makeEngine(db);
+
+    const first = await engine.fullSync([], [], noTombstones());
+    const second = await engine.fullSync(first.songs, [], noTombstones());
+    const third = await engine.fullSync(second.songs, [], noTombstones());
+
+    expect(second.uploaded.songs).toBe(0);
+    expect(third.uploaded.songs).toBe(0);
+    // The server row is left exactly as it was — no churn, no bumped updated_at.
+    expect(db.team_songs[0].content).toBe(otherVersionContent);
+    expect(db.team_songs[0].updated_at).toBe('2026-06-01T00:00:00.000Z');
+  });
+
+  it('hash-algo migration: an old manifest does not mass-conflict or re-upload', async () => {
+    // Simulate a library synced by the PREVIOUS hash algorithm: the manifest
+    // holds an old-style hash and hashVersion is unset (migrating). The first
+    // sync must re-baseline silently — no conflicts, no re-uploads.
+    const song = mkSong('s1', 'Pre-upgrade Song');
+    const row = songRow(song);
+    const db = { team_songs: [row], team_setlists: [] };
+    await updateSyncManifest(
+      { s1: { remoteId: row.id, lastSyncedHash: 'OLD_ALGO_HASH', lastSyncedTime: row.updated_at } },
+      TEAM,
+    );
+
+    const engine = makeEngine(db);
+    const result = await engine.fullSync([song], [], noTombstones());
+
+    expect(result.conflicts).toHaveLength(0);
+    expect(result.uploaded.songs).toBe(0);
+    expect(db.team_songs[0].updated_at).toBe(row.updated_at); // server untouched
+
+    // And the next sync (now non-migrating) is also clean.
+    const second = await engine.fullSync(result.songs, [], noTombstones());
+    expect(second.uploaded.songs).toBe(0);
+    expect(second.conflicts).toHaveLength(0);
+  });
+
   it('uploads nothing on a second sync with no changes', async () => {
     const db = { team_songs: [songRow(mkSong('s1', 'Stable'))], team_setlists: [setlistRow(mkSetlist('sl1', 'Sunday'))] };
     const engine = makeEngine(db);

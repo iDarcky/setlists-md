@@ -1,9 +1,11 @@
 import { supabase as defaultClient } from '../auth/supabase';
-import { getSyncState, updateSyncManifest, updateSetlistManifest, setPendingPush } from './tokens';
+import { getSyncState, updateSyncManifest, updateSetlistManifest, setPendingPush, setHashVersion } from './tokens';
 import { parseSongMd, songToMd } from '../parser';
 import { songFromFlat, withArrangement } from '../arrangements';
 import { SYNC_DEBOUNCE_MS } from './constants';
 import { withRetry } from './retry';
+import { canonicalSongHash, canonicalSetlistHash, HASH_VERSION } from './canonical';
+import { createAmplificationGuard } from './amplification-guard';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Team library sync — direct table sync against Supabase (team_songs /
@@ -27,25 +29,12 @@ import { withRetry } from './retry';
 // key-sorted stringify for setlists (JSONB does not preserve key order).
 // ─────────────────────────────────────────────────────────────────────────────
 
-function quickHash(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
-  }
-  return hash.toString(36);
-}
-
-// Deterministic stringify — recursively sorts object keys so the same logical
-// value always hashes the same, regardless of JSONB key reordering.
-export function stableStringify(value) {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  const keys = Object.keys(value).filter(k => value[k] !== undefined).sort();
-  return `{${keys.map(k => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(',')}}`;
-}
+// Canonical, version-stable change detection (see ./canonical). stableStringify
+// is re-exported for back-compat with existing imports/tests.
+export { stableStringify } from './canonical';
 
 function setlistHash(sl) {
-  return quickHash(stableStringify(sl));
+  return canonicalSetlistHash(sl);
 }
 
 // On a push compare-and-swap miss, fetch the server's current copy so the
@@ -122,6 +111,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
   let debounceTimer = null;
   let lastPushAt = 0; // when we last wrote rows — used to ignore our own realtime echo
   const libraryId = teamId;
+  const ampGuard = createAmplificationGuard();
 
   // Per-engine hash caches keyed by object reference. Serializing every song to
   // markdown (songToMd) and stable-stringifying every setlist on each sync is
@@ -135,7 +125,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     const cached = songHashCache.get(song.id);
     if (cached && cached.ref === song) return cached;
     const md = songToMd(song);
-    const entry = { ref: song, md, hash: quickHash(md) };
+    const entry = { ref: song, md, hash: canonicalSongHash(md) };
     songHashCache.set(song.id, entry);
     return entry;
   }
@@ -196,7 +186,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         continue;
       }
       const itemId = parsed.id || rowIdToItemId.get(row.id) || row.id;
-      const entry = { itemId, rowId: row.id, parsed, hash: quickHash(row.content), updatedAt: row.updated_at };
+      const entry = { itemId, rowId: row.id, parsed, hash: canonicalSongHash(row.content), updatedAt: row.updated_at };
       const existing = byId.get(itemId);
       if (!existing) {
         byId.set(itemId, entry);
@@ -245,6 +235,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     const syncState = await getSyncState(libraryId);
     const prevManifest = syncState.syncManifest || {};
     const prevSlManifest = syncState.setlistManifest || {};
+    const migrating = (syncState.hashVersion || 0) < HASH_VERSION;
     const conflicts = [];
 
     const [songRows, setlistRows] = await Promise.all([
@@ -278,7 +269,12 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
 
       const local = localSongsById.get(itemId);
       const prevEntry = prevManifest[itemId];
-      const remoteChanged = !prevEntry || prevEntry.lastSyncedHash !== entry.hash;
+      // During a hash-algorithm migration the stored hash was computed by the
+      // old algorithm, so a hash mismatch is meaningless — fall back to the
+      // server edit time to decide whether the row really changed.
+      const remoteChanged = !prevEntry || (migrating
+        ? prevEntry.lastSyncedTime !== entry.updatedAt
+        : prevEntry.lastSyncedHash !== entry.hash);
 
       if (local && !remoteChanged) {
         // Server unchanged since last sync — keep the local copy (it may carry
@@ -296,8 +292,10 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
           : { ...songFromFlat({ ...entry.parsed, id: itemId }), updatedAt: serverTs };
         // If the local copy had diverged too, surface a conflict carrying both
         // versions so the user can choose (server copy is adopted meanwhile).
-        if (local && remoteChanged && prevEntry?.lastSyncedHash != null) {
-          const localHash = quickHash(songToMd(local));
+        // Skipped while migrating: the old-algorithm hash can't be compared to a
+        // canonical one, so it would false-positive on every row.
+        if (!migrating && local && remoteChanged && prevEntry?.lastSyncedHash != null) {
+          const localHash = canonicalSongHash(songToMd(local));
           if (localHash !== prevEntry.lastSyncedHash) {
             conflicts.push({ kind: 'song', id: itemId, title: local.title, local, remote: mergedRemote });
           }
@@ -332,13 +330,15 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
 
       const local = localSlById.get(itemId);
       const prevEntry = prevSlManifest[itemId];
-      const remoteChanged = !prevEntry || prevEntry.lastSyncedHash !== entry.hash;
+      const remoteChanged = !prevEntry || (migrating
+        ? prevEntry.lastSyncedTime !== entry.updatedAt
+        : prevEntry.lastSyncedHash !== entry.hash);
 
       if (local && !remoteChanged) {
         nextSetlists.push(local);
       } else {
         const remoteSl = { ...entry.content, id: itemId };
-        if (local && remoteChanged && prevEntry?.lastSyncedHash != null) {
+        if (!migrating && local && remoteChanged && prevEntry?.lastSyncedHash != null) {
           if (setlistHash(local) !== prevEntry.lastSyncedHash) {
             conflicts.push({ kind: 'setlist', id: itemId, title: local.name, local, remote: remoteSl });
           }
@@ -416,6 +416,10 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         const { md, hash } = hashSong(song);
         const entry = nextManifest[song.id];
         if (entry && entry.lastSyncedHash === hash) continue;
+        if (ampGuard.shouldBlock(song.id)) {
+          errors.push({ kind: 'song', id: song.id, title: song.title, message: 'Sync paused for this song: it was pushed too many times in a short window (possible sync loop). It will retry later.' });
+          continue;
+        }
 
         const payload = { team_id: teamId, title: song.title || 'Untitled', content: md, updated_at: new Date().toISOString() };
         if (entry?.remoteId) {
@@ -512,6 +516,10 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         const hash = hashSetlist(sl);
         const entry = nextSlManifest[sl.id];
         if (entry && entry.lastSyncedHash === hash) continue;
+        if (ampGuard.shouldBlock(sl.id)) {
+          errors.push({ kind: 'setlist', id: sl.id, title: sl.name, message: 'Sync paused for this setlist: it was pushed too many times in a short window (possible sync loop). It will retry later.' });
+          continue;
+        }
 
         const payload = { team_id: teamId, name: sl.name || 'Untitled Setlist', content: sl, updated_at: new Date().toISOString() };
         if (entry?.remoteId) {
@@ -606,6 +614,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         const result = await runFullSync(songs, setlists, tombstones);
         if ((result.uploaded?.songs || 0) + (result.uploaded?.setlists || 0) > 0) lastPushAt = Date.now();
         await setPendingPush(false, libraryId);
+        await setHashVersion(HASH_VERSION, libraryId);
         setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
         return result;
       } catch (err) {

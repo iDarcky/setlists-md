@@ -1,17 +1,11 @@
 import { getProvider } from './provider';
-import { getSyncState, updateSyncManifest, updateSetlistManifest, updateTokens, isTokenExpired, setPendingPush } from './tokens';
+import { getSyncState, updateSyncManifest, updateSetlistManifest, updateTokens, isTokenExpired, setPendingPush, setHashVersion } from './tokens';
 import { SONGS_FOLDER, SETLISTS_FOLDER, SYNC_DEBOUNCE_MS } from './constants';
 import { withRetry } from './retry';
 import { parseSongMd, songToMd, generateId } from '../parser';
 import { songFromFlat, withArrangement } from '../arrangements';
-
-function quickHash(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
-  }
-  return hash.toString(36);
-}
+import { canonicalSongHash, canonicalSetlistHash, HASH_VERSION } from './canonical';
+import { createAmplificationGuard } from './amplification-guard';
 
 function sanitizeFilename(name) {
   return (name || 'Untitled')
@@ -24,6 +18,7 @@ function sanitizeFilename(name) {
 export function createSyncEngine(onStatusChange, libraryId = 'personal', { readOnly = false } = {}) {
   let syncing = false;
   let debounceTimer = null;
+  const ampGuard = createAmplificationGuard();
 
   // Per-engine hash caches keyed by object reference. Serializing every song to
   // markdown / every setlist to JSON on each sync is the dominant CPU cost for
@@ -37,7 +32,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     const cached = songHashCache.get(song.id);
     if (cached && cached.ref === song) return cached;
     const md = songToMd(song);
-    const entry = { ref: song, md, hash: quickHash(md) };
+    const entry = { ref: song, md, hash: canonicalSongHash(md) };
     songHashCache.set(song.id, entry);
     return entry;
   }
@@ -46,7 +41,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     const cached = slHashCache.get(sl.id);
     if (cached && cached.ref === sl) return cached;
     const json = JSON.stringify(sl, null, 2);
-    const entry = { ref: sl, json, hash: quickHash(json) };
+    const entry = { ref: sl, json, hash: canonicalSetlistHash(sl) };
     slHashCache.set(sl.id, entry);
     return entry;
   }
@@ -84,6 +79,11 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
   async function pull(songs, setlists, tombstones = { songs: [], setlists: [] }) {
     const syncState = await getSyncState(libraryId);
     if (!syncState.activeProvider) return { songs, setlists, tombstones, changed: false };
+    // First sync after a hash-algorithm upgrade: the stored hashes are old-algo,
+    // so suppress conflict detection (it would false-positive against canonical
+    // hashes). Unchanged rows are skipped by the modifiedTime gate; changed rows
+    // re-baseline cleanly.
+    const migrating = (syncState.hashVersion || 0) < HASH_VERSION;
 
     const provider = getProvider(syncState.activeProvider, { readOnly });
     await ensureAuth(provider, syncState);
@@ -146,8 +146,8 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
             // Detect conflict: local diverged from last-synced before remote changed
             const localSong = updatedSongs[existingIdx];
             const lastSyncedHash = manifestEntry?.lastSyncedHash;
-            const isConflict = lastSyncedHash != null
-              && quickHash(songToMd(localSong)) !== lastSyncedHash;
+            const isConflict = !migrating && lastSyncedHash != null
+              && canonicalSongHash(songToMd(localSong)) !== lastSyncedHash;
             // For v2 songs, merge the remote arrangement into the existing
             // arrangements rather than replacing the whole song object.
             // Pick the local arrangement to patch. Prefer an id match
@@ -210,7 +210,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
         manifest[songId] = {
           remoteId: file.id,
           remoteName: file.name,
-          lastSyncedHash: quickHash(content),
+          lastSyncedHash: canonicalSongHash(content),
           lastSyncedTime: file.modifiedTime,
         };
         songsChanged = true;
@@ -258,8 +258,8 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
             if (existingIdx >= 0) {
               const localSl = updatedSetlists[existingIdx];
               const lastSyncedHash = manifestEntry?.lastSyncedHash;
-              const isConflict = lastSyncedHash != null
-                && quickHash(JSON.stringify(localSl, null, 2)) !== lastSyncedHash;
+              const isConflict = !migrating && lastSyncedHash != null
+                && canonicalSetlistHash(localSl) !== lastSyncedHash;
               updatedSetlists[existingIdx] = remoteSetlist;
               if (isConflict) {
                 conflicts.push({ kind: 'setlist', id: setlistId, title: localSl.name, local: localSl, remote: remoteSetlist });
@@ -280,7 +280,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
           slManifest[setlistId] = {
             remoteId: file.id,
             remoteName: file.name,
-            lastSyncedHash: quickHash(content),
+            lastSyncedHash: canonicalSetlistHash(content),
             lastSyncedTime: file.modifiedTime,
           };
           setlistsChanged = true;
@@ -366,6 +366,10 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
         }
 
         if (!entry || entry.lastSyncedHash !== hash || entry.remoteName !== fileName) {
+          if (ampGuard.shouldBlock(song.id)) {
+            errors.push({ kind: 'song', id: song.id, title: song.title, message: 'Sync paused for this song: it was pushed too many times in a short window (possible sync loop). It will retry later.' });
+            continue;
+          }
           const result = await provider.uploadFile(SONGS_FOLDER, fileName, md, 'text/markdown', entry?.remoteId);
           manifest[song.id] = {
             remoteId: result.id,
@@ -416,6 +420,10 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
         }
 
         if (!entry || entry.lastSyncedHash !== hash || entry.remoteName !== fileName) {
+          if (ampGuard.shouldBlock(sl.id)) {
+            errors.push({ kind: 'setlist', id: sl.id, title: sl.name, message: 'Sync paused for this setlist: it was pushed too many times in a short window (possible sync loop). It will retry later.' });
+            continue;
+          }
           const result = await provider.uploadFile(SETLISTS_FOLDER, fileName, json, 'application/json', entry?.remoteId);
           slManifest[sl.id] = {
             remoteId: result.id,
@@ -475,6 +483,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
         const lastSync = new Date().toISOString();
         const syncState = await getSyncState(libraryId);
         await setPendingPush(false, libraryId);
+        await setHashVersion(HASH_VERSION, libraryId);
         setStatus('synced', { lastSync, provider: syncState.activeProvider });
 
         return {

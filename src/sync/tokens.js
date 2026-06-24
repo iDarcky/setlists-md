@@ -55,6 +55,14 @@ export async function updateSetlistManifest(manifest, libraryId = 'personal') {
   return state;
 }
 
+export async function setHashVersion(version, libraryId = 'personal') {
+  const state = await getSyncState(libraryId);
+  if (state.hashVersion === version) return state;
+  state.hashVersion = version;
+  await saveSyncState(state, libraryId);
+  return state;
+}
+
 export async function setPendingPush(pending, libraryId = 'personal') {
   const state = await getSyncState(libraryId);
   if (state.pendingPush === pending) return state;
