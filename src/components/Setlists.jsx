@@ -180,7 +180,7 @@ export default function Setlists({
   const [query, setQuery] = useState('');
   const [serviceFilter, setServiceFilter] = useState('all');
   const [selectedTags, setSelectedTags] = useState([]);
-  const [viewMode, setViewMode] = useState('table'); // 'gallery' | 'compact' | 'table'
+  const [viewMode, setViewMode] = useState(null); // null = auto per device; 'gallery' | 'compact' | 'table'
   const [sortMode, setSortMode] = useState('date');   // 'name' | 'date' | 'songs'
   const [sortAsc, setSortAsc] = useState(false);
   const [selected, setSelected] = useState([]);
@@ -322,11 +322,14 @@ export default function Setlists({
     onSelectPreview?.(null);
   };
 
-  // Phones can pick Cards / Compact / Table. Compact is mobile-only; on desktop
-  // it falls back to the card gallery (which stays a 2-way Table/Cards switch).
+  // Phones can pick Cards / Compact / Table. Default per device: desktop/tablet
+  // open in Table, phones open in Cards (the friendly default). Compact is
+  // mobile-only; on desktop it falls back to the card gallery.
+  const autoView = advanced ? 'table' : 'gallery';
+  const vm = viewMode ?? autoView;
   const effectiveView = advanced
-    ? (viewMode === 'compact' ? 'gallery' : viewMode)
-    : viewMode;
+    ? (vm === 'compact' ? 'gallery' : vm)
+    : vm;
   // Mobile full-table mode scrolls horizontally and drops the responsive column
   // floors so the chosen columns all show.
   const mobileTable = !advanced && effectiveView === 'table';
@@ -343,7 +346,7 @@ export default function Setlists({
       {showCompact && (
         <button onClick={() => setViewMode('compact')} aria-label="Compact list view" title="Compact list"
           className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
-            viewMode === 'compact' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
+            vm === 'compact' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></svg>
         </button>
       )}

@@ -224,7 +224,7 @@ export default function Library({
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState('title');
   const [sortAsc, setSortAsc] = useState(true);
-  const [viewMode, setViewMode] = useState('table'); // 'table' | 'gallery'
+  const [viewMode, setViewMode] = useState(null); // null = auto per device; 'table' | 'compact' | 'gallery'
   const [selectedTags, setSelectedTags] = useState([]);
   const [facetSel, setFacetSel] = useState({}); // { facetKey: string[] }
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
@@ -366,11 +366,15 @@ export default function Library({
   const otherWorkspaces = workspaces.filter(w => w.id !== activeLibrary);
   const canMoveCopy = otherWorkspaces.length > 0;
 
-  // Phones can now pick Cards / Compact / Table. Compact is a mobile-only mode;
-  // if a phone choice carries to desktop it falls back to the card gallery.
+  // Phones can pick Cards / Compact / Table. Default per device: desktop/tablet
+  // open in Table, phones open in Cards (the friendly default). Compact is a
+  // mobile-only mode; if a phone choice carries to desktop it falls back to
+  // the card gallery.
+  const autoView = advanced ? 'table' : 'gallery';
+  const vm = viewMode ?? autoView;
   const effectiveView = advanced
-    ? (viewMode === 'compact' ? 'gallery' : viewMode)
-    : viewMode;
+    ? (vm === 'compact' ? 'gallery' : vm)
+    : vm;
   // Mobile full-table mode scrolls horizontally and drops the responsive column
   // floors so the user's chosen columns all show (see colFloor below).
   const mobileTable = !advanced && effectiveView === 'table';
@@ -415,7 +419,7 @@ export default function Library({
                 onClick={() => setViewMode('compact')}
                 aria-label="Compact list view" title="Compact list"
                 className={cn('w-9 h-9 sm:hidden items-center justify-center cursor-pointer border-none transition-colors flex',
-                  viewMode === 'compact' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
+                  vm === 'compact' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" />
