@@ -30,7 +30,7 @@ import { useAuth } from './auth/useAuth';
 import { useTeam } from './auth/useTeam';
 import { exportSetlistZip, importSetlistZip, slugify } from './setlist-io';
 import { exportSetlistPdf } from './pdf/exportSetlistPdf';
-import { usePWAUpdate } from './hooks/usePWAUpdate';
+import UpdatePrompt from './components/ui/UpdatePrompt';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import { useTeamRealtime } from './hooks/useTeamRealtime';
 import { useChartTheme } from './hooks/useChartTheme';
@@ -180,8 +180,6 @@ export default function App() {
   const confirm = useConfirm();
   // Workspace move/copy picker: null, or { action: 'move'|'copy', songId }.
   const [moveCopyDialog, setMoveCopyDialog] = useState(null);
-  // PWA update prompt — toast appears when a new SW is downloaded.
-  usePWAUpdate();
   // Native + iOS install affordance.
   const { canInstall, isIOS, isStandalone, promptInstall } = useInstallPrompt();
   const [showIOSHint, setShowIOSHint] = useState(false);
@@ -2075,6 +2073,7 @@ export default function App() {
     <Suspense fallback={lazyFallback}>
       <Toaster />
       <OfflineBanner />
+      <UpdatePrompt suppress={view === 'setlist-play' || view === 'setlist-performance'} />
       <ConflictResolver conflicts={pendingConflicts} onResolve={resolveConflict} />
       {view === 'signin' && (
         <AuthScreen
