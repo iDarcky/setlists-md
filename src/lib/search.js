@@ -34,14 +34,18 @@ const TRANSLIT = {
 };
 const TRANSLIT_RE = new RegExp(`[${Object.keys(TRANSLIT).join('')}]`, 'g');
 
-// Fold to a diacritic-free, lowercased, trimmed form for matching.
+// Fold to a diacritic-free, punctuation-free, lowercased form for matching.
 // `José → jose`, `Laudă → lauda`, `Țară → tara`, `groß → gross`.
+// Punctuation is collapsed to spaces so "Holy, Holy, Holy" and "holy holy holy"
+// match either way; apostrophes are dropped so "Mary's" ~ "marys".
 export function normalizeText(str) {
   return String(str ?? '')
     .replace(TRANSLIT_RE, ch => TRANSLIT[ch])
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
+    .replace(/['’`´]/g, '')          // drop apostrophes (possessives/contractions)
+    .replace(/[^\p{L}\p{N}]+/gu, ' ') // any other punctuation/symbol → space
     .trim();
 }
 

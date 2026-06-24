@@ -35,6 +35,27 @@ describe('normalizeText — diacritic folding', () => {
     expect(normalizeText(undefined)).toBe('');
     expect(normalizeText(2024)).toBe('2024');
   });
+  it('collapses punctuation to spaces and drops apostrophes', () => {
+    expect(normalizeText('Holy, Holy, Holy')).toBe('holy holy holy');
+    expect(normalizeText('Mary’s Boy Child')).toBe('marys boy child');
+    expect(normalizeText('Hark! The Herald — Angels')).toBe('hark the herald angels');
+  });
+});
+
+// ─── searchSongs: punctuation-insensitive ─────────────────────────────────────
+
+describe('searchSongs — punctuation-insensitive', () => {
+  it('finds "Holy, Holy, Holy" when typed without commas (and vice-versa)', () => {
+    const songs = [song('1', { title: 'Holy, Holy, Holy' }), song('2', { title: 'Build My Life' })];
+    expect(ids(searchSongs(songs, 'holy holy holy'))).toEqual(['1']);
+    // and the reverse — stored without commas, queried with them
+    const songs2 = [song('1', { title: 'Holy Holy Holy' })];
+    expect(ids(searchSongs(songs2, 'holy, holy, holy'))).toEqual(['1']);
+  });
+  it('matches an apostrophe title typed without the apostrophe', () => {
+    const songs = [song('1', { title: "Mary's Boy Child" })];
+    expect(ids(searchSongs(songs, 'marys'))).toEqual(['1']);
+  });
 });
 
 // ─── searchSongs: diacritics + empty query ────────────────────────────────────
