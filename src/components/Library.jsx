@@ -6,6 +6,8 @@ import WorkspacePickerDialog from './ui/WorkspacePickerDialog';
 import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
 import { searchSongs } from '../lib/search';
+import { buildFacetOptions, matchesFacets, countActiveFacets } from '../lib/songFacets';
+import LibraryFilters from './library/LibraryFilters';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { useResizablePane } from '../lib/useResizablePane';
 
@@ -211,14 +213,12 @@ export default function Library({
   const [sortAsc, setSortAsc] = useState(true);
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'gallery'
   const [selectedTags, setSelectedTags] = useState([]);
-  const [tagsOpen, setTagsOpen] = useState(false);
-  const [tagQuery, setTagQuery] = useState('');
+  const [facetSel, setFacetSel] = useState({}); // { facetKey: string[] }
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [selected, setSelected] = useState([]);
   const [bulkMenu, setBulkMenu] = useState(null); // 'setlist' | 'copy' | 'move' | null
   const [bulkPicker, setBulkPicker] = useState(null); // 'copy' | 'move' | null — workspace modal
 
-  const tagsRef = useRef(null);
   const fabRef = useRef(null);
   const sentinelRef = useRef(null);
   const bulkBarRef = useRef(null);
@@ -229,17 +229,23 @@ export default function Library({
     return [...tagSet].sort();
   }, [songs]);
 
-  useEffect(() => {
-    const handler = (e) => {
-      if (tagsRef.current && !tagsRef.current.contains(e.target)) setTagsOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  // Available facet values (Key / Tempo / Theme / Language / Year / Scripture /
+  // Moment) with counts, derived from the current library.
+  const facetOptions = useMemo(() => buildFacetOptions(songs), [songs]);
+  const activeFacetCount = countActiveFacets(facetSel);
+
+  const toggleFacet = (facetKey, value) => {
+    setFacetSel(prev => {
+      const cur = prev[facetKey] || [];
+      const next = cur.includes(value) ? cur.filter(v => v !== value) : [...cur, value];
+      return { ...prev, [facetKey]: next };
+    });
+  };
+  const clearAllFilters = () => { setSelectedTags([]); setFacetSel({}); };
 
   useEffect(() => {
     const handler = (e) => {
-      if (e.key === 'Escape') { setTagsOpen(false); setBulkMenu(null); }
+      if (e.key === 'Escape') setBulkMenu(null);
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
@@ -249,21 +255,23 @@ export default function Library({
   // the (potentially large) filtered list recomputes at a lower priority.
   const deferredQuery = useDeferredValue(query);
   const filtered = useMemo(() => {
-    // Apply the tag chips first (orthogonal to the text query), then run the
-    // shared ultra-search over what's left. The list is re-sorted below by the
-    // user's chosen sortMode, so we only need search membership here.
+    // Apply tag chips (AND) and the faceted metadata filters first — both
+    // orthogonal to the text query — then run the shared ultra-search. The list
+    // is re-sorted below by the user's chosen sortMode, so we only need search
+    // membership here.
     let result = songs;
     if (selectedTags.length > 0) {
-      result = result.filter(s =>
-        selectedTags.every(tag => s.tags?.includes(tag))
-      );
+      result = result.filter(s => selectedTags.every(tag => s.tags?.includes(tag)));
+    }
+    if (activeFacetCount > 0) {
+      result = result.filter(s => matchesFacets(s, facetSel));
     }
     return searchSongs(result, deferredQuery);
-  }, [songs, deferredQuery, selectedTags]);
+  }, [songs, deferredQuery, selectedTags, facetSel, activeFacetCount]);
 
   // Reset pagination + selection when filter criteria change.
   const [prevFilterKey, setPrevFilterKey] = useState(null);
-  const filterKey = JSON.stringify([deferredQuery, selectedTags, sortMode, sortAsc]);
+  const filterKey = JSON.stringify([deferredQuery, selectedTags, facetSel, sortMode, sortAsc]);
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey);
     setVisibleCount(INITIAL_VISIBLE);
@@ -391,72 +399,17 @@ export default function Library({
               </button>
             </div>
 
-            {/* Tags filter */}
-            {allTags.length > 0 && (
-              <div ref={tagsRef} className="relative hidden sm:block">
-                <button
-                  onClick={() => setTagsOpen(!tagsOpen)}
-                  className={`h-9 px-4 rounded-lg border cursor-pointer flex items-center gap-2 text-label-14 transition-all duration-150 ${
-                    selectedTags.length > 0
-                      ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--modes-surface)]'
-                      : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]'
-                  }`}
-                >
-                  {selectedTags.length > 0 && <span className="w-2 h-2 rounded-full bg-[var(--color-brand)]" />}
-                  Tags{selectedTags.length > 0 ? ` (${selectedTags.length})` : ''}
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-150 ${tagsOpen ? 'rotate-180' : ''}`}>
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </button>
-
-                {tagsOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-[220px] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden">
-                    {allTags.length > 5 && (
-                      <div className="px-3 pt-3 pb-2">
-                        <input
-                          type="text"
-                          placeholder="Search tags…"
-                          value={tagQuery}
-                          onChange={e => setTagQuery(e.target.value)}
-                          onClick={e => e.stopPropagation()}
-                          className="w-full h-8 px-3 rounded-lg border border-[var(--border-1)] bg-[var(--bg-2)] text-copy-13 text-[var(--text-1)] placeholder:text-[var(--text-2)] outline-none focus:border-[var(--border-3)] transition-colors"
-                        />
-                      </div>
-                    )}
-                    <div className="flex flex-col py-1 max-h-[320px] overflow-y-auto">
-                      {(() => {
-                        const tq = tagQuery.toLowerCase();
-                        const filteredTags = allTags.filter(t => t.toLowerCase().includes(tq));
-                        const sel = filteredTags.filter(t => selectedTags.includes(t));
-                        const unsel = filteredTags.filter(t => !selectedTags.includes(t)).slice(0, 10 - sel.length);
-                        const visible = [...sel, ...unsel];
-                        const more = filteredTags.length > visible.length;
-                        return (
-                          <>
-                            {visible.map(tag => (
-                              <label key={tag} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--bg-2)] transition-colors">
-                                <input type="checkbox" checked={selectedTags.includes(tag)} onChange={() => toggleTag(tag)} className="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer" />
-                                <span className="text-copy-14 text-[var(--text-1)]">{tag}</span>
-                              </label>
-                            ))}
-                            {visible.length === 0 && <div className="px-4 py-3 text-copy-13 text-[var(--text-2)]">No tags found</div>}
-                            {more && <div className="px-4 py-2 text-copy-12 text-[var(--ds-gray-600)]">{filteredTags.length - visible.length} more — refine search</div>}
-                          </>
-                        );
-                      })()}
-                    </div>
-                    {selectedTags.length > 0 && (
-                      <>
-                        <div className="border-t border-[var(--border-1)]" />
-                        <button onClick={() => { setSelectedTags([]); setTagQuery(''); }} className="w-full px-4 py-2.5 text-copy-14 text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--ds-gray-alpha-100)] transition-colors cursor-pointer bg-transparent border-none text-center">
-                          Clear all
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Unified filters — tags (AND) + faceted metadata (OR per facet) */}
+            <LibraryFilters
+              facetOptions={facetOptions}
+              selected={facetSel}
+              onToggleFacet={toggleFacet}
+              allTags={allTags}
+              selectedTags={selectedTags}
+              onToggleTag={toggleTag}
+              activeCount={selectedTags.length + activeFacetCount}
+              onClearAll={clearAllFilters}
+            />
 
             {/* Import + New song (desktop) */}
             {!readOnly && onNewSong && (
