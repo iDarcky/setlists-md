@@ -12,6 +12,10 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Sync rides out network hiccups** — a brief connection drop now retries automatically instead of failing the whole sync.
 - **Offline edits queue up** — keep editing with no connection and everything uploads the moment you're back online. A new "Offline — will sync" badge tells you exactly where things stand.
 - **Closing the app won't lose a last-second edit** — pending changes are flushed when you leave, and finished off on your next launch.
+- **Clearer update prompt** — when a new version is ready, a tidy "New version available" pop-up lets you reload right away (and stays out of the way during a live set).
+
+### Fixed
+- **No more phantom "edited just now"** — songs no longer re-sync in a loop or fill the team activity feed with edits nobody made. Sync now compares what a song *means*, not its exact text, so two devices on slightly different versions stay in step.
 
 ## 0.12.1 — Reliable live mode & steadier sync
 *June 2026*

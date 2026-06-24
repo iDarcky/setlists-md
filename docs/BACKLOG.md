@@ -151,6 +151,10 @@ called out in their own section at the bottom.
   rework and relocate Draft/Ready. _tags:_ [ux], [setlist-editor] · _pri:_ P2
 - **Auto-scroll on add song/break** — adding a song/break should scroll into
   view (currently doesn't). _tags:_ [bug], [setlist-editor] · _pri:_ P2
+- **Clear song-search after selecting** — after picking a song from the search
+  in the setlist editor, clear the search bar automatically (and/or add an "x"
+  clear button) so adding several songs in a row is quick. _tags:_ [ux],
+  [setlist-editor], [quick-win] · _pri:_ P2 · _added: 2026-06-24_
 - **"Song Library" / "Recommended next" casing** — Title Case, not ALL CAPS.
   _tags:_ [ux], [setlist-editor], [quick-win] · _pri:_ P3
 - **Rework Recommended-next engine + copy** — engine should weigh multiple
