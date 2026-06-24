@@ -218,6 +218,30 @@ supabase/
 - **Editor** — `md` state lives in Editor.jsx shell; all tabs receive `md` + `onChange`; switching tabs preserves content
 - **Split-screen preview** — `useSyncExternalStore` with `window.matchMedia('(min-width: 768px)')` — side-by-side on wide, toggle on narrow
 
+### Search, filters & list views (shipped 0.14.0)
+
+- **Unified search** — `src/lib/search.js` is the single engine for every
+  song/setlist search bar (Library, Setlists, `MobileTopBar`, the desktop ⌘K
+  `TopHeader` search, `SetlistSongPicker`). `normalizeText()` folds diacritics +
+  punctuation (`Laudă`→`lauda`, drops apostrophes); `searchSongs`/`searchSetlists`
+  run an exact diacritic-folded pass with a **fuse.js** fuzzy fallback over all
+  metadata fields; `highlightSegments()` backs `ui/Highlight.jsx` (accent-correct
+  match marks). Pure functions — call sites keep their own `useMemo`/`useDeferredValue`.
+- **Library facets** — `src/lib/songFacets.js` (`buildFacetOptions`,
+  `matchesFacets`) drives `library/LibraryFilters.jsx`: key/tempo/theme/language/
+  year/scripture/moment, **OR within a facet, AND across facets**, plus tags.
+  `setlist/SetlistFilters.jsx` is the setlists equivalent (service + tags).
+- **Customizable table columns** — `src/lib/tableColumns.js` + `ui/ColumnsMenu.jsx`
+  let users show/hide columns in the Songs and Setlists tables. Persisted in
+  `settings.tableColumns` (a key in `PORTABLE_PREF_KEYS`, so it **syncs**).
+  Entitlement-gated columns (Service=church, Schedule=team) only appear when the
+  workspace allows them. (Drag-reorder is not built yet — show/hide only.)
+- **List view modes** — both lists offer **Cards / Compact / Table**. The choice
+  is a **per-device** preference via `src/lib/usePersistentView.js` (localStorage,
+  NOT synced); `null` means "auto" → Table on desktop, Cards on mobile. The
+  mobile Table scrolls horizontally and drops the responsive column floors (a
+  `colFloor` helper) so the chosen columns all render.
+
 ### Auth + Account-Level Preferences
 
 - **Supabase optional** — `auth/supabase.js` exports `null` when env vars are missing; every call site degrades gracefully to a guest experience.

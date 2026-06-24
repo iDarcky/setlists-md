@@ -2,6 +2,21 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.14.0 — Find anything, lists your way
+*June 2026*
+
+### Added
+- **Powerful search everywhere** — one search box now finds songs by title, original title, artist, writer, album, theme, scripture, key and more, not just the title. It ignores accents and punctuation (type "lauda" to find "Laudă", or "holy holy holy" for "Holy, Holy, Holy") and forgives typos ("amazin grce" still finds "Amazing Grace").
+- **Jump to search with a keypress** — press ⌘K (Ctrl-K) or "/" to open search from anywhere on desktop and tablet, and matches are highlighted so you can see why a result came up.
+- **Filter your library** — narrow songs by key, tempo, theme, language, year, scripture, and liturgical moment, and combine them with your tags.
+- **Choose your columns** — pick which columns appear in the Songs and Setlists tables; your choice follows you across devices.
+- **Pick how lists look** — switch Songs and Setlists between Cards, a dense Compact list, and a full Table. Phones get the same choice, remembered on each device.
+
+### Improved
+- **Redesigned setlist cards** — cleaner and far more compact, with a date badge, the essentials at a glance, and a one-tap Play Live — much easier to scan, especially on a phone.
+- **Tidier setlist filters** — service and tags now live under a single "Filters" button.
+- **Mobile lists open as cards** by default, with the view switcher right there to change it.
+
 ## 0.13.0 — Sync you can trust
 *June 2026*
 

@@ -96,9 +96,9 @@ called out in their own section at the bottom.
   go to Songs library via top nav → back to setlist → it opens in the side
   peek. Regression of a supposedly-fixed bug; investigate & fix. _tags:_
   [bug], [setlists], [desktop] · _pri:_ P1
-- **Mobile setlist cards too big** — rework cards (too tall to scroll); add a
-  table/cards switcher like elsewhere. _tags:_ [ux], [mobile], [setlists] ·
-  _pri:_ P2
+- ✅ **Mobile setlist cards too big** — *shipped 0.14.0.* `SetlistCard`
+  redesigned (compact, date-badge layout) and a Cards / Compact / Table switcher
+  added. _tags:_ [ux], [mobile], [setlists] · _pri:_ P2
 - **Import setlist icon misleading** — current icon reads as "download"; pick
   a clearer one. _tags:_ [ux], [setlists], [quick-win] · _pri:_ P3 · _Q: icon
   suggestion?_
@@ -177,10 +177,13 @@ called out in their own section at the bottom.
 
 - **Unify name to "Songs"** — desktop says "Library", mobile says "Songs";
   standardize (lean: "Songs"). _tags:_ [ux], [naming], [quick-win] · _pri:_ P3
-- **Table view on mobile** — add the table view to mobile. _tags:_ [idea],
-  [mobile], [library] · _pri:_ P2
-- **More filters** — needs additional filters (set TBD). _tags:_ [idea],
-  [library] · _pri:_ P2 · _Q: which filters?_
+- ✅ **Table view on mobile** — *shipped 0.14.0.* Songs (and Setlists) get a
+  Cards / Compact / Table switcher on mobile; the table scrolls horizontally and
+  the choice is remembered per device. _tags:_ [idea], [mobile], [library] ·
+  _pri:_ P2
+- ✅ **More filters** — *shipped 0.14.0.* Faceted filters (key, tempo, theme,
+  language, year, scripture, liturgical moment) + tags in one Filters popover.
+  _tags:_ [idea], [library] · _pri:_ P2
 - **Doubled mobile search (global vs in-page)** — the mobile top-bar search is
   a global cross-search (songs + setlists) meant for the Dashboard, but it also
   shows on Songs and Setlists where it duplicates each page's own search. Intent:
@@ -352,12 +355,11 @@ called out in their own section at the bottom.
   the set's references back-to-back. Investigate embedding/Spotify+YouTube
   APIs and what's feasible offline/in-PWA. _tags:_ [idea], [setlists],
   [integrations] · _pri:_ P3
-- **Setlist table rework + editable fields (full column picker)** — the
-  Instrumentalists/Vocalists/Scheduled columns now show by default for team
-  workspaces (the Labs flag was removed). Planned rework: a proper column
-  picker so users choose which fields show in the setlist tables (drag/toggle
-  any field), as part of a broader table redesign. _tags:_ [idea], [setlists] ·
-  _pri:_ P2 · _next-ish_
+- ✅ **Setlist table rework + editable fields (full column picker)** — *shipped
+  0.14.0.* A shared Columns picker lets users show/hide columns in both the
+  Setlists and Songs tables (synced across devices via `tableColumns`).
+  _Remaining:_ drag-to-**reorder** columns (show/hide only so far). _tags:_
+  [idea], [setlists] · _pri:_ P2
 
 ## 14. Cross-cutting concerns
 

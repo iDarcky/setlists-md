@@ -80,7 +80,11 @@ and email are in place.
       `ConfirmDialog`; the only `window.confirm` left is the intentional
       no-provider fallback in `ui/useConfirmHook.js`, and no native `alert()`
       remains in `src/`.*
-- [ ] Multi-filter library view.
+- [x] **Multi-filter library view** — *Shipped 0.14.0.* Faceted filters (key,
+      tempo, theme, language, year, scripture, liturgical moment) + tags, in a
+      single Filters popover. Plus a unified diacritic/punctuation/typo-tolerant
+      search across all metadata fields, ⌘K, match highlighting, customizable
+      table columns (Songs + Setlists), and Cards/Compact/Table views on mobile.
 - [x] **Team optimistic locking** — CAS-guarded writes; conflicts are detected
       and surfaced ("Cloud overwrote local changes") on both full sync and the
       debounced push. Current policy: last-write-wins + warn (no 3-way merge).
@@ -321,8 +325,10 @@ custom dropdowns, chart-header rework). Still outstanding:
 - [ ] **Team-sync hardening (optimistic locking)** — Phase 1: `version` column
       + conditional write to detect conflicts; Phase 2: structured 3-way merge;
       Phase 3: presence. (Design captured in chat.)
-- [ ] **Diacritic-insensitive search** — `Lauda` should match `Laudă`
-      (`.normalize('NFD').replace(/\p{Diacritic}/gu,'')`) in `Library.jsx`.
+- [x] **Diacritic-insensitive search** — *Shipped 0.14.0.* `Lauda` matches
+      `Laudă`, punctuation is folded, and a fuse.js fuzzy fallback tolerates
+      typos. Lives in the shared `src/lib/search.js` (used by every search bar),
+      not just `Library.jsx`.
 - [ ] **Multi-line Story/Notes** — frontmatter is one line per field, so these
       collapse to a single line; needs a format decision to preserve newlines.
 - [ ] **Per-song IndexedDB persistence** — `saveSongs()` rewrites the whole song
