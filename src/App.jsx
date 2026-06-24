@@ -2144,6 +2144,15 @@ export default function App() {
           syncState={syncState}
           onSyncNow={triggerSync}
           isOnline={isOnline}
+          songs={songs}
+          setlists={setlists}
+          onSelectSong={goChart}
+          onSelectSetlist={goSetlistView}
+          // The header search hides on screens that already have their own
+          // search input: Dashboard (home), Library, Setlists, and the setlist
+          // builder (its library picker). Fullscreen views don't render the
+          // header at all.
+          showGlobalSearch={!['home', 'library', 'setlists', 'setlist-build'].includes(view)}
           hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view'].includes(view)}
         >
           {['home', 'library', 'setlists'].includes(view) && (
