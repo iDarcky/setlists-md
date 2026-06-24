@@ -1,8 +1,11 @@
 import { supabase as defaultClient } from '../auth/supabase';
-import { getSyncState, updateSyncManifest, updateSetlistManifest } from './tokens';
+import { getSyncState, updateSyncManifest, updateSetlistManifest, setPendingPush, setHashVersion } from './tokens';
 import { parseSongMd, songToMd } from '../parser';
 import { songFromFlat, withArrangement } from '../arrangements';
 import { SYNC_DEBOUNCE_MS } from './constants';
+import { withRetry } from './retry';
+import { canonicalSongHash, canonicalSetlistHash, HASH_VERSION } from './canonical';
+import { createAmplificationGuard } from './amplification-guard';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Team library sync — direct table sync against Supabase (team_songs /
@@ -26,25 +29,36 @@ import { SYNC_DEBOUNCE_MS } from './constants';
 // key-sorted stringify for setlists (JSONB does not preserve key order).
 // ─────────────────────────────────────────────────────────────────────────────
 
-function quickHash(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
-  }
-  return hash.toString(36);
-}
-
-// Deterministic stringify — recursively sorts object keys so the same logical
-// value always hashes the same, regardless of JSONB key reordering.
-export function stableStringify(value) {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  const keys = Object.keys(value).filter(k => value[k] !== undefined).sort();
-  return `{${keys.map(k => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(',')}}`;
-}
+// Canonical, version-stable change detection (see ./canonical). stableStringify
+// is re-exported for back-compat with existing imports/tests.
+export { stableStringify } from './canonical';
 
 function setlistHash(sl) {
-  return quickHash(stableStringify(sl));
+  return canonicalSetlistHash(sl);
+}
+
+// On a push compare-and-swap miss, fetch the server's current copy so the
+// conflict surfaced to the user carries both sides (mine + cloud). Best-effort:
+// returns null if the row can't be read, and the next pull will re-surface it.
+async function fetchConflictSong(client, teamId, rowId, id) {
+  try {
+    const { data } = await client
+      .from('team_songs').select('content, updated_at')
+      .eq('id', rowId).eq('team_id', teamId).maybeSingle();
+    if (!data?.content) return null;
+    const ts = data.updated_at ? new Date(data.updated_at).getTime() : Date.now();
+    return { ...songFromFlat({ ...parseSongMd(data.content), id }), updatedAt: ts };
+  } catch { return null; }
+}
+
+async function fetchConflictSetlist(client, teamId, rowId, id) {
+  try {
+    const { data } = await client
+      .from('team_setlists').select('content')
+      .eq('id', rowId).eq('team_id', teamId).maybeSingle();
+    if (!data?.content) return null;
+    return { ...data.content, id };
+  } catch { return null; }
 }
 
 // Merge a freshly-pulled flat song (parsed .md) into an existing local song,
@@ -97,6 +111,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
   let debounceTimer = null;
   let lastPushAt = 0; // when we last wrote rows — used to ignore our own realtime echo
   const libraryId = teamId;
+  const ampGuard = createAmplificationGuard();
 
   // Per-engine hash caches keyed by object reference. Serializing every song to
   // markdown (songToMd) and stable-stringifying every setlist on each sync is
@@ -110,7 +125,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     const cached = songHashCache.get(song.id);
     if (cached && cached.ref === song) return cached;
     const md = songToMd(song);
-    const entry = { ref: song, md, hash: quickHash(md) };
+    const entry = { ref: song, md, hash: canonicalSongHash(md) };
     songHashCache.set(song.id, entry);
     return entry;
   }
@@ -137,12 +152,14 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     const PAGE = 1000;
     const out = [];
     for (let from = 0; ; from += PAGE) {
-      const { data, error } = await client
+      // Retry only transient network failures (the query builder *rejects* on
+      // those); PostgREST errors come back in `error` and are not retried.
+      const { data, error } = await withRetry(() => client
         .from(table)
         .select(cols)
         .eq('team_id', teamId)
         .order('updated_at', { ascending: true })
-        .range(from, from + PAGE - 1);
+        .range(from, from + PAGE - 1));
       if (error) throw new Error(`${table}: ${error.message}`);
       const batch = data || [];
       out.push(...batch);
@@ -169,7 +186,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         continue;
       }
       const itemId = parsed.id || rowIdToItemId.get(row.id) || row.id;
-      const entry = { itemId, rowId: row.id, parsed, hash: quickHash(row.content), updatedAt: row.updated_at };
+      const entry = { itemId, rowId: row.id, parsed, hash: canonicalSongHash(row.content), updatedAt: row.updated_at };
       const existing = byId.get(itemId);
       if (!existing) {
         byId.set(itemId, entry);
@@ -218,6 +235,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     const syncState = await getSyncState(libraryId);
     const prevManifest = syncState.syncManifest || {};
     const prevSlManifest = syncState.setlistManifest || {};
+    const migrating = (syncState.hashVersion || 0) < HASH_VERSION;
     const conflicts = [];
 
     const [songRows, setlistRows] = await Promise.all([
@@ -251,7 +269,12 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
 
       const local = localSongsById.get(itemId);
       const prevEntry = prevManifest[itemId];
-      const remoteChanged = !prevEntry || prevEntry.lastSyncedHash !== entry.hash;
+      // During a hash-algorithm migration the stored hash was computed by the
+      // old algorithm, so a hash mismatch is meaningless — fall back to the
+      // server edit time to decide whether the row really changed.
+      const remoteChanged = !prevEntry || (migrating
+        ? prevEntry.lastSyncedTime !== entry.updatedAt
+        : prevEntry.lastSyncedHash !== entry.hash);
 
       if (local && !remoteChanged) {
         // Server unchanged since last sync — keep the local copy (it may carry
@@ -259,20 +282,25 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         nextSongs.push(local);
         manifest[itemId] = { remoteId: entry.rowId, lastSyncedHash: entry.hash, lastSyncedTime: entry.updatedAt };
       } else {
-        // Server wins. If the local copy had diverged too, surface a conflict.
-        if (local && remoteChanged && prevEntry?.lastSyncedHash != null) {
-          const localHash = quickHash(songToMd(local));
+        // Server wins. Stamp the song with the SERVER's edit time, not
+        // Date.now(). Pulling an unchanged-by-us song must not make it look
+        // freshly edited (which polluted "Recently edited" and the team
+        // activity feed).
+        const serverTs = entry.updatedAt ? new Date(entry.updatedAt).getTime() : Date.now();
+        const mergedRemote = local
+          ? mergeRemoteSong(local, entry.parsed, serverTs)
+          : { ...songFromFlat({ ...entry.parsed, id: itemId }), updatedAt: serverTs };
+        // If the local copy had diverged too, surface a conflict carrying both
+        // versions so the user can choose (server copy is adopted meanwhile).
+        // Skipped while migrating: the old-algorithm hash can't be compared to a
+        // canonical one, so it would false-positive on every row.
+        if (!migrating && local && remoteChanged && prevEntry?.lastSyncedHash != null) {
+          const localHash = canonicalSongHash(songToMd(local));
           if (localHash !== prevEntry.lastSyncedHash) {
-            conflicts.push({ kind: 'song', id: itemId, title: local.title });
+            conflicts.push({ kind: 'song', id: itemId, title: local.title, local, remote: mergedRemote });
           }
         }
-        // Stamp the song with the SERVER's edit time, not Date.now(). Pulling
-        // an unchanged-by-us song must not make it look freshly edited (which
-        // polluted "Recently edited" and the team activity feed).
-        const serverTs = entry.updatedAt ? new Date(entry.updatedAt).getTime() : Date.now();
-        nextSongs.push(local
-          ? mergeRemoteSong(local, entry.parsed, serverTs)
-          : { ...songFromFlat({ ...entry.parsed, id: itemId }), updatedAt: serverTs });
+        nextSongs.push(mergedRemote);
         manifest[itemId] = { remoteId: entry.rowId, lastSyncedHash: entry.hash, lastSyncedTime: entry.updatedAt };
       }
       localSongsById.delete(itemId);
@@ -302,17 +330,20 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
 
       const local = localSlById.get(itemId);
       const prevEntry = prevSlManifest[itemId];
-      const remoteChanged = !prevEntry || prevEntry.lastSyncedHash !== entry.hash;
+      const remoteChanged = !prevEntry || (migrating
+        ? prevEntry.lastSyncedTime !== entry.updatedAt
+        : prevEntry.lastSyncedHash !== entry.hash);
 
       if (local && !remoteChanged) {
         nextSetlists.push(local);
       } else {
-        if (local && remoteChanged && prevEntry?.lastSyncedHash != null) {
+        const remoteSl = { ...entry.content, id: itemId };
+        if (!migrating && local && remoteChanged && prevEntry?.lastSyncedHash != null) {
           if (setlistHash(local) !== prevEntry.lastSyncedHash) {
-            conflicts.push({ kind: 'setlist', id: itemId, title: local.name });
+            conflicts.push({ kind: 'setlist', id: itemId, title: local.name, local, remote: remoteSl });
           }
         }
-        nextSetlists.push({ ...entry.content, id: itemId });
+        nextSetlists.push(remoteSl);
       }
       slManifest[itemId] = { remoteId: entry.rowId, lastSyncedHash: entry.hash, lastSyncedTime: entry.updatedAt };
       localSlById.delete(itemId);
@@ -385,6 +416,10 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         const { md, hash } = hashSong(song);
         const entry = nextManifest[song.id];
         if (entry && entry.lastSyncedHash === hash) continue;
+        if (ampGuard.shouldBlock(song.id)) {
+          errors.push({ kind: 'song', id: song.id, title: song.title, message: 'Sync paused for this song: it was pushed too many times in a short window (possible sync loop). It will retry later.' });
+          continue;
+        }
 
         const payload = { team_id: teamId, title: song.title || 'Untitled', content: md, updated_at: new Date().toISOString() };
         if (entry?.remoteId) {
@@ -399,7 +434,8 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
           if (error) throw new Error(error.message);
           if (!data) {
             // CAS miss — the row changed (or vanished) since our pull.
-            conflicts.push({ kind: 'song', id: song.id, title: song.title });
+            const remote = await fetchConflictSong(client, teamId, entry.remoteId, song.id);
+            conflicts.push({ kind: 'song', id: song.id, title: song.title, local: song, remote });
             continue;
           }
           nextManifest[song.id] = { remoteId: data.id, lastSyncedHash: hash, lastSyncedTime: data.updated_at };
@@ -480,6 +516,10 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         const hash = hashSetlist(sl);
         const entry = nextSlManifest[sl.id];
         if (entry && entry.lastSyncedHash === hash) continue;
+        if (ampGuard.shouldBlock(sl.id)) {
+          errors.push({ kind: 'setlist', id: sl.id, title: sl.name, message: 'Sync paused for this setlist: it was pushed too many times in a short window (possible sync loop). It will retry later.' });
+          continue;
+        }
 
         const payload = { team_id: teamId, name: sl.name || 'Untitled Setlist', content: sl, updated_at: new Date().toISOString() };
         if (entry?.remoteId) {
@@ -493,7 +533,8 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
             .maybeSingle();
           if (error) throw new Error(error.message);
           if (!data) {
-            conflicts.push({ kind: 'setlist', id: sl.id, title: sl.name });
+            const remote = await fetchConflictSetlist(client, teamId, entry.remoteId, sl.id);
+            conflicts.push({ kind: 'setlist', id: sl.id, title: sl.name, local: sl, remote });
             continue;
           }
           nextSlManifest[sl.id] = { remoteId: data.id, lastSyncedHash: hash, lastSyncedTime: data.updated_at };
@@ -572,6 +613,8 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
       try {
         const result = await runFullSync(songs, setlists, tombstones);
         if ((result.uploaded?.songs || 0) + (result.uploaded?.setlists || 0) > 0) lastPushAt = Date.now();
+        await setPendingPush(false, libraryId);
+        await setHashVersion(HASH_VERSION, libraryId);
         setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
         return result;
       } catch (err) {
@@ -588,47 +631,19 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     debouncedPush(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
       if (readOnly || !client) return;
       if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(async () => {
-        if (syncing) return; // a full sync is already in flight
-        syncing = true;
-        try {
-          const syncState = await getSyncState(libraryId);
-          const manifest = { ...(syncState.syncManifest || {}) };
-          const slManifest = { ...(syncState.setlistManifest || {}) };
-          // Mark tombstoned items for deletion, mirroring pull()'s contract.
-          for (const t of tombstones.songs || []) {
-            if (manifest[t.id]) manifest[t.id] = { ...manifest[t.id], deleted: true };
-          }
-          for (const t of tombstones.setlists || []) {
-            if (slManifest[t.id]) slManifest[t.id] = { ...slManifest[t.id], deleted: true };
-          }
-          const result = await push(songs, setlists, manifest, slManifest);
-          await updateSyncManifest(result.manifest, libraryId);
-          await updateSetlistManifest(result.slManifest, libraryId);
-          const keptSongTs = (tombstones.songs || []).filter(t => result.manifest[t.id]);
-          const keptSlTs = (tombstones.setlists || []).filter(t => result.slManifest[t.id]);
-          const tsPruned = keptSongTs.length !== (tombstones.songs?.length || 0)
-            || keptSlTs.length !== (tombstones.setlists?.length || 0);
-          if (tsPruned) {
-            onTombstonesPruned?.({ songs: keptSongTs, setlists: keptSlTs });
-          }
-          // Only surface "synced" when something actually changed — avoids the
-          // status churn that made team sync feel jittery on every edit.
-          const uploaded = (result.uploaded?.songs || 0) + (result.uploaded?.setlists || 0);
-          if (uploaded > 0) lastPushAt = Date.now();
-          if (uploaded > 0 || tsPruned) {
-            setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
-          }
-          // Surface CAS conflicts (another member wrote first) so the user knows
-          // their edit was superseded — otherwise the debounced push swallowed them.
-          if (result.conflicts?.length) onConflicts?.(result.conflicts);
-        } catch (err) {
-          console.error('[team-sync] Push error:', err);
-          setStatus('error');
-        } finally {
-          syncing = false;
-        }
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        runPush(songs, setlists, tombstones, onTombstonesPruned);
       }, SYNC_DEBOUNCE_MS);
+    },
+
+    // Run a pending debounced push immediately (tab hide/close), so an edit made
+    // inside the 2s debounce window still reaches the server.
+    flushPending(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
+      if (readOnly || !client || !debounceTimer) return;
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+      return runPush(songs, setlists, tombstones, onTombstonesPruned);
     },
 
     cancelDebounce() {
@@ -644,4 +659,51 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
       return Date.now() - lastPushAt < windowMs;
     },
   };
+
+  // Shared push-now used by the debounce timer and flushPending. Sets the
+  // pending-push flag before writing so an interrupted/failed push is retried
+  // on next launch, and clears it once the push confirms.
+  async function runPush(songs, setlists, tombstones, onTombstonesPruned) {
+    if (syncing) return; // a full sync is already in flight
+    syncing = true;
+    await setPendingPush(true, libraryId);
+    try {
+      const syncState = await getSyncState(libraryId);
+      const manifest = { ...(syncState.syncManifest || {}) };
+      const slManifest = { ...(syncState.setlistManifest || {}) };
+      // Mark tombstoned items for deletion, mirroring pull()'s contract.
+      for (const t of tombstones.songs || []) {
+        if (manifest[t.id]) manifest[t.id] = { ...manifest[t.id], deleted: true };
+      }
+      for (const t of tombstones.setlists || []) {
+        if (slManifest[t.id]) slManifest[t.id] = { ...slManifest[t.id], deleted: true };
+      }
+      const result = await push(songs, setlists, manifest, slManifest);
+      await updateSyncManifest(result.manifest, libraryId);
+      await updateSetlistManifest(result.slManifest, libraryId);
+      await setPendingPush(false, libraryId);
+      const keptSongTs = (tombstones.songs || []).filter(t => result.manifest[t.id]);
+      const keptSlTs = (tombstones.setlists || []).filter(t => result.slManifest[t.id]);
+      const tsPruned = keptSongTs.length !== (tombstones.songs?.length || 0)
+        || keptSlTs.length !== (tombstones.setlists?.length || 0);
+      if (tsPruned) {
+        onTombstonesPruned?.({ songs: keptSongTs, setlists: keptSlTs });
+      }
+      // Only surface "synced" when something actually changed — avoids the
+      // status churn that made team sync feel jittery on every edit.
+      const uploaded = (result.uploaded?.songs || 0) + (result.uploaded?.setlists || 0);
+      if (uploaded > 0) lastPushAt = Date.now();
+      if (uploaded > 0 || tsPruned) {
+        setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
+      }
+      // Surface CAS conflicts (another member wrote first) so the user knows
+      // their edit was superseded — otherwise the debounced push swallowed them.
+      if (result.conflicts?.length) onConflicts?.(result.conflicts);
+    } catch (err) {
+      console.error('[team-sync] Push error:', err);
+      setStatus('error');
+    } finally {
+      syncing = false;
+    }
+  }
 }

@@ -151,6 +151,10 @@ called out in their own section at the bottom.
   rework and relocate Draft/Ready. _tags:_ [ux], [setlist-editor] · _pri:_ P2
 - **Auto-scroll on add song/break** — adding a song/break should scroll into
   view (currently doesn't). _tags:_ [bug], [setlist-editor] · _pri:_ P2
+- **Clear song-search after selecting** — after picking a song from the search
+  in the setlist editor, clear the search bar automatically (and/or add an "x"
+  clear button) so adding several songs in a row is quick. _tags:_ [ux],
+  [setlist-editor], [quick-win] · _pri:_ P2 · _added: 2026-06-24_
 - **"Song Library" / "Recommended next" casing** — Title Case, not ALL CAPS.
   _tags:_ [ux], [setlist-editor], [quick-win] · _pri:_ P3
 - **Rework Recommended-next engine + copy** — engine should weigh multiple
@@ -199,16 +203,47 @@ called out in their own section at the bottom.
   once visible. _tags:_ [ux], [chart] · _pri:_ P2
 - **Layout menu total rework** — important; redesign the layout menu. _tags:_
   [ux], [chart] · _pri:_ P1
+- **Enharmonic chord spelling (C# vs Db)** — prefer sharps where expected
+  (show C#/F# rather than Db/Gb). The musically-correct *standard* is key-aware:
+  sharp keys (G, D, A, E, B, F#) spell with sharps, flat keys (F, Bb, Eb, Ab,
+  Db, Gb) with flats — so a blanket "always sharps" is wrong for flat keys.
+  Recommend key-aware spelling by default with an optional global
+  "prefer sharps / flats" override. Applies to both chart and editor. _tags:_
+  [idea], [chart], [notation], [music-theory] · _pri:_ P2 · _added: 2026-06-24_
+  · _Q: key-aware default + override toggle, or a simple global toggle?_
 
 ## 7. Song editor
 
 - **New-song guardrails** — on a blank song, enforce title + key, softly
   remind bpm + time signature, and teach how to build the song structure.
-  _tags:_ [idea], [ux], [song-editor], [onboarding] · _pri:_ P2
+  Title + key should start **empty** (no pre-filled default like C) and be
+  **mandatory** — block save / leaving the song until both are set. _tags:_
+  [idea], [ux], [song-editor], [onboarding] · _pri:_ P2 · _added: 2026-06-24_
 - **Missing tab block in editor** — a tab shows in chart view but is missing
   in the editor. _tags:_ [bug], [song-editor], [tabs] · _pri:_ P1
 - **Input sanitization audit (song editor)** — verify inputs are sanitized.
   See cross-cutting Security item. _tags:_ [security], [song-editor] · _pri:_ P1
+- **Double "structure" concept** — there are effectively two structures (the
+  arrangement's `structure[]` and the editor's section flow), which is
+  confusing. Idea: keep the arrangement's structure as the single source of
+  truth and layer an "advanced" structure editor on top of it, rather than two
+  parallel concepts. _tags:_ [idea], [ux], [song-editor], [structure] · _pri:_
+  P2 · _added: 2026-06-24_ · _Q: unify on `arrangement.structure` with an
+  optional advanced mode?_
+- **Preview ignores key/transpose** — the split-screen preview renders in the
+  stored key (e.g. C) even when the song is set to E; it only picks up the key
+  after the preview is closed and reopened (refreshes on mount, not on key
+  change). Wire the preview to the live key/transpose state. _tags:_ [bug],
+  [song-editor], [preview] · _pri:_ P1 · _added: 2026-06-24_
+- **Preview should default to 1 column** — use a single-column preview by
+  default (not 2), and persist the choice as a per-user / per-device
+  preference. _tags:_ [ux], [song-editor], [preview], [prefs] · _pri:_ P2 ·
+  _added: 2026-06-24_
+- **Key/chord strip follows the edited section** — the chord/key strip should
+  appear under the section (verse) currently being edited rather than pinned at
+  the bottom, and should respect the active notation (ABC / Nashville /
+  Do-Re-Mi). _tags:_ [ux], [song-editor], [notation] · _pri:_ P2 · _added:
+  2026-06-24_
 
 ## 8. Team
 

@@ -5,7 +5,7 @@ import OfflineBanner from "./components/ui/OfflineBanner";
 import WorkspacePickerDialog from "./components/ui/WorkspacePickerDialog";
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { parseSongMd, songToMd, generateId } from './parser';
-import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, getStorageEstimate, clearAll } from './storage';
+import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate, clearAll } from './storage';
 import { shareTokenFromUrl } from './share/setlistShare';
 import { withArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
@@ -24,12 +24,13 @@ import DesktopLayout from './components/DesktopLayout';
 import MobileTopBar from './components/MobileTopBar';
 import MobileDrawer from './components/MobileDrawer';
 import NotificationTray from './components/NotificationTray';
+import ConflictResolver from './components/ConflictResolver';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useAuth } from './auth/useAuth';
 import { useTeam } from './auth/useTeam';
 import { exportSetlistZip, importSetlistZip, slugify } from './setlist-io';
 import { exportSetlistPdf } from './pdf/exportSetlistPdf';
-import { usePWAUpdate } from './hooks/usePWAUpdate';
+import UpdatePrompt from './components/ui/UpdatePrompt';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import { useTeamRealtime } from './hooks/useTeamRealtime';
 import { useChartTheme } from './hooks/useChartTheme';
@@ -49,19 +50,6 @@ async function maybeWarnQuota(warnedRef) {
   toast({
     title: 'Storage almost full',
     description: `This device has used ${pct}% of its browser storage. Consider exporting and archiving older songs.`,
-    variant: 'error',
-  });
-}
-
-function notifyConflicts(conflicts) {
-  const titles = conflicts
-    .map(c => c.title || (c.kind === 'song' ? 'Untitled song' : 'Untitled setlist'))
-    .slice(0, 3)
-    .join(', ');
-  const extra = conflicts.length > 3 ? ` and ${conflicts.length - 3} more` : '';
-  toast({
-    title: 'Cloud overwrote local changes',
-    description: `Your edits to ${titles}${extra} were replaced with the cloud version.`,
     variant: 'error',
   });
 }
@@ -192,8 +180,6 @@ export default function App() {
   const confirm = useConfirm();
   // Workspace move/copy picker: null, or { action: 'move'|'copy', songId }.
   const [moveCopyDialog, setMoveCopyDialog] = useState(null);
-  // PWA update prompt — toast appears when a new SW is downloaded.
-  usePWAUpdate();
   // Native + iOS install affordance.
   const { canInstall, isIOS, isStandalone, promptInstall } = useInstallPrompt();
   const [showIOSHint, setShowIOSHint] = useState(false);
@@ -204,6 +190,7 @@ export default function App() {
   const [setlists, setSetlists] = useState([]);
   const [tombstones, setTombstones] = useState({ songs: [], setlists: [] });
   const [trash, setTrash] = useState([]); // soft-deleted songs, recoverable 30 days
+  const [pendingConflicts, setPendingConflicts] = useState([]); // sync conflicts awaiting user choice
   const [view, setView] = useState(() => {
     // OAuth / magic-link callbacks land on /auth/callback. Detect that up
     // front so the first render doesn't flash the Welcome screen. Password
@@ -280,7 +267,12 @@ export default function App() {
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOffline = () => {
+      setIsOnline(false);
+      // Reflect the dropped connection in the sync badge; the reconnect handler
+      // flips it back to syncing/synced once connectivity returns.
+      setSyncState(prev => (prev.provider ? { ...prev, state: 'offline' } : prev));
+    };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
@@ -328,6 +320,40 @@ export default function App() {
     }
   }, [loaded, user?.id, teamLoading, teams, activeLibrary, settings?.defaultSpaceId]);
 
+  // Queue sync conflicts for the user to resolve. The cloud copy has already
+  // been adopted into local state by the engine; the divergent local copy
+  // rides in each conflict object so nothing is lost. De-dupe by kind+id so a
+  // re-sync of the same item replaces (not stacks) its pending entry.
+  const enqueueConflicts = useCallback((incoming) => {
+    if (!incoming?.length) return;
+    setPendingConflicts(prev => {
+      const map = new Map(prev.map(c => [`${c.kind}:${c.id}`, c]));
+      for (const c of incoming) map.set(`${c.kind}:${c.id}`, c);
+      return [...map.values()];
+    });
+  }, []);
+
+  // Apply the user's choice for one conflict. 'cloud' is a no-op (the cloud
+  // copy is already in state); 'mine' restores the local copy (which then
+  // re-pushes via the auto-save effect, overwriting the cloud); 'both' keeps
+  // the cloud copy and re-adds the local one as a new "(conflicted copy)" item.
+  const resolveConflict = useCallback((conflict, choice) => {
+    const { kind, id, local } = conflict;
+    if (choice === 'mine' && local) {
+      if (kind === 'song') setSongs(prev => prev.map(s => s.id === id ? local : s));
+      else setSetlists(prev => prev.map(sl => sl.id === id ? local : sl));
+    } else if (choice === 'both' && local) {
+      if (kind === 'song') {
+        const copy = { ...local, id: generateId(), title: `${local.title || 'Untitled'} (conflicted copy)` };
+        setSongs(prev => [...prev, copy]);
+      } else {
+        const copy = { ...local, id: generateId(), name: `${local.name || 'Untitled Setlist'} (conflicted copy)` };
+        setSetlists(prev => [...prev, copy]);
+      }
+    }
+    setPendingConflicts(prev => prev.filter(c => !(c.kind === kind && c.id === id)));
+  }, []);
+
   // Initialize sync engine for the active library
   const isTeamReadOnly = activeLibrary !== 'personal' && !isAdmin && !isEditor;
   useEffect(() => {
@@ -337,14 +363,18 @@ export default function App() {
 
     syncEngineRef.current = createEngineForLibrary(activeLibrary, (status) => {
       setSyncState(prev => ({ ...prev, ...status }));
-    }, { readOnly: isTeamReadOnly, onConflicts: notifyConflicts });
-  }, [activeLibrary, isTeamReadOnly]);
+    }, { readOnly: isTeamReadOnly, onConflicts: enqueueConflicts });
+  }, [activeLibrary, isTeamReadOnly, enqueueConflicts]);
 
   const triggerSync = useCallback(async () => {
     if (isSwitchingLibraryRef.current) return;
     const state = await getSyncState(activeLibrary);
     const providerId = activeLibrary !== 'personal' ? `supabase-team:${activeLibrary}` : state?.activeProvider;
     if (!providerId) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setSyncState(prev => ({ ...prev, state: 'offline', provider: providerId }));
+      return;
+    }
     const result = await syncEngineRef.current.fullSync(songs, setlists, tombstones);
     if (result.replaced) {
       // Team engine is server-authoritative — adopt its arrays wholesale so
@@ -396,7 +426,7 @@ export default function App() {
       setTombstones(result.tombstones);
     }
     if (result.conflicts?.length > 0) {
-      notifyConflicts(result.conflicts);
+      enqueueConflicts(result.conflicts);
     }
     if (result.errors?.length > 0) {
       const first = result.errors[0];
@@ -413,7 +443,7 @@ export default function App() {
       if (result.uploaded.setlists) parts.push(`${result.uploaded.setlists} setlist${result.uploaded.setlists === 1 ? '' : 's'}`);
       toast({ title: 'Synced', description: `Uploaded ${parts.join(', ')}.` });
     }
-  }, [songs, setlists, tombstones, activeLibrary]);
+  }, [songs, setlists, tombstones, activeLibrary, enqueueConflicts]);
 
   // Subscribe to realtime changes for team libraries. Ignore the echo of our
   // own recent writes so a local edit doesn't bounce back as a redundant sync.
@@ -475,6 +505,10 @@ export default function App() {
       const savedTrash = await loadTrash(activeLibrary);
       if (ignore) return;
       setTrash(savedTrash);
+
+      const savedConflicts = await loadConflicts(activeLibrary);
+      if (ignore) return;
+      setPendingConflicts(savedConflicts);
 
       // Settings remain global, so only load on initial mount
       if (!loaded) {
@@ -580,7 +614,7 @@ export default function App() {
               setTombstones(result.tombstones);
             }
             if (result.conflicts?.length > 0) {
-              notifyConflicts(result.conflicts);
+              enqueueConflicts(result.conflicts);
             }
           }).catch(err => console.error('Startup sync failed:', err));
         }
@@ -599,14 +633,16 @@ export default function App() {
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) {
       saveSongs(songs, activeLibrary);
-      syncEngineRef.current?.debouncedPush(songs, setlists, tombstones, setTombstones);
+      // Offline: the edit is durably saved locally above; skip the network push
+      // and let the reconnect handler flush it via a full sync.
+      if (navigator.onLine) syncEngineRef.current?.debouncedPush(songs, setlists, tombstones, setTombstones);
       maybeWarnQuota(quotaWarnedRef);
     }
   }, [songs, loaded, activeLibrary]);
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) {
       saveSetlists(setlists, activeLibrary);
-      syncEngineRef.current?.debouncedPush(songs, setlists, tombstones, setTombstones);
+      if (navigator.onLine) syncEngineRef.current?.debouncedPush(songs, setlists, tombstones, setTombstones);
       maybeWarnQuota(quotaWarnedRef);
     }
   }, [setlists, loaded, activeLibrary]);
@@ -616,6 +652,9 @@ export default function App() {
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) saveTrash(trash, activeLibrary);
   }, [trash, loaded, activeLibrary]);
+  useEffect(() => {
+    if (loaded && !isSwitchingLibraryRef.current) saveConflicts(pendingConflicts, activeLibrary);
+  }, [pendingConflicts, loaded, activeLibrary]);
   useEffect(() => { if (loaded && settings) saveSettings(settings); }, [settings, loaded]);
 
   // Clean up Supabase auth tokens from the URL after magic-link / password
@@ -703,6 +742,37 @@ export default function App() {
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [loaded, triggerSync]);
+
+  // When connectivity returns, flush edits queued while offline via a full sync.
+  // Only fires on an actual offline→online transition (not on initial mount,
+  // where the startup sync already runs).
+  const wasOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    if (isOnline && !wasOnlineRef.current && loaded) {
+      syncEngineRef.current?.cancelDebounce();
+      triggerSync();
+    }
+    wasOnlineRef.current = isOnline;
+  }, [isOnline, loaded, triggerSync]);
+
+  // Flush any pending debounced push when the tab is hidden or closed, so an
+  // edit made inside the 2s debounce window still reaches the cloud. pagehide
+  // is the most reliable "app is going away" signal on mobile. The engine also
+  // persists a pendingPush flag, so even a push cut short here resumes on the
+  // next launch.
+  useEffect(() => {
+    if (!loaded) return;
+    const flush = () => {
+      syncEngineRef.current?.flushPending?.(songs, setlists, tombstones, setTombstones);
+    };
+    const onVisibility = () => { if (document.visibilityState === 'hidden') flush(); };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [loaded, songs, setlists, tombstones]);
 
   // Apply theme to document — 'default' follows system preference.
   // Also keeps the active <meta name="theme-color"> in sync so Android's system
@@ -2003,6 +2073,8 @@ export default function App() {
     <Suspense fallback={lazyFallback}>
       <Toaster />
       <OfflineBanner />
+      <UpdatePrompt suppress={view === 'setlist-play' || view === 'setlist-performance'} />
+      <ConflictResolver conflicts={pendingConflicts} onResolve={resolveConflict} />
       {view === 'signin' && (
         <AuthScreen
           onBack={goBack}

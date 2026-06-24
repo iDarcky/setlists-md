@@ -1,16 +1,11 @@
 import { getProvider } from './provider';
-import { getSyncState, updateSyncManifest, updateSetlistManifest, updateTokens, isTokenExpired } from './tokens';
+import { getSyncState, updateSyncManifest, updateSetlistManifest, updateTokens, isTokenExpired, setPendingPush, setHashVersion } from './tokens';
 import { SONGS_FOLDER, SETLISTS_FOLDER, SYNC_DEBOUNCE_MS } from './constants';
+import { withRetry } from './retry';
 import { parseSongMd, songToMd, generateId } from '../parser';
 import { songFromFlat, withArrangement } from '../arrangements';
-
-function quickHash(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
-  }
-  return hash.toString(36);
-}
+import { canonicalSongHash, canonicalSetlistHash, HASH_VERSION } from './canonical';
+import { createAmplificationGuard } from './amplification-guard';
 
 function sanitizeFilename(name) {
   return (name || 'Untitled')
@@ -23,6 +18,7 @@ function sanitizeFilename(name) {
 export function createSyncEngine(onStatusChange, libraryId = 'personal', { readOnly = false } = {}) {
   let syncing = false;
   let debounceTimer = null;
+  const ampGuard = createAmplificationGuard();
 
   // Per-engine hash caches keyed by object reference. Serializing every song to
   // markdown / every setlist to JSON on each sync is the dominant CPU cost for
@@ -36,7 +32,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     const cached = songHashCache.get(song.id);
     if (cached && cached.ref === song) return cached;
     const md = songToMd(song);
-    const entry = { ref: song, md, hash: quickHash(md) };
+    const entry = { ref: song, md, hash: canonicalSongHash(md) };
     songHashCache.set(song.id, entry);
     return entry;
   }
@@ -45,7 +41,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     const cached = slHashCache.get(sl.id);
     if (cached && cached.ref === sl) return cached;
     const json = JSON.stringify(sl, null, 2);
-    const entry = { ref: sl, json, hash: quickHash(json) };
+    const entry = { ref: sl, json, hash: canonicalSetlistHash(sl) };
     slHashCache.set(sl.id, entry);
     return entry;
   }
@@ -83,10 +79,15 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
   async function pull(songs, setlists, tombstones = { songs: [], setlists: [] }) {
     const syncState = await getSyncState(libraryId);
     if (!syncState.activeProvider) return { songs, setlists, tombstones, changed: false };
+    // First sync after a hash-algorithm upgrade: the stored hashes are old-algo,
+    // so suppress conflict detection (it would false-positive against canonical
+    // hashes). Unchanged rows are skipped by the modifiedTime gate; changed rows
+    // re-baseline cleanly.
+    const migrating = (syncState.hashVersion || 0) < HASH_VERSION;
 
     const provider = getProvider(syncState.activeProvider, { readOnly });
     await ensureAuth(provider, syncState);
-    await provider.ensureFolder();
+    await withRetry(() => provider.ensureFolder());
 
     const manifest = { ...syncState.syncManifest };
     const slManifest = { ...syncState.setlistManifest };
@@ -104,7 +105,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     const pulledSetlistIds = new Set();
 
     // Pull songs from Songs subfolder
-    const songFiles = await provider.listFiles(SONGS_FOLDER);
+    const songFiles = await withRetry(() => provider.listFiles(SONGS_FOLDER));
     for (const file of songFiles) {
       if (!file.name.endsWith('.md')) continue;
 
@@ -135,7 +136,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
           tombstonesChanged = true;
         }
 
-        const content = await provider.downloadFile(file.id, SONGS_FOLDER);
+        const content = await withRetry(() => provider.downloadFile(file.id, SONGS_FOLDER));
         const parsed = parseSongMd(content);
 
         if (songId) {
@@ -145,12 +146,8 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
             // Detect conflict: local diverged from last-synced before remote changed
             const localSong = updatedSongs[existingIdx];
             const lastSyncedHash = manifestEntry?.lastSyncedHash;
-            if (lastSyncedHash != null) {
-              const localHash = quickHash(songToMd(localSong));
-              if (localHash !== lastSyncedHash) {
-                conflicts.push({ kind: 'song', id: songId, title: localSong.title });
-              }
-            }
+            const isConflict = !migrating && lastSyncedHash != null
+              && canonicalSongHash(songToMd(localSong)) !== lastSyncedHash;
             // For v2 songs, merge the remote arrangement into the existing
             // arrangements rather than replacing the whole song object.
             // Pick the local arrangement to patch. Prefer an id match
@@ -185,7 +182,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
               };
             }
             // Carry song-level fields from the remote payload.
-            updatedSongs[existingIdx] = {
+            const remoteVersion = {
               ...next,
               title: parsed.title || next.title,
               artist: parsed.artist || next.artist,
@@ -194,6 +191,13 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
               spotify: parsed.spotify || next.spotify,
               youtube: parsed.youtube || next.youtube,
             };
+            // Adopt remote so the immediate post-pull push can't clobber it.
+            // On conflict, the divergent local copy travels in the conflict
+            // object (not lost) for the user to resolve.
+            updatedSongs[existingIdx] = remoteVersion;
+            if (isConflict) {
+              conflicts.push({ kind: 'song', id: songId, title: localSong.title, local: localSong, remote: remoteVersion });
+            }
           } else {
             updatedSongs.push(songFromFlat({ ...parsed, id: songId }));
           }
@@ -206,7 +210,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
         manifest[songId] = {
           remoteId: file.id,
           remoteName: file.name,
-          lastSyncedHash: quickHash(content),
+          lastSyncedHash: canonicalSongHash(content),
           lastSyncedTime: file.modifiedTime,
         };
         songsChanged = true;
@@ -217,7 +221,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     }
 
     // Pull setlists from Setlists subfolder
-    const setlistFiles = await provider.listFiles(SETLISTS_FOLDER);
+    const setlistFiles = await withRetry(() => provider.listFiles(SETLISTS_FOLDER));
     for (const file of setlistFiles) {
       if (!file.name.endsWith('.json')) continue;
 
@@ -245,7 +249,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
           tombstonesChanged = true;
         }
 
-        const content = await provider.downloadFile(file.id, SETLISTS_FOLDER);
+        const content = await withRetry(() => provider.downloadFile(file.id, SETLISTS_FOLDER));
         try {
           const remoteSetlist = JSON.parse(content);
           if (setlistId) {
@@ -254,13 +258,12 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
             if (existingIdx >= 0) {
               const localSl = updatedSetlists[existingIdx];
               const lastSyncedHash = manifestEntry?.lastSyncedHash;
-              if (lastSyncedHash != null) {
-                const localHash = quickHash(JSON.stringify(localSl, null, 2));
-                if (localHash !== lastSyncedHash) {
-                  conflicts.push({ kind: 'setlist', id: setlistId, title: localSl.name });
-                }
-              }
+              const isConflict = !migrating && lastSyncedHash != null
+                && canonicalSetlistHash(localSl) !== lastSyncedHash;
               updatedSetlists[existingIdx] = remoteSetlist;
+              if (isConflict) {
+                conflicts.push({ kind: 'setlist', id: setlistId, title: localSl.name, local: localSl, remote: remoteSetlist });
+              }
             } else {
               updatedSetlists.push(remoteSetlist);
             }
@@ -277,7 +280,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
           slManifest[setlistId] = {
             remoteId: file.id,
             remoteName: file.name,
-            lastSyncedHash: quickHash(content),
+            lastSyncedHash: canonicalSetlistHash(content),
             lastSyncedTime: file.modifiedTime,
           };
           setlistsChanged = true;
@@ -340,7 +343,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
 
     const provider = getProvider(syncState.activeProvider, { readOnly });
     await ensureAuth(provider, syncState);
-    await provider.ensureFolder();
+    await withRetry(() => provider.ensureFolder());
 
     const manifest = { ...syncState.syncManifest };
     const slManifest = { ...syncState.setlistManifest };
@@ -363,6 +366,10 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
         }
 
         if (!entry || entry.lastSyncedHash !== hash || entry.remoteName !== fileName) {
+          if (ampGuard.shouldBlock(song.id)) {
+            errors.push({ kind: 'song', id: song.id, title: song.title, message: 'Sync paused for this song: it was pushed too many times in a short window (possible sync loop). It will retry later.' });
+            continue;
+          }
           const result = await provider.uploadFile(SONGS_FOLDER, fileName, md, 'text/markdown', entry?.remoteId);
           manifest[song.id] = {
             remoteId: result.id,
@@ -413,6 +420,10 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
         }
 
         if (!entry || entry.lastSyncedHash !== hash || entry.remoteName !== fileName) {
+          if (ampGuard.shouldBlock(sl.id)) {
+            errors.push({ kind: 'setlist', id: sl.id, title: sl.name, message: 'Sync paused for this setlist: it was pushed too many times in a short window (possible sync loop). It will retry later.' });
+            continue;
+          }
           const result = await provider.uploadFile(SETLISTS_FOLDER, fileName, json, 'application/json', entry?.remoteId);
           slManifest[sl.id] = {
             remoteId: result.id,
@@ -471,6 +482,8 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
 
         const lastSync = new Date().toISOString();
         const syncState = await getSyncState(libraryId);
+        await setPendingPush(false, libraryId);
+        await setHashVersion(HASH_VERSION, libraryId);
         setStatus('synced', { lastSync, provider: syncState.activeProvider });
 
         return {
@@ -491,31 +504,21 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
 
     debouncedPush(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
       if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(async () => {
-        // Don't race a full sync; mark in-flight so a focus-triggered sync waits.
-        if (syncing) return;
-        const syncState = await getSyncState(libraryId);
-        if (!syncState.activeProvider) return;
-
-        syncing = true;
-        try {
-          const pushResult = await push(songs, setlists, tombstones);
-          if (pushResult?.tombstonesChanged) {
-            onTombstonesPruned?.(pushResult.tombstones);
-          }
-          // Only surface "synced" when work actually happened — otherwise the
-          // status churns ("Syncing…/Synced") on every keystroke-debounce.
-          const uploaded = (pushResult?.uploaded?.songs || 0) + (pushResult?.uploaded?.setlists || 0);
-          if (uploaded > 0 || pushResult?.tombstonesChanged) {
-            setStatus('synced', { lastSync: new Date().toISOString(), provider: syncState.activeProvider });
-          }
-        } catch (err) {
-          console.error('Sync push error:', err);
-          setStatus('error');
-        } finally {
-          syncing = false;
-        }
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        runPush(songs, setlists, tombstones, onTombstonesPruned);
       }, SYNC_DEBOUNCE_MS);
+    },
+
+    // Run any pending debounced push immediately. Called when the tab is about
+    // to be hidden/closed so an edit made inside the 2s debounce window still
+    // reaches the cloud (and the pendingPush flag is set first, so even an
+    // interrupted push resumes on next launch).
+    flushPending(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
+      if (!debounceTimer) return;
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+      return runPush(songs, setlists, tombstones, onTombstonesPruned);
     },
 
     cancelDebounce() {
@@ -525,4 +528,35 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
       }
     },
   };
+
+  // Shared push-now used by both the debounce timer and flushPending. Marks the
+  // pending-push flag before writing so an interrupted/failed push is retried
+  // on the next launch, and clears it once the push confirms.
+  async function runPush(songs, setlists, tombstones, onTombstonesPruned) {
+    // Don't race a full sync; a focus/startup full sync will cover these edits.
+    if (syncing) return;
+    const syncState = await getSyncState(libraryId);
+    if (!syncState.activeProvider) return;
+
+    syncing = true;
+    await setPendingPush(true, libraryId);
+    try {
+      const pushResult = await push(songs, setlists, tombstones);
+      if (pushResult?.tombstonesChanged) {
+        onTombstonesPruned?.(pushResult.tombstones);
+      }
+      await setPendingPush(false, libraryId);
+      // Only surface "synced" when work actually happened — otherwise the
+      // status churns ("Syncing…/Synced") on every keystroke-debounce.
+      const uploaded = (pushResult?.uploaded?.songs || 0) + (pushResult?.uploaded?.setlists || 0);
+      if (uploaded > 0 || pushResult?.tombstonesChanged) {
+        setStatus('synced', { lastSync: new Date().toISOString(), provider: syncState.activeProvider });
+      }
+    } catch (err) {
+      console.error('Sync push error:', err);
+      setStatus('error');
+    } finally {
+      syncing = false;
+    }
+  }
 }

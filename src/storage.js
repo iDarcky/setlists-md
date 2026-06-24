@@ -10,6 +10,7 @@ const SETLISTS_KEY = (lib) => `${NEW_PREFIX}setlists:${lib}`;
 const SETTINGS_KEY = `${NEW_PREFIX}settings`; // Settings remain global
 const SYNC_KEY = (lib) => `${NEW_PREFIX}sync:${lib}`;
 const TOMBSTONES_KEY = (lib) => `${NEW_PREFIX}tombstones:${lib}`;
+const CONFLICTS_KEY = (lib) => `${NEW_PREFIX}conflicts:${lib}`; // unresolved sync conflicts awaiting user choice
 const TRASH_KEY = (lib) => `${NEW_PREFIX}trash:${lib}`; // soft-deleted songs (30-day recovery)
 
 /**
@@ -342,6 +343,22 @@ export async function saveTombstones(tombstones, libraryId = 'personal') {
   await set(TOMBSTONES_KEY(libraryId), pruneTombstones(tombstones));
 }
 
+// ----- Sync conflicts (awaiting the user's keep-mine/keep-cloud/keep-both
+// choice) -----. Persisted so an unresolved conflict — and the user's only
+// surviving copy of their divergent local edit — survives a reload.
+export async function loadConflicts(libraryId = 'personal') {
+  try {
+    const list = await get(CONFLICTS_KEY(libraryId));
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveConflicts(list, libraryId = 'personal') {
+  await set(CONFLICTS_KEY(libraryId), Array.isArray(list) ? list : []);
+}
+
 // ----- Trash (soft-deleted songs, recoverable for 30 days) -----
 // Each entry is { song, deletedAt }. Same TTL as tombstones; entries older
 // than 30 days are pruned on read/write so the bin self-empties.
@@ -376,6 +393,7 @@ export async function clearAll(libraryId = 'personal') {
   await del(SYNC_KEY(libraryId));
   await del(TOMBSTONES_KEY(libraryId));
   await del(TRASH_KEY(libraryId));
+  await del(CONFLICTS_KEY(libraryId));
   songRefCache.delete(libraryId);
   songIdsCache.delete(libraryId);
 }
