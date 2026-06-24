@@ -230,3 +230,62 @@ export function searchSongs(songs, query, { limit } = {}) {
 export function searchSetlists(setlists, query, { limit } = {}) {
   return runSearch(setlists, query, setlistRecord, SETLIST_FUSE_KEYS, limit);
 }
+
+// Fold a single character the same way normalizeText folds whole strings, so a
+// match found in folded text can be mapped back onto the original (accented)
+// characters for highlighting.
+function foldChar(ch) {
+  return (TRANSLIT[ch] ?? ch)
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/['’`´]/g, '');
+}
+
+// Split `text` into segments flagged for highlighting against `query`. Matching
+// is diacritic-/punctuation-insensitive, consistent with searchSongs, but the
+// returned segments slice the ORIGINAL text so accents render intact.
+// Returns [{ text, hit }] — `hit: true` marks the matched spans.
+export function highlightSegments(text, query) {
+  const str = String(text ?? '');
+  const q = normalizeText(query);
+  if (!str || !q) return [{ text: str, hit: false }];
+  const tokens = q.split(' ').filter(Boolean);
+
+  // Folded string + a map from each folded char back to its original index.
+  let folded = '';
+  const map = [];
+  for (let i = 0; i < str.length; i++) {
+    const f = foldChar(str[i]);
+    for (let k = 0; k < f.length; k++) { folded += f[k]; map.push(i); }
+  }
+
+  const ranges = [];
+  for (const tok of tokens) {
+    let from = 0;
+    let idx;
+    while ((idx = folded.indexOf(tok, from)) !== -1) {
+      ranges.push([map[idx], map[idx + tok.length - 1] + 1]);
+      from = idx + tok.length;
+    }
+  }
+  if (ranges.length === 0) return [{ text: str, hit: false }];
+
+  ranges.sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const r of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1]);
+    else merged.push([...r]);
+  }
+
+  const segs = [];
+  let pos = 0;
+  for (const [s, e] of merged) {
+    if (s > pos) segs.push({ text: str.slice(pos, s), hit: false });
+    segs.push({ text: str.slice(s, e), hit: true });
+    pos = e;
+  }
+  if (pos < str.length) segs.push({ text: str.slice(pos), hit: false });
+  return segs;
+}

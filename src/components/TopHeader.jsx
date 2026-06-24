@@ -1,9 +1,17 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import NotificationTray from './NotificationTray';
 import SongCard from './SongCard';
+import Highlight from './ui/Highlight';
 import { cn } from '../lib/utils';
 import { workspaceStatusLabel } from '../billing/checkout';
 import { searchSongs, searchSetlists } from '../lib/search';
+
+// Don't hijack "/" while the user is typing in a field.
+function isEditableTarget(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+}
 
 /* Icons (kept local so the header is self-contained) */
 const TeamNavIcon = () => (
@@ -165,6 +173,22 @@ export default function TopHeader({
       document.removeEventListener('keydown', onKey);
     };
   }, [searchOpen]);
+
+  // Keyboard shortcut to open the search: ⌘K / Ctrl-K anywhere, or "/" when not
+  // already typing in a field.
+  useEffect(() => {
+    if (!showSearch) return;
+    const onKey = (e) => {
+      const cmdK = (e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K');
+      const slash = e.key === '/' && !isEditableTarget(e.target);
+      if (cmdK || slash) {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showSearch]);
 
   const planLower = (plan || '').toLowerCase();
   const hasTeamPlan = planLower === 'team' || planLower === 'church';
@@ -391,6 +415,7 @@ export default function TopHeader({
                                   <SongCard
                                     song={song}
                                     variant="row"
+                                    highlight={q}
                                     onClick={() => { closeSearch(); onSelectSong?.(song); }}
                                   />
                                 </div>
@@ -407,7 +432,9 @@ export default function TopHeader({
                                   className="w-full flex items-center justify-between gap-3 px-4 py-2.5 bg-transparent border-none cursor-pointer hover:bg-[var(--ds-gray-100)] text-left"
                                 >
                                   <span className="flex flex-col min-w-0">
-                                    <span className="text-copy-14 text-[var(--ds-gray-1000)] truncate">{sl.name || 'Untitled setlist'}</span>
+                                    <span className="text-copy-14 text-[var(--ds-gray-1000)] truncate">
+                                      {sl.name ? <Highlight text={sl.name} query={q} /> : 'Untitled setlist'}
+                                    </span>
                                     <span className="text-label-12 text-[var(--ds-gray-600)] truncate">
                                       {(sl.items?.length || 0)} songs{sl.date ? ` • ${formatDateShort(sl.date)}` : ''}
                                     </span>
@@ -433,7 +460,7 @@ export default function TopHeader({
                   onClick={() => setSearchOpen(true)}
                   className={iconBtn}
                   aria-label="Search"
-                  title="Search"
+                  title="Search (⌘K)"
                 >
                   <SearchIcon />
                 </button>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeText, searchSongs, searchSetlists } from '../lib/search';
+import { normalizeText, searchSongs, searchSetlists, highlightSegments } from '../lib/search';
 
 // Minimal v2-shaped song. Extended metadata keys are stored lowercase
 // (see EXTRA_META_FIELDS in parser.js): originaltitle, writers, album, …
@@ -152,6 +152,36 @@ describe('searchSongs — limit option', () => {
 });
 
 // ─── searchSetlists ───────────────────────────────────────────────────────────
+
+// ─── highlightSegments ────────────────────────────────────────────────────────
+
+describe('highlightSegments', () => {
+  const hits = (segs) => segs.filter(s => s.hit).map(s => s.text);
+  const joined = (segs) => segs.map(s => s.text).join('');
+
+  it('marks the matched span and preserves the full original text', () => {
+    const segs = highlightSegments('Amazing Grace', 'grace');
+    expect(hits(segs)).toEqual(['Grace']);
+    expect(joined(segs)).toBe('Amazing Grace');
+  });
+  it('highlights accented text from an unaccented query (slices the original)', () => {
+    const segs = highlightSegments('Laudă Domnului', 'lauda');
+    expect(hits(segs)).toEqual(['Laudă']); // original accents intact
+  });
+  it('highlights every token across the text', () => {
+    const segs = highlightSegments('Holy, Holy, Holy', 'holy holy');
+    expect(hits(segs)).toEqual(['Holy', 'Holy', 'Holy']);
+    expect(joined(segs)).toBe('Holy, Holy, Holy');
+  });
+  it('returns a single non-hit segment when nothing matches', () => {
+    const segs = highlightSegments('Build My Life', 'grace');
+    expect(segs).toEqual([{ text: 'Build My Life', hit: false }]);
+  });
+  it('handles an empty query and empty text safely', () => {
+    expect(highlightSegments('Title', '')).toEqual([{ text: 'Title', hit: false }]);
+    expect(highlightSegments('', 'x')).toEqual([{ text: '', hit: false }]);
+  });
+});
 
 describe('searchSetlists', () => {
   const setlists = [

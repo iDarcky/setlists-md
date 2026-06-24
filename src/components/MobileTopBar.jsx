@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import SongCard from './SongCard';
 import { workspaceStatusLabel } from '../billing/checkout';
 import { searchSongs, searchSetlists } from '../lib/search';
+import Highlight from './ui/Highlight';
 
 const HamburgerIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -236,6 +237,7 @@ export default function MobileTopBar({
                         <SongCard
                           song={song}
                           variant="row"
+                          highlight={q}
                           onClick={() => { closeSearch(); onSelectSong?.(song); }}
                         />
                       </div>
@@ -254,7 +256,7 @@ export default function MobileTopBar({
                         className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-transparent border-none cursor-pointer active:bg-[var(--bg-2)] text-left"
                       >
                         <div className="flex flex-col min-w-0">
-                          <span className="text-copy-14 text-[var(--text-1)] truncate">{sl.name || 'Untitled setlist'}</span>
+                          <span className="text-copy-14 text-[var(--text-1)] truncate">{sl.name ? <Highlight text={sl.name} query={q} /> : 'Untitled setlist'}</span>
                           <span className="text-label-12 text-[var(--text-2)] truncate">
                             {(sl.items?.length || 0)} songs{sl.date ? ` • ${formatDateShort(sl.date)}` : ''}
                           </span>

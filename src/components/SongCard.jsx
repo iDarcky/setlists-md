@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card } from './ui/Card';
 import { cn } from '../lib/utils';
+import Highlight from './ui/Highlight';
 
 function defaultArr(song) {
   if (!Array.isArray(song?.arrangements)) return song;
@@ -20,7 +21,7 @@ function formatRelativeTime(ts) {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function SongCard({ song, onClick, variant = 'card', showTags = false, selected = false }) {
+function SongCard({ song, onClick, variant = 'card', showTags = false, selected = false, highlight }) {
   const arr = defaultArr(song);
   const songKey = arr?.key || song?.key || 'C';
   const songTempo = arr?.tempo ?? song?.tempo;
@@ -37,12 +38,12 @@ function SongCard({ song, onClick, variant = 'card', showTags = false, selected 
       >
         <div className="flex flex-col gap-1 min-w-0 flex-1">
           <span className="text-heading-16 text-[var(--text-1)] truncate">
-            {song.title}
+            {highlight ? <Highlight text={song.title} query={highlight} /> : song.title}
           </span>
           <div className="flex items-center gap-1.5 flex-wrap">
             {song.artist && (
               <span className="text-copy-14 text-[var(--color-brand)] truncate">
-                {song.artist}
+                {highlight ? <Highlight text={song.artist} query={highlight} /> : song.artist}
               </span>
             )}
             {arrCount > 1 && (
