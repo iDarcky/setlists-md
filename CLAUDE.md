@@ -559,31 +559,7 @@ Each team/church workspace is its own Stripe subscription, paid by the team
 - PDF export renders an **in-app overlay with a same-origin `<iframe srcdoc>`** on every platform (`openPrintWindow()` in `src/pdf/pdfDocument.js`); printing goes through `iframe.contentWindow.print()`. Do NOT reintroduce `window.open` + `document.write` — popups return `null` handles in installed PWAs and don't exist in Capacitor/Electron webviews. The iframe inherits the page origin (prefs read `localStorage['setlists-md:pdf-prefs']` directly) **and the page CSP** — the print document uses an inline `<script>`/`<style>`, so before flipping the report-only CSP in `vercel.json` to enforcing, `script-src`/`style-src` must accommodate it (hash/nonce or refactor).
 - `SetlistOverview` is rendered in **two places**: (1) the dedicated `setlist-view` route in `App.jsx`, and (2) the desktop preview pane inside `Setlists.jsx`. Both wire its export callbacks (`onExportZip`, `onExportPdfOverview`, `onExportPdfFull`) — when you add or rename one, update *both* call sites or the desktop preview will silently no-op.
 
-## Known Correctness Issues (verify before promoting the Church/Team tier)
-
-These are real defects found during a roadmap audit. They are not yet fixed —
-treat them as the first work item if the paid tier is ever demoed.
-
-- ~~**Entitlement gate falls back to free for teams**~~ — *Fixed.*
-  `useEntitlement` reads `team.plan` (and now also `team.subscription_status`);
-  the stray `team.billing_plan` read in `Settings.jsx` was switched to
-  `team.plan`. Separately, `TeamProvider` was reading the dropped
-  `profile.plan` for `hasTeamPlan`/`createTeam` (always undefined → team
-  creation hit the `plan in ('team','church')` check constraint); it now reads
-  `profile.subscription_tier` and stamps a valid tier on create.
-- ~~**Members can edit songs in read-only team libraries**~~ — *Fixed (June
-  2026).* `guardTeamReadOnly()` in App.jsx gates `navigate('editor', …)` (the
-  funnel for every editor entry point), the smart-import/multi-import flows
-  (which add songs before navigating), and `handleSaveSong` (defense in depth
-  if the role changes mid-edit). Members get a "Read-only library" toast.
-- ~~**Preference cloud-sync push misses ~11 keys**~~ — *Stale / already fixed.*
-  The push effect depends on `portablePrefsSnapshot` (a JSON string of ALL
-  `PORTABLE_PREF_KEYS`), so every portable key triggers the debounced push.
-- ~~**Team sync has no optimistic locking**~~ — *Fixed (June 2026).* Team
-  libraries now sync through `src/sync/team-engine.js` (see below), whose
-  updates are compare-and-swap-guarded on `updated_at`.
-
-### Team library sync (src/sync/team-engine.js)
+## Team library sync (src/sync/team-engine.js)
 
 Team libraries no longer go through the file-manifest engine
 (`engine.js` + the `supabase-team.js` provider shim). They use a dedicated
@@ -613,12 +589,12 @@ directly:
 
 ## Current Focus & Roadmap
 
-Active direction (solo, occasional cadence): **App Shell redesign, shipped as
-independently-mergeable slices** — never a long-lived big-bang branch. Order:
-(1) settings-modal backdrop-close + scroll-lock and top-bar/iPad-scroll fixes,
-(2) Dashboard + Schedule redesign, (3) chart/performance display options
-(Lyrics-only / Chords-only / Song-map, Nashville + Do-Re-Mi notation, condensed
-sections), (4) setlist + notes rework, (5) Church/Team hardening (the bugs
-above). TypeScript migration is deferred and done incrementally per touched
-file, not as a phase. `docs/ROADMAP.md` holds the longer-horizon list.
+**Planning lives in `docs/PLAN.md`** — the single source of truth for the launch
+plan, polish backlog, known issues, and the longer-horizon roadmap (it replaces
+the old `docs/ROADMAP.md` + `docs/BACKLOG.md`). Keep this file (`CLAUDE.md`) for
+dev/agent memory only: stack, architecture, schema, the finish/release
+workflows, and gotchas.
+
+TypeScript migration is deferred and done incrementally per touched file, not as
+a phase.
 

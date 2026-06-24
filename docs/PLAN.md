@@ -1,0 +1,218 @@
+# Setlists.md — Plan (single source of truth)
+
+> **The one place for launch + polish + roadmap.** Replaces the old
+> `docs/ROADMAP.md` and `docs/BACKLOG.md`. `CLAUDE.md` stays the dev/agent memory
+> (stack, architecture, schema, finish/release workflows, gotchas) — it points
+> here for planning.
+>
+> _Last updated: 2026-06-24 · Current version: `0.14.0-beta.1` (on `beta`)._
+>
+> **Priority:** `P0` drop-everything · `P1` high · `P2` medium · `P3` nice-to-have.
+> `Q:` = open decision needed.
+
+---
+
+## 1. Launch plan — Public Beta, October 1
+
+**Verdict (2026-06-24): on track, slightly ahead on engineering.** All hard
+blockers are cleared; the critical path is now the **August infra/ops bucket**
+(domain, email, OAuth) and the **September soft-launch**, not features.
+
+| Month | Theme | Status |
+| :--- | :--- | :--- |
+| June | Pipeline (CI, branch protection) + legal + security + bug fixes | ✅ shipped (0.11.0) |
+| June | App-shell redesign + private notes + dashboard + sync reliability | ✅ shipped (0.12.0) |
+| June | Search, filters, customizable tables, mobile list views | ✅ shipped (0.14.0-beta) |
+| July | Remaining blockers (unsaved guard ✅, iPad PDF ✅) + import polish + polish | mostly done |
+| August | Custom domain + Resend email + Google/Apple login + cookie notice + leaked-password toggle | **planned — not started (critical path)** |
+| September | Polish + private soft-launch to 5–10 worship teams | planned |
+| **October 1** | **Public beta** | planned |
+
+### ✅ Hard blockers — done
+GDPR delete-account, account-termination guardrails, member read-only gating,
+in-app legal pages (Privacy/Terms/Copyright), security pass + headers, pricing
+model, CI + branch protection on `main`, avatar limits, settings-dialog polish,
+unsaved-changes editor guard, iPad PWA PDF export (inline-iframe), native
+`confirm()/alert()` replaced, display modes (Chords/Lyrics/Song-map + Nashville),
+team optimistic locking, scheduling & notifications pillar.
+
+### 🔴 Critical path to Oct 1 (mostly external/ops — start in August)
+- [ ] **Custom domain split** — `setlists.md` → `app.setlists.md`.
+- [ ] **Resend transactional email** (auth/confirmation/reset).
+- [ ] **Google / Apple OAuth** — re-enable in `AuthProvider` once domain/email land.
+- [ ] **Cookie / storage transparency notice** — marketing-site footer (waits on domain split).
+- [ ] **Leaked-password protection** — Supabase Auth toggle.
+- [ ] **Private soft-launch** to 5–10 teams (September validation gate).
+
+### 🟡 Should-ship before beta (won't hard-block)
+- [ ] **Pricing page redesign** (`PricingScreen.jsx`) to the new app-shell aesthetic.
+- [ ] **Team page redesign** (`TeamScreen.jsx`) — create/manage + tier picker, Band/Church naming.
+- [ ] **ChordPro / OnSong import** — `smartImport()` already does ChordPro/OpenSong/UG/text;
+      _remaining:_ a dedicated `.onsong` parser + per-file success/failure reporting.
+- [ ] **Public-domain starter pack** (~20 PD hymns) for first-run.
+- [ ] **Setlist QR/URL share** — share route + Play Live shipped; QR/short-link polish remains (paid-tier feature).
+
+### Production pipeline gaps
+- [x] CI (`lint + test + build`), [x] branch protection on `main`.
+- [ ] PR + issue templates (`.github/`).
+- [ ] Staging env (free Vercel preview on `beta` for now; dedicated Supabase project deferred — budget).
+- [ ] Error monitoring — Sentry wired + dormant (`VITE_SENTRY_DSN`); enable if budget allows.
+- [ ] Release tags — tag each release on `main` (`git tag v0.x.0`).
+
+---
+
+## 2. Known issues, correctness & ops
+
+- ✅ **Supabase migrations — all applied (verified 2026-06-24 against the live DB,
+  project `biltbdumdwugpepaawku`).** `team_activity_skip_noop`, `team_scale_indexes`,
+  `team_notifications`, `team_notes` are all in the migration history (applied
+  2026-06-19); `team_notifications`/`team_notes` tables exist. The earlier
+  "not applied / MCP rejects every call" warning was **stale** — the MCP works and
+  nothing is pending. (All recent migrations are idempotent — safe to re-run if ever in doubt.)
+- **Church/Team tier** — the audited correctness issues (entitlement gate reading
+  `team.plan` + `subscription_status`, member read-only gating, optimistic-lock
+  conflict surfacing, realtime echo suppression, owned-workspace cap) are all
+  **fixed**. Still wants a real demo-pass before the paid tier is sold.
+- **Input sanitization audit** (P1) — done, no critical findings. Queued follow-ups:
+  enforce CSP (PDF inline-script already removed → CSP is enforcing), bump share-token
+  entropy ✅, input maxLengths ✅, validate PDF-prefs/ZIP manifest ✅.
+- **Scale readiness** (P1) — assessed. Shipped: `team_id` indexes, `React.memo(SongCard)`
+  + `useDeferredValue`, `.limit()`/date-filter on team hooks, realtime echo guard,
+  per-song IndexedDB persistence, incremental sync hashing. Deferred (deliberately):
+  batch the team-engine push loop (breaks per-row CAS), `team_activity` retention job.
+- **OAuth URL cleanup synchronous** — deferred; needs the live OAuth/magic-link flow
+  tested before touching (stripping the hash before Supabase consumes it can break sign-in).
+- **PDF/CSP enforcing** — shipped; **needs live print verification** on deploy (PWA + installed app).
+
+---
+
+## 3. Polish backlog (by area)
+
+Open, actionable items. Cross-cutting concerns at the end.
+
+### Song details
+- Rich editor for **Story-behind** (breaks-style, like the setlist editor); maybe Notes too — P2 · _Q: both or just Story-behind?_
+- **Dedicated full song-details view** (open-in-full button) — P2 · _Q: route vs expanded panel?_
+- Field char limits (Themes/Genres/Verses/Moment/Tags) — P3 · _Q: cap which, or leave free?_
+
+### Song editor
+- **Preview ignores key/transpose** — split-screen preview renders in the stored key until reopened — **P1**.
+- **New-song guardrails** — Title + Key start empty + mandatory (block save until set); soft-remind bpm/time; teach structure — P2.
+- **Double "structure" concept** — unify the arrangement's `structure[]` and the editor's section flow — P2 · _Q: one source of truth + advanced mode?_
+- Preview defaults to **1 column** (persist per device) — P2.
+- Key/chord strip follows the edited section + respects active notation — P2.
+
+### Chart view
+- **Layout menu rework** — **P1**.
+- Display-options rework (after the 3-dots fix, which is done) — P2.
+- View switch → single generic icon, text-only menu — P2.
+- **Enharmonic spelling** (C# vs Db) — key-aware by default + global prefer-sharps/flats override — P2.
+- Transpose tabs — P3 · _feasibility spike_.
+
+### Song library
+- **Doubled mobile search** — the top-bar global cross-search also shows on Songs/Setlists where it duplicates each page; scope it to the page there, keep global on Dashboard (+ the desktop ⌘K) — P2.
+- Drag-to-**reorder** table columns (show/hide shipped in 0.14.0) — P3.
+
+### Setlists (overview / viewer)
+- Overview page visual redesign + buttons rework (Set order/Band + Play live/Practice inline) — P2.
+- Warn before editing a **past** setlist — P2.
+- Remove redundant "Set Order" control; relocate "Show details" — P2.
+- Reposition "Edited by"; Location on the date line; date in Title Case (not CAPS) — P3.
+- Reduce icon clutter / reconsider bin placement; services dropdown styling — P3.
+- Structure pill inside setlist song cards — P3.
+- Shared-viewer: tap a song to open it; "Open app" returns to the setlist; onboarding; refresh the older share UI — P3–P4.
+
+### Setlist editor
+- **Clear song-search after selecting** a song (+ an "x") so adding several is quick — P2.
+- Rework Set order/Band + relocate Draft/Ready — P2.
+- Song/break **card redesign** — P2 · _Q: what feels off?_
+- Rework **Recommended-next engine** (weigh more song-detail fields) — P2.
+- Desktop **3-pane** layout (details · current set · library) — P2.
+
+### Dashboard
+- **Live customize mode** (drag widgets in place, tray for unused) — P2.
+- Default widget order + welcome-banner decision (keep/remove/removable) — P2.
+- **Library widget** — improve or cut ("keys" stat unclear; no-op on click) — P2.
+- **Sync status** — fixed spot, not a widget — P2.
+- Search placeholder → just "Search" — P3.
+- Next-up Practice button + practice-time widget (depends on Practice mode) — P3.
+
+### Team
+- Landing rework (surface the church; "Invite member" shouldn't be first) — P2.
+- **Stats & insights** tab (most/least played song & key, top member) — P2.
+- Admin/leader-only **Options** tab — P2.
+- **30-day soft team/account deletion** w/ countdown + restore (needs `deletion_at` + scheduled purge) — P2.
+- Collect more member info (phone, leader-only, GDPR-sensitive) — P3 · _Q: which fields?_
+
+### Settings · Help · Nav
+- Settings: add/reorg settings — P2; **mobile settings rework** — P2.
+- Help: context-specific "?" per screen — P2; surface feedback prominently (MultiTracks north star) — P2.
+- **Hamburger panel** — keep-vs-replace decision, then rework — P2 · _Q: keep?_; motivational quotes keep/drop — P3.
+- FAB: more actions; nav→prev/next pill morph + motion — P3.
+
+### Notifications
+- Big rework shipped (dismiss/clear-all, server-authoritative decline alerts, cross-device read state). Remaining: maybe-nudge needs a scheduled job (still client-derived).
+
+### Cross-cutting / chores
+- **Naming consistency** pass (casing across headers) — P3.
+- Extend the **trash bin** (soft-delete) to setlists + a team-library bin — P2 (songs already done).
+- Repo file clean-up (dead/orphaned files, stale docs) — P3.
+- `skills.md` / Claude Code skills investigation (finish/release, changelog, migration-apply, PDF-verify as skills) — P3.
+- More / custom roster instruments (per-team) — P3.
+
+---
+
+## 4. Post-launch roadmap (bigger epics)
+
+### Anchor epic
+- **Member edit suggestions / approvals** (P2) — members propose edits (a proposed
+  arrangement or add-on) that queue pending until a leader/admin/editor approves.
+  New `song_suggestions` table + a review inbox reusing notifications. Do it *after*
+  notifications exist (they do). _Q: per-field vs whole-arrangement? who approves?_
+
+### Modes & playback
+- **Rehearsal vs Practice split** (P2) — rename current → Rehearsal (group, tied to a
+  setlist), add solo **Practice** (loop a section, metronome, slow-down, log minutes
+  → feeds a dashboard practice-time widget).
+- Instrument **role profiles** (vocalist/guitar/bass/keys/drums views); drummer counts,
+  piano voicings, bass-root emphasis; section-loop rehearsals; quick-key switchers.
+
+### Interop & import
+- **PCO (Planning Center) bridge**, **OnSong `.onsong` archive import**, **SongSelect `.usr`**,
+  **PDF-to-Markdown** best-effort engine, a **Migration Hub** onboarding screen.
+- **Export as ChordPro** (`.cho`) for interoperability.
+- **i18n** — hooks + tier-1 languages (es, pt, ko, fr); RO/HU religious-use legal alignment.
+
+### Native & integrations (v3.5+)
+- **Capacitor** iOS/Android wrap, native OAuth (Apple/Google), native Bluetooth pedals, safe-area audit, store deployment.
+- **Projection** (ProPresenter/Proclaim) and **tracks/audio cues** (Ableton); define the integration surface first (export format / webhooks / deep links).
+- **Companion congregation songbook** app (read-only follow-along) — horizon.
+
+### PDF export enhancements
+More entry points (library row, SetlistPlayer, PracticeView), NNS in PDF, chord
+diagrams in PDF, per-song setlist subtitle, cover-page customisation (logo/band),
+total set duration, per-song selection, paper-size (A4/Letter) toggle, hide cover/tabs/notes
+toggles, margins/spacing toggles, section-per-page, reset-to-defaults, jsPDF fallback.
+
+### ⚠️ MAJOR (breaking — needs migration; schedule deliberately)
+- **Reusable tab library / snippets** — named riffs referenced by id instead of inlined; breaks the inline `.md` round-trip → schema + migration. _(Explicitly MAJOR per SemVer.)_
+- **"Outgrew `.md`?" data architecture** — attachments (PDF/sheet music on a song), the BYOC **Song Bundle** folder format, full-text **lyric search**.
+- **Multi-line Story/Notes** — frontmatter is one line per field; preserving newlines needs a format decision.
+- **Unify the double-structure model** — collapse `arrangement.structure[]` + editor section flow.
+
+---
+
+## 5. Recently shipped (context)
+
+- **0.14.0** (this cycle) — unified diacritic/punctuation/typo-tolerant **search** across all
+  metadata (`src/lib/search.js`) + ⌘K + highlighting; **multi-filter** library
+  (`songFacets.js`/`LibraryFilters`); **customizable table columns** for Songs + Setlists
+  (`tableColumns.js`/`ColumnsMenu`, synced); **Cards/Compact/Table** mobile views (remembered
+  per device); redesigned setlist card + unified setlist filters.
+- **0.13.0** — sync conflict resolver + retry/offline-queue reliability.
+- **0.12.x** — app-shell redesign, stage headers, private + team notes, customizable dashboard,
+  multiple workspaces, campfire single-song Play, edge-arrow nav.
+- **Scheduling & Notifications pillar** — notifications (dismiss/clear-all, server-authoritative
+  decline alerts), My-Schedule v2, scheduling grid (roster × services), availability widgets.
+- **Foundation** — GDPR delete-account, legal pages, security pass, CI + branch protection,
+  per-song persistence + incremental sync hashing, PDF iframe + CSP enforcing.
