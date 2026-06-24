@@ -8,6 +8,8 @@ import { cn } from '../lib/utils';
 import { searchSongs } from '../lib/search';
 import { buildFacetOptions, matchesFacets, countActiveFacets } from '../lib/songFacets';
 import LibraryFilters from './library/LibraryFilters';
+import { resolveVisibleColumns } from '../lib/tableColumns';
+import ColumnsMenu from './ui/ColumnsMenu';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { useResizablePane } from '../lib/useResizablePane';
 
@@ -19,10 +21,19 @@ const SORT_MODES = [
   { key: 'key', label: 'Key' },
 ];
 
+function defaultArrangement(song) {
+  if (!Array.isArray(song?.arrangements)) return song || {};
+  return song.arrangements.find(a => a.id === song.defaultArrangementId) || song.arrangements[0] || song;
+}
 function defaultArrangementKey(song) {
-  if (!Array.isArray(song?.arrangements)) return song?.key || 'C';
-  const arr = song.arrangements.find(a => a.id === song.defaultArrangementId) || song.arrangements[0];
-  return arr?.key || 'C';
+  return defaultArrangement(song).key || song?.key || 'C';
+}
+function defaultArrangementTempo(song) {
+  return defaultArrangement(song).tempo ?? song?.tempo ?? null;
+}
+function formatUpdated(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function getGroupKey(song, sortMode) {
@@ -183,6 +194,8 @@ export default function Library({
   onMoveSongs,
   onCopySongs,
   onAddSongsToSetlist,
+  tableColumns,
+  onSetTableColumns,
   chartMoveCopy,
 }) {
   // Responsive shell. Touch tablets (pointer: coarse) get the two-pane master-
@@ -242,6 +255,9 @@ export default function Library({
     });
   };
   const clearAllFilters = () => { setSelectedTags([]); setFacetSel({}); };
+
+  // Customizable table columns (synced via settings.tableColumns).
+  const columnVisible = useMemo(() => resolveVisibleColumns('library', tableColumns, {}), [tableColumns]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -411,6 +427,14 @@ export default function Library({
               onClearAll={clearAllFilters}
             />
 
+            {effectiveView === 'table' && onSetTableColumns && (
+              <ColumnsMenu
+                table="library"
+                saved={tableColumns}
+                onChange={(ids) => onSetTableColumns('library', ids)}
+              />
+            )}
+
             {/* Import + New song (desktop) */}
             {!readOnly && onNewSong && (
               <div className="hidden lg:block">
@@ -474,20 +498,28 @@ export default function Library({
                       Name {sortMode === 'title' && <SortArrow asc={sortAsc} />}
                     </button>
                   </th>
-                  {!splitDock && (
+                  {!splitDock && columnVisible.has('artist') && (
                     <th className="text-left px-5 py-3 hidden md:table-cell w-[34%]">
                       <button onClick={() => handleSortClick('artist')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
                         Artist {sortMode === 'artist' && <SortArrow asc={sortAsc} />}
                       </button>
                     </th>
                   )}
-                  <th className="text-left px-5 py-3 w-[72px]">
-                    <button onClick={() => handleSortClick('key')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
-                      Key {sortMode === 'key' && <SortArrow asc={sortAsc} />}
-                    </button>
-                  </th>
-                  {!splitDock && (
+                  {columnVisible.has('key') && (
+                    <th className="text-left px-5 py-3 w-[72px]">
+                      <button onClick={() => handleSortClick('key')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
+                        Key {sortMode === 'key' && <SortArrow asc={sortAsc} />}
+                      </button>
+                    </th>
+                  )}
+                  {!splitDock && columnVisible.has('tempo') && (
+                    <th className="text-left px-5 py-3 hidden lg:table-cell w-[90px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tempo</th>
+                  )}
+                  {!splitDock && columnVisible.has('tags') && (
                     <th className="text-left px-5 py-3 hidden lg:table-cell w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>
+                  )}
+                  {!splitDock && columnVisible.has('updated') && (
+                    <th className="text-left px-5 py-3 hidden xl:table-cell w-[130px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Updated</th>
                   )}
                 </tr>
               </thead>
@@ -526,11 +558,18 @@ export default function Library({
                         </div>
                         <div className="md:hidden text-copy-13 text-[var(--modes-text-muted)] truncate mt-0.5">{song.artist}</div>
                       </td>
-                      {!splitDock && (
+                      {!splitDock && columnVisible.has('artist') && (
                         <td className="px-5 py-3.5 hidden md:table-cell text-copy-14 text-[var(--modes-text-muted)] truncate">{song.artist}</td>
                       )}
-                      <td className="px-5 py-3.5"><KeyChip value={defaultArrangementKey(song)} /></td>
-                      {!splitDock && (
+                      {columnVisible.has('key') && (
+                        <td className="px-5 py-3.5"><KeyChip value={defaultArrangementKey(song)} /></td>
+                      )}
+                      {!splitDock && columnVisible.has('tempo') && (
+                        <td className="px-5 py-3.5 hidden lg:table-cell text-copy-14 text-[var(--modes-text-muted)] tabular-nums">
+                          {defaultArrangementTempo(song) ? `${defaultArrangementTempo(song)}` : '—'}
+                        </td>
+                      )}
+                      {!splitDock && columnVisible.has('tags') && (
                         <td className="px-5 py-3.5 hidden lg:table-cell">
                           <div className="flex flex-wrap gap-1">
                             {(song.tags || []).slice(0, 3).map(t => (
@@ -538,6 +577,9 @@ export default function Library({
                             ))}
                           </div>
                         </td>
+                      )}
+                      {!splitDock && columnVisible.has('updated') && (
+                        <td className="px-5 py-3.5 hidden xl:table-cell text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap">{formatUpdated(song.updatedAt)}</td>
                       )}
                     </tr>
                   );

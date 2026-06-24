@@ -6,6 +6,8 @@ import { IconButton } from './ui/IconButton';
 import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
 import { searchSetlists } from '../lib/search';
+import { resolveVisibleColumns } from '../lib/tableColumns';
+import ColumnsMenu from './ui/ColumnsMenu';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { useResizablePane } from '../lib/useResizablePane';
 import { useEntitlement } from '../hooks/useEntitlement';
@@ -86,7 +88,8 @@ function HeaderSort({ label, modeKey, sortMode, sortAsc, onSort }) {
 }
 
 // A titled table section (Upcoming / Past) sharing one column layout.
-function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onToggleAll, sortMode, sortAsc, onSort, compact = false, showService = false, showSchedule = false }) {
+function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onToggleAll, sortMode, sortAsc, onSort, compact = false, showService = false, showSchedule = false, visibleCols }) {
+  const show = (id) => !visibleCols || visibleCols.has(id);
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-baseline gap-2 px-1">
@@ -101,17 +104,17 @@ function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onTog
                 {!readOnly && <input type="checkbox" checked={allChecked} onChange={onToggleAll} aria-label={`Select all ${title.toLowerCase()}`} className="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer align-middle" />}
               </th>
               <th className="text-left px-5 py-3"><HeaderSort label="Name" modeKey="name" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
-              <th className="text-left px-5 py-3 w-[180px]"><HeaderSort label="Date" modeKey="date" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
-              <th className="text-left px-5 py-3 hidden md:table-cell w-[90px]"><HeaderSort label="Songs" modeKey="songs" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
+              {show('date') && <th className="text-left px-5 py-3 w-[180px]"><HeaderSort label="Date" modeKey="date" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>}
+              {show('songs') && <th className="text-left px-5 py-3 hidden md:table-cell w-[90px]"><HeaderSort label="Songs" modeKey="songs" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>}
               {showSchedule && (
                 <>
-                  <th title="Instrumentalists scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[80px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Instr.</th>
-                  <th title="Vocalists scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[80px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Vocals</th>
-                  <th title="Total members scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[90px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Sched.</th>
+                  {show('instr') && <th title="Instrumentalists scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[80px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Instr.</th>}
+                  {show('vocals') && <th title="Vocalists scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[80px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Vocals</th>}
+                  {show('sched') && <th title="Total members scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[90px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Sched.</th>}
                 </>
               )}
-              {showService && <th className="text-left px-5 py-3 hidden md:table-cell w-[150px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Service</th>}
-              {!compact && <th className="text-left px-5 py-3 hidden lg:table-cell w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>}
+              {showService && show('service') && <th className="text-left px-5 py-3 hidden md:table-cell w-[150px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Service</th>}
+              {!compact && show('tags') && <th className="text-left px-5 py-3 hidden lg:table-cell w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>}
             </tr>
           </thead>
           <tbody>
@@ -139,6 +142,8 @@ export default function Setlists({
   onEditSetlist,
   readOnly = false,
   clockFormat = '12h',
+  tableColumns,
+  onSetTableColumns,
   overviewV2 = false,
   overscheduleWarn = false,
   streakLimit = 3,
@@ -248,9 +253,8 @@ export default function Setlists({
   // Captured once on mount (Date.now() is flagged impure if called in render).
   const [nowTs] = useState(() => Date.now());
 
-  // Per-setlist schedule counts (team workspaces only). NOTE: shown by default
-  // for now — the whole setlist table is slated for a rework with a proper
-  // column picker (see BACKLOG "Editable setlist table fields").
+  // Per-setlist schedule counts (team workspaces only). Visible by default and
+  // toggleable via the shared ColumnsMenu (Instr./Vocals/Sched. columns).
   const { team } = useTeam();
   const { schedules } = useTeamSchedules(team?.id);
   const { map: setlistIdMap } = useTeamSetlistMap(team?.id);
@@ -269,6 +273,15 @@ export default function Setlists({
     }
     return stats;
   }, [showSchedule, setlists, schedules, setlistIdMap]);
+
+  // Customizable table columns (synced via settings.tableColumns). Gated by the
+  // workspace context so Service (church) / Schedule (team) only appear when
+  // available.
+  const columnVisible = useMemo(
+    () => resolveVisibleColumns('setlists', tableColumns, { showService, showSchedule }),
+    [tableColumns, showService, showSchedule],
+  );
+  const showCol = (id) => columnVisible.has(id);
 
   // A setlist is "upcoming" until 1h after its start time, then it's "past".
   const isUpcoming = (sl) => {
@@ -374,8 +387,8 @@ export default function Setlists({
             )}
           </div>
         </td>
-        <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap">{formatDate(sl.date)}</td>
-        <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] hidden md:table-cell">{songCount(sl)}</td>
+        {showCol('date') && <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap">{formatDate(sl.date)}</td>}
+        {showCol('songs') && <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] hidden md:table-cell">{songCount(sl)}</td>}
         {showSchedule && (() => {
           const st = scheduleStats[sl.id] || { total: 0, instrumentalists: 0, vocalists: 0 };
           const cell = (n) => n > 0
@@ -383,20 +396,20 @@ export default function Setlists({
             : <span className="text-copy-14 text-[var(--modes-text-dim)]">—</span>;
           return (
             <>
-              <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.instrumentalists)}</td>
-              <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.vocalists)}</td>
-              <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.total)}</td>
+              {showCol('instr') && <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.instrumentalists)}</td>}
+              {showCol('vocals') && <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.vocalists)}</td>}
+              {showCol('sched') && <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.total)}</td>}
             </>
           );
         })()}
-        {showService && (
+        {showService && showCol('service') && (
           <td className="px-5 py-3.5 hidden md:table-cell">
             {sl.service
               ? <span className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface)] text-[var(--modes-text-muted)] border border-[var(--modes-border)] whitespace-nowrap">{sl.service}</span>
               : <span className="text-copy-14 text-[var(--modes-text-dim)]">—</span>}
           </td>
         )}
-        {!splitDock && (
+        {!splitDock && showCol('tags') && (
           <td className="px-5 py-3.5 hidden lg:table-cell">
             <div className="flex flex-wrap gap-1">
               {(sl.tags || []).slice(0, 3).map(t => (
@@ -513,6 +526,15 @@ export default function Setlists({
             </button>
           </div>
 
+          {effectiveView === 'table' && onSetTableColumns && (
+            <ColumnsMenu
+              table="setlists"
+              context={{ showService, showSchedule }}
+              saved={tableColumns}
+              onChange={(ids) => onSetTableColumns('setlists', ids)}
+            />
+          )}
+
           {!readOnly && (
             <div className="hidden lg:flex items-center gap-2 shrink-0">
               {onImportSetlist && (
@@ -576,6 +598,7 @@ export default function Setlists({
                 compact={splitDock}
                 showService={showService}
                 showSchedule={showSchedule}
+                visibleCols={columnVisible}
               />
             )}
             {tablePast.length > 0 && (
@@ -593,6 +616,7 @@ export default function Setlists({
                 compact={splitDock}
                 showService={showService}
                 showSchedule={showSchedule}
+                visibleCols={columnVisible}
               />
             )}
           </div>

@@ -137,6 +137,7 @@ const PORTABLE_PREF_KEYS = [
   'tabBg',
   'rosterOverscheduleWarning',
   'rosterStreakLimit',
+  'tableColumns',
 ];
 
 function extractPortablePrefs(s) {
@@ -1250,6 +1251,9 @@ export default function App() {
     }
     navigate('chart', { song });
   };
+  // Persist a table's visible columns (Songs / Setlists) — synced via prefs.
+  const setTableColumns = (table, ids) =>
+    setSettings(prev => ({ ...prev, tableColumns: { ...(prev?.tableColumns || {}), [table]: ids } }));
   const goEditor = (song = null, arrangementId = null) => {
     if (isTeamReadOnly) return;
     navigate('editor', { song, arrangementId });
@@ -2222,6 +2226,8 @@ export default function App() {
               workspaces={[{ id: 'personal', name: 'Personal' }, ...teams.map(t => ({ id: t.id, name: t.name }))]}
               onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
               onAddSongsToSetlist={isTeamReadOnly ? null : handleAddSongsToSetlist}
+              tableColumns={settings?.tableColumns}
+              onSetTableColumns={setTableColumns}
               onMoveSongs={!isTeamReadOnly && teams.length > 0 ? handleMoveSongs : null}
               onCopySongs={teams.length > 0 ? handleCopySongs : null}
               chartMoveCopy={buildChartMoveCopy}
@@ -2258,6 +2264,8 @@ export default function App() {
               onEditSetlist={isTeamReadOnly ? null : (sl) => goSetlistBuild(sl)}
               readOnly={isTeamReadOnly}
               clockFormat={settings?.clockFormat || '12h'}
+              tableColumns={settings?.tableColumns}
+              onSetTableColumns={setTableColumns}
               overviewV2={settings?.setlistOverviewV2}
               overscheduleWarn={settings?.rosterOverscheduleWarning}
               streakLimit={settings?.rosterStreakLimit || 3}
