@@ -27,9 +27,6 @@ export function StructureRibbon({
   // 'horizontal' (default) or 'vertical' — the side floating rail stacks the
   // items in a column.
   orientation = 'horizontal',
-  // For the 'dots' style: also show the compact section label next to each dot
-  // (the side rail wants dots + labels).
-  withLabels = false,
 }) {
   // Collapse consecutive duplicates: "C1, C1, C1" → one entry "C1 ×3".
   const runs = [];
@@ -65,7 +62,8 @@ export function StructureRibbon({
   const colorOf = (name) => sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
   const labelOf = (name) => (compact ? compactLabel(name) : sectionLabel(name, sectionLabels));
 
-  if (style === 'dots') {
+  if (style === 'dots' || style === 'dotlabel') {
+    const showLabels = style === 'dotlabel';
     return (
       <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-1.5')}>
         {runs.map((run, i) => {
@@ -85,7 +83,7 @@ export function StructureRibbon({
                 className={cn('rounded-full transition-all', active ? 'w-3.5 h-3.5 ring-2 ring-offset-1 ring-offset-transparent' : 'w-2.5 h-2.5')}
                 style={{ background: s.b, boxShadow: active ? `0 0 0 2px ${s.b}` : undefined }}
               />
-              {withLabels && (
+              {showLabels && (
                 <span className={cn('font-mono font-bold text-[11px]', !active && 'opacity-70')} style={{ color: s.b }}>{labelOf(run.name)}</span>
               )}
               {run.count > 1 && (
@@ -111,7 +109,7 @@ export function StructureRibbon({
               <Tag
                 {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index) } : {})}
                 className={cn('bg-transparent border-none p-0 font-bold text-[11px] font-mono', active && 'underline underline-offset-4', onSelect && 'cursor-pointer hover:opacity-80')}
-                style={{ color: s.d, opacity: active || activeIndex == null ? 1 : 0.6 }}
+                style={{ color: s.b, opacity: active || activeIndex == null ? 1 : 0.7 }}
               >
                 {compactLabel(run.name)}
                 {run.count > 1 && <span className="opacity-70">×{run.count}</span>}

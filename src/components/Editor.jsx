@@ -648,13 +648,14 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           <IconButton variant="ghost" size="xs" aria-label="Transpose up a semitone" title="Transpose up" onClick={() => transposeAllChords(1)}>+</IconButton>
         </div>
         {/* Text input (not number) so it renders identically to the key/time
-            Select triggers — same h-8 box, no native spinner or intrinsic sizing. */}
+            Select triggers — same h-8 box, no native spinner or intrinsic sizing.
+            box-border + leading-none + centered text matches the trigger metrics. */}
         <input
           type="text"
           inputMode="numeric"
           value={currentTempo}
           onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
-          className="h-8 w-16 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 py-2 text-label-12 font-mono text-[var(--ds-gray-1000)] outline-none"
+          className="box-border h-8 w-14 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 text-label-12 leading-none font-mono text-center text-[var(--ds-gray-1000)] outline-none"
           placeholder="bpm"
           aria-label="Tempo"
         />

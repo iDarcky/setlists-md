@@ -476,27 +476,18 @@ function ChartPanel({ settings, update }) {
           })}
         </div>
       </Row>
-      <Row label="Structure ribbon" description="How the section flow shows above the chart in chart, practice & live.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {[
-            { key: 'chips', label: 'Chips' },
-            { key: 'numbered', label: 'Codes' },
-            { key: 'dots', label: 'Dots' },
-          ].map(({ key, label }) => {
-            const active = (settings.ribbonStyle || 'chips') === key;
-            return (
-              <Button
-                key={key}
-                size="sm"
-                variant={active ? 'secondary' : 'ghost'}
-                onClick={() => update('ribbonStyle', key)}
-                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </div>
+      <Row label="Structure ribbon" description="How the section flow looks in chart, practice & live (header or floating).">
+        <Select value={settings.ribbonStyle || 'chips'} onValueChange={(v) => update('ribbonStyle', v)}>
+          <SelectTrigger className="h-9 w-44 bg-[var(--ds-background-100)]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="chips">Chips</SelectItem>
+            <SelectItem value="numbered">Codes</SelectItem>
+            <SelectItem value="dots">Dots</SelectItem>
+            <SelectItem value="dotlabel">Dots + label</SelectItem>
+          </SelectContent>
+        </Select>
       </Row>
       <Row label="Tab grid resolution" description="Default subdivisions when creating a new tab. Beats only keeps it simple; finer grids allow 8th/16th-note detail.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
@@ -603,20 +594,6 @@ function LabsPanel({ settings, update }) {
           </SelectContent>
         </Select>
       </Row>
-      {(settings.structurePosition || 'top') !== 'top' && (
-        <Row label="Floating structure display" description="Show the floating structure as dots, labels, or both.">
-          <Select value={settings.structureRailStyle || 'both'} onValueChange={(v) => update('structureRailStyle', v)}>
-            <SelectTrigger className="h-9 w-44 bg-[var(--ds-background-100)]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="dots">Dots</SelectItem>
-              <SelectItem value="labels">Labels</SelectItem>
-              <SelectItem value="both">Dots + labels</SelectItem>
-            </SelectContent>
-          </Select>
-        </Row>
-      )}
     </Section>
   );
 }

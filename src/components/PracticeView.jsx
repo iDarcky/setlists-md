@@ -393,17 +393,14 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   // Structure ribbon placement (Settings → Structure position).
   const structurePos = settings?.structurePosition || 'top';
   const ribbonSide = structurePos === 'left' || structurePos === 'right';
-  const floating = structurePos !== 'top';
-  const railStyle = settings?.structureRailStyle || 'both';
   const ribbonNode = (!cur.isBreak && !cur.isMissing && cur.song.sections?.length > 0) ? (
     <StructureRibbon
       structure={cur.song.structure || cur.song.sections.map(s => s.type)}
       compact
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
       collapse={!ribbonSide}
-      withLabels={floating && railStyle === 'both'}
       activeIndex={activeSection}
-      style={floating ? (railStyle === 'labels' ? 'numbered' : 'dots') : (settings?.ribbonStyle || 'chips')}
+      style={settings?.ribbonStyle || 'chips'}
       onSelect={(i) => {
         const struct = cur.song.structure || cur.song.sections.map(s => s.type);
         const name = struct[i];

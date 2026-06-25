@@ -19,7 +19,16 @@ export default function FloatingStructure({ position, children, raised = false }
         className="fixed left-0 right-0 z-[95] flex justify-center pointer-events-none"
         style={{ bottom: `calc(${raised ? '6.25rem' : '1.5rem'} + env(safe-area-inset-bottom, 0px))` }}
       >
-        <div className="pointer-events-auto max-w-[92vw] overflow-x-auto no-scrollbar px-2 py-1" style={halo}>
+        {/* A small, subtle pill behind the bottom strip (no heavy blur) keeps it
+            legible over the lyrics without dominating. */}
+        <div
+          className="pointer-events-auto max-w-[92vw] overflow-x-auto no-scrollbar rounded-full border px-3 py-1 shadow-sm"
+          style={{
+            color: 'var(--chart-text, var(--ds-gray-1000))',
+            background: 'color-mix(in srgb, var(--chart-bg, #000) 80%, transparent)',
+            borderColor: 'var(--chart-header-border, var(--ds-gray-400))',
+          }}
+        >
           {children}
         </div>
       </div>

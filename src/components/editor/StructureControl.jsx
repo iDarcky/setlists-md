@@ -36,7 +36,10 @@ export default function StructureControl({ mode, value, sections, customSectionT
         aria-label="Custom slide order"
         className="accent-[var(--color-brand)] shrink-0 cursor-pointer"
       />
-      <div className="flex-1 flex items-center gap-1 overflow-x-auto min-w-0">
+      {/* Chips size to content (not flex-1) so "Edit order" sits right next to
+          them; a trailing spacer keeps the group left and pushes anything after
+          the control (e.g. the Arrange customize icon) to the far right. */}
+      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0">
         {playOrder.length ? playOrder.map((name, i) => {
           const st = sectionStyle(name, null, customSectionTypes);
           const Tag = onJump ? 'button' : 'span';
@@ -64,6 +67,7 @@ export default function StructureControl({ mode, value, sections, customSectionT
           autoSeed={false}
         />
       )}
+      <div className="flex-1" />
     </div>
   );
 }
