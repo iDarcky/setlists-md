@@ -61,11 +61,37 @@ export default function ChordAutocomplete({
 
   const anchored = !!anchorRect;
   const top = dock === 'top';
+  // When anchored, render a compact popup positioned at the cursor (clamped into
+  // the viewport) rather than a full-width docked bar.
+  const winW = typeof window !== 'undefined' ? window.innerWidth : 1024;
+  const winH = typeof window !== 'undefined' ? window.innerHeight : 768;
+  const popupW = Math.min(380, winW - 16);
+  const popupLeft = anchored ? Math.max(8, Math.min(anchorRect.left ?? 0, winW - popupW - 8)) : 0;
+  // Flip the popup above the cursor when it sits in the lower part of the screen
+  // so it doesn't fall off the bottom.
+  const anchorTop = anchored ? (anchorRect.top ?? anchorRect.bottom) : 0;
+  const placeAbove = anchored && anchorTop > winH * 0.55;
   return createPortal((
+    <>
+      {anchored && (
+        <button
+          type="button"
+          aria-label="Close chord picker"
+          tabIndex={-1}
+          onClick={onClose}
+          className="fixed inset-0 z-[119] bg-transparent border-none cursor-default"
+        />
+      )}
     <div
-      className={`fixed left-0 right-0 z-[120] bg-[var(--ds-background-100)] ${anchored || top ? 'border-b border-[var(--ds-gray-300)] shadow-[0_8px_24px_rgba(0,0,0,0.35)]' : 'bottom-0 border-t border-[var(--ds-gray-300)] shadow-[0_-8px_24px_rgba(0,0,0,0.35)]'} ${!anchored && top ? 'top-0' : ''}`}
+      className={anchored
+        ? 'fixed z-[120] bg-[var(--ds-background-100)] rounded-xl border border-[var(--ds-gray-300)] shadow-[0_8px_24px_rgba(0,0,0,0.35)] overflow-hidden'
+        : `fixed left-0 right-0 z-[120] bg-[var(--ds-background-100)] ${top ? 'top-0 border-b border-[var(--ds-gray-300)] shadow-[0_8px_24px_rgba(0,0,0,0.35)]' : 'bottom-0 border-t border-[var(--ds-gray-300)] shadow-[0_-8px_24px_rgba(0,0,0,0.35)]'}`}
       style={{
-        ...(anchored ? { top: Math.round(anchorRect.bottom + 4) } : top ? { top: 0, paddingTop: 'env(safe-area-inset-top, 0px)' } : { paddingBottom: 'env(safe-area-inset-bottom, 0px)' }),
+        ...(anchored
+          ? (placeAbove
+              ? { bottom: Math.round(winH - anchorTop + 4), left: popupLeft, width: popupW, maxHeight: '62vh', overflowY: 'auto' }
+              : { top: Math.round(anchorRect.bottom + 4), left: popupLeft, width: popupW, maxHeight: '62vh', overflowY: 'auto' })
+          : top ? { top: 0, paddingTop: 'env(safe-area-inset-top, 0px)' } : { paddingBottom: 'env(safe-area-inset-bottom, 0px)' }),
         animation: 'pop-in 120ms ease-out',
       }}
     >
@@ -153,5 +179,6 @@ export default function ChordAutocomplete({
         })}
       </div>
     </div>
+    </>
   ), document.body);
 }

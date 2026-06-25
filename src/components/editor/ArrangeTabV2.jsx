@@ -431,12 +431,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   // ─── Chord entry ─── Tap a lyric position (or a chord) to arm it; the
   // full-width bottom bar handles entry on every device.
-  const openAddChord = useCallback((secIdx, lineIdx, charPos) => {
-    setEntry({ secIdx, lineIdx, charPos, chordIdx: null, initial: '' });
+  const openAddChord = useCallback((secIdx, lineIdx, charPos, clientX, clientY) => {
+    setEntry({ secIdx, lineIdx, charPos, chordIdx: null, initial: '', anchor: clientX != null ? { x: clientX, y: clientY } : null });
   }, []);
-  const openEditChord = useCallback((secIdx, lineIdx, chordIdx) => {
+  const openEditChord = useCallback((secIdx, lineIdx, chordIdx, clientX, clientY) => {
     const cur = placements[secIdx]?.lines[lineIdx]?.chords?.[chordIdx]?.chord || '';
-    setEntry({ secIdx, lineIdx, charPos: null, chordIdx, initial: cur });
+    setEntry({ secIdx, lineIdx, charPos: null, chordIdx, initial: cur, anchor: clientX != null ? { x: clientX, y: clientY } : null });
   }, [placements]);
 
   const placeChordAt = useCallback((target, chord) => {
@@ -481,7 +481,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     })));
   }, [applyMutation]);
 
-  const appendChord = useCallback((secIdx, lineIdx) => {
+  const appendChord = useCallback((secIdx, lineIdx, clientX, clientY) => {
     const line = placements[secIdx]?.lines[lineIdx];
     const pos = ((line?.chords?.length) || 0) * 4;
     // ensure text is padded so the chord round-trips
@@ -491,7 +491,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
         ? { ...ln, plainText: ' '.repeat(pos + 1) }
         : ln),
     })));
-    setEntry({ secIdx, lineIdx, chordIdx: null, charPos: pos, initial: '' });
+    setEntry({ secIdx, lineIdx, chordIdx: null, charPos: pos, initial: '', anchor: clientX != null ? { x: clientX, y: clientY } : null });
   }, [placements, applyMutation]);
 
   // ─── Section operations ───
@@ -939,6 +939,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
           editing={entry.chordIdx != null}
           songKey={song.key}
           recents={recentChords}
+          // On a fine pointer (mouse/trackpad) show the picker as a popup right at
+          // the clicked chord/position; on touch keep the full-width bottom bar so
+          // the on-screen keyboard doesn't cover it.
+          anchorRect={(entry.anchor && typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches)
+            ? { left: entry.anchor.x, top: entry.anchor.y, bottom: entry.anchor.y }
+            : null}
           onCommit={commitChord}
           onRemove={entry.chordIdx != null ? () => removeChordAt(entry.secIdx, entry.lineIdx, entry.chordIdx) : null}
           onClose={() => setEntry(null)}
