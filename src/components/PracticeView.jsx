@@ -6,6 +6,7 @@ import SongMap from './SongMap';
 import { TAB_INSTRUMENTS } from './editor/tabInstruments';
 import ChordDiagram from './ChordDiagram';
 import { StructureRibbon } from './StructureRibbon';
+import StructureDock from './ui/StructureDock';
 import FloatingNavPill from './ui/FloatingNavPill';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
@@ -394,11 +395,34 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     </div>
   );
 
+  // Structure ribbon placement (Settings → Structure position).
+  const structurePos = settings?.structurePosition || 'top';
+  const ribbonSide = structurePos === 'left' || structurePos === 'right';
+  const ribbonNode = (!cur.isBreak && !cur.isMissing && cur.song.sections?.length > 0) ? (
+    <StructureRibbon
+      structure={cur.song.structure || cur.song.sections.map(s => s.type)}
+      compact
+      wrap={ribbonSide}
+      activeIndex={activeSection}
+      style={settings?.ribbonStyle || 'chips'}
+      onSelect={(i) => {
+        const struct = cur.song.structure || cur.song.sections.map(s => s.type);
+        const name = struct[i];
+        const sectionIdx = cur.song.sections.findIndex(s => s.type === name);
+        if (sectionIdx !== -1) {
+          const el = document.getElementById(`practice-section-${sectionIdx}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }}
+    />
+  ) : null;
+
   return (
     <div
       className="h-full flex overflow-hidden"
       style={{ background: 'var(--chart-bg, var(--ds-background-100))' }}
     >
+    {structurePos === 'left' && ribbonNode && <StructureDock position="left">{ribbonNode}</StructureDock>}
     <div
       ref={scrollRef}
       onTouchStart={onTouchStart}
@@ -468,23 +492,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           </>
         ) : null}
         actions={headerControls}
-        ribbon={!cur.isBreak && !cur.isMissing && cur.song.sections?.length > 0 ? (
-          <StructureRibbon
-            structure={cur.song.structure || cur.song.sections.map(s => s.type)}
-            compact
-            activeIndex={activeSection}
-            style={settings?.ribbonStyle || 'chips'}
-            onSelect={(i) => {
-              const struct = cur.song.structure || cur.song.sections.map(s => s.type);
-              const name = struct[i];
-              const sectionIdx = cur.song.sections.findIndex(s => s.type === name);
-              if (sectionIdx !== -1) {
-                const el = document.getElementById(`practice-section-${sectionIdx}`);
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }
-            }}
-          />
-        ) : null}
+        ribbon={structurePos === 'top' ? ribbonNode : null}
       />
 
       {/* ── Content ── */}
@@ -573,6 +581,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           hasPrev={idx > 0}
           hasNext={idx < resolved.length - 1}
           onFinish={onFinish ? handleFinish : undefined}
+          onOpenSetlist={railEnabled ? (showRail ? () => setRailOpen(o => !o) : () => setSetlistSheetOpen(true)) : undefined}
         />
       )}
       {navStyle === 'edge' && (
@@ -586,7 +595,12 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           prevLabel={idx > 0 ? (resolved[idx - 1]?.isBreak ? (resolved[idx - 1].label || 'Break') : resolved[idx - 1]?.song?.title) : undefined}
         />
       )}
+      {structurePos === 'bottom' && ribbonNode && (
+        <StructureDock position="bottom">{ribbonNode}</StructureDock>
+      )}
     </div>
+
+    {structurePos === 'right' && ribbonNode && <StructureDock position="right">{ribbonNode}</StructureDock>}
 
     {/* ── Parallel-browsing setlist rail (tablet landscape) ── */}
     {showRail && (

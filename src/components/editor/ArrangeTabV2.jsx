@@ -504,11 +504,20 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   // ─── Section operations ───
   const labelFor = useCallback((base, count) => `${base} ${count + 1}`, []);
 
-  // Emit a new section list and keep `structure` mirroring section order, so the
-  // chart/performance views (which follow `structure`) reflect Arrange edits.
+  // Emit a new section list. In "auto" mode we keep `structure` mirroring
+  // section order, so the chart/performance views reflect Arrange edits. In
+  // "custom" mode the user owns the slide order, so we leave `structure` alone
+  // but reconcile it: drop entries whose section type no longer exists (a
+  // deleted section can't dangle in the play order).
   const emitSections = useCallback((sections) => {
     if (!song) return;
-    emitSong({ ...song, sections, structure: sections.map(s => s.type) });
+    if (song.structureMode === 'custom') {
+      const live = new Set(sections.map(s => s.type));
+      const structure = (song.structure || []).filter(name => live.has(name));
+      emitSong({ ...song, sections, structure });
+    } else {
+      emitSong({ ...song, sections, structure: sections.map(s => s.type) });
+    }
   }, [song, emitSong]);
 
   const addSection = useCallback((base = 'Verse') => {

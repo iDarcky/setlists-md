@@ -12,6 +12,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import { cn } from '../lib/utils';
 import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { StructureRibbon } from './StructureRibbon';
+import StructureDock from './ui/StructureDock';
 import ViewModePicker from './ui/ViewModePicker';
 import { useActiveSection } from '../hooks/useActiveSection';
 import { useStageHeaderCollapse } from '../hooks/useStageHeaderCollapse';
@@ -269,6 +270,9 @@ export default function ChartView({
   // would hide the duplicates, so we fall back to document order. That
   // preserves the pre-structure-rework behaviour for legacy songs.
   const orderedSections = useMemo(() => {
+    // "auto" songs always follow document (section) order, so Arrange edits
+    // flow straight through. Only a "custom" slide order consults structure[].
+    if (song.structureMode !== 'custom') return song.sections;
     const types = song.sections.map(s => normalizeSectionName(s.type));
     const uniqueTypes = new Set(types).size === types.length;
     if (
@@ -286,7 +290,7 @@ export default function ChartView({
     // rather than partially hiding the song.
     if (resolved.length !== song.structure.length) return song.sections;
     return resolved;
-  }, [song.structure, song.sections]);
+  }, [song.structure, song.structureMode, song.sections]);
 
   // Cumulative modulate offsets follow playback order so a repeated
   // section after a `{modulate}` block plays back in the new key.
@@ -378,16 +382,38 @@ export default function ChartView({
     <p className="text-copy-13 text-[var(--text-2)] italic m-0">No additional song info</p>
   );
 
-  return (
+  // Where the structure ribbon lives. Previews always keep it on top. When the
+  // user docks it left/right it renders vertically (wrap); bottom is a sticky
+  // band. Non-top placements drop the ribbon from the header.
+  const structurePos = isPreview ? 'top' : (settings?.structurePosition || 'top');
+  const ribbonSide = structurePos === 'left' || structurePos === 'right';
+  const ribbonNode = (
+    <StructureRibbon
+      structure={orderedSections.map(s => s.type)}
+      compact
+      wrap={ribbonSide}
+      activeIndex={activeSection}
+      style={settings?.ribbonStyle || 'chips'}
+      sectionColors={settings?.sectionColors}
+      sectionLabels={settings?.sectionLabels}
+      customSectionTypes={settings?.customSectionTypes}
+      onSelect={(i) => {
+        const el = document.getElementById(`section-${i}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }}
+    />
+  );
+
+  const scroller = (
     <div
       ref={scrollContainerRef}
       onClick={isPreview ? undefined : revealHeader}
-      style={CHART_THEME_STYLE}
+      style={ribbonSide ? undefined : CHART_THEME_STYLE}
       className={cn(
         // h-full (not 100dvh) so the chart fills its parent slot and owns the
         // *only* scrollbar — `<main>` already scrolls, and 100dvh overflowed it
         // by the header's height, producing a second scrollbar.
-        "h-full overflow-y-auto overflow-x-hidden",
+        ribbonSide ? "flex-1 min-h-0 overflow-y-auto overflow-x-hidden" : "h-full overflow-y-auto overflow-x-hidden",
         isPreview && "px-4 py-4"
       )}
     >
@@ -516,21 +542,7 @@ export default function ChartView({
               </IconButton>
             </div>
           )}
-          ribbon={(
-            <StructureRibbon
-              structure={orderedSections.map(s => s.type)}
-              compact
-              activeIndex={activeSection}
-              style={settings?.ribbonStyle || 'chips'}
-              sectionColors={settings?.sectionColors}
-              sectionLabels={settings?.sectionLabels}
-              customSectionTypes={settings?.customSectionTypes}
-              onSelect={(i) => {
-                const el = document.getElementById(`section-${i}`);
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-            />
-          )}
+          ribbon={structurePos === 'top' ? ribbonNode : null}
           info={showInfo && (
             <div className="wide-container pb-2 mt-1 max-h-[40vh] overflow-y-auto border-t border-[var(--border-1)] pt-2">
               {songInfoBody}
@@ -839,6 +851,22 @@ export default function ChartView({
           ))}
         </div>
       </div>
+      {structurePos === 'bottom' && (
+        <StructureDock position="bottom">{ribbonNode}</StructureDock>
+      )}
+    </div>
+  );
+
+  if (!ribbonSide) return scroller;
+
+  // Left/right: flank the scroller with a vertical ribbon rail. The theme
+  // background lives on the flex wrapper so both the rail and the scroller sit
+  // on the chart colour.
+  return (
+    <div className="h-full flex flex-row overflow-hidden" style={CHART_THEME_STYLE}>
+      {structurePos === 'left' && <StructureDock position="left">{ribbonNode}</StructureDock>}
+      {scroller}
+      {structurePos === 'right' && <StructureDock position="right">{ribbonNode}</StructureDock>}
     </div>
   );
 }

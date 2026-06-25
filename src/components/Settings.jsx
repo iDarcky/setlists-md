@@ -508,6 +508,29 @@ function ChartPanel({ settings, update }) {
           })}
         </div>
       </Row>
+      <Row label="Structure position" description="Where the section flow ribbon sits in chart, practice & live: top of the header, pinned to the bottom, or a vertical rail on the left or right.">
+        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+          {[
+            { key: 'top', label: 'Top' },
+            { key: 'bottom', label: 'Bottom' },
+            { key: 'left', label: 'Left' },
+            { key: 'right', label: 'Right' },
+          ].map(({ key, label }) => {
+            const active = (settings.structurePosition || 'top') === key;
+            return (
+              <Button
+                key={key}
+                size="sm"
+                variant={active ? 'secondary' : 'ghost'}
+                onClick={() => update('structurePosition', key)}
+                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </div>
+      </Row>
       <Row label="Tab grid resolution" description="Default subdivisions when creating a new tab. Beats only keeps it simple; finer grids allow 8th/16th-note detail.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
           {[

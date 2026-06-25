@@ -186,6 +186,25 @@ export function normalizeSectionName(name) {
     .toLowerCase();
 }
 
+// Whether a saved structure[] is merely the sections listed in document order
+// (so it can follow Arrange edits automatically, "auto" mode) versus a
+// hand-tuned custom slide order that reorders/repeats/omits sections ("custom").
+// `structure` is an array of section names; `sections` is the section objects
+// (or names). An empty/absent structure trivially follows the sections.
+export function structureFollowsSections(structure, sections) {
+  if (!Array.isArray(structure) || structure.length === 0) return true;
+  const secTypes = (sections || []).map(s => normalizeSectionName(typeof s === 'string' ? s : s?.type));
+  if (structure.length !== secTypes.length) return false;
+  return structure.every((n, i) => normalizeSectionName(typeof n === 'string' ? n : n?.type) === secTypes[i]);
+}
+
+// Infer the structure mode for a song that has no explicit `structureMode`
+// stored yet (the migration path): "custom" only when the saved order already
+// differs from document order, otherwise "auto".
+export function inferStructureMode(structure, sections) {
+  return structureFollowsSections(structure, sections) ? 'auto' : 'custom';
+}
+
 // Compact label for live mode (e.g. "Chorus 1" → "C1", "Pre Chorus" → "Pc")
 export function compactLabel(name) {
   const num = name.match(/(\d+)$/)?.[1] || '';

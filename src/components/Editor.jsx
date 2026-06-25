@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import ChartView from './ChartView';
 import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields, EXTRA_META_KEYS } from '../parser';
-import { ALL_KEYS_ALL, transposeChord, semitonesBetween } from '../music';
+import { ALL_KEYS_ALL, transposeChord, transposeKey } from '../music';
 import { isChordToken } from '../importer';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
 import { importChartText } from '../lib/importChords';
@@ -22,6 +22,7 @@ import { toast } from './ui/use-toast';
 import { useConfirm } from './ui/useConfirmHook';
 import { headerFrostStyle } from '../lib/headerFrost';
 import { useResizablePane } from '../lib/useResizablePane';
+import { usePersistentView } from '../lib/usePersistentView';
 
 // The two edit modes. Arrange (visual) is the primary canvas; Source is the
 // raw-markdown power-user escape hatch — hence the compact </> label.
@@ -112,10 +113,12 @@ function TimeSignatureControl({ value, onChange }) {
   );
 }
 
+// New songs start with title + key blank on purpose — both are required
+// before the song can be saved, so we don't silently default the key to C.
 const DEFAULT_MD = `---
 title:
 artist:
-key: C
+key:
 ---
 
 ## Verse 1
@@ -185,9 +188,12 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   // global display settings — they only restyle this editor's preview pane so
   // you can sanity-check layout without changing how charts read elsewhere.
   const [previewOptsOpen, setPreviewOptsOpen] = useState(false);
-  const [previewCols, setPreviewCols] = useState(
-    () => (chartDefaults.settings?.defaultColumns === 2 ? 2 : 1),
-  );
+  // Preview columns default to 1 and persist per-device (not synced) — the
+  // editor preview is a layout sanity-check, independent of global chart
+  // defaults, so it shouldn't inherit a 2-column reading preference.
+  const [previewColsRaw, setPreviewColsRaw] = usePersistentView('setlists-md:editor-preview-cols', '1');
+  const previewCols = previewColsRaw === '2' ? 2 : 1;
+  const setPreviewCols = (n) => setPreviewColsRaw(String(n));
   const [previewLyricSize, setPreviewLyricSize] = useState(
     () => (typeof chartDefaults.settings?.defaultFontSize === 'number' ? chartDefaults.settings.defaultFontSize : 16),
   );
@@ -197,6 +203,15 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   const [previewLinkSizes, setPreviewLinkSizes] = useState(true);
   const [editArrangementsOpen, setEditArrangementsOpen] = useState(false);
   const [promptConfig, setPromptConfig] = useState(null);
+  // One-time inline explainer teaching how the structure (slide order) works.
+  // Device-local flag, never synced — follows the helpPageSeen precedent.
+  const [structureTipSeen, setStructureTipSeen] = useState(() => {
+    try { return localStorage.getItem('setlists-md:structure-tip-seen') === '1'; } catch { return false; }
+  });
+  const dismissStructureTip = useCallback(() => {
+    setStructureTipSeen(true);
+    try { localStorage.setItem('setlists-md:structure-tip-seen', '1'); } catch { /* private mode */ }
+  }, []);
   const textareaRef = useRef(null);
   const isDirty = md !== savedMd;
 
@@ -229,6 +244,20 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
 
   const handleSave = useCallback(async () => {
     if (!preview) return;
+    // Guardrail: a song must have a title and a key before it can be saved.
+    // Read straight from the frontmatter so a blank key isn't masked by the
+    // parser's 'C' default.
+    const fm = parseFrontmatterFields(splitMd(md).frontmatter);
+    const hasTitle = !!(fm.title || '').trim();
+    const hasKey = !!(fm.key || '').trim();
+    if (!hasTitle || !hasKey) {
+      toast({
+        title: 'Almost there',
+        description: !hasTitle && !hasKey ? 'Add a title and key first.' : !hasTitle ? 'Add a title first.' : 'Add a key first.',
+        variant: 'error',
+      });
+      return;
+    }
     // Build the next v2 song by patching the active arrangement's content
     // from the freshly parsed preview, plus carrying over the song-level
     // fields the preview frontmatter exposes (title/artist/etc).
@@ -240,6 +269,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
       capo: preview.capo,
       notes: preview.notes,
       structure: Array.isArray(preview.structure) ? preview.structure : a.structure,
+      structureMode: preview.structureMode || 'auto',
       sections: Array.isArray(preview.sections) ? preview.sections : a.sections,
       tabLibrary: Array.isArray(preview.tabLibrary) ? preview.tabLibrary : a.tabLibrary,
     }));
@@ -420,14 +450,48 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     () => parseFrontmatterFields(splitMd(md).frontmatter),
     [md],
   );
-  const currentKey = fmFields.key || 'C';
+  const currentKey = fmFields.key || '';
   const currentTempo = fmFields.tempo ?? '';
   const currentTime = fmFields.time ?? '';
+
+  // New-song guardrails: title + key are mandatory before a save is allowed,
+  // and we softly nudge for tempo/time (never blocking). These read the raw
+  // frontmatter fields so a blank key isn't masked by the parser's 'C' default.
+  const titleSet = !!(fmFields.title || '').trim();
+  const keySet = !!currentKey.trim();
+  const canSave = titleSet && keySet;
+  const missingMetaHint = !titleSet && !keySet
+    ? 'Add a title and key to save'
+    : !titleSet
+      ? 'Add a title to save'
+      : !keySet
+        ? 'Add a key to save'
+        : null;
+  const showTempoTimeNudge = canSave && (!currentTempo || !currentTime);
 
   // Structure ribbon data (always-visible, edited via the frontmatter
   // `structure` field). availableSections is derived from the body's
   // `## Section` headers so the picker offers the song's real sections.
   const structureValue = fmFields.structure;
+  // Custom slide order (Proclaim-style) vs. auto (follows the arrangement
+  // order). Auto is the default; the md carries `structureMode: custom` only
+  // when the user has opted into a hand-tuned order.
+  const isCustomStructure = fmFields.structuremode === 'custom';
+  const setStructureMode = useCallback((custom) => {
+    const fields = parseFrontmatterFields(splitMd(md).frontmatter);
+    if (custom) {
+      fields.structuremode = 'custom';
+      // Seed from the current order (or document order) so the user starts
+      // from what they already see, then tweaks.
+      if (!fields.structure) fields.structure = availableSections.join(', ');
+    } else {
+      // Auto follows document order — reset the order to match the sections so
+      // it re-reads as auto (Arrange edits keep it mirrored from here).
+      fields.structuremode = '';
+      fields.structure = availableSections.join(', ');
+    }
+    setMd(replaceFrontmatter(md, serializeFrontmatterFields(fields)));
+  }, [md, availableSections]);
   const availableSections = useMemo(() => {
     const body = splitMd(md).body || '';
     const labels = [];
@@ -485,19 +549,26 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     }
   }, [md, confirm, setBody]);
 
-  // Change the song's key by transposing every stored chord to the new key
-  // (a committed transpose), not just relabelling. No-op intervals just set
-  // the key field. Only valid chord tokens inside [...] are rewritten.
+  // Changing the Key field is a *relabel only* — it records what key the song
+  // is written in and never touches the chords the user typed. (A composer who
+  // notices the song is actually in D, not C, can fix the label without their
+  // chords being rewritten into the wrong key.) Moving the actual chords is the
+  // separate, explicit `transposeAllChords` action below.
   const changeSongKey = useCallback((targetKey) => {
-    const from = fmFields.key || 'C';
-    const semis = semitonesBetween(from, targetKey);
-    if (!semis) { updateField('key', targetKey); return; }
+    updateField('key', targetKey);
+  }, [updateField]);
+
+  // Explicit, committed transpose: rewrite every stored chord token by `semis`
+  // and shift the key label to match. This is the deliberate "move everything"
+  // action, kept distinct from the Key label so it's never triggered by accident.
+  const transposeAllChords = useCallback((semis) => {
+    if (!semis) return;
     const { frontmatter, body } = splitMd(md);
     const newBody = body.replace(/\[([^\]]+)\]/g, (m, ch) => (isChordToken(ch) ? `[${transposeChord(ch, semis)}]` : m));
     const fields = parseFrontmatterFields(frontmatter);
-    fields.key = targetKey;
+    if (fields.key) fields.key = transposeKey(fields.key, semis);
     setMd(`---\n${serializeFrontmatterFields(fields)}\n---\n\n${newBody.replace(/^\n+/, '')}`);
-  }, [md, fmFields.key, updateField]);
+  }, [md]);
 
   // Render active tab content
   const renderTab = () => {
@@ -510,7 +581,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
             textareaRef={textareaRef}
             customSectionTypes={customSectionTypes}
             time={currentTime || '4/4'}
-            songKey={currentKey}
+            songKey={currentKey || 'C'}
             onUndo={handleUndo}
             onRedo={handleRedo}
             onImport={handleImport}
@@ -555,14 +626,22 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
         <Select value={currentKey} onValueChange={changeSongKey}>
           <SelectTrigger
             aria-label="Key"
-            className="h-8 w-auto gap-1 px-2 text-label-12 font-mono bg-[var(--ds-gray-100)]"
+            className={`h-8 w-auto gap-1 px-2 text-label-12 font-mono bg-[var(--ds-gray-100)] ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
           >
-            <SelectValue />
+            <SelectValue placeholder="Key?" />
           </SelectTrigger>
           <SelectContent className="font-mono">
             {ALL_KEYS_ALL.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
           </SelectContent>
         </Select>
+        {/* Explicit transpose: moves the actual chords (and the key label) by a
+            semitone. Separate from the Key field so relabelling never rewrites
+            the user's chords. */}
+        <div className="flex items-center rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] overflow-hidden">
+          <IconButton variant="ghost" size="xs" aria-label="Transpose down a semitone" title="Transpose down" onClick={() => transposeAllChords(-1)}>−</IconButton>
+          <span className="px-1 text-label-10 uppercase tracking-wide text-[var(--ds-gray-600)] select-none">Tr</span>
+          <IconButton variant="ghost" size="xs" aria-label="Transpose up a semitone" title="Transpose up" onClick={() => transposeAllChords(1)}>+</IconButton>
+        </div>
         <input
           type="number"
           value={currentTempo}
@@ -772,15 +851,53 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           </div>
         )}
 
-        {/* Row 2: structure summary (opens a focused sheet to edit) */}
-        <div className="px-3 sm:px-4 pb-2">
-          <StructureEditor
-            value={structureValue}
-            availableSections={availableSections}
-            onChange={(next) => updateField('structure', next)}
-            autoSeed={false}
-          />
+        {/* Row 2: structure. A toggle picks auto (follows the arrangement
+            order) vs. a custom, hand-tuned slide order; the editor only shows
+            when custom. */}
+        <div className="px-3 sm:px-4 pb-2 flex items-center gap-3 min-w-0">
+          <label
+            className="flex items-center gap-1.5 shrink-0 text-label-11 font-medium text-[var(--ds-gray-700)] cursor-pointer select-none"
+            title="When off, the play order follows your arrangement. When on, you set a custom slide order (repeat, reorder, or skip sections)."
+          >
+            <input
+              type="checkbox"
+              checked={isCustomStructure}
+              onChange={(e) => setStructureMode(e.target.checked)}
+              className="accent-[var(--color-brand)]"
+            />
+            Custom slide order
+          </label>
+          {isCustomStructure ? (
+            <StructureEditor
+              value={structureValue}
+              availableSections={availableSections}
+              onChange={(next) => updateField('structure', next)}
+              autoSeed={false}
+            />
+          ) : (
+            <span className="text-label-11 text-[var(--ds-gray-500)] italic truncate">
+              Follows the arrangement order
+            </span>
+          )}
         </div>
+        {!structureTipSeen && (
+          <div className="mx-3 sm:mx-4 mb-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-100)] flex items-start gap-2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5 text-[var(--color-brand-text)]"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
+            <p className="flex-1 text-label-11 text-[var(--ds-gray-700)] leading-snug">
+              <span className="font-semibold text-[var(--ds-gray-1000)]">Structure</span> is the order your sections play.
+              Leave <span className="font-semibold">Custom slide order</span> off and it follows the sections as you arrange them.
+              Turn it on to repeat, reorder, or skip sections (e.g. Verse · Chorus · Chorus) without changing the song itself.
+            </p>
+            <button
+              type="button"
+              onClick={dismissStructureTip}
+              aria-label="Dismiss tip"
+              className="shrink-0 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer p-0.5"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+          </div>
+        )}
 
         {/* Row 3: edit-mode tabs (Arrange / Advanced / Tabs), left-aligned */}
         <div className="px-1 sm:px-2">
@@ -895,9 +1012,20 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           WebkitBackdropFilter: 'blur(20px)',
         }}
       >
-        <div className="w-full px-5 py-3 flex items-center justify-end gap-2">
+        <div className="w-full px-5 py-3 flex items-center justify-end gap-3">
+          {!readOnly && missingMetaHint && (
+            <span className="text-label-11 text-[var(--ds-amber-700,#b45309)] mr-auto flex items-center gap-1.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+              {missingMetaHint}
+            </span>
+          )}
+          {!readOnly && !missingMetaHint && showTempoTimeNudge && (
+            <span className="text-label-11 text-[var(--ds-gray-600)] mr-auto italic">
+              Tip: add tempo &amp; time so the song shows its feel.
+            </span>
+          )}
           <Button variant="ghost" size="md" onClick={handleBack}>{readOnly ? 'Back' : 'Cancel'}</Button>
-          {!readOnly && <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave}>Save</Button>}
+          {!readOnly && <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave || !canSave}>Save</Button>}
         </div>
       </div>
 

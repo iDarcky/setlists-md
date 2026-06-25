@@ -415,4 +415,34 @@ describe('edge cases', () => {
     expect(song.key).toBe('F#');
     expect(song.sections[0].lines[0]).toContain('[Eb]');
   });
+
+  describe('structureMode (auto vs custom slide order)', () => {
+    it('infers auto when structure follows document order', () => {
+      const md = `---\ntitle: T\nstructure: [Verse 1, Chorus 1]\n---\n## Verse 1\na\n## Chorus 1\nb`;
+      const song = parseSongMd(md);
+      expect(song.structureMode).toBe('auto');
+      // Auto never bakes the explicit flag.
+      expect(songToMd(song)).not.toContain('structureMode');
+    });
+
+    it('infers custom when the saved order differs from document order', () => {
+      const md = `---\ntitle: T\nstructure: [Chorus 1, Verse 1, Chorus 1]\n---\n## Verse 1\na\n## Chorus 1\nb`;
+      const song = parseSongMd(md);
+      expect(song.structureMode).toBe('custom');
+      expect(songToMd(song)).toContain('structureMode: custom');
+    });
+
+    it('honours an explicit structureMode flag and round-trips it', () => {
+      const md = `---\ntitle: T\nstructure: [Verse 1, Chorus 1]\nstructureMode: custom\n---\n## Verse 1\na\n## Chorus 1\nb`;
+      const song = parseSongMd(md);
+      expect(song.structureMode).toBe('custom');
+      expect(songToMd(song)).toContain('structureMode: custom');
+    });
+
+    it('round-trips the flag through the form-field helpers', () => {
+      const fields = parseFrontmatterFields('title: T\nstructure: [Verse 1, Chorus 1]\nstructureMode: custom');
+      expect(fields.structuremode).toBe('custom');
+      expect(serializeFrontmatterFields(fields)).toContain('structureMode: custom');
+    });
+  });
 });

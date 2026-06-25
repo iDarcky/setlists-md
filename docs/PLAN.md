@@ -177,6 +177,38 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Instrument **role profiles** (vocalist/guitar/bass/keys/drums views); drummer counts,
   piano voicings, bass-root emphasis; section-loop rehearsals; quick-key switchers.
 
+#### Reading-view split — design direction (next milestone after 0.14)
+Split today's two reading surfaces (`ChartView`, `PerformanceView`) into **four
+intents**, each tuned to a job rather than re-skinned from the same kitchen-sink
+sheet:
+- **Chart** — the library default. Balanced, full controls; what you get when you
+  open a song. (≈ today's `ChartView`.)
+- **Live** — maximum focus, minimum chrome. Fewest distractions mid-service: big
+  type, collapsed header, no style rabbit-holes. (≈ today's `PerformanceView` /
+  `PerformanceLayoutSheet variant="live"`.)
+- **Rehearsal** — the most customization, surfaced the *easiest*. Group practice
+  tied to a setlist; quick role/notation/column switchers, section jumps,
+  per-member notes visible.
+- **Practice** — solo, at-home. Encourages practice: loop a section, metronome,
+  slow-down, log minutes → dashboard practice-time widget.
+
+Open questions to resolve when this is picked up:
+- **Which display knobs per view?** Live should expose the fewest; Rehearsal the
+  most. Decide the per-view allow-list (notation, columns, font, role, style,
+  spacing, tab-instrument, display-mode).
+- **Is structure shown per view?** The structure ribbon is now position-aware
+  (top/left/right/bottom via `settings.structurePosition`, shared `StructureDock`).
+  Decide whether some views (e.g. Live) hide it by default or pin it elsewhere.
+- **Consolidate the duplicated controllers.** `ChartView` / `PerformanceView` /
+  `PracticeView` each re-implement the same font-size / display-mode /
+  tab-instrument / notation state + persist pattern. Extract a shared display
+  controller (build on `lib/chartDisplay.js` + `PerformanceLayoutSheet.jsx`) so a
+  view is "shell + an allow-list of knobs", not a fork.
+
+_Shipped groundwork (this cycle): configurable structure position + `StructureDock`,
+chart-themed floating pill, the per-arrangement auto/custom slide-order toggle, and
+editor key-relabel/explicit-transpose separation — see §5._
+
 ### Interop & import
 - **PCO (Planning Center) bridge**, **OnSong `.onsong` archive import**, **SongSelect `.usr`**,
   **PDF-to-Markdown** best-effort engine, a **Migration Hub** onboarding screen.

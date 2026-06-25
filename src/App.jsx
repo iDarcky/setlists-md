@@ -124,6 +124,7 @@ const PORTABLE_PREF_KEYS = [
   'displayMode',
   'autoHideHeader',
   'ribbonStyle',
+  'structurePosition',
   'dashboardWidgetOrder',
   'dashboardHidden',
   'landingView',

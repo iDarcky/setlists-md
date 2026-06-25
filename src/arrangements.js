@@ -8,6 +8,7 @@
 // working unchanged when their callers wrap the song with this helper.
 
 import { generateId, EXTRA_META_FIELDS } from './parser.js';
+import { inferStructureMode } from './music.js';
 
 const EXTRA_KEYS = EXTRA_META_FIELDS.map(([k]) => k);
 
@@ -51,6 +52,9 @@ export function resolveSongView(song, arrangementId) {
     capo: arr.capo || 0,
     notes: arr.notes || '',
     structure: arr.structure || [],
+    // Honour an explicit stored mode; otherwise infer it (migrates older
+    // stored arrangements at read time: custom only if order already differs).
+    structureMode: arr.structureMode || inferStructureMode(arr.structure, arr.sections),
     sections: arr.sections || [],
     tabLibrary: arr.tabLibrary || [],
     updatedAt: arr.updatedAt || song.updatedAt,
@@ -91,6 +95,7 @@ export function addArrangement(song, name, base) {
     capo: seed?.capo || 0,
     notes: seed?.notes || '',
     structure: Array.isArray(seed?.structure) ? clone(seed.structure) : [],
+    structureMode: seed?.structureMode || 'auto',
     sections: Array.isArray(seed?.sections) ? clone(seed.sections) : [],
     tabLibrary: Array.isArray(seed?.tabLibrary) ? clone(seed.tabLibrary) : [],
     updatedAt: Date.now(),
@@ -155,6 +160,11 @@ export function songFromFlat(flat) {
       capo: flat.capo || 0,
       notes: flat.notes || '',
       structure: Array.isArray(flat.structure) ? flat.structure : [],
+      // Carry an explicit mode when the flat source (parsed .md) already has
+      // one; otherwise infer it so existing songs migrate to custom only when
+      // their saved order already differs from document order.
+      structureMode: flat.structureMode
+        || inferStructureMode(Array.isArray(flat.structure) ? flat.structure : [], flat.sections),
       sections: Array.isArray(flat.sections) ? flat.sections : [],
       tabLibrary: Array.isArray(flat.tabLibrary) ? flat.tabLibrary : [],
       updatedAt: Date.now(),

@@ -278,6 +278,9 @@ export const DEFAULT_SETTINGS = {
   displayRole: 'leader',
   duplicateSections: 'full',
   chartLayout: 'columns',
+  // Where the structure (section flow) ribbon sits in reading views:
+  // 'top' (default, in the header), 'bottom', 'left', or 'right'.
+  structurePosition: 'top',
   firstDayOfWeek: 'sunday',
   clockFormat: '12h',
   helpPageSeen: false,
