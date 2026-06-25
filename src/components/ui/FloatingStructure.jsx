@@ -12,12 +12,14 @@ const bottomSurface = {
   WebkitBackdropFilter: 'blur(20px)',
 };
 
-export default function FloatingStructure({ position, children }) {
+// `raised` lifts the bottom strip above the floating nav pill; without a pill
+// it drops down to the bottom edge so it doesn't float in empty space.
+export default function FloatingStructure({ position, children, raised = false }) {
   if (position === 'bottom') {
     return (
       <div
         className="fixed left-0 right-0 z-[95] flex justify-center pointer-events-none"
-        style={{ bottom: 'calc(6.25rem + env(safe-area-inset-bottom, 0px))' }}
+        style={{ bottom: `calc(${raised ? '6.25rem' : '1.5rem'} + env(safe-area-inset-bottom, 0px))` }}
       >
         <div
           className="pointer-events-auto max-w-[92vw] overflow-x-auto no-scrollbar rounded-full border shadow-lg px-2 py-1"

@@ -605,9 +605,9 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
       case 'tabs':
         return <TabsTab md={md} onChange={setMd} subdivision={chartDefaults.settings?.tabSubdivision || 1} />;
       case 'arrange':
-        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} structureRow={structureRowEl} />;
+        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
       default:
-        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} structureRow={structureRowEl} />;
+        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
     }
   };
 

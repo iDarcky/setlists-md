@@ -53,7 +53,10 @@ export default function StageHeader({ collapsed = false, title, close, meta, act
           collapse-clip so its own scroll container works. */}
       {!collapsed && info}
 
-      {ribbon && (
+      {/* Render this row when there's a ribbon OR when collapsed and we need the
+          "show header" affordance — so a header with the structure ribbon moved
+          out (floating positions) can still be brought back. */}
+      {(ribbon || (collapsed && onExpand)) && (
         <div className={`wide-container flex items-center gap-2 ${collapsed ? 'py-1.5' : 'pb-2'}`}>
           <div className="min-w-0 flex-1">{ribbon}</div>
           {/* When collapsed, the title-row collapse toggle is hidden — keep an

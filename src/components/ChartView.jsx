@@ -391,9 +391,10 @@ export default function ChartView({
     <StructureRibbon
       structure={orderedSections.map(s => s.type)}
       compact
-      // Side rail: a slim vertical column of dots, repeats spelled out (no ×N).
+      // Side rail: a slim vertical column of dots + labels, repeats spelled out.
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
       collapse={!ribbonSide}
+      withLabels={ribbonSide}
       activeIndex={activeSection}
       style={ribbonSide ? 'dots' : (settings?.ribbonStyle || 'chips')}
       sectionColors={settings?.sectionColors}
@@ -772,7 +773,7 @@ export default function ChartView({
 
       <div className={cn(
         "pt-4 pb-24 wide-container",
-        structurePos === 'bottom' && "pb-[12rem]",
+        structurePos === 'bottom' && "pb-[8rem]",
         isPreview && "px-0 pt-0 pb-0 wide-container"
       )}>
         {/* ── Chord Diagrams Strip ── */}
@@ -855,7 +856,7 @@ export default function ChartView({
         </div>
       </div>
       {structurePos !== 'top' && (
-        <FloatingStructure position={structurePos}>{ribbonNode}</FloatingStructure>
+        <FloatingStructure position={structurePos} raised={false}>{ribbonNode}</FloatingStructure>
       )}
     </div>
   );

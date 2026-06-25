@@ -27,6 +27,9 @@ export function StructureRibbon({
   // 'horizontal' (default) or 'vertical' — the side floating rail stacks the
   // items in a column.
   orientation = 'horizontal',
+  // For the 'dots' style: also show the compact section label next to each dot
+  // (the side rail wants dots + labels).
+  withLabels = false,
 }) {
   // Collapse consecutive duplicates: "C1, C1, C1" → one entry "C1 ×3".
   const runs = [];
@@ -74,14 +77,19 @@ export function StructureRibbon({
               key={i}
               ref={active ? activeRef : null}
               {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index), title: labelOf(run.name) } : {})}
-              className={cn('shrink-0 inline-flex items-center gap-0.5', onSelect && 'cursor-pointer hover:opacity-80')}
+              className={cn('shrink-0 inline-flex items-center gap-1', onSelect && 'cursor-pointer hover:opacity-80')}
             >
+              {/* The dot uses the section's base colour (`s.b`) so it matches the
+                  in-chart section titles, not a washed-out border tint. */}
               <span
                 className={cn('rounded-full transition-all', active ? 'w-3.5 h-3.5 ring-2 ring-offset-1 ring-offset-transparent' : 'w-2.5 h-2.5')}
-                style={{ background: s.br, boxShadow: active ? `0 0 0 2px ${s.br}` : undefined }}
+                style={{ background: s.b, boxShadow: active ? `0 0 0 2px ${s.b}` : undefined }}
               />
+              {withLabels && (
+                <span className={cn('font-mono font-bold text-[11px]', !active && 'opacity-70')} style={{ color: s.b }}>{labelOf(run.name)}</span>
+              )}
               {run.count > 1 && (
-                <span className="text-[10px] font-semibold" style={{ color: s.d }}>×{run.count}</span>
+                <span className="text-[10px] font-semibold" style={{ color: s.b }}>×{run.count}</span>
               )}
             </Tag>
           );

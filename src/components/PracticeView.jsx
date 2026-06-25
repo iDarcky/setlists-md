@@ -25,7 +25,6 @@ import { resolveChartDisplay, resolveColumns } from '../lib/chartDisplay';
 import { useStageHeaderCollapse } from '../hooks/useStageHeaderCollapse';
 import { useActiveSection } from '../hooks/useActiveSection';
 import { usePrivateNotes } from '../notes/usePrivateNotes';
-import { headerFrostStyle } from '../lib/headerFrost';
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
 
@@ -374,13 +373,20 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>),
             onClick: () => setSetlistSheetOpen(true),
           },
-          {
-            label: headerCollapsed ? 'Expand header' : 'Collapse header',
-            icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d={headerCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} /></svg>),
-            onClick: () => setHeaderCollapsed(c => !c),
-          },
         ]}
       />
+      {/* Show/hide header stays a visible toggle (not buried in the menu). */}
+      <IconButton
+        size="sm"
+        variant="ghost"
+        onClick={() => setHeaderCollapsed(c => !c)}
+        aria-label={headerCollapsed ? 'Show header' : 'Hide header'}
+        title={headerCollapsed ? 'Show header' : 'Hide header'}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d={headerCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
+        </svg>
+      </IconButton>
     </div>
   );
 
@@ -393,6 +399,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
       compact
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
       collapse={!ribbonSide}
+      withLabels={ribbonSide}
       activeIndex={activeSection}
       style={ribbonSide ? 'dots' : (settings?.ribbonStyle || 'chips')}
       onSelect={(i) => {
@@ -413,7 +420,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
       style={{ background: 'var(--chart-bg, var(--ds-background-100))' }}
     >
     {structurePos !== 'top' && ribbonNode && (
-      <FloatingStructure position={structurePos}>{ribbonNode}</FloatingStructure>
+      <FloatingStructure position={structurePos} raised={navStyle === 'pill'}>{ribbonNode}</FloatingStructure>
     )}
     <div
       ref={scrollRef}
@@ -593,7 +600,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     {showRail && (
       <aside
         className="shrink-0 h-full border-l border-[var(--ds-gray-300)] flex flex-col"
-        style={{ width: railOpen ? 288 : 44, background: 'var(--header-bg-blur)', ...headerFrostStyle, transition: 'width 200ms ease' }}
+        style={{ width: railOpen ? 288 : 44, background: 'color-mix(in srgb, var(--ds-background-100) 55%, transparent)', backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)', transition: 'width 200ms ease' }}
       >
         {railOpen ? (
           <>
