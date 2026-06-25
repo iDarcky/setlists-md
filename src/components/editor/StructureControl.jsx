@@ -27,7 +27,7 @@ export default function StructureControl({ mode, value, sections, customSectionT
     : sections;
   const uniqueTypes = [...new Set(sections)];
   return (
-    <div className="flex items-center gap-2 min-w-0">
+    <div className="flex items-center gap-2 min-w-0 flex-1">
       <input
         type="checkbox"
         checked={isCustom}

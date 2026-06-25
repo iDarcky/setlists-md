@@ -210,6 +210,36 @@ the section colour scheme** consistently, and the floating-structure overlay nee
 legibility check per theme. Audit `data/chartThemes.js` + `StructureRibbon` +
 `SetlistList` colour tokens against every preset (light and dark).
 
+### Competitive parity — OnSong (analysis 2026-06-25)
+
+From OnSong's 2026 release + pricing matrix. **Verdict: no big gap on the core job**
+(charts, transpose, setlists, live). We're at parity or ahead on multi-arrangement,
+auto/custom structure, team collaboration + scheduling, cloud sync, search/filters,
+customizable tables, PWA/offline. Their lead is ecosystem extras + a content catalog.
+
+**Already matched:** Song editor, style prefs (transpose/capo), custom metadata,
+"Versions" (≈ our arrangements), set picker, song-list export + columns, sharing,
+foot pedals/nav zones, Nashville/solfège.
+
+**Add (high value for worship teams), priority order:**
+1. **Metronome** (audio click + visual) — already slated for Practice mode.
+2. **Inline lyric formatting** — bold/italic/colour/highlight in lyrics (they show it;
+   we don't render it). Cheap, visible parity win.
+3. **Backing-track playback** — we store Spotify/YouTube *links* but can't play/trigger
+   them; add play/pause from the chart (linked or local file).
+4. **Annotations / markup** — sticky notes + freehand drawing on a chart. High value,
+   real effort.
+5. **Import pipeline expansion** — URL/OnSong/ChordPro/PDF importers (already in Interop).
+6. *(church-tier bet)* **Lyrics projection / external display** (Chromecast/stage monitor).
+7. *(cheap extras)* **Tuner** + **tap/detect tempo**.
+
+**Maybe / later:** ChordFlow-style PDF chord detection+transpose; nested "books/topics/
+icons" library organization; mic **Key Finder**.
+
+**Skip (off-strategy):** hardware (AuxBox, Coda Stomp), OnSong Charts content catalog
+(licensing), multi-output HDMI video, **MIDI integration**, **Scenes/DMX lighting**,
+device master/slave (OnCue), menubar customization, **Voice Control / TalkThrough AI**.
+
 ### Interop & import
 - **PCO (Planning Center) bridge**, **OnSong `.onsong` archive import**, **SongSelect `.usr`**,
   **PDF-to-Markdown** best-effort engine, a **Migration Hub** onboarding screen.

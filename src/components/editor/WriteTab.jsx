@@ -328,9 +328,11 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
 
   return (
     <div className="flex flex-col h-full pl-3 pr-6">
-      {/* The song's official structure (mirrored from the Arrange tab). */}
+      {/* The song's official structure (mirrored from the Arrange tab) — same
+          band styling so the two tabs match. The negative margins break it out of
+          the tab's pl-3/pr-6 padding to span the full width like the Arrange row. */}
       {structureRow && (
-        <div className="py-2 border-b border-[var(--ds-gray-200)] mb-2">
+        <div className="flex items-center py-1.5 -ml-3 -mr-6 pl-3 pr-6 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] mb-2">
           {structureRow}
         </div>
       )}

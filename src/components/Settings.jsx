@@ -591,50 +591,30 @@ function LabsPanel({ settings, update }) {
         </Row>
       )}
       <Row label="Floating structure ribbon" description="Move the section-flow ribbon out of the header into a floating, see-through overlay in chart, practice & live. Off keeps it in the header.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {[
-            { key: 'top', label: 'Off' },
-            { key: 'bottom', label: 'Bottom' },
-            { key: 'left', label: 'Left' },
-            { key: 'right', label: 'Right' },
-          ].map(({ key, label }) => {
-            const active = (settings.structurePosition || 'top') === key;
-            return (
-              <Button
-                key={key}
-                size="sm"
-                variant={active ? 'secondary' : 'ghost'}
-                onClick={() => update('structurePosition', key)}
-                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </div>
+        <Select value={settings.structurePosition || 'top'} onValueChange={(v) => update('structurePosition', v)}>
+          <SelectTrigger className="h-9 w-44 bg-[var(--ds-background-100)]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="top">Off (in header)</SelectItem>
+            <SelectItem value="bottom">Bottom</SelectItem>
+            <SelectItem value="left">Left</SelectItem>
+            <SelectItem value="right">Right</SelectItem>
+          </SelectContent>
+        </Select>
       </Row>
       {(settings.structurePosition || 'top') !== 'top' && (
         <Row label="Floating structure display" description="Show the floating structure as dots, labels, or both.">
-          <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-            {[
-              { key: 'dots', label: 'Dots' },
-              { key: 'labels', label: 'Labels' },
-              { key: 'both', label: 'Both' },
-            ].map(({ key, label }) => {
-              const active = (settings.structureRailStyle || 'both') === key;
-              return (
-                <Button
-                  key={key}
-                  size="sm"
-                  variant={active ? 'secondary' : 'ghost'}
-                  onClick={() => update('structureRailStyle', key)}
-                  className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-                >
-                  {label}
-                </Button>
-              );
-            })}
-          </div>
+          <Select value={settings.structureRailStyle || 'both'} onValueChange={(v) => update('structureRailStyle', v)}>
+            <SelectTrigger className="h-9 w-44 bg-[var(--ds-background-100)]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="dots">Dots</SelectItem>
+              <SelectItem value="labels">Labels</SelectItem>
+              <SelectItem value="both">Dots + labels</SelectItem>
+            </SelectContent>
+          </Select>
         </Row>
       )}
     </Section>
