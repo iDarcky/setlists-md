@@ -224,6 +224,12 @@ describe('getDiatonicChords', () => {
   it('returns a fallback when no key is given', () => {
     expect(getDiatonicChords('')).toEqual(['C', 'Dm', 'Em', 'F', 'G', 'Am', 'Bdim']);
   });
+
+  it('spells diatonic roots with the key\'s accidentals (E → F#m, Eb → Fm)', () => {
+    expect(getDiatonicChords('E')[1]).toBe('F#m'); // ii in a sharp key
+    expect(getDiatonicChords('Eb')[1]).toBe('Fm');
+    expect(getDiatonicChords('G')[6]).toBe('F#dim'); // vii° reads F#, not Gb
+  });
 });
 
 describe('sectionStyle & compactLabel', () => {

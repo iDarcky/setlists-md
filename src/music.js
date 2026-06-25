@@ -299,8 +299,11 @@ const DIATONIC_QUALITIES = ['', 'm', 'm', '', '', 'm', 'dim'];
  
 export function getDiatonicChords(key) {
   if (!key) return ['C', 'Dm', 'Em', 'F', 'G', 'Am', 'Bdim'];
+  // Spell the diatonic roots with the key's conventional accidentals (so key E
+  // suggests F♯m, not G♭m).
+  const preferSharps = keyPrefersSharps(key);
   return DIATONIC_INTERVALS.map((interval, i) =>
-    transposeChord(key, interval) + DIATONIC_QUALITIES[i]
+    transposeChord(key, interval, preferSharps) + DIATONIC_QUALITIES[i]
   );
 }
 
