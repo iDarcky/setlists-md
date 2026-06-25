@@ -472,6 +472,19 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   // Structure ribbon data (always-visible, edited via the frontmatter
   // `structure` field). availableSections is derived from the body's
   // `## Section` headers so the picker offers the song's real sections.
+  const availableSections = useMemo(() => {
+    const body = splitMd(md).body || '';
+    const labels = [];
+    const seen = new Set();
+    for (const line of body.split('\n')) {
+      const m = line.match(/^##\s+(.+?)\s*$/);
+      if (m) {
+        const name = m[1].trim();
+        if (name && !seen.has(name)) { seen.add(name); labels.push(name); }
+      }
+    }
+    return labels;
+  }, [md]);
   const structureValue = fmFields.structure;
   // Custom slide order (Proclaim-style) vs. auto (follows the arrangement
   // order). Auto is the default; the md carries `structureMode: custom` only
@@ -492,19 +505,6 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     }
     setMd(replaceFrontmatter(md, serializeFrontmatterFields(fields)));
   }, [md, availableSections]);
-  const availableSections = useMemo(() => {
-    const body = splitMd(md).body || '';
-    const labels = [];
-    const seen = new Set();
-    for (const line of body.split('\n')) {
-      const m = line.match(/^##\s+(.+?)\s*$/);
-      if (m) {
-        const name = m[1].trim();
-        if (name && !seen.has(name)) { seen.add(name); labels.push(name); }
-      }
-    }
-    return labels;
-  }, [md]);
 
   // The Advanced (raw) editor shows only the song body — frontmatter is owned
   // entirely by Song Details, so IDs and metadata can't be broken by hand.

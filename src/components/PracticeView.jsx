@@ -6,7 +6,7 @@ import SongMap from './SongMap';
 import { TAB_INSTRUMENTS } from './editor/tabInstruments';
 import ChordDiagram from './ChordDiagram';
 import { StructureRibbon } from './StructureRibbon';
-import StructureDock from './ui/StructureDock';
+import FloatingStructure from './ui/FloatingStructure';
 import FloatingNavPill from './ui/FloatingNavPill';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
@@ -25,6 +25,7 @@ import { resolveChartDisplay, resolveColumns } from '../lib/chartDisplay';
 import { useStageHeaderCollapse } from '../hooks/useStageHeaderCollapse';
 import { useActiveSection } from '../hooks/useActiveSection';
 import { usePrivateNotes } from '../notes/usePrivateNotes';
+import { headerFrostStyle } from '../lib/headerFrost';
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
 
@@ -100,7 +101,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const showRail = ((isTablet && isLandscape) || isDesktop) && railEnabled;
   // Where the rail can't fit (phone / portrait tablet) the setlist is reachable
   // from a header button that opens it as a bottom sheet instead.
-  const showSetlistButton = railEnabled && !showRail;
+  const showSetlistButton = railEnabled && !showRail && (navStyle === 'edge' || navStyle === 'swipe');
   // Explicit 1/2 from settings wins; 'auto'/unset goes two-up when the reading
   // area is comfortably wide. A manual pick in the Layout sheet overrides for
   // the session and persists the choice device-wide.
@@ -318,12 +319,27 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   // close controls on the right) with comfortable tap targets. The last step
   // turns into Finish.
   const atEnd = idx >= resolved.length - 1;
+  // Opens the setlist from the nav counter/pill: toggles the rail when it's
+  // available, otherwise opens the bottom sheet. Undefined when there's no
+  // setlist to show.
+  const openSetlist = railEnabled ? (showRail ? () => setRailOpen(o => !o) : () => setSetlistSheetOpen(true)) : undefined;
   const navButtons = navStyle === 'header' ? (
     <div className="flex items-center gap-1 shrink-0 pr-2 mr-1 border-r border-[var(--ds-gray-300)]">
       <IconButton size="md" variant="ghost" onClick={goPrev} disabled={idx === 0} aria-label="Previous song">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
       </IconButton>
-      <span className="text-label-13 text-[var(--ds-gray-700)] tabular-nums px-1 select-none min-w-[2.5rem] text-center">{idx + 1}/{resolved.length}</span>
+      {openSetlist ? (
+        <button
+          type="button"
+          onClick={openSetlist}
+          aria-label="Open setlist"
+          className="text-label-13 text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] tabular-nums px-1 min-w-[2.5rem] text-center bg-transparent border-none cursor-pointer transition-colors"
+        >
+          {idx + 1}/{resolved.length}
+        </button>
+      ) : (
+        <span className="text-label-13 text-[var(--ds-gray-700)] tabular-nums px-1 select-none min-w-[2.5rem] text-center">{idx + 1}/{resolved.length}</span>
+      )}
       {atEnd && onFinish ? (
         <IconButton size="md" variant="ghost" onClick={handleFinish} aria-label="Finish set">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
@@ -422,7 +438,9 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
       className="h-full flex overflow-hidden"
       style={{ background: 'var(--chart-bg, var(--ds-background-100))' }}
     >
-    {structurePos === 'left' && ribbonNode && <StructureDock position="left">{ribbonNode}</StructureDock>}
+    {structurePos !== 'top' && ribbonNode && (
+      <FloatingStructure position={structurePos}>{ribbonNode}</FloatingStructure>
+    )}
     <div
       ref={scrollRef}
       onTouchStart={onTouchStart}
@@ -581,7 +599,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           hasPrev={idx > 0}
           hasNext={idx < resolved.length - 1}
           onFinish={onFinish ? handleFinish : undefined}
-          onOpenSetlist={railEnabled ? (showRail ? () => setRailOpen(o => !o) : () => setSetlistSheetOpen(true)) : undefined}
+          onOpenSetlist={openSetlist}
         />
       )}
       {navStyle === 'edge' && (
@@ -595,18 +613,13 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           prevLabel={idx > 0 ? (resolved[idx - 1]?.isBreak ? (resolved[idx - 1].label || 'Break') : resolved[idx - 1]?.song?.title) : undefined}
         />
       )}
-      {structurePos === 'bottom' && ribbonNode && (
-        <StructureDock position="bottom">{ribbonNode}</StructureDock>
-      )}
     </div>
-
-    {structurePos === 'right' && ribbonNode && <StructureDock position="right">{ribbonNode}</StructureDock>}
 
     {/* ── Parallel-browsing setlist rail (tablet landscape) ── */}
     {showRail && (
       <aside
         className="shrink-0 h-full border-l border-[var(--ds-gray-300)] flex flex-col"
-        style={{ width: railOpen ? 288 : 44, background: 'var(--ds-background-200)', transition: 'width 200ms ease' }}
+        style={{ width: railOpen ? 288 : 44, background: 'var(--header-bg-blur)', ...headerFrostStyle, transition: 'width 200ms ease' }}
       >
         {railOpen ? (
           <>

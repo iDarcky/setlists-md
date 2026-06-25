@@ -45,11 +45,6 @@ export default function FloatingNavPill({ current, total, nextLabel, onPrev, onN
               <span className="text-label-14 font-semibold tabular-nums whitespace-nowrap">
                 {current} / {total}
               </span>
-              {onOpenSetlist && (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70" aria-hidden="true">
-                  <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-                </svg>
-              )}
               {nextLabel && hasNext && (
                 <span className="hidden sm:block text-label-13 truncate opacity-70 max-w-[180px] whitespace-nowrap">
                   · Next: {nextLabel}

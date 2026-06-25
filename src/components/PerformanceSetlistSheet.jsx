@@ -27,19 +27,19 @@ export function SetlistList({ resolved, idx, onSelect }) {
               aria-current={active ? 'true' : undefined}
               aria-label={r.label || 'Break'}
               className={`flex items-center gap-2.5 px-2 py-2 rounded-lg text-left transition-colors ${
-                active ? 'bg-[var(--ds-gray-200)]' : 'hover:bg-[var(--ds-gray-100)]'
+                active ? 'bg-[var(--color-brand)]' : 'hover:bg-[var(--ds-gray-100)]'
               }`}
             >
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)]">
-                <span className="text-label-11 font-semibold text-[var(--ds-gray-800)]">{r.label || 'Break'}</span>
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${active ? 'border-white/40 bg-white/15' : 'border-[var(--ds-gray-400)] bg-[var(--ds-background-100)]'}`}>
+                <span className={`text-label-11 font-semibold ${active ? 'text-white' : 'text-[var(--ds-gray-800)]'}`}>{r.label || 'Break'}</span>
                 {(r.duration || 0) > 0 && (
                   <>
-                    <span className="w-[3px] h-[3px] rounded-full bg-[var(--ds-gray-600)]" aria-hidden="true" />
-                    <span className="text-label-10 text-[var(--ds-gray-600)] tabular-nums">{r.duration} min</span>
+                    <span className={`w-[3px] h-[3px] rounded-full ${active ? 'bg-white/70' : 'bg-[var(--ds-gray-600)]'}`} aria-hidden="true" />
+                    <span className={`text-label-10 tabular-nums ${active ? 'text-white/90' : 'text-[var(--ds-gray-600)]'}`}>{r.duration} min</span>
                   </>
                 )}
               </span>
-              <span className="flex-1 border-t border-dashed border-[var(--ds-gray-400)]" aria-hidden="true" />
+              <span className={`flex-1 border-t border-dashed ${active ? 'border-white/40' : 'border-[var(--ds-gray-400)]'}`} aria-hidden="true" />
             </button>
           );
         }

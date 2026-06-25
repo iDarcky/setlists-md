@@ -12,7 +12,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import { cn } from '../lib/utils';
 import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { StructureRibbon } from './StructureRibbon';
-import StructureDock from './ui/StructureDock';
+import FloatingStructure from './ui/FloatingStructure';
 import ViewModePicker from './ui/ViewModePicker';
 import { useActiveSection } from '../hooks/useActiveSection';
 import { useStageHeaderCollapse } from '../hooks/useStageHeaderCollapse';
@@ -382,16 +382,15 @@ export default function ChartView({
     <p className="text-copy-13 text-[var(--text-2)] italic m-0">No additional song info</p>
   );
 
-  // Where the structure ribbon lives. Previews always keep it on top. When the
-  // user docks it left/right it renders vertically (wrap); bottom is a sticky
-  // band. Non-top placements drop the ribbon from the header.
+  // Where the structure ribbon lives (Labs → floating positions). Previews
+  // always keep it in the header. Non-top placements render a floating overlay
+  // (FloatingStructure) and drop the ribbon from the header.
   const structurePos = isPreview ? 'top' : (settings?.structurePosition || 'top');
-  const ribbonSide = structurePos === 'left' || structurePos === 'right';
   const ribbonNode = (
     <StructureRibbon
       structure={orderedSections.map(s => s.type)}
       compact
-      wrap={ribbonSide}
+      wrap={structurePos === 'left' || structurePos === 'right'}
       activeIndex={activeSection}
       style={settings?.ribbonStyle || 'chips'}
       sectionColors={settings?.sectionColors}
@@ -404,16 +403,16 @@ export default function ChartView({
     />
   );
 
-  const scroller = (
+  return (
     <div
       ref={scrollContainerRef}
       onClick={isPreview ? undefined : revealHeader}
-      style={ribbonSide ? undefined : CHART_THEME_STYLE}
+      style={CHART_THEME_STYLE}
       className={cn(
         // h-full (not 100dvh) so the chart fills its parent slot and owns the
         // *only* scrollbar — `<main>` already scrolls, and 100dvh overflowed it
         // by the header's height, producing a second scrollbar.
-        ribbonSide ? "flex-1 min-h-0 overflow-y-auto overflow-x-hidden" : "h-full overflow-y-auto overflow-x-hidden",
+        "h-full overflow-y-auto overflow-x-hidden",
         isPreview && "px-4 py-4"
       )}
     >
@@ -851,22 +850,9 @@ export default function ChartView({
           ))}
         </div>
       </div>
-      {structurePos === 'bottom' && (
-        <StructureDock position="bottom">{ribbonNode}</StructureDock>
+      {structurePos !== 'top' && (
+        <FloatingStructure position={structurePos}>{ribbonNode}</FloatingStructure>
       )}
-    </div>
-  );
-
-  if (!ribbonSide) return scroller;
-
-  // Left/right: flank the scroller with a vertical ribbon rail. The theme
-  // background lives on the flex wrapper so both the rail and the scroller sit
-  // on the chart colour.
-  return (
-    <div className="h-full flex flex-row overflow-hidden" style={CHART_THEME_STYLE}>
-      {structurePos === 'left' && <StructureDock position="left">{ribbonNode}</StructureDock>}
-      {scroller}
-      {structurePos === 'right' && <StructureDock position="right">{ribbonNode}</StructureDock>}
     </div>
   );
 }
