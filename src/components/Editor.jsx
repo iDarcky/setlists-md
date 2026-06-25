@@ -652,18 +652,21 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           <span className="px-1 text-label-10 uppercase tracking-wide text-[var(--ds-gray-600)] select-none">Tr</span>
           <IconButton variant="ghost" size="xs" aria-label="Transpose up a semitone" title="Transpose up" onClick={() => transposeAllChords(1)}>+</IconButton>
         </div>
-        {/* `appearance-none` strips the UA input chrome (WebKit imposes its own
-            intrinsic height on text inputs) so this renders at the same h-8 box as
-            the key/time/arrangement triggers. */}
-        <input
-          type="text"
-          inputMode="numeric"
-          value={currentTempo}
-          onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
-          className="appearance-none box-border h-8 w-14 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 py-0 text-label-12 font-mono text-center text-[var(--ds-gray-1000)] outline-none"
-          placeholder="bpm"
-          aria-label="Tempo"
-        />
+        {/* The box is a <div> with the SAME classes as the other control
+            triggers (h-8 + border + rounded + bg), with a transparent input
+            inside — so the box height is rendered identically and not subject to
+            an <input>'s intrinsic sizing. */}
+        <div className="inline-flex items-center h-8 w-14 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] px-2">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={currentTempo}
+            onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+            className="w-full appearance-none bg-transparent border-none p-0 text-label-12 font-mono text-center text-[var(--ds-gray-1000)] outline-none"
+            placeholder="bpm"
+            aria-label="Tempo"
+          />
+        </div>
         <TimeSignatureControl
           value={currentTime}
           onChange={v => updateField('time', v)}
@@ -908,7 +911,10 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           {/* ─── Editor + preview row ─── */}
           <div className="flex-1 min-h-0 flex w-full overflow-hidden">
             <div className="flex-1 min-h-0 flex flex-col w-full border-r border-[var(--ds-gray-300)]">
-              <div className={`flex-1 min-h-0 flex flex-col w-full ${activeTab === 'write' ? 'overflow-auto py-[18px] px-0' : 'overflow-hidden'}`}>
+              {/* `pb-[18px]` (not `py-`) keeps the bottom breathing room for the
+                  raw textarea WITHOUT pushing the structure band down — so the
+                  Advanced structure row lines up with the Arrange one. */}
+              <div className={`flex-1 min-h-0 flex flex-col w-full ${activeTab === 'write' ? 'overflow-auto pb-[18px] px-0' : 'overflow-hidden'}`}>
                 <div className="w-full h-full flex flex-col">
                   {renderTab()}
                 </div>
