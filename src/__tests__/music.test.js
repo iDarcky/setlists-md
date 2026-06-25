@@ -15,6 +15,7 @@ import {
   circleOfFifthsDistance,
   keyCompatibilityScore,
   tempoProximityScore,
+  keyPrefersSharps,
 } from '../music';
 
 describe('transposeChord', () => {
@@ -166,6 +167,41 @@ describe('notateChord', () => {
   it('handles slash chords across notations', () => {
     expect(notateChord('C/E', { key: 'C', notation: 'nashville' })).toBe('1/3');
     expect(notateChord('C/E', { key: 'C', notation: 'solfege' })).toBe('Do/Mi');
+  });
+});
+
+describe('enharmonic spelling (keyPrefersSharps / preferSharps)', () => {
+  it('picks sharp vs flat keys conventionally', () => {
+    ['G', 'D', 'A', 'E', 'B', 'C', 'Em', 'Bm', 'Am'].forEach(k => expect(keyPrefersSharps(k)).toBe(true));
+    ['F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Dm', 'Gm', 'Cm', 'Fm'].forEach(k => expect(keyPrefersSharps(k)).toBe(false));
+  });
+  it('honours an explicit accidental in the key spelling', () => {
+    expect(keyPrefersSharps('F#')).toBe(true);
+    expect(keyPrefersSharps('Gb')).toBe(false);
+  });
+  it('transposeChord defaults to flats (back-compat) but can prefer sharps', () => {
+    expect(transposeChord('C', 6)).toBe('Gb');
+    expect(transposeChord('C', 6, true)).toBe('F#');
+    expect(transposeChord('C', 6, false)).toBe('Gb');
+  });
+  it('re-spells at 0 transpose when a preference is given', () => {
+    expect(transposeChord('Gb', 0, true)).toBe('F#');
+    expect(transposeChord('F#', 0, false)).toBe('Gb');
+    expect(transposeChord('F#', 0)).toBe('F#'); // no preference → verbatim
+  });
+  it('spells slash chords consistently', () => {
+    expect(transposeChord('D/F#', 0, false)).toBe('D/Gb');
+    expect(transposeChord('D/Gb', 0, true)).toBe('D/F#');
+  });
+  it('notateChord auto-spells from the key it sounds in', () => {
+    // A song in G: the ♯4 chord reads F♯, not G♭.
+    expect(notateChord('F#', { key: 'G', accidentals: 'auto' })).toBe('F#');
+    expect(notateChord('Gb', { key: 'G', accidentals: 'auto' })).toBe('F#');
+    // A song in D♭: reads G♭.
+    expect(notateChord('F#', { key: 'Db', accidentals: 'auto' })).toBe('Gb');
+    // Forced overrides.
+    expect(notateChord('Gb', { key: 'G', accidentals: 'flats' })).toBe('Gb');
+    expect(notateChord('F#', { key: 'Db', accidentals: 'sharps' })).toBe('F#');
   });
 });
 

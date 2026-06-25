@@ -833,6 +833,7 @@ export default function ChartView({
                 modOffset={sectionModOffsets[idx]}
                 notation={notation}
                 songKey={song.key}
+                accidentals={settings?.accidentals}
                 condensed={duplicateSections === 'condensed' && repeatFirstIndex[idx] >= 0}
                 onJumpToFirst={() => {
                   const el = document.getElementById(`section-${repeatFirstIndex[idx]}`);

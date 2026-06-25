@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import ChartView from './ChartView';
 import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields, EXTRA_META_KEYS } from '../parser';
-import { ALL_KEYS_ALL, transposeChord, transposeKey } from '../music';
+import { ALL_KEYS_ALL, transposeChord, transposeKey, keyPrefersSharps } from '../music';
 import { isChordToken } from '../importer';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
 import { importChartText } from '../lib/importChords';
@@ -555,11 +555,16 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   const transposeAllChords = useCallback((semis) => {
     if (!semis) return;
     const { frontmatter, body } = splitMd(md);
-    const newBody = body.replace(/\[([^\]]+)\]/g, (m, ch) => (isChordToken(ch) ? `[${transposeChord(ch, semis)}]` : m));
     const fields = parseFrontmatterFields(frontmatter);
-    if (fields.key) fields.key = transposeKey(fields.key, semis);
+    // Spell the result with sharps/flats per the user's accidental preference;
+    // 'auto' follows the new key's conventional spelling.
+    const acc = chartDefaults.settings?.accidentals || 'auto';
+    const targetKey = transposeKey(fields.key || 'C', semis);
+    const preferSharps = acc === 'sharps' ? true : acc === 'flats' ? false : keyPrefersSharps(targetKey);
+    const newBody = body.replace(/\[([^\]]+)\]/g, (m, ch) => (isChordToken(ch) ? `[${transposeChord(ch, semis, preferSharps)}]` : m));
+    if (fields.key) fields.key = transposeKey(fields.key, semis, preferSharps);
     setMd(`---\n${serializeFrontmatterFields(fields)}\n---\n\n${newBody.replace(/^\n+/, '')}`);
-  }, [md]);
+  }, [md, chartDefaults]);
 
   // The one official structure control — rendered inside both the Arrange and
   // Advanced tabs (not the header) so editing the slide order has a single home.
@@ -647,15 +652,15 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           <span className="px-1 text-label-10 uppercase tracking-wide text-[var(--ds-gray-600)] select-none">Tr</span>
           <IconButton variant="ghost" size="xs" aria-label="Transpose up a semitone" title="Transpose up" onClick={() => transposeAllChords(1)}>+</IconButton>
         </div>
-        {/* Text input (not number) so it renders identically to the key/time
-            Select triggers — same h-8 box, no native spinner or intrinsic sizing.
-            box-border + leading-none + centered text matches the trigger metrics. */}
+        {/* `appearance-none` strips the UA input chrome (WebKit imposes its own
+            intrinsic height on text inputs) so this renders at the same h-8 box as
+            the key/time/arrangement triggers. */}
         <input
           type="text"
           inputMode="numeric"
           value={currentTempo}
           onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
-          className="box-border h-8 w-14 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 text-label-12 leading-none font-mono text-center text-[var(--ds-gray-1000)] outline-none"
+          className="appearance-none box-border h-8 w-14 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 py-0 text-label-12 font-mono text-center text-[var(--ds-gray-1000)] outline-none"
           placeholder="bpm"
           aria-label="Tempo"
         />

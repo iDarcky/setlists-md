@@ -522,6 +522,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             columns={columns}
             chordFontSize={chordFontSize}
             notation={notation}
+            accidentals={settings?.accidentals}
             showChords={showChords}
             showDiagrams={showDiagrams}
             displayMode={displayMode}
@@ -788,7 +789,7 @@ function StructureEditor({ structure, availableSections, onUpdate, onClose }) {
 }
 
 // Chart with editable cue cards between sections
-function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, notation = 'letters', showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', chordEmphasis = 'full', sectionColors, sectionLabels, customSectionTypes, onSaveCue, canEditShared = true, privateNotes }) {
+function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, notation = 'letters', accidentals = 'auto', showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', chordEmphasis = 'full', sectionColors, sectionLabels, customSectionTypes, onSaveCue, canEditShared = true, privateNotes }) {
   const myEnabled = !!privateNotes?.enabled;
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   // Mirror the chart-view display switch.
@@ -881,6 +882,7 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
             modOffset={sectionModOffsets[i]}
             notation={notation}
             songKey={song.key}
+            accidentals={accidentals}
             showChords={showChords && viewChords}
             showLyrics={viewLyrics}
             showTabs={viewTabs}

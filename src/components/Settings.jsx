@@ -476,6 +476,18 @@ function ChartPanel({ settings, update }) {
           })}
         </div>
       </Row>
+      <Row label="Accidentals" description="How sharps and flats are spelled. Auto follows the song's key (e.g. F♯ in G, G♭ in D♭).">
+        <Select value={settings.accidentals || 'auto'} onValueChange={(v) => update('accidentals', v)}>
+          <SelectTrigger className="h-9 w-44 bg-[var(--ds-background-100)]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="auto">Auto (by key)</SelectItem>
+            <SelectItem value="sharps">Sharps (♯)</SelectItem>
+            <SelectItem value="flats">Flats (♭)</SelectItem>
+          </SelectContent>
+        </Select>
+      </Row>
       <Row label="Structure ribbon" description="How the section flow looks in chart, practice & live (header or floating).">
         <Select value={settings.ribbonStyle || 'chips'} onValueChange={(v) => update('ribbonStyle', v)}>
           <SelectTrigger className="h-9 w-44 bg-[var(--ds-background-100)]">

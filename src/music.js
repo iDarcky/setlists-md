@@ -15,30 +15,59 @@ function parseRoot(chord) {
   return { root, suffix: rest };
 }
 
-// Transpose a single chord by N semitones
-export function transposeChord(chord, semitones) {
-  if (!chord || semitones === 0) return chord;
+// Whether a key conventionally spells accidentals with sharps (vs flats). The
+// key's own accidental wins (F# → sharps, Gb → flats); natural keys follow the
+// circle of fifths (C G D A E B → sharps, F → flats), with minors mapped to
+// their relative major.
+export function keyPrefersSharps(key) {
+  if (!key) return true;
+  const accidental = key[1];
+  if (accidental === '#') return true;
+  if (accidental === 'b') return false;
+  const rootLetter = (key[0] || 'C').toUpperCase();
+  const isMinor = /m(?!aj)/i.test(key.slice(1));
+  // Natural keys whose key signature is flat-side.
+  const FLAT_MINORS = new Set(['C', 'D', 'F', 'G']); // Cm Dm Fm Gm
+  if (isMinor) return !FLAT_MINORS.has(rootLetter);
+  return rootLetter !== 'F'; // F major is the only natural flat-side major
+}
+
+// Spell a sharp-form chromatic root (from CHROMATIC) as sharp or flat. When
+// `preferSharps` is undefined we keep the historical default (flats) so existing
+// callers / stored data are unchanged.
+function spellRoot(root, preferSharps) {
+  if (preferSharps === true) return root; // CHROMATIC roots are already sharps
+  // undefined (legacy) and false → flats
+  return SHARP_TO_FLAT[root] || root;
+}
+
+// Transpose a single chord by N semitones. Optional `preferSharps` (true/false)
+// chooses the accidental spelling; when omitted, behaviour is unchanged (flats),
+// and a 0-semitone transpose returns the chord verbatim. When `preferSharps` is
+// given, even a 0-transpose re-spells (so display can follow the key/preference).
+export function transposeChord(chord, semitones, preferSharps) {
+  if (!chord) return chord;
+  if (semitones === 0 && preferSharps === undefined) return chord;
   // Handle slash chords (e.g. D/F#)
   if (chord.includes('/')) {
     const [main, bass] = chord.split('/');
-    return transposeChord(main, semitones) + '/' + transposeChord(bass, semitones);
+    return transposeChord(main, semitones, preferSharps) + '/' + transposeChord(bass, semitones, preferSharps);
   }
   const { root, suffix } = parseRoot(chord);
   const idx = CHROMATIC.indexOf(root);
   if (idx === -1) return chord;
-  let newRoot = CHROMATIC[(idx + semitones + 120) % 12];
-  if (SHARP_TO_FLAT[newRoot]) newRoot = SHARP_TO_FLAT[newRoot];
+  const newRoot = spellRoot(CHROMATIC[(idx + semitones + 120) % 12], preferSharps);
   return newRoot + suffix;
 }
 
-// Transpose a key signature
-export function transposeKey(key, semitones) {
-  if (!key || semitones === 0) return key;
+// Transpose a key signature (same optional `preferSharps` as transposeChord).
+export function transposeKey(key, semitones, preferSharps) {
+  if (!key) return key;
+  if (semitones === 0 && preferSharps === undefined) return key;
   const { root, suffix } = parseRoot(key);
   const idx = CHROMATIC.indexOf(root);
   if (idx === -1) return key;
-  let newRoot = CHROMATIC[(idx + semitones + 120) % 12];
-  if (SHARP_TO_FLAT[newRoot]) newRoot = SHARP_TO_FLAT[newRoot];
+  const newRoot = spellRoot(CHROMATIC[(idx + semitones + 120) % 12], preferSharps);
   return newRoot + suffix;
 }
 
@@ -252,10 +281,16 @@ export function getSolfege(chord) {
 //   'letters'  → transposed letter chord (honours the user's transpose)
 //   'nashville'→ Nashville number relative to `key` (transpose-independent)
 //   'solfege'  → fixed-Do solfège of the transposed chord (tracks pitch like letters)
-export function notateChord(chord, { key, notation = 'letters', transpose = 0 } = {}) {
+export function notateChord(chord, { key, notation = 'letters', transpose = 0, accidentals = 'auto' } = {}) {
   if (notation === 'nashville') return getNashvilleNumber(chord, key);
   if (notation === 'solfege') return getSolfege(transposeChord(chord, transpose));
-  return transposeChord(chord, transpose);
+  // Letters: choose sharp/flat spelling. 'auto' follows the key the chord is
+  // sounding in (the song key shifted by the current transpose).
+  const targetKey = transpose ? transposeKey(key, transpose) : key;
+  const preferSharps = accidentals === 'sharps' ? true
+    : accidentals === 'flats' ? false
+    : keyPrefersSharps(targetKey);
+  return transposeChord(chord, transpose, preferSharps);
 }
 
 // Diatonic chords for a given key (I, ii, iii, IV, V, vi, vii°)
