@@ -280,6 +280,13 @@ describe('minor keys', () => {
     expect(keysInQualityOf('C')).toEqual(ALL_KEYS);
     expect(keysInQualityOf('Am')).toEqual(ALL_KEYS.map(k => k + 'm'));
   });
+
+  it('spells the key list with sharps when asked', () => {
+    expect(keysInQualityOf('C', 'sharps')).toContain('F#');
+    expect(keysInQualityOf('C', 'sharps')).not.toContain('Gb');
+    expect(keysInQualityOf('C', 'flats')).toContain('Gb');
+    expect(keysInQualityOf('Am', 'sharps')).toContain('F#m');
+  });
 });
 
 describe('circleOfFifthsDistance', () => {

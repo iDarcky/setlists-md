@@ -73,8 +73,11 @@ export function transposeKey(key, semitones, preferSharps) {
 
 // All display keys for selectors
 export const ALL_KEYS = ['A','Bb','B','C','Db','D','Eb','E','F','Gb','G','Ab'];
+// Sharp-spelled variant, used when the accidental preference is "sharps".
+export const ALL_KEYS_SHARP = ['A','A#','B','C','C#','D','D#','E','F','F#','G','G#'];
 // Minor counterparts (root + "m"), same root spelling as the major list.
 export const ALL_KEYS_MINOR = ALL_KEYS.map(k => k + 'm');
+export const ALL_KEYS_SHARP_MINOR = ALL_KEYS_SHARP.map(k => k + 'm');
 // Every selectable key (major then minor) — used where a song's key is *defined*.
 export const ALL_KEYS_ALL = [...ALL_KEYS, ...ALL_KEYS_MINOR];
 
@@ -86,8 +89,12 @@ export function isMinorKey(key) {
 
 // The 12 keys in the same quality (major/minor) as `key`. Transpose controls use
 // this so changing the displayed key shifts pitch without flipping major↔minor.
-export function keysInQualityOf(key) {
-  return isMinorKey(key) ? ALL_KEYS_MINOR : ALL_KEYS;
+// `accidentals` ('sharps' → sharp spellings; otherwise flats) follows the user
+// preference so the key list can read F♯/C♯ instead of only G♭/D♭.
+export function keysInQualityOf(key, accidentals = 'flats') {
+  const sharp = accidentals === 'sharps';
+  if (isMinorKey(key)) return sharp ? ALL_KEYS_SHARP_MINOR : ALL_KEYS_MINOR;
+  return sharp ? ALL_KEYS_SHARP : ALL_KEYS;
 }
 
 // Calculate semitones from one key to another. Parses each key's *root* so

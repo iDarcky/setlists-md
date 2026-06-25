@@ -154,7 +154,7 @@ export default function ChordAutocomplete({
           onKeyDown={handleKeyDown}
           spellCheck={false}
           placeholder="Type…"
-          className="shrink-0 w-[92px] px-2 py-2 bg-[var(--ds-gray-100)] border border-[var(--chord)] rounded-md text-copy-13 font-mono text-[var(--ds-gray-1000)] outline-none"
+          className="shrink-0 w-[92px] px-3 py-2 bg-[var(--ds-gray-100)] border border-[var(--chord)] rounded-lg text-label-13 font-mono text-[var(--ds-gray-1000)] outline-none"
           style={{ caretColor: 'var(--chord)' }}
         />
         {options.map((c, i) => {

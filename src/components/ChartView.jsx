@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { transposeChord, keysInQualityOf, semitonesBetween, normalizeSectionName } from '../music';
+import { transposeChord, transposeKey, keysInQualityOf, semitonesBetween, normalizeSectionName } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
 import SongMap from './SongMap';
@@ -498,13 +498,15 @@ export default function ChartView({
           )}
           meta={(
             <>
-              <Select value={selectedKey} onValueChange={setSelectedKey}>
+              {/* The key list + the shown value follow the Accidentals setting
+                  (sharps → F♯/C♯, otherwise flats) so they match the chords. */}
+              <Select value={transposeKey(selectedKey, 0, settings?.accidentals === 'sharps') || selectedKey} onValueChange={setSelectedKey}>
                 <SelectTrigger className="h-7 px-2 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-lg text-label-12 sm:text-label-14 font-bold text-[var(--text-1)] gap-1 min-w-0 w-auto focus:ring-0" aria-label="Key">
                   <span className="hidden sm:inline text-label-11 font-semibold text-[var(--text-2)] mr-0.5">Key</span>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {keysInQualityOf(song.key).map(k => (<SelectItem key={k} value={k}>{k}</SelectItem>))}
+                  {keysInQualityOf(song.key, settings?.accidentals).map(k => (<SelectItem key={k} value={k}>{k}</SelectItem>))}
                 </SelectContent>
               </Select>
               {song.tempo && (
