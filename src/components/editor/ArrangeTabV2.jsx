@@ -369,7 +369,7 @@ function ChordOnlyLine({ chords, secIdx, lineIdx, onEditChord, onAppend, onRemov
 }
 
 // ─── ArrangeTabV2 ─────────────────────────────────────────────────
-export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
+export default function ArrangeTabV2({ md, onChange, customSectionTypes, structureRow }) {
   const sectionTypes = useMemo(() => {
     const custom = (customSectionTypes || []).map(t => t?.name?.trim()).filter(Boolean);
     return [...SECTION_TYPES, ...custom];
@@ -691,6 +691,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
+      {/* The song's official structure (slide order) — checkbox + editor. */}
+      {structureRow && (
+        <div className="shrink-0 px-3 pr-6 py-2 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
+          {structureRow}
+        </div>
+      )}
       {/* Structure row — section jump chips on the left, a Customize popover
           (notation + display options) tucked on the right to keep it clean. */}
       <div className="shrink-0 flex items-center gap-2 pl-3 pr-6 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">

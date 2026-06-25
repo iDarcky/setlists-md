@@ -20,12 +20,19 @@ export function StructureRibbon({
   // When true, chips wrap to multiple lines instead of horizontal-scrolling.
   // Used by the setlist overview v2 song cards (avoids the odd mobile scroll).
   wrap = false,
+  // When false, consecutive duplicates are NOT merged into "×N" — each entry
+  // renders as its own item (used by the vertical floating side rail, where the
+  // user wants the repeats spelled out rather than collapsed).
+  collapse = true,
+  // 'horizontal' (default) or 'vertical' — the side floating rail stacks the
+  // items in a column.
+  orientation = 'horizontal',
 }) {
   // Collapse consecutive duplicates: "C1, C1, C1" → one entry "C1 ×3".
   const runs = [];
   structure.forEach((name, i) => {
     const last = runs[runs.length - 1];
-    if (last && last.name === name) last.count += 1;
+    if (collapse && last && last.name === name) last.count += 1;
     else runs.push({ name, count: 1, index: i });
   });
 
@@ -45,9 +52,12 @@ export function StructureRibbon({
   const isActiveRun = (run) => activeIndex != null && activeIndex >= run.index && activeIndex < run.index + run.count;
   // px-1 keeps the first/last chip (and the active chip's ring) from being
   // clipped at the scroller's edges.
+  const vertical = orientation === 'vertical';
   const rowClass = cn(
     'flex gap-1 py-1 px-1 min-w-0',
-    wrap ? 'flex-wrap' : 'flex-nowrap overflow-x-auto no-scrollbar',
+    vertical
+      ? 'flex-col items-center'
+      : (wrap ? 'flex-wrap' : 'flex-nowrap overflow-x-auto no-scrollbar'),
   );
   const colorOf = (name) => sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
   const labelOf = (name) => (compact ? compactLabel(name) : sectionLabel(name, sectionLabels));

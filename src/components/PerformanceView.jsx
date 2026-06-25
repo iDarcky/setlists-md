@@ -15,7 +15,7 @@ import NoteContent from './ui/NoteContent';
 import PerformanceLayoutSheet from './PerformanceLayoutSheet';
 import PerformanceSetlistSheet, { SetlistList } from './PerformanceSetlistSheet';
 import NotesStack from './ui/NotesStack';
-import ViewModePicker from './ui/ViewModePicker';
+import { OverflowMenu } from './ui/OverflowMenu';
 import { usePrivateNotes } from '../notes/usePrivateNotes';
 import { suggestNextSongs } from '../lib/songSuggestions';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -233,7 +233,6 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   if (!cur) return null;
 
   const displayKey = cur.isBreak || cur.isMissing ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
-  const curHasTabs = !cur.isBreak && !cur.isMissing && (cur.song.sections || []).some(s => (s.lines || []).some(l => l && typeof l === 'object' && (l.type === 'tab' || l.type === 'tabref')));
 
   // Optional in-header prev/next cluster — an alternative to the floating nav
   // pill. Rendered at the far LEFT of the header (well away from the collapse /
@@ -273,55 +272,30 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
     </div>
   ) : null;
 
-  // Chevron + close X — anchored to the right end of the title row in both
-  // expanded and collapsed states. Same variant and size so they render
-  // with matching color and weight.
+  // Secondary actions collapse into a single overflow menu so the header stays
+  // uncluttered — leaving just the menu + the close X on the right.
   const headerControls = (
     <div className="flex items-center gap-1 shrink-0">
-      {showSetlistButton && (
-        <IconButton
-          size="sm"
-          variant="ghost"
-          onClick={() => setSetlistSheetOpen(true)}
-          aria-label="Open setlist"
-          title="Setlist"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-            <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-          </svg>
-        </IconButton>
-      )}
-      {!cur.isBreak && !cur.isMissing && (
-        <div className="hidden sm:flex">
-          <ViewModePicker value={displayMode} onChange={changeDisplayMode} hasTabs={curHasTabs} />
-        </div>
-      )}
-      <IconButton
-        size="sm"
-        variant="ghost"
-        onClick={() => setLayoutOpen(true)}
-        aria-label="Display options"
-        title="Display options"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
-          <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
-          <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
-          <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
-        </svg>
-      </IconButton>
-      <IconButton
-        size="sm"
-        variant="ghost"
-        onClick={() => setHeaderCollapsed(c => !c)}
-        aria-label={headerCollapsed ? 'Expand header' : 'Collapse header'}
-        className="hidden sm:inline-flex"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d={headerCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
-        </svg>
-      </IconButton>
+      <OverflowMenu
+        ariaLabel="View options"
+        items={[
+          {
+            label: 'Display & layout',
+            icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" /></svg>),
+            onClick: () => setLayoutOpen(true),
+          },
+          showSetlistButton && {
+            label: 'Open setlist',
+            icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>),
+            onClick: () => setSetlistSheetOpen(true),
+          },
+          {
+            label: headerCollapsed ? 'Expand header' : 'Collapse header',
+            icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d={headerCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} /></svg>),
+            onClick: () => setHeaderCollapsed(c => !c),
+          },
+        ]}
+      />
     </div>
   );
 
@@ -333,9 +307,10 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
     <StructureRibbon
       structure={cur.song.structure || cur.song.sections.map(s => s.type)}
       compact
-      wrap={ribbonSide}
+      orientation={ribbonSide ? 'vertical' : 'horizontal'}
+      collapse={!ribbonSide}
       activeIndex={activeSection}
-      style={settings?.ribbonStyle || 'chips'}
+      style={ribbonSide ? 'dots' : (settings?.ribbonStyle || 'chips')}
       onSelect={(i) => {
         const struct = cur.song.structure || cur.song.sections.map(s => s.type);
         const name = struct[i];
@@ -417,7 +392,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
       />
 
       {/* ── Content ── */}
-      <div className="wide-container pt-4 pb-32">
+      <div className={`wide-container pt-4 ${structurePos === 'bottom' ? 'pb-[14rem]' : 'pb-32'}`}>
         {cur.isBreak ? (
           <div className="flex flex-col items-center justify-center py-20 min-h-[50vh]">
             <div className="text-heading-32 text-[var(--ds-gray-1000)] mb-2">{cur.label || 'Break'}</div>

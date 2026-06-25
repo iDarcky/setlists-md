@@ -386,13 +386,16 @@ export default function ChartView({
   // always keep it in the header. Non-top placements render a floating overlay
   // (FloatingStructure) and drop the ribbon from the header.
   const structurePos = isPreview ? 'top' : (settings?.structurePosition || 'top');
+  const ribbonSide = structurePos === 'left' || structurePos === 'right';
   const ribbonNode = (
     <StructureRibbon
       structure={orderedSections.map(s => s.type)}
       compact
-      wrap={structurePos === 'left' || structurePos === 'right'}
+      // Side rail: a slim vertical column of dots, repeats spelled out (no ×N).
+      orientation={ribbonSide ? 'vertical' : 'horizontal'}
+      collapse={!ribbonSide}
       activeIndex={activeSection}
-      style={settings?.ribbonStyle || 'chips'}
+      style={ribbonSide ? 'dots' : (settings?.ribbonStyle || 'chips')}
       sectionColors={settings?.sectionColors}
       sectionLabels={settings?.sectionLabels}
       customSectionTypes={settings?.customSectionTypes}
@@ -769,6 +772,7 @@ export default function ChartView({
 
       <div className={cn(
         "pt-4 pb-24 wide-container",
+        structurePos === 'bottom' && "pb-[12rem]",
         isPreview && "px-0 pt-0 pb-0 wide-container"
       )}>
         {/* ── Chord Diagrams Strip ── */}

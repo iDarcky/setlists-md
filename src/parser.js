@@ -569,7 +569,7 @@ export function replaceFrontmatter(md, newFrontmatter) {
 // Parse frontmatter text into flat field object (strings, for form editing)
 export function parseFrontmatterFields(frontmatter) {
   const fields = {
-    title: '', artist: '', key: 'C', tempo: '', time: '', duration: '',
+    title: '', artist: '', key: '', tempo: '', time: '', duration: '',
     structure: '', structuremode: '', ccli: '', tags: '', capo: '',
     spotify: '', youtube: '', notes: '',
     songid: '', arrangementid: '', arrangementname: '',

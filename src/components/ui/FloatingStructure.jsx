@@ -1,11 +1,10 @@
-// A floating, transparent, space-minimal overlay for the structure (section
-// flow) ribbon when the user moves it out of the header (Labs → structure
-// position). It is `position: fixed` and reserves no layout space; only the
-// ribbon itself is interactive. Translucent + backdrop-blur so it sits lightly
-// over the chart like the nav pill.
-//   - bottom: a centred strip floating above the nav pill.
-//   - left/right: a slim vertical strip, edge-centred.
-const surface = {
+// A floating, space-minimal overlay for the structure (section flow) ribbon when
+// the user moves it out of the header (Labs → structure position). It is
+// `position: fixed` and reserves no layout space; only the ribbon is interactive.
+//   - bottom: a centred strip floating above the nav pill (translucent surface).
+//   - left/right: a slim, transparent vertical strip edge-centred — no background,
+//     no border; just the chips/dots floating over the chart.
+const bottomSurface = {
   background: 'var(--chart-header-bg, var(--header-bg-blur))',
   borderColor: 'var(--chart-header-border, var(--ds-gray-400))',
   color: 'var(--chart-text, var(--ds-gray-1000))',
@@ -22,7 +21,7 @@ export default function FloatingStructure({ position, children }) {
       >
         <div
           className="pointer-events-auto max-w-[92vw] overflow-x-auto no-scrollbar rounded-full border shadow-lg px-2 py-1"
-          style={surface}
+          style={bottomSurface}
         >
           {children}
         </div>
@@ -30,17 +29,15 @@ export default function FloatingStructure({ position, children }) {
     );
   }
 
-  // left / right — vertical strip centred on the edge.
-  const side = position === 'left' ? { left: '0.5rem' } : { right: '0.5rem' };
+  // left / right — transparent vertical strip, edge-centred. No surface so it
+  // floats lightly over the chart; colour comes from the chips themselves.
+  const side = position === 'left' ? { left: '0.25rem' } : { right: '0.25rem' };
   return (
     <div
       className="fixed z-[95] -translate-y-1/2 pointer-events-none"
-      style={{ top: '50%', ...side }}
+      style={{ top: '50%', ...side, color: 'var(--chart-text, var(--ds-gray-1000))' }}
     >
-      <div
-        className="pointer-events-auto max-h-[70vh] overflow-y-auto no-scrollbar rounded-2xl border shadow-lg px-1 py-2"
-        style={surface}
-      >
+      <div className="pointer-events-auto max-h-[80vh] overflow-y-auto no-scrollbar">
         {children}
       </div>
     </div>

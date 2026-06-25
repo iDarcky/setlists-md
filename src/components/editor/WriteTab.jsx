@@ -40,7 +40,7 @@ const SECTION_TYPES = [
   'Instrumental', 'Interlude', 'Tag', 'Vamp', 'Outro', 'Ending', 'Refrain',
 ];
 
-export default function WriteTab({ md, onChange, textareaRef, customSectionTypes, time, songKey = 'C', onUndo, onRedo, onImport }) {
+export default function WriteTab({ md, onChange, textareaRef, customSectionTypes, time, songKey = 'C', onUndo, onRedo, onImport, structureRow }) {
   const sectionTypes = useMemo(() => {
     const custom = (customSectionTypes || [])
       .map(t => t?.name?.trim())
@@ -328,6 +328,12 @@ export default function WriteTab({ md, onChange, textareaRef, customSectionTypes
 
   return (
     <div className="flex flex-col h-full pl-3 pr-6">
+      {/* The song's official structure (mirrored from the Arrange tab). */}
+      {structureRow && (
+        <div className="py-2 border-b border-[var(--ds-gray-200)] mb-2">
+          {structureRow}
+        </div>
+      )}
       {/* ─── Toolbar ─── */}
       <div className="flex flex-wrap gap-1 py-1.5 border-b border-[var(--ds-gray-300)] mb-2">
         <ToolBtn label="Chord" onClick={openChordPicker} />

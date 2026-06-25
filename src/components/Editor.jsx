@@ -10,7 +10,7 @@ import WriteTab from './editor/WriteTab';
 import ArrangeTabV2 from './editor/ArrangeTabV2';
 import TabsTab from './editor/TabsTab';
 import MetadataPanel from './editor/MetadataPanel';
-import StructureEditor from './editor/StructureEditor';
+import StructureRow from './editor/StructureRow';
 import ArrangementMenu, { EditArrangementsDialog } from './editor/ArrangementMenu';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
@@ -570,6 +570,20 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     setMd(`---\n${serializeFrontmatterFields(fields)}\n---\n\n${newBody.replace(/^\n+/, '')}`);
   }, [md]);
 
+  // The one official structure control — rendered inside both the Arrange and
+  // Advanced tabs (not the header) so editing the slide order has a single home.
+  const structureRowEl = (
+    <StructureRow
+      value={structureValue}
+      mode={isCustomStructure ? 'custom' : 'auto'}
+      availableSections={availableSections}
+      onChangeValue={(next) => updateField('structure', next)}
+      onChangeMode={setStructureMode}
+      tipSeen={structureTipSeen}
+      onDismissTip={dismissStructureTip}
+    />
+  );
+
   // Render active tab content
   const renderTab = () => {
     switch (activeTab) {
@@ -585,14 +599,15 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
             onUndo={handleUndo}
             onRedo={handleRedo}
             onImport={handleImport}
+            structureRow={structureRowEl}
           />
         );
       case 'tabs':
         return <TabsTab md={md} onChange={setMd} subdivision={chartDefaults.settings?.tabSubdivision || 1} />;
       case 'arrange':
-        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
+        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} structureRow={structureRowEl} />;
       default:
-        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
+        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} structureRow={structureRowEl} />;
     }
   };
 
@@ -646,7 +661,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           type="number"
           value={currentTempo}
           onChange={e => updateField('tempo', e.target.value)}
-          className="h-8 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 text-label-12 font-mono text-[var(--ds-gray-1000)] outline-none w-16"
+          className="h-8 bg-[var(--ds-gray-100)] rounded-md px-2 text-label-12 font-mono text-[var(--ds-gray-1000)] outline-none w-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           min="30" max="300"
           placeholder="bpm"
           aria-label="Tempo"
@@ -851,55 +866,10 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           </div>
         )}
 
-        {/* Row 2: structure. A toggle picks auto (follows the arrangement
-            order) vs. a custom, hand-tuned slide order; the editor only shows
-            when custom. */}
-        <div className="px-3 sm:px-4 pb-2 flex items-center gap-3 min-w-0">
-          <label
-            className="flex items-center gap-1.5 shrink-0 text-label-11 font-medium text-[var(--ds-gray-700)] cursor-pointer select-none"
-            title="When off, the play order follows your arrangement. When on, you set a custom slide order (repeat, reorder, or skip sections)."
-          >
-            <input
-              type="checkbox"
-              checked={isCustomStructure}
-              onChange={(e) => setStructureMode(e.target.checked)}
-              className="accent-[var(--color-brand)]"
-            />
-            Custom slide order
-          </label>
-          {isCustomStructure ? (
-            <StructureEditor
-              value={structureValue}
-              availableSections={availableSections}
-              onChange={(next) => updateField('structure', next)}
-              autoSeed={false}
-            />
-          ) : (
-            <span className="text-label-11 text-[var(--ds-gray-500)] italic truncate">
-              Follows the arrangement order
-            </span>
-          )}
-        </div>
-        {!structureTipSeen && (
-          <div className="mx-3 sm:mx-4 mb-2 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-gray-100)] flex items-start gap-2">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5 text-[var(--color-brand-text)]"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
-            <p className="flex-1 text-label-11 text-[var(--ds-gray-700)] leading-snug">
-              <span className="font-semibold text-[var(--ds-gray-1000)]">Structure</span> is the order your sections play.
-              Leave <span className="font-semibold">Custom slide order</span> off and it follows the sections as you arrange them.
-              Turn it on to repeat, reorder, or skip sections (e.g. Verse · Chorus · Chorus) without changing the song itself.
-            </p>
-            <button
-              type="button"
-              onClick={dismissStructureTip}
-              aria-label="Dismiss tip"
-              className="shrink-0 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer p-0.5"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
-            </button>
-          </div>
-        )}
+        {/* Structure now lives inside the Arrange + Advanced tabs (one official
+            source), not in the header. */}
 
-        {/* Row 3: edit-mode tabs (Arrange / Advanced / Tabs), left-aligned */}
+        {/* Row: edit-mode tabs (Arrange / Advanced / Tabs), left-aligned */}
         <div className="px-1 sm:px-2">
           <Tabs
             tabs={[...MODE_OPTIONS, { id: 'tabs', label: 'Tabs' }]}
