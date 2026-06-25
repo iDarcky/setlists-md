@@ -443,27 +443,17 @@ function ChartPanel({ settings, update }) {
         </div>
       </Row>
       <Row label="Navigation controls" description="How you move between songs in live & practice.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {[
-            { key: 'pill', label: 'Floating pill' },
-            { key: 'header', label: 'Header buttons' },
-            { key: 'edge', label: 'Edge arrows' },
-            { key: 'swipe', label: 'Swipe' },
-          ].map(({ key, label }) => {
-            const active = (settings.navStyle || 'pill') === key;
-            return (
-              <Button
-                key={key}
-                size="sm"
-                variant={active ? 'secondary' : 'ghost'}
-                onClick={() => update('navStyle', key)}
-                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </div>
+        <Select value={settings.navStyle || 'pill'} onValueChange={(v) => update('navStyle', v)}>
+          <SelectTrigger className="h-9 w-48 bg-[var(--ds-background-100)]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="pill">Floating pill</SelectItem>
+            <SelectItem value="header">Header buttons</SelectItem>
+            <SelectItem value="edge">Edge arrows</SelectItem>
+            <SelectItem value="swipe">Swipe</SelectItem>
+          </SelectContent>
+        </Select>
       </Row>
       <Row label="Auto-hide title bar" description="Collapse the header in live & practice after a few seconds idle; tap to bring it back.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
@@ -623,6 +613,30 @@ function LabsPanel({ settings, update }) {
           })}
         </div>
       </Row>
+      {(settings.structurePosition || 'top') !== 'top' && (
+        <Row label="Floating structure display" description="Show the floating structure as dots, labels, or both.">
+          <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+            {[
+              { key: 'dots', label: 'Dots' },
+              { key: 'labels', label: 'Labels' },
+              { key: 'both', label: 'Both' },
+            ].map(({ key, label }) => {
+              const active = (settings.structureRailStyle || 'both') === key;
+              return (
+                <Button
+                  key={key}
+                  size="sm"
+                  variant={active ? 'secondary' : 'ghost'}
+                  onClick={() => update('structureRailStyle', key)}
+                  className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
+                >
+                  {label}
+                </Button>
+              );
+            })}
+          </div>
+        </Row>
+      )}
     </Section>
   );
 }

@@ -7,7 +7,7 @@ import TabGridEditor from './TabGridEditorV2';
 import KeyChangeDialog from './KeyChangeDialog';
 import { TAB_INSTRUMENTS, instrumentForStrings } from './tabInstruments';
 import SectionDrawer from './SectionDrawer';
-import StructureEditor from './StructureEditor';
+import StructureControl from './StructureControl';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
 import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType } from './arrangeHelpers';
@@ -45,14 +45,6 @@ function formatChord(chord, notation, key) {
   if (notation === 'nashville') return getNashvilleNumber(chord, key);
   if (notation === 'solfege') return getSolfege(chord);
   return chord;
-}
-
-// "Verse 1" -> "V1", "Pre Chorus 2" -> "PC2", "Chorus" -> "C".
-function sectionShortCode(type) {
-  const base = sectionBaseType(type);
-  const num = (type.match(/(\d+)\s*:?\s*$/) || [])[1] || '';
-  const initials = base.split(/\s+/).map(w => w[0] || '').join('').toUpperCase();
-  return initials + num;
 }
 
 // ─── InteractiveLine (single-phase) ──────────────────────────────────
@@ -522,11 +514,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   }, [song, emitSong]);
 
   // ─── Structure (slide order) — the one official control lives here ───
-  const isCustomStructure = song?.structureMode === 'custom';
-  const uniqueSectionTypes = useMemo(
-    () => [...new Set((song?.sections || []).map(s => s.type))],
-    [song],
-  );
   // Auto = follows section order; custom = a hand-tuned slide order. Toggling on
   // seeds the order from the current sections so the user starts from what they see.
   const setStructureMode = useCallback((custom) => {
@@ -543,10 +530,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     const arr = str.split(',').map(s => s.trim()).filter(Boolean);
     emitSong({ ...song, structureMode: 'custom', structure: arr });
   }, [song, emitSong]);
-  // The play order shown as chips: the custom slide order when set, else section order.
-  const playOrder = (isCustomStructure && Array.isArray(song?.structure) && song.structure.length)
-    ? song.structure
-    : placements.map(p => p.type);
 
   const addSection = useCallback((base = 'Verse') => {
     if (!song) return;
@@ -719,49 +702,19 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      {/* The song's official structure (slide order): a Custom-slide-order toggle,
-          the play-order chips (tap to jump to a section), and — when custom — an
-          "Edit order" link to reorder/repeat. A Customize popover on the right. */}
+      {/* The song's official structure (slide order). A checkbox toggles a custom
+          slide order; chips show the play order (tap to jump). A Customize popover
+          sits on the right. Shared with the Advanced tab so the two always match. */}
       <div className="shrink-0 flex items-center gap-2 pl-3 pr-6 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
-        <label
-          className="flex items-center gap-1.5 shrink-0 text-label-11 font-medium text-[var(--ds-gray-700)] cursor-pointer select-none"
-          title="When off, the play order follows your sections. When on, set a custom slide order (repeat, reorder, or skip sections)."
-        >
-          <input
-            type="checkbox"
-            checked={isCustomStructure}
-            onChange={(e) => setStructureMode(e.target.checked)}
-            className="accent-[var(--color-brand)]"
-          />
-          Custom slide order
-        </label>
-        <div className="flex-1 flex items-center gap-1 overflow-x-auto min-w-0">
-          {playOrder.length > 1 ? playOrder.map((name, i) => {
-            const st = sectionStyle(name, null, customSectionTypes);
-            const secIdx = placements.findIndex(p => p.type === name);
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => secIdx >= 0 && jumpTo(secIdx)}
-                className="shrink-0 px-2 py-1 rounded-md text-label-11 font-bold font-mono border border-[var(--ds-gray-300)] bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)] cursor-pointer"
-                style={{ color: st.b }}
-                title={name}
-              >
-                {sectionShortCode(name)}
-              </button>
-            );
-          }) : <span className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)]">Structure</span>}
-        </div>
-        {isCustomStructure && (
-          <StructureEditor
-            variant="link"
-            value={(song.structure || []).join(', ')}
-            availableSections={uniqueSectionTypes}
-            onChange={onStructureChange}
-            autoSeed={false}
-          />
-        )}
+        <StructureControl
+          mode={song.structureMode}
+          value={(song.structure || []).join(', ')}
+          sections={placements.map(p => p.type)}
+          customSectionTypes={customSectionTypes}
+          onToggleMode={setStructureMode}
+          onChangeValue={onStructureChange}
+          onJump={(name) => { const i = placements.findIndex(p => p.type === name); if (i >= 0) jumpTo(i); }}
+        />
         <PopMenu
           trigger={
             <IconButton variant="ghost" size="sm" aria-label="Customize" title="Customize">

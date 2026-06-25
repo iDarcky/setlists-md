@@ -10,7 +10,7 @@ import WriteTab from './editor/WriteTab';
 import ArrangeTabV2 from './editor/ArrangeTabV2';
 import TabsTab from './editor/TabsTab';
 import MetadataPanel from './editor/MetadataPanel';
-import StructureRow from './editor/StructureRow';
+import StructureControl from './editor/StructureControl';
 import ArrangementMenu, { EditArrangementsDialog } from './editor/ArrangementMenu';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
@@ -203,15 +203,6 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   const [previewLinkSizes, setPreviewLinkSizes] = useState(true);
   const [editArrangementsOpen, setEditArrangementsOpen] = useState(false);
   const [promptConfig, setPromptConfig] = useState(null);
-  // One-time inline explainer teaching how the structure (slide order) works.
-  // Device-local flag, never synced — follows the helpPageSeen precedent.
-  const [structureTipSeen, setStructureTipSeen] = useState(() => {
-    try { return localStorage.getItem('setlists-md:structure-tip-seen') === '1'; } catch { return false; }
-  });
-  const dismissStructureTip = useCallback(() => {
-    setStructureTipSeen(true);
-    try { localStorage.setItem('setlists-md:structure-tip-seen', '1'); } catch { /* private mode */ }
-  }, []);
   const textareaRef = useRef(null);
   const isDirty = md !== savedMd;
 
@@ -573,14 +564,13 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   // The one official structure control — rendered inside both the Arrange and
   // Advanced tabs (not the header) so editing the slide order has a single home.
   const structureRowEl = (
-    <StructureRow
+    <StructureControl
       value={structureValue}
       mode={isCustomStructure ? 'custom' : 'auto'}
-      availableSections={availableSections}
+      sections={availableSections}
+      customSectionTypes={customSectionTypes}
       onChangeValue={(next) => updateField('structure', next)}
-      onChangeMode={setStructureMode}
-      tipSeen={structureTipSeen}
-      onDismissTip={dismissStructureTip}
+      onToggleMode={setStructureMode}
     />
   );
 
@@ -661,7 +651,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           type="number"
           value={currentTempo}
           onChange={e => updateField('tempo', e.target.value)}
-          className="h-8 bg-[var(--ds-gray-100)] rounded-md px-2 text-label-12 font-mono text-[var(--ds-gray-1000)] outline-none w-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="h-8 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md px-2 text-label-12 font-mono text-[var(--ds-gray-1000)] outline-none w-16 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           min="30" max="300"
           placeholder="bpm"
           aria-label="Tempo"

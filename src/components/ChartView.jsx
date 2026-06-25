@@ -387,16 +387,19 @@ export default function ChartView({
   // (FloatingStructure) and drop the ribbon from the header.
   const structurePos = isPreview ? 'top' : (settings?.structurePosition || 'top');
   const ribbonSide = structurePos === 'left' || structurePos === 'right';
+  const floating = structurePos !== 'top';
+  // Floating uses the user's dots/labels/both choice; in the header it follows
+  // the regular ribbon style. Sides spell out repeats; bottom collapses to ×N.
+  const railStyle = settings?.structureRailStyle || 'both';
   const ribbonNode = (
     <StructureRibbon
       structure={orderedSections.map(s => s.type)}
       compact
-      // Side rail: a slim vertical column of dots + labels, repeats spelled out.
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
       collapse={!ribbonSide}
-      withLabels={ribbonSide}
+      withLabels={floating && railStyle === 'both'}
       activeIndex={activeSection}
-      style={ribbonSide ? 'dots' : (settings?.ribbonStyle || 'chips')}
+      style={floating ? (railStyle === 'labels' ? 'numbered' : 'dots') : (settings?.ribbonStyle || 'chips')}
       sectionColors={settings?.sectionColors}
       sectionLabels={settings?.sectionLabels}
       customSectionTypes={settings?.customSectionTypes}

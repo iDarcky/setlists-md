@@ -1,16 +1,9 @@
 // A floating, space-minimal overlay for the structure (section flow) ribbon when
 // the user moves it out of the header (Labs → structure position). It is
 // `position: fixed` and reserves no layout space; only the ribbon is interactive.
-//   - bottom: a centred strip floating above the nav pill (translucent surface).
-//   - left/right: a slim, transparent vertical strip edge-centred — no background,
-//     no border; just the chips/dots floating over the chart.
-const bottomSurface = {
-  background: 'var(--chart-header-bg, var(--header-bg-blur))',
-  borderColor: 'var(--chart-header-border, var(--ds-gray-400))',
-  color: 'var(--chart-text, var(--ds-gray-1000))',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
-};
+// All positions are transparent — no fill/border — so it floats lightly over the
+// chart; a light backdrop-blur keeps the chips/dots legible. Colour comes from
+// the chips/dots themselves.
 
 // `raised` lifts the bottom strip above the floating nav pill; without a pill
 // it drops down to the bottom edge so it doesn't float in empty space.
@@ -22,8 +15,8 @@ export default function FloatingStructure({ position, children, raised = false }
         style={{ bottom: `calc(${raised ? '6.25rem' : '1.5rem'} + env(safe-area-inset-bottom, 0px))` }}
       >
         <div
-          className="pointer-events-auto max-w-[92vw] overflow-x-auto no-scrollbar rounded-full border shadow-lg px-2 py-1"
-          style={bottomSurface}
+          className="pointer-events-auto max-w-[92vw] overflow-x-auto no-scrollbar px-2 py-1"
+          style={{ color: 'var(--chart-text, var(--ds-gray-1000))', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
         >
           {children}
         </div>
