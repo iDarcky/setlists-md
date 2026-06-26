@@ -97,6 +97,25 @@ export function keysInQualityOf(key, accidentals = 'flats') {
   return sharp ? ALL_KEYS_SHARP : ALL_KEYS;
 }
 
+// Options for the editor's Key picker (defines what key a song is written in).
+// The stored `value` follows the accidental preference ('sharps' → "F#",
+// otherwise flats → "Gb"), but the `label` shows BOTH spellings for accidental
+// keys (e.g. "F#/Gb", "Bbm/A#m") so a leader who thinks in either spelling still
+// recognizes the row. Naturals get a single label. Returns 24 entries (major
+// then minor).
+export function keyOptions(accidentals = 'flats') {
+  const sharp = accidentals === 'sharps';
+  const majors = sharp ? ALL_KEYS_SHARP : ALL_KEYS;
+  const build = (suffix) => majors.map(root => {
+    const alt = sharp ? SHARP_TO_FLAT[root] : FLAT_MAP[root];
+    return {
+      value: root + suffix,
+      label: alt ? `${root}${suffix}/${alt}${suffix}` : root + suffix,
+    };
+  });
+  return [...build(''), ...build('m')];
+}
+
 // Calculate semitones from one key to another. Parses each key's *root* so
 // minor keys (e.g. "Am", "Bbm") and accidentals resolve correctly — using the
 // whole string would miss the "m"/flat and silently return 0.

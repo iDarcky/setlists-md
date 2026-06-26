@@ -12,6 +12,7 @@ import {
   ALL_KEYS,
   isMinorKey,
   keysInQualityOf,
+  keyOptions,
   circleOfFifthsDistance,
   keyCompatibilityScore,
   tempoProximityScore,
@@ -286,6 +287,30 @@ describe('minor keys', () => {
     expect(keysInQualityOf('C', 'sharps')).not.toContain('Gb');
     expect(keysInQualityOf('C', 'flats')).toContain('Gb');
     expect(keysInQualityOf('Am', 'sharps')).toContain('F#m');
+  });
+});
+
+describe('keyOptions', () => {
+  it('returns 24 entries (12 major + 12 minor)', () => {
+    expect(keyOptions('flats')).toHaveLength(24);
+  });
+
+  it('stores flats but labels both spellings for accidental keys', () => {
+    const gb = keyOptions('flats').find(o => o.value === 'Gb');
+    expect(gb.label).toBe('Gb/F#');
+    const gbm = keyOptions('flats').find(o => o.value === 'Gbm');
+    expect(gbm.label).toBe('Gbm/F#m');
+  });
+
+  it('stores sharps when the preference is sharps', () => {
+    const fSharp = keyOptions('sharps').find(o => o.value === 'F#');
+    expect(fSharp.label).toBe('F#/Gb');
+    expect(keyOptions('sharps').some(o => o.value === 'Gb')).toBe(false);
+  });
+
+  it('labels natural keys with a single name', () => {
+    expect(keyOptions('flats').find(o => o.value === 'C').label).toBe('C');
+    expect(keyOptions('flats').find(o => o.value === 'Em').label).toBe('Em');
   });
 });
 

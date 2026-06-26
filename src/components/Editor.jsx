@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import ChartView from './ChartView';
 import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields, EXTRA_META_KEYS } from '../parser';
-import { ALL_KEYS_ALL, transposeChord, transposeKey, keyPrefersSharps } from '../music';
+import { keyOptions, transposeChord, transposeKey, keyPrefersSharps } from '../music';
 import { isChordToken } from '../importer';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
 import { importChartText } from '../lib/importChords';
@@ -445,6 +445,14 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   const currentTempo = fmFields.tempo ?? '';
   const currentTime = fmFields.time ?? '';
 
+  // Key picker options follow the Accidentals setting (sharps → "F#",
+  // otherwise flats → "Gb"); 'auto' stores flats (the byte-stable legacy
+  // default). Each row labels both enharmonic spellings (e.g. "F#/Gb") so the
+  // option is recognizable either way.
+  const keyOpts = keyOptions(
+    (chartDefaults.settings?.accidentals || 'auto') === 'sharps' ? 'sharps' : 'flats'
+  );
+
   // New-song guardrails: title + key are mandatory before a save is allowed,
   // and we softly nudge for tempo/time (never blocking). These read the raw
   // frontmatter fields so a blank key isn't masked by the parser's 'C' default.
@@ -638,35 +646,36 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
             aria-label="Key"
             className={`h-8 w-auto gap-1 px-2 text-label-12 font-mono bg-[var(--ds-gray-100)] ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
           >
-            <SelectValue placeholder="Key?" />
+            {/* Show only the chosen key in the trigger (e.g. "Gb"), not the
+                dual-spelling label, so the pill stays compact. */}
+            <span className={keySet ? '' : 'text-[var(--ds-gray-500)]'}>{currentKey || 'Key?'}</span>
           </SelectTrigger>
           <SelectContent className="font-mono">
-            {ALL_KEYS_ALL.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+            {keyOpts.map(({ value, label }) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         {/* Explicit transpose: moves the actual chords (and the key label) by a
             semitone. Separate from the Key field so relabelling never rewrites
             the user's chords. */}
-        <div className="flex items-center rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] overflow-hidden">
+        <div className="flex items-center h-8 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] overflow-hidden">
           <IconButton variant="ghost" size="xs" aria-label="Transpose down a semitone" title="Transpose down" onClick={() => transposeAllChords(-1)}>−</IconButton>
           <span className="px-1 text-label-10 uppercase tracking-wide text-[var(--ds-gray-600)] select-none">Tr</span>
           <IconButton variant="ghost" size="xs" aria-label="Transpose up a semitone" title="Transpose up" onClick={() => transposeAllChords(1)}>+</IconButton>
         </div>
-        {/* The box is a <div> with the SAME classes as the other control
-            triggers (h-8 + border + rounded + bg), with a transparent input
-            inside — so the box height is rendered identically and not subject to
-            an <input>'s intrinsic sizing. */}
-        <div className="inline-flex items-center h-8 w-14 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] px-2">
-          <input
-            type="text"
-            inputMode="numeric"
-            value={currentTempo}
-            onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
-            className="w-full appearance-none bg-transparent border-none p-0 text-label-12 font-mono text-center text-[var(--ds-gray-1000)] outline-none"
-            placeholder="bpm"
-            aria-label="Tempo"
-          />
-        </div>
+        {/* The tempo input IS the sized box: same h-8 + border + rounded + bg
+            as the Key/Time triggers, with box-border + leading-none so its
+            content line-height can't push it past 32px. No wrapper needed. */}
+        <input
+          type="text"
+          inputMode="numeric"
+          value={currentTempo}
+          onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+          className="box-border h-8 w-14 appearance-none rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] px-2 text-label-12 font-mono leading-none text-center text-[var(--ds-gray-1000)] outline-none"
+          placeholder="bpm"
+          aria-label="Tempo"
+        />
         <TimeSignatureControl
           value={currentTime}
           onChange={v => updateField('time', v)}
