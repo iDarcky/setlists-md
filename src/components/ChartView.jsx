@@ -13,7 +13,7 @@ import { cn } from '../lib/utils';
 import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { StructureRibbon } from './StructureRibbon';
 import FloatingStructure from './ui/FloatingStructure';
-import ViewModePicker from './ui/ViewModePicker';
+import { VIEW_MODES } from './ui/viewModes';
 import AaMenu from './AaMenu';
 import { useActiveSection } from '../hooks/useActiveSection';
 import { useStageHeaderCollapse } from '../hooks/useStageHeaderCollapse';
@@ -448,6 +448,14 @@ export default function ChartView({
               <OverflowMenu
                 ariaLabel="Song actions"
                 items={[
+                  // View mode lives in the kebab now (folded out of the header).
+                  { heading: true, label: 'View' },
+                  ...VIEW_MODES.filter(m => m.id !== 'tabs' || hasTabs).map(m => ({
+                    label: m.label,
+                    selected: displayMode === m.id,
+                    onClick: () => setDisplayMode(m.id),
+                  })),
+                  { divider: true },
                   onPlay && !isPreview && {
                     label: 'Play (live)',
                     icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>),
@@ -516,8 +524,8 @@ export default function ChartView({
               {/* The key list + the shown value follow the Accidentals setting
                   (sharps → F♯/C♯, otherwise flats) so they match the chords. */}
               <Select value={transposeKey(selectedKey, 0, settings?.accidentals === 'sharps') || selectedKey} onValueChange={setSelectedKey}>
-                <SelectTrigger className="h-7 px-2 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-lg text-label-12 sm:text-label-14 font-bold text-[var(--text-1)] gap-1 min-w-0 w-auto focus:ring-0" aria-label="Key">
-                  <span className="hidden sm:inline text-label-11 font-semibold text-[var(--text-2)] mr-0.5">Key</span>
+                <SelectTrigger className="h-6 px-1.5 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-md text-label-11 sm:text-label-13 font-bold text-[var(--text-1)] gap-0.5 min-w-0 w-auto focus:ring-0" aria-label="Key">
+                  <span className="text-[var(--text-2)] font-semibold mr-0.5">Key</span>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -549,7 +557,6 @@ export default function ChartView({
           )}
           actions={(
             <div className="flex items-center gap-0.5">
-              <ViewModePicker value={displayMode} onChange={setDisplayMode} hasTabs={hasTabs} />
               {/* One "Aa" control — opens the tabbed display popover (Lyrics /
                   Chords / Page). The old Display + Layout sheets remain as the
                   "Advanced" backstop, reachable from the popover's Page tab. */}
