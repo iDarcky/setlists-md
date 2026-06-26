@@ -5,7 +5,7 @@
 > (stack, architecture, schema, finish/release workflows, gotchas) — it points
 > here for planning.
 >
-> _Last updated: 2026-06-24 · Current version: `0.14.0-beta.1` (on `beta`)._
+> _Last updated: 2026-06-26 · Current version: `0.14.0-beta.1` (on `beta`)._
 >
 > **Priority:** `P0` drop-everything · `P1` high · `P2` medium · `P3` nice-to-have.
 > `Q:` = open decision needed.
@@ -96,17 +96,18 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Field char limits (Themes/Genres/Verses/Moment/Tags) — P3 · _Q: cap which, or leave free?_
 
 ### Song editor
-- **Preview ignores key/transpose** — split-screen preview renders in the stored key until reopened — **P1**.
-- **New-song guardrails** — Title + Key start empty + mandatory (block save until set); soft-remind bpm/time; teach structure — P2.
-- **Double "structure" concept** — unify the arrangement's `structure[]` and the editor's section flow — P2 · _Q: one source of truth + advanced mode?_
-- Preview defaults to **1 column** (persist per device) — P2.
+- ✅ **Preview ignores key/transpose** — relabel-only Key + explicit Transpose; preview honours it (shipped).
+- ✅ **New-song guardrails** — Title + Key start empty + mandatory; soft-remind bpm/time (shipped).
+- ✅ **Double "structure" concept** — one official control (`StructureControl`) shared by Arrange + Advanced (shipped).
+- ✅ Preview defaults to **1 column**, persisted per device (shipped).
+- ✅ **Editor Key field** follows the Accidentals setting + dual `F#/Gb` labels; **tempo box** height matched to Key/Time triggers (shipped — see §5).
 - Key/chord strip follows the edited section + respects active notation — P2.
 
 ### Chart view
-- **Layout menu rework** — **P1**.
-- Display-options rework (after the 3-dots fix, which is done) — P2.
+- **Layout menu rework** → fold display controls into one **"Aa" menu** (see §4 Song hub) — **P1**.
 - View switch → single generic icon, text-only menu — P2.
-- **Enharmonic spelling** (C# vs Db) — key-aware by default + global prefer-sharps/flats override — P2.
+- ✅ **Enharmonic spelling** (C# vs Db) — key-aware by default + global Sharps/Flats/Auto override (shipped 0.14.x; threaded through display, editor transpose, suggestions, key dropdowns).
+- Dual `F#/Gb` labels in the **chart transpose** key dropdown too (editor done) — P3.
 - Transpose tabs — P3 · _feasibility spike_.
 
 ### Song library
@@ -203,6 +204,47 @@ _Shipped groundwork (recent cycles): floating-structure-ribbon position (Labs,
 `FloatingStructure`), chart-themed floating pill, per-arrangement auto/custom
 slide-order toggle, editor key-relabel/explicit-transpose split — see §5._
 
+#### Song hub — the library's song-open target (P1, next milestone)
+**Decided (with user, 2026-06-26):** opening a song from the library should land on
+a **Song hub**, not today's kitchen-sink chart strip. Inspiration: MultiTracks'
+single-song page (one identity header + a row of tabbed surfaces). Goal is to
+**de-clutter** — the chart stops trying to *be* the hub (reader + every control +
+transpose + structure + export on one strip) and instead **becomes just the reader**;
+the hub owns identity + navigation.
+
+Mockup: `docs/mockups/song-hub.html` (render: `docs/mockups/song-hub.png`).
+
+Shape:
+- **Hub header** — art/title + key chip, artist, inline meta (`Key · ♩BPM · Time · Length`),
+  **arrangement picker**, and hub-level actions (Transpose, **Aa**, ⋯ overflow for
+  Print/Share, **Edit**). The `♩=180` inline-tempo idea lands here.
+- **Song-map ribbon** under the header (quiet section codes; matters most for Live).
+- **Tabbed surfaces** — `Chart · Lyrics · Details · Audio · Practice` — destinations,
+  not trapped modes. Chart is the default; setlist arrival shows a breadcrumb.
+- **One "Aa" menu** owns the *chart reading* prefs (theme, show chords/lyrics/map,
+  columns, text size, chord diagrams, Nashville, structure ribbon). **Set once →
+  remembered per device** (`usePersistentView`); app-wide defaults stay in Settings,
+  experimental toggles in Labs.
+
+Sequencing (it's a nav refactor — no router today, so new `view` state + moving
+controls between components):
+1. **P1 — fold chart display controls into one `Aa` menu** first (immediate
+   de-clutter, low risk; builds on `lib/chartDisplay.js`).
+2. **P1 — introduce the hub header + tab row** as the library's song-open target.
+3. Then wire the secondary tabs (Lyrics/Details/Audio/Practice) incrementally.
+
+#### Competitive read — melodia.ro chart view (analysis 2026-06-26)
+A friend's worship-chart app. **What it does well & we should borrow:** (1) one **"Aa"
+menu** owning *all* reading prefs (theme/size/font + Versuri/Acorduri) → our §hub Aa
+menu; (2) **set-once, sticks per device**; (3) quiet bottom **song-map**; (4) inline
+`♩=tempo`. **Where we already win / won't copy:** multi-arrangement, capo, enharmonic
+correctness, offline PWA, setlist/live integration; **skip** his **key picker that
+lists all 17 enharmonic spellings** (convoluted — our 12-key, accidentals-driven
+dropdown with dual `F#/Gb` labels is cleaner, shipped — see §5); **skip** the
+"save-in-key" sentence CTA; a top-level lyrics/chords toggle isn't worth it for us
+(menu item is fine). **Named theme presets (Paper/Navy):** we already have chart
+themes (Pro) — no need to copy.
+
 #### Theme pass for reading views (P2)
 The chart/section **themes need an update**: in dark chart themes some rows render
 **white-on-white** (e.g. setlist breaks), the **structure ribbon pills don't follow
@@ -267,7 +309,17 @@ toggles, margins/spacing toggles, section-per-page, reset-to-defaults, jsPDF fal
 
 ## 5. Recently shipped (context)
 
-- **0.14.0** (this cycle) — unified diacritic/punctuation/typo-tolerant **search** across all
+- **Reading-view + editor polish** (current `0.14.x-beta`, on `claude/clever-galileo-hkmim6`) —
+  editor Key **relabel-only** + explicit Transpose split; **new-song guardrails** (Title+Key
+  mandatory, blank-key bug fixed); preview **defaults to 1 column** (per device); one official
+  **`StructureControl`** shared by Arrange + Advanced (no more double structure); **enharmonic
+  spelling** end-to-end (key-aware + Sharps/Flats/Auto setting) with editor key dropdown **dual
+  `F#/Gb` labels**; tempo box **height fix**; chord picker **popup at cursor** + diatonic
+  suggestions; scroll-based **section highlight**; **floating structure ribbon** (Labs:
+  Off/Bottom/Left/Right + Chips/Codes/Dots/Dots+label); Live/Practice header **overflow menu**;
+  setlist rail glass + un-numbered brand breaks; **Accidentals** + **Navigation-controls**
+  settings. Docs: `docs/views_questions.md` (per-view questionnaire), `docs/mockups/song-hub.*`.
+- **0.14.0** — unified diacritic/punctuation/typo-tolerant **search** across all
   metadata (`src/lib/search.js`) + ⌘K + highlighting; **multi-filter** library
   (`songFacets.js`/`LibraryFilters`); **customizable table columns** for Songs + Setlists
   (`tableColumns.js`/`ColumnsMenu`, synced); **Cards/Compact/Table** mobile views (remembered
