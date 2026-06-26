@@ -233,6 +233,34 @@ controls between components):
 2. **P1 — introduce the hub header + tab row** as the library's song-open target.
 3. Then wire the secondary tabs (Lyrics/Details/Audio/Practice) incrementally.
 
+**V2 decisions (2026-06-26 — mockup `docs/mockups/song-hub-v2.*`):**
+- **Aa is a popover, not a docked rail** — anchored to the header button, reader
+  reclaims full width. The popover is **tabbed**: a **Lyrics** tab and a **Chords**
+  tab (each with independent **size / font / colour**), plus a **Page** tab
+  (theme · columns · show mode · chord-diagrams/structure toggles). Mockup:
+  `docs/mockups/aa-menu.*`.
+- **Header gains Full screen + Campfire — keep both, label clearly.** Full screen =
+  maximize *this hub/reader* (hide chrome + wake-lock). Campfire = enter the
+  existing **locked single-song performance shell** (single-song Play already
+  ships). Don't blur them.
+- **Default columns = 2** (Aa controls 1/2/Auto). Transpose lives in the header.
+- _Q: hub Transpose persistence — persist per song, or reset on close?_ (also in
+  `views_questions.md`).
+- **Bottom transport bar (concept)** — play/pause · source · scrubber · metronome ·
+  auto-scroll · loop. Phasing & open questions:
+  - **Audio source — decision needed.** We only store **Spotify/YouTube links**, so
+    real backing-track playback + a true scrubber is roadmap-level. _Q: ship as
+    **(a) metronome + auto-scroll only** (no audio, fully shippable now — scrubber =
+    song position), **(b)** drive a **YT/Spotify embed** (limited scrub), or **(c)**
+    real **multi-track** playback (store/upload audio — major)?_ Lean **(a) first**.
+  - **Scope** — global mini-bar that only appears when a track/metronome/auto-scroll
+    is **active**, expanding on the **Audio/Practice** tabs (so it doesn't duplicate
+    the Audio tab).
+  - **Mobile collision** — the bar fights `BottomNav`; sit it above nav, hide it
+    outside full screen, or replace nav while playing. _Needs a mobile pass._
+  - **Loop needs a target** — selecting a section to loop is a **Practice-tier**
+    interaction, not free on the plain chart.
+
 #### Competitive read — melodia.ro chart view (analysis 2026-06-26)
 A friend's worship-chart app. **What it does well & we should borrow:** (1) one **"Aa"
 menu** owning *all* reading prefs (theme/size/font + Versuri/Acorduri) → our §hub Aa
