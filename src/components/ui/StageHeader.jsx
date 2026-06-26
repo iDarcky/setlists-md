@@ -11,7 +11,12 @@ import { headerFrostStyle } from '../../lib/headerFrost';
 // When `collapsed`, rows 1+2 animate away (and extras hide), leaving just the
 // ribbon — the immersive reading state. Each view supplies its own controls as
 // nodes; this component owns the layout and the collapse animation only.
-export default function StageHeader({ collapsed = false, title, close, meta, actions, info, ribbon, extras, onExpand }) {
+export default function StageHeader({ collapsed = false, title, close, meta, actions, info, ribbon, extras, onExpand, actionsInTitle = false }) {
+  // When `actionsInTitle`, the view's action controls ride the title row (next
+  // to close) instead of the meta row — used by Chart so the meta row stays a
+  // clean key/tempo strip.
+  const titleActions = actionsInTitle ? actions : null;
+  const metaActions = actionsInTitle ? null : actions;
   return (
     <div
       className="material-header"
@@ -34,16 +39,17 @@ export default function StageHeader({ collapsed = false, title, close, meta, act
         style={{ maxHeight: collapsed ? 0 : '12rem', opacity: collapsed ? 0 : 1 }}
         aria-hidden={collapsed}
       >
-        {(title || close) && (
+        {(title || close || titleActions) && (
           <div className="wide-container flex items-center gap-2 pt-2.5 pb-1">
             <div className="min-w-0 flex-1 flex items-center gap-2">{title}</div>
+            {titleActions && <div className="shrink-0 flex items-center gap-0.5">{titleActions}</div>}
             {close && <div className="shrink-0 flex items-center">{close}</div>}
           </div>
         )}
-        {(meta || actions) && (
+        {(meta || metaActions) && (
           <div className="wide-container flex items-center gap-2 pb-2">
             <div className="flex items-center gap-2 min-w-0 flex-1">{meta}</div>
-            <div className="flex items-center gap-0.5 shrink-0">{actions}</div>
+            {metaActions && <div className="flex items-center gap-0.5 shrink-0">{metaActions}</div>}
           </div>
         )}
       </div>

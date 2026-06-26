@@ -442,6 +442,7 @@ export default function ChartView({
         <StageHeader
           collapsed={headerCollapsed}
           onExpand={revealHeader}
+          actionsInTitle
           close={(
             <>
               <OverflowMenu
