@@ -121,6 +121,22 @@ export const CHART_FONT_MAP = Object.fromEntries(CHART_FONTS.map(f => [f.id, f])
 export const DEFAULT_CHORD_FONT_ID = 'geist-mono';
 export const DEFAULT_LYRIC_FONT_ID = 'geist-sans';
 
+// Fixed colour palette for the Aa menu's per-element (lyric / chord) colour
+// override. A `value` of `null` means "follow the active theme" (clears the
+// override). Kept small + curated so the picker stays a palette, not a colour
+// wheel; the same set is offered for both lyrics and chords.
+export const CHART_COLOR_PALETTE = [
+  { id: 'theme',  name: 'Theme default', value: null },
+  { id: 'gold',   name: 'Gold',          value: '#e0b341' },
+  { id: 'amber',  name: 'Amber',         value: '#e07a4f' },
+  { id: 'rose',   name: 'Rose',          value: '#f0a3b8' },
+  { id: 'blue',   name: 'Blue',          value: '#7ec1ff' },
+  { id: 'violet', name: 'Violet',        value: '#bb9af7' },
+  { id: 'green',  name: 'Green',         value: '#46c79a' },
+  { id: 'ink',    name: 'Ink',           value: '#1c1b1a' },
+  { id: 'paper',  name: 'Paper',         value: '#fafafa' },
+];
+
 // Resolve a font id (or undefined) to a CSS font stack.
 export function chartFontStack(id, fallback) {
   if (id && CHART_FONT_MAP[id]) return CHART_FONT_MAP[id].stack;

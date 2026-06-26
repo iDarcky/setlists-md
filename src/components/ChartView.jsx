@@ -14,6 +14,7 @@ import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { StructureRibbon } from './StructureRibbon';
 import FloatingStructure from './ui/FloatingStructure';
 import ViewModePicker from './ui/ViewModePicker';
+import AaMenu from './AaMenu';
 import { useActiveSection } from '../hooks/useActiveSection';
 import { useStageHeaderCollapse } from '../hooks/useStageHeaderCollapse';
 import StageHeader from './ui/StageHeader';
@@ -115,6 +116,18 @@ export default function ChartView({
     setColumns(v);
     onUpdateSettings?.('defaultColumns', v);
   };
+  // Aa-menu column control: supports 'auto' (clears the manual override and
+  // re-resolves from width) as well as explicit 1/2.
+  const setColumnsPref = (v) => {
+    onUpdateSettings?.('defaultColumns', v);
+    if (v === 'auto') {
+      userSetColumnsRef.current = false;
+      setColumns(resolveColumns('auto', wantTwo));
+    } else {
+      userSetColumnsRef.current = true;
+      setColumns(v);
+    }
+  };
   // Re-seed when the reading width / orientation / setting changes, unless the
   // user has overridden the column count by hand this session.
   useEffect(() => {
@@ -204,6 +217,7 @@ export default function ChartView({
   const changeLineHeight = (v) => onUpdateSettings?.('lyricLineHeight', Math.max(1, Math.min(2.4, Math.round(v * 100) / 100)));
 
   const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'arrangements' | null
+  const [aaAnchor, setAaAnchor] = useState(null); // DOMRect of the Aa button, or null
   const [showInfo, setShowInfo] = useState(false); // inline song-details panel toggled from the title chevron
   const [notesPeekOpen, setNotesPeekOpen] = useState(notesPeekDefaultOpen);
 
@@ -535,15 +549,17 @@ export default function ChartView({
           actions={(
             <div className="flex items-center gap-0.5">
               <ViewModePicker value={displayMode} onChange={setDisplayMode} hasTabs={hasTabs} />
-              <IconButton variant="ghost" size="sm" onClick={() => openSheet('display')} aria-label="Display options">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
-                </svg>
-              </IconButton>
-              <IconButton variant="ghost" size="sm" onClick={() => openSheet('layout')} aria-label="Layout">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="18" rx="1" /><rect x="14" y="3" width="7" height="18" rx="1" />
-                </svg>
+              {/* One "Aa" control — opens the tabbed display popover (Lyrics /
+                  Chords / Page). The old Display + Layout sheets remain as the
+                  "Advanced" backstop, reachable from the popover's Page tab. */}
+              <IconButton
+                variant="ghost"
+                size="sm"
+                aria-label="Display options"
+                aria-expanded={!!aaAnchor}
+                onClick={(e) => setAaAnchor(aaAnchor ? null : e.currentTarget.getBoundingClientRect())}
+              >
+                <span className="text-label-14 font-bold leading-none">Aa</span>
               </IconButton>
             </div>
           )}
@@ -582,93 +598,32 @@ export default function ChartView({
         />
       )}
 
+      {/* ── Aa display popover (single header control) ── */}
+      {!isPreview && aaAnchor && (
+        <AaMenu
+          anchorRect={aaAnchor}
+          onClose={() => setAaAnchor(null)}
+          settings={settings}
+          onUpdateSettings={onUpdateSettings}
+          lyricSize={fontSize}
+          onLyricSize={changeFontSize}
+          chordSize={chordFontSize}
+          onChordSize={changeChordFontSize}
+          columns={settings?.defaultColumns ?? 'auto'}
+          onColumns={setColumnsPref}
+          notation={notation}
+          onNotation={changeNotation}
+          showChords={showChords}
+          onToggleChords={toggleShowChords}
+          showDiagrams={showDiagrams}
+          onToggleDiagrams={toggleShowDiagrams}
+          onAdvanced={() => openSheet('layout')}
+        />
+      )}
+
       {/* ── Bottom-sheet modals (Layout / Music / Song info) ── */}
       {!isPreview && (
         <>
-          {/* ── Display menu — what's shown (notation, chord aids, role, style) ── */}
-          <BottomSheet
-            open={activeSheet === 'display'}
-            onClose={() => setActiveSheet(null)}
-            title="Display"
-          >
-            <div className="flex flex-col gap-4">
-              <SheetField label="Notation">
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { id: 'letters', label: 'Letters' },
-                    { id: 'nashville', label: 'Nashville' },
-                    { id: 'solfege', label: 'Do-Re-Mi' },
-                  ].map(b => (
-                    <button
-                      key={b.id}
-                      type="button"
-                      onClick={() => changeNotation(b.id)}
-                      aria-pressed={notation === b.id}
-                      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${notation === b.id ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
-                    >
-                      {b.label}
-                    </button>
-                  ))}
-                </div>
-              </SheetField>
-              <SheetField label="Show">
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={showChords ? 'brand' : 'secondary'}
-                    size="sm"
-                    onClick={toggleShowChords}
-                  >Chords</Button>
-                  <Button
-                    variant={showDiagrams ? 'brand' : 'secondary'}
-                    size="sm"
-                    onClick={toggleShowDiagrams}
-                  >Diagrams</Button>
-                </div>
-              </SheetField>
-              <SheetField label="Repeated sections">
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { id: 'full', label: 'Full' },
-                    { id: 'condensed', label: 'Condensed' },
-                  ].map(b => (
-                    <button
-                      key={b.id}
-                      type="button"
-                      onClick={() => onUpdateSettings?.('duplicateSections', b.id)}
-                      aria-pressed={duplicateSections === b.id}
-                      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${duplicateSections === b.id ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
-                    >
-                      {b.label}
-                    </button>
-                  ))}
-                </div>
-              </SheetField>
-              <SheetField label="Instrument">
-                <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
-                  {STAGE_MODES.map(m => {
-                    const active = stageMode === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => applyRole(m.id)}
-                        title={m.description}
-                        className={cn(
-                          'shrink-0 px-3 h-8 rounded-lg border transition-all text-label-12 font-semibold',
-                          active
-                            ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
-                            : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]',
-                        )}
-                      >
-                        {m.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </SheetField>
-            </div>
-          </BottomSheet>
-
           {/* ── Layout menu — how it's arranged (columns, sizes, spacing, style) ── */}
           <BottomSheet
             open={activeSheet === 'layout'}
@@ -722,6 +677,49 @@ export default function ChartView({
                       <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight + 0.1)} aria-label="Looser line height">+</IconButton>
                     </div>
                   </div>
+                </div>
+              </SheetField>
+
+              <SheetField label="Repeated sections">
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'full', label: 'Full' },
+                    { id: 'condensed', label: 'Condensed' },
+                  ].map(b => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => onUpdateSettings?.('duplicateSections', b.id)}
+                      aria-pressed={duplicateSections === b.id}
+                      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${duplicateSections === b.id ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </SheetField>
+
+              <SheetField label="Instrument">
+                <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
+                  {STAGE_MODES.map(m => {
+                    const active = stageMode === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => applyRole(m.id)}
+                        title={m.description}
+                        className={cn(
+                          'shrink-0 px-3 h-8 rounded-lg border transition-all text-label-12 font-semibold',
+                          active
+                            ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                            : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]',
+                        )}
+                      >
+                        {m.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </SheetField>
 

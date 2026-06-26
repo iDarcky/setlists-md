@@ -105,6 +105,7 @@ const PORTABLE_PREF_KEYS = [
   'chartBg',
   'chartText',
   'chartChordColor',
+  'chartLyricColor',
   'chartChordFont',
   'chartLyricFont',
   'sectionColors',

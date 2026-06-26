@@ -228,8 +228,11 @@ Shape:
 
 Sequencing (it's a nav refactor — no router today, so new `view` state + moving
 controls between components):
-1. **P1 — fold chart display controls into one `Aa` menu** first (immediate
-   de-clutter, low risk; builds on `lib/chartDisplay.js`).
+1. ✅ **Fold chart display controls into one `Aa` menu** — shipped: `AaMenu.jsx`
+   tabbed popover (Lyrics/Chords/Page) replaces the chart's Display+Layout icon
+   buttons; per-element **size/font/colour** (fixed palette via `CHART_COLOR_PALETTE`,
+   `chartLyricColor`/`chartChordColor` → `useChartTheme`); Page tab holds theme/
+   notation/columns/show, with an "Advanced" link to the existing Layout sheet.
 2. **P1 — introduce the hub header + tab row** as the library's song-open target.
 3. Then wire the secondary tabs (Lyrics/Details/Audio/Practice) incrementally.
 
