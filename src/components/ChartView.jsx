@@ -511,7 +511,7 @@ export default function ChartView({
               aria-label="Song details"
               className="min-w-0 flex-1 flex items-center gap-1.5 bg-transparent border-none cursor-pointer p-0 text-left"
             >
-              <h1 className="m-0 truncate font-bold leading-tight text-heading-16 sm:text-heading-20" style={{ color: 'var(--text-1)' }}>
+              <h1 className="m-0 truncate font-bold leading-tight text-heading-18 sm:text-heading-20" style={{ color: 'var(--text-1)' }}>
                 {song.title}
               </h1>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 self-center text-[var(--text-2)] transition-transform duration-200 ${showInfo ? 'rotate-180' : ''}`}>
@@ -520,12 +520,14 @@ export default function ChartView({
             </button>
           )}
           meta={(
-            <>
+            // One muted, compact meta line: values sit in --text-1, labels/units
+            // and the dot separators stay muted so the title clearly outranks it.
+            <div className="flex items-center gap-1 min-w-0 text-label-11 sm:text-label-13 text-[var(--text-2)]">
               {/* The key list + the shown value follow the Accidentals setting
                   (sharps → F♯/C♯, otherwise flats) so they match the chords. */}
               <Select value={transposeKey(selectedKey, 0, settings?.accidentals === 'sharps') || selectedKey} onValueChange={setSelectedKey}>
-                <SelectTrigger className="h-6 px-1.5 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-md text-label-11 sm:text-label-13 font-bold text-[var(--text-1)] gap-0.5 min-w-0 w-auto focus:ring-0" aria-label="Key">
-                  <span className="text-[var(--text-2)] font-semibold mr-0.5">Key</span>
+                <SelectTrigger className="h-6 px-1 -ml-1 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-md text-label-11 sm:text-label-13 font-semibold text-[var(--text-1)] gap-0.5 min-w-0 w-auto focus:ring-0" aria-label="Key">
+                  <span className="text-[var(--text-2)] font-normal mr-0.5">Key</span>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -533,27 +535,38 @@ export default function ChartView({
                 </SelectContent>
               </Select>
               {song.tempo && (
-                <span className="whitespace-nowrap text-label-11 sm:text-label-13"><span className="font-bold text-[var(--text-1)]">{song.tempo}</span><span className="ml-0.5">bpm</span></span>
+                <>
+                  <span aria-hidden className="opacity-50">·</span>
+                  <span className="whitespace-nowrap"><span className="font-semibold text-[var(--text-1)]">{song.tempo}</span><span className="ml-0.5">bpm</span></span>
+                </>
               )}
-              {song.time && <span className="whitespace-nowrap font-bold text-[var(--text-1)] text-label-11 sm:text-label-13">{song.time}</span>}
+              {song.time && (
+                <>
+                  <span aria-hidden className="opacity-50">·</span>
+                  <span className="whitespace-nowrap font-semibold text-[var(--text-1)]">{song.time}</span>
+                </>
+              )}
               {song._arrangementId && (song._allArrangements?.length || 0) > 1 && (
-                <Select value={activeArrId} onValueChange={handleSwitchArrangement}>
-                  <SelectTrigger className="h-7 px-1.5 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-lg text-label-12 sm:text-label-13 font-semibold text-[var(--text-1)] gap-1 max-w-[120px] sm:max-w-[200px] min-w-0 w-auto focus:ring-0" aria-label="Switch arrangement">
-                    <span className="truncate">{song._allArrangements.find(a => a.id === activeArrId)?.name || 'Arrangement'}</span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {song._allArrangements.map(a => (
-                      <SelectItem key={a.id} value={a.id}>
-                        <span className="inline-flex items-center gap-1.5">
-                          {a.id === song._defaultArrangementId && (<span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" title="Default" aria-label="Default" />)}
-                          {a.name || 'Untitled arrangement'}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <>
+                  <span aria-hidden className="opacity-50">·</span>
+                  <Select value={activeArrId} onValueChange={handleSwitchArrangement}>
+                    <SelectTrigger className="h-6 px-1 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-md text-label-11 sm:text-label-13 font-semibold text-[var(--text-1)] gap-0.5 max-w-[110px] sm:max-w-[200px] min-w-0 w-auto focus:ring-0" aria-label="Switch arrangement">
+                      <span className="truncate">{song._allArrangements.find(a => a.id === activeArrId)?.name || 'Arrangement'}</span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {song._allArrangements.map(a => (
+                        <SelectItem key={a.id} value={a.id}>
+                          <span className="inline-flex items-center gap-1.5">
+                            {a.id === song._defaultArrangementId && (<span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" title="Default" aria-label="Default" />)}
+                            {a.name || 'Untitled arrangement'}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
               )}
-            </>
+            </div>
           )}
           actions={(
             <div className="flex items-center gap-0.5">
