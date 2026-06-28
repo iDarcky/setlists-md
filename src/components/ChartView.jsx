@@ -823,6 +823,9 @@ export default function ChartView({
             ['--chart-font-size-chord']: `${chordFontSize}px`,
             ['--chart-line-height-lyric']: settings?.lyricLineHeight ?? 1.35,
             ['--chart-section-gap']: `${settings?.sectionSpacing ?? 24}px`,
+            // Lyrics inherit this; chords (font-bold) + section headers keep
+            // their own weight. 400 read too thin — bump to a medium.
+            fontWeight: 'var(--chart-lyric-weight, 480)',
             fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
             ...(displayMode !== 'songmap' && (chartLayout !== 'rows' || columns !== 2) ? { columnCount: columns, columnGap: '3rem' } : {}),
           }}

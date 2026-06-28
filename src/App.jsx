@@ -2320,6 +2320,10 @@ export default function App() {
               onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
               onPlay={(arrId) => playSongCasually(currentSong, arrId)}
               addedBy={displayName}
+              onUpdateSong={isTeamReadOnly ? null : (updated) => {
+                setSongs(prev => prev.map(s => s.id === updated.id ? updated : s));
+                setCurrentSong(prev => (prev?.id === updated.id ? updated : prev));
+              }}
               {...buildChartMoveCopy(currentSong.id)}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}

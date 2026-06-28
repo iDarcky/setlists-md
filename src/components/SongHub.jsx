@@ -10,6 +10,7 @@ import { Select, SelectTrigger, SelectContent, SelectItem } from './ui/Select';
 import { VIEW_MODES } from './ui/viewModes';
 import { exportSongPdf } from '../pdf/exportSongPdf';
 import { useWakeLock } from '../hooks/useWakeLock';
+import { youtubeThumb, spotifyArt } from '../lib/coverArt';
 import { cn } from '../lib/utils';
 
 // ── Song Hub ─────────────────────────────────────────────────────────────────
@@ -28,20 +29,13 @@ const HUB_TABS = [
 
 const ART_GRADIENT = 'radial-gradient(120% 120% at 20% 10%, #1f5f4f 0%, #0e2c30 55%, #150f1f 100%)';
 
-// Derive a YouTube thumbnail URL straight from the watch/share/embed link — no
-// API call needed. Spotify needs an oEmbed fetch (see useSongArt below).
-function ytThumb(url) {
-  if (!url) return null;
-  const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/))([\w-]{11})/);
-  return m ? `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg` : null;
-}
-
 export default function SongHub({
   song: songInput,
   onBack,
   onEdit,
   onPlay,
   onMoveSong, onCopySong,
+  onUpdateSong,
   addedBy,
   settings,
   onUpdateSettings,
@@ -77,23 +71,19 @@ export default function SongHub({
   const [chartStructure, setChartStructure] = useState([]);
   const closeAa = useCallback(() => setAaAnchor(null), []);
 
-  // Cover art: Spotify album art (oEmbed) when available, else a derived
-  // YouTube thumbnail, else the gradient placeholder. The YouTube thumb is
-  // synchronous; only the Spotify oEmbed needs a fetch (keyed to the URL so a
-  // stale result from a previous song is never shown).
-  const ytArt = useMemo(() => ytThumb(song?.youtube), [song?.youtube]);
-  const [spotifyArt, setSpotifyArt] = useState({ key: null, url: null });
+  // Cover art priority: Spotify album art → YouTube thumbnail → gradient
+  // placeholder. YouTube is derived synchronously; Spotify goes through the
+  // cover-art edge function (keyed to the URL so a stale result is never shown).
+  const ytArt = useMemo(() => youtubeThumb(song?.youtube), [song?.youtube]);
+  const [spotifyResult, setSpotifyResult] = useState({ key: null, url: null });
   useEffect(() => {
     const url = song?.spotify;
     if (!url) return undefined;
     let cancelled = false;
-    fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`)
-      .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (!cancelled) setSpotifyArt({ key: url, url: j?.thumbnail_url || null }); })
-      .catch(() => { if (!cancelled) setSpotifyArt({ key: url, url: null }); });
+    spotifyArt(url).then(img => { if (!cancelled) setSpotifyResult({ key: url, url: img }); });
     return () => { cancelled = true; };
   }, [song?.spotify]);
-  const artUrl = (spotifyArt.key === song?.spotify ? spotifyArt.url : null) || ytArt;
+  const artUrl = (spotifyResult.key === song?.spotify ? spotifyResult.url : null) || ytArt;
 
   // Settings → General → "Keep screen awake" while a song is open.
   useWakeLock(settings?.keepAwake === true);
@@ -370,7 +360,10 @@ export default function SongHub({
           {activeTab === 'details' ? (
             <div className="h-full overflow-y-auto">
               <div className="px-5 sm:px-8 py-5 sm:py-6 max-w-[900px]">
-                <SongDetails song={song} onEdit={onEdit ? () => onEdit(activeArrId) : null} />
+                <SongDetails
+                  song={song}
+                  onSave={onUpdateSong ? (patch) => onUpdateSong({ ...songInput, ...patch, updatedAt: Date.now() }) : null}
+                />
               </div>
             </div>
           ) : (
