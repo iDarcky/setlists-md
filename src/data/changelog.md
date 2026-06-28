@@ -15,6 +15,12 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Sharps or flats, your call** — a new Accidentals setting (Auto / Sharps / Flats) spells the black notes the way your song's key actually reads (a song in G shows F♯, not G♭), with a global override when you want one.
 - **Separate transpose in the editor** — relabel a song's key without touching your chords, or move every chord up/down a semitone with one tap.
 - **Floating structure ribbon (Labs)** — pin the section map to the bottom or either side as you read, shown as chips, codes or dots.
+- **Song hub** — opening a song now lands on a hub: its title, key, cover art and a row of tabs (Chart · Lyrics · Details), with the chart as the default. Read it, switch arrangement, transpose, or jump into Campfire all from one place.
+- **Cover art** — songs show artwork pulled automatically from their Spotify or YouTube link.
+- **Lyrics tab** — a clean, lyrics-only view of any song.
+- **Details you can edit in place** — see all of a song's info (artist, themes, scripture, links, key history and more) and edit it right there, without opening the full editor.
+- **Keep screen awake & Lock orientation** — new General settings to stop the screen dimming or rotating while you read or perform.
+- **Labs: Neutral palette** — preview a cooler, neutral-dark colour scheme across the whole app before we make it the default.
 
 ### Improved
 - **Redesigned setlist cards** — cleaner and far more compact, with a date badge, the essentials at a glance, and a one-tap Play Live — much easier to scan, especially on a phone.
@@ -24,6 +30,8 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Friendlier new-song editor** — a new song starts with the Title and Key blank and asks for them before saving, gently nudges for tempo and time, and edits the slide order from one place shared by the Arrange and Advanced tabs.
 - **Smarter chord entry** — the chord picker opens right at your cursor and suggests the chords that fit the song's key.
 - **Reading follows you** — section highlighting tracks your scroll and the final sections light up as you reach the end.
+- **Tap the key to transpose** — the key in the song header is a dropdown you tap to change key, and the chart reads a touch heavier so lyrics are easier on the eyes.
+- **A cleaner section map** — the structure ribbon now shows tidy bordered code boxes by default (still switchable in Settings) and sits as a quiet song map above the chart.
 
 ### Fixed
 - **New songs no longer default to the key of C** — the key stays blank until you choose it.

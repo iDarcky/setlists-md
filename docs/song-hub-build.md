@@ -6,6 +6,19 @@
 > `docs/mockups/` (`song-hub-v2.html`/`.png` is the canonical V2; `aa-menu.*`
 > shows the already-shipped Aa popover).
 
+## Status (0.14.0-beta.3)
+
+**Phases 1 & 2 shipped**, plus a faithful pass over the V2 mockup. Live now:
+the hub shell + Chart/Lyrics/Details tabs (`SongHub.jsx`), `embedded` `ChartView`,
+the `song-hub` route (replacing `chart`), the two-card layout (gradient hub card +
+reader card that follows the chart theme), gold key **dropdown** (transpose) +
+relabelled meta pills, the **codes** song-map (now the app-wide default ribbon
+style, static on the hub), **cover art** from Spotify/YouTube (`cover-art` edge
+function + `lib/coverArt.js`; CSP updated), **inline Details editing**, the
+**Labs neutral palette** preview, and **Keep-awake / Lock-orientation** settings.
+Remaining: **Phase 3** (bottom transport) and **Phase 4** (Audio/Practice) — see
+`docs/views-vision.md` for the full Chart/Live/Rehearsal/Practice direction.
+
 ## Goal
 
 Opening a song from the library should land on a **Song hub**, not today's
@@ -61,7 +74,7 @@ vs **stay in the reader**. Proposed split:
 
 ## Phases
 
-### Phase 1 — Hub shell + Chart tab (MVP)
+### Phase 1 — Hub shell + Chart tab (MVP) ✅ shipped
 1. New **`src/components/SongHub.jsx`** shell: hub header (identity + inline meta
    + arrangement picker + hub actions), song-map ribbon, tab row, body.
    - Tabs for Phase 1: **Chart** (default) + stubs for Lyrics/Details (render
@@ -79,7 +92,7 @@ vs **stay in the reader**. Proposed split:
    `navigate('chart'` + `view === 'chart'` and update or alias).
 4. Default **2 columns** (Aa controls 1/2/Auto — already implemented).
 
-### Phase 2 — Lyrics & Details tabs
+### Phase 2 — Lyrics & Details tabs ✅ shipped (+ inline Details editing)
 - **Lyrics**: lyrics-only render (reuse the existing `songmap`/lyrics display
   path; a Lyrics view mode already exists in `VIEW_MODES`).
 - **Details**: metadata (CCLI, tags, themes, scripture, links, notes, key

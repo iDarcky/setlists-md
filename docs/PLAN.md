@@ -5,7 +5,7 @@
 > (stack, architecture, schema, finish/release workflows, gotchas) — it points
 > here for planning.
 >
-> _Last updated: 2026-06-26 · Current version: `0.14.0-beta.1` (on `beta`)._
+> _Last updated: 2026-06-28 · Current version: `0.14.0-beta.3` (on `beta`)._
 >
 > **Priority:** `P0` drop-everything · `P1` high · `P2` medium · `P3` nice-to-have.
 > `Q:` = open decision needed.
@@ -248,8 +248,11 @@ controls between components):
    buttons; per-element **size/font/colour** (fixed palette via `CHART_COLOR_PALETTE`,
    `chartLyricColor`/`chartChordColor` → `useChartTheme`); Page tab holds theme/
    notation/columns/show, with an "Advanced" link to the existing Layout sheet.
-2. **P1 — introduce the hub header + tab row** as the library's song-open target.
-3. Then wire the secondary tabs (Lyrics/Details/Audio/Practice) incrementally.
+2. ✅ **Hub header + tab row** as the library's song-open target — shipped
+   (`SongHub.jsx`, `song-hub` route, two-card V2 layout, cover art, codes song-map).
+3. ✅ **Lyrics & Details tabs** (incl. inline Details editing) — shipped. Remaining:
+   **Audio/Practice** tabs + the **bottom transport** (Phase 3/4). Full per-surface
+   direction now lives in **`docs/views-vision.md`**.
 
 **V2 decisions (2026-06-26 — mockup `docs/mockups/song-hub-v2.*`):**
 - **Aa is a popover, not a docked rail** — anchored to the header button, reader
