@@ -153,12 +153,16 @@ export default function SongHub({
   const showRibbon = activeTab !== 'details' && chartStructure.length > 0;
   // Chart tab uses the hub's display mode; Lyrics forces lyrics-only.
   const chartDisplayMode = activeTab === 'lyrics' ? 'lyrics' : displayMode;
+  // Mobile condenses artist + the meta pills into one muted line under the title.
+  const mobileSubtitle = [song.artist, song.tempo && `♩${song.tempo}`, song.time, song.duration]
+    .filter(Boolean).join('  ·  ');
 
   return (
     <div className="h-full flex flex-col bg-[var(--ds-background-100)]">
       {/* ── Hub header ── */}
       <header className="shrink-0 border-b border-[var(--border-1)] bg-[var(--ds-background-100)]">
-        <div className="wide-container pt-3 pb-2">
+        {/* ── Desktop / tablet header (≥ sm) ── */}
+        <div className="hidden sm:block wide-container pt-3 pb-2">
           <div className="flex items-start gap-3">
             {/* Art placeholder (no per-song art yet — Phase-1 placeholder). */}
             <div
@@ -263,11 +267,83 @@ export default function SongHub({
           </div>
         </div>
 
+        {/* ── Mobile header (< sm) — bespoke layout: app bar + control bar ── */}
+        <div className="sm:hidden px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
+          {/* App bar */}
+          <div className="flex items-center gap-1">
+            {onBack && (
+              <button
+                type="button" onClick={onBack} aria-label="Back"
+                className="shrink-0 -ml-1.5 w-11 grid place-items-center rounded-xl text-[var(--text-1)] active:bg-[var(--bg-2)] cursor-pointer"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+              </button>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <h1 className="m-0 truncate font-bold leading-tight text-heading-17 text-[var(--text-1)]">{song.title}</h1>
+                <span className="shrink-0 inline-flex items-center h-5 px-1.5 rounded text-label-11 font-bold bg-[var(--color-brand-soft)] text-[var(--color-brand-text)]">{selectedKey}</span>
+              </div>
+              {mobileSubtitle && (
+                <p className="m-0 text-label-12 text-[var(--text-2)] truncate">{mobileSubtitle}</p>
+              )}
+            </div>
+            <button
+              type="button" aria-label="Display options" aria-expanded={!!aaAnchor}
+              onClick={(e) => setAaAnchor(aaAnchor ? null : e.currentTarget.getBoundingClientRect())}
+              className="shrink-0 w-11 grid place-items-center rounded-xl text-label-15 font-bold text-[var(--text-1)] active:bg-[var(--bg-2)] cursor-pointer"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              Aa
+            </button>
+            <div className="shrink-0">
+              <OverflowMenu ariaLabel="Song actions" items={overflowItems} size="md" />
+            </div>
+          </div>
+
+          {/* Control bar */}
+          <div className="mt-1.5 flex items-center gap-2">
+            {/* Transpose stepper */}
+            <div className="inline-flex items-center rounded-xl border border-[var(--border-1)] bg-[var(--bg-1)] overflow-hidden shrink-0">
+              <button type="button" aria-label="Transpose down" onClick={() => stepTranspose(-1)}
+                className="w-11 grid place-items-center text-xl leading-none text-[var(--text-1)] active:bg-[var(--bg-2)] cursor-pointer" style={{ WebkitTapHighlightColor: 'transparent' }}>−</button>
+              <span className="px-1 text-label-13 font-semibold text-[var(--text-1)] tabular-nums select-none min-w-[3rem] text-center">{transposeLabel}</span>
+              <button type="button" aria-label="Transpose up" onClick={() => stepTranspose(1)}
+                className="w-11 grid place-items-center text-xl leading-none text-[var(--text-1)] active:bg-[var(--bg-2)] cursor-pointer" style={{ WebkitTapHighlightColor: 'transparent' }}>+</button>
+            </div>
+            {hasMultipleArrangements && (
+              <Select value={activeArrId} onValueChange={switchArrangement}>
+                <SelectTrigger className="min-w-0 px-3 border border-[var(--border-1)] bg-[var(--bg-1)] rounded-xl text-label-13 font-semibold text-[var(--text-1)] gap-1 w-auto focus:ring-0 shrink" aria-label="Switch arrangement">
+                  <span className="truncate">{arrangements.find(a => a.id === activeArrId)?.name || 'Arrangement'}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  {arrangements.map(a => (
+                    <SelectItem key={a.id} value={a.id}>
+                      <span className="inline-flex items-center gap-1.5">
+                        {a.id === song._defaultArrangementId && (<span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" title="Default" aria-label="Default" />)}
+                        {a.name || 'Untitled arrangement'}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <div className="flex-1" />
+            {onPlay && (
+              <Button variant="brand" size="sm" onClick={() => onPlay(activeArrId)} className="px-4 rounded-xl shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="mr-1"><path d="M8 5v14l11-7z" /></svg>
+                Campfire
+              </Button>
+            )}
+          </div>
+        </div>
+
         {/* ── Song map ── */}
         {showRibbon && (
-          <div className="wide-container pb-2 flex items-center gap-2">
+          <div className="mx-auto w-full max-w-[1600px] px-3 sm:px-8 pt-2 sm:pt-0 pb-2 flex items-center gap-2">
             <span className="hidden md:inline text-label-10 uppercase tracking-wider text-[var(--text-2)] shrink-0">Song map</span>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 overflow-x-auto no-scrollbar">
               <StructureRibbon
                 structure={chartStructure}
                 compact
@@ -285,7 +361,7 @@ export default function SongHub({
         )}
 
         {/* ── Tab row ── */}
-        <div className="wide-container">
+        <div className="mx-auto w-full max-w-[1600px] px-1 sm:px-8">
           <Tabs tabs={HUB_TABS} activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       </header>
