@@ -6,8 +6,10 @@
 // with permissive CORS. YouTube thumbnails are derived from the video id
 // (the client can do that itself, but we handle it here too as a fallback).
 //
-// Deploy: `supabase functions deploy cover-art`
-// (no secrets needed — it only calls public oEmbed / thumbnail URLs).
+// Deploy: `supabase functions deploy cover-art --no-verify-jwt`
+// (no secrets needed — it only hits public oEmbed / thumbnail URLs. Deploy with
+// --no-verify-jwt so signed-out / personal-library users can call it too; it
+// returns no private data.)
 //
 // Request:  POST { url: "https://open.spotify.com/track/…" | "https://youtu.be/…" }
 // Response: { image: "https://…" | null }
