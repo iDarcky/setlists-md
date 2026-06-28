@@ -334,14 +334,18 @@ export default function SongHub({
             </div>
           )}
 
-          {/* ── Tabs (underline, no dots) ── */}
-          <div className="flex gap-0.5 px-2 sm:px-3.5 border-t border-[var(--border-1)]">
+        </div>
+
+        {/* ════ READER CARD (tabs live here now) ════ */}
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[var(--ds-background-100)] border border-[var(--border-1)] rounded-2xl">
+          {/* Tabs (underline, no dots) */}
+          <div className="shrink-0 flex gap-0.5 px-2 sm:px-3.5 border-b border-[var(--border-1)]">
             {HUB_TABS.map(t => {
               const active = activeTab === t.id;
               return (
                 <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
                   className={cn(
-                    'px-3 sm:px-3.5 py-3 text-[13.5px] border-b-2 bg-transparent cursor-pointer transition-colors',
+                    'px-3 sm:px-3.5 py-3 text-[13.5px] border-b-2 -mb-px bg-transparent cursor-pointer transition-colors',
                     active ? 'text-[var(--text-1)] border-[var(--color-brand)] font-semibold' : 'text-[var(--text-2)] border-transparent hover:text-[var(--text-1)]',
                   )}>
                   {t.label}
@@ -349,10 +353,7 @@ export default function SongHub({
               );
             })}
           </div>
-        </div>
-
-        {/* ════ READER CARD ════ */}
-        <div className="flex-1 min-h-0 overflow-hidden bg-[var(--ds-background-100)] border border-[var(--border-1)] rounded-2xl">
+          <div className="flex-1 min-h-0">
           {activeTab === 'details' ? (
             <div className="h-full overflow-y-auto">
               <div className="px-5 sm:px-8 py-5 sm:py-6 max-w-[900px]">
@@ -383,6 +384,7 @@ export default function SongHub({
               onTransposed={onTransposed}
             />
           )}
+          </div>
         </div>
       </div>
     </div>

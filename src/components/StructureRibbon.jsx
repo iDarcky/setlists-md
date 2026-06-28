@@ -13,10 +13,11 @@ export function StructureRibbon({
   // scrolled into view as the song scrolls (scroll-sync).
   activeIndex = null,
   // Visual variant the user picks in Settings → Chart Defaults:
-  //   'chips'    — coloured pills (default)
+  //   'codes'    — bordered mono code boxes, coloured text (default; mockup)
+  //   'chips'    — coloured rounded pills
   //   'numbered' — plain colour-coded short codes, separated by middots
   //   'dots'     — minimal coloured dots, most compact
-  style = 'chips',
+  style = 'codes',
   // When true, chips wrap to multiple lines instead of horizontal-scrolling.
   // Used by the setlist overview v2 song cards (avoids the odd mobile scroll).
   wrap = false,

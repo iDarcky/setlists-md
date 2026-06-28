@@ -190,6 +190,10 @@ Open, actionable items. Cross-cutting concerns at the end.
   piano voicings, bass-root emphasis; section-loop rehearsals; quick-key switchers.
 
 #### Reading-view model — design direction (next milestone after 0.14)
+> **Full captured vision: `docs/views-vision.md`** (per-surface decisions for
+> Chart / Live / Rehearsal / Practice from the 2026 product-owner Q&A). Read that
+> first; the summary below is the older short form.
+
 **Decided (with user): do NOT build 4 separate views** — that's 4 forks of the same
 kitchen-sink sheet and a "which do I open?" decision for users. Instead, **2
 surfaces** with **presets** inside the player:

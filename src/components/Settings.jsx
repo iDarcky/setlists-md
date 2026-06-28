@@ -489,13 +489,14 @@ function ChartPanel({ settings, update }) {
         </Select>
       </Row>
       <Row label="Structure ribbon" description="How the section flow looks in chart, practice & live (header or floating).">
-        <Select value={settings.ribbonStyle || 'chips'} onValueChange={(v) => update('ribbonStyle', v)}>
+        <Select value={settings.ribbonStyle || 'codes'} onValueChange={(v) => update('ribbonStyle', v)}>
           <SelectTrigger className="h-9 w-44 bg-[var(--ds-background-100)]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="codes">Boxes</SelectItem>
             <SelectItem value="chips">Chips</SelectItem>
-            <SelectItem value="numbered">Codes</SelectItem>
+            <SelectItem value="numbered">Inline</SelectItem>
             <SelectItem value="dots">Dots</SelectItem>
             <SelectItem value="dotlabel">Dots + label</SelectItem>
           </SelectContent>
@@ -606,6 +607,9 @@ function LabsPanel({ settings, update }) {
           </SelectContent>
         </Select>
       </Row>
+      <LabsToggle settings={settings} update={update} flag="mockupPalette"
+        label="Neutral palette (preview)"
+        description="Preview the Song Hub V2 neutral-dark colours across the whole app, so you can compare them with the current dark theme before we commit." />
     </Section>
   );
 }

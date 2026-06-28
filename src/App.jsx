@@ -127,6 +127,7 @@ const PORTABLE_PREF_KEYS = [
   'autoHideHeader',
   'ribbonStyle',
   'structurePosition',
+  'mockupPalette',
   'accidentals',
   'dashboardWidgetOrder',
   'dashboardHidden',
@@ -813,6 +814,14 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme);
     setThemeColor(theme);
   }, [settings?.theme]);
+
+  // Labs: preview the Song Hub V2 neutral palette app-wide (overrides the dark
+  // theme tokens — see [data-palette="neutral"] in styles/index.css).
+  useEffect(() => {
+    const el = document.documentElement;
+    if (settings?.mockupPalette) el.setAttribute('data-palette', 'neutral');
+    else el.removeAttribute('data-palette');
+  }, [settings?.mockupPalette]);
 
   // Snapshot of every state field that participates in back/forward.
   // Centralised so navigate / goToMainView / goSettingsPanel / openModal all

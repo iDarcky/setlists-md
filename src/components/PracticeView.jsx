@@ -400,7 +400,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
       collapse={!ribbonSide}
       activeIndex={activeSection}
-      style={settings?.ribbonStyle || 'chips'}
+      style={settings?.ribbonStyle || 'codes'}
       onSelect={(i) => {
         const struct = cur.song.structure || cur.song.sections.map(s => s.type);
         const name = struct[i];

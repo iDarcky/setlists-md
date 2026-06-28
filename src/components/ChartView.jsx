@@ -412,7 +412,7 @@ export default function ChartView({
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
       collapse={!ribbonSide}
       activeIndex={activeSection}
-      style={settings?.ribbonStyle || 'chips'}
+      style={settings?.ribbonStyle || 'codes'}
       sectionColors={settings?.sectionColors}
       sectionLabels={settings?.sectionLabels}
       customSectionTypes={settings?.customSectionTypes}
