@@ -95,7 +95,7 @@ export default function AaMenu({
   showChords, onToggleChords, showDiagrams, onToggleDiagrams,
   onAdvanced,
 }) {
-  const [tab, setTab] = useState('lyrics');
+  const [tab, setTab] = useState('page');
   const { allowed: styleAllowed } = useEntitlement('chart-style');
 
   const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
@@ -126,9 +126,9 @@ export default function AaMenu({
         style={{ top, right, width: W, maxHeight: '74vh', display: 'flex', flexDirection: 'column', animation: 'pop-in 120ms ease-out' }}>
         {/* Tabs */}
         <div className="flex gap-1 p-1.5 bg-[var(--bg-1)] border-b border-[var(--border-1)]">
+          {tabBtn('page', 'Page')}
           {tabBtn('lyrics', 'Lyrics')}
           {tabBtn('chords', 'Chords')}
-          {tabBtn('page', 'Page')}
         </div>
 
         <div className="p-3.5 overflow-y-auto">

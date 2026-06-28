@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { resolveSongView } from '../arrangements';
-import { transposeKey, semitonesBetween } from '../music';
+import { transposeKey, semitonesBetween, keysInQualityOf } from '../music';
 import ChartView from './ChartView';
 import SongDetails from './SongDetails';
 import { StructureRibbon } from './StructureRibbon';
@@ -12,15 +12,12 @@ import { exportSongPdf } from '../pdf/exportSongPdf';
 import { cn } from '../lib/utils';
 
 // ── Song Hub ─────────────────────────────────────────────────────────────────
-// The library's song-open target — a faithful, theme-aware build of
-// docs/mockups/song-hub-v2.html: a contained gradient "hub card" (art · title +
-// gold key chip · byline · mono meta pills · arrangement · transpose/Aa/full
-// screen/⋯/Edit/Campfire · song map · dotted tabs) stacked above a bordered
-// "reader card" holding the chart / lyrics / details surface.
+// The library's song-open target — a theme-aware build of
+// docs/mockups/song-hub-v2.html: a gradient "hub card" (art · title + gold key
+// dropdown · byline · mono meta pills · arrangement · Aa/full screen/⋯/Edit/
+// Campfire · song map · tabs) stacked above a bordered "reader card".
 //
-// The mockup's hard-coded dark palette is mapped onto the app theme tokens so
-// light / dark / paper all work. Desktop/tablet (≥ sm) get the carded mockup
-// layout; phones keep a bespoke full-bleed header (cards-in-cards waste width).
+// Cards render on every breakpoint now; phones get a denser header layout.
 
 const HUB_TABS = [
   { id: 'chart', label: 'Chart' },
@@ -28,9 +25,15 @@ const HUB_TABS = [
   { id: 'details', label: 'Details' },
 ];
 
-// Decorative art gradient — reused as the per-song placeholder until real art
-// lands. Looks right on every theme (it's "album art", not chrome).
 const ART_GRADIENT = 'radial-gradient(120% 120% at 20% 10%, #1f5f4f 0%, #0e2c30 55%, #150f1f 100%)';
+
+// Derive a YouTube thumbnail URL straight from the watch/share/embed link — no
+// API call needed. Spotify needs an oEmbed fetch (see useSongArt below).
+function ytThumb(url) {
+  if (!url) return null;
+  const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/))([\w-]{11})/);
+  return m ? `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg` : null;
+}
 
 export default function SongHub({
   song: songInput,
@@ -62,14 +65,34 @@ export default function SongHub({
   );
   // Transpose lives on the hub (resets on close — the hub unmounts on nav-away).
   const [selectedKey, setSelectedKey] = useState(song?.key || 'C');
-  const sharps = settings?.accidentals === 'sharps';
+  const accidentals = settings?.accidentals;
+  const sharps = accidentals === 'sharps';
   const transpose = song ? semitonesBetween(song.key, selectedKey) : 0;
+  const keyValue = (song && transposeKey(selectedKey, 0, sharps)) || selectedKey;
+  const keyOptions = useMemo(() => (song ? keysInQualityOf(song.key, accidentals) : []), [song, accidentals]);
 
   const [aaAnchor, setAaAnchor] = useState(null);
   const [displayMode, setDisplayMode] = useState('chords');
   const [chartStructure, setChartStructure] = useState([]);
-  const [activeSection, setActiveSection] = useState(0);
   const closeAa = useCallback(() => setAaAnchor(null), []);
+
+  // Cover art: Spotify album art (oEmbed) when available, else a derived
+  // YouTube thumbnail, else the gradient placeholder. The YouTube thumb is
+  // synchronous; only the Spotify oEmbed needs a fetch (keyed to the URL so a
+  // stale result from a previous song is never shown).
+  const ytArt = useMemo(() => ytThumb(song?.youtube), [song?.youtube]);
+  const [spotifyArt, setSpotifyArt] = useState({ key: null, url: null });
+  useEffect(() => {
+    const url = song?.spotify;
+    if (!url) return undefined;
+    let cancelled = false;
+    fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (!cancelled) setSpotifyArt({ key: url, url: j?.thumbnail_url || null }); })
+      .catch(() => { if (!cancelled) setSpotifyArt({ key: url, url: null }); });
+    return () => { cancelled = true; };
+  }, [song?.spotify]);
+  const artUrl = (spotifyArt.key === song?.spotify ? spotifyArt.url : null) || ytArt;
 
   const arrangements = song?._allArrangements || [];
   const hasMultipleArrangements = arrangements.length > 1;
@@ -87,8 +110,6 @@ export default function SongHub({
     const next = songInput?.arrangements ? resolveSongView(songInput, id) : null;
     if (next?.key) setSelectedKey(next.key);
   };
-  const stepTranspose = (dir) => setSelectedKey(k => transposeKey(k, dir, sharps));
-  const transposeLabel = transpose === 0 ? 'Tr' : `${transpose > 0 ? '+' : ''}${transpose}`;
   const scrollToSection = (i) => {
     const el = document.getElementById(`section-${i}`);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -98,8 +119,6 @@ export default function SongHub({
 
   const cleanAddedBy = addedBy && addedBy.trim() && addedBy.trim() !== 'Guest' ? addedBy.trim() : '';
   const byline = [song.artist, cleanAddedBy && `added by ${cleanAddedBy}`].filter(Boolean).join('  ·  ');
-  const mobileSubtitle = [song.artist, song.tempo && `♩${song.tempo}`, song.time, song.duration]
-    .filter(Boolean).join('  ·  ');
   const showRibbon = activeTab !== 'details' && chartStructure.length > 0;
   const chartDisplayMode = activeTab === 'lyrics' ? 'lyrics' : displayMode;
 
@@ -149,6 +168,22 @@ export default function SongHub({
     },
   ];
 
+  // Gold key chip that doubles as the transpose control (dropdown + chevron).
+  const keyChip = (cls) => (
+    <Select value={keyValue} onValueChange={setSelectedKey}>
+      <SelectTrigger
+        aria-label="Key (transpose)"
+        className={cn('!border-0 gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90', cls)}
+        style={{ background: '#e0b341', color: '#0a0a0a' }}
+      >
+        <span>{keyValue}</span>
+      </SelectTrigger>
+      <SelectContent>
+        {keyOptions.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
+
   const arrangementSelect = (triggerClass) => (
     <Select value={activeArrId} onValueChange={switchArrangement}>
       <SelectTrigger className={triggerClass} aria-label="Switch arrangement">
@@ -167,45 +202,48 @@ export default function SongHub({
     </Select>
   );
 
+  const metaPills = (arrTriggerClass) => (
+    <>
+      <MonoPill k="Original key">{song.key}</MonoPill>
+      {song.tempo && <MonoPill k="BPM">{song.tempo}</MonoPill>}
+      {song.time && <MonoPill k="Time Sig">{song.time}</MonoPill>}
+      {song.duration && <MonoPill k="Len">{song.duration}</MonoPill>}
+      {hasMultipleArrangements && arrangementSelect(arrTriggerClass)}
+    </>
+  );
+
+  const artTile = (sizeCls) => (
+    <div className={cn('shrink-0 rounded-xl border border-[var(--border-2)] grid place-items-center overflow-hidden', sizeCls)} style={{ background: ART_GRADIENT }} aria-hidden="true">
+      {artUrl
+        ? <img src={artUrl} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+        : <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#cfeee2" strokeWidth="1.5" className="w-1/2 h-1/2"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>}
+    </div>
+  );
+
   return (
-    <div className="h-full flex flex-col bg-[var(--ds-background-200)]">
-      <div className="flex-1 min-h-0 flex flex-col w-full sm:max-w-[1200px] sm:mx-auto sm:px-7 sm:pt-6 sm:pb-5 sm:gap-4">
+    <div className="h-full flex flex-col bg-[var(--ds-background-200)]" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      <div className="flex-1 min-h-0 flex flex-col w-full mx-auto px-3 pt-3 pb-3 gap-3 sm:px-7 sm:pt-6 sm:pb-5 sm:gap-4">
 
         {/* ════ HUB CARD ════ */}
         <div
-          className="shrink-0 overflow-hidden border-b border-[var(--border-1)] sm:border sm:border-[var(--border-1)] sm:rounded-2xl"
+          className="shrink-0 overflow-hidden border border-[var(--border-1)] rounded-2xl"
           style={{ background: 'linear-gradient(180deg, var(--ds-background-100), var(--ds-background-200))' }}
         >
           {/* ── Desktop / tablet hub-top (≥ sm) ── */}
           <div className="hidden sm:flex gap-5 px-5 pt-5 pb-4 items-start flex-wrap">
-            {/* Art */}
-            <div className="shrink-0 w-[88px] h-[88px] rounded-xl border border-[var(--border-2)] grid place-items-center" style={{ background: ART_GRADIENT }} aria-hidden="true">
-              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#cfeee2" strokeWidth="1.5"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
-            </div>
-
-            {/* Identity */}
+            {artTile('w-[88px] h-[88px]')}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="m-0 truncate font-[650] leading-[1.1] tracking-[-0.01em] text-[28px] text-[var(--text-1)]">{song.title}</h1>
-                <span className="shrink-0 inline-flex items-center font-mono text-[13px] font-bold px-2 py-[3px] rounded-lg" style={{ background: '#e0b341', color: '#0a0a0a' }}>{selectedKey}</span>
+                {keyChip('!h-7 !min-h-[28px] !w-auto !px-2 !py-0 !rounded-lg text-[13px]')}
               </div>
               {byline && <div className="text-[var(--text-2)] text-[13.5px] mt-1.5 truncate">{byline}</div>}
               <div className="mt-3 flex items-center gap-2 flex-wrap">
-                <MonoPill k="Key">{selectedKey}</MonoPill>
-                {song.tempo && <MonoPill icon="♩">{song.tempo}</MonoPill>}
-                {song.time && <MonoPill k="Time">{song.time}</MonoPill>}
-                {song.duration && <MonoPill k="Len">{song.duration}</MonoPill>}
-                {hasMultipleArrangements && arrangementSelect('h-[30px] px-2.5 rounded-[9px] border border-[var(--border-1)] bg-[var(--bg-1)] text-[12.5px] font-medium text-[var(--text-1)] gap-1 max-w-[200px] w-auto focus:ring-0 hover:bg-[var(--bg-2)]')}
+                {metaPills('h-[30px] px-2.5 rounded-[9px] border border-[var(--border-1)] bg-[var(--bg-1)] text-[12.5px] font-medium text-[var(--text-1)] gap-1 max-w-[200px] w-auto focus:ring-0 hover:bg-[var(--bg-2)]')}
               </div>
             </div>
 
-            {/* Actions */}
             <div className="shrink-0 ml-auto flex items-center gap-2 flex-wrap justify-end">
-              <div className="inline-flex items-center h-9 rounded-[9px] border border-[var(--border-2)] bg-[var(--bg-1)] overflow-hidden">
-                <button type="button" aria-label="Transpose down" onClick={() => stepTranspose(-1)} className="w-[30px] h-9 grid place-items-center text-base text-[var(--text-2)] hover:text-[var(--text-1)] cursor-pointer">−</button>
-                <span className="px-1 min-w-[1.75rem] text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-2)] tabular-nums select-none" title="Transpose">{transposeLabel}</span>
-                <button type="button" aria-label="Transpose up" onClick={() => stepTranspose(1)} className="w-[30px] h-9 grid place-items-center text-base text-[var(--text-2)] hover:text-[var(--text-1)] cursor-pointer">+</button>
-              </div>
               <button type="button" aria-label="Display options" aria-expanded={!!aaAnchor}
                 onClick={(e) => setAaAnchor(aaAnchor ? null : e.currentTarget.getBoundingClientRect())}
                 className="w-9 h-9 grid place-items-center rounded-[9px] border border-[var(--border-2)] bg-[var(--bg-1)] text-[13px] font-bold text-[var(--text-1)] hover:bg-[var(--bg-2)] cursor-pointer">Aa</button>
@@ -243,34 +281,29 @@ export default function SongHub({
           </div>
 
           {/* ── Mobile hub-top (< sm) ── */}
-          <div className="sm:hidden px-3 pb-1" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
-            <div className="flex items-center gap-1">
+          <div className="sm:hidden p-3">
+            <div className="flex items-center gap-2">
               {onBack && (
                 <button type="button" onClick={onBack} aria-label="Back"
-                  className="shrink-0 -ml-1.5 w-11 grid place-items-center rounded-xl text-[var(--text-1)] active:bg-[var(--bg-2)] cursor-pointer" style={{ WebkitTapHighlightColor: 'transparent' }}>
+                  className="shrink-0 -ml-1.5 w-10 grid place-items-center rounded-xl text-[var(--text-1)] active:bg-[var(--bg-2)] cursor-pointer" style={{ WebkitTapHighlightColor: 'transparent' }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                 </button>
               )}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <h1 className="m-0 truncate font-bold leading-tight text-heading-17 text-[var(--text-1)]">{song.title}</h1>
-                  <span className="shrink-0 inline-flex items-center font-mono h-5 px-1.5 rounded text-[11px] font-bold" style={{ background: '#e0b341', color: '#0a0a0a' }}>{selectedKey}</span>
-                </div>
-                {mobileSubtitle && <p className="m-0 text-label-12 text-[var(--text-2)] truncate">{mobileSubtitle}</p>}
+              {artTile('w-11 h-11')}
+              <div className="min-w-0 flex-1 flex items-center gap-1.5">
+                <h1 className="m-0 truncate font-bold leading-tight text-heading-17 text-[var(--text-1)]">{song.title}</h1>
+                {keyChip('!h-6 !min-h-[24px] !w-auto !px-1.5 !py-0 !rounded-md text-[12px]')}
               </div>
               <button type="button" aria-label="Display options" aria-expanded={!!aaAnchor}
                 onClick={(e) => setAaAnchor(aaAnchor ? null : e.currentTarget.getBoundingClientRect())}
-                className="shrink-0 w-11 grid place-items-center rounded-xl text-label-15 font-bold text-[var(--text-1)] active:bg-[var(--bg-2)] cursor-pointer" style={{ WebkitTapHighlightColor: 'transparent' }}>Aa</button>
+                className="shrink-0 w-10 grid place-items-center rounded-xl text-label-15 font-bold text-[var(--text-1)] active:bg-[var(--bg-2)] cursor-pointer" style={{ WebkitTapHighlightColor: 'transparent' }}>Aa</button>
               <div className="shrink-0"><OverflowMenu ariaLabel="Song actions" items={overflowItems} size="md" /></div>
             </div>
-            <div className="mt-1.5 flex items-center gap-2">
-              <div className="inline-flex items-center rounded-xl border border-[var(--border-1)] bg-[var(--bg-1)] overflow-hidden shrink-0">
-                <button type="button" aria-label="Transpose down" onClick={() => stepTranspose(-1)} className="w-11 grid place-items-center text-xl leading-none text-[var(--text-1)] active:bg-[var(--bg-2)] cursor-pointer" style={{ WebkitTapHighlightColor: 'transparent' }}>−</button>
-                <span className="px-1 text-label-13 font-semibold text-[var(--text-1)] tabular-nums select-none min-w-[2.75rem] text-center">{transpose === 0 ? 'Tr' : `Tr ${transpose > 0 ? '+' : ''}${transpose}`}</span>
-                <button type="button" aria-label="Transpose up" onClick={() => stepTranspose(1)} className="w-11 grid place-items-center text-xl leading-none text-[var(--text-1)] active:bg-[var(--bg-2)] cursor-pointer" style={{ WebkitTapHighlightColor: 'transparent' }}>+</button>
+            {byline && <p className="m-0 mt-1.5 text-label-12 text-[var(--text-2)] truncate">{byline}</p>}
+            <div className="mt-2 flex items-center gap-2">
+              <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-x-auto no-scrollbar">
+                {metaPills('h-[30px] px-2.5 rounded-[9px] border border-[var(--border-1)] bg-[var(--bg-1)] text-[12.5px] font-medium text-[var(--text-1)] gap-1 max-w-[150px] w-auto focus:ring-0 shrink-0')}
               </div>
-              {hasMultipleArrangements && arrangementSelect('min-w-0 px-3 border border-[var(--border-1)] bg-[var(--bg-1)] rounded-xl text-label-13 font-semibold text-[var(--text-1)] gap-1 w-auto focus:ring-0 shrink')}
-              <div className="flex-1" />
               {onPlay && (
                 <Button variant="brand" size="sm" onClick={() => onPlay(activeArrId)} className="px-4 rounded-xl shrink-0">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="mr-1"><path d="M8 5v14l11-7z" /></svg>
@@ -280,9 +313,9 @@ export default function SongHub({
             </div>
           </div>
 
-          {/* ── Song map ── */}
+          {/* ── Song map (static codes — does not follow the chart) ── */}
           {showRibbon && (
-            <div className="px-3 sm:px-5 pt-1 sm:pt-0 pb-3 sm:pb-3.5 flex items-center gap-2">
+            <div className="px-3 sm:px-5 pb-3 sm:pb-3.5 flex items-center gap-2">
               <span className="hidden sm:inline text-[10px] uppercase tracking-[0.12em] text-[var(--text-2)] shrink-0">Song map</span>
               <div className="min-w-0 flex-1 overflow-x-auto no-scrollbar">
                 <StructureRibbon
@@ -290,8 +323,8 @@ export default function SongHub({
                   compact
                   orientation="horizontal"
                   collapse
-                  activeIndex={activeSection}
-                  style={settings?.ribbonStyle || 'chips'}
+                  activeIndex={null}
+                  style="codes"
                   sectionColors={settings?.sectionColors}
                   sectionLabels={settings?.sectionLabels}
                   customSectionTypes={settings?.customSectionTypes}
@@ -301,17 +334,16 @@ export default function SongHub({
             </div>
           )}
 
-          {/* ── Tabs (dotted, mockup-style) ── */}
+          {/* ── Tabs (underline, no dots) ── */}
           <div className="flex gap-0.5 px-2 sm:px-3.5 border-t border-[var(--border-1)]">
             {HUB_TABS.map(t => {
               const active = activeTab === t.id;
               return (
                 <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
                   className={cn(
-                    'flex items-center gap-1.5 px-3 sm:px-3.5 py-3 text-[13.5px] border-b-2 bg-transparent cursor-pointer transition-colors',
+                    'px-3 sm:px-3.5 py-3 text-[13.5px] border-b-2 bg-transparent cursor-pointer transition-colors',
                     active ? 'text-[var(--text-1)] border-[var(--color-brand)] font-semibold' : 'text-[var(--text-2)] border-transparent hover:text-[var(--text-1)]',
                   )}>
-                  <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', active ? 'bg-[var(--color-brand)]' : 'bg-[var(--text-2)] opacity-50')} />
                   {t.label}
                 </button>
               );
@@ -320,7 +352,7 @@ export default function SongHub({
         </div>
 
         {/* ════ READER CARD ════ */}
-        <div className="flex-1 min-h-0 overflow-hidden bg-[var(--ds-background-100)] sm:border sm:border-[var(--border-1)] sm:rounded-2xl">
+        <div className="flex-1 min-h-0 overflow-hidden bg-[var(--ds-background-100)] border border-[var(--border-1)] rounded-2xl">
           {activeTab === 'details' ? (
             <div className="h-full overflow-y-auto">
               <div className="px-5 sm:px-8 py-5 sm:py-6 max-w-[900px]">
@@ -339,7 +371,6 @@ export default function SongHub({
               aaAnchor={aaAnchor}
               onAaClose={closeAa}
               onReportStructure={setChartStructure}
-              onActiveSection={setActiveSection}
               settings={settings}
               onUpdateSettings={onUpdateSettings}
               onOpenAdvancedStyle={onOpenAdvancedStyle}
@@ -358,11 +389,10 @@ export default function SongHub({
   );
 }
 
-function MonoPill({ k, icon, children }) {
+function MonoPill({ k, children }) {
   return (
-    <span className="inline-flex items-center gap-1.5 h-[30px] px-2.5 rounded-[9px] border border-[var(--border-1)] bg-[var(--bg-1)] font-mono text-[12.5px] text-[var(--text-1)]">
-      {k && <span className="font-sans text-[11px] uppercase tracking-wide text-[var(--text-2)]">{k}</span>}
-      {icon && <span className="text-[var(--text-2)]" aria-hidden="true">{icon}</span>}
+    <span className="inline-flex items-center gap-1.5 h-[30px] px-2.5 rounded-[9px] border border-[var(--border-1)] bg-[var(--bg-1)] font-mono text-[12.5px] text-[var(--text-1)] shrink-0">
+      {k && <span className="font-sans text-[11px] text-[var(--text-2)]">{k}</span>}
       <span className="tabular-nums">{children}</span>
     </span>
   );

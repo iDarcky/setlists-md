@@ -96,6 +96,43 @@ export function StructureRibbon({
     );
   }
 
+  // 'codes' — bordered mono code pills, coloured per section type. Matches the
+  // Song Hub V2 mockup's song-map row (rounded-rect chips, not the pill/dot
+  // variants). Reusable as a Settings ribbonStyle option.
+  if (style === 'codes') {
+    return (
+      <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-1.5')}>
+        {runs.map((run, i) => {
+          const s = colorOf(run.name);
+          const active = isActiveRun(run);
+          const Tag = onSelect ? 'button' : 'span';
+          return (
+            <Tag
+              key={i}
+              ref={active ? activeRef : null}
+              {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index), title: labelOf(run.name) } : {})}
+              className={cn(
+                'shrink-0 inline-flex items-center gap-1 font-mono font-bold text-[11px] px-2 py-1 rounded-[7px] border transition-all',
+                onSelect && 'cursor-pointer hover:opacity-80',
+                active && 'ring-2 ring-offset-1 ring-offset-transparent',
+              )}
+              style={{
+                color: s.b,
+                borderColor: s.br,
+                background: 'var(--bg-1)',
+                opacity: active || activeIndex == null ? 1 : 0.7,
+                ...(active ? { boxShadow: `0 0 0 2px ${s.br}` } : {}),
+              }}
+            >
+              {compactLabel(run.name)}
+              {run.count > 1 && <span className="opacity-70">×{run.count}</span>}
+            </Tag>
+          );
+        })}
+      </div>
+    );
+  }
+
   if (style === 'numbered') {
     return (
       <div ref={scrollerRef} className={cn(rowClass, 'items-baseline')}>
