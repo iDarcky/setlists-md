@@ -2297,6 +2297,7 @@ export default function App() {
               onBack={goBack}
               onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
               onPlay={(arrId) => playSongCasually(currentSong, arrId)}
+              addedBy={displayName}
               {...buildChartMoveCopy(currentSong.id)}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
