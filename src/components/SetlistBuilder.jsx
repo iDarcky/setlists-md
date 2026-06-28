@@ -24,6 +24,9 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   // worship slot. Existing ones keep whatever they were saved with.
   const [date, setDate] = useState(setlist?.date || nextSundayDateStr());
   const [time, setTime] = useState(setlist?.time || '10:00');
+  // Optional end time — keeps the set in "Upcoming" / on the dashboard until it
+  // actually ends, instead of dropping to "Past" at the start time.
+  const [endTime, setEndTime] = useState(setlist?.endTime || '');
   const [location, setLocation] = useState(setlist?.location || '');
   // Migrate legacy `service` field → tags
   const [tags, setTags] = useState(() => {
@@ -44,8 +47,8 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
 
   // Snapshot the form on first render so Cancel/back can warn about unsaved
   // changes (only when something actually changed — no nag on a pristine form).
-  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation }));
-  const isDirty = JSON.stringify({ name, date, time, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation }) !== initialSnapshot;
+  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, endTime, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation }));
+  const isDirty = JSON.stringify({ name, date, time, endTime, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation }) !== initialSnapshot;
 
   // Report dirty state up so App can guard header nav / browser back. Reset on
   // unmount so a stale flag never blocks navigation after we leave.
@@ -260,7 +263,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     onSave({
       ...setlist, // preserve fields the builder doesn't edit (workspace/authorship/etc.)
       id: setlist?.id || generateId(),
-      name: name.trim(), date, time, location, tags, items, service, status,
+      name: name.trim(), date, time, endTime: endTime || '', location, tags, items, service, status,
       rehearsalDate: rehearsalDate || null,
       rehearsalTime: rehearsalDate ? rehearsalTime : null,
       rehearsalLocation: rehearsalDate ? (rehearsalLocation || null) : null,
@@ -323,6 +326,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               name={name}
               date={date}
               time={time}
+              endTime={endTime}
               location={location}
               tags={tags}
               service={service}
@@ -334,6 +338,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               onNameChange={setName}
               onDateChange={setDate}
               onTimeChange={setTime}
+              onEndTimeChange={setEndTime}
               onLocationChange={setLocation}
               onTagsChange={setTags}
               onServiceChange={setService}

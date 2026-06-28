@@ -12,6 +12,7 @@ import SetlistFilters from './setlist/SetlistFilters';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { useResizablePane } from '../lib/useResizablePane';
 import { usePersistentView } from '../lib/usePersistentView';
+import { setlistStartMs, isSetlistUpcoming } from '../lib/setlistTime';
 import { useEntitlement } from '../hooks/useEntitlement';
 import { useTeam } from '../auth/useTeam';
 import { useTeamSchedules } from '../hooks/useTeamSchedules';
@@ -23,11 +24,8 @@ function songCount(sl) {
   return (sl.items || []).filter(i => i.songId).length;
 }
 
-// Full start datetime (date + time) in ms; used for upcoming/past split + sort.
-const SETLIST_GRACE_MS = 60 * 60 * 1000; // stay "upcoming" up to 1h after start
-function setlistStartMs(sl) {
-  return new Date((sl.date || '') + 'T' + (sl.time || '00:00') + ':00').getTime();
-}
+// setlistStartMs + the upcoming/past split now live in lib/setlistTime (shared
+// with the dashboard, and end-time aware).
 // Sort key for the Past group: newest day first, but earliest service first
 // within a day (so Sun AM reads above Sun PM under that day).
 function comparePast(a, b) {
@@ -268,11 +266,9 @@ export default function Setlists({
   );
   const showCol = (id) => columnVisible.has(id);
 
-  // A setlist is "upcoming" until 1h after its start time, then it's "past".
-  const isUpcoming = (sl) => {
-    const t = setlistStartMs(sl);
-    return !Number.isNaN(t) && t + SETLIST_GRACE_MS > nowTs;
-  };
+  // A setlist is "upcoming" until it ends — its explicit end time, or 1h after
+  // start when none is set (see lib/setlistTime).
+  const isUpcoming = (sl) => isSetlistUpcoming(sl, nowTs);
 
   // Gallery grouping (Upcoming / Past)
   const { upcoming, past } = useMemo(() => {

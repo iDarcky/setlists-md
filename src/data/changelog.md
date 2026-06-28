@@ -21,6 +21,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Details you can edit in place** — see all of a song's info (artist, themes, scripture, links, key history and more) and edit it right there, without opening the full editor.
 - **Keep screen awake & Lock orientation** — new General settings to stop the screen dimming or rotating while you read or perform.
 - **Labs: Neutral palette** — preview a cooler, neutral-dark colour scheme across the whole app before we make it the default.
+- **Setlist end time** — give a service an optional end time and it stays in "Upcoming" (and on your dashboard) until it actually finishes, instead of dropping into "Past" the moment it begins.
 
 ### Improved
 - **Redesigned setlist cards** — cleaner and far more compact, with a date badge, the essentials at a glance, and a one-tap Play Live — much easier to scan, especially on a phone.
