@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Setlists.md — Setlist editor in the card language (concept)</title>
+<style>
+  :root{
+    --bg:#0a0a0a; --bg2:#111113; --card:#161618; --card2:#1c1c1f; --card3:#202024;
+    --bd:#2a2a2e; --bd2:#3a3a40;
+    --tx:#ededed; --tx2:#a1a1a6; --tx3:#6f6f76;
+    --brand:#10b981; --chord:#e0b341;
+    --verse:#7aa2f7; --chorus:#e0af68; --bridge:#bb9af7;
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#070708;color:var(--tx);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;padding:28px;}
+  .page-title{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);margin:0 0 4px;}
+  .page-sub{font-size:13px;color:var(--tx2);margin:0 0 22px;}
+  .frames{display:flex;gap:34px;align-items:flex-start;flex-wrap:wrap;}
+  .label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin:0 0 10px;}
+
+  .card{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--bd);border-radius:var(--radius);}
+  .ico{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx2);font-size:13px;cursor:pointer;}
+  .btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:9px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx);font-size:12.5px;cursor:pointer;}
+  .btn.brand{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:650;}
+  .pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:9px;background:var(--card2);border:1px solid var(--bd);font-size:12.5px;color:var(--tx);}
+  .pill .k{color:var(--tx3);font-size:11px;}
+  .pill .ed{border-bottom:1px dashed var(--bd2);}
+  .keychip{font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;color:#0a0a0a;background:var(--chord);padding:2px 7px;border-radius:6px;}
+  .code{font-family:ui-monospace,Menlo,monospace;font-size:10px;font-weight:700;padding:3px 6px;border-radius:6px;border:1px solid var(--bd);background:var(--card2);}
+  .seg{display:inline-flex;border:1px solid var(--bd);border-radius:9px;overflow:hidden;}
+  .seg div{padding:7px 13px;font-size:12px;color:var(--tx2);cursor:pointer;}
+  .seg div.on{background:rgba(16,185,129,.12);color:var(--tx);font-weight:600;}
+  .input{background:var(--card2);border:1px solid var(--bd);border-radius:9px;color:var(--tx);height:36px;padding:0 12px;font-size:13px;width:100%;}
+
+  /* identity */
+  .idtop{padding:16px 18px;}
+  .title-input{background:transparent;border:none;color:var(--tx);font-size:23px;font-weight:650;letter-spacing:-.01em;width:100%;outline:none;border-bottom:1px dashed transparent;}
+  .title-input:hover{border-bottom-color:var(--bd2);}
+  .idrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;}
+  .spacer{flex:1}
+
+  /* work */
+  .work{display:flex;gap:16px;margin-top:16px;align-items:flex-start;}
+  .setcard{flex:1.5;min-width:0;}
+  .libcard{flex:1;min-width:0;}
+  .cardhead{display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid var(--bd);}
+  .cardhead h3{margin:0;font-size:13px;font-weight:650;}
+  .cardhead .muted{color:var(--tx3);font-size:12px;}
+  .body{padding:10px;}
+  .row{display:flex;align-items:center;gap:10px;padding:10px 10px;border:1px solid var(--bd);background:var(--card2);border-radius:11px;margin-bottom:8px;}
+  .grip{color:var(--tx3);cursor:grab;}
+  .num{width:20px;color:var(--tx3);font-size:12px;font-family:ui-monospace,monospace;text-align:center;}
+  .song{flex:1;min-width:0;}
+  .song .t{font-size:14px;font-weight:600;}
+  .song .s{font-size:11.5px;color:var(--tx3);margin-top:1px;}
+  .row .right{display:flex;gap:7px;align-items:center;}
+  .dur{font-size:11px;color:var(--tx3);font-family:ui-monospace,monospace;}
+  .breakrow{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px dashed var(--bd2);border-radius:11px;margin-bottom:8px;color:var(--chorus);font-size:12.5px;background:rgba(224,175,104,.05);}
+  .addbar{display:flex;gap:8px;padding:4px 2px 2px;}
+  .addbtn{flex:1;justify-content:center;border-style:dashed;}
+  .libsearch{padding:12px 12px 6px;}
+  .librow{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;margin-bottom:2px;}
+  .librow:hover{background:var(--card2);}
+  .plus{width:28px;height:28px;border-radius:8px;border:1px solid var(--bd2);background:var(--card2);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;flex:0 0 auto;}
+  .secthead{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx3);padding:12px 14px 4px;}
+
+  .device.mobile .screen{width:390px;border:1px solid var(--bd);border-radius:30px;background:#000;padding:12px 10px;}
+  .notch{height:22px;}
+  .m-card{margin:0 0 10px;}
+  .desktop .screen{width:980px;}
+  .stickybar{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--bd);position:sticky;bottom:0;background:var(--card);}
+  .fab{position:absolute;right:14px;bottom:14px;background:var(--brand);color:#fff;border-radius:999px;padding:11px 17px;font-size:13px;font-weight:650;box-shadow:0 8px 24px rgba(16,185,129,.35);}
+  .notes{margin-top:26px;max-width:1100px;border:1px solid var(--bd);border-radius:12px;padding:16px 18px;background:var(--card);font-size:13px;line-height:1.55;color:var(--tx2);}
+  .notes b{color:var(--tx);} .notes .q{color:var(--chord);}
+</style>
+</head>
+<body>
+  <p class="page-title">Setlists.md · concept — Setlist editor in the card language</p>
+  <p class="page-sub">Identity card (name · date · start/end · status) on top · the ordered Set card beside a Library card. On mobile the library is a bottom sheet behind a "+ Add songs" button.</p>
+
+  <div class="frames">
+    <!-- ============ DESKTOP ============ -->
+    <div class="device desktop">
+      <p class="label">Desktop</p>
+      <div class="screen">
+        <!-- IDENTITY -->
+        <div class="card">
+          <div class="idtop">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+              <input class="title-input" value="Sunday Morning Service" />
+              <div style="display:flex;gap:7px;flex:0 0 auto;">
+                <div class="seg"><div class="on">Draft</div><div>Ready</div></div>
+                <button class="btn">Cancel</button>
+                <button class="btn brand">Save</button>
+              </div>
+            </div>
+            <div class="idrow">
+              <span class="pill"><span class="k">Date</span> Sun, Jul 5</span>
+              <span class="pill"><span class="k">Start</span> <span class="ed">10:00</span></span>
+              <span class="pill"><span class="k">End</span> <span class="ed">12:00</span></span>
+              <span class="pill"><span class="k">Location</span> <span class="ed">Main hall</span></span>
+              <span class="pill" style="border-style:dashed">＋ Rehearsal</span>
+              <span class="pill" style="border-style:dashed">＋ Tags</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- WORK -->
+        <div class="work">
+          <!-- SET CARD -->
+          <div class="card setcard">
+            <div class="cardhead"><h3>Set order</h3><span class="muted">5 songs · ~24 min</span><span class="spacer"></span><span class="muted">drag ⠿ to reorder</span></div>
+            <div class="body">
+              <div class="row"><span class="grip">⠿</span><span class="num">1</span><div class="song"><div class="t">Voi cânta bunătatea Ta</div><div class="s">Revive · capo 0</div></div><div class="right"><span class="keychip">Eb</span><span class="dur">4:12</span><button class="ico" title="Note">›</button><button class="ico">✕</button></div></div>
+              <div class="row"><span class="grip">⠿</span><span class="num">2</span><div class="song"><div class="t">Amazing Grace</div><div class="s">John Newton</div></div><div class="right"><span class="keychip">G</span><span class="dur">3:30</span><button class="ico" title="Note">›</button><button class="ico">✕</button></div></div>
+              <div class="breakrow"><span class="grip">⠿</span>☕ Break — Welcome &amp; offering <span class="spacer"></span><span class="dur">10:00</span><button class="ico" style="border:none;background:none">✕</button></div>
+              <div class="row"><span class="grip">⠿</span><span class="num">3</span><div class="song"><div class="t">There Is A Fountain</div><div class="s">William Cowper</div></div><div class="right"><span class="keychip">G</span><span class="dur">4:05</span><button class="ico" title="Note">›</button><button class="ico">✕</button></div></div>
+              <div class="row" style="border-style:dashed;background:transparent;"><span class="grip">⠿</span><span class="num">4</span><div class="song"><div class="t">What A Friend We Have In Jesus</div><div class="s">J. M. Scriven</div></div><div class="right"><span class="keychip">F</span><span class="dur">3:50</span><button class="ico">›</button><button class="ico">✕</button></div></div>
+              <div class="addbar"><button class="btn addbtn">＋ Add song</button><button class="btn addbtn">＋ Add break</button></div>
+            </div>
+          </div>
+
+          <!-- LIBRARY CARD -->
+          <div class="card libcard">
+            <div class="cardhead"><h3>Library</h3></div>
+            <div class="libsearch"><input class="input" placeholder="Search songs…" /></div>
+            <div class="body" style="padding-top:0">
+              <div class="librow"><div style="flex:1"><div class="t" style="font-size:13.5px;font-weight:600">Holy, Holy, Holy</div><div class="s" style="font-size:11px;color:var(--tx3)">Reginald Heber · D</div></div><button class="plus">＋</button></div>
+              <div class="librow"><div style="flex:1"><div class="t" style="font-size:13.5px;font-weight:600">Great Is Thy Faithfulness</div><div class="s" style="font-size:11px;color:var(--tx3)">Thomas Chisholm · Bb</div></div><button class="plus">＋</button></div>
+              <div class="secthead">✨ Recommended next</div>
+              <div class="librow"><div style="flex:1"><div class="t" style="font-size:13.5px;font-weight:600">Cornerstone</div><div class="s" style="font-size:11px;color:var(--tx3)">Hillsong · C · pairs with Eb set</div></div><button class="plus">＋</button></div>
+              <div class="librow"><div style="flex:1"><div class="t" style="font-size:13.5px;font-weight:600">In Christ Alone</div><div class="s" style="font-size:11px;color:var(--tx3)">Getty/Townend · D</div></div><button class="plus">＋</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ MOBILE ============ -->
+    <div class="device mobile">
+      <p class="label">Mobile</p>
+      <div class="screen" style="position:relative">
+        <div class="notch"></div>
+        <div class="card m-card" style="padding:14px;">
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="ico" style="border:none;background:none;font-size:20px">‹</button>
+            <input class="title-input" style="font-size:18px" value="Sunday Morning Service" />
+            <div class="seg"><div class="on">Draft</div><div>Ready</div></div>
+          </div>
+          <div class="idrow" style="margin-top:11px;overflow:auto;">
+            <span class="pill"><span class="k">Date</span> Jul 5</span>
+            <span class="pill"><span class="k">Start</span> 10:00</span>
+            <span class="pill"><span class="k">End</span> 12:00</span>
+          </div>
+        </div>
+        <div class="card m-card">
+          <div class="cardhead"><h3>Set order</h3><span class="muted">5 · ~24 min</span></div>
+          <div class="body">
+            <div class="row"><span class="grip">⠿</span><span class="num">1</span><div class="song"><div class="t" style="font-size:13.5px">Voi cânta bunătatea Ta</div></div><div class="right"><span class="keychip">Eb</span><button class="ico">✕</button></div></div>
+            <div class="row"><span class="grip">⠿</span><span class="num">2</span><div class="song"><div class="t" style="font-size:13.5px">Amazing Grace</div></div><div class="right"><span class="keychip">G</span><button class="ico">✕</button></div></div>
+            <div class="breakrow" style="font-size:12px">☕ Break — Welcome <span class="spacer"></span>10:00</div>
+            <div class="row"><span class="grip">⠿</span><span class="num">3</span><div class="song"><div class="t" style="font-size:13.5px">There Is A Fountain</div></div><div class="right"><span class="keychip">G</span><button class="ico">✕</button></div></div>
+          </div>
+          <div class="stickybar"><button class="btn" style="flex:1;justify-content:center">Cancel</button><button class="btn brand" style="flex:1;justify-content:center">Save</button></div>
+        </div>
+        <div class="fab">＋ Add songs</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>Design decisions</b> — (1) An <b>identity card</b> carries name · date · start/end · location · status (Draft/Ready), with the new end-time field inline. (2) The <b>Set card</b> is the ordered list of song rows + break rows (drag ⠿, key chip, duration, per-song note/transpose), with the running total in its header. (3) A <b>Library card</b> sits beside it (search + Recommended-next), folding into a bottom sheet on mobile behind "＋ Add songs". Three cards on desktop, stacked on mobile.<br>
+    <span class="q">Open questions:</span> a third "details" pane (roster/availability/private notes) as a fourth card, or keep that out of the editor? · per-song transpose shown as the key chip (tap to change) — enough, or expose a dedicated control? · Save in the header (shown) vs a sticky bottom bar (shown on mobile) — pick one across both?
+  </div>
+</body>
+</html>

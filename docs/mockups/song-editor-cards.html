@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Setlists.md — Song editor in the card language (concept)</title>
+<style>
+  :root{
+    --bg:#0a0a0a; --bg2:#111113; --card:#161618; --card2:#1c1c1f; --card3:#202024;
+    --bd:#2a2a2e; --bd2:#3a3a40;
+    --tx:#ededed; --tx2:#a1a1a6; --tx3:#6f6f76;
+    --brand:#10b981; --chord:#e0b341;
+    --verse:#7aa2f7; --chorus:#e0af68; --bridge:#bb9af7;
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#070708;color:var(--tx);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;padding:28px;}
+  .page-title{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);margin:0 0 4px;}
+  .page-sub{font-size:13px;color:var(--tx2);margin:0 0 22px;}
+  .frames{display:flex;gap:34px;align-items:flex-start;flex-wrap:wrap;}
+  .label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin:0 0 10px;}
+
+  /* cards + atoms */
+  .card{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--bd);border-radius:var(--radius);}
+  .flat{background:var(--card);}
+  .ico{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx2);font-size:13px;font-weight:700;cursor:pointer;}
+  .btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:9px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx);font-size:12.5px;cursor:pointer;}
+  .btn.brand{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:650;}
+  .pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:9px;background:var(--card2);border:1px solid var(--bd);font-size:12.5px;color:var(--tx);font-family:ui-monospace,Menlo,monospace;}
+  .pill .k{color:var(--tx3);font-family:Inter,sans-serif;font-size:11px;}
+  .pill .ed{border-bottom:1px dashed var(--bd2);padding-bottom:1px;}
+  .keychip{font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:700;color:#0a0a0a;background:var(--chord);padding:4px 9px;border-radius:8px;display:inline-flex;gap:5px;align-items:center;cursor:pointer;}
+  .code{font-family:ui-monospace,Menlo,monospace;font-size:11px;font-weight:700;padding:4px 8px;border-radius:7px;border:1px solid var(--bd);background:var(--card2);}
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--bd);padding:0 6px;}
+  .tab{padding:11px 14px;font-size:13px;color:var(--tx2);cursor:pointer;border-bottom:2px solid transparent;}
+  .tab.active{color:var(--tx);border-bottom-color:var(--brand);font-weight:600;}
+  .seg{display:inline-flex;border:1px solid var(--bd);border-radius:9px;overflow:hidden;}
+  .seg div{padding:6px 11px;font-size:12px;color:var(--tx2);cursor:pointer;}
+  .seg div.on{background:rgba(16,185,129,.12);color:var(--tx);}
+
+  /* identity (top) card */
+  .idtop{display:flex;gap:16px;padding:16px 18px;align-items:flex-start;}
+  .art{width:64px;height:64px;border-radius:12px;flex:0 0 auto;border:1px solid var(--bd2);background:radial-gradient(120% 120% at 20% 10%,#1f5f4f,#0e2c30 55%,#150f1f);display:flex;align-items:center;justify-content:center;}
+  .idbody{flex:1;min-width:0;}
+  .title-input{background:transparent;border:none;color:var(--tx);font-size:22px;font-weight:650;letter-spacing:-.01em;width:100%;outline:none;border-bottom:1px dashed transparent;}
+  .title-input:hover{border-bottom-color:var(--bd2);}
+  .byline{color:var(--tx2);font-size:12.5px;margin:5px 0 11px;}
+  .meta{display:flex;gap:7px;flex-wrap:wrap;align-items:center;}
+  .idactions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end;flex:0 0 auto;}
+
+  /* work area */
+  .work{display:flex;gap:16px;padding:16px;}
+  .editor{flex:1.45;min-width:0;overflow:hidden;}
+  .preview{flex:1;min-width:0;overflow:hidden;}
+  .toolbar{display:flex;gap:6px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--bd);flex-wrap:wrap;}
+  .tbtn{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:8px;border:1px solid var(--bd2);background:var(--card2);color:var(--tx);font-size:12px;cursor:pointer;}
+  .songmap{display:flex;gap:6px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--bd);}
+  .map-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);margin-right:3px;}
+  .editbody{padding:16px 18px;height:330px;overflow:hidden;}
+  .sec{margin-bottom:18px;}
+  .sec-h{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:8px;display:flex;gap:8px;align-items:center;}
+  .verse .sec-h{color:var(--verse)} .chorus .sec-h{color:var(--chorus)}
+  .ed-line{margin-bottom:11px;border-left:2px solid transparent;}
+  .chs{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;font-weight:700;color:var(--chord);line-height:1;display:flex;gap:13px;margin-bottom:2px;}
+  .chs span{background:rgba(224,179,65,.10);border:1px solid rgba(224,179,65,.30);border-radius:5px;padding:1px 5px;cursor:pointer;}
+  .lyr{font-size:15px;color:var(--tx);line-height:1.32;border-bottom:1px dashed var(--bd);padding-bottom:3px;display:inline-block;}
+  .add{font-size:12px;color:var(--tx3);margin-top:6px;cursor:pointer;}
+  .preview-head{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);padding:11px 16px;border-bottom:1px solid var(--bd);}
+  .chart{padding:16px 18px;height:330px;overflow:hidden;column-count:2;column-gap:30px;}
+  .chart .cl{font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;color:var(--chord);white-space:pre;}
+  .chart .ll{font-size:14px;color:var(--tx);line-height:1.3;margin-bottom:9px;}
+  .chart .ch{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px;}
+
+  /* phone */
+  .device.mobile .screen{width:390px;border:1px solid var(--bd);border-radius:30px;background:#000;padding:12px 10px;}
+  .notch{height:22px;}
+  .m-card{margin:0 0 10px;}
+  .m-id{padding:14px;}
+  .m-title{font-size:18px;font-weight:700;}
+  .m-actionbar{display:flex;gap:7px;padding:0 4px 4px;}
+  .m-fab{position:relative;}
+  .m-fab .f{position:absolute;right:14px;bottom:14px;background:var(--brand);color:#fff;border-radius:999px;padding:10px 16px;font-size:13px;font-weight:650;box-shadow:0 8px 24px rgba(16,185,129,.35);}
+  .notes{margin-top:26px;max-width:1100px;border:1px solid var(--bd);border-radius:12px;padding:16px 18px;background:var(--card);font-size:13px;line-height:1.55;color:var(--tx2);}
+  .notes b{color:var(--tx);} .notes .q{color:var(--chord);}
+  .desktop .screen{width:980px;}
+</style>
+</head>
+<body>
+  <p class="page-title">Setlists.md · concept — Song editor in the card language</p>
+  <p class="page-sub">Identity card (editable) on top · Edit card (Visual/Form/Raw) beside a live Preview card. Three cards on desktop; the preview folds behind a button on mobile.</p>
+
+  <div class="frames">
+    <!-- ============ DESKTOP ============ -->
+    <div class="device desktop">
+      <p class="label">Desktop</p>
+      <div class="screen">
+        <!-- IDENTITY -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="idtop">
+            <div class="art"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#cfeee2" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+            <div class="idbody">
+              <input class="title-input" value="Voi cânta bunătatea Ta" />
+              <div class="byline">Revive · editing</div>
+              <div class="meta">
+                <span class="keychip">Eb <span style="opacity:.6">▾</span></span>
+                <span class="pill"><span class="k">Tempo</span> <span class="ed">180</span></span>
+                <span class="pill"><span class="k">Time</span> <span class="ed">4/4</span></span>
+                <span class="pill"><span class="k">Capo</span> <span class="ed">0</span></span>
+                <span class="pill" style="font-family:Inter">Default arrangement <span style="color:var(--tx3)">▾</span></span>
+              </div>
+            </div>
+            <div class="idactions">
+              <button class="ico" title="Display">Aa</button>
+              <button class="ico" title="More">⋯</button>
+              <button class="btn">Cancel</button>
+              <button class="btn brand">Save</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- WORK -->
+        <div class="card flat" style="background:transparent;border:none;">
+          <div class="work" style="padding:0;">
+            <!-- EDIT CARD -->
+            <div class="card editor">
+              <div class="tabs">
+                <div class="tab active">Visual</div><div class="tab">Form</div><div class="tab">Raw</div>
+                <div style="flex:1"></div>
+                <div class="seg" style="margin:6px 8px;"><div class="on">Arrange</div><div>Advanced</div><div>Tabs</div></div>
+              </div>
+              <div class="toolbar">
+                <span class="tbtn">＋ Chord</span><span class="tbtn">＋ Section</span><span class="tbtn">＋ Tab</span><span class="tbtn">› Note</span>
+                <span style="flex:1"></span><span style="font-size:11px;color:var(--tx3)">drag ⠿ to reorder</span>
+              </div>
+              <div class="songmap">
+                <span class="map-label">Song map</span>
+                <span class="code" style="color:var(--verse)">S1</span><span class="code" style="color:var(--verse)">S2</span>
+                <span class="code" style="color:var(--chorus)">R1</span><span class="code" style="color:var(--bridge)">B</span>
+              </div>
+              <div class="editbody">
+                <div class="sec verse"><div class="sec-h">⠿ Verse 1 <span style="color:var(--tx3);font-weight:400;text-transform:none;letter-spacing:0">› Start soft</span></div>
+                  <div class="ed-line"><div class="chs"><span>Eb</span></div><span class="lyr">Voi cânta a Ta îndurare,</span></div>
+                  <div class="ed-line"><div class="chs"><span>Cm</span></div><span class="lyr">Voi vesti Doamne-a Ta lucrare,</span></div>
+                  <div class="ed-line"><div class="chs"><span>Ab</span><span>Eb</span></div><span class="lyr">Credincios Tu rămâi din veșnicii!</span></div>
+                  <div class="add">＋ Add line</div>
+                </div>
+                <div class="sec chorus"><div class="sec-h">⠿ Chorus</div>
+                  <div class="ed-line"><div class="chs"><span>Eb</span><span>Ab</span><span>Bb</span></div><span class="lyr">Voi cânta bunătatea Ta,</span></div>
+                </div>
+              </div>
+            </div>
+            <!-- PREVIEW CARD -->
+            <div class="card preview">
+              <div class="preview-head">Live preview · follows the chart theme</div>
+              <div class="chart">
+                <div class="ch" style="color:var(--verse)">Verse 1</div>
+                <div class="cl">Eb</div><div class="ll">Voi cânta a Ta îndurare,</div>
+                <div class="cl">Cm</div><div class="ll">Voi vesti Doamne-a Ta lucrare,</div>
+                <div class="cl">Ab            Eb</div><div class="ll">Credincios Tu rămâi din veșnicii!</div>
+                <div class="ch" style="color:var(--chorus)">Chorus</div>
+                <div class="cl">Eb       Ab     Bb</div><div class="ll">Voi cânta bunătatea Ta,</div>
+                <div class="cl">Eb          Cm</div><div class="ll">Voi vesti minunile Tale.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ MOBILE ============ -->
+    <div class="device mobile">
+      <p class="label">Mobile</p>
+      <div class="screen m-fab">
+        <div class="notch"></div>
+        <!-- identity -->
+        <div class="card m-card m-id">
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="ico" style="border:none;background:none;font-size:20px;font-weight:400">‹</button>
+            <div style="flex:1;min-width:0;">
+              <input class="title-input m-title" value="Voi cânta bunătatea Ta" />
+              <div class="byline" style="margin:2px 0 0">Revive · editing</div>
+            </div>
+            <span class="keychip">Eb ▾</span>
+          </div>
+          <div class="meta" style="margin-top:11px;overflow:auto;">
+            <span class="pill"><span class="k">Tempo</span> 180</span>
+            <span class="pill"><span class="k">Time</span> 4/4</span>
+            <span class="pill"><span class="k">Capo</span> 0</span>
+          </div>
+        </div>
+        <!-- edit card -->
+        <div class="card m-card" style="overflow:hidden;">
+          <div class="tabs"><div class="tab active">Visual</div><div class="tab">Form</div><div class="tab">Raw</div></div>
+          <div class="toolbar"><span class="tbtn">＋ Chord</span><span class="tbtn">＋ Section</span><span class="tbtn">＋ Tab</span></div>
+          <div class="songmap"><span class="code" style="color:var(--verse)">S1</span><span class="code" style="color:var(--verse)">S2</span><span class="code" style="color:var(--chorus)">R1</span><span class="code" style="color:var(--bridge)">B</span></div>
+          <div class="editbody" style="height:300px;padding:14px;">
+            <div class="sec verse"><div class="sec-h">⠿ Verse 1</div>
+              <div class="ed-line"><div class="chs"><span>Eb</span></div><span class="lyr">Voi cânta a Ta îndurare,</span></div>
+              <div class="ed-line"><div class="chs"><span>Cm</span></div><span class="lyr">Voi vesti Doamne-a Ta lucrare,</span></div>
+              <div class="ed-line"><div class="chs"><span>Ab</span><span>Eb</span></div><span class="lyr">Credincios Tu rămâi din veșnicii!</span></div>
+              <div class="add">＋ Add line</div>
+            </div>
+            <div class="sec chorus"><div class="sec-h">⠿ Chorus</div>
+              <div class="ed-line"><div class="chs"><span>Eb</span><span>Ab</span><span>Bb</span></div><span class="lyr">Voi cânta bunătatea Ta,</span></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--bd);">
+            <button class="btn" style="flex:1;justify-content:center">Cancel</button>
+            <button class="btn brand" style="flex:1;justify-content:center">Save</button>
+          </div>
+        </div>
+        <div class="f">👁  Preview</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>Design decisions</b> — (1) The hub's identity card becomes an <b>editable</b> identity card: title is an inline field, the gold key chip and the BPM/Time/Capo pills edit in place. (2) The edit surface keeps the existing <b>Visual / Form / Raw</b> tabs and the Arrange/Advanced/Tabs sub-modes, but inside a card with the song-map code ribbon at the top. (3) A third <b>Preview card</b> renders the live chart in the chart theme (reusing the hub's reader card). On mobile the preview folds behind a button/FAB so the edit surface gets full width.<br>
+    <span class="q">Open questions:</span> keep all three edit modes, or make Visual the default and Raw an "advanced" toggle? · Should Save be in the identity card (shown) or a sticky bottom bar like the current editor? · Per-section drag handles (⠿) shown — keep section reordering here or only in the Arrange sub-tab?
+  </div>
+</body>
+</html>
