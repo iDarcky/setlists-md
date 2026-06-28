@@ -2,7 +2,7 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
-## 0.14.0 — Find anything, lists your way
+## 0.14.0 — Find anything, and read it your way
 *June 2026*
 
 ### Added
@@ -11,11 +11,23 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Filter your library** — narrow songs by key, tempo, theme, language, year, scripture, and liturgical moment, and combine them with your tags.
 - **Choose your columns** — pick which columns appear in the Songs and Setlists tables; your choice follows you across devices.
 - **Pick how lists look** — switch Songs and Setlists between Cards, a dense Compact list, and a full Table. Phones get the same choice, remembered on each device.
+- **One "Aa" menu for the chart** — tabs for Lyrics, Chords and Page let you set the size, font and colour of lyrics and chords independently, plus theme, columns and notation, all in one place. Your choices stick on each device.
+- **Sharps or flats, your call** — a new Accidentals setting (Auto / Sharps / Flats) spells the black notes the way your song's key actually reads (a song in G shows F♯, not G♭), with a global override when you want one.
+- **Separate transpose in the editor** — relabel a song's key without touching your chords, or move every chord up/down a semitone with one tap.
+- **Floating structure ribbon (Labs)** — pin the section map to the bottom or either side as you read, shown as chips, codes or dots.
 
 ### Improved
 - **Redesigned setlist cards** — cleaner and far more compact, with a date badge, the essentials at a glance, and a one-tap Play Live — much easier to scan, especially on a phone.
 - **Tidier setlist filters** — service and tags now live under a single "Filters" button.
 - **Mobile lists open as cards** by default, with the view switcher right there to change it.
+- **Cleaner chart header** — the view switch (Chords / Lyrics / Song map) moved into the "⋮" menu, the display controls collapsed into the single "Aa" button, and on phones the title and the key · tempo · time line now read with a clear hierarchy.
+- **Friendlier new-song editor** — a new song starts with the Title and Key blank and asks for them before saving, gently nudges for tempo and time, and edits the slide order from one place shared by the Arrange and Advanced tabs.
+- **Smarter chord entry** — the chord picker opens right at your cursor and suggests the chords that fit the song's key.
+- **Reading follows you** — section highlighting tracks your scroll and the final sections light up as you reach the end.
+
+### Fixed
+- **New songs no longer default to the key of C** — the key stays blank until you choose it.
+- **Scroll all the way to the end** — the reading views no longer cut off the last sections.
 
 ## 0.13.0 — Sync you can trust
 *June 2026*

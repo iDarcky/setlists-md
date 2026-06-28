@@ -104,9 +104,15 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Key/chord strip follows the edited section + respects active notation — P2.
 
 ### Chart view
-- **Layout menu rework** → fold display controls into one **"Aa" menu** (see §4 Song hub) — **P1**.
-- View switch → single generic icon, text-only menu — P2.
+- ✅ **Layout menu rework** → folded display controls into one tabbed **"Aa" menu**
+  (Lyrics/Chords/Page; per-element size·font·colour) — shipped (`AaMenu.jsx`). View
+  modes moved into the ⋮ kebab; header actions lifted onto the title row; phone
+  title/meta typographic hierarchy. (Extend the Aa menu to Performance/Practice next.)
 - ✅ **Enharmonic spelling** (C# vs Db) — key-aware by default + global Sharps/Flats/Auto override (shipped 0.14.x; threaded through display, editor transpose, suggestions, key dropdowns).
+- **Collapsed-header top gap (tablet)** — when the chart header is collapsed, song
+  content scrolls into the strip above the structure ribbon (lyrics peek over the
+  top edge). Extend the header background up to the very top (cover the status-bar/
+  safe-area inset) so nothing shows behind it — P2.
 - Dual `F#/Gb` labels in the **chart transpose** key dropdown too (editor done) — P3.
 - Transpose tabs — P3 · _feasibility spike_.
 
@@ -275,6 +281,14 @@ dropdown with dual `F#/Gb` labels is cleaner, shipped — see §5); **skip** the
 "save-in-key" sentence CTA; a top-level lyrics/chords toggle isn't worth it for us
 (menu item is fine). **Named theme presets (Paper/Navy):** we already have chart
 themes (Pro) — no need to copy.
+
+#### Performance / Live header overhaul (P2 — down the line)
+The Performance/Practice header needs its own rework (the Chart's Aa-menu + title-row
+consolidation hasn't been applied there yet). **Known blocker to fix in that pass:**
+when the header is **collapsed** mid-set, the **✕ exit control disappears**, so there's
+no obvious way to leave Live/Practice without first expanding the header. The overhaul
+should keep a minimal always-visible exit (and the same single-Aa-menu treatment) —
+do it as one deliberate pass rather than patching the collapse state in isolation.
 
 #### Theme pass for reading views (P2)
 The chart/section **themes need an update**: in dark chart themes some rows render
