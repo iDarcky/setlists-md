@@ -10,8 +10,7 @@ import { buildFacetOptions, matchesFacets, countActiveFacets } from '../lib/song
 import LibraryFilters from './library/LibraryFilters';
 import { resolveVisibleColumns } from '../lib/tableColumns';
 import ColumnsMenu from './ui/ColumnsMenu';
-import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
-import { useResizablePane } from '../lib/useResizablePane';
+import { useIsDesktop, useIsTablet } from '../lib/useMediaQuery';
 import { usePersistentView } from '../lib/usePersistentView';
 
 const ChartView = lazy(() => import('./ChartView'));
@@ -203,12 +202,12 @@ export default function Library({
   // detail; true desktops (fine pointer) keep the Phase 1 overlay peek.
   const wide = useIsDesktop();              // ≥ 1024px
   const isTablet = useIsTablet();           // touch tablet, 768–1366px
-  const isLandscape = useIsLandscape();
   const isDesktop = wide && !isTablet;      // mouse-driven desktop
   const advanced = isDesktop || isTablet;   // table view + master-detail
-  // Pinned second pane: tablet in landscape with room for two columns.
-  const splitDock = isTablet && isLandscape && wide && !isFullscreen;
-  const { width: paneWidth, onPointerDown: onPaneResize } = useResizablePane({ storageKey: 'setlists-md:library-pane-w' });
+  // Tablet two-pane split removed — songs now open in the full Song Hub. The
+  // desktop side-peek (explicit per-row button) stays. Kept as a const so the
+  // column-visibility guards (`!splitDock`) read cleanly.
+  const splitDock = false;
 
   const previewSong = useMemo(
     () => songs.find(s => s.id === previewSongId) || null,
@@ -381,9 +380,9 @@ export default function Library({
   // floors so the user's chosen columns all show (see colFloor below).
   const mobileTable = !advanced && effectiveView === 'table';
   const colFloor = (cls) => (mobileTable ? '' : cls);
-  // On tablet a row tap loads the detail pane; desktop keeps row → full chart
-  // with a dedicated pane button.
-  const onRowActivate = isTablet ? openPeek : openFull;
+  // A row tap opens the full Song Hub on every device. Desktop also keeps a
+  // dedicated per-row button that opens the side-peek preview.
+  const onRowActivate = openFull;
 
   const runBulk = (fn, ...args) => {
     fn?.(selected, ...args);
@@ -657,49 +656,6 @@ export default function Library({
       </div>
 
       </div>{/* /list column */}
-
-      {/* Draggable divider — resize the pane, Spotify-style. */}
-      {splitDock && (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize preview"
-          onPointerDown={onPaneResize}
-          className="shrink-0 w-1.5 self-stretch cursor-col-resize relative group"
-        >
-          <span className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-[var(--ds-gray-300)] group-hover:bg-[var(--color-brand)] transition-colors" />
-        </div>
-      )}
-
-      {/* Pinned detail pane — tablet landscape (Phase 3 two-pane split) */}
-      {splitDock && (
-        <aside
-          style={{ width: paneWidth }}
-          className="h-full min-h-0 shrink-0 border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden flex flex-col"
-        >
-          {previewSong ? (
-            <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
-              <ChartView
-                key={previewSong.id}
-                song={previewSong}
-                onBack={closePeek}
-                onEdit={onEditSong ? () => onEditSong(previewSong) : null}
-                isFullscreen={false}
-                onToggleFullscreen={onToggleFullscreen}
-                {...(chartMoveCopy ? chartMoveCopy(previewSong.id) : {})}
-                {...chartDefaults}
-              />
-            </Suspense>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-3">
-              <div className="w-12 h-12 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
-                <PaneIcon />
-              </div>
-              <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">Select a song to preview it here.</p>
-            </div>
-          )}
-        </aside>
-      )}
 
       {/* FAB — narrow mouse-driven windows only. Touch tablets get the
           bottom-nav FAB instead, so gating on !isTablet avoids a duplicate. */}

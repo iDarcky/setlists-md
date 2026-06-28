@@ -3,6 +3,7 @@ import { transposeChord, transposeKey, keysInQualityOf, semitonesBetween, normal
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
 import SongMap from './SongMap';
+import SongDetails from './SongDetails';
 import ChordDiagram from './ChordDiagram';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
@@ -71,6 +72,10 @@ export default function ChartView({
   selectedKey: selectedKeyProp, onSelectKey,
   displayMode: displayModeProp, onDisplayMode,
   aaAnchor: aaAnchorProp, onAaClose,
+  // Embedded: report the resolved playback structure + the in-view section so
+  // the hub can render the song-map ribbon above the tabs (the chart no longer
+  // renders its own header/ribbon when embedded).
+  onReportStructure, onActiveSection,
 }) {
   const initialFontSize = FONT_SIZES[defaultFontSize] || (typeof defaultFontSize === 'number' ? defaultFontSize : 16);
 
@@ -327,6 +332,17 @@ export default function ChartView({
     return resolved;
   }, [song.structure, song.structureMode, song.sections]);
 
+  // Embedded: feed the resolved section flow + the in-view section up to the
+  // hub, which owns the song-map ribbon above the tabs.
+  useEffect(() => {
+    if (!embedded) return;
+    onReportStructure?.(orderedSections.map(s => s.type));
+  }, [embedded, orderedSections, onReportStructure]);
+  useEffect(() => {
+    if (!embedded) return;
+    onActiveSection?.(activeSection);
+  }, [embedded, activeSection, onActiveSection]);
+
   // Cumulative modulate offsets follow playback order so a repeated
   // section after a `{modulate}` block plays back in the new key.
   // User tab palette — only include keys the user actually set so TabBlock's
@@ -378,44 +394,9 @@ export default function ChartView({
       })
   ));
 
-  // Check if any metadata exists
-  const hasMetadata = !!song.artist || song.capo > 0 || !!song.ccli || (song.tags?.length > 0) || !!song.notes || !!song.spotify || !!song.youtube
-    || !!song.originaltitle || !!song.language || !!song.translator || !!song.vocalrange || !!song.year
-    || !!song.writers || !!song.publishers || !!song.album || !!song.label || !!song.copyright
-    || !!song.themes || !!song.genres || !!song.scripture || !!song.moment || !!song.story;
-
   // Song details body — shown inline in the header (toggled by the title
-  // chevron). Defined once so the header panel stays readable.
-  const songInfoBody = hasMetadata ? (
-    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-copy-13 m-0">
-      {song.artist && <InfoRow label="Artist">{song.artist}</InfoRow>}
-      {song.originaltitle && <InfoRow label="Original title">{song.originaltitle}</InfoRow>}
-      {song.language && <InfoRow label="Language">{song.language}</InfoRow>}
-      {song.translator && <InfoRow label="Translator">{song.translator}</InfoRow>}
-      {song.tempo && <InfoRow label="Tempo">{song.tempo} bpm</InfoRow>}
-      {song.time && <InfoRow label="Time">{song.time}</InfoRow>}
-      {song.capo > 0 && <InfoRow label="Capo">{song.capo}</InfoRow>}
-      {song.vocalrange && <InfoRow label="Vocal range">{song.vocalrange}</InfoRow>}
-      {song.year && <InfoRow label="Release year">{song.year}</InfoRow>}
-      {song.writers && <InfoRow label="Writers">{song.writers}</InfoRow>}
-      {song.publishers && <InfoRow label="Publishers">{song.publishers}</InfoRow>}
-      {song.album && <InfoRow label="Album">{song.album}</InfoRow>}
-      {song.label && <InfoRow label="Label">{song.label}</InfoRow>}
-      {song.ccli && <InfoRow label="CCLI">{song.ccli}</InfoRow>}
-      {song.copyright && <InfoRow label="Copyright">{song.copyright}</InfoRow>}
-      {song.themes && <InfoRow label="Themes">{song.themes}</InfoRow>}
-      {song.genres && <InfoRow label="Genres">{song.genres}</InfoRow>}
-      {song.scripture && <InfoRow label="Bible verses">{song.scripture}</InfoRow>}
-      {song.moment && <InfoRow label="Liturgical moment">{song.moment}</InfoRow>}
-      {song.tags?.length > 0 && <InfoRow label="Tags">{song.tags.join(', ')}</InfoRow>}
-      {song.story && <InfoRow label="Story behind"><span className="whitespace-pre-wrap">{song.story}</span></InfoRow>}
-      {song.notes && <InfoRow label="Notes"><span className="whitespace-pre-wrap">{song.notes}</span></InfoRow>}
-      {song.spotify && <InfoRow label="Spotify"><a href={song.spotify} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-text)] hover:underline">Open ↗</a></InfoRow>}
-      {song.youtube && <InfoRow label="YouTube"><a href={song.youtube} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-text)] hover:underline">Open ↗</a></InfoRow>}
-    </dl>
-  ) : (
-    <p className="text-copy-13 text-[var(--text-2)] italic m-0">No additional song info</p>
-  );
+  // chevron). Shared with the Song Hub's Details tab via SongDetails.
+  const songInfoBody = <SongDetails song={song} />;
 
   // Where the structure ribbon lives (Labs → floating positions). Previews
   // always keep it in the header. Non-top placements render a floating overlay
@@ -459,7 +440,7 @@ export default function ChartView({
       {/* Header stays in the app shell theme regardless of which chart
           theme is active. Children use the app's --text-1/--text-2
           tokens which already follow light/dark/midnight. */}
-      {!isPreview && (
+      {!isPreview && !embedded && (
         <StageHeader
           collapsed={headerCollapsed}
           onExpand={revealHeader}
@@ -898,18 +879,9 @@ export default function ChartView({
           ))}
         </div>
       </div>
-      {structurePos !== 'top' && (
+      {!embedded && structurePos !== 'top' && (
         <FloatingStructure position={structurePos} raised={false}>{ribbonNode}</FloatingStructure>
       )}
-    </div>
-  );
-}
-
-function InfoRow({ label, children }) {
-  return (
-    <div className="flex gap-2 min-w-0">
-      <dt className="w-24 shrink-0 text-label-12 font-semibold text-[var(--text-2)] leading-tight pt-0.5">{label}</dt>
-      <dd className="flex-1 min-w-0 m-0 text-[var(--text-1)] break-words">{children}</dd>
     </div>
   );
 }
