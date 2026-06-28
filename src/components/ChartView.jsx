@@ -61,6 +61,16 @@ export default function ChartView({
   onOpenAdvancedStyle,
   onMoveSong, onCopySong,
   onPlay,
+  // ── Embedded mode (Song Hub) ──────────────────────────────────────────────
+  // When `embedded`, the chart is rendered as the hub's Chart tab: the hub owns
+  // identity/meta/actions, so ChartView suppresses its own StageHeader title/
+  // meta/actions/close and instead renders only the reader body + the song-map
+  // ribbon + notes peek. Transpose, displayMode and the Aa popover become
+  // *controlled* by the hub (falling back to internal state when standalone).
+  embedded = false,
+  selectedKey: selectedKeyProp, onSelectKey,
+  displayMode: displayModeProp, onDisplayMode,
+  aaAnchor: aaAnchorProp, onAaClose,
 }) {
   const initialFontSize = FONT_SIZES[defaultFontSize] || (typeof defaultFontSize === 'number' ? defaultFontSize : 16);
 
@@ -82,7 +92,10 @@ export default function ChartView({
     return songInput;
   }, [songInput, activeArrId]);
 
-  const [selectedKey, setSelectedKey] = useState(song?.key || 'C');
+  // Transpose key: controlled by the hub when embedded, otherwise internal.
+  const [internalSelectedKey, setInternalSelectedKey] = useState(song?.key || 'C');
+  const selectedKey = selectedKeyProp ?? internalSelectedKey;
+  const setSelectedKey = onSelectKey || setInternalSelectedKey;
   // Reset transpose when the user switches arrangement (each arrangement has
   // its own source key — preserving an old selectedKey would leak the wrong
   // transposition into the new chart).
@@ -92,7 +105,7 @@ export default function ChartView({
       lastArrIdRef.current = activeArrId;
       if (song?.key) setSelectedKey(song.key);
     }
-  }, [activeArrId, song?.key]);
+  }, [activeArrId, song?.key, setSelectedKey]);
   // Display options are device-global now: they live in `settings` (persisted +
   // synced) and are resolved here, falling back to the active stage-mode preset.
   // Every change writes straight back through onUpdateSettings, so a tweak on
@@ -142,7 +155,9 @@ export default function ChartView({
   // Quick view mode (session-local) from the structure row:
   //   chords → chords + lyrics (+ tabs); chordsonly → chords, no lyrics/tabs;
   //   lyrics → lyrics only; tabs → tabs only.
-  const [displayMode, setDisplayMode] = useState('chords');
+  const [internalDisplayMode, setInternalDisplayMode] = useState('chords');
+  const displayMode = displayModeProp ?? internalDisplayMode;
+  const setDisplayMode = onDisplayMode || setInternalDisplayMode;
   const viewChords = displayMode === 'chords' || displayMode === 'chordsonly';
   const viewLyrics = displayMode === 'chords' || displayMode === 'lyrics';
   const viewTabs = displayMode === 'chords' || displayMode === 'tabs';
@@ -156,7 +171,7 @@ export default function ChartView({
   // If a song loses its tabs (or never had them), don't get stuck in tabs view.
   useEffect(() => {
     if (!hasTabs && displayMode === 'tabs') setDisplayMode('chords');
-  }, [hasTabs, displayMode]);
+  }, [hasTabs, displayMode, setDisplayMode]);
 
   // Instruments this song's tabs are tagged for (electric / acoustic / bass).
   // When more than one is present, the reader can filter to just theirs.
@@ -217,7 +232,13 @@ export default function ChartView({
   const changeLineHeight = (v) => onUpdateSettings?.('lyricLineHeight', Math.max(1, Math.min(2.4, Math.round(v * 100) / 100)));
 
   const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'arrangements' | null
-  const [aaAnchor, setAaAnchor] = useState(null); // DOMRect of the Aa button, or null
+  // Aa popover anchor. Embedded: the hub owns the Aa button and passes its rect
+  // down (the popover itself still lives here, keeping all the size/column/
+  // notation wiring in one place). Standalone: internal state.
+  const [internalAaAnchor, setInternalAaAnchor] = useState(null); // DOMRect of the Aa button, or null
+  const aaAnchor = embedded ? aaAnchorProp : internalAaAnchor;
+  const setAaAnchor = setInternalAaAnchor;
+  const closeAa = embedded ? (onAaClose || (() => {})) : () => setInternalAaAnchor(null);
   const [showInfo, setShowInfo] = useState(false); // inline song-details panel toggled from the title chevron
   const [notesPeekOpen, setNotesPeekOpen] = useState(notesPeekDefaultOpen);
 
@@ -443,7 +464,7 @@ export default function ChartView({
           collapsed={headerCollapsed}
           onExpand={revealHeader}
           actionsInTitle
-          close={(
+          close={embedded ? null : (
             <>
               <OverflowMenu
                 ariaLabel="Song actions"
@@ -503,7 +524,7 @@ export default function ChartView({
               )}
             </>
           )}
-          title={(
+          title={embedded ? null : (
             <button
               type="button"
               onClick={() => setShowInfo(v => !v)}
@@ -519,7 +540,7 @@ export default function ChartView({
               </svg>
             </button>
           )}
-          meta={(
+          meta={embedded ? null : (
             // One muted, compact meta line: values sit in --text-1, labels/units
             // and the dot separators stay muted so the title clearly outranks it.
             <div className="flex items-center gap-1 min-w-0 text-label-11 sm:text-label-13 text-[var(--text-2)]">
@@ -568,7 +589,7 @@ export default function ChartView({
               )}
             </div>
           )}
-          actions={(
+          actions={embedded ? null : (
             <div className="flex items-center gap-0.5">
               {/* One "Aa" control — opens the tabbed display popover (Lyrics /
                   Chords / Page). The old Display + Layout sheets remain as the
@@ -585,7 +606,7 @@ export default function ChartView({
             </div>
           )}
           ribbon={structurePos === 'top' ? ribbonNode : null}
-          info={showInfo && (
+          info={!embedded && showInfo && (
             <div className="wide-container pb-2 mt-1 max-h-[40vh] overflow-y-auto border-t border-[var(--border-1)] pt-2">
               {songInfoBody}
             </div>
@@ -623,7 +644,7 @@ export default function ChartView({
       {!isPreview && aaAnchor && (
         <AaMenu
           anchorRect={aaAnchor}
-          onClose={() => setAaAnchor(null)}
+          onClose={closeAa}
           settings={settings}
           onUpdateSettings={onUpdateSettings}
           lyricSize={fontSize}

@@ -56,6 +56,7 @@ async function maybeWarnQuota(warnedRef) {
 
 // Lazy-loaded: heavy secondary views not needed on initial render
 const ChartView = lazy(() => import('./components/ChartView'));
+const SongHub = lazy(() => import('./components/SongHub'));
 const Editor = lazy(() => import('./components/Editor'));
 const SetlistBuilder = lazy(() => import('./components/SetlistBuilder'));
 const SetlistPlayer = lazy(() => import('./components/SetlistPlayer'));
@@ -1252,7 +1253,9 @@ export default function App() {
     if (!settings?.firstSongOpened) {
       setSettings(prev => ({ ...prev, firstSongOpened: true }));
     }
-    navigate('chart', { song });
+    // Opening a song lands on the Song Hub (identity + tabs); the chart is the
+    // hub's default Chart tab.
+    navigate('song-hub', { song });
   };
   // Persist a table's visible columns (Songs / Setlists) — synced via prefs.
   const setTableColumns = (table, ids) =>
@@ -1423,12 +1426,12 @@ export default function App() {
       setSettings(prev => ({ ...prev, firstSongAdded: true }));
     }
 
-    // If the user entered the editor via "chart → Edit" (existing song),
-    // pop that stale chart snapshot so back from the just-saved chart
+    // If the user entered the editor via "hub → Edit" (existing song),
+    // pop that stale hub snapshot so back from the just-saved hub
     // lands on the list. New-song flows have the list directly under
     // the editor; popping there would erase it and break back navigation.
     const top = historyRef.current[historyRef.current.length - 1];
-    if (top?.view === 'chart' && top?.song?.id === song.id) {
+    if (top?.view === 'song-hub' && top?.song?.id === song.id) {
       historyRef.current.pop();
     }
 
@@ -1450,11 +1453,11 @@ export default function App() {
       return;
     }
 
-    navigate('chart', { song, replace: true });
+    navigate('song-hub', { song, replace: true });
     if (isNew && !user && !settings?.seenSaveAccountWall) {
       openAccountWall(
         { kind: 'song', title: song.title || 'Untitled song' },
-        { ...snapshot(), view: 'chart', song },
+        { ...snapshot(), view: 'song-hub', song },
       );
     }
   };
@@ -1587,11 +1590,11 @@ export default function App() {
       ...prev,
       songs: [...prev.songs.filter(t => t.id !== id), { id, deletedAt: Date.now() }],
     }));
-    // If the entry below the editor is a chart of the deleted song, pop it
+    // If the entry below the editor is a hub of the deleted song, pop it
     // so we don't try to view a tombstoned song after goBack. Otherwise the
     // editor was opened directly from a list and goBack alone is correct.
     const top = historyRef.current[historyRef.current.length - 1];
-    if (top?.view === 'chart' && top?.song?.id === id) {
+    if (top?.view === 'song-hub' && top?.song?.id === id) {
       historyRef.current.pop();
     }
     goBack();
@@ -2129,7 +2132,7 @@ export default function App() {
         <DesktopLayout
           activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
           onNavigate={goToMainView} 
-          isFullscreen={view === 'setlist-performance' || view === 'setlist-play' || view === 'setlist-practice' || (isFullscreen && (view === 'library' || view === 'setlists'))}
+          isFullscreen={view === 'setlist-performance' || view === 'setlist-play' || view === 'setlist-practice' || (isFullscreen && (view === 'library' || view === 'setlists' || view === 'song-hub'))}
           hideBanner={view === 'setlist-performance' || view === 'setlist-play' || view === 'setlist-practice'}
           hasUnreadNotifications={hasUnreadNotifications} 
           notifications={mergedNotifications} 
@@ -2287,17 +2290,14 @@ export default function App() {
               canEdit={canEdit}
             />
           )}
-          {view === 'chart' && currentSong && (
+          {view === 'song-hub' && currentSong && (
             <ErrorBoundary>
-            <ChartView
+            <SongHub
               song={currentSong}
               onBack={goBack}
               onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
               onPlay={(arrId) => playSongCasually(currentSong, arrId)}
               {...buildChartMoveCopy(currentSong.id)}
-              onSongChange={(updated) => {
-                setSongs(prev => prev.map(s => s.id === updated.id ? { ...updated, updatedAt: Date.now() } : s));
-              }}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               onOpenAdvancedStyle={() => goToMainView('settings', { settingsPanel: 'chart-style' })}
@@ -2305,9 +2305,10 @@ export default function App() {
               defaultFontSize={settings?.defaultFontSize}
               showInlineNotes={settings?.showInlineNotes !== false}
               inlineNoteStyle={settings?.inlineNoteStyle || 'dashes'}
-              displayRole={settings?.displayRole || 'leader'}
               duplicateSections={settings?.duplicateSections || 'full'}
               chartLayout={settings?.chartLayout || 'columns'}
+              isFullscreen={isFullscreen}
+              onToggleFullscreen={() => setIsFullscreen(v => !v)}
               onTransposed={() => {
                 if (!settings?.firstTransposed) {
                   setSettings(prev => ({ ...prev, firstTransposed: true }));
