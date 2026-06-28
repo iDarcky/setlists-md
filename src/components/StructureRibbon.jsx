@@ -117,11 +117,13 @@ export function StructureRibbon({
                 active && 'ring-2 ring-offset-1 ring-offset-transparent',
               )}
               style={{
+                // Mockup: neutral pill (border + fill), only the code text is
+                // section-coloured.
                 color: s.b,
-                borderColor: s.br,
+                borderColor: 'var(--border-1)',
                 background: 'var(--bg-1)',
                 opacity: active || activeIndex == null ? 1 : 0.7,
-                ...(active ? { boxShadow: `0 0 0 2px ${s.br}` } : {}),
+                ...(active ? { boxShadow: `0 0 0 2px ${s.b}` } : {}),
               }}
             >
               {compactLabel(run.name)}

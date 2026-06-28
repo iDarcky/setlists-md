@@ -83,6 +83,10 @@ team optimistic locking, scheduling & notifications pillar.
 - **OAuth URL cleanup synchronous** — deferred; needs the live OAuth/magic-link flow
   tested before touching (stripping the hash before Supabase consumes it can break sign-in).
 - **PDF/CSP enforcing** — shipped; **needs live print verification** on deploy (PWA + installed app).
+- 🔴 **Dashboard global search returns nothing (desktop/tablet)** — searching a song's
+  details (e.g. the song's title/name) in the home top-bar / ⌘K search yields no
+  results, while the same query works elsewhere. Likely a wiring gap between the
+  dashboard search input and `src/lib/search.js`. P1 bug — repro + fix.
 
 ---
 
@@ -118,6 +122,7 @@ Open, actionable items. Cross-cutting concerns at the end.
 
 ### Song library
 - **Doubled mobile search** — the top-bar global cross-search also shows on Songs/Setlists where it duplicates each page; scope it to the page there, keep global on Dashboard (+ the desktop ⌘K) — P2.
+- **Setlist search by contained song** — searching in the Setlists tab should also return setlists that *contain* the matched song (match song titles inside each setlist's items), not just setlist name/metadata — P2.
 - Drag-to-**reorder** table columns (show/hide shipped in 0.14.0) — P3.
 
 ### Setlists (overview / viewer)
