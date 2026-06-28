@@ -9,6 +9,7 @@ import { OverflowMenu } from './ui/OverflowMenu';
 import { Select, SelectTrigger, SelectContent, SelectItem } from './ui/Select';
 import { VIEW_MODES } from './ui/viewModes';
 import { exportSongPdf } from '../pdf/exportSongPdf';
+import { useWakeLock } from '../hooks/useWakeLock';
 import { cn } from '../lib/utils';
 
 // ── Song Hub ─────────────────────────────────────────────────────────────────
@@ -94,6 +95,9 @@ export default function SongHub({
   }, [song?.spotify]);
   const artUrl = (spotifyArt.key === song?.spotify ? spotifyArt.url : null) || ytArt;
 
+  // Settings → General → "Keep screen awake" while a song is open.
+  useWakeLock(settings?.keepAwake === true);
+
   const arrangements = song?._allArrangements || [];
   const hasMultipleArrangements = arrangements.length > 1;
   const arrName = arrangements.find(a => a.id === activeArrId)?.name || 'Arrangement';
@@ -119,7 +123,7 @@ export default function SongHub({
 
   const cleanAddedBy = addedBy && addedBy.trim() && addedBy.trim() !== 'Guest' ? addedBy.trim() : '';
   const byline = [song.artist, cleanAddedBy && `added by ${cleanAddedBy}`].filter(Boolean).join('  ·  ');
-  const showRibbon = activeTab !== 'details' && chartStructure.length > 0;
+  const showRibbon = chartStructure.length > 0;
   const chartDisplayMode = activeTab === 'lyrics' ? 'lyrics' : displayMode;
 
   const overflowItems = [
@@ -265,8 +269,8 @@ export default function SongHub({
               )}
               {onPlay && (
                 <button type="button" onClick={() => onPlay(activeArrId)}
-                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-[9px] text-[13px] font-[650] cursor-pointer"
-                  style={{ background: 'var(--color-brand)', color: '#062018' }}>
+                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-[9px] text-[13px] font-[650] cursor-pointer hover:opacity-90 transition-opacity"
+                  style={{ background: 'var(--color-brand)', color: '#ffffff' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
                   Campfire
                 </button>
@@ -336,8 +340,17 @@ export default function SongHub({
 
         </div>
 
-        {/* ════ READER CARD (tabs live here now) ════ */}
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[var(--ds-background-100)] border border-[var(--border-1)] rounded-2xl">
+        {/* ════ READER CARD (tabs live here now) — follows the chart theme so
+            the tab strip + surface match the chart content inside. ════ */}
+        <div
+          className="flex-1 min-h-0 flex flex-col overflow-hidden border border-[var(--border-1)] rounded-2xl"
+          style={{
+            background: 'var(--chart-bg, var(--ds-background-100))',
+            color: 'var(--chart-text, var(--ds-gray-1000))',
+            '--text-1': 'var(--chart-text, var(--ds-gray-1000))',
+            '--text-2': 'var(--chart-subtle, var(--ds-gray-900))',
+          }}
+        >
           {/* Tabs (underline, no dots) */}
           <div className="shrink-0 flex gap-0.5 px-2 sm:px-3.5 border-b border-[var(--border-1)]">
             {HUB_TABS.map(t => {

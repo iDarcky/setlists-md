@@ -133,6 +133,25 @@ const Row = ({ label, children, description }) => (
 
 // ─── General panel ───────────────────────────────────────────────────────
 
+// Segmented On/Off control (matches the "Confirm before deleting" pattern).
+function OnOffToggle({ value, onChange }) {
+  return (
+    <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+      {[{ key: true, label: 'On' }, { key: false, label: 'Off' }].map(({ key, label }) => (
+        <Button
+          key={String(key)}
+          size="sm"
+          variant={value === key ? 'secondary' : 'ghost'}
+          onClick={() => onChange(key)}
+          className={value === key ? 'bg-[var(--ds-background-100)] shadow-sm' : 'text-[var(--ds-gray-900)]'}
+        >
+          {label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 function GeneralPanel({ settings, update, onShowHelp, onReplayOnboarding }) {
   const landing = settings?.landingView || 'home';
   const confirmDelete = settings?.confirmBeforeDelete !== false;
@@ -181,6 +200,12 @@ function GeneralPanel({ settings, update, onShowHelp, onReplayOnboarding }) {
             </Button>
           ))}
         </div>
+      </Row>
+      <Row label="Keep screen awake" description="Stop the screen dimming while you're reading or performing. Uses the Wake Lock API where supported (modern browsers + installed PWA).">
+        <OnOffToggle value={settings?.keepAwake === true} onChange={(v) => update('keepAwake', v)} />
+      </Row>
+      <Row label="Lock orientation" description="Best-effort: keep the current orientation while reading. Most browsers only allow this in full screen / an installed PWA.">
+        <OnOffToggle value={settings?.lockOrientation === true} onChange={(v) => update('lockOrientation', v)} />
       </Row>
       <Row label="Help guide" description="Open the in-app help and feedback.">
         <Button size="sm" variant="secondary" onClick={() => onShowHelp?.()}>Open Help</Button>

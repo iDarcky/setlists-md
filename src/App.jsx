@@ -128,6 +128,8 @@ const PORTABLE_PREF_KEYS = [
   'ribbonStyle',
   'structurePosition',
   'mockupPalette',
+  'keepAwake',
+  'lockOrientation',
   'accidentals',
   'dashboardWidgetOrder',
   'dashboardHidden',
@@ -822,6 +824,17 @@ export default function App() {
     if (settings?.mockupPalette) el.setAttribute('data-palette', 'neutral');
     else el.removeAttribute('data-palette');
   }, [settings?.mockupPalette]);
+
+  // Settings → General → "Lock orientation". Best-effort: the Screen Orientation
+  // lock API only resolves in full screen / an installed PWA on most engines and
+  // throws on iOS Safari — swallow failures so it's a no-op where unsupported.
+  useEffect(() => {
+    if (!settings?.lockOrientation) return undefined;
+    const o = typeof screen !== 'undefined' ? screen.orientation : null;
+    if (!o?.lock) return undefined;
+    o.lock(o.type).catch(() => {});
+    return () => { try { o.unlock?.(); } catch { /* unsupported */ } };
+  }, [settings?.lockOrientation]);
 
   // Snapshot of every state field that participates in back/forward.
   // Centralised so navigate / goToMainView / goSettingsPanel / openModal all
