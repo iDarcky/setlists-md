@@ -92,7 +92,6 @@ export default function AaMenu({
   anchorRect, onClose, settings, onUpdateSettings,
   lyricSize, onLyricSize, chordSize, onChordSize,
   columns, onColumns, notation, onNotation,
-  showDiagrams, onToggleDiagrams,
   onAdvanced, onReset,
 }) {
   const [tab, setTab] = useState('page');
@@ -174,11 +173,8 @@ export default function AaMenu({
               {styleAllowed
                 ? <Swatches activeValue={settings?.chartChordColor} onPick={(v) => onUpdateSettings?.('chartChordColor', v || undefined)} />
                 : <ProHint>Upgrade to recolour chords.</ProHint>}
-              <Label>Diagrams</Label>
-              <div className="flex items-center justify-between py-1 text-label-13 text-[var(--text-1)]">
-                Show fingering diagrams
-                <Toggle on={showDiagrams} onClick={onToggleDiagrams} label="Show chord diagrams" />
-              </div>
+              {/* TODO: chord fingering-diagrams display — pulled for now,
+                  revisit (tracked in docs/PLAN.md). */}
             </>
           )}
 
@@ -239,14 +235,4 @@ export default function AaMenu({
       </div>
     </>
   ), document.body);
-}
-
-function Toggle({ on, onClick, label }) {
-  return (
-    <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={onClick}
-      className="relative w-9 h-5 rounded-full transition-colors cursor-pointer"
-      style={{ background: on ? 'var(--color-brand)' : 'var(--border-2)' }}>
-      <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" style={{ left: on ? '18px' : '2px' }} />
-    </button>
-  );
 }

@@ -119,6 +119,14 @@ Open, actionable items. Cross-cutting concerns at the end.
   safe-area inset) so nothing shows behind it — P2.
 - Dual `F#/Gb` labels in the **chart transpose** key dropdown too (editor done) — P3.
 - Transpose tabs — P3 · _feasibility spike_.
+- **Chord fingering diagrams — display control pulled.** The Aa "Show fingering
+  diagrams" toggle was removed from the menu (the rendering path + `showDiagrams`
+  setting still exist in `ChartView`). Revisit where this lives — likely the new
+  fullscreen chart viewer alongside the migrated view-modes — and reinstate a
+  control then. (TODO marker in `AaMenu.jsx` Chords tab.) — P2.
+- **Hub fullscreen viewer (WIP)** — `FullscreenChartViewer.jsx` is a scaffold;
+  bring the chart **view modes** (chords/lyrics/song map/tabs, formerly in the ⋮
+  menu) and live controls (auto-scroll, metronome, font stepping) into it. — P2.
 
 ### Song library
 - **Doubled mobile search** — the top-bar global cross-search also shows on Songs/Setlists where it duplicates each page; scope it to the page there, keep global on Dashboard (+ the desktop ⌘K) — P2.

@@ -210,8 +210,6 @@ export default function ChartView({
   // Reader notation: Letters / Nashville numbers / Do-Re-Mi solfège. Also writes
   // the legacy `nashville` boolean so older surfaces/prefs stay consistent.
   const changeNotation = (v) => { setNotation(v); onUpdateSettings?.('notation', v); onUpdateSettings?.('nashville', v === 'nashville'); };
-  const toggleShowDiagrams = () => { const v = !showDiagrams; setShowDiagrams(v); onUpdateSettings?.('showDiagrams', v); };
-  const toggleShowChords = () => { const v = !showChords; setShowChords(v); onUpdateSettings?.('showChords', v); };
 
   // Reset one Aa tab's overrides back to the device/app defaults (clearing the
   // keys lets resolveChartDisplay fall back to the stage preset). The re-seed
@@ -657,10 +655,6 @@ export default function ChartView({
           onColumns={setColumnsPref}
           notation={notation}
           onNotation={changeNotation}
-          showChords={showChords}
-          onToggleChords={toggleShowChords}
-          showDiagrams={showDiagrams}
-          onToggleDiagrams={toggleShowDiagrams}
           onAdvanced={() => openSheet('layout')}
           onReset={resetAa}
         />
