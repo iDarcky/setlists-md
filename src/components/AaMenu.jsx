@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useEntitlement } from '../hooks/useEntitlement';
 import {
@@ -92,11 +92,26 @@ export default function AaMenu({
   anchorRect, onClose, settings, onUpdateSettings,
   lyricSize, onLyricSize, chordSize, onChordSize,
   columns, onColumns, notation, onNotation,
-  showChords, onToggleChords, showDiagrams, onToggleDiagrams,
-  onAdvanced,
+  showDiagrams, onToggleDiagrams,
+  onAdvanced, onReset,
 }) {
   const [tab, setTab] = useState('page');
   const { allowed: styleAllowed } = useEntitlement('chart-style');
+
+  // Let the wheel scroll the theme strip horizontally while hovering it, not
+  // just the scrollbar underneath it.
+  const themesRef = useRef(null);
+  useEffect(() => {
+    const el = themesRef.current;
+    if (!el) return undefined;
+    const onWheel = (e) => {
+      if (!e.deltaY || el.scrollWidth <= el.clientWidth) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [tab]);
 
   const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
   const lyricFontId = settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID;
@@ -159,13 +174,18 @@ export default function AaMenu({
               {styleAllowed
                 ? <Swatches activeValue={settings?.chartChordColor} onPick={(v) => onUpdateSettings?.('chartChordColor', v || undefined)} />
                 : <ProHint>Upgrade to recolour chords.</ProHint>}
+              <Label>Diagrams</Label>
+              <div className="flex items-center justify-between py-1 text-label-13 text-[var(--text-1)]">
+                Show fingering diagrams
+                <Toggle on={showDiagrams} onClick={onToggleDiagrams} label="Show chord diagrams" />
+              </div>
             </>
           )}
 
           {tab === 'page' && (
             <>
               <Label>Theme</Label>
-              <div className="flex gap-2 overflow-x-auto -mx-1 px-1 py-1">
+              <div ref={themesRef} className="flex gap-2 overflow-x-auto -mx-1 px-1 py-1">
                 {visibleThemes.map(t => (
                   <button key={t.id} type="button" onClick={() => onUpdateSettings?.('chartTheme', t.id)}
                     className="shrink-0 flex flex-col items-stretch rounded-lg overflow-hidden border transition-all"
@@ -191,24 +211,12 @@ export default function AaMenu({
 
               <Label>Columns</Label>
               <div className="flex flex-wrap gap-1.5">
-                {[{ v: 1, l: '1' }, { v: 2, l: '2' }, { v: 'auto', l: 'Auto' }].map(o => (
+                {[{ v: 1, l: '1' }, { v: 2, l: '2' }].map(o => (
                   <button key={o.l} type="button" onClick={() => onColumns(o.v)} aria-pressed={columns === o.v}
                     className={`px-4 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${columns === o.v ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}>
                     {o.l}
                   </button>
                 ))}
-              </div>
-
-              <Label>Show</Label>
-              <div className="flex flex-col">
-                <div className="flex items-center justify-between py-2 text-label-13 text-[var(--text-1)]">
-                  Chords
-                  <Toggle on={showChords} onClick={onToggleChords} label="Show chords" />
-                </div>
-                <div className="flex items-center justify-between py-2 text-label-13 text-[var(--text-1)] border-t border-[var(--border-1)]">
-                  Chord diagrams
-                  <Toggle on={showDiagrams} onClick={onToggleDiagrams} label="Show chord diagrams" />
-                </div>
               </div>
 
               {onAdvanced && (
@@ -219,6 +227,13 @@ export default function AaMenu({
                 </button>
               )}
             </>
+          )}
+
+          {onReset && (
+            <button type="button" onClick={() => onReset(tab)}
+              className="mt-4 w-full h-9 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-12 font-semibold text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--bg-2)] cursor-pointer">
+              Reset {tab} to default
+            </button>
           )}
         </div>
       </div>

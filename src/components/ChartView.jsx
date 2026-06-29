@@ -213,6 +213,27 @@ export default function ChartView({
   const toggleShowDiagrams = () => { const v = !showDiagrams; setShowDiagrams(v); onUpdateSettings?.('showDiagrams', v); };
   const toggleShowChords = () => { const v = !showChords; setShowChords(v); onUpdateSettings?.('showChords', v); };
 
+  // Reset one Aa tab's overrides back to the device/app defaults (clearing the
+  // keys lets resolveChartDisplay fall back to the stage preset). The re-seed
+  // effect above mirrors the cleared values into local display state.
+  const resetAa = (which) => {
+    if (which === 'lyrics') {
+      onUpdateSettings?.('defaultFontSize', undefined);
+      onUpdateSettings?.('chartLyricFont', undefined);
+      onUpdateSettings?.('chartLyricColor', undefined);
+    } else if (which === 'chords') {
+      onUpdateSettings?.('chordFontSize', undefined);
+      onUpdateSettings?.('chartChordFont', undefined);
+      onUpdateSettings?.('chartChordColor', undefined);
+      onUpdateSettings?.('showDiagrams', undefined);
+    } else {
+      onUpdateSettings?.('chartTheme', undefined);
+      onUpdateSettings?.('notation', undefined);
+      onUpdateSettings?.('nashville', undefined);
+      setColumnsPref('auto');
+    }
+  };
+
   // Instrument presets (stage modes) — pick a band role and the chart switches
   // to a layout tuned for it. Writes every value through settings so the choice
   // persists across songs and carries into Practice / Live. The re-seed effect
@@ -641,6 +662,7 @@ export default function ChartView({
           showDiagrams={showDiagrams}
           onToggleDiagrams={toggleShowDiagrams}
           onAdvanced={() => openSheet('layout')}
+          onReset={resetAa}
         />
       )}
 
