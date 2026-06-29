@@ -2,15 +2,15 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { youtubeId, spotifyTrackId } from '../lib/coverArt';
 import { ensureYouTubeApi, ensureSpotifyApi } from '../lib/embedPlayers';
 import { headerFrostStyle } from '../lib/headerFrost';
-import { cn } from '../lib/utils';
 
 // ── Backing-track transport bar ────────────────────────────────────────────
 // The bottom bar from docs/mockups/song-hub-v2.html. Plays the song's backing
 // track from its Spotify and/or YouTube link, but with OUR OWN controls —
 // play/pause, elapsed time, and a scrub bar — driving the audio. The platform's
-// native player is loaded hidden offscreen via its JS API (YouTube IFrame API /
-// Spotify iframe API) and we command it; only our controls are visible. A source
-// toggle switches providers when the song has both links.
+// native player is loaded hidden (1px, in-viewport) via its JS API (YouTube
+// IFrame API / Spotify iframe API) and we command it; only our controls show.
+// When the song has both links the source is switched via a chevron next to the
+// source name.
 //
 // Note: Spotify embeds play full tracks only for listeners signed into Spotify
 // in this browser; otherwise the API serves a 30s preview (a Spotify limit, not
@@ -25,7 +25,7 @@ function fmtTime(sec) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export default function SongPlayerBar({ spotifyUrl, youtubeUrl, title }) {
+export default function SongPlayerBar({ spotifyUrl, youtubeUrl, title, artist }) {
   const ytId = youtubeId(youtubeUrl);
   const spId = spotifyTrackId(spotifyUrl);
   const sources = [
@@ -50,6 +50,7 @@ export default function SongPlayerBar({ spotifyUrl, youtubeUrl, title }) {
         ytId={ytId}
         spId={spId}
         title={title}
+        artist={artist}
         sources={sources}
         onSource={setSource}
       />
@@ -57,7 +58,7 @@ export default function SongPlayerBar({ spotifyUrl, youtubeUrl, title }) {
   );
 }
 
-function TrackTransport({ active, ytId, spId, title, sources, onSource }) {
+function TrackTransport({ active, ytId, spId, title, artist, sources, onSource }) {
   const hostRef = useRef(null);
   const playerRef = useRef(null);   // { kind, player }
   const pollRef = useRef(null);
@@ -114,7 +115,7 @@ function TrackTransport({ active, ytId, spId, title, sources, onSource }) {
         if (disposed) return;
         const el = document.createElement('div');
         host.appendChild(el);
-        IFrameAPI.createController(el, { uri: `spotify:track:${spId}`, width: '100%', height: '80' }, (controller) => {
+        IFrameAPI.createController(el, { uri: `spotify:track:${spId}`, width: 300, height: 80 }, (controller) => {
           if (disposed) { controller.destroy?.(); return; }
           playerRef.current = { kind: 'spotify', player: controller };
           setReady(true);
@@ -160,6 +161,12 @@ function TrackTransport({ active, ytId, spId, title, sources, onSource }) {
   const activeLabel = sources.find(s => s.id === active)?.label;
   const displayPos = dragging ? dragPos : position;
   const canScrub = ready && duration > 0;
+  const loading = !ready && !failed;
+
+  const cycleSource = () => {
+    const i = sources.findIndex(s => s.id === active);
+    onSource(sources[(i + 1) % sources.length].id);
+  };
 
   const onScrubInput = (e) => {
     draggingRef.current = true;
@@ -175,36 +182,63 @@ function TrackTransport({ active, ytId, spId, title, sources, onSource }) {
 
   return (
     <>
-      {/* Hidden platform player — present (the APIs require a real iframe) but
-          offscreen so only our controls show. */}
-      <div ref={hostRef} aria-hidden="true" style={{ position: 'absolute', left: -99999, top: 0, width: 320, height: 180, opacity: 0, pointerEvents: 'none' }} />
+      {/* Hidden platform player — kept in-viewport at 1px (Spotify won't
+          initialise when fully offscreen) but invisible, so only our controls
+          show. */}
+      <div ref={hostRef} aria-hidden="true" style={{ position: 'fixed', left: 0, bottom: 0, width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none', zIndex: -1 }} />
 
-      <div className="mx-auto max-w-[1200px] px-3 sm:px-7 py-2.5 sm:py-3 flex items-center gap-3 sm:gap-4">
-        <button
-          type="button"
-          aria-label={playing ? 'Pause backing track' : 'Play backing track'}
-          onClick={toggle}
-          disabled={!ready || failed}
-          className="shrink-0 w-11 h-11 rounded-full grid place-items-center cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-default"
-          style={{ background: 'var(--color-brand)', color: '#ffffff', WebkitTapHighlightColor: 'transparent' }}
-        >
-          {playing ? (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
-          ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-          )}
-        </button>
+      <div className="mx-auto max-w-[1200px] px-3 sm:px-7 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-4 gap-y-2.5">
+        {/* Play + identity */}
+        <div className="flex items-center gap-3 min-w-0 flex-1 sm:flex-none sm:w-[240px]">
+          <button
+            type="button"
+            aria-label={playing ? 'Pause backing track' : 'Play backing track'}
+            onClick={toggle}
+            disabled={loading || failed}
+            className="shrink-0 w-11 h-11 rounded-full grid place-items-center cursor-pointer hover:opacity-90 transition-opacity disabled:cursor-default"
+            style={{ background: 'var(--color-brand)', color: '#ffffff', WebkitTapHighlightColor: 'transparent', opacity: failed ? 0.5 : 1 }}
+          >
+            {loading ? (
+              <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
+                <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+            ) : playing ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+            )}
+          </button>
 
-        <div className="min-w-0 w-[110px] sm:w-[180px] shrink-0">
-          <div className="text-[13px] font-semibold text-[var(--text-1)] truncate">{title || 'Backing track'}</div>
-          <div className="text-[11px] text-[var(--text-2)] truncate">
-            {failed ? 'Player unavailable' : activeLabel}
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold text-[var(--text-1)] truncate">{title || 'Backing track'}</div>
+            <div className="text-[11px] text-[var(--text-2)] truncate flex items-center gap-1">
+              {artist && <span className="truncate">{artist}</span>}
+              {artist && <span aria-hidden="true" className="opacity-60">·</span>}
+              {sources.length > 1 ? (
+                // Keep the source switcher available even when a source failed,
+                // so a broken provider isn't a dead end.
+                <button
+                  type="button"
+                  onClick={cycleSource}
+                  aria-label={`Source: ${activeLabel}. Switch source.`}
+                  className="inline-flex items-center gap-0.5 shrink-0 hover:text-[var(--text-1)] cursor-pointer"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  {activeLabel}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                </button>
+              ) : (
+                <span className="shrink-0">{activeLabel}</span>
+              )}
+              {failed && <span className="shrink-0 opacity-70">· unavailable</span>}
+            </div>
           </div>
         </div>
 
-        {/* Scrub bar */}
-        <div className="flex-1 flex items-center gap-2 sm:gap-3 min-w-0">
-          <span className="hidden sm:inline text-[11px] tabular-nums text-[var(--text-2)] w-9 text-right shrink-0">{fmtTime(displayPos)}</span>
+        {/* Scrub bar — own row on mobile, inline on desktop */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 w-full sm:w-auto sm:flex-1 order-last sm:order-none">
+          <span className="text-[11px] tabular-nums text-[var(--text-2)] w-9 text-right shrink-0">{fmtTime(displayPos)}</span>
           <input
             type="range"
             aria-label="Seek"
@@ -222,27 +256,6 @@ function TrackTransport({ active, ytId, spId, title, sources, onSource }) {
           />
           <span className="text-[11px] tabular-nums text-[var(--text-2)] w-9 shrink-0">{fmtTime(duration)}</span>
         </div>
-
-        {sources.length > 1 && (
-          <div className="flex items-center gap-1.5 shrink-0">
-            {sources.map(s => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => onSource(s.id)}
-                className={cn(
-                  'h-8 px-2.5 sm:px-3 rounded-lg border text-[12px] font-medium cursor-pointer transition-colors',
-                  active === s.id
-                    ? 'border-[var(--color-brand)] text-[var(--text-1)] bg-[var(--bg-2)]'
-                    : 'border-[var(--border-2)] text-[var(--text-2)] bg-[var(--bg-1)] hover:text-[var(--text-1)]',
-                )}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </>
   );

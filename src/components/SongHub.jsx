@@ -408,7 +408,7 @@ export default function SongHub({
       </div>
 
       {/* ════ BACKING-TRACK TRANSPORT (Spotify / YouTube) ════ */}
-      <SongPlayerBar spotifyUrl={song.spotify} youtubeUrl={song.youtube} title={song.title} />
+      <SongPlayerBar spotifyUrl={song.spotify} youtubeUrl={song.youtube} title={song.title} artist={song.artist} />
     </div>
   );
 }
