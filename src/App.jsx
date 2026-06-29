@@ -128,6 +128,7 @@ const PORTABLE_PREF_KEYS = [
   'ribbonStyle',
   'structurePosition',
   'mockupPalette',
+  'songEditorCards',
   'keepAwake',
   'lockOrientation',
   'accidentals',

@@ -174,7 +174,7 @@ src/
     ├── SongPlayerBar.jsx     # YouTube backing-track transport (own play/scrub controls; hidden IFrame-API player); `compact` variant for the mobile media card
     ├── ChartView.jsx         # Chord chart reader (transpose, 1/2-col, sizes). `embedded` mode + controlled props let SongHub drive it; the Aa popover + centered "Advanced" Dialog render here
     ├── AaMenu.jsx            # Single chart display popover (Page/Lyrics/Chords tabs; per-element size·font·colour; per-tab Reset)
-    ├── Editor.jsx            # 3-tab editor shell (Form/Visual/Raw) with split-screen preview
+    ├── Editor.jsx            # Editor shell (Arrange / Advanced / Tabs, + a card-header Labs variant adding a Details tab) with split-screen preview
     ├── Library.jsx           # Song library with search + setlists tab
     ├── SetlistBuilder.jsx    # Build setlists: pick songs, reorder, per-song transpose & notes
     ├── SetlistPlayer.jsx     # Live mode: progress bar, song strip, prev/next navigation
@@ -191,9 +191,10 @@ src/
     │   └── AccountPanel.jsx  # Shared account bits: StageGreeting, PlanLabel, SignInButton,
     │                         #   CreateAccountButton, StatCards
     ├── editor/
-    │   ├── FormTab.jsx       # Structured form editor: metadata fields + section blocks
-    │   ├── VisualTab.jsx     # Toolbar + textarea: chord picker, section inserter, tab grid editor
-    │   ├── RawTab.jsx        # Plain textarea with collapsible syntax reference
+    │   ├── ArrangeTabV2.jsx  # Visual chord-chart canvas (primary editing surface)
+    │   ├── WriteTab.jsx      # Advanced raw-markdown editor: toolbar (chord/section/cue/note/key-change/tab), find/replace, paste-import
+    │   ├── TabsTab.jsx       # Per-song reusable tab library (instrument picker, create/edit/delete)
+    │   ├── MetadataPanel.jsx # Song Details form (title, artist, capo, CCLI, tags, …); the legacy collapsible panel + the card-header "Details" tab
     │   ├── PreviewPanel.jsx  # Live preview of parsed song (used in split-screen)
     │   ├── ChordPicker.jsx   # Popup: root (A-G), accidental (#/b), suffix, slash chord
     │   └── TabGridEditor.jsx # Interactive tab grid: duration picker, auto-advance, technique buttons
@@ -220,7 +221,7 @@ supabase/
 - **Transpose** is applied at render time via `transposeChord()` — stored data is always in the original key
 - **Tab blocks** are parsed into structured objects `{ type: 'tab', strings, time, raw }` — `raw` preserves original ASCII for round-trip fidelity
 - **Modulate markers** are parsed into `{ type: 'modulate', semitones: N }` objects in `section.lines[]` — cumulative offsets computed per section in ChartView, applied mid-section in SectionBlock with visual key-change badges
-- **Tab editing** — VisualTab detects cursor inside `{tab}...{/tab}` to open TabGridEditor pre-loaded; FormTab shows "Edit Tab" buttons per tab block; saves replace in-place
+- **Tab editing** — the dedicated `TabsTab` manages a per-song reusable tab library (create/edit/delete via `TabGridEditor`); the Advanced (`WriteTab`) editor can insert tab references and convert clipboard tabs in-place
 - **Editor** — `md` state lives in Editor.jsx shell; all tabs receive `md` + `onChange`; switching tabs preserves content
 - **Split-screen preview** — `useSyncExternalStore` with `window.matchMedia('(min-width: 768px)')` — side-by-side on wide, toggle on narrow
 

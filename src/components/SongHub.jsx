@@ -162,13 +162,14 @@ export default function SongHub({
     ...baseOverflow,
   ].filter(Boolean);
 
-  // Gold key chip that doubles as the transpose control (dropdown + chevron).
+  // Key chip that doubles as the transpose control (dropdown + chevron). Its
+  // fill follows the chord colour (--chord) so it tracks the theme/palette.
   const keyChip = (cls) => (
     <Select value={keyValue} onValueChange={setSelectedKey}>
       <SelectTrigger
         aria-label="Key (transpose)"
         className={cn('!border-0 gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90', cls)}
-        style={{ background: '#e0b341', color: '#0a0a0a' }}
+        style={{ background: 'var(--chord)', color: '#0a0a0a' }}
       >
         <span>{keyValue}</span>
       </SelectTrigger>

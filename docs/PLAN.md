@@ -127,6 +127,10 @@ Open, actionable items. Cross-cutting concerns at the end.
 - **Hub fullscreen viewer (WIP)** — `FullscreenChartViewer.jsx` is a scaffold;
   bring the chart **view modes** (chords/lyrics/song map/tabs, formerly in the ⋮
   menu) and live controls (auto-scroll, metronome, font stepping) into it. — P2.
+- **Default chart theme that follows the app theme** — add a chart theme option
+  whose lyric/chord colours auto-track the app's light/dark theme (instead of a
+  fixed palette), so a reader in light mode gets light-appropriate chart colours
+  without hand-picking them. (Requested 2026-06; to be designed/built later.) — P2.
 
 ### Song library
 - **Doubled mobile search** — the top-bar global cross-search also shows on Songs/Setlists where it duplicates each page; scope it to the page there, keep global on Dashboard (+ the desktop ⌘K) — P2.

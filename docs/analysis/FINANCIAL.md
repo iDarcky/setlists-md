@@ -315,7 +315,7 @@ These features are **directly linked to paid conversion:**
 
 | Moment | Friction | Impact | Fix |
 |--------|----------|--------|-----|
-| First song creation | User must learn .md syntax or discover editor tabs | 🟡 | Default to Form tab for new users (currently Visual) |
+| First song creation | User must learn .md syntax or discover editor tabs | 🟡 | Default new users to the visual Arrange tab rather than the Advanced raw editor |
 | Importing 100+ songs | Bulk import only via ZIP or one-by-one paste | 🔴 | Add drag-and-drop folder import that batch-processes .md/.cho/.txt files |
 | Sharing a setlist with a band member | Export as ZIP → email → import | 🔴 | Add "Share via link" that generates a temporary signed URL |
 | Finding the pricing page | Buried in drawer → "Upgrade to Pro" pill | 🟡 | Add a persistent "Pro" badge in settings, and an upgrade CTA after the 5th song |

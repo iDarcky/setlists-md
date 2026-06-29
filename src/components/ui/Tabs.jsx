@@ -6,8 +6,8 @@ import { cn } from '../../lib/utils';
  *
  * Usage:
  *   <Tabs
- *     tabs={[{ id: 'form', label: 'Form' }, { id: 'visual', label: 'Visual' }]}
- *     activeTab="form"
+ *     tabs={[{ id: 'overview', label: 'Overview' }, { id: 'details', label: 'Details' }]}
+ *     activeTab="overview"
  *     onTabChange={(id) => setActiveTab(id)}
  *   />
  */

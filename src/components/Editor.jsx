@@ -128,6 +128,10 @@ key:
 export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null }) {
   const confirm = useConfirm();
 
+  // Labs: card-based editor header (step 1 — header card). When off, the
+  // original sticky-bar header with the collapsible Song Details panel is used.
+  const cardsHeader = !!chartDefaults?.settings?.songEditorCards;
+
   // Working copy of the song we're editing. For a new song, songFromFlat
   // produces a fresh v2 song with one "Main Arrangement". For existing v2
   // songs, we hold a reference and patch arrangements as the user edits.
@@ -173,7 +177,9 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   // Side preview is ON by default on wide screens; available from every tab
   // via the toggle (wide) / peek (narrow), and resizable.
   const [previewEnabled, setPreviewEnabled] = useState(true);
-  const showSidePreview = isWide && previewEnabled;
+  // The Details tab is pure metadata — no chart to preview — so it always takes
+  // the full width with the side/peek preview suppressed.
+  const showSidePreview = isWide && previewEnabled && activeTab !== 'details';
   // On tablet portrait / phone the side preview is too tight, so narrow screens
   // get a full-height slide-over peek instead.
   const [previewPeekOpen, setPreviewPeekOpen] = useState(false);
@@ -213,6 +219,12 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
   useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
+
+  // The Details tab only exists in the card-header layout; if the Labs flag is
+  // off (or gets turned off) while it's active, fall back to Arrange.
+  useEffect(() => {
+    if (!cardsHeader && activeTab === 'details') setActiveTab('arrange');
+  }, [cardsHeader, activeTab]);
 
   // Parse md → preview with debounce
   useEffect(() => {
@@ -607,6 +619,17 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
         );
       case 'tabs':
         return <TabsTab md={md} onChange={setMd} subdivision={chartDefaults.settings?.tabSubdivision || 1} />;
+      case 'details':
+        // Card-header layout only: Song Details get their own full-width tab
+        // (the intuitive home for artist, capo, CCLI, tags, …) instead of the
+        // legacy collapsible panel.
+        return (
+          <div className="flex-1 min-h-0 overflow-y-auto w-full">
+            <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-4">
+              <MetadataPanel md={md} onChange={setMd} isOpen keyHistory={workingSong.keyHistory} />
+            </div>
+          </div>
+        );
       case 'arrange':
         return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
       default:
@@ -625,22 +648,25 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     if (ok) onDelete(song.id);
   }, [song, onDelete, confirm, preview]);
 
-  // Arrangement picker + key/tempo/time. Rendered inline on the title row when
-  // wide; tucked into the Song Details panel on narrow screens so the header
-  // collapses to just title + structure + mode tabs.
-  const musicControls = (
-    <div className="flex items-center gap-2 flex-wrap">
-      <ArrangementMenu
-        arrangements={workingSong.arrangements}
-        activeId={activeArrangementId}
-        defaultId={workingSong.defaultArrangementId}
-        onSwitch={switchArrangement}
-        onAdd={handleAddArrangement}
-        onRename={handleRenameArrangement}
-        onDelete={handleDeleteArrangementById}
-        onEdit={() => setEditArrangementsOpen(true)}
-      />
-      <div className="flex items-center gap-1.5">
+  // Arrangement picker. In the legacy header it rides with the key/tempo/time on
+  // one wrapping row; in the card header it sits beside the title.
+  const arrangementMenuEl = (
+    <ArrangementMenu
+      arrangements={workingSong.arrangements}
+      activeId={activeArrangementId}
+      defaultId={workingSong.defaultArrangementId}
+      onSwitch={switchArrangement}
+      onAdd={handleAddArrangement}
+      onRename={handleRenameArrangement}
+      onDelete={handleDeleteArrangementById}
+      onEdit={() => setEditArrangementsOpen(true)}
+    />
+  );
+  // Just the musical metadata controls (Key / Transpose / Tempo / Time) — split
+  // out from the arrangement picker so the card header can put the arrangement
+  // beside the title and the key/tempo/time on their own row.
+  const musicMetaControls = (
+    <div className="flex items-center gap-1.5 flex-wrap">
         <Select value={currentKey} onValueChange={changeSongKey}>
           <SelectTrigger
             aria-label="Key"
@@ -680,7 +706,13 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           value={currentTime}
           onChange={v => updateField('time', v)}
         />
-      </div>
+    </div>
+  );
+  // Legacy header layout: arrangement picker + key/tempo/time on one wrapping row.
+  const musicControls = (
+    <div className="flex items-center gap-2 flex-wrap">
+      {arrangementMenuEl}
+      {musicMetaControls}
     </div>
   );
 
@@ -788,6 +820,149 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
 
   // Show the empty-state chooser for a fresh blank song (no chords/lyrics yet).
 
+  // Shared header action buttons (preview toggle / peek + delete). Preview
+  // controls are hidden on the Details tab, which has no chart to preview.
+  const headerActionsEl = (
+    <div className="flex items-center gap-2 shrink-0">
+      {importProgress && (
+        <span
+          className="hidden sm:inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 text-label-11 font-semibold border"
+          style={{ color: 'var(--color-brand-text)', borderColor: 'var(--color-brand-border)', background: 'var(--color-brand-soft)' }}
+        >
+          Importing {importProgress.current} of {importProgress.total}
+          {importProgress.onSkip && (
+            <button onClick={importProgress.onSkip} className="bg-transparent border-none p-0 text-[var(--color-brand-text)] underline cursor-pointer text-label-11 font-semibold">Skip</button>
+          )}
+        </span>
+      )}
+      {isWide && activeTab !== 'details' && (
+        <Button
+          variant={previewEnabled ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => setPreviewEnabled(v => !v)}
+          aria-pressed={previewEnabled}
+        >
+          {previewEnabled ? 'Hide preview' : 'Show preview'}
+        </Button>
+      )}
+      {!isWide && activeTab !== 'details' && (
+        <IconButton variant="ghost" size="sm" onClick={() => setPreviewPeekOpen(true)} aria-label="Preview">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </IconButton>
+      )}
+      {song && onDelete && (
+        <IconButton variant="error" size="sm" onClick={handleDeleteSong} aria-label="Delete song">
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </IconButton>
+      )}
+    </div>
+  );
+
+  // Edit-mode tabs. The Details tab is card-header only.
+  const tabsRowEl = (
+    <div className="px-1 sm:px-2">
+      <Tabs
+        tabs={cardsHeader
+          ? [...MODE_OPTIONS, { id: 'tabs', label: 'Tabs' }, { id: 'details', label: 'Details' }]
+          : [...MODE_OPTIONS, { id: 'tabs', label: 'Tabs' }]}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
+    </div>
+  );
+
+  // ── Card-based header (Labs) ──────────────────────────────────────────────
+  // Minimal identity card: inline-editable title beside the arrangement picker
+  // (the arrangement changes everything, so it sits with the title), then the
+  // key/tempo/time controls on their own row. No cover art, no artist line, no
+  // Aa. Song Details live in their own tab; Save/Cancel stay in the bottom bar.
+  const cardHeaderEl = (
+    <header
+      className="shrink-0 z-[60] sticky top-0 border-b border-[var(--ds-gray-200)] backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)]"
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+    >
+      <div className="px-3 sm:px-4 pt-3 pb-2">
+        <div className="rounded-2xl border border-[var(--ds-gray-200)] bg-[var(--ds-background-100)] px-3 sm:px-4 py-3 flex flex-col gap-3">
+          {/* Row 1: title + arrangement | actions */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <input
+                value={fmFields.title || ''}
+                onChange={e => updateField('title', e.target.value)}
+                placeholder={song ? 'Song title' : 'New song'}
+                aria-label="Song title"
+                className="min-w-0 flex-1 bg-transparent border-0 outline-none text-heading-18 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
+              />
+              <div className="shrink-0">{arrangementMenuEl}</div>
+            </div>
+            {headerActionsEl}
+          </div>
+          {/* Row 2: key / transpose / tempo / time */}
+          <div>{musicMetaControls}</div>
+        </div>
+      </div>
+      {tabsRowEl}
+    </header>
+  );
+
+  // ── Legacy header (default) ───────────────────────────────────────────────
+  const legacyHeaderEl = (
+    <header
+      className="shrink-0 z-[60] sticky top-0 border-b border-[var(--ds-gray-200)] backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)]"
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+    >
+      <div className="flex items-center gap-2 px-3 sm:px-4 h-14">
+        <button
+          type="button"
+          onClick={() => setMetaPanelOpen(v => !v)}
+          aria-expanded={metaPanelOpen}
+          aria-label="Song details"
+          className="min-w-0 shrink flex items-center gap-1.5 text-left bg-transparent border-none cursor-pointer p-0"
+        >
+          <h1 className="text-heading-18 text-[var(--text-1)] m-0 leading-tight truncate">
+            {fmFields.title || (song ? 'Edit Song' : 'New Song')}
+          </h1>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 text-[var(--ds-gray-600)] transition-transform duration-200 ${metaPanelOpen ? 'rotate-180' : ''}`}>
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+
+        {isWide && musicControls}
+
+        <div className="flex-1 min-w-0" />
+
+        {headerActionsEl}
+      </div>
+
+      {/* ─── Song Details (collapsible, drops directly below the title) ─── */}
+      {metaPanelOpen && (
+        <div className="shrink-0 max-h-[45vh] overflow-y-auto border-t border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] px-4 sm:px-6 py-2" style={headerFrostStyle}>
+          {!isWide && (
+            <div className="pb-3 mb-3 border-b border-[var(--ds-gray-200)]">
+              {musicControls}
+            </div>
+          )}
+          <MetadataPanel
+            md={md}
+            onChange={setMd}
+            isOpen
+            keyHistory={workingSong.keyHistory}
+          />
+        </div>
+      )}
+
+      {/* Structure now lives inside the Arrange + Advanced tabs (one official
+          source), not in the header. */}
+
+      {tabsRowEl}
+    </header>
+  );
+
   return (
     <div className="h-full bg-[var(--ds-background-200)] flex flex-col">
       {/* ─── Unified header. Row 1: title (taps to toggle Song Details) +
@@ -795,99 +970,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           structure summary. Row 3: edit-mode tabs. On narrow screens the music
           controls move into the Song Details panel so the header stays compact.
           Save/Cancel live in the bottom bar so they stay thumb-reachable. ─── */}
-      <header
-        className="shrink-0 z-[60] sticky top-0 border-b border-[var(--ds-gray-200)] backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)]"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
-        <div className="flex items-center gap-2 px-3 sm:px-4 h-14">
-          <button
-            type="button"
-            onClick={() => setMetaPanelOpen(v => !v)}
-            aria-expanded={metaPanelOpen}
-            aria-label="Song details"
-            className="min-w-0 shrink flex items-center gap-1.5 text-left bg-transparent border-none cursor-pointer p-0"
-          >
-            <h1 className="text-heading-18 text-[var(--text-1)] m-0 leading-tight truncate">
-              {fmFields.title || (song ? 'Edit Song' : 'New Song')}
-            </h1>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 text-[var(--ds-gray-600)] transition-transform duration-200 ${metaPanelOpen ? 'rotate-180' : ''}`}>
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-
-          {isWide && musicControls}
-
-          <div className="flex-1 min-w-0" />
-
-          <div className="flex items-center gap-2 shrink-0">
-            {importProgress && (
-              <span
-                className="hidden sm:inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 text-label-11 font-semibold border"
-                style={{ color: 'var(--color-brand-text)', borderColor: 'var(--color-brand-border)', background: 'var(--color-brand-soft)' }}
-              >
-                Importing {importProgress.current} of {importProgress.total}
-                {importProgress.onSkip && (
-                  <button onClick={importProgress.onSkip} className="bg-transparent border-none p-0 text-[var(--color-brand-text)] underline cursor-pointer text-label-11 font-semibold">Skip</button>
-                )}
-              </span>
-            )}
-            {isWide && (
-              <Button
-                variant={previewEnabled ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setPreviewEnabled(v => !v)}
-                aria-pressed={previewEnabled}
-              >
-                {previewEnabled ? 'Hide preview' : 'Show preview'}
-              </Button>
-            )}
-            {!isWide && (
-              <IconButton variant="ghost" size="sm" onClick={() => setPreviewPeekOpen(true)} aria-label="Preview">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </IconButton>
-            )}
-            {song && onDelete && (
-              <IconButton variant="error" size="sm" onClick={handleDeleteSong} aria-label="Delete song">
-                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </IconButton>
-            )}
-          </div>
-        </div>
-
-        {/* ─── Song Details (collapsible, drops directly below the title) ─── */}
-        {metaPanelOpen && (
-          <div className="shrink-0 max-h-[45vh] overflow-y-auto border-t border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] px-4 sm:px-6 py-2" style={headerFrostStyle}>
-            {!isWide && (
-              <div className="pb-3 mb-3 border-b border-[var(--ds-gray-200)]">
-                {musicControls}
-              </div>
-            )}
-            <MetadataPanel
-              md={md}
-              onChange={setMd}
-              isOpen
-              keyHistory={workingSong.keyHistory}
-            />
-          </div>
-        )}
-
-        {/* Structure now lives inside the Arrange + Advanced tabs (one official
-            source), not in the header. */}
-
-        {/* Row: edit-mode tabs (Arrange / Advanced / Tabs), left-aligned */}
-        <div className="px-1 sm:px-2">
-          <Tabs
-            tabs={[...MODE_OPTIONS, { id: 'tabs', label: 'Tabs' }]}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
-        </div>
-      </header>
+      {cardsHeader ? cardHeaderEl : legacyHeaderEl}
 
       {/* ─── Content Area — full-width chrome on top, then the editor + live
           preview side-by-side beneath it, so opening Song Details / the

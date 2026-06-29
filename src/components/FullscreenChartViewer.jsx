@@ -31,7 +31,7 @@ export default function FullscreenChartViewer({ title, keyLabel, displayMode, ch
         <div className="min-w-0 flex-1 flex items-center gap-2">
           <h2 className="m-0 truncate text-heading-16 font-semibold text-[var(--text-1)]">{title}</h2>
           {keyLabel && (
-            <span className="shrink-0 font-mono text-[12px] font-bold px-1.5 h-5 grid place-items-center rounded" style={{ background: '#e0b341', color: '#0a0a0a' }}>{keyLabel}</span>
+            <span className="shrink-0 font-mono text-[12px] font-bold px-1.5 h-5 grid place-items-center rounded" style={{ background: 'var(--chord)', color: '#0a0a0a' }}>{keyLabel}</span>
           )}
         </div>
         <button type="button" onClick={onClose} aria-label="Exit full screen"
