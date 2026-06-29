@@ -8,7 +8,7 @@ import ChordDiagram from './ChordDiagram';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { Card } from './ui/Card';
-import { SegmentedControl } from './ui/SegmentedControl';
+import { Dialog } from './ui/Dialog';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import { cn } from '../lib/utils';
 import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
@@ -21,8 +21,7 @@ import { useStageHeaderCollapse } from '../hooks/useStageHeaderCollapse';
 import StageHeader from './ui/StageHeader';
 import { exportSongPdf } from '../pdf/exportSongPdf';
 import { OverflowMenu } from './ui/OverflowMenu';
-import BottomSheet, { SheetField } from './ui/BottomSheet';
-import ChartStyleControls from './ChartStyleControls';
+import { SheetField } from './ui/BottomSheet';
 import {
   CHART_THEMES,
   CHART_FONTS,
@@ -129,11 +128,6 @@ export default function ChartView({
   const userSetColumnsRef = useRef(false);
 
   const [columns, setColumns] = useState(resolveColumns(disp.columns, wantTwo));
-  const setColumnsManually = (v) => {
-    userSetColumnsRef.current = true;
-    setColumns(v);
-    onUpdateSettings?.('defaultColumns', v);
-  };
   // Aa-menu column control: supports 'auto' (clears the manual override and
   // re-resolves from width) as well as explicit 1/2.
   const setColumnsPref = (v) => {
@@ -663,40 +657,25 @@ export default function ChartView({
       {/* ── Bottom-sheet modals (Layout / Music / Song info) ── */}
       {!isPreview && (
         <>
-          {/* ── Layout menu — how it's arranged (columns, sizes, spacing, style) ── */}
-          <BottomSheet
+          {/* ── Advanced layout & role — a centred dialog (distinct from the old
+              bottom sheet). The Aa menu now owns columns / lyric size / chord
+              size, so this holds only the deeper, non-duplicated controls:
+              spacing, repeated-section density, inline cues, role preset, tab
+              instrument and the advanced-style entry. ── */}
+          <Dialog
             open={activeSheet === 'layout'}
             onClose={() => setActiveSheet(null)}
-            title="Layout"
+            size="lg"
+            ariaLabel="Advanced layout and role"
           >
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-                <SheetField label="Columns">
-                  <SegmentedControl
-                    value={columns}
-                    onChange={setColumnsManually}
-                    options={[
-                      { value: 1, label: '1 col' },
-                      { value: 2, label: '2 col' },
-                    ]}
-                    size="sm"
-                  />
-                </SheetField>
-                <SheetField label="Lyric size">
-                  <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                    <IconButton variant="ghost" size="sm" onClick={() => changeFontSize(fontSize - 2)} aria-label="Decrease lyric size">−</IconButton>
-                    <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{fontSize}</span>
-                    <IconButton variant="ghost" size="sm" onClick={() => changeFontSize(fontSize + 2)} aria-label="Increase lyric size">+</IconButton>
-                  </div>
-                </SheetField>
-                <SheetField label="Chord size">
-                  <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                    <IconButton variant="ghost" size="sm" onClick={() => changeChordFontSize(chordFontSize - 2)} aria-label="Decrease chord size">−</IconButton>
-                    <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{chordFontSize}</span>
-                    <IconButton variant="ghost" size="sm" onClick={() => changeChordFontSize(chordFontSize + 2)} aria-label="Increase chord size">+</IconButton>
-                  </div>
-                </SheetField>
-              </div>
+            <div className="flex items-center justify-between gap-3 px-5 sm:px-6 pt-5 pb-3 border-b border-[var(--border-1)]">
+              <h2 className="m-0 text-heading-18 font-semibold text-[var(--text-1)]">Advanced</h2>
+              <button type="button" onClick={() => setActiveSheet(null)} aria-label="Close"
+                className="w-9 h-9 grid place-items-center rounded-lg text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--bg-2)] cursor-pointer">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="px-5 sm:px-6 py-5 flex flex-col gap-5 max-h-[70vh] overflow-y-auto">
 
               <SheetField label="Spacing">
                 <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
@@ -731,6 +710,22 @@ export default function ChartView({
                       onClick={() => onUpdateSettings?.('duplicateSections', b.id)}
                       aria-pressed={duplicateSections === b.id}
                       className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${duplicateSections === b.id ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </SheetField>
+
+              <SheetField label="Inline cues">
+                <div className="flex flex-wrap gap-1.5">
+                  {[{ v: true, label: 'Show' }, { v: false, label: 'Hide' }].map(b => (
+                    <button
+                      key={b.label}
+                      type="button"
+                      onClick={() => onUpdateSettings?.('showInlineNotes', b.v)}
+                      aria-pressed={showInlineNotes === b.v}
+                      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${showInlineNotes === b.v ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
                     >
                       {b.label}
                     </button>
@@ -780,10 +775,6 @@ export default function ChartView({
               )}
 
               <div className="pt-1 border-t border-[var(--border-1)]">
-                <ChartStyleControls
-                  settings={settings}
-                  onUpdateSettings={onUpdateSettings}
-                />
                 {onOpenAdvancedStyle && (
                   <button
                     type="button"
@@ -802,7 +793,7 @@ export default function ChartView({
                 )}
               </div>
             </div>
-          </BottomSheet>
+          </Dialog>
 
           {/* Arrangement add/rename/delete now lives in the editor only.
               The chart view's dropdown above handles read-only switching. */}
