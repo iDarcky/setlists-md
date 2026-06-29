@@ -45,17 +45,18 @@ export default function SongPlayerBar({ spotifyUrl, youtubeUrl, title }) {
     >
       {open && (
         <div className="px-3 sm:px-7 pt-3">
-          <div className="mx-auto max-w-[1200px] overflow-hidden rounded-xl border border-[var(--border-1)] bg-black">
+          <div className="mx-auto max-w-[1200px] overflow-hidden rounded-xl border border-[var(--border-1)] bg-[var(--ds-background-200)]">
             {active === 'spotify' ? (
+              // Compact 80px strip — reads as part of the bar rather than a block.
               <iframe
                 key={embedSrc}
                 title="Spotify player"
                 src={embedSrc}
                 width="100%"
-                height="152"
+                height="80"
                 loading="lazy"
                 allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                style={{ display: 'block', border: 0 }}
+                style={{ display: 'block', border: 0, borderRadius: 12 }}
               />
             ) : (
               <iframe

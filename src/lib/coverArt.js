@@ -28,12 +28,19 @@ export function youtubeThumb(url) {
   return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null;
 }
 
+// Cache resolved album art per URL for the session so reopening a song is
+// instant (no second round-trip, no re-flicker). Only successful lookups are
+// cached, so a transient failure can still succeed on a later open.
+const spotifyArtCache = new Map();
+
 export async function spotifyArt(url) {
   if (!url || !supabase) return null;
+  if (spotifyArtCache.has(url)) return spotifyArtCache.get(url);
   try {
     const { data, error } = await supabase.functions.invoke('cover-art', { body: { url } });
-    if (error) return null;
-    return data?.image || null;
+    const image = error ? null : (data?.image || null);
+    if (image) spotifyArtCache.set(url, image);
+    return image;
   } catch {
     return null;
   }
