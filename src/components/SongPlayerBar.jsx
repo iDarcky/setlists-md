@@ -63,6 +63,8 @@ function TrackTransport({ active, ytId, spId, title, artist, sources, onSource }
   const playerRef = useRef(null);   // { kind, player }
   const pollRef = useRef(null);
   const draggingRef = useRef(false); // suppress poll-driven position while scrubbing
+  const readyRef = useRef(false);    // mirrors `ready` for the watchdog closure
+  const watchdogRef = useRef(null);  // re-init timer if the player never signals ready
 
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -71,14 +73,30 @@ function TrackTransport({ active, ytId, spId, title, artist, sources, onSource }
   const [failed, setFailed] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [dragPos, setDragPos] = useState(0);
+  const [attempt, setAttempt] = useState(0); // bumped to force a clean player re-create
 
-  // Build (and tear down) the hidden platform player on mount. Fresh mount per
-  // source (parent keys us by it), so there's no in-effect state reset.
+  // Build (and tear down) the hidden platform player. Fresh mount per source
+  // (parent keys us by it). The `attempt` dep lets a stalled init auto-recover:
+  // the platform embeds occasionally drop their very first ready callback in a
+  // hidden container (or stall behind a slow/blocked API load), and a clean
+  // re-create — exactly what manually toggling the source used to do — fixes it.
   useEffect(() => {
     const host = hostRef.current;
     if (!active || !host) return undefined;
     let disposed = false;
+    readyRef.current = false;
     const stopPoll = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+    const clearWatchdog = () => { if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; } };
+    const markReady = () => { readyRef.current = true; clearWatchdog(); setReady(true); };
+
+    // If the player hasn't signalled ready in time, re-create it a couple of
+    // times before surfacing "unavailable". Covers both a dropped first-init
+    // and an API load that never resolves (e.g. blocked/slow network).
+    watchdogRef.current = setTimeout(() => {
+      if (disposed || readyRef.current) return;
+      if (attempt < 2) setAttempt(a => a + 1);
+      else setFailed(true);
+    }, 6000);
 
     if (active === 'youtube') {
       ensureYouTubeApi().then((YT) => {
@@ -91,7 +109,7 @@ function TrackTransport({ active, ytId, spId, title, artist, sources, onSource }
           height: '180',
           playerVars: { controls: 0, modestbranding: 1, rel: 0, playsinline: 1, disablekb: 1, iv_load_policy: 3, fs: 0 },
           events: {
-            onReady: (e) => { if (disposed) return; setReady(true); setDuration(e.target.getDuration() || 0); },
+            onReady: (e) => { if (disposed) return; markReady(); setDuration(e.target.getDuration() || 0); },
             onStateChange: (e) => {
               if (disposed) return;
               const isPlaying = e.data === YT.PlayerState.PLAYING;
@@ -109,7 +127,7 @@ function TrackTransport({ active, ytId, spId, title, artist, sources, onSource }
           },
         });
         playerRef.current = { kind: 'youtube', player };
-      }).catch(() => { if (!disposed) setFailed(true); });
+      }).catch(() => { if (!disposed) { clearWatchdog(); setFailed(true); } });
     } else if (active === 'spotify') {
       ensureSpotifyApi().then((IFrameAPI) => {
         if (disposed) return;
@@ -118,7 +136,7 @@ function TrackTransport({ active, ytId, spId, title, artist, sources, onSource }
         IFrameAPI.createController(el, { uri: `spotify:track:${spId}`, width: 300, height: 80 }, (controller) => {
           if (disposed) { controller.destroy?.(); return; }
           playerRef.current = { kind: 'spotify', player: controller };
-          setReady(true);
+          markReady();
           controller.addListener('playback_update', (e) => {
             if (disposed) return;
             const d = e.data || {};
@@ -127,18 +145,19 @@ function TrackTransport({ active, ytId, spId, title, artist, sources, onSource }
             setPlaying(!d.isPaused);
           });
         });
-      }).catch(() => { if (!disposed) setFailed(true); });
+      }).catch(() => { if (!disposed) { clearWatchdog(); setFailed(true); } });
     }
 
     return () => {
       disposed = true;
       stopPoll();
+      clearWatchdog();
       const ref = playerRef.current;
       if (ref) { try { ref.player.destroy?.(); } catch { /* ignore teardown errors */ } }
       playerRef.current = null;
       host.innerHTML = '';
     };
-  }, [active, ytId, spId]);
+  }, [active, ytId, spId, attempt]);
 
   const toggle = useCallback(() => {
     const ref = playerRef.current;

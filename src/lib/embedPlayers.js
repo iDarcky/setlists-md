@@ -19,7 +19,9 @@ function loadScript(src) {
   return scriptPromises[src];
 }
 
-// Resolves with `window.YT` once `YT.Player` is constructable.
+// Resolves with `window.YT` once `YT.Player` is constructable. On failure the
+// memoised promise is cleared so a later call can retry (a one-off block or a
+// flaky load shouldn't poison the API for the rest of the session).
 let ytPromise;
 export function ensureYouTubeApi() {
   if (ytPromise) return ytPromise;
@@ -31,11 +33,11 @@ export function ensureYouTubeApi() {
       resolve(window.YT);
     };
     loadScript('https://www.youtube.com/iframe_api').catch(reject);
-  });
+  }).catch((e) => { ytPromise = undefined; throw e; });
   return ytPromise;
 }
 
-// Resolves with the Spotify `IFrameAPI` factory.
+// Resolves with the Spotify `IFrameAPI` factory. Same retry-on-failure memo.
 let spotifyPromise;
 export function ensureSpotifyApi() {
   if (spotifyPromise) return spotifyPromise;
@@ -46,6 +48,6 @@ export function ensureSpotifyApi() {
       resolve(IFrameAPI);
     };
     loadScript('https://open.spotify.com/embed/iframe-api/v1').catch(reject);
-  });
+  }).catch((e) => { spotifyPromise = undefined; throw e; });
   return spotifyPromise;
 }
