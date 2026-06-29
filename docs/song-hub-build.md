@@ -6,17 +6,38 @@
 > `docs/mockups/` (`song-hub-v2.html`/`.png` is the canonical V2; `aa-menu.*`
 > shows the already-shipped Aa popover).
 
-## Status (0.14.0-beta.3)
+## Status (0.14.0-beta.5)
 
-**Phases 1 & 2 shipped**, plus a faithful pass over the V2 mockup. Live now:
+**Phases 1 & 2 shipped**, plus a faithful V2 pass and a polish cycle. Live now:
 the hub shell + Chart/Lyrics/Details tabs (`SongHub.jsx`), `embedded` `ChartView`,
 the `song-hub` route (replacing `chart`), the two-card layout (gradient hub card +
-reader card that follows the chart theme), gold key **dropdown** (transpose) +
-relabelled meta pills, the **codes** song-map (now the app-wide default ribbon
-style, static on the hub), **cover art** from Spotify/YouTube (`cover-art` edge
-function + `lib/coverArt.js`; CSP updated), **inline Details editing**, the
+reader card that follows the chart theme), gold key **dropdown** (transpose),
+the **codes** song-map (static on the hub), **cover art** from Spotify/YouTube
+(`cover-art` edge function + `lib/coverArt.js`), **inline Details editing**, the
 **Labs neutral palette** preview, and **Keep-awake / Lock-orientation** settings.
-Remaining: **Phase 3** (bottom transport) and **Phase 4** (Audio/Practice) — see
+
+**Polish cycle (beta.5):**
+- Tabs are **brand-coloured pills** matching the top nav.
+- **Aa + full-screen moved into the reader tab header**, shown only on
+  Chart/Lyrics (hidden on Details); they left the main hub header.
+- Full-screen opens **`FullscreenChartViewer`** (WIP distraction-free reader)
+  instead of toggling the app sidebar.
+- Hub **⋮** trimmed: no View section / Play-live; desktop drops Edit + Full
+  screen (dedicated controls), mobile folds in Campfire + Edit.
+- **Details** read view regrouped into labelled sections; Edit is a text link;
+  the edit form has a **card-bottom Save/Cancel bar** (mirrors the song editor).
+- **Aa menu**: per-tab **Reset to default**, scroll-wheel theme strip, Columns
+  **1/2** only, chords switcher removed, chord-diagram toggle pulled (PLAN.md).
+- The Layout sheet became a centered **"Advanced" `Dialog`**, de-duplicated
+  (spacing / repeated sections / **inline cues** / role / tab instrument).
+- **Backing-track player** (`SongPlayerBar`): **YouTube-only** (Spotify dropped —
+  `eval()`/CSP + sign-in-only full tracks), CSP fixed (`*.spotifycdn.com`),
+  readiness watchdog auto-recovers a stalled init. Bottom card on desktop;
+  **inline `compact` strip in the media card on phones**.
+
+This covers part of **Phase 3** (a real transport now exists). Remaining: the
+richer transport (metronome, auto-scroll, loop) + **Phase 4** (Audio/Practice),
+and migrating the chart **view modes** into `FullscreenChartViewer` — see
 `docs/views-vision.md` for the full Chart/Live/Rehearsal/Practice direction.
 
 ## Goal
