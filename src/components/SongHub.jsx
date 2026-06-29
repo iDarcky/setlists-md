@@ -4,6 +4,7 @@ import { transposeKey, semitonesBetween, keysInQualityOf } from '../music';
 import ChartView from './ChartView';
 import SongDetails from './SongDetails';
 import { StructureRibbon } from './StructureRibbon';
+import SongPlayerBar from './SongPlayerBar';
 import { Button } from './ui/Button';
 import { OverflowMenu } from './ui/OverflowMenu';
 import { Select, SelectTrigger, SelectContent, SelectItem } from './ui/Select';
@@ -87,9 +88,14 @@ export default function SongHub({
   // image actually fails to LOAD (CSP, 404, dead link) fall through to the next
   // candidate instead of leaving a blank tile.
   const [failedArt, setFailedArt] = useState({});
+  // While a Spotify link is still resolving, hold off on the YouTube fallback so
+  // the tile doesn't flash the YouTube thumb and then swap to Spotify. Once
+  // Spotify settles (resolved, null, or failed) the YouTube thumb fills in.
+  const spotifyPending = !!song?.spotify && spotifyResult.key !== song?.spotify;
+  const spotifyUrl = spotifyResult.key === song?.spotify ? spotifyResult.url : null;
   const artUrl = [
-    spotifyResult.key === song?.spotify ? spotifyResult.url : null,
-    ytArt,
+    spotifyUrl,
+    spotifyPending ? null : ytArt,
   ].find(u => u && !failedArt[u]) || null;
 
   // Settings → General → "Keep screen awake" while a song is open.
@@ -400,6 +406,9 @@ export default function SongHub({
           </div>
         </div>
       </div>
+
+      {/* ════ BACKING-TRACK TRANSPORT (Spotify / YouTube) ════ */}
+      <SongPlayerBar spotifyUrl={song.spotify} youtubeUrl={song.youtube} title={song.title} />
     </div>
   );
 }

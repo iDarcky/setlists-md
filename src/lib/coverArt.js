@@ -9,10 +9,23 @@ import { supabase } from '../auth/supabase';
 //   Supabase isn't configured or the function isn't deployed, it returns null
 //   and the caller falls through to YouTube / the placeholder.
 
-export function youtubeThumb(url) {
+// Bare id extractors — shared by the cover-art thumbnail and the embedded
+// backing-track player (SongPlayerBar).
+export function youtubeId(url) {
   if (!url) return null;
   const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/))([\w-]{11})/);
-  return m ? `https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg` : null;
+  return m ? m[1] : null;
+}
+
+export function spotifyTrackId(url) {
+  if (!url) return null;
+  const m = String(url).match(/open\.spotify\.com\/(?:intl-[\w-]+\/)?track\/([A-Za-z0-9]+)/);
+  return m ? m[1] : null;
+}
+
+export function youtubeThumb(url) {
+  const id = youtubeId(url);
+  return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null;
 }
 
 export async function spotifyArt(url) {
