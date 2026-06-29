@@ -1,10 +1,14 @@
 import { useState } from 'react';
+import { Button } from './ui/Button';
 
 // Song metadata for the hub's Details tab. Read-only by default; when `onSave`
 // is provided an inline **Edit** mode swaps the grid for a form and writes the
 // changed song-level fields straight back (no jump to the full editor). Takes a
 // *resolved* song view (see resolveSongView). Per-arrangement fields
 // (key/tempo/time/capo) stay in the song editor.
+//
+// Owns its own scroll region and a card-bottom Save/Cancel bar (mirrors the
+// song editor), so it fills the reader card it's mounted in.
 
 // Editable song-level text fields.
 const FIELDS = [
@@ -53,41 +57,7 @@ export default function SongDetails({ song, onSave }) {
   };
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  if (editing) {
-    return (
-      <div className="flex flex-col gap-5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="m-0 text-heading-16 font-semibold text-[var(--text-1)]">Edit details</h2>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setEditing(false)}
-              className="h-8 px-3 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-13 text-[var(--text-1)] hover:bg-[var(--bg-2)] cursor-pointer">Cancel</button>
-            <button type="button" onClick={save}
-              className="h-8 px-3 rounded-lg text-label-13 font-semibold cursor-pointer hover:opacity-90" style={{ background: 'var(--color-brand)', color: '#fff' }}>Save</button>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-          {FIELDS.map(({ k, label }) => (
-            <Field key={k} label={label}>
-              <input value={form[k] ?? ''} onChange={e => set(k, e.target.value)} className={inputCls} />
-            </Field>
-          ))}
-          <Field label="Tags" hint="comma-separated">
-            <input value={form.tags ?? ''} onChange={e => set('tags', e.target.value)} className={inputCls} placeholder="worship, fast" />
-          </Field>
-        </div>
-        <div className="flex flex-col gap-3">
-          {LONG.map(({ k, label }) => (
-            <Field key={k} label={label}>
-              <textarea value={form[k] ?? ''} onChange={e => set(k, e.target.value)} rows={k === 'story' ? 4 : 3} className={textareaCls} />
-            </Field>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // Short scalar fields, grouped into labelled sections. Each group renders only
-  // when it has at least one filled value.
+  // Short scalar fields, grouped into labelled sections (read view).
   const groups = [
     { title: 'About', items: [
       ['Artist', song.artist],
@@ -132,77 +102,116 @@ export default function SongDetails({ song, onSave }) {
     && longFields.length === 0 && keyPlays.length === 0;
 
   return (
-    <div className="flex flex-col gap-8">
-      {onSave && (
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="m-0 text-heading-16 font-semibold text-[var(--text-1)]">Details</h2>
-          <button type="button" onClick={startEdit}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-13 font-medium text-[var(--text-1)] hover:bg-[var(--bg-2)] cursor-pointer">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
-            Edit
-          </button>
+    <div className="h-full flex flex-col">
+      <div className="flex-1 min-h-0 overflow-y-auto px-5 sm:px-8 py-6">
+        {editing ? (
+          <div className="flex flex-col gap-6">
+            <h2 className="m-0 text-heading-16 font-semibold text-[var(--text-1)]">Edit details</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
+              {FIELDS.map(({ k, label }) => (
+                <Field key={k} label={label}>
+                  <input value={form[k] ?? ''} onChange={e => set(k, e.target.value)} className={inputCls} />
+                </Field>
+              ))}
+              <Field label="Tags" hint="comma-separated">
+                <input value={form.tags ?? ''} onChange={e => set('tags', e.target.value)} className={inputCls} placeholder="worship, fast" />
+              </Field>
+            </div>
+            <div className="flex flex-col gap-3">
+              {LONG.map(({ k, label }) => (
+                <Field key={k} label={label}>
+                  <textarea value={form[k] ?? ''} onChange={e => set(k, e.target.value)} rows={k === 'story' ? 4 : 3} className={textareaCls} />
+                </Field>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-8">
+            <div className="flex items-baseline gap-3">
+              <h2 className="m-0 text-heading-16 font-semibold text-[var(--text-1)]">Details</h2>
+              {onSave && (
+                <button type="button" onClick={startEdit}
+                  className="bg-transparent border-none p-0 text-label-12 font-semibold uppercase tracking-wide text-[var(--color-brand-text)] hover:underline cursor-pointer">
+                  Edit
+                </button>
+              )}
+            </div>
+
+            {isEmpty ? (
+              <p className="text-copy-14 text-[var(--text-2)] italic m-0">No additional song info yet. Use Edit to add artist, themes, links and more.</p>
+            ) : (
+              <>
+                {groups.map(g => (
+                  <section key={g.title} className="flex flex-col gap-3">
+                    <SectionTitle>{g.title}</SectionTitle>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-4">
+                      {g.items.map(([label, value]) => <Item key={label} label={label} value={value} />)}
+                    </div>
+                  </section>
+                ))}
+
+                {tags.length > 0 && (
+                  <section className="flex flex-col gap-3">
+                    <SectionTitle>Tags</SectionTitle>
+                    <div className="flex flex-wrap gap-2">
+                      {tags.map(t => (
+                        <span key={t} className="inline-flex items-center h-7 px-3 rounded-full border border-[var(--border-1)] bg-[var(--bg-1)] text-label-12 font-medium text-[var(--text-1)]">{t}</span>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {longFields.map(f => (
+                  <section key={f.label} className="flex flex-col gap-2">
+                    <SectionTitle>{f.label}</SectionTitle>
+                    <p className="m-0 text-copy-14 leading-relaxed text-[var(--text-1)] whitespace-pre-wrap">{f.value}</p>
+                  </section>
+                ))}
+
+                {links.length > 0 && (
+                  <section className="flex flex-col gap-3">
+                    <SectionTitle>Listen</SectionTitle>
+                    <div className="flex flex-wrap gap-2">
+                      {links.map(l => (
+                        <a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-13 font-medium text-[var(--text-1)] hover:bg-[var(--bg-2)]">
+                          {l.label} <span aria-hidden="true" className="text-[var(--text-2)]">↗</span>
+                        </a>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {keyPlays.length > 0 && (
+                  <section className="flex flex-col gap-3">
+                    <SectionTitle>Key history</SectionTitle>
+                    <div className="flex flex-wrap gap-1.5">
+                      {keyPlays.map(([k, n]) => (
+                        <span key={k} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-12">
+                          <span className="font-mono font-semibold text-[var(--text-1)]">{k}</span>
+                          <span className="text-[var(--text-2)]">{n}×</span>
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Card-bottom action bar — mirrors the song editor's sticky Save/Cancel. */}
+      {editing && (
+        <div
+          className="shrink-0 border-t border-[var(--border-1)] w-full"
+          style={{ background: 'var(--header-bg-blur)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
+        >
+          <div className="px-5 py-3 flex items-center justify-end gap-3">
+            <Button variant="ghost" size="md" onClick={() => setEditing(false)}>Cancel</Button>
+            <Button variant="brand" size="md" onClick={save}>Save</Button>
+          </div>
         </div>
-      )}
-
-      {isEmpty ? (
-        <p className="text-copy-14 text-[var(--text-2)] italic m-0">No additional song info yet. Use Edit to add artist, themes, links and more.</p>
-      ) : (
-        <>
-          {groups.map(g => (
-            <section key={g.title} className="flex flex-col gap-3">
-              <SectionTitle>{g.title}</SectionTitle>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
-                {g.items.map(([label, value]) => <Item key={label} label={label} value={value} />)}
-              </div>
-            </section>
-          ))}
-
-          {tags.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <SectionTitle>Tags</SectionTitle>
-              <div className="flex flex-wrap gap-2">
-                {tags.map(t => (
-                  <span key={t} className="inline-flex items-center h-7 px-3 rounded-full border border-[var(--border-1)] bg-[var(--bg-1)] text-label-12 font-medium text-[var(--text-1)]">{t}</span>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {longFields.map(f => (
-            <section key={f.label} className="flex flex-col gap-2">
-              <SectionTitle>{f.label}</SectionTitle>
-              <p className="m-0 text-copy-14 leading-relaxed text-[var(--text-1)] whitespace-pre-wrap">{f.value}</p>
-            </section>
-          ))}
-
-          {links.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <SectionTitle>Listen</SectionTitle>
-              <div className="flex flex-wrap gap-2">
-                {links.map(l => (
-                  <a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-13 font-medium text-[var(--text-1)] hover:bg-[var(--bg-2)]">
-                    {l.label} <span aria-hidden="true" className="text-[var(--text-2)]">↗</span>
-                  </a>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {keyPlays.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <SectionTitle>Key history</SectionTitle>
-              <div className="flex flex-wrap gap-1.5">
-                {keyPlays.map(([k, n]) => (
-                  <span key={k} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-12">
-                    <span className="font-mono font-semibold text-[var(--text-1)]">{k}</span>
-                    <span className="text-[var(--text-2)]">{n}×</span>
-                  </span>
-                ))}
-              </div>
-            </section>
-          )}
-        </>
       )}
     </div>
   );
