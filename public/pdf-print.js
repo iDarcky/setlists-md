@@ -27,7 +27,7 @@
   function readConfig() {
     var el = document.getElementById('pdf-print-config');
     if (!el) return {};
-    try { return JSON.parse(el.textContent) || {}; } catch (e) { return {}; }
+    try { return JSON.parse(el.textContent) || {}; } catch { return {}; }
   }
 
   var config = readConfig();
@@ -42,18 +42,18 @@
         var raw = window.opener.localStorage.getItem(STORAGE_KEY);
         if (raw) return JSON.parse(raw);
       }
-    } catch (e) { /* cross-origin or closed opener */ }
+    } catch { /* cross-origin or closed opener */ }
     try {
       var raw2 = localStorage.getItem(STORAGE_KEY);
       if (raw2) return JSON.parse(raw2);
-    } catch (e) { /* unavailable */ }
+    } catch { /* unavailable */ }
     return null;
   }
 
   function writeStored(p) {
     var s = JSON.stringify(p);
-    try { if (window.opener && window.opener.localStorage) window.opener.localStorage.setItem(STORAGE_KEY, s); } catch (e) {}
-    try { localStorage.setItem(STORAGE_KEY, s); } catch (e) {}
+    try { if (window.opener && window.opener.localStorage) window.opener.localStorage.setItem(STORAGE_KEY, s); } catch { /* ignore */ }
+    try { localStorage.setItem(STORAGE_KEY, s); } catch { /* ignore */ }
   }
 
   var stored = readStored();

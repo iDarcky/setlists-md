@@ -208,8 +208,19 @@ export default function SetlistOverviewV2({ setlist, songs, setlists = [], onBac
   return (
     <div ref={scrollRef} className={embedded ? 'h-full overflow-y-auto overflow-x-hidden material-page pb-10' : 'material-page pb-10'}>
 
-      {/* ── Sticky header ── */}
-      <div className="material-header" style={headerFrostStyle}>
+      {/* ── Sticky header ──
+          `.material-header` reads --chart-header-bg/-border, which useChartTheme
+          sets globally on :root — so without this override a list screen would
+          inherit the last chart theme. Pin it to the app header tokens instead;
+          the chart reading views keep chart theming via StageHeader. */}
+      <div
+        className="material-header"
+        style={{
+          ...headerFrostStyle,
+          '--chart-header-bg': 'var(--header-bg-blur)',
+          '--chart-header-border': 'var(--ds-gray-400)',
+        }}
+      >
         <div className={container}>
           {/* Row 1: service kicker + title, with window actions */}
           <div className="flex items-start justify-between gap-3 pt-3">

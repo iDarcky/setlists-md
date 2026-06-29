@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { VIEW_MODES } from './viewModes';
 
 // One generic "view" icon for the trigger — the menu is text-only, so we no
 // longer carry a per-mode icon (§6: single generic icon + text-only menu).
@@ -8,15 +9,6 @@ const ViewIcon = () => (
     <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
   </svg>
 );
-
-// Canonical chart view modes. `chordsonly` = chords without lyrics.
-const VIEW_MODES = [
-  { id: 'chords', label: 'Chords' },
-  { id: 'chordsonly', label: 'Chords only' },
-  { id: 'lyrics', label: 'Lyrics' },
-  { id: 'tabs', label: 'Tabs' },
-  { id: 'songmap', label: 'Song map' },
-];
 
 // A single icon button that opens a compact popover to switch the chart display
 // mode (Chords / Chords only / Lyrics / Tabs / Song map). The popover is

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card } from './ui/Card';
 import { cn } from '../lib/utils';
+import Highlight from './ui/Highlight';
 
 function defaultArr(song) {
   if (!Array.isArray(song?.arrangements)) return song;
@@ -20,11 +21,42 @@ function formatRelativeTime(ts) {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function SongCard({ song, onClick, variant = 'card', showTags = false, selected = false }) {
+function SongCard({ song, onClick, variant = 'card', showTags = false, selected = false, highlight }) {
   const arr = defaultArr(song);
   const songKey = arr?.key || song?.key || 'C';
   const songTempo = arr?.tempo ?? song?.tempo;
   const arrCount = Array.isArray(song?.arrangements) ? song.arrangements.length : 1;
+  if (variant === 'compact') {
+    const tempo = arr?.tempo ?? song?.tempo;
+    return (
+      <div
+        onClick={onClick}
+        className={cn(
+          'flex items-center justify-between gap-3 px-4 py-2.5 cursor-pointer transition-colors duration-150 hover:bg-[var(--bg-2)] active:bg-[var(--bg-2)]',
+          selected && 'bg-[var(--ds-teal-100)] hover:bg-[var(--ds-teal-100)]',
+        )}
+        style={{ WebkitTapHighlightColor: 'transparent' }}
+      >
+        <div className="min-w-0 flex-1">
+          <span className="block text-copy-15 font-medium text-[var(--text-1)] truncate">
+            {highlight ? <Highlight text={song.title} query={highlight} /> : (song.title || 'Untitled')}
+          </span>
+          {song.artist && (
+            <span className="block text-label-12 text-[var(--text-2)] truncate">
+              {highlight ? <Highlight text={song.artist} query={highlight} /> : song.artist}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {arrCount > 1 && (
+            <span className="text-label-11 text-[var(--text-2)] px-1.5 py-0.5 rounded border border-[var(--border-1)]">{arrCount}</span>
+          )}
+          <span className="text-label-12-mono text-[var(--chord)] font-semibold">{songKey}</span>
+          {tempo && <span className="text-label-12-mono text-[var(--text-2)]">{tempo}</span>}
+        </div>
+      </div>
+    );
+  }
   if (variant === 'row') {
     return (
       <div
@@ -37,12 +69,12 @@ function SongCard({ song, onClick, variant = 'card', showTags = false, selected 
       >
         <div className="flex flex-col gap-1 min-w-0 flex-1">
           <span className="text-heading-16 text-[var(--text-1)] truncate">
-            {song.title}
+            {highlight ? <Highlight text={song.title} query={highlight} /> : song.title}
           </span>
           <div className="flex items-center gap-1.5 flex-wrap">
             {song.artist && (
               <span className="text-copy-14 text-[var(--color-brand)] truncate">
-                {song.artist}
+                {highlight ? <Highlight text={song.artist} query={highlight} /> : song.artist}
               </span>
             )}
             {arrCount > 1 && (

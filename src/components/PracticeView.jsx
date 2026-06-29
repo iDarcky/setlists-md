@@ -6,6 +6,7 @@ import SongMap from './SongMap';
 import { TAB_INSTRUMENTS } from './editor/tabInstruments';
 import ChordDiagram from './ChordDiagram';
 import { StructureRibbon } from './StructureRibbon';
+import FloatingStructure from './ui/FloatingStructure';
 import FloatingNavPill from './ui/FloatingNavPill';
 import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
@@ -13,7 +14,7 @@ import { Card } from './ui/Card';
 import PerformanceLayoutSheet from './PerformanceLayoutSheet';
 import PerformanceSetlistSheet, { SetlistList } from './PerformanceSetlistSheet';
 import NotesStack from './ui/NotesStack';
-import ViewModePicker from './ui/ViewModePicker';
+import { OverflowMenu } from './ui/OverflowMenu';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import NoteContent from './ui/NoteContent';
 import StageHeader from './ui/StageHeader';
@@ -99,7 +100,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const showRail = ((isTablet && isLandscape) || isDesktop) && railEnabled;
   // Where the rail can't fit (phone / portrait tablet) the setlist is reachable
   // from a header button that opens it as a bottom sheet instead.
-  const showSetlistButton = railEnabled && !showRail;
+  const showSetlistButton = railEnabled && !showRail && (navStyle === 'edge' || navStyle === 'swipe');
   // Explicit 1/2 from settings wins; 'auto'/unset goes two-up when the reading
   // area is comfortably wide. A manual pick in the Layout sheet overrides for
   // the session and persists the choice device-wide.
@@ -310,19 +311,33 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   if (!cur) return null;
 
   const displayKey = cur.isBreak || cur.isMissing ? null : (selectedKey || transposeKey(cur.song.key, cur.transpose || 0));
-  const curHasTabs = !cur.isBreak && !cur.isMissing && (cur.song.sections || []).some(s => (s.lines || []).some(l => l && typeof l === 'object' && (l.type === 'tab' || l.type === 'tabref')));
 
   // Optional in-header prev/next cluster — an alternative to the floating nav
   // pill. Rendered at the far LEFT of the header (clear of the collapse / menu /
   // close controls on the right) with comfortable tap targets. The last step
   // turns into Finish.
   const atEnd = idx >= resolved.length - 1;
+  // Opens the setlist from the nav counter/pill: toggles the rail when it's
+  // available, otherwise opens the bottom sheet. Undefined when there's no
+  // setlist to show.
+  const openSetlist = railEnabled ? (showRail ? () => setRailOpen(o => !o) : () => setSetlistSheetOpen(true)) : undefined;
   const navButtons = navStyle === 'header' ? (
     <div className="flex items-center gap-1 shrink-0 pr-2 mr-1 border-r border-[var(--ds-gray-300)]">
       <IconButton size="md" variant="ghost" onClick={goPrev} disabled={idx === 0} aria-label="Previous song">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
       </IconButton>
-      <span className="text-label-13 text-[var(--ds-gray-700)] tabular-nums px-1 select-none min-w-[2.5rem] text-center">{idx + 1}/{resolved.length}</span>
+      {openSetlist ? (
+        <button
+          type="button"
+          onClick={openSetlist}
+          aria-label="Open setlist"
+          className="text-label-13 text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] tabular-nums px-1 min-w-[2.5rem] text-center bg-transparent border-none cursor-pointer transition-colors"
+        >
+          {idx + 1}/{resolved.length}
+        </button>
+      ) : (
+        <span className="text-label-13 text-[var(--ds-gray-700)] tabular-nums px-1 select-none min-w-[2.5rem] text-center">{idx + 1}/{resolved.length}</span>
+      )}
       {atEnd && onFinish ? (
         <IconButton size="md" variant="ghost" onClick={handleFinish} aria-label="Finish set">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
@@ -340,65 +355,72 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   // they render with matching color and weight.
   const headerControls = (
     <div className="flex items-center gap-1 shrink-0">
-      {showSetlistButton && (
-        <IconButton
-          size="sm"
-          variant="ghost"
-          onClick={() => setSetlistSheetOpen(true)}
-          aria-label="Open setlist"
-          title="Setlist"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-            <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-          </svg>
-        </IconButton>
-      )}
+      <OverflowMenu
+        ariaLabel="View options"
+        items={[
+          {
+            label: 'Display & layout',
+            icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" /></svg>),
+            onClick: () => setLayoutOpen(true),
+          },
+          (!cur.isBreak && !cur.isMissing) && {
+            label: 'Edit structure',
+            icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>),
+            onClick: () => setShowStructureEditor(true),
+          },
+          showSetlistButton && {
+            label: 'Open setlist',
+            icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>),
+            onClick: () => setSetlistSheetOpen(true),
+          },
+        ]}
+      />
+      {/* Show/hide header stays a visible toggle (not buried in the menu). */}
       <IconButton
         size="sm"
         variant="ghost"
         onClick={() => setHeaderCollapsed(c => !c)}
-        aria-label={headerCollapsed ? 'Expand header' : 'Collapse header'}
-        className="hidden sm:inline-flex"
+        aria-label={headerCollapsed ? 'Show header' : 'Hide header'}
+        title={headerCollapsed ? 'Show header' : 'Hide header'}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
           <path d={headerCollapsed ? 'M19 9l-7 7-7-7' : 'M5 15l7-7 7 7'} />
         </svg>
       </IconButton>
-      {!cur.isBreak && !cur.isMissing && (
-        <div className="hidden sm:flex">
-          <ViewModePicker value={displayMode} onChange={changeDisplayMode} hasTabs={curHasTabs} />
-        </div>
-      )}
-      {!cur.isBreak && !cur.isMissing && (
-        <IconButton size="sm" variant="ghost" onClick={() => setShowStructureEditor(true)} aria-label="Edit structure" title="Edit structure" className="hidden sm:inline-flex">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-          </svg>
-        </IconButton>
-      )}
-      <IconButton
-        size="sm"
-        variant="ghost"
-        onClick={() => setLayoutOpen(true)}
-        aria-label="Display options"
-        title="Display options"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
-          <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
-          <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
-          <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
-        </svg>
-      </IconButton>
     </div>
   );
+
+  // Structure ribbon placement (Settings → Structure position).
+  const structurePos = settings?.structurePosition || 'top';
+  const ribbonSide = structurePos === 'left' || structurePos === 'right';
+  const ribbonNode = (!cur.isBreak && !cur.isMissing && cur.song.sections?.length > 0) ? (
+    <StructureRibbon
+      structure={cur.song.structure || cur.song.sections.map(s => s.type)}
+      compact
+      orientation={ribbonSide ? 'vertical' : 'horizontal'}
+      collapse={!ribbonSide}
+      activeIndex={activeSection}
+      style={settings?.ribbonStyle || 'codes'}
+      onSelect={(i) => {
+        const struct = cur.song.structure || cur.song.sections.map(s => s.type);
+        const name = struct[i];
+        const sectionIdx = cur.song.sections.findIndex(s => s.type === name);
+        if (sectionIdx !== -1) {
+          const el = document.getElementById(`practice-section-${sectionIdx}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }}
+    />
+  ) : null;
 
   return (
     <div
       className="h-full flex overflow-hidden"
       style={{ background: 'var(--chart-bg, var(--ds-background-100))' }}
     >
+    {structurePos !== 'top' && ribbonNode && (
+      <FloatingStructure position={structurePos} raised={navStyle === 'pill'}>{ribbonNode}</FloatingStructure>
+    )}
     <div
       ref={scrollRef}
       onTouchStart={onTouchStart}
@@ -468,27 +490,11 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           </>
         ) : null}
         actions={headerControls}
-        ribbon={!cur.isBreak && !cur.isMissing && cur.song.sections?.length > 0 ? (
-          <StructureRibbon
-            structure={cur.song.structure || cur.song.sections.map(s => s.type)}
-            compact
-            activeIndex={activeSection}
-            style={settings?.ribbonStyle || 'chips'}
-            onSelect={(i) => {
-              const struct = cur.song.structure || cur.song.sections.map(s => s.type);
-              const name = struct[i];
-              const sectionIdx = cur.song.sections.findIndex(s => s.type === name);
-              if (sectionIdx !== -1) {
-                const el = document.getElementById(`practice-section-${sectionIdx}`);
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }
-            }}
-          />
-        ) : null}
+        ribbon={structurePos === 'top' ? ribbonNode : null}
       />
 
       {/* ── Content ── */}
-      <div className="wide-container pt-4 pb-32">
+      <div className={`wide-container pt-4 ${structurePos === 'bottom' ? 'pb-[14rem]' : 'pb-32'}`}>
         {cur.isBreak ? (
           <div className="flex flex-col items-center justify-center py-20 min-h-[50vh]">
             <div className="text-heading-32 text-[var(--ds-gray-1000)] mb-2">{cur.label || 'Break'}</div>
@@ -516,6 +522,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             columns={columns}
             chordFontSize={chordFontSize}
             notation={notation}
+            accidentals={settings?.accidentals}
             showChords={showChords}
             showDiagrams={showDiagrams}
             displayMode={displayMode}
@@ -573,6 +580,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
           hasPrev={idx > 0}
           hasNext={idx < resolved.length - 1}
           onFinish={onFinish ? handleFinish : undefined}
+          onOpenSetlist={openSetlist}
         />
       )}
       {navStyle === 'edge' && (
@@ -592,7 +600,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     {showRail && (
       <aside
         className="shrink-0 h-full border-l border-[var(--ds-gray-300)] flex flex-col"
-        style={{ width: railOpen ? 288 : 44, background: 'var(--ds-background-200)', transition: 'width 200ms ease' }}
+        style={{ width: railOpen ? 288 : 44, background: 'color-mix(in srgb, var(--ds-background-100) 55%, transparent)', backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)', transition: 'width 200ms ease' }}
       >
         {railOpen ? (
           <>
@@ -781,7 +789,7 @@ function StructureEditor({ structure, availableSections, onUpdate, onClose }) {
 }
 
 // Chart with editable cue cards between sections
-function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, notation = 'letters', showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', chordEmphasis = 'full', sectionColors, sectionLabels, customSectionTypes, onSaveCue, canEditShared = true, privateNotes }) {
+function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, notation = 'letters', accidentals = 'auto', showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', chordEmphasis = 'full', sectionColors, sectionLabels, customSectionTypes, onSaveCue, canEditShared = true, privateNotes }) {
   const myEnabled = !!privateNotes?.enabled;
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   // Mirror the chart-view display switch.
@@ -874,6 +882,7 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
             modOffset={sectionModOffsets[i]}
             notation={notation}
             songKey={song.key}
+            accidentals={accidentals}
             showChords={showChords && viewChords}
             showLyrics={viewLyrics}
             showTabs={viewTabs}

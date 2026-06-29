@@ -55,7 +55,7 @@ function ServiceField({ value, options, onChange }) {
 /**
  * Setlist metadata form — name, date, freeform tags, and (Church tier only) service.
  */
-export default function SetlistMetaForm({ name, date, time = '20:00', location = '', tags, service = '', rehearsalDate = '', rehearsalTime = '19:00', rehearsalLocation = '', knownServices = [], firstDayOfWeek = 'sunday', clockFormat = '12h', onNameChange, onDateChange, onTimeChange, onLocationChange, onTagsChange, onServiceChange, onRehearsalDateChange, onRehearsalTimeChange, onRehearsalLocationChange }) {
+export default function SetlistMetaForm({ name, date, time = '20:00', endTime = '', location = '', tags, service = '', rehearsalDate = '', rehearsalTime = '19:00', rehearsalLocation = '', knownServices = [], firstDayOfWeek = 'sunday', clockFormat = '12h', onNameChange, onDateChange, onTimeChange, onEndTimeChange, onLocationChange, onTagsChange, onServiceChange, onRehearsalDateChange, onRehearsalTimeChange, onRehearsalLocationChange }) {
   const [tagInput, setTagInput] = useState('');
 
   const addTag = () => {
@@ -108,14 +108,32 @@ export default function SetlistMetaForm({ name, date, time = '20:00', location =
             firstDayOfWeek={firstDayOfWeek}
           />
         </div>
-        <div className="w-40 flex flex-col gap-1">
-          <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Time</label>
+        <div className="w-32 flex flex-col gap-1">
+          <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Start</label>
           <TimePicker
             value={time}
             onChange={onTimeChange}
             clockFormat={clockFormat}
           />
         </div>
+        {endTime ? (
+          <div className="w-32 flex flex-col gap-1">
+            <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5 flex items-center justify-between">
+              End
+              <button type="button" onClick={() => onEndTimeChange?.('')} className="font-normal text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Clear end time">clear</button>
+            </label>
+            <TimePicker
+              value={endTime}
+              onChange={onEndTimeChange}
+              clockFormat={clockFormat}
+            />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1 justify-end">
+            <label className="text-label-12 font-semibold text-transparent px-0.5 select-none" aria-hidden="true">End</label>
+            <Button size="sm" variant="ghost" onClick={() => onEndTimeChange?.('12:00')} className="h-9 text-[var(--ds-gray-700)]">+ End time</Button>
+          </div>
+        )}
       </div>
 
       {/* Rehearsal day (optional) — surfaces as a distinct entry in the schedule */}

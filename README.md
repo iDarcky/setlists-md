@@ -78,7 +78,7 @@ October 1**. It's live now at
 | **Using the app** | [`docs/user/HOW-TO.md`](docs/user/HOW-TO.md) · [`docs/user/FAQ.md`](docs/user/FAQ.md) |
 | **How it's built** | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`CLAUDE.md`](CLAUDE.md) |
 | **Design system** | [`docs/BRAND.md`](docs/BRAND.md) |
-| **Where it's going** | [`docs/ROADMAP.md`](docs/ROADMAP.md) |
+| **Where it's going** | [`docs/PLAN.md`](docs/PLAN.md) — launch + polish + roadmap (single source of truth) |
 | **Deploying** | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) |
 | **Business & strategy** | [`docs/analysis/`](docs/analysis/) |
 | **Legal** | [`docs/legal/`](docs/legal/) |

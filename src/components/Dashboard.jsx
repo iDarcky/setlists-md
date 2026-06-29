@@ -14,6 +14,7 @@ import DateStatusModal from './schedule/DateStatusModal';
 import { useTeamSetlistMap } from '../hooks/useTeamSetlistMap';
 import { useAuth } from '../auth/useAuth';
 import { formatClockTime } from '../lib/dateFormat';
+import { setlistStartMs, isSetlistUpcoming } from '../lib/setlistTime';
 
 // Order + metadata for the reorderable dashboard widgets. `requires` gates a
 // widget by context (auth / team); the customize sheet hides ineligible ones.
@@ -139,9 +140,11 @@ export default function Dashboard({
     .slice(0, 5);
 
   const now = new Date();
+  // Upcoming until the set actually *ends* (its end time, or 1h after start) —
+  // so a service stays here through its slot instead of vanishing at start.
   const upcomingSetlists = [...setlists]
-    .filter(sl => new Date(`${sl.date}T${sl.time || '00:00'}:00`) >= now)
-    .sort((a, b) => new Date(`${a.date}T${a.time || '00:00'}:00`) - new Date(`${b.date}T${b.time || '00:00'}:00`))
+    .filter(sl => isSetlistUpcoming(sl, now.getTime()))
+    .sort((a, b) => setlistStartMs(a) - setlistStartMs(b))
     .slice(0, 6);
 
   const songCountOf = (sl) => (sl.items || []).filter(i => i.songId).length;

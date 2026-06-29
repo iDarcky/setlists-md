@@ -49,7 +49,7 @@ function groupChordWords(pairs) {
 }
 
 export default function SectionBlock({
-  section, transpose, modOffset = 0, nns, notation, songKey,
+  section, transpose, modOffset = 0, nns, notation, songKey, accidentals = 'auto',
   showChords = true, showLyrics = true, showTabs = true, inlineNotes = true, noteStyle = 'dashes',
   sectionColors, sectionLabels, customSectionTypes, tabScale = 1, tabColors, tabInstrument = 'all', chordEmphasis = 'full',
   condensed = false, onJumpToFirst,
@@ -136,7 +136,7 @@ export default function SectionBlock({
     const hasLyrics = pairs.some(p => p.text.trim());
 
     const renderChord = (rawChord, padded) => {
-      let chord = notateChord(rawChord, { key: songKey, notation: notationMode, transpose: effectiveTranspose });
+      let chord = notateChord(rawChord, { key: songKey, notation: notationMode, transpose: effectiveTranspose, accidentals });
       // Bass "root emphasis": collapse each chord to the note a bassist plays —
       // the slash bass if present, otherwise the chord root.
       if (chordEmphasis === 'root') chord = bassNote(chord);

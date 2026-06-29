@@ -13,19 +13,27 @@ export function StructureRibbon({
   // scrolled into view as the song scrolls (scroll-sync).
   activeIndex = null,
   // Visual variant the user picks in Settings → Chart Defaults:
-  //   'chips'    — coloured pills (default)
+  //   'codes'    — bordered mono code boxes, coloured text (default; mockup)
+  //   'chips'    — coloured rounded pills
   //   'numbered' — plain colour-coded short codes, separated by middots
   //   'dots'     — minimal coloured dots, most compact
-  style = 'chips',
+  style = 'codes',
   // When true, chips wrap to multiple lines instead of horizontal-scrolling.
   // Used by the setlist overview v2 song cards (avoids the odd mobile scroll).
   wrap = false,
+  // When false, consecutive duplicates are NOT merged into "×N" — each entry
+  // renders as its own item (used by the vertical floating side rail, where the
+  // user wants the repeats spelled out rather than collapsed).
+  collapse = true,
+  // 'horizontal' (default) or 'vertical' — the side floating rail stacks the
+  // items in a column.
+  orientation = 'horizontal',
 }) {
   // Collapse consecutive duplicates: "C1, C1, C1" → one entry "C1 ×3".
   const runs = [];
   structure.forEach((name, i) => {
     const last = runs[runs.length - 1];
-    if (last && last.name === name) last.count += 1;
+    if (collapse && last && last.name === name) last.count += 1;
     else runs.push({ name, count: 1, index: i });
   });
 
@@ -45,14 +53,18 @@ export function StructureRibbon({
   const isActiveRun = (run) => activeIndex != null && activeIndex >= run.index && activeIndex < run.index + run.count;
   // px-1 keeps the first/last chip (and the active chip's ring) from being
   // clipped at the scroller's edges.
+  const vertical = orientation === 'vertical';
   const rowClass = cn(
     'flex gap-1 py-1 px-1 min-w-0',
-    wrap ? 'flex-wrap' : 'flex-nowrap overflow-x-auto no-scrollbar',
+    vertical
+      ? 'flex-col items-center'
+      : (wrap ? 'flex-wrap' : 'flex-nowrap overflow-x-auto no-scrollbar'),
   );
   const colorOf = (name) => sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
   const labelOf = (name) => (compact ? compactLabel(name) : sectionLabel(name, sectionLabels));
 
-  if (style === 'dots') {
+  if (style === 'dots' || style === 'dotlabel') {
+    const showLabels = style === 'dotlabel';
     return (
       <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-1.5')}>
         {runs.map((run, i) => {
@@ -64,15 +76,59 @@ export function StructureRibbon({
               key={i}
               ref={active ? activeRef : null}
               {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index), title: labelOf(run.name) } : {})}
-              className={cn('shrink-0 inline-flex items-center gap-0.5', onSelect && 'cursor-pointer hover:opacity-80')}
+              className={cn('shrink-0 inline-flex items-center gap-1', onSelect && 'cursor-pointer hover:opacity-80')}
             >
+              {/* The dot uses the section's base colour (`s.b`) so it matches the
+                  in-chart section titles, not a washed-out border tint. */}
               <span
                 className={cn('rounded-full transition-all', active ? 'w-3.5 h-3.5 ring-2 ring-offset-1 ring-offset-transparent' : 'w-2.5 h-2.5')}
-                style={{ background: s.br, boxShadow: active ? `0 0 0 2px ${s.br}` : undefined }}
+                style={{ background: s.b, boxShadow: active ? `0 0 0 2px ${s.b}` : undefined }}
               />
-              {run.count > 1 && (
-                <span className="text-[10px] font-semibold" style={{ color: s.d }}>×{run.count}</span>
+              {showLabels && (
+                <span className={cn('font-mono font-bold text-[11px]', !active && 'opacity-70')} style={{ color: s.b }}>{labelOf(run.name)}</span>
               )}
+              {run.count > 1 && (
+                <span className="text-[10px] font-semibold" style={{ color: s.b }}>×{run.count}</span>
+              )}
+            </Tag>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // 'codes' — bordered mono code pills, coloured per section type. Matches the
+  // Song Hub V2 mockup's song-map row (rounded-rect chips, not the pill/dot
+  // variants). Reusable as a Settings ribbonStyle option.
+  if (style === 'codes') {
+    return (
+      <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-1.5')}>
+        {runs.map((run, i) => {
+          const s = colorOf(run.name);
+          const active = isActiveRun(run);
+          const Tag = onSelect ? 'button' : 'span';
+          return (
+            <Tag
+              key={i}
+              ref={active ? activeRef : null}
+              {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index), title: labelOf(run.name) } : {})}
+              className={cn(
+                'shrink-0 inline-flex items-center gap-1 font-mono font-bold text-[11px] px-2 py-1 rounded-[7px] border transition-all',
+                onSelect && 'cursor-pointer hover:opacity-80',
+                active && 'ring-2 ring-offset-1 ring-offset-transparent',
+              )}
+              style={{
+                // Mockup: neutral pill (border + fill), only the code text is
+                // section-coloured.
+                color: s.b,
+                borderColor: 'var(--border-1)',
+                background: 'var(--bg-1)',
+                opacity: active || activeIndex == null ? 1 : 0.7,
+                ...(active ? { boxShadow: `0 0 0 2px ${s.b}` } : {}),
+              }}
+            >
+              {compactLabel(run.name)}
+              {run.count > 1 && <span className="opacity-70">×{run.count}</span>}
             </Tag>
           );
         })}
@@ -93,7 +149,7 @@ export function StructureRibbon({
               <Tag
                 {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index) } : {})}
                 className={cn('bg-transparent border-none p-0 font-bold text-[11px] font-mono', active && 'underline underline-offset-4', onSelect && 'cursor-pointer hover:opacity-80')}
-                style={{ color: s.d, opacity: active || activeIndex == null ? 1 : 0.6 }}
+                style={{ color: s.b, opacity: active || activeIndex == null ? 1 : 0.7 }}
               >
                 {compactLabel(run.name)}
                 {run.count > 1 && <span className="opacity-70">×{run.count}</span>}

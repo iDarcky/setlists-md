@@ -5,8 +5,13 @@ import { Button } from './ui/Button';
 import WorkspacePickerDialog from './ui/WorkspacePickerDialog';
 import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
-import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
-import { useResizablePane } from '../lib/useResizablePane';
+import { searchSongs } from '../lib/search';
+import { buildFacetOptions, matchesFacets, countActiveFacets } from '../lib/songFacets';
+import LibraryFilters from './library/LibraryFilters';
+import { resolveVisibleColumns } from '../lib/tableColumns';
+import ColumnsMenu from './ui/ColumnsMenu';
+import { useIsDesktop, useIsTablet } from '../lib/useMediaQuery';
+import { usePersistentView } from '../lib/usePersistentView';
 
 const ChartView = lazy(() => import('./ChartView'));
 
@@ -16,10 +21,19 @@ const SORT_MODES = [
   { key: 'key', label: 'Key' },
 ];
 
+function defaultArrangement(song) {
+  if (!Array.isArray(song?.arrangements)) return song || {};
+  return song.arrangements.find(a => a.id === song.defaultArrangementId) || song.arrangements[0] || song;
+}
 function defaultArrangementKey(song) {
-  if (!Array.isArray(song?.arrangements)) return song?.key || 'C';
-  const arr = song.arrangements.find(a => a.id === song.defaultArrangementId) || song.arrangements[0];
-  return arr?.key || 'C';
+  return defaultArrangement(song).key || song?.key || 'C';
+}
+function defaultArrangementTempo(song) {
+  return defaultArrangement(song).tempo ?? song?.tempo ?? null;
+}
+function formatUpdated(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function getGroupKey(song, sortMode) {
@@ -180,18 +194,20 @@ export default function Library({
   onMoveSongs,
   onCopySongs,
   onAddSongsToSetlist,
+  tableColumns,
+  onSetTableColumns,
   chartMoveCopy,
 }) {
   // Responsive shell. Touch tablets (pointer: coarse) get the two-pane master-
   // detail; true desktops (fine pointer) keep the Phase 1 overlay peek.
   const wide = useIsDesktop();              // ≥ 1024px
   const isTablet = useIsTablet();           // touch tablet, 768–1366px
-  const isLandscape = useIsLandscape();
   const isDesktop = wide && !isTablet;      // mouse-driven desktop
   const advanced = isDesktop || isTablet;   // table view + master-detail
-  // Pinned second pane: tablet in landscape with room for two columns.
-  const splitDock = isTablet && isLandscape && wide && !isFullscreen;
-  const { width: paneWidth, onPointerDown: onPaneResize } = useResizablePane({ storageKey: 'setlists-md:library-pane-w' });
+  // Tablet two-pane split removed — songs now open in the full Song Hub. The
+  // desktop side-peek (explicit per-row button) stays. Kept as a const so the
+  // column-visibility guards (`!splitDock`) read cleanly.
+  const splitDock = false;
 
   const previewSong = useMemo(
     () => songs.find(s => s.id === previewSongId) || null,
@@ -208,16 +224,15 @@ export default function Library({
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState('title');
   const [sortAsc, setSortAsc] = useState(true);
-  const [viewMode, setViewMode] = useState('table'); // 'table' | 'gallery'
+  // Persisted per device (localStorage); null = auto per-device default.
+  const [viewMode, setViewMode] = usePersistentView('setlists-md:songs-view'); // 'table' | 'compact' | 'gallery'
   const [selectedTags, setSelectedTags] = useState([]);
-  const [tagsOpen, setTagsOpen] = useState(false);
-  const [tagQuery, setTagQuery] = useState('');
+  const [facetSel, setFacetSel] = useState({}); // { facetKey: string[] }
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [selected, setSelected] = useState([]);
   const [bulkMenu, setBulkMenu] = useState(null); // 'setlist' | 'copy' | 'move' | null
   const [bulkPicker, setBulkPicker] = useState(null); // 'copy' | 'move' | null — workspace modal
 
-  const tagsRef = useRef(null);
   const fabRef = useRef(null);
   const sentinelRef = useRef(null);
   const bulkBarRef = useRef(null);
@@ -228,17 +243,26 @@ export default function Library({
     return [...tagSet].sort();
   }, [songs]);
 
-  useEffect(() => {
-    const handler = (e) => {
-      if (tagsRef.current && !tagsRef.current.contains(e.target)) setTagsOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  // Available facet values (Key / Tempo / Theme / Language / Year / Scripture /
+  // Moment) with counts, derived from the current library.
+  const facetOptions = useMemo(() => buildFacetOptions(songs), [songs]);
+  const activeFacetCount = countActiveFacets(facetSel);
+
+  const toggleFacet = (facetKey, value) => {
+    setFacetSel(prev => {
+      const cur = prev[facetKey] || [];
+      const next = cur.includes(value) ? cur.filter(v => v !== value) : [...cur, value];
+      return { ...prev, [facetKey]: next };
+    });
+  };
+  const clearAllFilters = () => { setSelectedTags([]); setFacetSel({}); };
+
+  // Customizable table columns (synced via settings.tableColumns).
+  const columnVisible = useMemo(() => resolveVisibleColumns('library', tableColumns, {}), [tableColumns]);
 
   useEffect(() => {
     const handler = (e) => {
-      if (e.key === 'Escape') { setTagsOpen(false); setBulkMenu(null); }
+      if (e.key === 'Escape') setBulkMenu(null);
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
@@ -248,27 +272,23 @@ export default function Library({
   // the (potentially large) filtered list recomputes at a lower priority.
   const deferredQuery = useDeferredValue(query);
   const filtered = useMemo(() => {
+    // Apply tag chips (AND) and the faceted metadata filters first — both
+    // orthogonal to the text query — then run the shared ultra-search. The list
+    // is re-sorted below by the user's chosen sortMode, so we only need search
+    // membership here.
     let result = songs;
-    if (deferredQuery) {
-      const q = deferredQuery.toLowerCase();
-      result = result.filter(s =>
-        s.title.toLowerCase().includes(q) ||
-        s.artist?.toLowerCase().includes(q) ||
-        (s.key || '').toLowerCase().includes(q) ||
-        s.tags?.some(t => t.toLowerCase().includes(q))
-      );
-    }
     if (selectedTags.length > 0) {
-      result = result.filter(s =>
-        selectedTags.every(tag => s.tags?.includes(tag))
-      );
+      result = result.filter(s => selectedTags.every(tag => s.tags?.includes(tag)));
     }
-    return result;
-  }, [songs, deferredQuery, selectedTags]);
+    if (activeFacetCount > 0) {
+      result = result.filter(s => matchesFacets(s, facetSel));
+    }
+    return searchSongs(result, deferredQuery);
+  }, [songs, deferredQuery, selectedTags, facetSel, activeFacetCount]);
 
   // Reset pagination + selection when filter criteria change.
   const [prevFilterKey, setPrevFilterKey] = useState(null);
-  const filterKey = JSON.stringify([deferredQuery, selectedTags, sortMode, sortAsc]);
+  const filterKey = JSON.stringify([deferredQuery, selectedTags, facetSel, sortMode, sortAsc]);
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey);
     setVisibleCount(INITIAL_VISIBLE);
@@ -347,12 +367,22 @@ export default function Library({
   const otherWorkspaces = workspaces.filter(w => w.id !== activeLibrary);
   const canMoveCopy = otherWorkspaces.length > 0;
 
-  // Table view + master-detail are available on desktop and tablet; phones keep
-  // the grouped card list.
-  const effectiveView = advanced ? viewMode : 'gallery';
-  // On tablet a row tap loads the detail pane; desktop keeps row → full chart
-  // with a dedicated pane button.
-  const onRowActivate = isTablet ? openPeek : openFull;
+  // Phones can pick Cards / Compact / Table. Default per device: desktop/tablet
+  // open in Table, phones open in Cards (the friendly default). Compact is a
+  // mobile-only mode; if a phone choice carries to desktop it falls back to
+  // the card gallery.
+  const autoView = advanced ? 'table' : 'gallery';
+  const vm = viewMode ?? autoView;
+  const effectiveView = advanced
+    ? (vm === 'compact' ? 'gallery' : vm)
+    : vm;
+  // Mobile full-table mode scrolls horizontally and drops the responsive column
+  // floors so the user's chosen columns all show (see colFloor below).
+  const mobileTable = !advanced && effectiveView === 'table';
+  const colFloor = (cls) => (mobileTable ? '' : cls);
+  // A row tap opens the full Song Hub on every device. Desktop also keeps a
+  // dedicated per-row button that opens the side-peek preview.
+  const onRowActivate = openFull;
 
   const runBulk = (fn, ...args) => {
     fn?.(selected, ...args);
@@ -376,91 +406,54 @@ export default function Library({
               onChange={e => setQuery(e.target.value)}
             />
 
-            {/* View switcher — desktop + tablet */}
-            <div className={cn('items-center rounded-lg border border-[var(--modes-border)] overflow-hidden', advanced ? 'flex' : 'hidden')}>
+            {/* View switcher — Table / Compact (mobile-only) / Cards. */}
+            <div className="flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
               <button
                 onClick={() => setViewMode('table')}
                 aria-label="Table view" title="Table view"
                 className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
-                  viewMode === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
+                  effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
               >
                 <TableViewIcon />
               </button>
               <button
+                onClick={() => setViewMode('compact')}
+                aria-label="Compact list view" title="Compact list"
+                className={cn('w-9 h-9 sm:hidden items-center justify-center cursor-pointer border-none transition-colors flex',
+                  vm === 'compact' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" />
+                </svg>
+              </button>
+              <button
                 onClick={() => setViewMode('gallery')}
-                aria-label="List view" title="List view"
+                aria-label="Card view" title="Card view"
                 className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
-                  viewMode === 'gallery' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
+                  effectiveView === 'gallery' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
               >
                 <GalleryViewIcon />
               </button>
             </div>
 
-            {/* Tags filter */}
-            {allTags.length > 0 && (
-              <div ref={tagsRef} className="relative hidden sm:block">
-                <button
-                  onClick={() => setTagsOpen(!tagsOpen)}
-                  className={`h-9 px-4 rounded-lg border cursor-pointer flex items-center gap-2 text-label-14 transition-all duration-150 ${
-                    selectedTags.length > 0
-                      ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--modes-surface)]'
-                      : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]'
-                  }`}
-                >
-                  {selectedTags.length > 0 && <span className="w-2 h-2 rounded-full bg-[var(--color-brand)]" />}
-                  Tags{selectedTags.length > 0 ? ` (${selectedTags.length})` : ''}
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-150 ${tagsOpen ? 'rotate-180' : ''}`}>
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </button>
+            {/* Unified filters — tags (AND) + faceted metadata (OR per facet) */}
+            <LibraryFilters
+              facetOptions={facetOptions}
+              selected={facetSel}
+              onToggleFacet={toggleFacet}
+              allTags={allTags}
+              selectedTags={selectedTags}
+              onToggleTag={toggleTag}
+              activeCount={selectedTags.length + activeFacetCount}
+              onClearAll={clearAllFilters}
+            />
 
-                {tagsOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-[220px] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden">
-                    {allTags.length > 5 && (
-                      <div className="px-3 pt-3 pb-2">
-                        <input
-                          type="text"
-                          placeholder="Search tags…"
-                          value={tagQuery}
-                          onChange={e => setTagQuery(e.target.value)}
-                          onClick={e => e.stopPropagation()}
-                          className="w-full h-8 px-3 rounded-lg border border-[var(--border-1)] bg-[var(--bg-2)] text-copy-13 text-[var(--text-1)] placeholder:text-[var(--text-2)] outline-none focus:border-[var(--border-3)] transition-colors"
-                        />
-                      </div>
-                    )}
-                    <div className="flex flex-col py-1 max-h-[320px] overflow-y-auto">
-                      {(() => {
-                        const tq = tagQuery.toLowerCase();
-                        const filteredTags = allTags.filter(t => t.toLowerCase().includes(tq));
-                        const sel = filteredTags.filter(t => selectedTags.includes(t));
-                        const unsel = filteredTags.filter(t => !selectedTags.includes(t)).slice(0, 10 - sel.length);
-                        const visible = [...sel, ...unsel];
-                        const more = filteredTags.length > visible.length;
-                        return (
-                          <>
-                            {visible.map(tag => (
-                              <label key={tag} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--bg-2)] transition-colors">
-                                <input type="checkbox" checked={selectedTags.includes(tag)} onChange={() => toggleTag(tag)} className="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer" />
-                                <span className="text-copy-14 text-[var(--text-1)]">{tag}</span>
-                              </label>
-                            ))}
-                            {visible.length === 0 && <div className="px-4 py-3 text-copy-13 text-[var(--text-2)]">No tags found</div>}
-                            {more && <div className="px-4 py-2 text-copy-12 text-[var(--ds-gray-600)]">{filteredTags.length - visible.length} more — refine search</div>}
-                          </>
-                        );
-                      })()}
-                    </div>
-                    {selectedTags.length > 0 && (
-                      <>
-                        <div className="border-t border-[var(--border-1)]" />
-                        <button onClick={() => { setSelectedTags([]); setTagQuery(''); }} className="w-full px-4 py-2.5 text-copy-14 text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--ds-gray-alpha-100)] transition-colors cursor-pointer bg-transparent border-none text-center">
-                          Clear all
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
+            {effectiveView === 'table' && onSetTableColumns && (
+              <ColumnsMenu
+                table="library"
+                saved={tableColumns}
+                onChange={(ids) => onSetTableColumns('library', ids)}
+              />
             )}
 
             {/* Import + New song (desktop) */}
@@ -512,8 +505,8 @@ export default function Library({
             </div>
           )
         ) : effectiveView === 'table' ? (
-          <div className="modes-card overflow-hidden">
-            <table className="w-full border-collapse table-fixed">
+          <div className={cn('modes-card', mobileTable ? 'overflow-x-auto' : 'overflow-hidden')}>
+            <table className={cn('w-full border-collapse table-fixed', mobileTable && 'min-w-[640px]')}>
               <thead>
                 <tr className="border-b border-[var(--modes-border)]">
                   <th className="w-[44px] px-4 py-3">
@@ -526,20 +519,28 @@ export default function Library({
                       Name {sortMode === 'title' && <SortArrow asc={sortAsc} />}
                     </button>
                   </th>
-                  {!splitDock && (
-                    <th className="text-left px-5 py-3 hidden md:table-cell w-[34%]">
+                  {!splitDock && columnVisible.has('artist') && (
+                    <th className={cn('text-left px-5 py-3 w-[34%]', colFloor('hidden md:table-cell'))}>
                       <button onClick={() => handleSortClick('artist')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
                         Artist {sortMode === 'artist' && <SortArrow asc={sortAsc} />}
                       </button>
                     </th>
                   )}
-                  <th className="text-left px-5 py-3 w-[72px]">
-                    <button onClick={() => handleSortClick('key')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
-                      Key {sortMode === 'key' && <SortArrow asc={sortAsc} />}
-                    </button>
-                  </th>
-                  {!splitDock && (
-                    <th className="text-left px-5 py-3 hidden lg:table-cell w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>
+                  {columnVisible.has('key') && (
+                    <th className="text-left px-5 py-3 w-[72px]">
+                      <button onClick={() => handleSortClick('key')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
+                        Key {sortMode === 'key' && <SortArrow asc={sortAsc} />}
+                      </button>
+                    </th>
+                  )}
+                  {!splitDock && columnVisible.has('tempo') && (
+                    <th className={cn('text-left px-5 py-3 w-[90px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', colFloor('hidden lg:table-cell'))}>Tempo</th>
+                  )}
+                  {!splitDock && columnVisible.has('tags') && (
+                    <th className={cn('text-left px-5 py-3 w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', colFloor('hidden lg:table-cell'))}>Tags</th>
+                  )}
+                  {!splitDock && columnVisible.has('updated') && (
+                    <th className={cn('text-left px-5 py-3 w-[130px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', colFloor('hidden xl:table-cell'))}>Updated</th>
                   )}
                 </tr>
               </thead>
@@ -576,14 +577,21 @@ export default function Library({
                             </button>
                           )}
                         </div>
-                        <div className="md:hidden text-copy-13 text-[var(--modes-text-muted)] truncate mt-0.5">{song.artist}</div>
+                        <div className={cn('text-copy-13 text-[var(--modes-text-muted)] truncate mt-0.5', mobileTable ? 'hidden' : 'md:hidden')}>{song.artist}</div>
                       </td>
-                      {!splitDock && (
-                        <td className="px-5 py-3.5 hidden md:table-cell text-copy-14 text-[var(--modes-text-muted)] truncate">{song.artist}</td>
+                      {!splitDock && columnVisible.has('artist') && (
+                        <td className={cn('px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] truncate', colFloor('hidden md:table-cell'))}>{song.artist}</td>
                       )}
-                      <td className="px-5 py-3.5"><KeyChip value={defaultArrangementKey(song)} /></td>
-                      {!splitDock && (
-                        <td className="px-5 py-3.5 hidden lg:table-cell">
+                      {columnVisible.has('key') && (
+                        <td className="px-5 py-3.5"><KeyChip value={defaultArrangementKey(song)} /></td>
+                      )}
+                      {!splitDock && columnVisible.has('tempo') && (
+                        <td className={cn('px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] tabular-nums', colFloor('hidden lg:table-cell'))}>
+                          {defaultArrangementTempo(song) ? `${defaultArrangementTempo(song)}` : '—'}
+                        </td>
+                      )}
+                      {!splitDock && columnVisible.has('tags') && (
+                        <td className={cn('px-5 py-3.5', colFloor('hidden lg:table-cell'))}>
                           <div className="flex flex-wrap gap-1">
                             {(song.tags || []).slice(0, 3).map(t => (
                               <span key={t} className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface)] text-[var(--modes-text-muted)] border border-[var(--modes-border)]">{t}</span>
@@ -591,11 +599,32 @@ export default function Library({
                           </div>
                         </td>
                       )}
+                      {!splitDock && columnVisible.has('updated') && (
+                        <td className={cn('px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap', colFloor('hidden xl:table-cell'))}>{formatUpdated(song.updatedAt)}</td>
+                      )}
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+            {hasMore && (
+              <div ref={sentinelRef} className="py-5 text-center text-copy-12 text-[var(--modes-text-dim)]">
+                Loading more… ({truncated.length} of {filtered.length})
+              </div>
+            )}
+          </div>
+        ) : effectiveView === 'compact' ? (
+          <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
+            {flatRows.map(song => (
+              <SongCard
+                key={song.id}
+                song={song}
+                variant="compact"
+                highlight={deferredQuery}
+                selected={advanced && song.id === previewSongId}
+                onClick={() => onRowActivate(song)}
+              />
+            ))}
             {hasMore && (
               <div ref={sentinelRef} className="py-5 text-center text-copy-12 text-[var(--modes-text-dim)]">
                 Loading more… ({truncated.length} of {filtered.length})
@@ -627,49 +656,6 @@ export default function Library({
       </div>
 
       </div>{/* /list column */}
-
-      {/* Draggable divider — resize the pane, Spotify-style. */}
-      {splitDock && (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize preview"
-          onPointerDown={onPaneResize}
-          className="shrink-0 w-1.5 self-stretch cursor-col-resize relative group"
-        >
-          <span className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-[var(--ds-gray-300)] group-hover:bg-[var(--color-brand)] transition-colors" />
-        </div>
-      )}
-
-      {/* Pinned detail pane — tablet landscape (Phase 3 two-pane split) */}
-      {splitDock && (
-        <aside
-          style={{ width: paneWidth }}
-          className="h-full min-h-0 shrink-0 border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden flex flex-col"
-        >
-          {previewSong ? (
-            <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
-              <ChartView
-                key={previewSong.id}
-                song={previewSong}
-                onBack={closePeek}
-                onEdit={onEditSong ? () => onEditSong(previewSong) : null}
-                isFullscreen={false}
-                onToggleFullscreen={onToggleFullscreen}
-                {...(chartMoveCopy ? chartMoveCopy(previewSong.id) : {})}
-                {...chartDefaults}
-              />
-            </Suspense>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-3">
-              <div className="w-12 h-12 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
-                <PaneIcon />
-              </div>
-              <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">Select a song to preview it here.</p>
-            </div>
-          )}
-        </aside>
-      )}
 
       {/* FAB — narrow mouse-driven windows only. Touch tablets get the
           bottom-nav FAB instead, so gating on !isTablet avoids a duplicate. */}

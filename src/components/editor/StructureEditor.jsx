@@ -26,7 +26,7 @@ function shortCode(name) {
 // availableSections — section labels found in the song body
 // onChange(next) — fires with the next comma-separated string
 // autoSeed       — populate from document order on first paint when empty
-export default function StructureEditor({ value, availableSections, onChange, autoSeed = true }) {
+export default function StructureEditor({ value, availableSections, onChange, autoSeed = true, variant = 'full' }) {
   const items = useMemo(() => {
     if (!value) return [];
     return value.split(',').map(s => s.trim()).filter(Boolean);
@@ -58,7 +58,18 @@ export default function StructureEditor({ value, availableSections, onChange, au
     setSelIdx(j);
   };
 
-  return (
+  // 'link' renders only the Edit trigger + the editing sheet (no label, no inline
+  // chip strip) — used where the structure is already shown elsewhere (e.g. the
+  // Arrange tab's play-order chips).
+  const trigger = variant === 'link' ? (
+    <button
+      type="button"
+      onClick={() => { setSelIdx(null); setOpen(true); }}
+      className="shrink-0 text-label-11 font-semibold text-[var(--color-brand-text)] hover:underline bg-transparent border-none cursor-pointer px-1 py-1"
+    >
+      Edit order
+    </button>
+  ) : (
     <div className="flex items-center gap-2 min-w-0">
       <span className="text-label-10 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)] shrink-0">
         Structure
@@ -87,7 +98,12 @@ export default function StructureEditor({ value, availableSections, onChange, au
           ))
         )}
       </div>
+    </div>
+  );
 
+  return (
+    <>
+      {trigger}
       <BottomSheet open={open} onClose={() => setOpen(false)} title="Song structure">
         <div className="flex flex-col gap-5 pb-2">
           {/* Current order */}
@@ -184,6 +200,6 @@ export default function StructureEditor({ value, availableSections, onChange, au
           </div>
         </div>
       </BottomSheet>
-    </div>
+    </>
   );
 }

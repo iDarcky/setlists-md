@@ -133,6 +133,25 @@ const Row = ({ label, children, description }) => (
 
 // ─── General panel ───────────────────────────────────────────────────────
 
+// Segmented On/Off control (matches the "Confirm before deleting" pattern).
+function OnOffToggle({ value, onChange }) {
+  return (
+    <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
+      {[{ key: true, label: 'On' }, { key: false, label: 'Off' }].map(({ key, label }) => (
+        <Button
+          key={String(key)}
+          size="sm"
+          variant={value === key ? 'secondary' : 'ghost'}
+          onClick={() => onChange(key)}
+          className={value === key ? 'bg-[var(--ds-background-100)] shadow-sm' : 'text-[var(--ds-gray-900)]'}
+        >
+          {label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 function GeneralPanel({ settings, update, onShowHelp, onReplayOnboarding }) {
   const landing = settings?.landingView || 'home';
   const confirmDelete = settings?.confirmBeforeDelete !== false;
@@ -181,6 +200,12 @@ function GeneralPanel({ settings, update, onShowHelp, onReplayOnboarding }) {
             </Button>
           ))}
         </div>
+      </Row>
+      <Row label="Keep screen awake" description="Stop the screen dimming while you're reading or performing. Uses the Wake Lock API where supported (modern browsers + installed PWA).">
+        <OnOffToggle value={settings?.keepAwake === true} onChange={(v) => update('keepAwake', v)} />
+      </Row>
+      <Row label="Lock orientation" description="Best-effort: keep the current orientation while reading. Most browsers only allow this in full screen / an installed PWA.">
+        <OnOffToggle value={settings?.lockOrientation === true} onChange={(v) => update('lockOrientation', v)} />
       </Row>
       <Row label="Help guide" description="Open the in-app help and feedback.">
         <Button size="sm" variant="secondary" onClick={() => onShowHelp?.()}>Open Help</Button>
@@ -443,27 +468,17 @@ function ChartPanel({ settings, update }) {
         </div>
       </Row>
       <Row label="Navigation controls" description="How you move between songs in live & practice.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {[
-            { key: 'pill', label: 'Floating pill' },
-            { key: 'header', label: 'Header buttons' },
-            { key: 'edge', label: 'Edge arrows' },
-            { key: 'swipe', label: 'Swipe' },
-          ].map(({ key, label }) => {
-            const active = (settings.navStyle || 'pill') === key;
-            return (
-              <Button
-                key={key}
-                size="sm"
-                variant={active ? 'secondary' : 'ghost'}
-                onClick={() => update('navStyle', key)}
-                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </div>
+        <Select value={settings.navStyle || 'pill'} onValueChange={(v) => update('navStyle', v)}>
+          <SelectTrigger className="h-9 w-48 bg-[var(--ds-background-100)]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="pill">Floating pill</SelectItem>
+            <SelectItem value="header">Header buttons</SelectItem>
+            <SelectItem value="edge">Edge arrows</SelectItem>
+            <SelectItem value="swipe">Swipe</SelectItem>
+          </SelectContent>
+        </Select>
       </Row>
       <Row label="Auto-hide title bar" description="Collapse the header in live & practice after a few seconds idle; tap to bring it back.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
@@ -486,27 +501,31 @@ function ChartPanel({ settings, update }) {
           })}
         </div>
       </Row>
-      <Row label="Structure ribbon" description="How the section flow shows above the chart in chart, practice & live.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {[
-            { key: 'chips', label: 'Chips' },
-            { key: 'numbered', label: 'Codes' },
-            { key: 'dots', label: 'Dots' },
-          ].map(({ key, label }) => {
-            const active = (settings.ribbonStyle || 'chips') === key;
-            return (
-              <Button
-                key={key}
-                size="sm"
-                variant={active ? 'secondary' : 'ghost'}
-                onClick={() => update('ribbonStyle', key)}
-                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </div>
+      <Row label="Accidentals" description="How sharps and flats are spelled. Auto follows the song's key (e.g. F♯ in G, G♭ in D♭).">
+        <Select value={settings.accidentals || 'auto'} onValueChange={(v) => update('accidentals', v)}>
+          <SelectTrigger className="h-9 w-44 bg-[var(--ds-background-100)]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="auto">Auto (by key)</SelectItem>
+            <SelectItem value="sharps">Sharps (♯)</SelectItem>
+            <SelectItem value="flats">Flats (♭)</SelectItem>
+          </SelectContent>
+        </Select>
+      </Row>
+      <Row label="Structure ribbon" description="How the section flow looks in chart, practice & live (header or floating).">
+        <Select value={settings.ribbonStyle || 'codes'} onValueChange={(v) => update('ribbonStyle', v)}>
+          <SelectTrigger className="h-9 w-44 bg-[var(--ds-background-100)]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="codes">Boxes</SelectItem>
+            <SelectItem value="chips">Chips</SelectItem>
+            <SelectItem value="numbered">Inline</SelectItem>
+            <SelectItem value="dots">Dots</SelectItem>
+            <SelectItem value="dotlabel">Dots + label</SelectItem>
+          </SelectContent>
+        </Select>
       </Row>
       <Row label="Tab grid resolution" description="Default subdivisions when creating a new tab. Beats only keeps it simple; finer grids allow 8th/16th-note detail.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
@@ -600,6 +619,22 @@ function LabsPanel({ settings, update }) {
           </div>
         </Row>
       )}
+      <Row label="Floating structure ribbon" description="Move the section-flow ribbon out of the header into a floating, see-through overlay in chart, practice & live. Off keeps it in the header.">
+        <Select value={settings.structurePosition || 'top'} onValueChange={(v) => update('structurePosition', v)}>
+          <SelectTrigger className="h-9 w-44 bg-[var(--ds-background-100)]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="top">Off (in header)</SelectItem>
+            <SelectItem value="bottom">Bottom</SelectItem>
+            <SelectItem value="left">Left</SelectItem>
+            <SelectItem value="right">Right</SelectItem>
+          </SelectContent>
+        </Select>
+      </Row>
+      <LabsToggle settings={settings} update={update} flag="mockupPalette"
+        label="Neutral palette (preview)"
+        description="Preview the Song Hub V2 neutral-dark colours across the whole app, so you can compare them with the current dark theme before we commit." />
     </Section>
   );
 }

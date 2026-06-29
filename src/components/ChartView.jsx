@@ -1,25 +1,27 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { transposeChord, keysInQualityOf, semitonesBetween, normalizeSectionName } from '../music';
+import { transposeChord, transposeKey, keysInQualityOf, semitonesBetween, normalizeSectionName } from '../music';
 import { resolveSongView } from '../arrangements';
 import SectionBlock from './SectionBlock';
 import SongMap from './SongMap';
+import SongDetails from './SongDetails';
 import ChordDiagram from './ChordDiagram';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { Card } from './ui/Card';
-import { SegmentedControl } from './ui/SegmentedControl';
+import { Dialog } from './ui/Dialog';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
 import { cn } from '../lib/utils';
 import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { StructureRibbon } from './StructureRibbon';
-import ViewModePicker from './ui/ViewModePicker';
+import FloatingStructure from './ui/FloatingStructure';
+import { VIEW_MODES } from './ui/viewModes';
+import AaMenu from './AaMenu';
 import { useActiveSection } from '../hooks/useActiveSection';
 import { useStageHeaderCollapse } from '../hooks/useStageHeaderCollapse';
 import StageHeader from './ui/StageHeader';
 import { exportSongPdf } from '../pdf/exportSongPdf';
 import { OverflowMenu } from './ui/OverflowMenu';
-import BottomSheet, { SheetField } from './ui/BottomSheet';
-import ChartStyleControls from './ChartStyleControls';
+import { SheetField } from './ui/BottomSheet';
 import {
   CHART_THEMES,
   CHART_FONTS,
@@ -59,6 +61,20 @@ export default function ChartView({
   onOpenAdvancedStyle,
   onMoveSong, onCopySong,
   onPlay,
+  // ── Embedded mode (Song Hub) ──────────────────────────────────────────────
+  // When `embedded`, the chart is rendered as the hub's Chart tab: the hub owns
+  // identity/meta/actions, so ChartView suppresses its own StageHeader title/
+  // meta/actions/close and instead renders only the reader body + the song-map
+  // ribbon + notes peek. Transpose, displayMode and the Aa popover become
+  // *controlled* by the hub (falling back to internal state when standalone).
+  embedded = false,
+  selectedKey: selectedKeyProp, onSelectKey,
+  displayMode: displayModeProp, onDisplayMode,
+  aaAnchor: aaAnchorProp, onAaClose,
+  // Embedded: report the resolved playback structure + the in-view section so
+  // the hub can render the song-map ribbon above the tabs (the chart no longer
+  // renders its own header/ribbon when embedded).
+  onReportStructure, onActiveSection,
 }) {
   const initialFontSize = FONT_SIZES[defaultFontSize] || (typeof defaultFontSize === 'number' ? defaultFontSize : 16);
 
@@ -80,7 +96,10 @@ export default function ChartView({
     return songInput;
   }, [songInput, activeArrId]);
 
-  const [selectedKey, setSelectedKey] = useState(song?.key || 'C');
+  // Transpose key: controlled by the hub when embedded, otherwise internal.
+  const [internalSelectedKey, setInternalSelectedKey] = useState(song?.key || 'C');
+  const selectedKey = selectedKeyProp ?? internalSelectedKey;
+  const setSelectedKey = onSelectKey || setInternalSelectedKey;
   // Reset transpose when the user switches arrangement (each arrangement has
   // its own source key — preserving an old selectedKey would leak the wrong
   // transposition into the new chart).
@@ -90,7 +109,7 @@ export default function ChartView({
       lastArrIdRef.current = activeArrId;
       if (song?.key) setSelectedKey(song.key);
     }
-  }, [activeArrId, song?.key]);
+  }, [activeArrId, song?.key, setSelectedKey]);
   // Display options are device-global now: they live in `settings` (persisted +
   // synced) and are resolved here, falling back to the active stage-mode preset.
   // Every change writes straight back through onUpdateSettings, so a tweak on
@@ -109,10 +128,17 @@ export default function ChartView({
   const userSetColumnsRef = useRef(false);
 
   const [columns, setColumns] = useState(resolveColumns(disp.columns, wantTwo));
-  const setColumnsManually = (v) => {
-    userSetColumnsRef.current = true;
-    setColumns(v);
+  // Aa-menu column control: supports 'auto' (clears the manual override and
+  // re-resolves from width) as well as explicit 1/2.
+  const setColumnsPref = (v) => {
     onUpdateSettings?.('defaultColumns', v);
+    if (v === 'auto') {
+      userSetColumnsRef.current = false;
+      setColumns(resolveColumns('auto', wantTwo));
+    } else {
+      userSetColumnsRef.current = true;
+      setColumns(v);
+    }
   };
   // Re-seed when the reading width / orientation / setting changes, unless the
   // user has overridden the column count by hand this session.
@@ -128,7 +154,9 @@ export default function ChartView({
   // Quick view mode (session-local) from the structure row:
   //   chords → chords + lyrics (+ tabs); chordsonly → chords, no lyrics/tabs;
   //   lyrics → lyrics only; tabs → tabs only.
-  const [displayMode, setDisplayMode] = useState('chords');
+  const [internalDisplayMode, setInternalDisplayMode] = useState('chords');
+  const displayMode = displayModeProp ?? internalDisplayMode;
+  const setDisplayMode = onDisplayMode || setInternalDisplayMode;
   const viewChords = displayMode === 'chords' || displayMode === 'chordsonly';
   const viewLyrics = displayMode === 'chords' || displayMode === 'lyrics';
   const viewTabs = displayMode === 'chords' || displayMode === 'tabs';
@@ -142,7 +170,7 @@ export default function ChartView({
   // If a song loses its tabs (or never had them), don't get stuck in tabs view.
   useEffect(() => {
     if (!hasTabs && displayMode === 'tabs') setDisplayMode('chords');
-  }, [hasTabs, displayMode]);
+  }, [hasTabs, displayMode, setDisplayMode]);
 
   // Instruments this song's tabs are tagged for (electric / acoustic / bass).
   // When more than one is present, the reader can filter to just theirs.
@@ -176,8 +204,27 @@ export default function ChartView({
   // Reader notation: Letters / Nashville numbers / Do-Re-Mi solfège. Also writes
   // the legacy `nashville` boolean so older surfaces/prefs stay consistent.
   const changeNotation = (v) => { setNotation(v); onUpdateSettings?.('notation', v); onUpdateSettings?.('nashville', v === 'nashville'); };
-  const toggleShowDiagrams = () => { const v = !showDiagrams; setShowDiagrams(v); onUpdateSettings?.('showDiagrams', v); };
-  const toggleShowChords = () => { const v = !showChords; setShowChords(v); onUpdateSettings?.('showChords', v); };
+
+  // Reset one Aa tab's overrides back to the device/app defaults (clearing the
+  // keys lets resolveChartDisplay fall back to the stage preset). The re-seed
+  // effect above mirrors the cleared values into local display state.
+  const resetAa = (which) => {
+    if (which === 'lyrics') {
+      onUpdateSettings?.('defaultFontSize', undefined);
+      onUpdateSettings?.('chartLyricFont', undefined);
+      onUpdateSettings?.('chartLyricColor', undefined);
+    } else if (which === 'chords') {
+      onUpdateSettings?.('chordFontSize', undefined);
+      onUpdateSettings?.('chartChordFont', undefined);
+      onUpdateSettings?.('chartChordColor', undefined);
+      onUpdateSettings?.('showDiagrams', undefined);
+    } else {
+      onUpdateSettings?.('chartTheme', undefined);
+      onUpdateSettings?.('notation', undefined);
+      onUpdateSettings?.('nashville', undefined);
+      setColumnsPref('auto');
+    }
+  };
 
   // Instrument presets (stage modes) — pick a band role and the chart switches
   // to a layout tuned for it. Writes every value through settings so the choice
@@ -203,6 +250,13 @@ export default function ChartView({
   const changeLineHeight = (v) => onUpdateSettings?.('lyricLineHeight', Math.max(1, Math.min(2.4, Math.round(v * 100) / 100)));
 
   const [activeSheet, setActiveSheet] = useState(null); // 'layout' | 'music' | 'arrangements' | null
+  // Aa popover anchor. Embedded: the hub owns the Aa button and passes its rect
+  // down (the popover itself still lives here, keeping all the size/column/
+  // notation wiring in one place). Standalone: internal state.
+  const [internalAaAnchor, setInternalAaAnchor] = useState(null); // DOMRect of the Aa button, or null
+  const aaAnchor = embedded ? aaAnchorProp : internalAaAnchor;
+  const setAaAnchor = setInternalAaAnchor;
+  const closeAa = embedded ? (onAaClose || (() => {})) : () => setInternalAaAnchor(null);
   const [showInfo, setShowInfo] = useState(false); // inline song-details panel toggled from the title chevron
   const [notesPeekOpen, setNotesPeekOpen] = useState(notesPeekDefaultOpen);
 
@@ -269,6 +323,9 @@ export default function ChartView({
   // would hide the duplicates, so we fall back to document order. That
   // preserves the pre-structure-rework behaviour for legacy songs.
   const orderedSections = useMemo(() => {
+    // "auto" songs always follow document (section) order, so Arrange edits
+    // flow straight through. Only a "custom" slide order consults structure[].
+    if (song.structureMode !== 'custom') return song.sections;
     const types = song.sections.map(s => normalizeSectionName(s.type));
     const uniqueTypes = new Set(types).size === types.length;
     if (
@@ -286,7 +343,18 @@ export default function ChartView({
     // rather than partially hiding the song.
     if (resolved.length !== song.structure.length) return song.sections;
     return resolved;
-  }, [song.structure, song.sections]);
+  }, [song.structure, song.structureMode, song.sections]);
+
+  // Embedded: feed the resolved section flow + the in-view section up to the
+  // hub, which owns the song-map ribbon above the tabs.
+  useEffect(() => {
+    if (!embedded) return;
+    onReportStructure?.(orderedSections.map(s => s.type));
+  }, [embedded, orderedSections, onReportStructure]);
+  useEffect(() => {
+    if (!embedded) return;
+    onActiveSection?.(activeSection);
+  }, [embedded, activeSection, onActiveSection]);
 
   // Cumulative modulate offsets follow playback order so a repeated
   // section after a `{modulate}` block plays back in the new key.
@@ -339,43 +407,33 @@ export default function ChartView({
       })
   ));
 
-  // Check if any metadata exists
-  const hasMetadata = !!song.artist || song.capo > 0 || !!song.ccli || (song.tags?.length > 0) || !!song.notes || !!song.spotify || !!song.youtube
-    || !!song.originaltitle || !!song.language || !!song.translator || !!song.vocalrange || !!song.year
-    || !!song.writers || !!song.publishers || !!song.album || !!song.label || !!song.copyright
-    || !!song.themes || !!song.genres || !!song.scripture || !!song.moment || !!song.story;
-
   // Song details body — shown inline in the header (toggled by the title
-  // chevron). Defined once so the header panel stays readable.
-  const songInfoBody = hasMetadata ? (
-    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-copy-13 m-0">
-      {song.artist && <InfoRow label="Artist">{song.artist}</InfoRow>}
-      {song.originaltitle && <InfoRow label="Original title">{song.originaltitle}</InfoRow>}
-      {song.language && <InfoRow label="Language">{song.language}</InfoRow>}
-      {song.translator && <InfoRow label="Translator">{song.translator}</InfoRow>}
-      {song.tempo && <InfoRow label="Tempo">{song.tempo} bpm</InfoRow>}
-      {song.time && <InfoRow label="Time">{song.time}</InfoRow>}
-      {song.capo > 0 && <InfoRow label="Capo">{song.capo}</InfoRow>}
-      {song.vocalrange && <InfoRow label="Vocal range">{song.vocalrange}</InfoRow>}
-      {song.year && <InfoRow label="Release year">{song.year}</InfoRow>}
-      {song.writers && <InfoRow label="Writers">{song.writers}</InfoRow>}
-      {song.publishers && <InfoRow label="Publishers">{song.publishers}</InfoRow>}
-      {song.album && <InfoRow label="Album">{song.album}</InfoRow>}
-      {song.label && <InfoRow label="Label">{song.label}</InfoRow>}
-      {song.ccli && <InfoRow label="CCLI">{song.ccli}</InfoRow>}
-      {song.copyright && <InfoRow label="Copyright">{song.copyright}</InfoRow>}
-      {song.themes && <InfoRow label="Themes">{song.themes}</InfoRow>}
-      {song.genres && <InfoRow label="Genres">{song.genres}</InfoRow>}
-      {song.scripture && <InfoRow label="Bible verses">{song.scripture}</InfoRow>}
-      {song.moment && <InfoRow label="Liturgical moment">{song.moment}</InfoRow>}
-      {song.tags?.length > 0 && <InfoRow label="Tags">{song.tags.join(', ')}</InfoRow>}
-      {song.story && <InfoRow label="Story behind"><span className="whitespace-pre-wrap">{song.story}</span></InfoRow>}
-      {song.notes && <InfoRow label="Notes"><span className="whitespace-pre-wrap">{song.notes}</span></InfoRow>}
-      {song.spotify && <InfoRow label="Spotify"><a href={song.spotify} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-text)] hover:underline">Open ↗</a></InfoRow>}
-      {song.youtube && <InfoRow label="YouTube"><a href={song.youtube} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-text)] hover:underline">Open ↗</a></InfoRow>}
-    </dl>
-  ) : (
-    <p className="text-copy-13 text-[var(--text-2)] italic m-0">No additional song info</p>
+  // chevron). Shared with the Song Hub's Details tab via SongDetails.
+  const songInfoBody = <SongDetails song={song} />;
+
+  // Where the structure ribbon lives (Labs → floating positions). Previews
+  // always keep it in the header. Non-top placements render a floating overlay
+  // (FloatingStructure) and drop the ribbon from the header.
+  const structurePos = isPreview ? 'top' : (settings?.structurePosition || 'top');
+  const ribbonSide = structurePos === 'left' || structurePos === 'right';
+  // One appearance setting (ribbonStyle) drives both the header and floating
+  // ribbon. Side rails stack vertically and spell out repeats.
+  const ribbonNode = (
+    <StructureRibbon
+      structure={orderedSections.map(s => s.type)}
+      compact
+      orientation={ribbonSide ? 'vertical' : 'horizontal'}
+      collapse={!ribbonSide}
+      activeIndex={activeSection}
+      style={settings?.ribbonStyle || 'codes'}
+      sectionColors={settings?.sectionColors}
+      sectionLabels={settings?.sectionLabels}
+      customSectionTypes={settings?.customSectionTypes}
+      onSelect={(i) => {
+        const el = document.getElementById(`section-${i}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }}
+    />
   );
 
   return (
@@ -395,15 +453,24 @@ export default function ChartView({
       {/* Header stays in the app shell theme regardless of which chart
           theme is active. Children use the app's --text-1/--text-2
           tokens which already follow light/dark/midnight. */}
-      {!isPreview && (
+      {!isPreview && !embedded && (
         <StageHeader
           collapsed={headerCollapsed}
           onExpand={revealHeader}
-          close={(
+          actionsInTitle
+          close={embedded ? null : (
             <>
               <OverflowMenu
                 ariaLabel="Song actions"
                 items={[
+                  // View mode lives in the kebab now (folded out of the header).
+                  { heading: true, label: 'View' },
+                  ...VIEW_MODES.filter(m => m.id !== 'tabs' || hasTabs).map(m => ({
+                    label: m.label,
+                    selected: displayMode === m.id,
+                    onClick: () => setDisplayMode(m.id),
+                  })),
+                  { divider: true },
                   onPlay && !isPreview && {
                     label: 'Play (live)',
                     icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>),
@@ -451,7 +518,7 @@ export default function ChartView({
               )}
             </>
           )}
-          title={(
+          title={embedded ? null : (
             <button
               type="button"
               onClick={() => setShowInfo(v => !v)}
@@ -459,7 +526,7 @@ export default function ChartView({
               aria-label="Song details"
               className="min-w-0 flex-1 flex items-center gap-1.5 bg-transparent border-none cursor-pointer p-0 text-left"
             >
-              <h1 className="m-0 truncate font-bold leading-tight text-heading-16 sm:text-heading-20" style={{ color: 'var(--text-1)' }}>
+              <h1 className="m-0 truncate font-bold leading-tight text-heading-18 sm:text-heading-20" style={{ color: 'var(--text-1)' }}>
                 {song.title}
               </h1>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 self-center text-[var(--text-2)] transition-transform duration-200 ${showInfo ? 'rotate-180' : ''}`}>
@@ -467,71 +534,73 @@ export default function ChartView({
               </svg>
             </button>
           )}
-          meta={(
-            <>
-              <Select value={selectedKey} onValueChange={setSelectedKey}>
-                <SelectTrigger className="h-7 px-2 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-lg text-label-12 sm:text-label-14 font-bold text-[var(--text-1)] gap-1 min-w-0 w-auto focus:ring-0" aria-label="Key">
-                  <span className="hidden sm:inline text-label-11 font-semibold text-[var(--text-2)] mr-0.5">Key</span>
+          meta={embedded ? null : (
+            // One muted, compact meta line: values sit in --text-1, labels/units
+            // and the dot separators stay muted so the title clearly outranks it.
+            <div className="flex items-center gap-1 min-w-0 text-label-11 sm:text-label-13 text-[var(--text-2)]">
+              {/* The key list + the shown value follow the Accidentals setting
+                  (sharps → F♯/C♯, otherwise flats) so they match the chords. */}
+              <Select value={transposeKey(selectedKey, 0, settings?.accidentals === 'sharps') || selectedKey} onValueChange={setSelectedKey}>
+                <SelectTrigger className="h-6 px-1 -ml-1 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-md text-label-11 sm:text-label-13 font-semibold text-[var(--text-1)] gap-0.5 min-w-0 w-auto focus:ring-0" aria-label="Key">
+                  <span className="text-[var(--text-2)] font-normal mr-0.5">Key</span>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {keysInQualityOf(song.key).map(k => (<SelectItem key={k} value={k}>{k}</SelectItem>))}
+                  {keysInQualityOf(song.key, settings?.accidentals).map(k => (<SelectItem key={k} value={k}>{k}</SelectItem>))}
                 </SelectContent>
               </Select>
               {song.tempo && (
-                <span className="whitespace-nowrap text-label-11 sm:text-label-13"><span className="font-bold text-[var(--text-1)]">{song.tempo}</span><span className="ml-0.5">bpm</span></span>
+                <>
+                  <span aria-hidden className="opacity-50">·</span>
+                  <span className="whitespace-nowrap"><span className="font-semibold text-[var(--text-1)]">{song.tempo}</span><span className="ml-0.5">bpm</span></span>
+                </>
               )}
-              {song.time && <span className="whitespace-nowrap font-bold text-[var(--text-1)] text-label-11 sm:text-label-13">{song.time}</span>}
+              {song.time && (
+                <>
+                  <span aria-hidden className="opacity-50">·</span>
+                  <span className="whitespace-nowrap font-semibold text-[var(--text-1)]">{song.time}</span>
+                </>
+              )}
               {song._arrangementId && (song._allArrangements?.length || 0) > 1 && (
-                <Select value={activeArrId} onValueChange={handleSwitchArrangement}>
-                  <SelectTrigger className="h-7 px-1.5 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-lg text-label-12 sm:text-label-13 font-semibold text-[var(--text-1)] gap-1 max-w-[120px] sm:max-w-[200px] min-w-0 w-auto focus:ring-0" aria-label="Switch arrangement">
-                    <span className="truncate">{song._allArrangements.find(a => a.id === activeArrId)?.name || 'Arrangement'}</span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {song._allArrangements.map(a => (
-                      <SelectItem key={a.id} value={a.id}>
-                        <span className="inline-flex items-center gap-1.5">
-                          {a.id === song._defaultArrangementId && (<span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" title="Default" aria-label="Default" />)}
-                          {a.name || 'Untitled arrangement'}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <>
+                  <span aria-hidden className="opacity-50">·</span>
+                  <Select value={activeArrId} onValueChange={handleSwitchArrangement}>
+                    <SelectTrigger className="h-6 px-1 border-none bg-transparent hover:bg-[var(--bg-2)] rounded-md text-label-11 sm:text-label-13 font-semibold text-[var(--text-1)] gap-0.5 max-w-[110px] sm:max-w-[200px] min-w-0 w-auto focus:ring-0" aria-label="Switch arrangement">
+                      <span className="truncate">{song._allArrangements.find(a => a.id === activeArrId)?.name || 'Arrangement'}</span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {song._allArrangements.map(a => (
+                        <SelectItem key={a.id} value={a.id}>
+                          <span className="inline-flex items-center gap-1.5">
+                            {a.id === song._defaultArrangementId && (<span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" title="Default" aria-label="Default" />)}
+                            {a.name || 'Untitled arrangement'}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
               )}
-            </>
+            </div>
           )}
-          actions={(
+          actions={embedded ? null : (
             <div className="flex items-center gap-0.5">
-              <ViewModePicker value={displayMode} onChange={setDisplayMode} hasTabs={hasTabs} />
-              <IconButton variant="ghost" size="sm" onClick={() => openSheet('display')} aria-label="Display options">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
-                </svg>
-              </IconButton>
-              <IconButton variant="ghost" size="sm" onClick={() => openSheet('layout')} aria-label="Layout">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="18" rx="1" /><rect x="14" y="3" width="7" height="18" rx="1" />
-                </svg>
+              {/* One "Aa" control — opens the tabbed display popover (Lyrics /
+                  Chords / Page). The old Display + Layout sheets remain as the
+                  "Advanced" backstop, reachable from the popover's Page tab. */}
+              <IconButton
+                variant="ghost"
+                size="sm"
+                aria-label="Display options"
+                aria-expanded={!!aaAnchor}
+                onClick={(e) => setAaAnchor(aaAnchor ? null : e.currentTarget.getBoundingClientRect())}
+              >
+                <span className="text-label-14 font-bold leading-none">Aa</span>
               </IconButton>
             </div>
           )}
-          ribbon={(
-            <StructureRibbon
-              structure={orderedSections.map(s => s.type)}
-              compact
-              activeIndex={activeSection}
-              style={settings?.ribbonStyle || 'chips'}
-              sectionColors={settings?.sectionColors}
-              sectionLabels={settings?.sectionLabels}
-              customSectionTypes={settings?.customSectionTypes}
-              onSelect={(i) => {
-                const el = document.getElementById(`section-${i}`);
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-            />
-          )}
-          info={showInfo && (
+          ribbon={structurePos === 'top' ? ribbonNode : null}
+          info={!embedded && showInfo && (
             <div className="wide-container pb-2 mt-1 max-h-[40vh] overflow-y-auto border-t border-[var(--border-1)] pt-2">
               {songInfoBody}
             </div>
@@ -565,49 +634,70 @@ export default function ChartView({
         />
       )}
 
+      {/* ── Aa display popover (single header control) ── */}
+      {!isPreview && aaAnchor && (
+        <AaMenu
+          anchorRect={aaAnchor}
+          onClose={closeAa}
+          settings={settings}
+          onUpdateSettings={onUpdateSettings}
+          lyricSize={fontSize}
+          onLyricSize={changeFontSize}
+          chordSize={chordFontSize}
+          onChordSize={changeChordFontSize}
+          columns={settings?.defaultColumns ?? 'auto'}
+          onColumns={setColumnsPref}
+          notation={notation}
+          onNotation={changeNotation}
+          onAdvanced={() => openSheet('layout')}
+          onReset={resetAa}
+        />
+      )}
+
       {/* ── Bottom-sheet modals (Layout / Music / Song info) ── */}
       {!isPreview && (
         <>
-          {/* ── Display menu — what's shown (notation, chord aids, role, style) ── */}
-          <BottomSheet
-            open={activeSheet === 'display'}
+          {/* ── Advanced layout & role — a centred dialog (distinct from the old
+              bottom sheet). The Aa menu now owns columns / lyric size / chord
+              size, so this holds only the deeper, non-duplicated controls:
+              spacing, repeated-section density, inline cues, role preset, tab
+              instrument and the advanced-style entry. ── */}
+          <Dialog
+            open={activeSheet === 'layout'}
             onClose={() => setActiveSheet(null)}
-            title="Display"
+            size="lg"
+            ariaLabel="Advanced layout and role"
           >
-            <div className="flex flex-col gap-4">
-              <SheetField label="Notation">
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { id: 'letters', label: 'Letters' },
-                    { id: 'nashville', label: 'Nashville' },
-                    { id: 'solfege', label: 'Do-Re-Mi' },
-                  ].map(b => (
-                    <button
-                      key={b.id}
-                      type="button"
-                      onClick={() => changeNotation(b.id)}
-                      aria-pressed={notation === b.id}
-                      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${notation === b.id ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
-                    >
-                      {b.label}
-                    </button>
-                  ))}
+            <div className="flex items-center justify-between gap-3 px-5 sm:px-6 pt-5 pb-3 border-b border-[var(--border-1)]">
+              <h2 className="m-0 text-heading-18 font-semibold text-[var(--text-1)]">Advanced</h2>
+              <button type="button" onClick={() => setActiveSheet(null)} aria-label="Close"
+                className="w-9 h-9 grid place-items-center rounded-lg text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--bg-2)] cursor-pointer">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="px-5 sm:px-6 py-5 flex flex-col gap-5 max-h-[70vh] overflow-y-auto">
+
+              <SheetField label="Spacing">
+                <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-label-10 uppercase tracking-wider text-[var(--text-2)]">Section gap</span>
+                    <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+                      <IconButton variant="ghost" size="sm" onClick={() => changeSectionSpacing(sectionSpacing - 4)} aria-label="Less section gap">−</IconButton>
+                      <span className="w-8 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{sectionSpacing}</span>
+                      <IconButton variant="ghost" size="sm" onClick={() => changeSectionSpacing(sectionSpacing + 4)} aria-label="More section gap">+</IconButton>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-label-10 uppercase tracking-wider text-[var(--text-2)]">Line height</span>
+                    <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
+                      <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight - 0.1)} aria-label="Tighter line height">−</IconButton>
+                      <span className="w-8 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{lyricLineHeight.toFixed(2)}</span>
+                      <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight + 0.1)} aria-label="Looser line height">+</IconButton>
+                    </div>
+                  </div>
                 </div>
               </SheetField>
-              <SheetField label="Show">
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={showChords ? 'brand' : 'secondary'}
-                    size="sm"
-                    onClick={toggleShowChords}
-                  >Chords</Button>
-                  <Button
-                    variant={showDiagrams ? 'brand' : 'secondary'}
-                    size="sm"
-                    onClick={toggleShowDiagrams}
-                  >Diagrams</Button>
-                </div>
-              </SheetField>
+
               <SheetField label="Repeated sections">
                 <div className="flex flex-wrap gap-1.5">
                   {[
@@ -626,6 +716,23 @@ export default function ChartView({
                   ))}
                 </div>
               </SheetField>
+
+              <SheetField label="Inline cues">
+                <div className="flex flex-wrap gap-1.5">
+                  {[{ v: true, label: 'Show' }, { v: false, label: 'Hide' }].map(b => (
+                    <button
+                      key={b.label}
+                      type="button"
+                      onClick={() => onUpdateSettings?.('showInlineNotes', b.v)}
+                      aria-pressed={showInlineNotes === b.v}
+                      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${showInlineNotes === b.v ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </SheetField>
+
               <SheetField label="Instrument">
                 <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
                   {STAGE_MODES.map(m => {
@@ -649,64 +756,6 @@ export default function ChartView({
                   })}
                 </div>
               </SheetField>
-            </div>
-          </BottomSheet>
-
-          {/* ── Layout menu — how it's arranged (columns, sizes, spacing, style) ── */}
-          <BottomSheet
-            open={activeSheet === 'layout'}
-            onClose={() => setActiveSheet(null)}
-            title="Layout"
-          >
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-                <SheetField label="Columns">
-                  <SegmentedControl
-                    value={columns}
-                    onChange={setColumnsManually}
-                    options={[
-                      { value: 1, label: '1 col' },
-                      { value: 2, label: '2 col' },
-                    ]}
-                    size="sm"
-                  />
-                </SheetField>
-                <SheetField label="Lyric size">
-                  <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                    <IconButton variant="ghost" size="sm" onClick={() => changeFontSize(fontSize - 2)} aria-label="Decrease lyric size">−</IconButton>
-                    <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{fontSize}</span>
-                    <IconButton variant="ghost" size="sm" onClick={() => changeFontSize(fontSize + 2)} aria-label="Increase lyric size">+</IconButton>
-                  </div>
-                </SheetField>
-                <SheetField label="Chord size">
-                  <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                    <IconButton variant="ghost" size="sm" onClick={() => changeChordFontSize(chordFontSize - 2)} aria-label="Decrease chord size">−</IconButton>
-                    <span className="w-6 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{chordFontSize}</span>
-                    <IconButton variant="ghost" size="sm" onClick={() => changeChordFontSize(chordFontSize + 2)} aria-label="Increase chord size">+</IconButton>
-                  </div>
-                </SheetField>
-              </div>
-
-              <SheetField label="Spacing">
-                <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-label-10 uppercase tracking-wider text-[var(--text-2)]">Section gap</span>
-                    <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                      <IconButton variant="ghost" size="sm" onClick={() => changeSectionSpacing(sectionSpacing - 4)} aria-label="Less section gap">−</IconButton>
-                      <span className="w-8 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{sectionSpacing}</span>
-                      <IconButton variant="ghost" size="sm" onClick={() => changeSectionSpacing(sectionSpacing + 4)} aria-label="More section gap">+</IconButton>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-label-10 uppercase tracking-wider text-[var(--text-2)]">Line height</span>
-                    <div className="flex items-center bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-0.5 w-fit">
-                      <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight - 0.1)} aria-label="Tighter line height">−</IconButton>
-                      <span className="w-8 text-center text-label-12-mono text-[var(--text-1)] font-semibold tabular-nums">{lyricLineHeight.toFixed(2)}</span>
-                      <IconButton variant="ghost" size="sm" onClick={() => changeLineHeight(lyricLineHeight + 0.1)} aria-label="Looser line height">+</IconButton>
-                    </div>
-                  </div>
-                </div>
-              </SheetField>
 
               {tabInstrumentsPresent.length >= 2 && (
                 <SheetField label="Tab instrument">
@@ -726,10 +775,6 @@ export default function ChartView({
               )}
 
               <div className="pt-1 border-t border-[var(--border-1)]">
-                <ChartStyleControls
-                  settings={settings}
-                  onUpdateSettings={onUpdateSettings}
-                />
                 {onOpenAdvancedStyle && (
                   <button
                     type="button"
@@ -748,7 +793,7 @@ export default function ChartView({
                 )}
               </div>
             </div>
-          </BottomSheet>
+          </Dialog>
 
           {/* Arrangement add/rename/delete now lives in the editor only.
               The chart view's dropdown above handles read-only switching. */}
@@ -758,6 +803,7 @@ export default function ChartView({
 
       <div className={cn(
         "pt-4 pb-24 wide-container",
+        structurePos === 'bottom' && "pb-[8rem]",
         isPreview && "px-0 pt-0 pb-0 wide-container"
       )}>
         {/* ── Chord Diagrams Strip ── */}
@@ -784,6 +830,9 @@ export default function ChartView({
             ['--chart-font-size-chord']: `${chordFontSize}px`,
             ['--chart-line-height-lyric']: settings?.lyricLineHeight ?? 1.35,
             ['--chart-section-gap']: `${settings?.sectionSpacing ?? 24}px`,
+            // Lyrics inherit this; chords (font-bold) + section headers keep
+            // their own weight. 400 read too thin — bump to a medium.
+            fontWeight: 'var(--chart-lyric-weight, 480)',
             fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
             ...(displayMode !== 'songmap' && (chartLayout !== 'rows' || columns !== 2) ? { columnCount: columns, columnGap: '3rem' } : {}),
           }}
@@ -817,6 +866,7 @@ export default function ChartView({
                 modOffset={sectionModOffsets[idx]}
                 notation={notation}
                 songKey={song.key}
+                accidentals={settings?.accidentals}
                 condensed={duplicateSections === 'condensed' && repeatFirstIndex[idx] >= 0}
                 onJumpToFirst={() => {
                   const el = document.getElementById(`section-${repeatFirstIndex[idx]}`);
@@ -839,15 +889,9 @@ export default function ChartView({
           ))}
         </div>
       </div>
-    </div>
-  );
-}
-
-function InfoRow({ label, children }) {
-  return (
-    <div className="flex gap-2 min-w-0">
-      <dt className="w-24 shrink-0 text-label-12 font-semibold text-[var(--text-2)] leading-tight pt-0.5">{label}</dt>
-      <dd className="flex-1 min-w-0 m-0 text-[var(--text-1)] break-words">{children}</dd>
+      {!embedded && structurePos !== 'top' && (
+        <FloatingStructure position={structurePos} raised={false}>{ribbonNode}</FloatingStructure>
+      )}
     </div>
   );
 }

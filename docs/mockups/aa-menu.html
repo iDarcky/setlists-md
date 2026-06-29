@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Setlists.md — Aa display popover (mockup)</title>
+<style>
+  :root{
+    --bg:#0a0a0a; --card:#161618; --card2:#1c1c1f; --card3:#202024;
+    --bd:#2a2a2e; --bd2:#3a3a40;
+    --tx:#ededed; --tx2:#a1a1a6; --tx3:#6f6f76;
+    --brand:#10b981; --chord:#e0b341;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#070708;color:var(--tx);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;}
+  .stage{display:flex;gap:34px;padding:40px;align-items:flex-start;justify-content:center;flex-wrap:wrap;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:12px;}
+  .col .cap{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);}
+
+  /* popover */
+  .pop{width:276px;background:var(--card3);border:1px solid var(--bd2);border-radius:16px;
+    box-shadow:0 24px 60px rgba(0,0,0,.55);overflow:hidden;}
+  .aa-btn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;
+    border:1px solid var(--bd2);background:var(--card2);font-weight:700;font-size:14px;color:var(--tx);}
+
+  /* internal tabs */
+  .ptabs{display:flex;padding:6px;gap:4px;background:var(--card2);border-bottom:1px solid var(--bd);}
+  .ptab{flex:1;text-align:center;padding:8px 0;border-radius:9px;font-size:12.5px;color:var(--tx2);cursor:pointer;}
+  .ptab.on{background:var(--card3);color:var(--tx);font-weight:600;box-shadow:0 1px 0 rgba(255,255,255,.04) inset;border:1px solid var(--bd);}
+
+  .pbody{padding:14px;}
+  h3{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin:2px 0 8px;}
+  h3:not(:first-child){margin-top:15px;}
+
+  /* size stepper */
+  .stepper{display:flex;align-items:center;justify-content:space-between;background:var(--card2);border:1px solid var(--bd);border-radius:10px;padding:5px 6px;}
+  .stepper button{width:30px;height:28px;border:none;border-radius:7px;background:var(--card3);color:var(--tx);font-size:16px;cursor:pointer;}
+  .stepper .val{font-size:13px;font-family:ui-monospace,Menlo,monospace;color:var(--tx);}
+  .stepper .val small{color:var(--tx3);font-size:10px;margin-left:3px;}
+
+  /* font list */
+  .fonts{display:flex;flex-direction:column;gap:5px;}
+  .font{display:flex;align-items:center;justify-content:space-between;padding:9px 11px;border-radius:10px;border:1px solid var(--bd);background:var(--card2);cursor:pointer;}
+  .font.on{border-color:var(--brand);background:rgba(16,185,129,.10);}
+  .font .nm{font-size:13px;color:var(--tx);}
+  .font .nm small{display:block;color:var(--tx3);font-size:10.5px;font-weight:400;}
+  .font .ck{color:var(--brand);}
+  .f-serif{font-family:Georgia,'Times New Roman',serif;}
+  .f-mono{font-family:ui-monospace,Menlo,monospace;}
+  .f-inter{font-family:Inter,sans-serif;}
+
+  /* color swatches */
+  .swatches{display:flex;gap:8px;}
+  .sw{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2px solid transparent;}
+  .sw.on{border-color:var(--tx);box-shadow:0 0 0 2px var(--card3),0 0 0 3px var(--brand);}
+
+  /* segmented */
+  .seg{display:flex;gap:5px;}
+  .seg .o{flex:1;text-align:center;padding:8px 0;border-radius:9px;border:1px solid var(--bd);background:var(--card2);font-size:12px;color:var(--tx2);cursor:pointer;}
+  .seg .o.on{border-color:var(--brand);background:rgba(16,185,129,.12);color:var(--tx);font-weight:600;}
+  .theme-seg .o{padding:0;height:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;}
+  .chip{width:20px;height:20px;border-radius:50%;border:1px solid var(--bd2);}
+  .row{display:flex;align-items:center;justify-content:space-between;padding:8px 2px;font-size:12.5px;}
+  .row+.row{border-top:1px solid var(--bd);}
+  .tg{width:36px;height:21px;border-radius:11px;background:var(--bd2);position:relative;}
+  .tg.on{background:var(--brand);}
+  .tg i{position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;}
+  .tg.on i{left:17px;}
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- LYRICS TAB -->
+  <div class="col">
+    <div class="aa-btn">Aa</div>
+    <div class="pop">
+      <div class="ptabs">
+        <div class="ptab on">Lyrics</div><div class="ptab">Chords</div><div class="ptab">Page</div>
+      </div>
+      <div class="pbody">
+        <h3>Size</h3>
+        <div class="stepper"><button>−</button><span class="val">16<small>px</small></span><button>+</button></div>
+        <h3>Font</h3>
+        <div class="fonts">
+          <div class="font on"><span class="nm f-inter">Inter<small>Default · modern sans</small></span><span class="ck">✓</span></div>
+          <div class="font"><span class="nm f-serif">Georgia<small>like a hymnal</small></span></div>
+          <div class="font"><span class="nm f-mono">Mono<small>fixed width</small></span></div>
+        </div>
+        <h3>Colour</h3>
+        <div class="swatches">
+          <span class="sw on" style="background:#ededed"></span>
+          <span class="sw" style="background:#cbd5e1"></span>
+          <span class="sw" style="background:#e0af68"></span>
+          <span class="sw" style="background:#7aa2f7"></span>
+          <span class="sw" style="background:#bb9af7"></span>
+        </div>
+      </div>
+    </div>
+    <span class="cap">Tab: Lyrics</span>
+  </div>
+
+  <!-- CHORDS TAB -->
+  <div class="col">
+    <div class="aa-btn">Aa</div>
+    <div class="pop">
+      <div class="ptabs">
+        <div class="ptab">Lyrics</div><div class="ptab on">Chords</div><div class="ptab">Page</div>
+      </div>
+      <div class="pbody">
+        <h3>Size</h3>
+        <div class="stepper"><button>−</button><span class="val">13<small>px</small></span><button>+</button></div>
+        <h3>Font</h3>
+        <div class="fonts">
+          <div class="font on"><span class="nm f-mono">Mono<small>Default · aligns over lyrics</small></span><span class="ck">✓</span></div>
+          <div class="font"><span class="nm f-inter">Inter<small>sans</small></span></div>
+        </div>
+        <h3>Colour</h3>
+        <div class="swatches">
+          <span class="sw on" style="background:#e0b341"></span>
+          <span class="sw" style="background:#10b981"></span>
+          <span class="sw" style="background:#7aa2f7"></span>
+          <span class="sw" style="background:#f7768e"></span>
+          <span class="sw" style="background:#ededed"></span>
+        </div>
+        <h3>Placement</h3>
+        <div class="seg"><div class="o on">Above</div><div class="o">Inline</div></div>
+      </div>
+    </div>
+    <span class="cap">Tab: Chords</span>
+  </div>
+
+  <!-- PAGE TAB -->
+  <div class="col">
+    <div class="aa-btn">Aa</div>
+    <div class="pop">
+      <div class="ptabs">
+        <div class="ptab">Lyrics</div><div class="ptab">Chords</div><div class="ptab on">Page</div>
+      </div>
+      <div class="pbody">
+        <h3>Theme</h3>
+        <div class="seg theme-seg">
+          <div class="o"><span class="chip" style="background:#fff"></span>Light</div>
+          <div class="o"><span class="chip" style="background:#efe7d6"></span>Paper</div>
+          <div class="o on"><span class="chip" style="background:#0c0c0e"></span>Dark</div>
+          <div class="o"><span class="chip" style="background:#0b1b34"></span>Navy</div>
+        </div>
+        <h3>Show</h3>
+        <div class="seg"><div class="o on">Chords</div><div class="o">Lyrics</div><div class="o">Map</div></div>
+        <h3>Columns</h3>
+        <div class="seg"><div class="o">1</div><div class="o on">2</div><div class="o">Auto</div></div>
+        <div class="row" style="margin-top:8px">Chord diagrams <span class="tg"><i></i></span></div>
+        <div class="row">Capo shapes <span class="tg"><i></i></span></div>
+        <div class="row">Structure ribbon <span class="tg on"><i></i></span></div>
+      </div>
+    </div>
+    <span class="cap">Tab: Page</span>
+  </div>
+
+</div>
+</body>
+</html>

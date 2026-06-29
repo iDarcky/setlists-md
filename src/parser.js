@@ -1,3 +1,5 @@
+import { inferStructureMode, structureFollowsSections } from './music.js';
+
 // Parse a .md song file into a structured object
 export function parseSongMd(text) {
   const lines = text.split('\n');
@@ -184,6 +186,17 @@ export function parseSongMd(text) {
       : (typeof meta.structure === 'string'
         ? meta.structure.split(',').map(s => s.trim()).filter(Boolean)
         : sections.map(s => s.type)),
+    // Whether the play order is a hand-tuned custom slide order or just follows
+    // the section (document) order. Honour an explicit frontmatter value;
+    // otherwise infer from whether the saved structure already differs.
+    structureMode: (meta.structuremode === 'custom' || meta.structuremode === 'auto')
+      ? meta.structuremode
+      : inferStructureMode(
+          Array.isArray(meta.structure)
+            ? meta.structure
+            : (typeof meta.structure === 'string' ? meta.structure.split(',').map(s => s.trim()).filter(Boolean) : []),
+          sections,
+        ),
     sections,
     tabLibrary,
     // Extended descriptive metadata (song-level).
@@ -252,6 +265,7 @@ export function songToMd(song, arrangement) {
         capo: arr?.capo,
         notes: arr?.notes,
         structure: arr?.structure,
+        structureMode: arr?.structureMode,
         sections: arr?.sections || [],
         tabLibrary: arr?.tabLibrary || song.tabLibrary || [],
         _songId: song.id,
@@ -283,11 +297,20 @@ export function songToMd(song, arrangement) {
   for (const [k, mdKey] of EXTRA_META_FIELDS) {
     if (view[k]) md += `${mdKey}: ${sv(view[k])}\n`;
   }
-  // Only emit `structure:` when the user has explicitly set a custom
-  // section order (Proclaim-style). When empty, render falls back to
-  // document order so we don't want to bake that order into the file.
+  // Emit the play order (kept byte-stable with how it was stored). Auto songs
+  // carry it too — it simply mirrors document order and is ignored at render —
+  // so existing files round-trip identically without a forced re-sync.
   if (view.structure && view.structure.length > 0) {
     md += `structure: [${sv(view.structure.join(', '))}]\n`;
+  }
+  // Flag a hand-tuned custom slide order so the reader (and the editor toggle)
+  // honour it. Auto stays implicit. Older custom songs with no flag are
+  // detected by their order already differing from document order.
+  const isCustomStructure = view.structureMode === 'custom'
+    || (view.structureMode == null && view.structure && view.structure.length > 0
+        && !structureFollowsSections(view.structure, view.sections));
+  if (isCustomStructure) {
+    md += `structureMode: custom\n`;
   }
   if (useArrangementIdentity) {
     md += `songId: ${view._songId}\n`;
@@ -546,8 +569,8 @@ export function replaceFrontmatter(md, newFrontmatter) {
 // Parse frontmatter text into flat field object (strings, for form editing)
 export function parseFrontmatterFields(frontmatter) {
   const fields = {
-    title: '', artist: '', key: 'C', tempo: '', time: '', duration: '',
-    structure: '', ccli: '', tags: '', capo: '',
+    title: '', artist: '', key: '', tempo: '', time: '', duration: '',
+    structure: '', structuremode: '', ccli: '', tags: '', capo: '',
     spotify: '', youtube: '', notes: '',
     songid: '', arrangementid: '', arrangementname: '',
     // Extended descriptive metadata (all optional, plain strings).
@@ -588,6 +611,7 @@ export function serializeFrontmatterFields(fields) {
   // verbatim through the form-editor round-trip so the chip editor
   // can hand it back unchanged.
   if (fields.structure) lines.push(`structure: [${s(fields.structure)}]`);
+  if (fields.structuremode === 'custom') lines.push(`structureMode: custom`);
   if (fields.ccli) lines.push(`ccli: "${s(fields.ccli)}"`);
   if (fields.tags) lines.push(`tags: [${s(fields.tags)}]`);
   if (fields.capo) lines.push(`capo: ${s(fields.capo)}`);

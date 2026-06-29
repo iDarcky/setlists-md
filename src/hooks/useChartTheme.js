@@ -50,8 +50,10 @@ export function useChartTheme(settings) {
     // the preset. Custom themes carry their bg/text/chord on the record
     // itself, which the user edits via Chart Style → Customise.
     const bg = theme.bg;
-    const text = theme.text;
-    const chord = theme.chord;
+    // Per-element colour overrides from the Aa menu (fixed palette). When set
+    // they win over the theme's text/chord; cleared (falsy) → follow the theme.
+    const text = settings?.chartLyricColor || theme.text;
+    const chord = settings?.chartChordColor || theme.chord;
     const subtle = theme.subtle;
 
     const chordFontId = settings?.chartChordFont || DEFAULT_CHORD_FONT_ID;
@@ -84,6 +86,8 @@ export function useChartTheme(settings) {
     settings?.chartTheme,
     settings?.chartChordFont,
     settings?.chartLyricFont,
+    settings?.chartChordColor,
+    settings?.chartLyricColor,
     settings?.customChartThemes,
     settings?.accentColor,
   ]);

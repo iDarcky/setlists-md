@@ -7,6 +7,7 @@ import TabGridEditor from './TabGridEditorV2';
 import KeyChangeDialog from './KeyChangeDialog';
 import { TAB_INSTRUMENTS, instrumentForStrings } from './tabInstruments';
 import SectionDrawer from './SectionDrawer';
+import StructureControl from './StructureControl';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
 import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType } from './arrangeHelpers';
@@ -44,14 +45,6 @@ function formatChord(chord, notation, key) {
   if (notation === 'nashville') return getNashvilleNumber(chord, key);
   if (notation === 'solfege') return getSolfege(chord);
   return chord;
-}
-
-// "Verse 1" -> "V1", "Pre Chorus 2" -> "PC2", "Chorus" -> "C".
-function sectionShortCode(type) {
-  const base = sectionBaseType(type);
-  const num = (type.match(/(\d+)\s*:?\s*$/) || [])[1] || '';
-  const initials = base.split(/\s+/).map(w => w[0] || '').join('').toUpperCase();
-  return initials + num;
 }
 
 // ─── InteractiveLine (single-phase) ──────────────────────────────────
@@ -438,12 +431,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   // ─── Chord entry ─── Tap a lyric position (or a chord) to arm it; the
   // full-width bottom bar handles entry on every device.
-  const openAddChord = useCallback((secIdx, lineIdx, charPos) => {
-    setEntry({ secIdx, lineIdx, charPos, chordIdx: null, initial: '' });
+  const openAddChord = useCallback((secIdx, lineIdx, charPos, clientX, clientY) => {
+    setEntry({ secIdx, lineIdx, charPos, chordIdx: null, initial: '', anchor: clientX != null ? { x: clientX, y: clientY } : null });
   }, []);
-  const openEditChord = useCallback((secIdx, lineIdx, chordIdx) => {
+  const openEditChord = useCallback((secIdx, lineIdx, chordIdx, clientX, clientY) => {
     const cur = placements[secIdx]?.lines[lineIdx]?.chords?.[chordIdx]?.chord || '';
-    setEntry({ secIdx, lineIdx, charPos: null, chordIdx, initial: cur });
+    setEntry({ secIdx, lineIdx, charPos: null, chordIdx, initial: cur, anchor: clientX != null ? { x: clientX, y: clientY } : null });
   }, [placements]);
 
   const placeChordAt = useCallback((target, chord) => {
@@ -488,7 +481,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     })));
   }, [applyMutation]);
 
-  const appendChord = useCallback((secIdx, lineIdx) => {
+  const appendChord = useCallback((secIdx, lineIdx, clientX, clientY) => {
     const line = placements[secIdx]?.lines[lineIdx];
     const pos = ((line?.chords?.length) || 0) * 4;
     // ensure text is padded so the chord round-trips
@@ -498,17 +491,44 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
         ? { ...ln, plainText: ' '.repeat(pos + 1) }
         : ln),
     })));
-    setEntry({ secIdx, lineIdx, chordIdx: null, charPos: pos, initial: '' });
+    setEntry({ secIdx, lineIdx, chordIdx: null, charPos: pos, initial: '', anchor: clientX != null ? { x: clientX, y: clientY } : null });
   }, [placements, applyMutation]);
 
   // ─── Section operations ───
   const labelFor = useCallback((base, count) => `${base} ${count + 1}`, []);
 
-  // Emit a new section list and keep `structure` mirroring section order, so the
-  // chart/performance views (which follow `structure`) reflect Arrange edits.
+  // Emit a new section list. In "auto" mode we keep `structure` mirroring
+  // section order, so the chart/performance views reflect Arrange edits. In
+  // "custom" mode the user owns the slide order, so we leave `structure` alone
+  // but reconcile it: drop entries whose section type no longer exists (a
+  // deleted section can't dangle in the play order).
   const emitSections = useCallback((sections) => {
     if (!song) return;
-    emitSong({ ...song, sections, structure: sections.map(s => s.type) });
+    if (song.structureMode === 'custom') {
+      const live = new Set(sections.map(s => s.type));
+      const structure = (song.structure || []).filter(name => live.has(name));
+      emitSong({ ...song, sections, structure });
+    } else {
+      emitSong({ ...song, sections, structure: sections.map(s => s.type) });
+    }
+  }, [song, emitSong]);
+
+  // ─── Structure (slide order) — the one official control lives here ───
+  // Auto = follows section order; custom = a hand-tuned slide order. Toggling on
+  // seeds the order from the current sections so the user starts from what they see.
+  const setStructureMode = useCallback((custom) => {
+    if (!song) return;
+    const types = song.sections.map(s => s.type);
+    emitSong({
+      ...song,
+      structureMode: custom ? 'custom' : 'auto',
+      structure: custom ? (song.structure?.length ? song.structure : types) : types,
+    });
+  }, [song, emitSong]);
+  const onStructureChange = useCallback((str) => {
+    if (!song) return;
+    const arr = str.split(',').map(s => s.trim()).filter(Boolean);
+    emitSong({ ...song, structureMode: 'custom', structure: arr });
   }, [song, emitSong]);
 
   const addSection = useCallback((base = 'Verse') => {
@@ -682,26 +702,19 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      {/* Structure row — section jump chips on the left, a Customize popover
-          (notation + display options) tucked on the right to keep it clean. */}
+      {/* The song's official structure (slide order). A checkbox toggles a custom
+          slide order; chips show the play order (tap to jump). A Customize popover
+          sits on the right. Shared with the Advanced tab so the two always match. */}
       <div className="shrink-0 flex items-center gap-2 pl-3 pr-6 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
-        <div className="flex-1 flex items-center gap-1 overflow-x-auto min-w-0">
-          {placements.length > 1 ? placements.map((sec, i) => {
-            const st = sectionStyle(sec.type, null, customSectionTypes);
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => jumpTo(i)}
-                className="shrink-0 px-2 py-1 rounded-md text-label-11 font-bold font-mono border border-[var(--ds-gray-300)] bg-[var(--ds-gray-100)] hover:bg-[var(--ds-gray-200)] cursor-pointer"
-                style={{ color: st.b }}
-                title={sec.type}
-              >
-                {sectionShortCode(sec.type)}
-              </button>
-            );
-          }) : <span className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)]">Structure</span>}
-        </div>
+        <StructureControl
+          mode={song.structureMode}
+          value={(song.structure || []).join(', ')}
+          sections={placements.map(p => p.type)}
+          customSectionTypes={customSectionTypes}
+          onToggleMode={setStructureMode}
+          onChangeValue={onStructureChange}
+          onJump={(name) => { const i = placements.findIndex(p => p.type === name); if (i >= 0) jumpTo(i); }}
+        />
         <PopMenu
           trigger={
             <IconButton variant="ghost" size="sm" aria-label="Customize" title="Customize">
@@ -926,6 +939,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
           editing={entry.chordIdx != null}
           songKey={song.key}
           recents={recentChords}
+          // On a fine pointer (mouse/trackpad) show the picker as a popup right at
+          // the clicked chord/position; on touch keep the full-width bottom bar so
+          // the on-screen keyboard doesn't cover it.
+          anchorRect={(entry.anchor && typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches)
+            ? { left: entry.anchor.x, top: entry.anchor.y, bottom: entry.anchor.y }
+            : null}
           onCommit={commitChord}
           onRemove={entry.chordIdx != null ? () => removeChordAt(entry.secIdx, entry.lineIdx, entry.chordIdx) : null}
           onClose={() => setEntry(null)}

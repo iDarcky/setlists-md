@@ -303,6 +303,31 @@
     --chart-header-border: rgba(255, 255, 255, 0.08);
   }
 
+  /* Labs: "Neutral palette" — preview of the Song Hub V2 mockup colours
+     app-wide (Settings → Labs). Forces a neutral-dark surface set on top of
+     whatever theme is active; higher specificity than [data-theme] so it wins
+     regardless of source order. */
+  :root[data-palette="neutral"] {
+    --ds-background-100: #161618;
+    --ds-background-200: #0a0a0a;
+    --ds-gray-100: #1c1c1f;
+    --ds-gray-200: #202024;
+    --ds-gray-300: #26262b;
+    --ds-gray-400: #2a2a2e;
+    --ds-gray-500: #3a3a40;
+    --ds-gray-600: #4a4a52;
+    --ds-gray-700: #6f6f76;
+    --ds-gray-800: #8a8a90;
+    --ds-gray-900: #a1a1a6;
+    --ds-gray-1000: #ededed;
+    --chord: #e0b341;
+    --chart-header-bg: #0a0a0a;
+    --dashboard-hero-bg: #161618;
+    --dashboard-hero-hover: #1c1c1f;
+    --dashboard-row-odd-bg: #141416;
+    --dashboard-row-even-bg: #0e0e10;
+  }
+
   [data-theme="light"] {
     --ds-background-100: #F6F4EF;
     --ds-background-200: #EFEDE6;

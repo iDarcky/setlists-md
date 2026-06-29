@@ -1,7 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import NotificationTray from './NotificationTray';
+import SongCard from './SongCard';
+import Highlight from './ui/Highlight';
 import { cn } from '../lib/utils';
 import { workspaceStatusLabel } from '../billing/checkout';
+import { searchSongs, searchSetlists } from '../lib/search';
+
+// Don't hijack "/" while the user is typing in a field.
+function isEditableTarget(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+}
 
 /* Icons (kept local so the header is self-contained) */
 const TeamNavIcon = () => (
@@ -61,6 +71,22 @@ const PlusIcon = () => (
     <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 );
+const SearchIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+  </svg>
+);
+const CloseIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+function formatDateShort(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 /**
  * Desktop / tablet top header. Replaces the left sidebar (and the old church
@@ -89,6 +115,14 @@ export default function TopHeader({
   onNewWorkspace,
   newWorkspaceLocked = false,
   supportContact,
+  // Global search: a top-right icon that expands into a search bar. Only shown
+  // on screens that don't already have their own search input (the caller
+  // computes `showSearch` from the raw view).
+  songs = [],
+  setlists = [],
+  onSelectSong,
+  onSelectSetlist,
+  showSearch = false,
   // On the tablet shell, primary nav moves to the bottom nav. We then show
   // the brand lockup on the left instead of the nav tabs, keeping the
   // workspace switcher centered and the right-side actions in place.
@@ -97,6 +131,64 @@ export default function TopHeader({
   const [trayOpen, setTrayOpen] = useState(false);
   const [wsOpen, setWsOpen] = useState(false);
   const wsRef = useRef(null);
+
+  // Expanding global search.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const searchRef = useRef(null);
+
+  // Collapse + clear when search becomes hidden (navigating to a screen with
+  // its own search bar). Adjusting state during render on a prop change is the
+  // recommended pattern — no effect needed.
+  const [prevShowSearch, setPrevShowSearch] = useState(showSearch);
+  if (prevShowSearch !== showSearch) {
+    setPrevShowSearch(showSearch);
+    if (!showSearch && (searchOpen || query)) {
+      setSearchOpen(false);
+      setQuery('');
+    }
+  }
+
+  const q = query.trim();
+  const results = useMemo(() => {
+    if (!q) return { songs: [], setlists: [] };
+    return {
+      songs: searchSongs(songs, q, { limit: 6 }),
+      setlists: searchSetlists(setlists, q, { limit: 4 }),
+    };
+  }, [q, songs, setlists]);
+  const hasAnyResults = results.songs.length > 0 || results.setlists.length > 0;
+
+  const closeSearch = () => { setSearchOpen(false); setQuery(''); };
+
+  // Close on outside-click / Escape while open.
+  useEffect(() => {
+    if (!searchOpen) return;
+    const onDown = (e) => { if (searchRef.current && !searchRef.current.contains(e.target)) closeSearch(); };
+    const onKey = (e) => { if (e.key === 'Escape') closeSearch(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [searchOpen]);
+
+  // Keyboard shortcut to open the search: ⌘K / Ctrl-K anywhere, or "/" when not
+  // already typing in a field.
+  useEffect(() => {
+    if (!showSearch) return;
+    const onKey = (e) => {
+      const cmdK = (e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K');
+      const slash = e.key === '/' && !isEditableTarget(e.target);
+      if (cmdK || slash) {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showSearch]);
 
   const planLower = (plan || '').toLowerCase();
   const hasTeamPlan = planLower === 'team' || planLower === 'church';
@@ -288,6 +380,93 @@ export default function TopHeader({
             Settings (which opens on the Account panel). Feedback now lives
             inside the Help page. */}
         <div className="flex items-center gap-1 justify-self-end">
+          {showSearch && (
+            <div ref={searchRef} className="relative flex items-center">
+              {searchOpen ? (
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--ds-gray-600)] pointer-events-none">
+                    <SearchIcon />
+                  </span>
+                  <input
+                    autoFocus
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search songs & setlists…"
+                    aria-label="Search songs and setlists"
+                    className="h-9 w-48 lg:w-64 xl:w-72 pl-9 pr-8 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] text-label-14 text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-500)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+                  />
+                  <button
+                    onClick={closeSearch}
+                    aria-label="Close search"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-7 h-7 rounded-md text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] border-none bg-transparent cursor-pointer"
+                  >
+                    <CloseIcon />
+                  </button>
+
+                  {q && (
+                    <div className="absolute right-0 top-full mt-2 w-[320px] sm:w-[360px] max-h-[70vh] overflow-y-auto rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg z-[120]">
+                      {hasAnyResults ? (
+                        <div className="divide-y divide-[var(--ds-gray-200)] py-1">
+                          {results.songs.length > 0 && (
+                            <div>
+                              <div className="px-4 pt-2 pb-1 text-label-12 uppercase tracking-wider text-[var(--ds-gray-600)]">Songs</div>
+                              {results.songs.map(song => (
+                                <div key={song.id} className="hover:bg-[var(--ds-gray-100)]">
+                                  <SongCard
+                                    song={song}
+                                    variant="row"
+                                    highlight={q}
+                                    onClick={() => { closeSearch(); onSelectSong?.(song); }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {results.setlists.length > 0 && (
+                            <div>
+                              <div className="px-4 pt-2 pb-1 text-label-12 uppercase tracking-wider text-[var(--ds-gray-600)]">Setlists</div>
+                              {results.setlists.map(sl => (
+                                <button
+                                  key={sl.id}
+                                  onClick={() => { closeSearch(); onSelectSetlist?.(sl); }}
+                                  className="w-full flex items-center justify-between gap-3 px-4 py-2.5 bg-transparent border-none cursor-pointer hover:bg-[var(--ds-gray-100)] text-left"
+                                >
+                                  <span className="flex flex-col min-w-0">
+                                    <span className="text-copy-14 text-[var(--ds-gray-1000)] truncate">
+                                      {sl.name ? <Highlight text={sl.name} query={q} /> : 'Untitled setlist'}
+                                    </span>
+                                    <span className="text-label-12 text-[var(--ds-gray-600)] truncate">
+                                      {(sl.items?.length || 0)} songs{sl.date ? ` • ${formatDateShort(sl.date)}` : ''}
+                                    </span>
+                                  </span>
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--ds-gray-500)] shrink-0">
+                                    <path d="m9 18 6-6-6-6" />
+                                  </svg>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="px-6 py-8 text-center text-copy-14 text-[var(--ds-gray-600)]">
+                          No matches for "<span className="text-[var(--ds-gray-1000)]">{q}</span>".
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setSearchOpen(true)}
+                  className={iconBtn}
+                  aria-label="Search"
+                  title="Search (⌘K)"
+                >
+                  <SearchIcon />
+                </button>
+              )}
+            </div>
+          )}
           <button
             onClick={() => onOpenHelp?.()}
             className="relative inline-flex items-center justify-center w-9 h-9 rounded-lg cursor-pointer border-none bg-transparent text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"

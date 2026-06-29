@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Input } from '../ui/Input';
 import { getArrangement } from '../../arrangements';
+import { searchSongs } from '../../lib/search';
 
 /**
  * Song library picker — search and click to add songs.
@@ -23,12 +24,7 @@ export default function SetlistSongPicker({ songs, currentItems, onAddSong }) {
   }, [currentItems]);
 
   const results = useMemo(() => {
-    const base = !search.trim()
-      ? songs
-      : songs.filter(s => {
-          const q = search.toLowerCase();
-          return s.title.toLowerCase().includes(q) || s.artist?.toLowerCase().includes(q);
-        });
+    const base = searchSongs(songs, search);
     // Alphabetical by title so the picker is predictable to scan.
     return [...base].sort((a, b) =>
       (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' })

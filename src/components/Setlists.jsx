@@ -5,8 +5,14 @@ import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
+import { searchSetlists } from '../lib/search';
+import { resolveVisibleColumns } from '../lib/tableColumns';
+import ColumnsMenu from './ui/ColumnsMenu';
+import SetlistFilters from './setlist/SetlistFilters';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { useResizablePane } from '../lib/useResizablePane';
+import { usePersistentView } from '../lib/usePersistentView';
+import { setlistStartMs, isSetlistUpcoming } from '../lib/setlistTime';
 import { useEntitlement } from '../hooks/useEntitlement';
 import { useTeam } from '../auth/useTeam';
 import { useTeamSchedules } from '../hooks/useTeamSchedules';
@@ -18,11 +24,8 @@ function songCount(sl) {
   return (sl.items || []).filter(i => i.songId).length;
 }
 
-// Full start datetime (date + time) in ms; used for upcoming/past split + sort.
-const SETLIST_GRACE_MS = 60 * 60 * 1000; // stay "upcoming" up to 1h after start
-function setlistStartMs(sl) {
-  return new Date((sl.date || '') + 'T' + (sl.time || '00:00') + ':00').getTime();
-}
+// setlistStartMs + the upcoming/past split now live in lib/setlistTime (shared
+// with the dashboard, and end-time aware).
 // Sort key for the Past group: newest day first, but earliest service first
 // within a day (so Sun AM reads above Sun PM under that day).
 function comparePast(a, b) {
@@ -85,32 +88,34 @@ function HeaderSort({ label, modeKey, sortMode, sortAsc, onSort }) {
 }
 
 // A titled table section (Upcoming / Past) sharing one column layout.
-function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onToggleAll, sortMode, sortAsc, onSort, compact = false, showService = false, showSchedule = false }) {
+function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onToggleAll, sortMode, sortAsc, onSort, compact = false, showService = false, showSchedule = false, visibleCols, mobileScroll = false }) {
+  const show = (id) => !visibleCols || visibleCols.has(id);
+  const floor = (cls) => (mobileScroll ? '' : cls);
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-baseline gap-2 px-1">
         <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">{title}</h2>
         <span className="text-label-12 text-[var(--modes-text-dim)]">{count}</span>
       </div>
-      <div className="modes-card overflow-hidden">
-        <table className="w-full border-collapse table-fixed">
+      <div className={cn('modes-card', mobileScroll ? 'overflow-x-auto' : 'overflow-hidden')}>
+        <table className={cn('w-full border-collapse table-fixed', mobileScroll && 'min-w-[720px]')}>
           <thead>
             <tr className="border-b border-[var(--modes-border)]">
               <th className="w-[44px] px-4 py-3">
                 {!readOnly && <input type="checkbox" checked={allChecked} onChange={onToggleAll} aria-label={`Select all ${title.toLowerCase()}`} className="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer align-middle" />}
               </th>
               <th className="text-left px-5 py-3"><HeaderSort label="Name" modeKey="name" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
-              <th className="text-left px-5 py-3 w-[180px]"><HeaderSort label="Date" modeKey="date" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
-              <th className="text-left px-5 py-3 hidden md:table-cell w-[90px]"><HeaderSort label="Songs" modeKey="songs" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
+              {show('date') && <th className="text-left px-5 py-3 w-[180px]"><HeaderSort label="Date" modeKey="date" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>}
+              {show('songs') && <th className={cn('text-left px-5 py-3 w-[90px]', floor('hidden md:table-cell'))}><HeaderSort label="Songs" modeKey="songs" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>}
               {showSchedule && (
                 <>
-                  <th title="Instrumentalists scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[80px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Instr.</th>
-                  <th title="Vocalists scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[80px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Vocals</th>
-                  <th title="Total members scheduled" className="text-left px-4 py-3 hidden lg:table-cell w-[90px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Sched.</th>
+                  {show('instr') && <th title="Instrumentalists scheduled" className={cn('text-left px-4 py-3 w-[80px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', floor('hidden lg:table-cell'))}>Instr.</th>}
+                  {show('vocals') && <th title="Vocalists scheduled" className={cn('text-left px-4 py-3 w-[80px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', floor('hidden lg:table-cell'))}>Vocals</th>}
+                  {show('sched') && <th title="Total members scheduled" className={cn('text-left px-4 py-3 w-[90px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', floor('hidden lg:table-cell'))}>Sched.</th>}
                 </>
               )}
-              {showService && <th className="text-left px-5 py-3 hidden md:table-cell w-[150px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Service</th>}
-              {!compact && <th className="text-left px-5 py-3 hidden lg:table-cell w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold">Tags</th>}
+              {showService && show('service') && <th className={cn('text-left px-5 py-3 w-[150px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', floor('hidden md:table-cell'))}>Service</th>}
+              {!compact && show('tags') && <th className={cn('text-left px-5 py-3 w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', floor('hidden lg:table-cell'))}>Tags</th>}
             </tr>
           </thead>
           <tbody>
@@ -138,6 +143,8 @@ export default function Setlists({
   onEditSetlist,
   readOnly = false,
   clockFormat = '12h',
+  tableColumns,
+  onSetTableColumns,
   overviewV2 = false,
   overscheduleWarn = false,
   streakLimit = 3,
@@ -172,11 +179,8 @@ export default function Setlists({
   const [query, setQuery] = useState('');
   const [serviceFilter, setServiceFilter] = useState('all');
   const [selectedTags, setSelectedTags] = useState([]);
-  const [tagsOpen, setTagsOpen] = useState(false);
-  const tagsRef = useRef(null);
-  const [serviceOpen, setServiceOpen] = useState(false);
-  const serviceRef = useRef(null);
-  const [viewMode, setViewMode] = useState('table'); // 'table' | 'gallery'
+  // Persisted per device (localStorage); null = auto per-device default.
+  const [viewMode, setViewMode] = usePersistentView('setlists-md:setlists-view'); // 'gallery' | 'compact' | 'table'
   const [sortMode, setSortMode] = useState('date');   // 'name' | 'date' | 'songs'
   const [sortAsc, setSortAsc] = useState(false);
   const [selected, setSelected] = useState([]);
@@ -212,17 +216,14 @@ export default function Setlists({
   const toggleTag = (tag) => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
 
   const filtered = useMemo(() => {
-    const q = query.toLowerCase();
-    return setlists.filter(sl => {
+    // Service + tag chips are orthogonal filters; apply them first, then run
+    // the shared ultra-search over the text query.
+    const scoped = setlists.filter(sl => {
       if (showService && serviceFilter !== 'all' && (sl.service || '') !== serviceFilter) return false;
       if (selectedTags.length > 0 && !selectedTags.every(t => (sl.tags || []).includes(t))) return false;
-      if (!q) return true;
-      return (
-        (sl.name || '').toLowerCase().includes(q) ||
-        (sl.service || '').toLowerCase().includes(q) ||
-        (sl.tags || []).some(t => t.toLowerCase().includes(q))
-      );
+      return true;
     });
+    return searchSetlists(scoped, query);
   }, [setlists, query, showService, serviceFilter, selectedTags]);
 
   const [prevSelKey, setPrevSelKey] = useState(null);
@@ -232,27 +233,11 @@ export default function Setlists({
     setSelected([]);
   }
 
-  // Close the tags dropdown on outside click.
-  useEffect(() => {
-    if (!tagsOpen) return;
-    const handler = (e) => { if (tagsRef.current && !tagsRef.current.contains(e.target)) setTagsOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [tagsOpen]);
-
-  useEffect(() => {
-    if (!serviceOpen) return;
-    const handler = (e) => { if (serviceRef.current && !serviceRef.current.contains(e.target)) setServiceOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [serviceOpen]);
-
   // Captured once on mount (Date.now() is flagged impure if called in render).
   const [nowTs] = useState(() => Date.now());
 
-  // Per-setlist schedule counts (team workspaces only). NOTE: shown by default
-  // for now — the whole setlist table is slated for a rework with a proper
-  // column picker (see BACKLOG "Editable setlist table fields").
+  // Per-setlist schedule counts (team workspaces only). Visible by default and
+  // toggleable via the shared ColumnsMenu (Instr./Vocals/Sched. columns).
   const { team } = useTeam();
   const { schedules } = useTeamSchedules(team?.id);
   const { map: setlistIdMap } = useTeamSetlistMap(team?.id);
@@ -272,11 +257,18 @@ export default function Setlists({
     return stats;
   }, [showSchedule, setlists, schedules, setlistIdMap]);
 
-  // A setlist is "upcoming" until 1h after its start time, then it's "past".
-  const isUpcoming = (sl) => {
-    const t = setlistStartMs(sl);
-    return !Number.isNaN(t) && t + SETLIST_GRACE_MS > nowTs;
-  };
+  // Customizable table columns (synced via settings.tableColumns). Gated by the
+  // workspace context so Service (church) / Schedule (team) only appear when
+  // available.
+  const columnVisible = useMemo(
+    () => resolveVisibleColumns('setlists', tableColumns, { showService, showSchedule }),
+    [tableColumns, showService, showSchedule],
+  );
+  const showCol = (id) => columnVisible.has(id);
+
+  // A setlist is "upcoming" until it ends — its explicit end time, or 1h after
+  // start when none is set (see lib/setlistTime).
+  const isUpcoming = (sl) => isSetlistUpcoming(sl, nowTs);
 
   // Gallery grouping (Upcoming / Past)
   const { upcoming, past } = useMemo(() => {
@@ -328,8 +320,63 @@ export default function Setlists({
     onSelectPreview?.(null);
   };
 
-  // Table view + master-detail on desktop and tablet; phones keep the gallery.
-  const effectiveView = advanced ? viewMode : 'gallery';
+  // Phones can pick Cards / Compact / Table. Default per device: desktop/tablet
+  // open in Table, phones open in Cards (the friendly default). Compact is
+  // mobile-only; on desktop it falls back to the card gallery.
+  const autoView = advanced ? 'table' : 'gallery';
+  const vm = viewMode ?? autoView;
+  const effectiveView = advanced
+    ? (vm === 'compact' ? 'gallery' : vm)
+    : vm;
+  // Mobile full-table mode scrolls horizontally and drops the responsive column
+  // floors so the chosen columns all show.
+  const mobileTable = !advanced && effectiveView === 'table';
+  const colFloor = (cls) => (mobileTable ? '' : cls);
+
+  // Shared view switcher — Table / (Compact, mobile-only) / Cards.
+  const renderSwitcher = (showCompact) => (
+    <div className="flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
+      <button onClick={() => setViewMode('table')} aria-label="Table view" title="Table view"
+        className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
+          effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
+        <TableViewIcon />
+      </button>
+      {showCompact && (
+        <button onClick={() => setViewMode('compact')} aria-label="Compact list view" title="Compact list"
+          className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
+            vm === 'compact' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></svg>
+        </button>
+      )}
+      <button onClick={() => setViewMode('gallery')} aria-label="Card view" title="Card view"
+        className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
+          effectiveView === 'gallery' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
+        <GalleryViewIcon />
+      </button>
+    </div>
+  );
+
+  // Shared filters popover — reused in the desktop header + the mobile toolbar.
+  const filtersEl = (
+    <SetlistFilters
+      showService={showService}
+      serviceOptions={serviceOptions}
+      serviceFilter={serviceFilter}
+      onSetService={setServiceFilter}
+      allTags={allTags}
+      selectedTags={selectedTags}
+      onToggleTag={toggleTag}
+      onClearTags={() => setSelectedTags([])}
+    />
+  );
+  const columnsEl = effectiveView === 'table' && onSetTableColumns ? (
+    <ColumnsMenu
+      table="setlists"
+      context={{ showService, showSchedule }}
+      saved={tableColumns}
+      onChange={(ids) => onSetTableColumns('setlists', ids)}
+    />
+  ) : null;
 
   // Selection
   const selectedSet = useMemo(() => new Set(selected), [selected]);
@@ -376,8 +423,8 @@ export default function Setlists({
             )}
           </div>
         </td>
-        <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap">{formatDate(sl.date)}</td>
-        <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] hidden md:table-cell">{songCount(sl)}</td>
+        {showCol('date') && <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap">{formatDate(sl.date)}</td>}
+        {showCol('songs') && <td className={cn('px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)]', colFloor('hidden md:table-cell'))}>{songCount(sl)}</td>}
         {showSchedule && (() => {
           const st = scheduleStats[sl.id] || { total: 0, instrumentalists: 0, vocalists: 0 };
           const cell = (n) => n > 0
@@ -385,21 +432,21 @@ export default function Setlists({
             : <span className="text-copy-14 text-[var(--modes-text-dim)]">—</span>;
           return (
             <>
-              <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.instrumentalists)}</td>
-              <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.vocalists)}</td>
-              <td className="px-4 py-3.5 hidden lg:table-cell">{cell(st.total)}</td>
+              {showCol('instr') && <td className={cn('px-4 py-3.5', colFloor('hidden lg:table-cell'))}>{cell(st.instrumentalists)}</td>}
+              {showCol('vocals') && <td className={cn('px-4 py-3.5', colFloor('hidden lg:table-cell'))}>{cell(st.vocalists)}</td>}
+              {showCol('sched') && <td className={cn('px-4 py-3.5', colFloor('hidden lg:table-cell'))}>{cell(st.total)}</td>}
             </>
           );
         })()}
-        {showService && (
-          <td className="px-5 py-3.5 hidden md:table-cell">
+        {showService && showCol('service') && (
+          <td className={cn('px-5 py-3.5', colFloor('hidden md:table-cell'))}>
             {sl.service
               ? <span className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface)] text-[var(--modes-text-muted)] border border-[var(--modes-border)] whitespace-nowrap">{sl.service}</span>
               : <span className="text-copy-14 text-[var(--modes-text-dim)]">—</span>}
           </td>
         )}
-        {!splitDock && (
-          <td className="px-5 py-3.5 hidden lg:table-cell">
+        {!splitDock && showCol('tags') && (
+          <td className={cn('px-5 py-3.5', colFloor('hidden lg:table-cell'))}>
             <div className="flex flex-wrap gap-1">
               {(sl.tags || []).slice(0, 3).map(t => (
                 <span key={t} className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface)] text-[var(--modes-text-muted)] border border-[var(--modes-border)]">{t}</span>
@@ -426,94 +473,11 @@ export default function Setlists({
             onChange={e => setQuery(e.target.value)}
           />
 
-          {showService && serviceOptions.length > 0 && (
-            <div ref={serviceRef} className="relative">
-              <button
-                onClick={() => setServiceOpen(o => !o)}
-                className={cn(
-                  'h-9 px-4 rounded-lg border cursor-pointer flex items-center gap-2 text-label-14 transition-all duration-150',
-                  serviceFilter !== 'all'
-                    ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--modes-surface)]'
-                    : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]',
-                )}
-              >
-                {serviceFilter === 'all' ? 'All services' : serviceFilter}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn('transition-transform duration-150', serviceOpen && 'rotate-180')}>
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-              {serviceOpen && (
-                <div className="absolute right-0 top-full mt-2 w-[220px] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden">
-                  <div className="flex flex-col py-1 max-h-[320px] overflow-y-auto">
-                    {[['all', 'All services'], ...serviceOptions.map(s => [s, s])].map(([val, label]) => (
-                      <button
-                        key={val}
-                        onClick={() => { setServiceFilter(val); setServiceOpen(false); }}
-                        className={cn(
-                          'flex items-center justify-between gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--modes-surface)] transition-colors text-left border-none bg-transparent',
-                          serviceFilter === val ? 'text-[var(--color-brand)]' : 'text-[var(--modes-text)]',
-                        )}
-                      >
-                        <span className="text-copy-14 truncate">{label}</span>
-                        {serviceFilter === val && (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M20 6 9 17l-5-5" /></svg>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {filtersEl}
 
-          {allTags.length > 0 && (
-            <div ref={tagsRef} className="relative">
-              <button
-                onClick={() => setTagsOpen(o => !o)}
-                className={cn(
-                  'h-9 px-4 rounded-lg border cursor-pointer flex items-center gap-2 text-label-14 transition-all duration-150',
-                  selectedTags.length > 0
-                    ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--modes-surface)]'
-                    : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]',
-                )}
-              >
-                Tags{selectedTags.length > 0 ? ` (${selectedTags.length})` : ''}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn('transition-transform duration-150', tagsOpen && 'rotate-180')}>
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-              {tagsOpen && (
-                <div className="absolute right-0 top-full mt-2 w-[220px] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden">
-                  <div className="flex flex-col py-1 max-h-[320px] overflow-y-auto">
-                    {allTags.map(tag => (
-                      <label key={tag} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--modes-surface)] transition-colors">
-                        <input type="checkbox" checked={selectedTags.includes(tag)} onChange={() => toggleTag(tag)} className="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer" />
-                        <span className="text-copy-14 text-[var(--modes-text)]">{tag}</span>
-                      </label>
-                    ))}
-                  </div>
-                  {selectedTags.length > 0 && (
-                    <button onClick={() => setSelectedTags([])} className="w-full px-4 py-2.5 text-left text-label-13 text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)] border-t border-[var(--modes-border)] cursor-pointer bg-transparent">
-                      Clear tags
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          {renderSwitcher(false)}
 
-          <div className={cn('items-center rounded-lg border border-[var(--modes-border)] overflow-hidden', advanced ? 'flex' : 'hidden')}>
-            <button onClick={() => setViewMode('table')} aria-label="Table view" title="Table view"
-              className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
-                viewMode === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
-              <TableViewIcon />
-            </button>
-            <button onClick={() => setViewMode('gallery')} aria-label="Gallery view" title="Gallery view"
-              className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
-                viewMode === 'gallery' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
-              <GalleryViewIcon />
-            </button>
-          </div>
+          {columnsEl}
 
           {!readOnly && (
             <div className="hidden lg:flex items-center gap-2 shrink-0">
@@ -536,6 +500,15 @@ export default function Setlists({
 
       {/* Content */}
       <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 py-5">
+        {/* Mobile toolbar — the desktop header is hidden on phones, so the
+            view switcher + filters + columns live here. */}
+        {loaded && setlists.length > 0 && (
+          <div className="sm:hidden flex items-center gap-2 mb-4 flex-wrap">
+            {renderSwitcher(true)}
+            {filtersEl}
+            {columnsEl}
+          </div>
+        )}
         {!loaded ? (
           <SkeletonRows />
         ) : filtered.length === 0 ? (
@@ -578,6 +551,8 @@ export default function Setlists({
                 compact={splitDock}
                 showService={showService}
                 showSchedule={showSchedule}
+                visibleCols={columnVisible}
+                mobileScroll={mobileTable}
               />
             )}
             {tablePast.length > 0 && (
@@ -595,7 +570,38 @@ export default function Setlists({
                 compact={splitDock}
                 showService={showService}
                 showSchedule={showSchedule}
+                visibleCols={columnVisible}
+                mobileScroll={mobileTable}
               />
+            )}
+          </div>
+        ) : effectiveView === 'compact' ? (
+          <div className="flex flex-col gap-6">
+            {upcoming.length > 0 && (
+              <section className="flex flex-col gap-3">
+                <div className="flex items-baseline gap-2 px-1">
+                  <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">Upcoming</h2>
+                  <span className="text-label-12 text-[var(--modes-text-dim)]">{upcoming.length}</span>
+                </div>
+                <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
+                  {upcoming.map(sl => (
+                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} />
+                  ))}
+                </div>
+              </section>
+            )}
+            {past.length > 0 && (
+              <section className="flex flex-col gap-3">
+                <div className="flex items-baseline gap-2 px-1">
+                  <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">Past</h2>
+                  <span className="text-label-12 text-[var(--modes-text-dim)]">{past.length}</span>
+                </div>
+                <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
+                  {past.map(sl => (
+                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} />
+                  ))}
+                </div>
+              </section>
             )}
           </div>
         ) : (

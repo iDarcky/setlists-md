@@ -12,9 +12,11 @@ import {
   ALL_KEYS,
   isMinorKey,
   keysInQualityOf,
+  keyOptions,
   circleOfFifthsDistance,
   keyCompatibilityScore,
   tempoProximityScore,
+  keyPrefersSharps,
 } from '../music';
 
 describe('transposeChord', () => {
@@ -169,6 +171,41 @@ describe('notateChord', () => {
   });
 });
 
+describe('enharmonic spelling (keyPrefersSharps / preferSharps)', () => {
+  it('picks sharp vs flat keys conventionally', () => {
+    ['G', 'D', 'A', 'E', 'B', 'C', 'Em', 'Bm', 'Am'].forEach(k => expect(keyPrefersSharps(k)).toBe(true));
+    ['F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Dm', 'Gm', 'Cm', 'Fm'].forEach(k => expect(keyPrefersSharps(k)).toBe(false));
+  });
+  it('honours an explicit accidental in the key spelling', () => {
+    expect(keyPrefersSharps('F#')).toBe(true);
+    expect(keyPrefersSharps('Gb')).toBe(false);
+  });
+  it('transposeChord defaults to flats (back-compat) but can prefer sharps', () => {
+    expect(transposeChord('C', 6)).toBe('Gb');
+    expect(transposeChord('C', 6, true)).toBe('F#');
+    expect(transposeChord('C', 6, false)).toBe('Gb');
+  });
+  it('re-spells at 0 transpose when a preference is given', () => {
+    expect(transposeChord('Gb', 0, true)).toBe('F#');
+    expect(transposeChord('F#', 0, false)).toBe('Gb');
+    expect(transposeChord('F#', 0)).toBe('F#'); // no preference → verbatim
+  });
+  it('spells slash chords consistently', () => {
+    expect(transposeChord('D/F#', 0, false)).toBe('D/Gb');
+    expect(transposeChord('D/Gb', 0, true)).toBe('D/F#');
+  });
+  it('notateChord auto-spells from the key it sounds in', () => {
+    // A song in G: the ♯4 chord reads F♯, not G♭.
+    expect(notateChord('F#', { key: 'G', accidentals: 'auto' })).toBe('F#');
+    expect(notateChord('Gb', { key: 'G', accidentals: 'auto' })).toBe('F#');
+    // A song in D♭: reads G♭.
+    expect(notateChord('F#', { key: 'Db', accidentals: 'auto' })).toBe('Gb');
+    // Forced overrides.
+    expect(notateChord('Gb', { key: 'G', accidentals: 'flats' })).toBe('Gb');
+    expect(notateChord('F#', { key: 'Db', accidentals: 'sharps' })).toBe('F#');
+  });
+});
+
 describe('getDiatonicChords', () => {
   it('produces 7 chords for C major', () => {
     const diatonic = getDiatonicChords('C');
@@ -187,6 +224,12 @@ describe('getDiatonicChords', () => {
 
   it('returns a fallback when no key is given', () => {
     expect(getDiatonicChords('')).toEqual(['C', 'Dm', 'Em', 'F', 'G', 'Am', 'Bdim']);
+  });
+
+  it('spells diatonic roots with the key\'s accidentals (E → F#m, Eb → Fm)', () => {
+    expect(getDiatonicChords('E')[1]).toBe('F#m'); // ii in a sharp key
+    expect(getDiatonicChords('Eb')[1]).toBe('Fm');
+    expect(getDiatonicChords('G')[6]).toBe('F#dim'); // vii° reads F#, not Gb
   });
 });
 
@@ -237,6 +280,37 @@ describe('minor keys', () => {
   it('lists keys in the song quality', () => {
     expect(keysInQualityOf('C')).toEqual(ALL_KEYS);
     expect(keysInQualityOf('Am')).toEqual(ALL_KEYS.map(k => k + 'm'));
+  });
+
+  it('spells the key list with sharps when asked', () => {
+    expect(keysInQualityOf('C', 'sharps')).toContain('F#');
+    expect(keysInQualityOf('C', 'sharps')).not.toContain('Gb');
+    expect(keysInQualityOf('C', 'flats')).toContain('Gb');
+    expect(keysInQualityOf('Am', 'sharps')).toContain('F#m');
+  });
+});
+
+describe('keyOptions', () => {
+  it('returns 24 entries (12 major + 12 minor)', () => {
+    expect(keyOptions('flats')).toHaveLength(24);
+  });
+
+  it('stores flats but labels both spellings for accidental keys', () => {
+    const gb = keyOptions('flats').find(o => o.value === 'Gb');
+    expect(gb.label).toBe('Gb/F#');
+    const gbm = keyOptions('flats').find(o => o.value === 'Gbm');
+    expect(gbm.label).toBe('Gbm/F#m');
+  });
+
+  it('stores sharps when the preference is sharps', () => {
+    const fSharp = keyOptions('sharps').find(o => o.value === 'F#');
+    expect(fSharp.label).toBe('F#/Gb');
+    expect(keyOptions('sharps').some(o => o.value === 'Gb')).toBe(false);
+  });
+
+  it('labels natural keys with a single name', () => {
+    expect(keyOptions('flats').find(o => o.value === 'C').label).toBe('C');
+    expect(keyOptions('flats').find(o => o.value === 'Em').label).toBe('Em');
   });
 });
 

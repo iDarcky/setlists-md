@@ -25,6 +25,11 @@ export default function DesktopLayout({
   onNewWorkspace,
   newWorkspaceLocked = false,
   supportContact,
+  songs = [],
+  setlists = [],
+  onSelectSong,
+  onSelectSetlist,
+  showGlobalSearch = false,
 }) {
   const mainRef = useRef(null);
   const isMobile = useMediaQuery('(max-width: 639.98px)');
@@ -71,6 +76,11 @@ export default function DesktopLayout({
           onNewWorkspace={onNewWorkspace}
           newWorkspaceLocked={newWorkspaceLocked}
           supportContact={supportContact}
+          songs={songs}
+          setlists={setlists}
+          onSelectSong={onSelectSong}
+          onSelectSetlist={onSelectSetlist}
+          showSearch={showGlobalSearch}
         />
       )}
 

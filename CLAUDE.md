@@ -168,7 +168,12 @@ src/
     ├── TabBlock.jsx          # SVG guitar tab renderer (fret numbers, string lines, bar lines, techniques)
     ├── ChordDiagram.jsx      # svguitar wrapper — renders chord fingering diagrams
     ├── StructureRibbon.jsx   # Section flow bar + MetaPill component
-    ├── ChartView.jsx         # Full chord chart view (transpose, 1/2-col layout, size, chord diagrams toggle)
+    ├── SongHub.jsx           # Song-open target: media "hub card" (art · title + gold key · meta · ⋯ · Edit · Campfire) over a "reader card" whose tab header (Chart/Lyrics/Details, brand pills) carries the chart-only Aa + full-screen controls; backing-track player is a card pinned to the bottom
+    ├── FullscreenChartViewer.jsx # WIP distraction-free fullscreen reader (opened from the chart/lyrics full-screen button) wrapping an embedded ChartView
+    ├── SongDetails.jsx       # Hub "Details" tab: grouped read view + inline edit form with a card-bottom Save/Cancel bar
+    ├── SongPlayerBar.jsx     # YouTube backing-track transport (own play/scrub controls; hidden IFrame-API player); `compact` variant for the mobile media card
+    ├── ChartView.jsx         # Chord chart reader (transpose, 1/2-col, sizes). `embedded` mode + controlled props let SongHub drive it; the Aa popover + centered "Advanced" Dialog render here
+    ├── AaMenu.jsx            # Single chart display popover (Page/Lyrics/Chords tabs; per-element size·font·colour; per-tab Reset)
     ├── Editor.jsx            # 3-tab editor shell (Form/Visual/Raw) with split-screen preview
     ├── Library.jsx           # Song library with search + setlists tab
     ├── SetlistBuilder.jsx    # Build setlists: pick songs, reorder, per-song transpose & notes
@@ -205,7 +210,8 @@ supabase/
 
 ## Architecture
 
-- **No router** — App.jsx manages views via `view` state (`library`, `chart`, `editor`, `setlist-build`, `setlist-play`, `setlist-performance`, `signin`, `recovery`, `auth-callback`, …)
+- **No router** — App.jsx manages views via `view` state (`library`, `song-hub`, `editor`, `setlist-build`, `setlist-play`, `setlist-performance`, `signin`, `recovery`, `auth-callback`, …). The `song-hub` route replaced the old `chart` route entirely.
+- **Song Hub** (`SongHub.jsx`) is the song-open target. It owns identity + transpose + tab navigation and embeds `ChartView` as **just the reader** (`embedded` + controlled `selectedKey`/`displayMode`/`aaAnchor`/`arrangementId` props). Tabs are **Chart / Lyrics / Details** rendered as brand-coloured pills (matching the top nav). The **Aa** display popover and a centered **"Advanced"** `Dialog` both render inside `ChartView`; the Aa + full-screen buttons live in the reader **tab header** and show only on Chart/Lyrics (hidden on Details). Full-screen opens `FullscreenChartViewer` (WIP — future home of the chart "view modes"). The hub ⋮ menu carries Print/Move/Copy (desktop) plus Campfire+Edit folded in on mobile. Backing-track audio is `SongPlayerBar` (YouTube-only): a single card pinned to the bottom, laid out as one non-wrapping row (play · title · scrubber · time) so the scrubber stays on the title's line even on phones.
 - **No server for song data** — songs/setlists stored client-side in IndexedDB via idb-keyval. Supabase only handles auth + account-level preferences.
 - **Songs** are stored as parsed objects on a **v2 multi-arrangement schema** (`src/arrangements.js`): top-level identity (`id`, `title`, `artist`, `ccli`, `tags`, `keyHistory`, `defaultArrangementId`) plus an `arrangements[]` array. Each arrangement carries its own `key`, `tempo`, `time`, `capo`, `notes`, `structure[]`, and `sections[]`. The `.md` format flattens to a single arrangement; multi-arrangement state is app-internal.
 - **Notes live at three levels** — per-arrangement `arrangement.notes` (markdown, shared across setlists), per-setlist-item `items[i].note` (100-char cue), and per-break `items[i].note` (500-char markdown). There is **no per-setlist or per-user note scope yet** (planned).
@@ -217,6 +223,30 @@ supabase/
 - **Tab editing** — VisualTab detects cursor inside `{tab}...{/tab}` to open TabGridEditor pre-loaded; FormTab shows "Edit Tab" buttons per tab block; saves replace in-place
 - **Editor** — `md` state lives in Editor.jsx shell; all tabs receive `md` + `onChange`; switching tabs preserves content
 - **Split-screen preview** — `useSyncExternalStore` with `window.matchMedia('(min-width: 768px)')` — side-by-side on wide, toggle on narrow
+
+### Search, filters & list views (shipped 0.14.0)
+
+- **Unified search** — `src/lib/search.js` is the single engine for every
+  song/setlist search bar (Library, Setlists, `MobileTopBar`, the desktop ⌘K
+  `TopHeader` search, `SetlistSongPicker`). `normalizeText()` folds diacritics +
+  punctuation (`Laudă`→`lauda`, drops apostrophes); `searchSongs`/`searchSetlists`
+  run an exact diacritic-folded pass with a **fuse.js** fuzzy fallback over all
+  metadata fields; `highlightSegments()` backs `ui/Highlight.jsx` (accent-correct
+  match marks). Pure functions — call sites keep their own `useMemo`/`useDeferredValue`.
+- **Library facets** — `src/lib/songFacets.js` (`buildFacetOptions`,
+  `matchesFacets`) drives `library/LibraryFilters.jsx`: key/tempo/theme/language/
+  year/scripture/moment, **OR within a facet, AND across facets**, plus tags.
+  `setlist/SetlistFilters.jsx` is the setlists equivalent (service + tags).
+- **Customizable table columns** — `src/lib/tableColumns.js` + `ui/ColumnsMenu.jsx`
+  let users show/hide columns in the Songs and Setlists tables. Persisted in
+  `settings.tableColumns` (a key in `PORTABLE_PREF_KEYS`, so it **syncs**).
+  Entitlement-gated columns (Service=church, Schedule=team) only appear when the
+  workspace allows them. (Drag-reorder is not built yet — show/hide only.)
+- **List view modes** — both lists offer **Cards / Compact / Table**. The choice
+  is a **per-device** preference via `src/lib/usePersistentView.js` (localStorage,
+  NOT synced); `null` means "auto" → Table on desktop, Cards on mobile. The
+  mobile Table scrolls horizontally and drops the responsive column floors (a
+  `colFloor` helper) so the chosen columns all render.
 
 ### Auth + Account-Level Preferences
 
@@ -527,6 +557,8 @@ Each team/church workspace is its own Stripe subscription, paid by the team
 - svguitar renders imperatively into a DOM ref — use `useRef` + `useEffect`, copy ref to local var in cleanup
 - TabGridEditor uses `key` prop for remount when editing different tabs — do not add deps to the `initialTab` useEffect
 - ChartView computes `sectionModOffsets` via `useMemo` — uses `acc` object instead of `let` variable to satisfy React compiler immutability rules
+- Chart display lives in one **`AaMenu.jsx`** popover (Page/Lyrics/Chords tabs). In the hub it opens from the **reader tab header** (chart/lyrics only — hidden on Details, where the hub passes the button rect down as `aaAnchor`); standalone `ChartView` opens it from its own header. It writes the existing `settings` keys plus per-element colour (`chartLyricColor`/`chartChordColor`, fixed `CHART_COLOR_PALETTE`; falsy = follow theme, portable prefs). Each tab has a **Reset-to-default** (`ChartView.resetAa` clears that tab's override keys → fall back to the stage/app default), Columns are **1 / 2** only (no Auto), and the **chord-diagram toggle was pulled** (rendering + `showDiagrams` setting stay; tracked in `docs/PLAN.md`). The old Layout `BottomSheet` is now a centered **`Dialog`** ("Advanced") holding only the non-Aa controls (spacing, repeated sections, inline cues, role preset, tab instrument) — the duplicated columns/lyric-size/chord-size and the theme block were removed. Chart **view modes** (`ui/viewModes.js` `VIEW_MODES`) are no longer in the hub ⋮; they're slated to move into `FullscreenChartViewer`. `StageHeader` has an `actionsInTitle` prop (Chart-only). Not yet applied to Performance/Practice.
+- **CSP + embeds** (`vercel.json`, enforcing — not applied by `npm run dev`): the Spotify/YouTube backing-track embeds need `*.spotifycdn.com` in `script-src`/`connect-src` (the iframe-api pulls its real code from `embed-cdn.spotifycdn.com`). **Spotify playback was dropped** because its embed API runs via `eval()` (would need `'unsafe-eval'`, a whole-app downgrade) and only streams full tracks to signed-in Spotify users; `SongPlayerBar` is YouTube-only. Spotify links still drive **cover art** (`lib/coverArt.js` → the `cover-art` edge function, server-side oEmbed — no eval, no CSP issue). `lib/embedPlayers.js` loads the IFrame APIs once and clears its memo on failure so a blocked first load can retry; `SongPlayerBar` has a readiness **watchdog** that re-creates a stalled player (auto-recovers the dropped first-init).
 - Preference hydration runs **once per user id** via `prefsHydratedForUserRef` — don't re-run it on every profile change or you'll clobber a later local edit with the cloud value. The ref is cleared on sign-out.
 - Only keys in `PORTABLE_PREF_KEYS` (App.jsx) are allowed in `profile.preferences`. Adding a new portable preference? Add its key to that array or it won't follow the user across devices.
 - The `profiles.preferences` column is optional at runtime — `AuthProvider` falls back to a base `select('id, email, display_name, is_pro, subscription_tier')` if the column doesn't exist, so sign-in works even before the migration is applied. The push side swallows the error.
@@ -535,31 +567,7 @@ Each team/church workspace is its own Stripe subscription, paid by the team
 - PDF export renders an **in-app overlay with a same-origin `<iframe srcdoc>`** on every platform (`openPrintWindow()` in `src/pdf/pdfDocument.js`); printing goes through `iframe.contentWindow.print()`. Do NOT reintroduce `window.open` + `document.write` — popups return `null` handles in installed PWAs and don't exist in Capacitor/Electron webviews. The iframe inherits the page origin (prefs read `localStorage['setlists-md:pdf-prefs']` directly) **and the page CSP** — the print document uses an inline `<script>`/`<style>`, so before flipping the report-only CSP in `vercel.json` to enforcing, `script-src`/`style-src` must accommodate it (hash/nonce or refactor).
 - `SetlistOverview` is rendered in **two places**: (1) the dedicated `setlist-view` route in `App.jsx`, and (2) the desktop preview pane inside `Setlists.jsx`. Both wire its export callbacks (`onExportZip`, `onExportPdfOverview`, `onExportPdfFull`) — when you add or rename one, update *both* call sites or the desktop preview will silently no-op.
 
-## Known Correctness Issues (verify before promoting the Church/Team tier)
-
-These are real defects found during a roadmap audit. They are not yet fixed —
-treat them as the first work item if the paid tier is ever demoed.
-
-- ~~**Entitlement gate falls back to free for teams**~~ — *Fixed.*
-  `useEntitlement` reads `team.plan` (and now also `team.subscription_status`);
-  the stray `team.billing_plan` read in `Settings.jsx` was switched to
-  `team.plan`. Separately, `TeamProvider` was reading the dropped
-  `profile.plan` for `hasTeamPlan`/`createTeam` (always undefined → team
-  creation hit the `plan in ('team','church')` check constraint); it now reads
-  `profile.subscription_tier` and stamps a valid tier on create.
-- ~~**Members can edit songs in read-only team libraries**~~ — *Fixed (June
-  2026).* `guardTeamReadOnly()` in App.jsx gates `navigate('editor', …)` (the
-  funnel for every editor entry point), the smart-import/multi-import flows
-  (which add songs before navigating), and `handleSaveSong` (defense in depth
-  if the role changes mid-edit). Members get a "Read-only library" toast.
-- ~~**Preference cloud-sync push misses ~11 keys**~~ — *Stale / already fixed.*
-  The push effect depends on `portablePrefsSnapshot` (a JSON string of ALL
-  `PORTABLE_PREF_KEYS`), so every portable key triggers the debounced push.
-- ~~**Team sync has no optimistic locking**~~ — *Fixed (June 2026).* Team
-  libraries now sync through `src/sync/team-engine.js` (see below), whose
-  updates are compare-and-swap-guarded on `updated_at`.
-
-### Team library sync (src/sync/team-engine.js)
+## Team library sync (src/sync/team-engine.js)
 
 Team libraries no longer go through the file-manifest engine
 (`engine.js` + the `supabase-team.js` provider shim). They use a dedicated
@@ -589,12 +597,12 @@ directly:
 
 ## Current Focus & Roadmap
 
-Active direction (solo, occasional cadence): **App Shell redesign, shipped as
-independently-mergeable slices** — never a long-lived big-bang branch. Order:
-(1) settings-modal backdrop-close + scroll-lock and top-bar/iPad-scroll fixes,
-(2) Dashboard + Schedule redesign, (3) chart/performance display options
-(Lyrics-only / Chords-only / Song-map, Nashville + Do-Re-Mi notation, condensed
-sections), (4) setlist + notes rework, (5) Church/Team hardening (the bugs
-above). TypeScript migration is deferred and done incrementally per touched
-file, not as a phase. `docs/ROADMAP.md` holds the longer-horizon list.
+**Planning lives in `docs/PLAN.md`** — the single source of truth for the launch
+plan, polish backlog, known issues, and the longer-horizon roadmap (it replaces
+the old `docs/ROADMAP.md` + `docs/BACKLOG.md`). Keep this file (`CLAUDE.md`) for
+dev/agent memory only: stack, architecture, schema, the finish/release
+workflows, and gotchas.
+
+TypeScript migration is deferred and done incrementally per touched file, not as
+a phase.
 
