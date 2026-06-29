@@ -354,16 +354,20 @@ export default function SongHub({
             '--text-2': 'var(--chart-subtle, var(--ds-gray-900))',
           }}
         >
-          {/* Tabs (underline, no dots) */}
-          <div className="shrink-0 flex gap-0.5 px-2 sm:px-3.5 border-b border-[var(--border-1)]">
+          {/* Tabs — rounded brand pills, mirroring the app's primary nav. */}
+          <div className="shrink-0 flex gap-1 px-2 sm:px-3 py-2 border-b border-[var(--border-1)]">
             {HUB_TABS.map(t => {
               const active = activeTab === t.id;
               return (
                 <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
+                  aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'px-3 sm:px-3.5 py-3 text-[13.5px] border-b-2 -mb-px bg-transparent cursor-pointer transition-colors',
-                    active ? 'text-[var(--text-1)] border-[var(--color-brand)] font-semibold' : 'text-[var(--text-2)] border-transparent hover:text-[var(--text-1)]',
-                  )}>
+                    'h-9 px-3.5 sm:px-4 rounded-lg text-[13.5px] cursor-pointer transition-colors',
+                    active
+                      ? 'bg-[var(--ds-teal-100)] text-[var(--ds-teal-900)] font-semibold'
+                      : 'font-medium text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--bg-2)]',
+                  )}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}>
                   {t.label}
                 </button>
               );
@@ -407,8 +411,8 @@ export default function SongHub({
         </div>
       </div>
 
-      {/* ════ BACKING-TRACK TRANSPORT (Spotify / YouTube) ════ */}
-      <SongPlayerBar spotifyUrl={song.spotify} youtubeUrl={song.youtube} title={song.title} artist={song.artist} />
+      {/* ════ BACKING-TRACK TRANSPORT (YouTube) ════ */}
+      <SongPlayerBar youtubeUrl={song.youtube} title={song.title} artist={song.artist} />
     </div>
   );
 }

@@ -86,17 +86,53 @@ export default function SongDetails({ song, onSave }) {
     );
   }
 
-  const hasMetadata = !!song.artist || song.capo > 0 || !!song.ccli || (song.tags?.length > 0) || !!song.notes || !!song.spotify || !!song.youtube
-    || !!song.originaltitle || !!song.language || !!song.translator || !!song.vocalrange || !!song.year
-    || !!song.writers || !!song.publishers || !!song.album || !!song.label || !!song.copyright
-    || !!song.themes || !!song.genres || !!song.scripture || !!song.moment || !!song.story;
+  // Short scalar fields, grouped into labelled sections. Each group renders only
+  // when it has at least one filled value.
+  const groups = [
+    { title: 'About', items: [
+      ['Artist', song.artist],
+      ['Original title', song.originaltitle],
+      ['Album', song.album],
+      ['Release year', song.year],
+      ['Language', song.language],
+      ['Translator', song.translator],
+      ['Vocal range', song.vocalrange],
+    ] },
+    { title: 'Arrangement', items: [
+      ['Tempo', song.tempo ? `${song.tempo} bpm` : ''],
+      ['Time', song.time],
+      ['Capo', song.capo > 0 ? String(song.capo) : ''],
+    ] },
+    { title: 'Credits & rights', items: [
+      ['Writers', song.writers],
+      ['Publishers', song.publishers],
+      ['Label', song.label],
+      ['CCLI', song.ccli],
+      ['Copyright', song.copyright],
+    ] },
+    { title: 'Classification', items: [
+      ['Themes', song.themes],
+      ['Genres', song.genres],
+      ['Bible verses', song.scripture],
+      ['Liturgical moment', song.moment],
+    ] },
+  ].map(g => ({ ...g, items: g.items.filter(([, v]) => v) })).filter(g => g.items.length > 0);
 
+  const tags = song.tags || [];
+  const links = [
+    song.spotify && { label: 'Spotify', url: song.spotify },
+    song.youtube && { label: 'YouTube', url: song.youtube },
+  ].filter(Boolean);
+  const longFields = LONG.map(({ k, label }) => ({ label, value: song[k] })).filter(f => f.value);
   const keyPlays = Object.entries(song.keyHistory || {})
     .filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1]);
 
+  const isEmpty = groups.length === 0 && tags.length === 0 && links.length === 0
+    && longFields.length === 0 && keyPlays.length === 0;
+
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-8">
       {onSave && (
         <div className="flex items-center justify-between gap-3">
           <h2 className="m-0 text-heading-16 font-semibold text-[var(--text-1)]">Details</h2>
@@ -108,49 +144,65 @@ export default function SongDetails({ song, onSave }) {
         </div>
       )}
 
-      {!hasMetadata && keyPlays.length === 0 ? (
+      {isEmpty ? (
         <p className="text-copy-14 text-[var(--text-2)] italic m-0">No additional song info yet. Use Edit to add artist, themes, links and more.</p>
       ) : (
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-copy-13 m-0">
-          {song.artist && <InfoRow label="Artist">{song.artist}</InfoRow>}
-          {song.originaltitle && <InfoRow label="Original title">{song.originaltitle}</InfoRow>}
-          {song.language && <InfoRow label="Language">{song.language}</InfoRow>}
-          {song.translator && <InfoRow label="Translator">{song.translator}</InfoRow>}
-          {song.tempo && <InfoRow label="Tempo">{song.tempo} bpm</InfoRow>}
-          {song.time && <InfoRow label="Time">{song.time}</InfoRow>}
-          {song.capo > 0 && <InfoRow label="Capo">{song.capo}</InfoRow>}
-          {song.vocalrange && <InfoRow label="Vocal range">{song.vocalrange}</InfoRow>}
-          {song.year && <InfoRow label="Release year">{song.year}</InfoRow>}
-          {song.writers && <InfoRow label="Writers">{song.writers}</InfoRow>}
-          {song.publishers && <InfoRow label="Publishers">{song.publishers}</InfoRow>}
-          {song.album && <InfoRow label="Album">{song.album}</InfoRow>}
-          {song.label && <InfoRow label="Label">{song.label}</InfoRow>}
-          {song.ccli && <InfoRow label="CCLI">{song.ccli}</InfoRow>}
-          {song.copyright && <InfoRow label="Copyright">{song.copyright}</InfoRow>}
-          {song.themes && <InfoRow label="Themes">{song.themes}</InfoRow>}
-          {song.genres && <InfoRow label="Genres">{song.genres}</InfoRow>}
-          {song.scripture && <InfoRow label="Bible verses">{song.scripture}</InfoRow>}
-          {song.moment && <InfoRow label="Liturgical moment">{song.moment}</InfoRow>}
-          {song.tags?.length > 0 && <InfoRow label="Tags">{song.tags.join(', ')}</InfoRow>}
-          {song.story && <InfoRow label="Story behind"><span className="whitespace-pre-wrap">{song.story}</span></InfoRow>}
-          {song.notes && <InfoRow label="Notes"><span className="whitespace-pre-wrap">{song.notes}</span></InfoRow>}
-          {song.spotify && <InfoRow label="Spotify"><a href={song.spotify} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-text)] hover:underline">Open ↗</a></InfoRow>}
-          {song.youtube && <InfoRow label="YouTube"><a href={song.youtube} target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-text)] hover:underline">Open ↗</a></InfoRow>}
-        </dl>
-      )}
+        <>
+          {groups.map(g => (
+            <section key={g.title} className="flex flex-col gap-3">
+              <SectionTitle>{g.title}</SectionTitle>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
+                {g.items.map(([label, value]) => <Item key={label} label={label} value={value} />)}
+              </div>
+            </section>
+          ))}
 
-      {keyPlays.length > 0 && (
-        <div>
-          <h3 className="m-0 mb-2 text-label-11 uppercase tracking-wider text-[var(--text-2)]">Key history</h3>
-          <div className="flex flex-wrap gap-1.5">
-            {keyPlays.map(([k, n]) => (
-              <span key={k} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-12">
-                <span className="font-mono font-semibold text-[var(--text-1)]">{k}</span>
-                <span className="text-[var(--text-2)]">{n}×</span>
-              </span>
-            ))}
-          </div>
-        </div>
+          {tags.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <SectionTitle>Tags</SectionTitle>
+              <div className="flex flex-wrap gap-2">
+                {tags.map(t => (
+                  <span key={t} className="inline-flex items-center h-7 px-3 rounded-full border border-[var(--border-1)] bg-[var(--bg-1)] text-label-12 font-medium text-[var(--text-1)]">{t}</span>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {longFields.map(f => (
+            <section key={f.label} className="flex flex-col gap-2">
+              <SectionTitle>{f.label}</SectionTitle>
+              <p className="m-0 text-copy-14 leading-relaxed text-[var(--text-1)] whitespace-pre-wrap">{f.value}</p>
+            </section>
+          ))}
+
+          {links.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <SectionTitle>Listen</SectionTitle>
+              <div className="flex flex-wrap gap-2">
+                {links.map(l => (
+                  <a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-13 font-medium text-[var(--text-1)] hover:bg-[var(--bg-2)]">
+                    {l.label} <span aria-hidden="true" className="text-[var(--text-2)]">↗</span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {keyPlays.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <SectionTitle>Key history</SectionTitle>
+              <div className="flex flex-wrap gap-1.5">
+                {keyPlays.map(([k, n]) => (
+                  <span key={k} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-12">
+                    <span className="font-mono font-semibold text-[var(--text-1)]">{k}</span>
+                    <span className="text-[var(--text-2)]">{n}×</span>
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
     </div>
   );
@@ -170,11 +222,15 @@ function Field({ label, hint, children }) {
   );
 }
 
-function InfoRow({ label, children }) {
+function SectionTitle({ children }) {
+  return <h3 className="m-0 text-label-11 uppercase tracking-wider font-semibold text-[var(--text-2)]">{children}</h3>;
+}
+
+function Item({ label, value }) {
   return (
-    <div className="flex gap-2 min-w-0">
-      <dt className="w-24 shrink-0 text-label-12 font-semibold text-[var(--text-2)] leading-tight pt-0.5">{label}</dt>
-      <dd className="flex-1 min-w-0 m-0 text-[var(--text-1)] break-words">{children}</dd>
+    <div className="flex flex-col gap-0.5 min-w-0">
+      <span className="text-label-11 uppercase tracking-wide text-[var(--text-2)]">{label}</span>
+      <span className="text-copy-14 text-[var(--text-1)] break-words">{value}</span>
     </div>
   );
 }

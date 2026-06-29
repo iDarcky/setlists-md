@@ -1,21 +1,19 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { youtubeId, spotifyTrackId } from '../lib/coverArt';
-import { ensureYouTubeApi, ensureSpotifyApi } from '../lib/embedPlayers';
+import { youtubeId } from '../lib/coverArt';
+import { ensureYouTubeApi } from '../lib/embedPlayers';
 import { headerFrostStyle } from '../lib/headerFrost';
 
 // ── Backing-track transport bar ────────────────────────────────────────────
-// The bottom bar from docs/mockups/song-hub-v2.html. Plays the song's backing
-// track from its Spotify and/or YouTube link, but with OUR OWN controls —
-// play/pause, elapsed time, and a scrub bar — driving the audio. The platform's
-// native player is loaded hidden (1px, in-viewport) via its JS API (YouTube
-// IFrame API / Spotify iframe API) and we command it; only our controls show.
-// When the song has both links the source is switched via a chevron next to the
-// source name.
+// The bottom bar from docs/mockups/song-hub-v2.html. Plays the song's YouTube
+// backing track with OUR OWN controls — play/pause, elapsed time and a scrub
+// bar — driving the audio. YouTube's native player is loaded hidden (1px,
+// in-viewport) via the IFrame API and we command it; only our controls show.
 //
-// Note: Spotify embeds play full tracks only for listeners signed into Spotify
-// in this browser; otherwise the API serves a 30s preview (a Spotify limit, not
-// ours). Future practice features (pitch / tempo) need a scrubbing audio engine
-// these streaming embeds don't expose — out of scope here.
+// Spotify playback was intentionally dropped: its embed iframe API runs via
+// `eval()`, which our CSP blocks — allowing it ('unsafe-eval') would weaken the
+// whole app — and it only streams full tracks to listeners already signed into
+// Spotify (a 30s preview otherwise). We still use Spotify links for cover art
+// (resolved server-side via oEmbed), just not for in-app playback.
 
 function fmtTime(sec) {
   if (!sec || !isFinite(sec) || sec < 0) return '0:00';
@@ -25,42 +23,23 @@ function fmtTime(sec) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export default function SongPlayerBar({ spotifyUrl, youtubeUrl, title, artist }) {
+export default function SongPlayerBar({ youtubeUrl, title, artist }) {
   const ytId = youtubeId(youtubeUrl);
-  const spId = spotifyTrackId(spotifyUrl);
-  const sources = [
-    ytId && { id: 'youtube', label: 'YouTube' },
-    spId && { id: 'spotify', label: 'Spotify' },
-  ].filter(Boolean);
-
-  const [source, setSource] = useState(sources[0]?.id);
-  const active = sources.some(s => s.id === source) ? source : sources[0]?.id;
-
-  if (sources.length === 0) return null;
+  if (!ytId) return null;
 
   return (
     <div
       className="shrink-0 border-t border-[var(--border-1)]"
       style={{ ...headerFrostStyle, background: 'color-mix(in srgb, var(--ds-background-100) 88%, transparent)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
-      {/* Keyed by source so switching providers remounts with fresh player state. */}
-      <TrackTransport
-        key={active}
-        active={active}
-        ytId={ytId}
-        spId={spId}
-        title={title}
-        artist={artist}
-        sources={sources}
-        onSource={setSource}
-      />
+      <TrackTransport ytId={ytId} title={title} artist={artist} />
     </div>
   );
 }
 
-function TrackTransport({ active, ytId, spId, title, artist, sources, onSource }) {
+function TrackTransport({ ytId, title, artist }) {
   const hostRef = useRef(null);
-  const playerRef = useRef(null);   // { kind, player }
+  const playerRef = useRef(null);
   const pollRef = useRef(null);
   const draggingRef = useRef(false); // suppress poll-driven position while scrubbing
   const readyRef = useRef(false);    // mirrors `ready` for the watchdog closure
@@ -75,14 +54,13 @@ function TrackTransport({ active, ytId, spId, title, artist, sources, onSource }
   const [dragPos, setDragPos] = useState(0);
   const [attempt, setAttempt] = useState(0); // bumped to force a clean player re-create
 
-  // Build (and tear down) the hidden platform player. Fresh mount per source
-  // (parent keys us by it). The `attempt` dep lets a stalled init auto-recover:
-  // the platform embeds occasionally drop their very first ready callback in a
-  // hidden container (or stall behind a slow/blocked API load), and a clean
-  // re-create — exactly what manually toggling the source used to do — fixes it.
+  // Build (and tear down) the hidden YouTube player. The `attempt` dep lets a
+  // stalled init auto-recover: the embed occasionally drops its very first
+  // ready callback in a hidden container (or stalls behind a slow/blocked API
+  // load), and a clean re-create fixes it.
   useEffect(() => {
     const host = hostRef.current;
-    if (!active || !host) return undefined;
+    if (!host) return undefined;
     let disposed = false;
     readyRef.current = false;
     const stopPoll = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
@@ -98,99 +76,62 @@ function TrackTransport({ active, ytId, spId, title, artist, sources, onSource }
       else setFailed(true);
     }, 6000);
 
-    if (active === 'youtube') {
-      ensureYouTubeApi().then((YT) => {
-        if (disposed) return;
-        const el = document.createElement('div');
-        host.appendChild(el);
-        const player = new YT.Player(el, {
-          videoId: ytId,
-          width: '320',
-          height: '180',
-          playerVars: { controls: 0, modestbranding: 1, rel: 0, playsinline: 1, disablekb: 1, iv_load_policy: 3, fs: 0 },
-          events: {
-            onReady: (e) => { if (disposed) return; markReady(); setDuration(e.target.getDuration() || 0); },
-            onStateChange: (e) => {
-              if (disposed) return;
-              const isPlaying = e.data === YT.PlayerState.PLAYING;
-              setPlaying(isPlaying);
-              if (isPlaying) {
-                setDuration(player.getDuration() || 0);
-                stopPoll();
-                pollRef.current = setInterval(() => {
-                  if (!draggingRef.current) setPosition(player.getCurrentTime() || 0);
-                }, 250);
-              } else {
-                stopPoll();
-              }
-            },
-          },
-        });
-        playerRef.current = { kind: 'youtube', player };
-      }).catch(() => { if (!disposed) { clearWatchdog(); setFailed(true); } });
-    } else if (active === 'spotify') {
-      ensureSpotifyApi().then((IFrameAPI) => {
-        if (disposed) return;
-        const el = document.createElement('div');
-        host.appendChild(el);
-        IFrameAPI.createController(el, { uri: `spotify:track:${spId}`, width: 300, height: 80 }, (controller) => {
-          if (disposed) { controller.destroy?.(); return; }
-          playerRef.current = { kind: 'spotify', player: controller };
-          markReady();
-          controller.addListener('playback_update', (e) => {
+    ensureYouTubeApi().then((YT) => {
+      if (disposed) return;
+      const el = document.createElement('div');
+      host.appendChild(el);
+      const player = new YT.Player(el, {
+        videoId: ytId,
+        width: '320',
+        height: '180',
+        playerVars: { controls: 0, modestbranding: 1, rel: 0, playsinline: 1, disablekb: 1, iv_load_policy: 3, fs: 0 },
+        events: {
+          onReady: (e) => { if (disposed) return; markReady(); setDuration(e.target.getDuration() || 0); },
+          onStateChange: (e) => {
             if (disposed) return;
-            const d = e.data || {};
-            setDuration((d.duration || 0) / 1000);
-            if (!draggingRef.current) setPosition((d.position || 0) / 1000);
-            setPlaying(!d.isPaused);
-          });
-        });
-      }).catch(() => { if (!disposed) { clearWatchdog(); setFailed(true); } });
-    }
+            const isPlaying = e.data === YT.PlayerState.PLAYING;
+            setPlaying(isPlaying);
+            if (isPlaying) {
+              setDuration(player.getDuration() || 0);
+              stopPoll();
+              pollRef.current = setInterval(() => {
+                if (!draggingRef.current) setPosition(player.getCurrentTime() || 0);
+              }, 250);
+            } else {
+              stopPoll();
+            }
+          },
+        },
+      });
+      playerRef.current = player;
+    }).catch(() => { if (!disposed) { clearWatchdog(); setFailed(true); } });
 
     return () => {
       disposed = true;
       stopPoll();
       clearWatchdog();
-      const ref = playerRef.current;
-      if (ref) { try { ref.player.destroy?.(); } catch { /* ignore teardown errors */ } }
+      if (playerRef.current) { try { playerRef.current.destroy?.(); } catch { /* ignore teardown errors */ } }
       playerRef.current = null;
       host.innerHTML = '';
     };
-  }, [active, ytId, spId, attempt]);
+  }, [ytId, attempt]);
 
   const toggle = useCallback(() => {
-    const ref = playerRef.current;
-    if (!ref) return;
-    if (ref.kind === 'youtube') {
-      if (playing) ref.player.pauseVideo(); else ref.player.playVideo();
-    } else {
-      ref.player.togglePlay();
-    }
+    const player = playerRef.current;
+    if (!player) return;
+    if (playing) player.pauseVideo(); else player.playVideo();
   }, [playing]);
 
   const seek = useCallback((sec) => {
-    const ref = playerRef.current;
-    if (!ref) return;
-    if (ref.kind === 'youtube') ref.player.seekTo(sec, true);
-    else ref.player.seek(sec);
+    const player = playerRef.current;
+    if (!player) return;
+    player.seekTo(sec, true);
     setPosition(sec);
   }, []);
 
-  const activeLabel = sources.find(s => s.id === active)?.label;
   const displayPos = dragging ? dragPos : position;
   const canScrub = ready && duration > 0;
   const loading = !ready && !failed;
-
-  // Source picker (a real choose-from-list menu, not a blind toggle).
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
-  useEffect(() => {
-    if (!menuOpen) return undefined;
-    const onDown = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
-    document.addEventListener('pointerdown', onDown);
-    return () => document.removeEventListener('pointerdown', onDown);
-  }, [menuOpen]);
 
   const onScrubInput = (e) => {
     draggingRef.current = true;
@@ -206,9 +147,8 @@ function TrackTransport({ active, ytId, spId, title, artist, sources, onSource }
 
   return (
     <>
-      {/* Hidden platform player — kept in-viewport at 1px (Spotify won't
-          initialise when fully offscreen) but invisible, so only our controls
-          show. */}
+      {/* Hidden YouTube player — kept in-viewport at 1px but invisible, so only
+          our controls show. */}
       <div ref={hostRef} aria-hidden="true" style={{ position: 'fixed', left: 0, bottom: 0, width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none', zIndex: -1 }} />
 
       <div className="mx-auto max-w-[1200px] px-3 sm:px-7 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-4 gap-y-2.5">
@@ -236,52 +176,10 @@ function TrackTransport({ active, ytId, spId, title, artist, sources, onSource }
 
           <div className="min-w-0">
             <div className="text-[13px] font-semibold text-[var(--text-1)] truncate">{title || 'Backing track'}</div>
-            {/* No `truncate`/overflow-hidden here — it would clip the source
-                popover. The artist span truncates on its own. */}
             <div className="text-[11px] text-[var(--text-2)] flex items-center gap-1 min-w-0">
               {artist && <span className="truncate min-w-0">{artist}</span>}
               {artist && <span aria-hidden="true" className="opacity-60">·</span>}
-              {sources.length > 1 ? (
-                // A pick-from-list menu (opens upward; stays available even when
-                // a source failed, so a broken provider isn't a dead end).
-                <span className="relative inline-flex shrink-0" ref={menuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setMenuOpen(o => !o)}
-                    aria-haspopup="menu"
-                    aria-expanded={menuOpen}
-                    aria-label={`Source: ${activeLabel}. Choose source.`}
-                    className="inline-flex items-center gap-0.5 hover:text-[var(--text-1)] cursor-pointer"
-                    style={{ WebkitTapHighlightColor: 'transparent' }}
-                  >
-                    {activeLabel}
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                  </button>
-                  {menuOpen && (
-                    <div role="menu" className="absolute left-0 bottom-full mb-1.5 z-20 min-w-[130px] rounded-lg border border-[var(--border-2)] bg-[var(--ds-background-100)] py-1" style={{ boxShadow: '0 8px 28px rgba(0,0,0,0.45)' }}>
-                      {sources.map(s => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          role="menuitemradio"
-                          aria-checked={s.id === active}
-                          onClick={() => { setMenuOpen(false); if (s.id !== active) onSource(s.id); }}
-                          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-[12.5px] text-left text-[var(--text-1)] hover:bg-[var(--bg-2)] cursor-pointer"
-                        >
-                          <span className="w-3.5 shrink-0 text-[var(--color-brand)]">
-                            {s.id === active && (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                            )}
-                          </span>
-                          {s.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </span>
-              ) : (
-                <span className="shrink-0">{activeLabel}</span>
-              )}
+              <span className="shrink-0">YouTube</span>
               {failed && <span className="shrink-0 opacity-70">· unavailable</span>}
             </div>
           </div>
