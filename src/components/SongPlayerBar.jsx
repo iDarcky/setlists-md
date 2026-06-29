@@ -23,13 +23,9 @@ function fmtTime(sec) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export default function SongPlayerBar({ youtubeUrl, title, artist, compact = false }) {
+export default function SongPlayerBar({ youtubeUrl, title, artist }) {
   const ytId = youtubeId(youtubeUrl);
   if (!ytId) return null;
-
-  // Compact: a bare slim row (play · scrub · time) for inline use in the hub's
-  // media card — no card chrome, no title/artist (the card already shows them).
-  if (compact) return <TrackTransport ytId={ytId} title={title} artist={artist} compact />;
 
   return (
     <div
@@ -41,7 +37,7 @@ export default function SongPlayerBar({ youtubeUrl, title, artist, compact = fal
   );
 }
 
-function TrackTransport({ ytId, title, artist, compact = false }) {
+function TrackTransport({ ytId, title, artist }) {
   const hostRef = useRef(null);
   const playerRef = useRef(null);
   const pollRef = useRef(null);
@@ -150,67 +146,20 @@ function TrackTransport({ ytId, title, artist, compact = false }) {
   };
 
   // Hidden YouTube player — kept in-viewport at 1px but invisible, so only our
-  // controls show. Rendered by whichever layout (compact or full) is active.
+  // controls show.
   const hiddenHost = (
     <div ref={hostRef} aria-hidden="true" style={{ position: 'fixed', left: 0, bottom: 0, width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none', zIndex: -1 }} />
   );
-
-  const playGlyph = loading ? (
-    <svg className="animate-spin" width={compact ? 16 : 20} height={compact ? 16 : 20} viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
-      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  ) : playing ? (
-    <svg width={compact ? 15 : 18} height={compact ? 15 : 18} viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
-  ) : (
-    <svg width={compact ? 16 : 20} height={compact ? 16 : 20} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-  );
-
-  if (compact) {
-    return (
-      <>
-        {hiddenHost}
-        <div className="flex items-center gap-2 min-w-0">
-          <button
-            type="button"
-            aria-label={playing ? 'Pause backing track' : 'Play backing track'}
-            onClick={toggle}
-            disabled={loading || failed}
-            className="shrink-0 w-8 h-8 rounded-full grid place-items-center cursor-pointer hover:opacity-90 transition-opacity disabled:cursor-default"
-            style={{ background: 'var(--color-brand)', color: '#ffffff', WebkitTapHighlightColor: 'transparent', opacity: failed ? 0.5 : 1 }}
-          >
-            {playGlyph}
-          </button>
-          <input
-            type="range"
-            aria-label="Seek"
-            min={0}
-            max={duration || 0}
-            step="0.1"
-            value={Math.min(displayPos, duration || 0)}
-            onChange={onScrubInput}
-            onMouseUp={onScrubCommit}
-            onTouchEnd={onScrubCommit}
-            onKeyUp={onScrubCommit}
-            disabled={!canScrub}
-            className="flex-1 min-w-0 h-1 cursor-pointer disabled:cursor-default"
-            style={{ accentColor: 'var(--color-brand)' }}
-          />
-          <span className="shrink-0 whitespace-nowrap text-[10px] tabular-nums text-[var(--text-2)]">
-            {failed ? 'unavailable' : `${fmtTime(displayPos)} / ${fmtTime(duration)}`}
-          </span>
-        </div>
-      </>
-    );
-  }
 
   return (
     <>
       {hiddenHost}
 
-      <div className="mx-auto max-w-[1200px] px-3 sm:px-7 py-2.5 sm:py-3 flex flex-wrap items-center gap-x-4 gap-y-2.5">
+      {/* Single non-wrapping row on every width: play · title · scrubber · time
+          (the scrubber stays on the title's line on phones, not below it). */}
+      <div className="mx-auto max-w-[1200px] px-3 sm:px-7 py-2.5 sm:py-3 flex items-center gap-2.5 sm:gap-4">
         {/* Play + identity */}
-        <div className="flex items-center gap-3 min-w-0 flex-1 sm:flex-none sm:w-[240px]">
+        <div className="flex items-center gap-2.5 min-w-0 shrink sm:w-[240px] sm:shrink-0">
           <button
             type="button"
             aria-label={playing ? 'Pause backing track' : 'Play backing track'}
@@ -242,8 +191,8 @@ function TrackTransport({ ytId, title, artist, compact = false }) {
           </div>
         </div>
 
-        {/* Scrub bar — own row on mobile, inline on desktop */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 w-full sm:w-auto sm:flex-1 order-last sm:order-none">
+        {/* Scrub bar — inline on the title's row at every width */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <span className="text-[11px] tabular-nums text-[var(--text-2)] w-9 text-right shrink-0">{fmtTime(displayPos)}</span>
           <input
             type="range"

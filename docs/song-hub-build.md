@@ -32,8 +32,9 @@ the **codes** song-map (static on the hub), **cover art** from Spotify/YouTube
   (spacing / repeated sections / **inline cues** / role / tab instrument).
 - **Backing-track player** (`SongPlayerBar`): **YouTube-only** (Spotify dropped —
   `eval()`/CSP + sign-in-only full tracks), CSP fixed (`*.spotifycdn.com`),
-  readiness watchdog auto-recovers a stalled init. Bottom card on desktop;
-  **inline `compact` strip in the media card on phones**.
+  readiness watchdog auto-recovers a stalled init. It's a single **bottom card**,
+  laid out as one non-wrapping row so the **scrubber stays on the title's line**
+  at every width.
 
 This covers part of **Phase 3** (a real transport now exists). Remaining: the
 richer transport (metronome, auto-scroll, loop) + **Phase 4** (Audio/Practice),

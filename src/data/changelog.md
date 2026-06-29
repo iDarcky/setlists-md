@@ -35,7 +35,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **A cleaner section map** — the structure ribbon now shows tidy bordered code boxes by default (still switchable in Settings) and sits as a quiet song map above the chart.
 - **A more polished Song hub** — the Chart / Lyrics / Details tabs now match the app's main navigation, the "Aa" display and full-screen controls sit with the chart (full-screen opens a clean, distraction-free reader), and Details reads as tidy grouped sections you can edit in place with a Save bar that stays at the bottom of the card.
 - **A roomier "Advanced" panel** — spacing, repeated-section density, inline cues and your instrument role now live in their own focused dialog, without repeating the size and column controls already in the "Aa" menu.
-- **One tidy backing-track player** — a song's audio plays from its YouTube link with simple play / scrub controls; on phones it tucks into the song's media card instead of sitting in a separate bar.
+- **One tidy backing-track player** — a song's audio plays from its YouTube link with simple play / scrub controls in its own bar; the scrubber sits on the same line as the title so it stays compact, even on a phone.
 
 ### Fixed
 - **New songs no longer default to the key of C** — the key stays blank until you choose it.
