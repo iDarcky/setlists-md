@@ -83,7 +83,14 @@ export default function SongHub({
     spotifyArt(url).then(img => { if (!cancelled) setSpotifyResult({ key: url, url: img }); });
     return () => { cancelled = true; };
   }, [song?.spotify]);
-  const artUrl = (spotifyResult.key === song?.spotify ? spotifyResult.url : null) || ytArt;
+  // Try Spotify art first, then the YouTube thumb, then the gradient — and if an
+  // image actually fails to LOAD (CSP, 404, dead link) fall through to the next
+  // candidate instead of leaving a blank tile.
+  const [failedArt, setFailedArt] = useState({});
+  const artUrl = [
+    spotifyResult.key === song?.spotify ? spotifyResult.url : null,
+    ytArt,
+  ].find(u => u && !failedArt[u]) || null;
 
   // Settings → General → "Keep screen awake" while a song is open.
   useWakeLock(settings?.keepAwake === true);
@@ -209,7 +216,7 @@ export default function SongHub({
   const artTile = (sizeCls) => (
     <div className={cn('shrink-0 rounded-xl border border-[var(--border-2)] grid place-items-center overflow-hidden', sizeCls)} style={{ background: ART_GRADIENT }} aria-hidden="true">
       {artUrl
-        ? <img src={artUrl} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+        ? <img key={artUrl} src={artUrl} alt="" className="w-full h-full object-cover" onError={() => setFailedArt(f => ({ ...f, [artUrl]: true }))} />
         : <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#cfeee2" strokeWidth="1.5" className="w-1/2 h-1/2"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>}
     </div>
   );
