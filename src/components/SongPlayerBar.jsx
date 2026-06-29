@@ -29,8 +29,8 @@ export default function SongPlayerBar({ youtubeUrl, title, artist }) {
 
   return (
     <div
-      className="shrink-0 border-t border-[var(--border-1)]"
-      style={{ ...headerFrostStyle, background: 'color-mix(in srgb, var(--ds-background-100) 88%, transparent)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      className="rounded-2xl border border-[var(--border-1)] overflow-hidden"
+      style={{ ...headerFrostStyle, background: 'color-mix(in srgb, var(--ds-background-100) 92%, transparent)' }}
     >
       <TrackTransport ytId={ytId} title={title} artist={artist} />
     </div>

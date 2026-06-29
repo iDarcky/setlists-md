@@ -3,24 +3,22 @@ import { resolveSongView } from '../arrangements';
 import { transposeKey, semitonesBetween, keysInQualityOf } from '../music';
 import ChartView from './ChartView';
 import SongDetails from './SongDetails';
+import FullscreenChartViewer from './FullscreenChartViewer';
 import { StructureRibbon } from './StructureRibbon';
 import SongPlayerBar from './SongPlayerBar';
-import { Button } from './ui/Button';
 import { OverflowMenu } from './ui/OverflowMenu';
 import { Select, SelectTrigger, SelectContent, SelectItem } from './ui/Select';
-import { VIEW_MODES } from './ui/viewModes';
 import { exportSongPdf } from '../pdf/exportSongPdf';
 import { useWakeLock } from '../hooks/useWakeLock';
-import { youtubeThumb, spotifyArt } from '../lib/coverArt';
+import { youtubeThumb, youtubeId, spotifyArt } from '../lib/coverArt';
 import { cn } from '../lib/utils';
 
 // ── Song Hub ─────────────────────────────────────────────────────────────────
-// The library's song-open target — a theme-aware build of
-// docs/mockups/song-hub-v2.html: a gradient "hub card" (art · title + gold key
-// dropdown · byline · mono meta pills · arrangement · Aa/full screen/⋯/Edit/
-// Campfire · song map · tabs) stacked above a bordered "reader card".
-//
-// Cards render on every breakpoint now; phones get a denser header layout.
+// The library's song-open target: a "hub card" (art · title + gold key dropdown
+// · byline · meta pills · arrangement · ⋯ · Edit · Campfire) stacked above a
+// "reader card" whose header carries the Chart/Lyrics/Details tabs plus the
+// chart-only Aa + full-screen controls, with a backing-track player card pinned
+// to the bottom.
 
 const HUB_TABS = [
   { id: 'chart', label: 'Chart' },
@@ -29,6 +27,18 @@ const HUB_TABS = [
 ];
 
 const ART_GRADIENT = 'radial-gradient(120% 120% at 20% 10%, #1f5f4f 0%, #0e2c30 55%, #150f1f 100%)';
+
+const PrintIcon = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 6 2 18 2 18 9" />
+    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+    <rect x="6" y="14" width="12" height="8" />
+  </svg>
+);
+const EditIcon = (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>);
+const PlayIcon = (<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>);
+const MoveIcon = (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>);
+const CopyIcon = (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>);
 
 export default function SongHub({
   song: songInput,
@@ -47,8 +57,6 @@ export default function SongHub({
   inlineNoteStyle = 'dashes',
   duplicateSections = 'full',
   chartLayout = 'columns',
-  isFullscreen = false,
-  onToggleFullscreen,
   onTransposed,
 }) {
   const [activeTab, setActiveTab] = useState('chart');
@@ -70,7 +78,9 @@ export default function SongHub({
   const [aaAnchor, setAaAnchor] = useState(null);
   const [displayMode, setDisplayMode] = useState('chords');
   const [chartStructure, setChartStructure] = useState([]);
+  const [fsMode, setFsMode] = useState(null); // null | 'chart' | 'lyrics' → WIP fullscreen viewer
   const closeAa = useCallback(() => setAaAnchor(null), []);
+  const toggleAa = (e) => setAaAnchor(aaAnchor ? null : e.currentTarget.getBoundingClientRect());
 
   // Cover art priority: Spotify album art → YouTube thumbnail → gradient
   // placeholder. YouTube is derived synchronously; Spotify goes through the
@@ -84,13 +94,7 @@ export default function SongHub({
     spotifyArt(url).then(img => { if (!cancelled) setSpotifyResult({ key: url, url: img }); });
     return () => { cancelled = true; };
   }, [song?.spotify]);
-  // Try Spotify art first, then the YouTube thumb, then the gradient — and if an
-  // image actually fails to LOAD (CSP, 404, dead link) fall through to the next
-  // candidate instead of leaving a blank tile.
   const [failedArt, setFailedArt] = useState({});
-  // While a Spotify link is still resolving, hold off on the YouTube fallback so
-  // the tile doesn't flash the YouTube thumb and then swap to Spotify. Once
-  // Spotify settles (resolved, null, or failed) the YouTube thumb fills in.
   const spotifyPending = !!song?.spotify && spotifyResult.key !== song?.spotify;
   const spotifyUrl = spotifyResult.key === song?.spotify ? spotifyResult.url : null;
   const artUrl = [
@@ -104,13 +108,6 @@ export default function SongHub({
   const arrangements = song?._allArrangements || [];
   const hasMultipleArrangements = arrangements.length > 1;
   const arrName = arrangements.find(a => a.id === activeArrId)?.name || 'Arrangement';
-
-  const hasTabs = useMemo(
-    () => (song?.sections || []).some(s => (s.lines || []).some(
-      l => l && typeof l === 'object' && (l.type === 'tab' || l.type === 'tabref'),
-    )),
-    [song],
-  );
 
   const switchArrangement = (id) => {
     setActiveArrId(id);
@@ -128,52 +125,42 @@ export default function SongHub({
   const byline = [song.artist, cleanAddedBy && `added by ${cleanAddedBy}`].filter(Boolean).join('  ·  ');
   const showRibbon = chartStructure.length > 0;
   const chartDisplayMode = activeTab === 'lyrics' ? 'lyrics' : displayMode;
+  const isReaderTab = activeTab === 'chart' || activeTab === 'lyrics';
+  const hasPlayer = !!youtubeId(song.youtube);
 
-  const overflowItems = [
-    { heading: true, label: 'View' },
-    ...VIEW_MODES.filter(m => m.id !== 'tabs' || hasTabs).map(m => ({
-      label: m.label,
-      selected: activeTab === 'chart' && displayMode === m.id,
-      onClick: () => { setActiveTab('chart'); setDisplayMode(m.id); },
-    })),
-    { divider: true },
-    onPlay && {
-      label: 'Play (live)',
-      icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>),
-      onClick: () => onPlay(activeArrId),
-    },
-    {
-      label: 'Print / Save as PDF',
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="6 9 6 2 18 2 18 9" />
-          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-          <rect x="6" y="14" width="12" height="8" />
-        </svg>
-      ),
-      onClick: () => exportSongPdf(song, { transpose }),
-    },
-    onEdit && {
-      label: 'Edit',
-      icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>),
-      onClick: () => onEdit(activeArrId),
-    },
-    onToggleFullscreen && {
-      label: isFullscreen ? 'Exit full screen' : 'Full screen',
-      icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3" /></svg>),
-      onClick: onToggleFullscreen,
-    },
-    onMoveSong && {
-      label: 'Move to…',
-      icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>),
-      onClick: () => onMoveSong(),
-    },
-    onCopySong && {
-      label: 'Copy to…',
-      icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>),
-      onClick: () => onCopySong(),
-    },
-  ];
+  // Shared ChartView props (the inline reader + the fullscreen viewer use the
+  // same config and transpose state).
+  const chartProps = {
+    song: songInput,
+    arrangementId: activeArrId,
+    selectedKey,
+    onSelectKey: setSelectedKey,
+    settings,
+    onUpdateSettings,
+    onOpenAdvancedStyle,
+    defaultColumns,
+    defaultFontSize,
+    showInlineNotes,
+    inlineNoteStyle,
+    duplicateSections,
+    chartLayout,
+    onTransposed,
+  };
+
+  // Overflow actions. Edit / Full screen / Play-live / View are intentionally
+  // NOT here on desktop (they have dedicated controls). On mobile we fold
+  // Campfire + Edit into the menu since the header has no room for them.
+  const baseOverflow = [
+    { label: 'Print / Save as PDF', icon: PrintIcon, onClick: () => exportSongPdf(song, { transpose }) },
+    onMoveSong && { label: 'Move to…', icon: MoveIcon, onClick: () => onMoveSong() },
+    onCopySong && { label: 'Copy to…', icon: CopyIcon, onClick: () => onCopySong() },
+  ].filter(Boolean);
+  const overflowDesktop = baseOverflow;
+  const overflowMobile = [
+    onPlay && { label: 'Campfire', icon: PlayIcon, onClick: () => onPlay(activeArrId) },
+    onEdit && { label: 'Edit', icon: EditIcon, onClick: () => onEdit(activeArrId) },
+    ...baseOverflow,
+  ].filter(Boolean);
 
   // Gold key chip that doubles as the transpose control (dropdown + chevron).
   const keyChip = (cls) => (
@@ -251,17 +238,8 @@ export default function SongHub({
             </div>
 
             <div className="shrink-0 ml-auto flex items-center gap-2 flex-wrap justify-end">
-              <button type="button" aria-label="Display options" aria-expanded={!!aaAnchor}
-                onClick={(e) => setAaAnchor(aaAnchor ? null : e.currentTarget.getBoundingClientRect())}
-                className="w-9 h-9 grid place-items-center rounded-[9px] border border-[var(--border-2)] bg-[var(--bg-1)] text-[13px] font-bold text-[var(--text-1)] hover:bg-[var(--bg-2)] cursor-pointer">Aa</button>
-              {onToggleFullscreen && (
-                <button type="button" aria-label={isFullscreen ? 'Exit full screen' : 'Full screen'} onClick={onToggleFullscreen}
-                  className="w-9 h-9 grid place-items-center rounded-[9px] border border-[var(--border-2)] bg-[var(--bg-1)] text-[var(--text-2)] hover:text-[var(--text-1)] cursor-pointer">
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3" /></svg>
-                </button>
-              )}
               <div className="inline-grid place-items-center w-9 h-9 rounded-[9px] border border-[var(--border-2)] bg-[var(--bg-1)] text-[var(--text-2)]">
-                <OverflowMenu ariaLabel="Song actions" items={overflowItems} />
+                <OverflowMenu ariaLabel="Song actions" items={overflowDesktop} />
               </div>
               {onEdit && (
                 <button type="button" onClick={() => onEdit(activeArrId)}
@@ -301,22 +279,11 @@ export default function SongHub({
                 <h1 className="m-0 truncate font-bold leading-tight text-heading-17 text-[var(--text-1)]">{song.title}</h1>
                 {keyChip('!h-6 !min-h-[24px] !w-auto !px-1.5 !py-0 !rounded-md text-[12px]')}
               </div>
-              <button type="button" aria-label="Display options" aria-expanded={!!aaAnchor}
-                onClick={(e) => setAaAnchor(aaAnchor ? null : e.currentTarget.getBoundingClientRect())}
-                className="shrink-0 w-10 grid place-items-center rounded-xl text-label-15 font-bold text-[var(--text-1)] active:bg-[var(--bg-2)] cursor-pointer" style={{ WebkitTapHighlightColor: 'transparent' }}>Aa</button>
-              <div className="shrink-0"><OverflowMenu ariaLabel="Song actions" items={overflowItems} size="md" /></div>
+              <div className="shrink-0"><OverflowMenu ariaLabel="Song actions" items={overflowMobile} size="md" /></div>
             </div>
             {byline && <p className="m-0 mt-1.5 text-label-12 text-[var(--text-2)] truncate">{byline}</p>}
-            <div className="mt-2 flex items-center gap-2">
-              <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-x-auto no-scrollbar">
-                {metaPills('h-[30px] px-2.5 rounded-[9px] border border-[var(--border-1)] bg-[var(--bg-1)] text-[12.5px] font-medium text-[var(--text-1)] gap-1 max-w-[150px] w-auto focus:ring-0 shrink-0')}
-              </div>
-              {onPlay && (
-                <Button variant="brand" size="sm" onClick={() => onPlay(activeArrId)} className="px-4 rounded-xl shrink-0">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="mr-1"><path d="M8 5v14l11-7z" /></svg>
-                  Campfire
-                </Button>
-              )}
+            <div className="mt-2 flex items-center gap-1.5 min-w-0 overflow-x-auto no-scrollbar">
+              {metaPills('h-[30px] px-2.5 rounded-[9px] border border-[var(--border-1)] bg-[var(--bg-1)] text-[12.5px] font-medium text-[var(--text-1)] gap-1 max-w-[150px] w-auto focus:ring-0 shrink-0')}
             </div>
           </div>
 
@@ -343,8 +310,7 @@ export default function SongHub({
 
         </div>
 
-        {/* ════ READER CARD (tabs live here now) — follows the chart theme so
-            the tab strip + surface match the chart content inside. ════ */}
+        {/* ════ READER CARD (tabs + chart-only Aa / full screen live here) ════ */}
         <div
           className="flex-1 min-h-0 flex flex-col overflow-hidden border border-[var(--border-1)] rounded-2xl"
           style={{
@@ -354,65 +320,75 @@ export default function SongHub({
             '--text-2': 'var(--chart-subtle, var(--ds-gray-900))',
           }}
         >
-          {/* Tabs — rounded brand pills, mirroring the app's primary nav. */}
-          <div className="shrink-0 flex gap-1 px-2 sm:px-3 py-2 border-b border-[var(--border-1)]">
-            {HUB_TABS.map(t => {
-              const active = activeTab === t.id;
-              return (
-                <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
-                  aria-current={active ? 'page' : undefined}
-                  className={cn(
-                    'h-9 px-3.5 sm:px-4 rounded-lg text-[13.5px] cursor-pointer transition-colors',
-                    active
-                      ? 'bg-[var(--ds-teal-100)] text-[var(--ds-teal-900)] font-semibold'
-                      : 'font-medium text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--bg-2)]',
-                  )}
-                  style={{ WebkitTapHighlightColor: 'transparent' }}>
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex-1 min-h-0">
-          {activeTab === 'details' ? (
-            <div className="h-full overflow-y-auto">
-              <div className="px-5 sm:px-8 py-5 sm:py-6 max-w-[900px]">
-                <SongDetails
-                  song={song}
-                  onSave={onUpdateSong ? (patch) => onUpdateSong({ ...songInput, ...patch, updatedAt: Date.now() }) : null}
-                />
-              </div>
+          {/* Tab header: brand pills (left) + chart-only Aa / full screen (right). */}
+          <div className="shrink-0 flex items-center justify-between gap-2 px-2 sm:px-3 py-2 border-b border-[var(--border-1)]">
+            <div className="flex gap-1 min-w-0">
+              {HUB_TABS.map(t => {
+                const active = activeTab === t.id;
+                return (
+                  <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'h-9 px-3.5 sm:px-4 rounded-lg text-[13.5px] cursor-pointer transition-colors',
+                      active
+                        ? 'text-white font-semibold'
+                        : 'font-medium text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--bg-2)]',
+                    )}
+                    style={{ WebkitTapHighlightColor: 'transparent', background: active ? 'var(--color-brand)' : undefined }}>
+                    {t.label}
+                  </button>
+                );
+              })}
             </div>
-          ) : (
-            <ChartView
-              embedded
-              song={songInput}
-              arrangementId={activeArrId}
-              selectedKey={selectedKey}
-              onSelectKey={setSelectedKey}
-              displayMode={chartDisplayMode}
-              onDisplayMode={activeTab === 'chart' ? setDisplayMode : undefined}
-              aaAnchor={aaAnchor}
-              onAaClose={closeAa}
-              onReportStructure={setChartStructure}
-              settings={settings}
-              onUpdateSettings={onUpdateSettings}
-              onOpenAdvancedStyle={onOpenAdvancedStyle}
-              defaultColumns={defaultColumns}
-              defaultFontSize={defaultFontSize}
-              showInlineNotes={showInlineNotes}
-              inlineNoteStyle={inlineNoteStyle}
-              duplicateSections={duplicateSections}
-              chartLayout={chartLayout}
-              onTransposed={onTransposed}
-            />
-          )}
+            {isReaderTab && (
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button type="button" aria-label="Display options" aria-expanded={!!aaAnchor} onClick={toggleAa}
+                  className="w-9 h-9 grid place-items-center rounded-lg border border-[var(--border-2)] bg-[var(--bg-1)] text-[13px] font-bold text-[var(--text-1)] hover:bg-[var(--bg-2)] cursor-pointer" style={{ WebkitTapHighlightColor: 'transparent' }}>Aa</button>
+                <button type="button" aria-label="Full screen" onClick={() => setFsMode(activeTab)}
+                  className="w-9 h-9 grid place-items-center rounded-lg border border-[var(--border-2)] bg-[var(--bg-1)] text-[var(--text-2)] hover:text-[var(--text-1)] cursor-pointer" style={{ WebkitTapHighlightColor: 'transparent' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3" /></svg>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 min-h-0">
+            {activeTab === 'details' ? (
+              <SongDetails
+                song={song}
+                onSave={onUpdateSong ? (patch) => onUpdateSong({ ...songInput, ...patch, updatedAt: Date.now() }) : null}
+              />
+            ) : (
+              <ChartView
+                embedded
+                {...chartProps}
+                displayMode={chartDisplayMode}
+                onDisplayMode={activeTab === 'chart' ? setDisplayMode : undefined}
+                aaAnchor={aaAnchor}
+                onAaClose={closeAa}
+                onReportStructure={setChartStructure}
+              />
+            )}
           </div>
         </div>
+
+        {/* ════ BACKING-TRACK PLAYER (YouTube) — inset card pinned to bottom ════ */}
+        {hasPlayer && (
+          <div className="shrink-0">
+            <SongPlayerBar youtubeUrl={song.youtube} title={song.title} artist={song.artist} />
+          </div>
+        )}
       </div>
 
-      {/* ════ BACKING-TRACK TRANSPORT (YouTube) ════ */}
-      <SongPlayerBar youtubeUrl={song.youtube} title={song.title} artist={song.artist} />
+      {fsMode && (
+        <FullscreenChartViewer
+          title={song.title}
+          keyLabel={keyValue}
+          displayMode={fsMode === 'lyrics' ? 'lyrics' : displayMode}
+          chartProps={chartProps}
+          onClose={() => setFsMode(null)}
+        />
+      )}
     </div>
   );
 }
