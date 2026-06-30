@@ -47,7 +47,7 @@ export default function StructureControl({ mode, value, sections, customSectionT
             <Tag
               key={i}
               {...(onJump ? { type: 'button', onClick: () => onJump(name) } : {})}
-              className={`shrink-0 inline-flex items-center px-2 py-1 rounded-md text-label-11 font-bold font-mono border border-[var(--ds-gray-300)] bg-[var(--ds-gray-100)] ${onJump ? 'hover:bg-[var(--ds-gray-200)] cursor-pointer' : ''}`}
+              className={`shrink-0 inline-flex items-center px-2 py-1 rounded-[7px] text-[11px] font-bold font-mono border border-[var(--border-1)] bg-[var(--ds-background-100)] ${onJump ? 'hover:opacity-80 cursor-pointer' : ''}`}
               style={{ color: st.b }}
               title={name}
             >

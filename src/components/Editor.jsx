@@ -42,7 +42,12 @@ const TIME_NONE = '__none__'; // Radix SelectItem can't use an empty value
 // the same min-heights, otherwise it renders 4px shorter than the dropdowns.
 const META_CTRL_CLS = 'box-border h-9 min-h-9 max-sm:min-h-11 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] px-2 text-label-12 font-mono text-[var(--ds-gray-1000)]';
 
-function TimeSignatureControl({ value, onChange }) {
+// Song-Hub-style meta pill (label + mono value) used in the card identity row.
+const META_PILL = 'inline-flex items-center gap-1.5 h-9 px-2.5 rounded-[10px] border border-[var(--border-1)] bg-[var(--ds-background-100)]';
+const META_PILL_LABEL = 'font-sans text-[11px] text-[var(--ds-gray-600)] select-none';
+const META_PILL_VALUE = 'bg-transparent border-0 outline-none p-0 font-mono text-[12.5px] tabular-nums text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-500)]';
+
+function TimeSignatureControl({ value, onChange, bare = false }) {
   const isCustom = value && !TIME_OPTIONS.includes(value);
   const [customOpen, setCustomOpen] = useState(isCustom);
   const [numerator, denominator] = (isCustom ? value.split('/') : ['', '']);
@@ -69,6 +74,12 @@ function TimeSignatureControl({ value, onChange }) {
     onChange(next === '/' ? '' : next);
   };
 
+  // In `bare` mode the trigger/inputs are borderless so they can sit inside a
+  // meta pill (the pill provides the border/fill).
+  const customInputCls = bare
+    ? 'w-7 px-0 text-center bg-transparent border-0 outline-none font-mono text-[12.5px] tabular-nums text-[var(--ds-gray-1000)]'
+    : `${META_CTRL_CLS} w-9 px-1 text-center outline-none`;
+
   if (customOpen) {
     return (
       <div className="flex items-center gap-1">
@@ -77,7 +88,7 @@ function TimeSignatureControl({ value, onChange }) {
           inputMode="numeric"
           value={numerator}
           onChange={e => setPart(0, e.target.value)}
-          className={`${META_CTRL_CLS} w-9 px-1 text-center outline-none`}
+          className={customInputCls}
           aria-label="Time signature beats"
           placeholder="4"
         />
@@ -87,7 +98,7 @@ function TimeSignatureControl({ value, onChange }) {
           inputMode="numeric"
           value={denominator}
           onChange={e => setPart(1, e.target.value)}
-          className={`${META_CTRL_CLS} w-9 px-1 text-center outline-none`}
+          className={customInputCls}
           aria-label="Time signature unit"
           placeholder="4"
         />
@@ -107,7 +118,9 @@ function TimeSignatureControl({ value, onChange }) {
     <Select value={value || TIME_NONE} onValueChange={handleSelect}>
       <SelectTrigger
         aria-label="Time signature"
-        className={`${META_CTRL_CLS} w-auto gap-1`}
+        className={bare
+          ? '!h-auto !min-h-0 w-auto gap-0.5 !px-0 !border-0 !bg-transparent !ring-0 focus:!ring-0 font-mono text-[12.5px] tabular-nums text-[var(--ds-gray-1000)]'
+          : `${META_CTRL_CLS} w-auto gap-1`}
       >
         <SelectValue />
       </SelectTrigger>
@@ -184,9 +197,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   // Side preview is ON by default on wide screens; available from every tab
   // via the toggle (wide) / peek (narrow), and resizable.
   const [previewEnabled, setPreviewEnabled] = useState(true);
-  // The Details tab is pure metadata — no chart to preview — so it always takes
-  // the full width with the side/peek preview suppressed.
-  const showSidePreview = isWide && previewEnabled && activeTab !== 'details';
+  const showSidePreview = isWide && previewEnabled;
   // On tablet portrait / phone the side preview is too tight, so narrow screens
   // get a full-height slide-over peek instead.
   const [previewPeekOpen, setPreviewPeekOpen] = useState(false);
@@ -629,22 +640,10 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
       case 'details':
         // Card-header layout only: Song Details get their own full-width tab
         // (the intuitive home for artist, capo, CCLI, tags, …) instead of the
-        // legacy collapsible panel. Transpose lives here too (moved out of the
-        // header): it's an action on the chords, so it sits beside its handler.
+        // legacy collapsible panel. (Transpose lives in the header meta row.)
         return (
           <div className="flex-1 min-h-0 overflow-y-auto w-full">
             <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-4">
-              <div className="flex items-center justify-between gap-3 mb-4 pb-4 border-b border-[var(--ds-gray-200)]">
-                <div className="min-w-0">
-                  <div className="text-label-12 font-semibold text-[var(--ds-gray-700)]">Transpose</div>
-                  <div className="text-label-11 text-[var(--ds-gray-600)]">Shift every chord (and the key) by a semitone.</div>
-                </div>
-                <div className="flex items-center h-9 shrink-0 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] overflow-hidden">
-                  <IconButton variant="ghost" size="sm" aria-label="Transpose down a semitone" title="Transpose down" onClick={() => transposeAllChords(-1)}>−</IconButton>
-                  <span className="px-2 min-w-[3ch] text-center text-label-12 font-mono font-semibold text-[var(--ds-gray-1000)] select-none">{currentKey || '—'}</span>
-                  <IconButton variant="ghost" size="sm" aria-label="Transpose up a semitone" title="Transpose up" onClick={() => transposeAllChords(1)}>+</IconButton>
-                </div>
-              </div>
               <MetadataPanel md={md} onChange={setMd} isOpen keyHistory={workingSong.keyHistory} />
             </div>
           </div>
@@ -745,11 +744,52 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
       {tempoTimeEl}
     </div>
   );
-  // Card header row 2: key + tempo + time (transpose lives in Details there).
+  // Card header row 2 — Song-Hub design: gold key chip + Tempo/Time pills, then
+  // the transpose stepper (after Time). Card-only; legacy uses musicMetaControls.
   const cardMetaControls = (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      {keyControlEl}
-      {tempoTimeEl}
+    <div className="flex items-center gap-2 flex-wrap">
+      {/* Gold key chip (doubles as the key dropdown) */}
+      <Select value={currentKey} onValueChange={changeSongKey}>
+        <SelectTrigger
+          aria-label="Key"
+          className={`h-9 min-h-9 w-auto gap-0.5 px-2.5 rounded-lg !border-0 font-mono font-bold text-[13px] focus:!ring-0 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
+          style={{ background: keySet ? 'var(--chord)' : 'var(--ds-gray-100)', color: keySet ? '#0a0a0a' : 'var(--ds-gray-500)' }}
+        >
+          <span>{currentKey || 'Key?'}</span>
+        </SelectTrigger>
+        <SelectContent className="font-mono">
+          {keyOpts.slice(0, 12).map(({ value, label }) => (
+            <SelectItem key={value} value={value}>{label}</SelectItem>
+          ))}
+          <SelectSeparator />
+          {keyOpts.slice(12).map(({ value, label }) => (
+            <SelectItem key={value} value={value}>{label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {/* Tempo pill */}
+      <label className={META_PILL} aria-label="Tempo">
+        <span className={META_PILL_LABEL}>Tempo</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={currentTempo}
+          onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+          placeholder="—"
+          className={`${META_PILL_VALUE} w-8 text-center`}
+        />
+      </label>
+      {/* Time pill */}
+      <div className={META_PILL}>
+        <span className={META_PILL_LABEL}>Time</span>
+        <TimeSignatureControl value={currentTime} onChange={v => updateField('time', v)} bare />
+      </div>
+      {/* Transpose stepper (after Time) */}
+      <div className="inline-flex items-center h-9 rounded-[10px] border border-[var(--border-1)] bg-[var(--ds-background-100)] overflow-hidden">
+        <IconButton variant="ghost" size="sm" aria-label="Transpose down a semitone" title="Transpose down" onClick={() => transposeAllChords(-1)}>−</IconButton>
+        <span className="px-0.5 text-label-10 uppercase tracking-wide text-[var(--ds-gray-600)] select-none">Tr</span>
+        <IconButton variant="ghost" size="sm" aria-label="Transpose up a semitone" title="Transpose up" onClick={() => transposeAllChords(1)}>+</IconButton>
+      </div>
     </div>
   );
   // Legacy header layout: arrangement picker + key/tempo/time on one wrapping row.
@@ -864,8 +904,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
 
   // Show the empty-state chooser for a fresh blank song (no chords/lyrics yet).
 
-  // Shared header action buttons (preview toggle / peek + delete). Preview
-  // controls are hidden on the Details tab, which has no chart to preview.
+  // Shared header action buttons (preview toggle / peek + delete).
   const headerActionsEl = (
     <div className="flex items-center gap-2 shrink-0">
       {importProgress && (
@@ -879,7 +918,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           )}
         </span>
       )}
-      {isWide && activeTab !== 'details' && (
+      {isWide && (
         <Button
           variant={previewEnabled ? 'secondary' : 'ghost'}
           size="sm"
@@ -889,7 +928,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           {previewEnabled ? 'Hide preview' : 'Show preview'}
         </Button>
       )}
-      {!isWide && activeTab !== 'details' && (
+      {!isWide && (
         <IconButton variant="ghost" size="sm" onClick={() => setPreviewPeekOpen(true)} aria-label="Preview">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
@@ -926,27 +965,26 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   // key/tempo/time controls on their own row. No cover art, no artist line, no
   // Aa. Song Details live in their own tab; Save/Cancel stay in the bottom bar.
   const cardHeaderEl = (
-    <div className="shrink-0 px-3 sm:px-4 pt-3">
-        <div
-          className="rounded-2xl border border-[var(--border-1)] px-3 sm:px-4 py-3 flex flex-col gap-3"
-          style={{ background: 'linear-gradient(180deg, var(--ds-background-100), var(--ds-background-200))' }}
-        >
-          {/* Row 1: title + arrangement (kept together) | actions */}
-          <div className="flex items-center gap-2">
-            <input
-              value={fmFields.title || ''}
-              onChange={e => updateField('title', e.target.value)}
-              placeholder={song ? 'Song title' : 'New song'}
-              aria-label="Song title"
-              className="min-w-0 flex-1 max-w-[14rem] sm:max-w-[20rem] bg-transparent border-0 outline-none text-heading-18 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
-            />
-            <div className="shrink-0">{arrangementMenuEl}</div>
-            <div className="flex-1 min-w-0" />
-            {headerActionsEl}
-          </div>
-          {/* Row 2: key / tempo / time (transpose lives in the Details tab) */}
-          <div>{cardMetaControls}</div>
-        </div>
+    <div
+      className="shrink-0 rounded-2xl border border-[var(--border-1)] px-3 sm:px-4 py-3 flex flex-col gap-3"
+      style={{ background: 'linear-gradient(180deg, var(--ds-background-100), var(--ds-background-200))' }}
+    >
+      {/* Row 1: title + arrangement (kept together) | actions */}
+      <div className="flex items-center gap-2">
+        <input
+          value={fmFields.title || ''}
+          onChange={e => updateField('title', e.target.value)}
+          placeholder={song ? 'Song title' : 'New song'}
+          aria-label="Song title"
+          style={{ fieldSizing: 'content' }}
+          className="min-w-[6ch] max-w-[55vw] sm:max-w-[24rem] bg-transparent border-0 outline-none text-heading-18 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
+        />
+        <div className="shrink-0">{arrangementMenuEl}</div>
+        <div className="flex-1 min-w-0" />
+        {headerActionsEl}
+      </div>
+      {/* Row 2: key / tempo / time / transpose */}
+      <div>{cardMetaControls}</div>
     </div>
   );
 
@@ -1038,12 +1076,17 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   );
 
   const cardWorkAreaEl = (
-    <div className="flex-1 min-h-0 flex w-full overflow-hidden px-3 sm:px-4 pb-3">
+    <div className="flex-1 min-h-0 flex w-full overflow-hidden">
       {leftEditorCardEl}
-      {/* Resize divider (also the gutter between the two cards) */}
+      {/* Resize gutter — transparent strip; a slim grip fades in on hover. No line. */}
       {showSidePreview && preview && (
-        <div onPointerDown={onPreviewResize} className="shrink-0 w-1 self-stretch mx-1.5 cursor-col-resize relative group rounded-full">
-          <span className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-[var(--ds-gray-300)] group-hover:bg-[var(--color-brand)] transition-colors" />
+        <div
+          onPointerDown={onPreviewResize}
+          role="separator"
+          aria-label="Resize preview"
+          className="group shrink-0 w-3 self-stretch cursor-col-resize flex items-center justify-center touch-none"
+        >
+          <span className="w-1 h-10 rounded-full bg-[var(--ds-gray-400)] opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       )}
       {showSidePreview && preview && (
@@ -1065,24 +1108,54 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
 
   // Draft recovery as a slim top card (cards layout).
   const draftCardEl = draftFound ? (
-    <div className="shrink-0 px-3 sm:px-4 pt-3">
-      <div className="rounded-xl border border-[var(--color-brand-border)] bg-[var(--color-brand-soft)] px-3 py-2 flex items-center gap-3">
-        <span className="flex-1 min-w-0 text-label-12 text-[var(--color-brand-text)]">
-          Unsaved draft found from a previous session.
-        </span>
-        <Button variant="brand" size="sm" onClick={() => { setMd(draftFound); setDraftFound(null); }}>Restore</Button>
-        <Button variant="ghost" size="sm" onClick={() => { clearDraft(); setDraftFound(null); }}>Discard</Button>
-      </div>
+    <div className="shrink-0 rounded-xl border border-[var(--color-brand-border)] bg-[var(--color-brand-soft)] px-3 py-2 flex items-center gap-3">
+      <span className="flex-1 min-w-0 text-label-12 text-[var(--color-brand-text)]">
+        Unsaved draft found from a previous session.
+      </span>
+      <Button variant="brand" size="sm" onClick={() => { setMd(draftFound); setDraftFound(null); }}>Restore</Button>
+      <Button variant="ghost" size="sm" onClick={() => { clearDraft(); setDraftFound(null); }}>Discard</Button>
     </div>
   ) : null;
+
+  // Save/Cancel content — shared between the legacy sticky bar and the card.
+  const saveCancelInner = (
+    <div className="w-full flex items-center justify-end gap-3">
+      {!readOnly && missingMetaHint && (
+        <span className="text-label-11 text-[var(--ds-amber-700,#b45309)] mr-auto flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+          {missingMetaHint}
+        </span>
+      )}
+      {!readOnly && !missingMetaHint && showTempoTimeNudge && (
+        <span className="text-label-11 text-[var(--ds-gray-600)] mr-auto italic">
+          Tip: add tempo &amp; time so the song shows its feel.
+        </span>
+      )}
+      <Button variant="ghost" size="md" onClick={handleBack}>{readOnly ? 'Back' : 'Cancel'}</Button>
+      {!readOnly && <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave || !canSave}>Save</Button>}
+    </div>
+  );
+  // Cards layout: Save/Cancel as a bottom card (mirrors the draft card).
+  const saveCancelCardEl = (
+    <div
+      className="shrink-0 rounded-xl border border-[var(--border-1)] bg-[var(--ds-background-100)] px-3 sm:px-4 py-2.5"
+      style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    >
+      {saveCancelInner}
+    </div>
+  );
 
   return (
     <div className="h-full bg-[var(--ds-background-200)] flex flex-col">
       {cardsHeader ? (
-        <div className="flex-1 min-h-0 flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+        <div
+          className="flex-1 min-h-0 flex flex-col gap-3 px-3 sm:px-4 pb-3"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+        >
           {draftCardEl}
           {cardHeaderEl}
           {cardWorkAreaEl}
+          {saveCancelCardEl}
         </div>
       ) : (
       <>
@@ -1186,32 +1259,22 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
         </div>
       )}
 
-      {/* ─── Sticky bottom action bar — Cancel + Save, mirrors SetlistBuilder ─── */}
-      <div
-        className="shrink-0 sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)] w-full"
-        style={{
-          background: 'var(--header-bg-blur)',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-        }}
-      >
-        <div className="w-full px-5 py-3 flex items-center justify-end gap-3">
-          {!readOnly && missingMetaHint && (
-            <span className="text-label-11 text-[var(--ds-amber-700,#b45309)] mr-auto flex items-center gap-1.5">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-              {missingMetaHint}
-            </span>
-          )}
-          {!readOnly && !missingMetaHint && showTempoTimeNudge && (
-            <span className="text-label-11 text-[var(--ds-gray-600)] mr-auto italic">
-              Tip: add tempo &amp; time so the song shows its feel.
-            </span>
-          )}
-          <Button variant="ghost" size="md" onClick={handleBack}>{readOnly ? 'Back' : 'Cancel'}</Button>
-          {!readOnly && <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave || !canSave}>Save</Button>}
+      {/* ─── Legacy sticky bottom action bar (cards layout uses saveCancelCardEl) ─── */}
+      {!cardsHeader && (
+        <div
+          className="shrink-0 sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)] w-full"
+          style={{
+            background: 'var(--header-bg-blur)',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+          }}
+        >
+          <div className="w-full px-5 py-3">
+            {saveCancelInner}
+          </div>
         </div>
-      </div>
+      )}
 
       {promptConfig && (
         <PromptDialog

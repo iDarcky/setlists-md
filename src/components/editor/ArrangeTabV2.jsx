@@ -287,16 +287,16 @@ function SectionTypePicker({ value, num, options, customSectionTypes, onChange }
   }, [open]);
   const cur = sectionStyle(value, null, customSectionTypes);
   return (
-    <div ref={ref} className="relative inline-flex items-baseline">
+    <div ref={ref} className="relative inline-flex items-center">
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="inline-flex items-baseline gap-1 bg-transparent border-none cursor-pointer outline-none p-0 text-label-14 font-black uppercase tracking-[0.15em]"
+        className="inline-flex items-center gap-1 bg-transparent border-none cursor-pointer outline-none p-0 text-label-12 font-black uppercase tracking-[0.15em] leading-none"
         style={{ color: cur.b }}
       >
         <span>{value}</span>
         {num && <span className="font-black">{num}</span>}
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="opacity-50 self-center"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="opacity-50"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </button>
       {open && (
         <div role="menu" className="absolute z-50 left-0 top-full mt-1 min-w-[170px] max-h-[60vh] overflow-y-auto rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1">
@@ -859,7 +859,8 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
       {/* The song's official structure (slide order). A checkbox toggles a custom
           slide order; chips show the play order (tap to jump). A Customize popover
           sits on the right. Shared with the Advanced tab so the two always match. */}
-      <div className="shrink-0 flex items-center gap-2 pl-3 pr-6 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
+      <div className="shrink-0 flex items-center gap-2 pl-3 pr-6 py-1.5 border-b border-[var(--border-1)]">
+        <span className="shrink-0 text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] select-none">Song map</span>
         <StructureControl
           mode={song.structureMode}
           value={(song.structure || []).join(', ')}
