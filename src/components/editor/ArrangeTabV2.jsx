@@ -10,7 +10,7 @@ import SectionDrawer from './SectionDrawer';
 import StructureControl from './StructureControl';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
-import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType } from './arrangeHelpers';
+import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType, serializeSectionLines } from './arrangeHelpers';
 import { loadRecents, saveRecents, pushRecent } from './chordRecents';
 import ChordAutocomplete from './ChordAutocomplete';
 import FindReplaceBar from './FindReplaceBar';
@@ -363,6 +363,30 @@ function ChordOnlyLine({ chords, secIdx, lineIdx, onEditChord, onAppend, onRemov
 }
 
 // ─── ArrangeTabV2 ─────────────────────────────────────────────────
+// Inline raw-markdown editor for one section (the </> "Source" toggle). Seeded
+// once from the section's serialized lines (keyed per section so it remounts);
+// commits on blur via onCommit → the section re-parses into visual cards.
+const SectionSourceEditor = memo(function SectionSourceEditor({ initial, onCommit }) {
+  const [text, setText] = useState(initial);
+  return (
+    <div className="mb-1">
+      <textarea
+        autoFocus
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onBlur={() => { if (text !== initial) onCommit(text); }}
+        spellCheck={false}
+        rows={Math.max(3, text.split('\n').length + 1)}
+        className="w-full bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg p-3 text-copy-13 leading-relaxed text-[var(--ds-gray-1000)] resize-y outline-none font-mono"
+        style={{ caretColor: 'var(--chord)' }}
+      />
+      <p className="text-copy-11 text-[var(--ds-gray-500)] mt-1 mb-0">
+        Raw format — [C]inline chords, {'{tab}…{/tab}'}, {'{modulate: +N}'}. Tap out to apply.
+      </p>
+    </div>
+  );
+});
+
 export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const sectionTypes = useMemo(() => {
     const custom = (customSectionTypes || []).map(t => t?.name?.trim()).filter(Boolean);
@@ -380,6 +404,13 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const [tabEditorTarget, setTabEditorTarget] = useState(null);
   const [draftTarget, setDraftTarget] = useState(null); // { secIdx, idx } open inline lyric draft
   const [keyChangeTarget, setKeyChangeTarget] = useState(null); // { secIdx, idx } key-change dialog
+  // Per-section raw "Source" editing: secIdx -> true. A </> toggle flips one
+  // section card into a raw-markdown textarea and back.
+  const [sourceMode, setSourceMode] = useState({});
+  const toggleSource = useCallback((idx) => {
+    setSourceMode(m => ({ ...m, [idx]: !m[idx] }));
+    setCollapsed(c => ({ ...c, [idx]: false })); // source implies expanded
+  }, []);
   // Find / replace over lyric text (shares the Advanced editor's bar UI).
   const [showFind, setShowFind] = useState(false);
   const [findText, setFindText] = useState('');
@@ -897,7 +928,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
           const typeOptions = !base || sectionTypes.includes(base) ? sectionTypes : [base, ...sectionTypes];
           const isCollapsed = !!collapsed[secIdx];
           return (
-            <div key={secIdx} className="mb-6" ref={el => { sectionRefs.current[secIdx] = el; }}>
+            <div key={secIdx} className="group/sec mb-4 rounded-xl border border-[var(--border-1)] bg-[var(--ds-background-100)] px-3 pt-2 pb-3" ref={el => { sectionRefs.current[secIdx] = el; }}>
               {/* Section header */}
               <div className="flex items-center gap-2 mb-2">
                 <button
@@ -924,17 +955,24 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                   className="flex-1 bg-transparent border-none text-label-11 italic text-[var(--text-2)] outline-none min-w-0 px-1"
                   style={{ borderLeft: sec.note ? `2px solid ${s.br}` : 'none' }}
                 />
-                <IconButton variant="ghost" size="sm" aria-label="Move section up" title="Move up" disabled={secIdx === 0} onClick={() => moveSection(secIdx, -1)}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
-                </IconButton>
-                <IconButton variant="ghost" size="sm" aria-label="Move section down" title="Move down" disabled={secIdx === placements.length - 1} onClick={() => moveSection(secIdx, 1)}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                </IconButton>
-                <IconButton variant="ghost" size="sm" aria-label="Edit lyrics" title="Edit lyrics" onClick={() => handleEditText(secIdx)}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                  </svg>
-                </IconButton>
+                {/* Action cluster — reveals on hover/focus on desktop, stays
+                    visible on touch (where hover isn't reliable). */}
+                <div className="flex items-center shrink-0 transition-opacity sm:opacity-0 sm:group-hover/sec:opacity-100 sm:focus-within:opacity-100">
+                  <IconButton variant="ghost" size="sm" aria-label="Move section up" title="Move up" disabled={secIdx === 0} onClick={() => moveSection(secIdx, -1)}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                  </IconButton>
+                  <IconButton variant="ghost" size="sm" aria-label="Move section down" title="Move down" disabled={secIdx === placements.length - 1} onClick={() => moveSection(secIdx, 1)}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                  </IconButton>
+                  <IconButton variant="ghost" size="sm" aria-label="Edit lyrics" title="Edit lyrics" onClick={() => handleEditText(secIdx)}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                    </svg>
+                  </IconButton>
+                  <IconButton variant={sourceMode[secIdx] ? 'active' : 'ghost'} size="sm" aria-label="Edit source" title="Edit raw source" onClick={() => toggleSource(secIdx)}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+                  </IconButton>
+                </div>
                 <PopMenu
                   trigger={
                     <IconButton variant="ghost" size="sm" aria-label="Section options" title="Section options">
@@ -942,13 +980,20 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                     </IconButton>
                   }
                 >
+                  <MenuItem onClick={() => toggleSource(secIdx)}>{sourceMode[secIdx] ? 'Close source' : 'Edit source'}</MenuItem>
                   <MenuItem onClick={() => duplicateSection(secIdx)}>Duplicate section</MenuItem>
                   <MenuItem danger onClick={() => removeSection(secIdx)}>Delete section</MenuItem>
                 </PopMenu>
               </div>
 
-              {/* Lines */}
-              {!isCollapsed && (
+              {/* Lines (or the raw Source editor when toggled) */}
+              {!isCollapsed && (sourceMode[secIdx] ? (
+                <SectionSourceEditor
+                  key={`src-${secIdx}`}
+                  initial={serializeSectionLines(song.sections[secIdx]?.lines || [])}
+                  onCommit={(text) => handleDrawerSave(secIdx, text)}
+                />
+              ) : (
                 <div>
                   {sec.lines.map((line, lineIdx) => {
                     let el = null;
@@ -1062,7 +1107,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                     </PopMenu>
                   </div>
                 </div>
-              )}
+              ))}
             </div>
           );
         })}
