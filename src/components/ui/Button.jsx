@@ -11,16 +11,16 @@ const Button = React.forwardRef(({
   children,
   ...props
 }, ref) => {
-  const baseStyles = "inline-flex items-center justify-center rounded-md font-medium cursor-pointer transition-all duration-100 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]";
+  const baseStyles = "inline-flex items-center justify-center rounded-md font-medium whitespace-nowrap select-none cursor-pointer transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ds-background-100)] disabled:opacity-50 disabled:pointer-events-none active:scale-[0.97]";
 
   const variants = {
-    primary: "bg-[var(--text-1)] text-[var(--bg-1)] hover:bg-[var(--text-2)] focus:ring-[var(--text-2)]",
-    secondary: "bg-[var(--bg-1)] text-[var(--text-1)] border border-[var(--border-1)] hover:bg-[var(--bg-2)] hover:border-[var(--border-2)] focus:ring-[var(--border-1)]",
-    ghost: "bg-transparent text-[var(--text-1)] hover:bg-[var(--bg-2)] focus:ring-[var(--bg-2)]",
-    error: "bg-[var(--ds-red-100)] text-[var(--ds-red-1000)] border border-[var(--ds-red-400)] hover:bg-[var(--ds-red-200)] focus:ring-[var(--ds-red-400)]",
-    danger: "bg-[var(--ds-red-700)] text-white border-none hover:bg-[var(--ds-red-800)] focus:ring-[var(--ds-red-700)]",
-    warning: "bg-[var(--ds-amber-100)] text-[var(--ds-amber-1000)] border border-[var(--ds-amber-400)] hover:bg-[var(--ds-amber-200)] focus:ring-[var(--ds-amber-400)]",
-    brand: "bg-[var(--color-brand)] text-white hover:opacity-90 focus:ring-[var(--color-brand)]",
+    primary: "bg-[var(--text-1)] text-[var(--bg-1)] shadow-sm hover:bg-[var(--text-2)] focus-visible:ring-[var(--text-2)]",
+    secondary: "bg-[var(--bg-1)] text-[var(--text-1)] border border-[var(--border-1)] hover:bg-[var(--bg-2)] hover:border-[var(--border-2)] focus-visible:ring-[var(--border-2)]",
+    ghost: "bg-transparent text-[var(--text-1)] hover:bg-[var(--bg-2)] focus-visible:ring-[var(--border-1)]",
+    error: "bg-[var(--ds-red-100)] text-[var(--ds-red-1000)] border border-[var(--ds-red-400)] hover:bg-[var(--ds-red-200)] focus-visible:ring-[var(--ds-red-400)]",
+    danger: "bg-[var(--ds-red-700)] text-white border-none shadow-sm hover:bg-[var(--ds-red-800)] focus-visible:ring-[var(--ds-red-700)]",
+    warning: "bg-[var(--ds-amber-100)] text-[var(--ds-amber-1000)] border border-[var(--ds-amber-400)] hover:bg-[var(--ds-amber-200)] focus-visible:ring-[var(--ds-amber-400)]",
+    brand: "bg-[var(--color-brand)] text-white shadow-sm hover:opacity-90 focus-visible:ring-[var(--color-brand)]",
   };
 
   const sizes = {

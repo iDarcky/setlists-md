@@ -17,7 +17,7 @@ import { IconButton } from './ui/IconButton';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { Tabs } from './ui/Tabs';
 import PromptDialog from './ui/PromptDialog';
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from './ui/Select';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue, SelectSeparator } from './ui/Select';
 import { toast } from './ui/use-toast';
 import { useConfirm } from './ui/useConfirmHook';
 import { headerFrostStyle } from '../lib/headerFrost';
@@ -622,10 +622,22 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
       case 'details':
         // Card-header layout only: Song Details get their own full-width tab
         // (the intuitive home for artist, capo, CCLI, tags, …) instead of the
-        // legacy collapsible panel.
+        // legacy collapsible panel. Transpose lives here too (moved out of the
+        // header): it's an action on the chords, so it sits beside its handler.
         return (
           <div className="flex-1 min-h-0 overflow-y-auto w-full">
             <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-4">
+              <div className="flex items-center justify-between gap-3 mb-4 pb-4 border-b border-[var(--ds-gray-200)]">
+                <div className="min-w-0">
+                  <div className="text-label-12 font-semibold text-[var(--ds-gray-700)]">Transpose</div>
+                  <div className="text-label-11 text-[var(--ds-gray-600)]">Shift every chord (and the key) by a semitone.</div>
+                </div>
+                <div className="flex items-center h-9 shrink-0 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] overflow-hidden">
+                  <IconButton variant="ghost" size="sm" aria-label="Transpose down a semitone" title="Transpose down" onClick={() => transposeAllChords(-1)}>−</IconButton>
+                  <span className="px-2 min-w-[3ch] text-center text-label-12 font-mono font-semibold text-[var(--ds-gray-1000)] select-none">{currentKey || '—'}</span>
+                  <IconButton variant="ghost" size="sm" aria-label="Transpose up a semitone" title="Transpose up" onClick={() => transposeAllChords(1)}>+</IconButton>
+                </div>
+              </div>
               <MetadataPanel md={md} onChange={setMd} isOpen keyHistory={workingSong.keyHistory} />
             </div>
           </div>
@@ -665,47 +677,72 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   // Just the musical metadata controls (Key / Transpose / Tempo / Time) — split
   // out from the arrangement picker so the card header can put the arrangement
   // beside the title and the key/tempo/time on their own row.
+  // Key picker. The options come back as 12 majors then 12 minors, so we slice
+  // at the boundary and drop a separator between the two groups.
+  const keyControlEl = (
+    <Select value={currentKey} onValueChange={changeSongKey}>
+      <SelectTrigger
+        aria-label="Key"
+        className={`h-8 w-auto gap-1 px-2 text-label-12 font-mono bg-[var(--ds-gray-100)] ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
+      >
+        {/* Show only the chosen key in the trigger (e.g. "Gb"), not the
+            dual-spelling label, so the pill stays compact. */}
+        <span className={keySet ? '' : 'text-[var(--ds-gray-500)]'}>{currentKey || 'Key?'}</span>
+      </SelectTrigger>
+      <SelectContent className="font-mono">
+        {keyOpts.slice(0, 12).map(({ value, label }) => (
+          <SelectItem key={value} value={value}>{label}</SelectItem>
+        ))}
+        <SelectSeparator />
+        {keyOpts.slice(12).map(({ value, label }) => (
+          <SelectItem key={value} value={value}>{label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+  // Explicit transpose: moves the actual chords (and the key label) by a
+  // semitone. Separate from the Key field so relabelling never rewrites the
+  // user's chords. Extracted so the card layout can relocate it to Details.
+  const transposeControlEl = (
+    <div className="flex items-center h-8 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] overflow-hidden">
+      <IconButton variant="ghost" size="xs" aria-label="Transpose down a semitone" title="Transpose down" onClick={() => transposeAllChords(-1)}>−</IconButton>
+      <span className="px-1 text-label-10 uppercase tracking-wide text-[var(--ds-gray-600)] select-none">Tr</span>
+      <IconButton variant="ghost" size="xs" aria-label="Transpose up a semitone" title="Transpose up" onClick={() => transposeAllChords(1)}>+</IconButton>
+    </div>
+  );
+  // Tempo + time signature. The tempo input IS the sized box: same h-8 + border
+  // + rounded + bg as the Key/Time triggers, with box-border + leading-none so
+  // its content line-height can't push it past 32px.
+  const tempoTimeEl = (
+    <>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={currentTempo}
+        onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+        className="box-border h-8 w-14 appearance-none rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] px-2 text-label-12 font-mono leading-none text-center text-[var(--ds-gray-1000)] outline-none"
+        placeholder="bpm"
+        aria-label="Tempo"
+      />
+      <TimeSignatureControl
+        value={currentTime}
+        onChange={v => updateField('time', v)}
+      />
+    </>
+  );
+  // Legacy header: key + transpose + tempo + time on one wrapping row.
   const musicMetaControls = (
     <div className="flex items-center gap-1.5 flex-wrap">
-        <Select value={currentKey} onValueChange={changeSongKey}>
-          <SelectTrigger
-            aria-label="Key"
-            className={`h-8 w-auto gap-1 px-2 text-label-12 font-mono bg-[var(--ds-gray-100)] ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
-          >
-            {/* Show only the chosen key in the trigger (e.g. "Gb"), not the
-                dual-spelling label, so the pill stays compact. */}
-            <span className={keySet ? '' : 'text-[var(--ds-gray-500)]'}>{currentKey || 'Key?'}</span>
-          </SelectTrigger>
-          <SelectContent className="font-mono">
-            {keyOpts.map(({ value, label }) => (
-              <SelectItem key={value} value={value}>{label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {/* Explicit transpose: moves the actual chords (and the key label) by a
-            semitone. Separate from the Key field so relabelling never rewrites
-            the user's chords. */}
-        <div className="flex items-center h-8 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] overflow-hidden">
-          <IconButton variant="ghost" size="xs" aria-label="Transpose down a semitone" title="Transpose down" onClick={() => transposeAllChords(-1)}>−</IconButton>
-          <span className="px-1 text-label-10 uppercase tracking-wide text-[var(--ds-gray-600)] select-none">Tr</span>
-          <IconButton variant="ghost" size="xs" aria-label="Transpose up a semitone" title="Transpose up" onClick={() => transposeAllChords(1)}>+</IconButton>
-        </div>
-        {/* The tempo input IS the sized box: same h-8 + border + rounded + bg
-            as the Key/Time triggers, with box-border + leading-none so its
-            content line-height can't push it past 32px. No wrapper needed. */}
-        <input
-          type="text"
-          inputMode="numeric"
-          value={currentTempo}
-          onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
-          className="box-border h-8 w-14 appearance-none rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] px-2 text-label-12 font-mono leading-none text-center text-[var(--ds-gray-1000)] outline-none"
-          placeholder="bpm"
-          aria-label="Tempo"
-        />
-        <TimeSignatureControl
-          value={currentTime}
-          onChange={v => updateField('time', v)}
-        />
+      {keyControlEl}
+      {transposeControlEl}
+      {tempoTimeEl}
+    </div>
+  );
+  // Card header row 2: key + tempo + time (transpose lives in Details there).
+  const cardMetaControls = (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {keyControlEl}
+      {tempoTimeEl}
     </div>
   );
   // Legacy header layout: arrangement picker + key/tempo/time on one wrapping row.
@@ -887,23 +924,25 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       <div className="px-3 sm:px-4 pt-3 pb-2">
-        <div className="rounded-2xl border border-[var(--ds-gray-200)] bg-[var(--ds-background-100)] px-3 sm:px-4 py-3 flex flex-col gap-3">
-          {/* Row 1: title + arrangement | actions */}
+        <div
+          className="rounded-2xl border border-[var(--border-1)] px-3 sm:px-4 py-3 flex flex-col gap-3"
+          style={{ background: 'linear-gradient(180deg, var(--ds-background-100), var(--ds-background-200))' }}
+        >
+          {/* Row 1: title + arrangement (kept together) | actions */}
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <input
-                value={fmFields.title || ''}
-                onChange={e => updateField('title', e.target.value)}
-                placeholder={song ? 'Song title' : 'New song'}
-                aria-label="Song title"
-                className="min-w-0 flex-1 bg-transparent border-0 outline-none text-heading-18 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
-              />
-              <div className="shrink-0">{arrangementMenuEl}</div>
-            </div>
+            <input
+              value={fmFields.title || ''}
+              onChange={e => updateField('title', e.target.value)}
+              placeholder={song ? 'Song title' : 'New song'}
+              aria-label="Song title"
+              className="min-w-0 flex-1 max-w-[14rem] sm:max-w-[20rem] bg-transparent border-0 outline-none text-heading-18 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
+            />
+            <div className="shrink-0">{arrangementMenuEl}</div>
+            <div className="flex-1 min-w-0" />
             {headerActionsEl}
           </div>
-          {/* Row 2: key / transpose / tempo / time */}
-          <div>{musicMetaControls}</div>
+          {/* Row 2: key / tempo / time (transpose lives in the Details tab) */}
+          <div>{cardMetaControls}</div>
         </div>
       </div>
       {tabsRowEl}
