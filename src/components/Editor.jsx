@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import ChartView from './ChartView';
+import AaMenu from './AaMenu';
 import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields, EXTRA_META_KEYS } from '../parser';
 import { keyOptions, transposeChord, transposeKey, keyPrefersSharps } from '../music';
 import { isChordToken } from '../importer';
@@ -231,6 +232,11 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     () => (typeof chartDefaults.settings?.chordFontSize === 'number' ? chartDefaults.settings.chordFontSize : 14),
   );
   const [previewLinkSizes, setPreviewLinkSizes] = useState(true);
+  // Card layout: the preview gets the real "Aa" display popover, wired to the
+  // GLOBAL display settings (a faithful preview — same as the chart's Aa).
+  const [aaAnchor, setAaAnchor] = useState(null);
+  const closeAa = useCallback(() => setAaAnchor(null), []);
+  const toggleAa = (e) => setAaAnchor(a => (a ? null : e.currentTarget.getBoundingClientRect()));
   const [editArrangementsOpen, setEditArrangementsOpen] = useState(false);
   const [promptConfig, setPromptConfig] = useState(null);
   const textareaRef = useRef(null);
@@ -912,6 +918,48 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     />
   ) : null;
 
+  // Card layout: a FAITHFUL preview — reads the real global display settings and
+  // writes through them (the Aa popover below edits global, same as the chart).
+  const cardPreviewChartEl = preview ? (
+    <ChartView song={preview} isPreview {...chartDefaults} />
+  ) : null;
+  const gSettings = chartDefaults.settings || {};
+  const gUpdate = chartDefaults.onUpdateSettings;
+  const aaNotation = gSettings.notation || (gSettings.nashville ? 'nashville' : 'letters');
+  // An "Aa" trigger styled like Song Hub's, opening the global display popover.
+  const aaTriggerEl = (
+    <button
+      type="button"
+      aria-label="Display options"
+      aria-expanded={!!aaAnchor}
+      onClick={toggleAa}
+      className="shrink-0 w-8 h-8 grid place-items-center rounded-lg border border-[var(--border-1)] bg-[var(--ds-background-100)] text-[13px] font-bold text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer"
+    >
+      Aa
+    </button>
+  );
+  const cardAaMenuEl = (cardsHeader && aaAnchor) ? (
+    <AaMenu
+      anchorRect={aaAnchor}
+      onClose={closeAa}
+      settings={gSettings}
+      onUpdateSettings={gUpdate}
+      lyricSize={typeof gSettings.defaultFontSize === 'number' ? gSettings.defaultFontSize : 16}
+      onLyricSize={(n) => gUpdate?.('defaultFontSize', Math.max(10, Math.min(30, n)))}
+      chordSize={typeof gSettings.chordFontSize === 'number' ? gSettings.chordFontSize : 14}
+      onChordSize={(n) => gUpdate?.('chordFontSize', Math.max(8, Math.min(30, n)))}
+      columns={gSettings.defaultColumns ?? 'auto'}
+      onColumns={(v) => gUpdate?.('defaultColumns', v)}
+      notation={aaNotation}
+      onNotation={(v) => { gUpdate?.('notation', v); gUpdate?.('nashville', v === 'nashville'); }}
+      onReset={(which) => {
+        if (which === 'lyrics') { gUpdate?.('defaultFontSize', undefined); gUpdate?.('chartLyricFont', undefined); gUpdate?.('chartLyricColor', undefined); }
+        else if (which === 'chords') { gUpdate?.('chordFontSize', undefined); gUpdate?.('chartChordFont', undefined); gUpdate?.('chartChordColor', undefined); }
+        else { gUpdate?.('chartTheme', undefined); gUpdate?.('notation', undefined); gUpdate?.('nashville', undefined); gUpdate?.('defaultColumns', undefined); }
+      }}
+    />
+  ) : null;
+
   // Show the empty-state chooser for a fresh blank song (no chords/lyrics yet).
 
   // Shared header action buttons (preview toggle / peek + delete).
@@ -1117,10 +1165,10 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
         >
           <div className="shrink-0 px-3 py-2 border-b border-[var(--border-1)] flex items-center justify-between gap-2">
             <span className="text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">Preview</span>
-            {previewControls}
+            {aaTriggerEl}
           </div>
           <div className="flex-1 min-h-0 flex flex-col">
-            {previewChartEl}
+            {cardPreviewChartEl}
           </div>
         </aside>
       )}
@@ -1266,8 +1314,8 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
         >
           <div className="shrink-0 px-3 py-2 border-b border-[var(--ds-gray-200)] flex items-center justify-between gap-2">
             <span className="text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">Preview</span>
-            <div className="flex items-center gap-1">
-              {previewControls}
+            <div className="flex items-center gap-1.5">
+              {cardsHeader ? aaTriggerEl : previewControls}
               <IconButton variant="ghost" size="sm" onClick={() => setPreviewPeekOpen(false)} aria-label="Close preview">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 6 6 18M6 6l12 12" />
@@ -1276,7 +1324,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
             </div>
           </div>
           <div className="flex-1 min-h-0 flex flex-col">
-            {previewChartEl || (
+            {(cardsHeader ? cardPreviewChartEl : previewChartEl) || (
               <div className="flex-1 flex items-center justify-center text-copy-13 text-[var(--ds-gray-600)] italic">
                 Nothing to preview yet.
               </div>
@@ -1314,6 +1362,9 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           onClose={() => setPromptConfig(null)}
         />
       )}
+
+      {/* Preview display popover (card layout) — writes GLOBAL display settings. */}
+      {cardAaMenuEl}
 
       {/* Source — raw-markdown editor (card layout). Reuses WriteTab so the
           toolbar's paste-import comes along. Edits the same body via setBody. */}
