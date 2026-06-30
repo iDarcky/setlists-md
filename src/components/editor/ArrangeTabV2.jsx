@@ -364,6 +364,11 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     setSourceMode(m => ({ ...m, [idx]: !m[idx] }));
     setCollapsed(c => ({ ...c, [idx]: false })); // source implies expanded
   }, []);
+  // Section drag-to-reorder (grip handle only, so the card's inner fields stay
+  // interactive). Desktop uses HTML5 drag; touch uses elementFromPoint — the
+  // same hand-rolled pattern as SetlistBuilder (no DnD library).
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
   const confirm = useConfirm();
   const sectionRefs = useRef({});
   const jumpTo = useCallback((idx) => {
@@ -551,6 +556,44 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     [arr[idx], arr[j]] = [arr[j], arr[idx]];
     emitSections(arr);
   }, [song, emitSections]);
+
+  // Move a section from one index to another (drag-to-reorder commit).
+  const reorderSection = useCallback((from, to) => {
+    if (!song || from == null || to == null || from === to) return;
+    const arr = [...song.sections];
+    const [moved] = arr.splice(from, 1);
+    arr.splice(to, 0, moved);
+    emitSections(arr);
+  }, [song, emitSections]);
+
+  // Commit whatever the drag landed on, then clear the drag state. Reads the
+  // latest dragIdx/dragOverIdx via the state updaters so it works from both the
+  // dragend and touchend paths without stale closures.
+  const endDrag = useCallback(() => {
+    setDragIdx(from => {
+      setDragOverIdx(to => { reorderSection(from, to); return null; });
+      return null;
+    });
+  }, [reorderSection]);
+
+  // Grip handlers — desktop HTML5 drag (with the card as the drag image) and a
+  // touch fallback that resolves the hovered card via elementFromPoint.
+  const onGripDragStart = useCallback((idx, e) => {
+    setDragIdx(idx);
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', String(idx)); } catch { /* IE */ }
+      const card = sectionRefs.current[idx];
+      if (card) e.dataTransfer.setDragImage(card, 24, 16);
+    }
+  }, []);
+  const onGripTouchMove = useCallback((e) => {
+    const t = e.touches[0];
+    if (!t) return;
+    const under = document.elementFromPoint(t.clientX, t.clientY);
+    const row = under?.closest('[data-drag-idx]');
+    if (row) setDragOverIdx(parseInt(row.dataset.dragIdx, 10));
+  }, []);
 
   const changeSectionType = useCallback((idx, base) => {
     if (!song) return;
@@ -761,10 +804,43 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
           const num = (sec.type.match(/(\d+)\s*:?\s*$/) || [])[1] || '';
           const typeOptions = !base || sectionTypes.includes(base) ? sectionTypes : [base, ...sectionTypes];
           const isCollapsed = !!collapsed[secIdx];
+          const isDragging = dragIdx === secIdx;
+          const isDropTarget = dragIdx != null && dragIdx !== secIdx && dragOverIdx === secIdx;
           return (
-            <div key={secIdx} className="group/sec mb-4 rounded-xl border border-[var(--border-1)] bg-[var(--ds-background-100)] px-3 pt-2 pb-3" ref={el => { sectionRefs.current[secIdx] = el; }}>
+            <div
+              key={secIdx}
+              data-drag-idx={secIdx}
+              onDragEnter={() => { if (dragIdx != null) setDragOverIdx(secIdx); }}
+              onDragOver={(e) => { if (dragIdx != null) e.preventDefault(); }}
+              onDrop={(e) => { e.preventDefault(); endDrag(); }}
+              className={`group/sec mb-4 rounded-xl border bg-[var(--ds-background-100)] px-3 pt-2 pb-3 transition-[opacity,box-shadow] ${isDragging ? 'opacity-40' : ''} ${isDropTarget ? 'border-[var(--color-brand)]' : 'border-[var(--border-1)]'}`}
+              style={isDropTarget ? { boxShadow: '0 0 0 2px var(--color-brand)' } : undefined}
+              ref={el => { sectionRefs.current[secIdx] = el; }}
+            >
               {/* Section header */}
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-1.5 mb-2">
+                {/* Drag handle — only the grip starts a drag, so the card's
+                    inner fields (lyrics, chords, cue) stay fully interactive. */}
+                <span
+                  role="button"
+                  tabIndex={-1}
+                  aria-label="Drag to reorder section"
+                  title="Drag to reorder"
+                  draggable
+                  onDragStart={(e) => onGripDragStart(secIdx, e)}
+                  onDragEnd={endDrag}
+                  onTouchStart={() => setDragIdx(secIdx)}
+                  onTouchMove={onGripTouchMove}
+                  onTouchEnd={endDrag}
+                  onTouchCancel={() => { setDragIdx(null); setDragOverIdx(null); }}
+                  className="shrink-0 w-4 h-6 grid place-items-center cursor-grab active:cursor-grabbing text-[var(--ds-gray-400)] hover:text-[var(--ds-gray-700)] touch-none transition-opacity sm:opacity-40 sm:group-hover/sec:opacity-100"
+                >
+                  <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor" aria-hidden="true">
+                    <circle cx="2.5" cy="3" r="1.3" /><circle cx="7.5" cy="3" r="1.3" />
+                    <circle cx="2.5" cy="8" r="1.3" /><circle cx="7.5" cy="8" r="1.3" />
+                    <circle cx="2.5" cy="13" r="1.3" /><circle cx="7.5" cy="13" r="1.3" />
+                  </svg>
+                </span>
                 <button
                   type="button"
                   onClick={() => setCollapsed(c => ({ ...c, [secIdx]: !c[secIdx] }))}
@@ -792,12 +868,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                 {/* Action cluster — reveals on hover/focus on desktop, stays
                     visible on touch (where hover isn't reliable). */}
                 <div className="flex items-center shrink-0 transition-opacity sm:opacity-0 sm:group-hover/sec:opacity-100 sm:focus-within:opacity-100">
-                  <IconButton variant="ghost" size="sm" aria-label="Move section up" title="Move up" disabled={secIdx === 0} onClick={() => moveSection(secIdx, -1)}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
-                  </IconButton>
-                  <IconButton variant="ghost" size="sm" aria-label="Move section down" title="Move down" disabled={secIdx === placements.length - 1} onClick={() => moveSection(secIdx, 1)}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                  </IconButton>
                   <IconButton variant="ghost" size="sm" aria-label="Edit lyrics" title="Edit lyrics" onClick={() => handleEditText(secIdx)}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
@@ -814,6 +884,8 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                     </IconButton>
                   }
                 >
+                  {secIdx > 0 && <MenuItem onClick={() => moveSection(secIdx, -1)}>Move up</MenuItem>}
+                  {secIdx < placements.length - 1 && <MenuItem onClick={() => moveSection(secIdx, 1)}>Move down</MenuItem>}
                   <MenuItem onClick={() => toggleSource(secIdx)}>{sourceMode[secIdx] ? 'Close source' : 'Edit source'}</MenuItem>
                   <MenuItem onClick={() => duplicateSection(secIdx)}>Duplicate section</MenuItem>
                   <MenuItem danger onClick={() => removeSection(secIdx)}>Delete section</MenuItem>
