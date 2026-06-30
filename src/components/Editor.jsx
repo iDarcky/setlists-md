@@ -17,6 +17,7 @@ import { IconButton } from './ui/IconButton';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { Tabs } from './ui/Tabs';
 import PromptDialog from './ui/PromptDialog';
+import { Dialog } from './ui/Dialog';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue, SelectSeparator } from './ui/Select';
 import { toast } from './ui/use-toast';
 import { useConfirm } from './ui/useConfirmHook';
@@ -193,6 +194,9 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   // New songs (card layout) open on Details to fill in metadata first; editing
   // an existing song opens on Arrange. Legacy has no Details tab → always Arrange.
   const [activeTab, setActiveTab] = useState(() => (!song && cardsHeader ? 'details' : 'arrange'));
+  // Card layout: the raw-markdown editor (WriteTab) opens in a centered dialog
+  // instead of a tab — a power-user "Source" escape hatch with paste-import.
+  const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
   const isWide = useMediaQuery('(min-width: 1024px)');
@@ -241,9 +245,12 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
 
   // The Details tab only exists in the card-header layout; if the Labs flag is
-  // off (or gets turned off) while it's active, fall back to Arrange.
+  // off (or gets turned off) while it's active, fall back to Arrange. The card
+  // layout has no Advanced tab either — raw editing lives in the Source dialog —
+  // so 'write' also falls back to Arrange there.
   useEffect(() => {
     if (!cardsHeader && activeTab === 'details') setActiveTab('arrange');
+    if (cardsHeader && activeTab === 'write') setActiveTab('arrange');
   }, [cardsHeader, activeTab]);
 
   // Parse md → preview with debounce
@@ -1048,7 +1055,8 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   // The editing surface and the preview each become their own card, mirroring
   // Song Hub's reader card. The Arrange/Advanced/Tabs/Details tabs live as the
   // left card's pill header.
-  const cardTabList = [...MODE_OPTIONS, { id: 'tabs', label: 'Tabs' }, { id: 'details', label: 'Details' }];
+  // No Advanced tab in the card layout — raw markdown lives in the Source dialog.
+  const cardTabList = [{ id: 'arrange', label: 'Arrange' }, { id: 'tabs', label: 'Tabs' }, { id: 'details', label: 'Details' }];
   const cardTabsHeaderEl = (
     <div className="shrink-0 flex items-center gap-1 px-2 sm:px-3 py-2 border-b border-[var(--border-1)] overflow-x-auto">
       {cardTabList.map(t => {
@@ -1066,6 +1074,16 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           </button>
         );
       })}
+      {/* Source — raw-markdown power-user editor (paste-import lives in here). */}
+      <button
+        type="button"
+        onClick={() => setSourceDialogOpen(true)}
+        title="Edit raw source"
+        className="ml-auto shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-medium text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer transition-colors"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+        Source
+      </button>
     </div>
   );
 
@@ -1295,6 +1313,36 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           onSubmit={(v) => promptConfig.onSubmit?.(v)}
           onClose={() => setPromptConfig(null)}
         />
+      )}
+
+      {/* Source — raw-markdown editor (card layout). Reuses WriteTab so the
+          toolbar's paste-import comes along. Edits the same body via setBody. */}
+      {cardsHeader && (
+        <Dialog open={sourceDialogOpen} onClose={() => setSourceDialogOpen(false)} size="xl" ariaLabel="Edit source" className="h-[85vh] flex flex-col overflow-hidden">
+          <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3 border-b border-[var(--border-1)]">
+            <div className="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--ds-gray-600)]"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+              <h2 className="text-copy-15 font-semibold text-[var(--ds-gray-1000)] m-0">Source</h2>
+            </div>
+            <IconButton variant="ghost" size="sm" onClick={() => setSourceDialogOpen(false)} aria-label="Close source">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </IconButton>
+          </div>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <WriteTab
+              md={splitMd(md).body.replace(/^\n+/, '')}
+              onChange={setBody}
+              textareaRef={textareaRef}
+              customSectionTypes={customSectionTypes}
+              time={currentTime || '4/4'}
+              songKey={currentKey || 'C'}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              onImport={handleImport}
+              structureRow={structureRowEl}
+            />
+          </div>
+        </Dialog>
       )}
 
       <EditArrangementsDialog
