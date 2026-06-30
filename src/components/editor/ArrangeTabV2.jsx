@@ -365,12 +365,15 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     setCollapsed(c => ({ ...c, [idx]: false })); // source implies expanded
   }, []);
   // Section drag-to-reorder (grip handle only, so the card's inner fields stay
-  // interactive). Desktop uses HTML5 drag; touch uses elementFromPoint — the
-  // same hand-rolled pattern as SetlistBuilder (no DnD library).
+  // interactive). Desktop uses HTML5 drag; touch uses pointer math via native
+  // non-passive listeners (React's touch handlers are passive, so preventDefault
+  // there can't stop the browser's scroll/text-selection).
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
   const confirm = useConfirm();
   const sectionRefs = useRef({});
+  const scrollRef = useRef(null);      // canvas scroll container (edge autoscroll)
+  const autoScrollRef = useRef({ raf: 0, v: 0 });
   const jumpTo = useCallback((idx) => {
     sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
@@ -566,7 +569,39 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     emitSections(arr);
   }, [song, emitSections]);
 
-  // Commit whatever the drag landed on, then clear the drag state. Reads the
+  // ── Edge autoscroll ── While dragging near the top/bottom of the canvas,
+  // scroll it so long songs can be reordered without lifting the finger/mouse.
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollRef.current.raf) cancelAnimationFrame(autoScrollRef.current.raf);
+    autoScrollRef.current = { raf: 0, v: 0 };
+  }, []);
+  const updateAutoScroll = useCallback((clientY) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const EDGE = 64, MAX = 16;
+    let v = 0;
+    if (clientY < r.top + EDGE) v = -Math.ceil(MAX * Math.min(1, (r.top + EDGE - clientY) / EDGE));
+    else if (clientY > r.bottom - EDGE) v = Math.ceil(MAX * Math.min(1, (clientY - (r.bottom - EDGE)) / EDGE));
+    autoScrollRef.current.v = v;
+    if (v && !autoScrollRef.current.raf) {
+      const tick = () => {
+        const node = scrollRef.current;
+        const vel = autoScrollRef.current.v;
+        if (node && vel) { node.scrollTop += vel; autoScrollRef.current.raf = requestAnimationFrame(tick); }
+        else autoScrollRef.current.raf = 0;
+      };
+      autoScrollRef.current.raf = requestAnimationFrame(tick);
+    }
+  }, []);
+
+  // Resolve the section under a point and arm it as the drop target.
+  const pointToDropTarget = useCallback((clientX, clientY) => {
+    const row = document.elementFromPoint(clientX, clientY)?.closest('[data-drag-idx]');
+    if (row) setDragOverIdx(parseInt(row.dataset.dragIdx, 10));
+  }, []);
+
+  // Commit whatever the drag landed on, then clear all drag state. Reads the
   // latest dragIdx/dragOverIdx via the state updaters so it works from both the
   // dragend and touchend paths without stale closures.
   const endDrag = useCallback(() => {
@@ -574,10 +609,37 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
       setDragOverIdx(to => { reorderSection(from, to); return null; });
       return null;
     });
-  }, [reorderSection]);
+    stopAutoScroll();
+  }, [reorderSection, stopAutoScroll]);
 
-  // Grip handlers — desktop HTML5 drag (with the card as the drag image) and a
-  // touch fallback that resolves the hovered card via elementFromPoint.
+  // ── Touch drag (native, non-passive) ── React's onTouchMove is passive, so
+  // preventDefault there can't stop the page scrolling or selecting text under
+  // the finger. We attach our own listeners while a touch drag is live and
+  // suppress text selection on <body> for the duration.
+  const beginTouchDrag = useCallback((idx) => {
+    setDragIdx(idx);
+    const onMove = (e) => {
+      if (!e.touches[0]) return;
+      e.preventDefault(); // non-passive: stops scroll + text selection
+      updateAutoScroll(e.touches[0].clientY);
+      pointToDropTarget(e.touches[0].clientX, e.touches[0].clientY);
+    };
+    const onEnd = () => {
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      document.removeEventListener('touchcancel', onEnd);
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
+      endDrag();
+    };
+    document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
+  }, [updateAutoScroll, pointToDropTarget, endDrag]);
+
+  // Desktop HTML5 drag — the card itself is the drag image.
   const onGripDragStart = useCallback((idx, e) => {
     setDragIdx(idx);
     if (e.dataTransfer) {
@@ -587,13 +649,8 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
       if (card) e.dataTransfer.setDragImage(card, 24, 16);
     }
   }, []);
-  const onGripTouchMove = useCallback((e) => {
-    const t = e.touches[0];
-    if (!t) return;
-    const under = document.elementFromPoint(t.clientX, t.clientY);
-    const row = under?.closest('[data-drag-idx]');
-    if (row) setDragOverIdx(parseInt(row.dataset.dragIdx, 10));
-  }, []);
+
+  useEffect(() => stopAutoScroll, [stopAutoScroll]);
 
   const changeSectionType = useCallback((idx, base) => {
     if (!song) return;
@@ -797,15 +854,24 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
         </PopMenu>
       </div>
 
-      <div className="flex-1 overflow-auto px-3 sm:pr-6 pt-3 pb-8">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-auto px-3 sm:pr-6 pt-3 pb-8"
+        onDragOver={dragIdx != null ? (e) => updateAutoScroll(e.clientY) : undefined}
+      >
         {placements.map((sec, secIdx) => {
           const s = sectionStyle(sec.type, null, customSectionTypes);
           const base = sectionBaseType(sec.type);
           const num = (sec.type.match(/(\d+)\s*:?\s*$/) || [])[1] || '';
           const typeOptions = !base || sectionTypes.includes(base) ? sectionTypes : [base, ...sectionTypes];
           const isCollapsed = !!collapsed[secIdx];
+          const isReordering = dragIdx != null;
           const isDragging = dragIdx === secIdx;
-          const isDropTarget = dragIdx != null && dragIdx !== secIdx && dragOverIdx === secIdx;
+          const isDropTarget = isReordering && dragIdx !== secIdx && dragOverIdx === secIdx;
+          // While reordering, every card collapses to its header so the whole
+          // song is a short, easy-to-aim stack (restores on drop — no mutation
+          // of the real collapsed state).
+          const showBody = !isCollapsed && !isReordering;
           return (
             <div
               key={secIdx}
@@ -813,10 +879,16 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
               onDragEnter={() => { if (dragIdx != null) setDragOverIdx(secIdx); }}
               onDragOver={(e) => { if (dragIdx != null) e.preventDefault(); }}
               onDrop={(e) => { e.preventDefault(); endDrag(); }}
-              className={`group/sec mb-4 rounded-xl border bg-[var(--ds-background-100)] px-3 pt-2 pb-3 transition-[opacity,box-shadow] ${isDragging ? 'opacity-40' : ''} ${isDropTarget ? 'border-[var(--color-brand)]' : 'border-[var(--border-1)]'}`}
-              style={isDropTarget ? { boxShadow: '0 0 0 2px var(--color-brand)' } : undefined}
+              className={`group/sec relative mb-4 rounded-xl border border-[var(--border-1)] bg-[var(--ds-background-100)] px-3 pt-2 pb-3 transition-opacity ${isDragging ? 'opacity-40' : ''}`}
               ref={el => { sectionRefs.current[secIdx] = el; }}
             >
+              {/* Drop insertion line — sits in the gap above/below the target. */}
+              {isDropTarget && (
+                <div
+                  className="pointer-events-none absolute left-1 right-1 h-[3px] rounded-full bg-[var(--color-brand)] z-[1]"
+                  style={{ [dragIdx > secIdx ? 'top' : 'bottom']: -10 }}
+                />
+              )}
               {/* Section header */}
               <div className="flex items-center gap-1.5 mb-2">
                 {/* Drag handle — only the grip starts a drag, so the card's
@@ -829,10 +901,8 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                   draggable
                   onDragStart={(e) => onGripDragStart(secIdx, e)}
                   onDragEnd={endDrag}
-                  onTouchStart={() => setDragIdx(secIdx)}
-                  onTouchMove={onGripTouchMove}
-                  onTouchEnd={endDrag}
-                  onTouchCancel={() => { setDragIdx(null); setDragOverIdx(null); }}
+                  onTouchStart={() => beginTouchDrag(secIdx)}
+                  style={{ WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
                   className="shrink-0 w-4 h-6 grid place-items-center cursor-grab active:cursor-grabbing text-[var(--ds-gray-400)] hover:text-[var(--ds-gray-700)] touch-none transition-opacity sm:opacity-40 sm:group-hover/sec:opacity-100"
                 >
                   <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor" aria-hidden="true">
@@ -893,7 +963,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
               </div>
 
               {/* Lines (or the raw Source editor when toggled) */}
-              {!isCollapsed && (sourceMode[secIdx] ? (
+              {showBody && (sourceMode[secIdx] ? (
                 <SectionSourceEditor
                   key={`src-${secIdx}`}
                   initial={serializeSectionLines(song.sections[secIdx]?.lines || [])}
