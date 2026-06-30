@@ -35,6 +35,13 @@ const TIME_OPTIONS = ['4/4', '3/4', '6/8', '7/8', '12/8', '2/4', '5/4'];
 const CUSTOM_TIME = '__custom__';
 const TIME_NONE = '__none__'; // Radix SelectItem can't use an empty value
 
+// One shared sizing/skin for the Key / Tempo / Time controls so they read as a
+// single, pixel-identical control group (height, border, fill, radius, font).
+// Width is set per-control. The Select triggers are <button>s, which a global
+// rule floors to 36px (44px on phones) — so the `<input>` tempo box matches via
+// the same min-heights, otherwise it renders 4px shorter than the dropdowns.
+const META_CTRL_CLS = 'box-border h-9 min-h-9 max-sm:min-h-11 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] px-2 text-label-12 font-mono text-[var(--ds-gray-1000)]';
+
 function TimeSignatureControl({ value, onChange }) {
   const isCustom = value && !TIME_OPTIONS.includes(value);
   const [customOpen, setCustomOpen] = useState(isCustom);
@@ -70,7 +77,7 @@ function TimeSignatureControl({ value, onChange }) {
           inputMode="numeric"
           value={numerator}
           onChange={e => setPart(0, e.target.value)}
-          className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-9 text-center"
+          className={`${META_CTRL_CLS} w-9 px-1 text-center outline-none`}
           aria-label="Time signature beats"
           placeholder="4"
         />
@@ -80,7 +87,7 @@ function TimeSignatureControl({ value, onChange }) {
           inputMode="numeric"
           value={denominator}
           onChange={e => setPart(1, e.target.value)}
-          className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-9 text-center"
+          className={`${META_CTRL_CLS} w-9 px-1 text-center outline-none`}
           aria-label="Time signature unit"
           placeholder="4"
         />
@@ -100,7 +107,7 @@ function TimeSignatureControl({ value, onChange }) {
     <Select value={value || TIME_NONE} onValueChange={handleSelect}>
       <SelectTrigger
         aria-label="Time signature"
-        className="h-8 w-auto gap-1 px-2 text-label-12 font-mono bg-[var(--ds-gray-100)]"
+        className={`${META_CTRL_CLS} w-auto gap-1`}
       >
         <SelectValue />
       </SelectTrigger>
@@ -683,7 +690,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     <Select value={currentKey} onValueChange={changeSongKey}>
       <SelectTrigger
         aria-label="Key"
-        className={`h-8 w-auto gap-1 px-2 text-label-12 font-mono bg-[var(--ds-gray-100)] ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
+        className={`${META_CTRL_CLS} w-auto gap-1 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
       >
         {/* Show only the chosen key in the trigger (e.g. "Gb"), not the
             dual-spelling label, so the pill stays compact. */}
@@ -720,7 +727,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
         inputMode="numeric"
         value={currentTempo}
         onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
-        className="box-border h-8 w-14 appearance-none rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] px-2 text-label-12 font-mono leading-none text-center text-[var(--ds-gray-1000)] outline-none"
+        className={`${META_CTRL_CLS} w-14 appearance-none leading-none text-center outline-none`}
         placeholder="bpm"
         aria-label="Tempo"
       />
