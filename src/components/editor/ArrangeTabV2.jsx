@@ -97,11 +97,14 @@ const InteractiveLine = memo(function InteractiveLine({
       if (m) next.push({ chord: c.chord, origIdx: c.origIdx, left: m.left, top: m.top });
     }
     next.sort((a, b) => a.top - b.top || a.left - b.left);
-    const CHAR_W = 7.8;
+    // Chip width estimate (chord text in a small bold font + chip padding +
+    // border). Chords are short, so an estimate avoids a measure→reflow loop
+    // while still preventing chips on the same line from overlapping.
+    const chipWidth = (chord) => (chord || '').length * 8 + 18;
     for (let i = 1; i < next.length; i++) {
       const prev = next[i - 1];
       if (Math.abs(next[i].top - prev.top) < 4) {
-        const prevRight = prev.left + prev.chord.length * CHAR_W + 4;
+        const prevRight = prev.left + chipWidth(prev.chord) + 5;
         if (next[i].left < prevRight) next[i].left = prevRight;
       }
     }
@@ -148,13 +151,13 @@ const InteractiveLine = memo(function InteractiveLine({
   return (
       <div
         ref={containerRef}
-        className="relative font-mono min-w-0"
+        className="relative min-w-0"
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerCancel={() => { downRef.current = null; setHoverPos(null); }}
-        style={{ cursor: 'text', fontSize: 16, lineHeight: 2.0, paddingTop: '1.1em', touchAction: 'pan-y' }}
+        style={{ cursor: 'text', fontSize: 16, lineHeight: 2.05, paddingTop: '1.7em', touchAction: 'pan-y' }}
       >
         <div ref={textRef} className="whitespace-pre-wrap text-[var(--text-1)]">
           {plainText ? plainText : ' '}
@@ -164,13 +167,14 @@ const InteractiveLine = memo(function InteractiveLine({
           return (
             <span
               key={c.origIdx}
-              className="absolute font-bold cursor-pointer"
+              className="absolute cursor-pointer rounded-[6px] border font-mono font-bold leading-none"
               style={{
-                left: c.left, top: c.top, transform: 'translateY(-100%)', lineHeight: 1, fontSize: 13,
-                color: selected ? 'var(--color-brand)' : 'var(--chord)',
-                borderBottom: selected ? '2px solid var(--color-brand)' : '2px solid transparent',
+                left: c.left, top: c.top, transform: 'translateY(-100%)', fontSize: 12,
+                padding: '3px 5px', marginBottom: '3px',
+                color: selected ? 'var(--color-brand-text)' : 'var(--chord)',
+                borderColor: selected ? 'var(--color-brand)' : 'var(--border-1)',
+                background: selected ? 'var(--color-brand-soft)' : 'var(--ds-background-100)',
                 whiteSpace: 'nowrap',
-                padding: '6px 8px 2px 0',
               }}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); onChordTap(secIdx, lineIdx, c.origIdx, e.clientX, e.clientY); }}
@@ -338,7 +342,7 @@ function DraftLyricInput({ onCommit, onClose }) {
       }}
       onBlur={() => { if (text.trim()) onCommit(text); onClose(); }}
       placeholder="Type a lyric line, Enter for the next…"
-      className="w-full bg-transparent border-b border-dashed border-[var(--ds-gray-400)] text-[var(--text-1)] font-mono outline-none py-1.5 px-1"
+      className="w-full bg-transparent border-b border-dashed border-[var(--ds-gray-400)] text-[var(--text-1)] outline-none py-1.5 px-1"
       style={{ fontSize: 16 }}
     />
   );
