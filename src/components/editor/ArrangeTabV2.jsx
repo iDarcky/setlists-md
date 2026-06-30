@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, memo, Fragment } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, memo, Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import { parseSongMd, songToMd, placementToLine, parseTabBlock, parseSectionLines } from '../../parser';
 import { sectionStyle, getNashvilleNumber, getSolfege } from '../../music';
@@ -52,144 +52,95 @@ function formatChord(chord, notation, key) {
 // tapping an existing chord opens it pre-filled to edit/move/remove. A hover
 // caret shows where a chord will land.
 const InteractiveLine = memo(function InteractiveLine({
-  plainText, chords, secIdx, lineIdx, editingChordIdx, armedCharPos,
+  plainText, chords, secIdx, lineIdx, editingChordIdx,
   notation, songKey,
   onPlace, onChordTap,
 }) {
-  const containerRef = useRef(null);
-  const textRef = useRef(null);
   const downRef = useRef(null);
-  const [chips, setChips] = useState([]);
-  const [caret, setCaret] = useState(null);
-  const [armedCaret, setArmedCaret] = useState(null);
-  const [hoverPos, setHoverPos] = useState(null);
-  const [tick, setTick] = useState(0);
 
-  const indexedChords = useMemo(
-    () => (chords || []).map((c, i) => ({ chord: c.chord, pos: c.pos, origIdx: i })),
-    [chords],
-  );
+  // Flow-based layout: split the line into word tokens that wrap naturally.
+  // Each chord starts a token, and that token gets a min-width equal to the
+  // chord chip — so a chord ALWAYS pushes the lyric apart and two chords placed
+  // next to each other stay readable instead of overlapping.
+  const tokens = useMemo(() => {
+    const text = plainText || '';
+    const sorted = (chords || [])
+      .map((c, i) => ({ chord: c.chord, pos: Math.max(0, Math.min(c.pos, text.length)), origIdx: i }))
+      .sort((a, b) => a.pos - b.pos);
+    const bounds = [];
+    if (sorted.length === 0 || sorted[0].pos > 0) bounds.push({ pos: 0, chord: null, origIdx: null });
+    for (const c of sorted) bounds.push({ pos: c.pos, chord: c.chord, origIdx: c.origIdx });
+    const out = [];
+    for (let i = 0; i < bounds.length; i++) {
+      const start = bounds[i].pos;
+      const end = i + 1 < bounds.length ? bounds[i + 1].pos : text.length;
+      const slice = text.slice(start, end);
+      const chunks = slice.length ? (slice.match(/\S+\s*|\s+/g) || [slice]) : [''];
+      let offset = start;
+      chunks.forEach((chunk, ci) => {
+        out.push({
+          chord: ci === 0 ? bounds[i].chord : null,
+          origIdx: ci === 0 ? bounds[i].origIdx : null,
+          text: chunk,
+          start: offset,
+        });
+        offset += chunk.length;
+      });
+    }
+    return out;
+  }, [plainText, chords]);
 
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    const textEl = textRef.current;
-    if (!container || !textEl) return;
-    const textNode = textEl.firstChild;
-    const len = textNode && textNode.nodeType === 3 ? textNode.length : 0;
-    const cRect = container.getBoundingClientRect();
-    const measure = (pos) => {
-      if (!textNode || len === 0) {
-        const r = textEl.getBoundingClientRect();
-        return { left: r.left - cRect.left, top: r.top - cRect.top };
-      }
-      const atEnd = pos >= len;
-      const i = atEnd ? len - 1 : Math.max(0, pos);
-      const range = document.createRange();
-      range.setStart(textNode, i);
-      range.setEnd(textNode, i + 1);
-      const r = range.getClientRects()[0];
-      if (!r) return null;
-      return { left: (atEnd ? r.right : r.left) - cRect.left, top: r.top - cRect.top };
-    };
-    const next = [];
-    for (const c of indexedChords) {
-      const m = measure(c.pos);
-      if (m) next.push({ chord: c.chord, origIdx: c.origIdx, left: m.left, top: m.top });
-    }
-    next.sort((a, b) => a.top - b.top || a.left - b.left);
-    // Chip width estimate (chord text in a small bold font + chip padding +
-    // border). Chords are short, so an estimate avoids a measure→reflow loop
-    // while still preventing chips on the same line from overlapping.
-    const chipWidth = (chord) => (chord || '').length * 8 + 18;
-    for (let i = 1; i < next.length; i++) {
-      const prev = next[i - 1];
-      if (Math.abs(next[i].top - prev.top) < 4) {
-        const prevRight = prev.left + chipWidth(prev.chord) + 5;
-        if (next[i].left < prevRight) next[i].left = prevRight;
-      }
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setChips(next);
-    setCaret(hoverPos != null ? measure(hoverPos) : null);
-    setArmedCaret(armedCharPos != null ? measure(armedCharPos) : null);
-  }, [plainText, indexedChords, hoverPos, armedCharPos, tick]);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => setTick(t => t + 1));
-    ro.observe(container);
-    return () => ro.disconnect();
-  }, []);
 
-  // Distinguish a tap (place a chord) from a scroll/drag. Mouse hovers show a
-  // guide caret; touch never opens on the initial press — only on a clean
-  // pointerup that didn't move, so swiping to scroll won't fire the popover.
-  const handlePointerMove = (e) => {
-    if (downRef.current) {
-      const d = downRef.current;
-      if (Math.abs(e.clientX - d.x) > 8 || Math.abs(e.clientY - d.y) > 8) { d.moved = true; setHoverPos(null); }
-      return;
-    }
-    if (e.pointerType !== 'touch') {
-      const pos = caretOffsetFromPoint(e.clientX, e.clientY, textRef.current);
-      if (pos != null) setHoverPos(pos);
-    }
-  };
-  const handlePointerLeave = () => setHoverPos(null);
-  const handlePointerDown = (e) => {
-    downRef.current = { x: e.clientX, y: e.clientY, moved: false };
-  };
-  const handlePointerUp = (e) => {
-    const d = downRef.current;
-    downRef.current = null;
-    if (!d || d.moved) return;
-    const pos = caretOffsetFromPoint(e.clientX, e.clientY, textRef.current);
-    onPlace(secIdx, lineIdx, pos == null ? (plainText?.length || 0) : pos, e.clientX, e.clientY);
+  // Tap (add a chord) vs scroll/drag: ignore a pointerup that moved >8px.
+  const onTextDown = (e) => { downRef.current = { x: e.clientX, y: e.clientY, moved: false }; };
+  const onTextMove = (e) => { const d = downRef.current; if (d && (Math.abs(e.clientX - d.x) > 8 || Math.abs(e.clientY - d.y) > 8)) d.moved = true; };
+  const onTextClick = (tok, e) => {
+    const d = downRef.current; downRef.current = null;
+    if (d && d.moved) return;
+    const within = caretOffsetFromPoint(e.clientX, e.clientY, e.currentTarget);
+    const pos = tok.start + (within != null ? within : (tok.text ? tok.text.length : 0));
+    onPlace(secIdx, lineIdx, pos, e.clientX, e.clientY);
   };
 
   return (
-      <div
-        ref={containerRef}
-        className="relative min-w-0"
-        onPointerMove={handlePointerMove}
-        onPointerLeave={handlePointerLeave}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={() => { downRef.current = null; setHoverPos(null); }}
-        style={{ cursor: 'text', fontSize: 16, lineHeight: 2.05, paddingTop: '1.7em', touchAction: 'pan-y' }}
-      >
-        <div ref={textRef} className="whitespace-pre-wrap text-[var(--text-1)]">
-          {plainText ? plainText : ' '}
-        </div>
-        {chips.map((c) => {
-          const selected = editingChordIdx === c.origIdx;
-          return (
-            <span
-              key={c.origIdx}
-              className="absolute cursor-pointer rounded-[6px] border font-mono font-bold leading-none"
-              style={{
-                left: c.left, top: c.top, transform: 'translateY(-100%)', fontSize: 12,
-                padding: '3px 5px', marginBottom: '3px',
-                color: selected ? 'var(--color-brand-text)' : 'var(--chord)',
-                borderColor: selected ? 'var(--color-brand)' : 'var(--border-1)',
-                background: selected ? 'var(--color-brand-soft)' : 'var(--ds-background-100)',
-                whiteSpace: 'nowrap',
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => { e.stopPropagation(); onChordTap(secIdx, lineIdx, c.origIdx, e.clientX, e.clientY); }}
-            >
-              {formatChord(c.chord, notation, songKey)}
+    <div className="flex flex-wrap items-end" style={{ touchAction: 'pan-y' }}>
+      {tokens.map((tok, i) => {
+        const selected = tok.origIdx != null && editingChordIdx === tok.origIdx;
+        const label = tok.chord != null ? formatChord(tok.chord, notation, songKey) : '';
+        const minW = tok.chord != null ? `${(label || '').length * 8 + 16}px` : undefined;
+        return (
+          <span key={i} className="inline-flex flex-col justify-end" style={{ minWidth: minW }}>
+            <span className="flex items-end" style={{ height: '1.7em' }}>
+              {tok.chord != null && (
+                <span
+                  role="button"
+                  className="cursor-pointer rounded-[6px] border font-mono font-bold leading-none mb-[3px]"
+                  style={{
+                    fontSize: 12, padding: '3px 5px', whiteSpace: 'nowrap',
+                    color: selected ? 'var(--color-brand-text)' : 'var(--chord)',
+                    borderColor: selected ? 'var(--color-brand)' : 'var(--border-1)',
+                    background: selected ? 'var(--color-brand-soft)' : 'var(--ds-background-100)',
+                  }}
+                  onClick={(e) => { e.stopPropagation(); onChordTap(secIdx, lineIdx, tok.origIdx, e.clientX, e.clientY); }}
+                >
+                  {label}
+                </span>
+              )}
             </span>
-          );
-        })}
-        {caret && (
-          <span className="absolute pointer-events-none" style={{ left: caret.left, top: caret.top, width: 2, height: '1.2em', background: 'var(--chord)', opacity: 0.6 }} aria-hidden="true" />
-        )}
-        {armedCaret && (
-          <span className="absolute pointer-events-none" style={{ left: armedCaret.left - 1, top: armedCaret.top, width: 2.5, height: '1.2em', background: 'var(--color-brand)', boxShadow: '0 0 0 2px color-mix(in srgb, var(--color-brand) 25%, transparent)' }} aria-hidden="true" />
-        )}
-      </div>
+            <span
+              className="text-[var(--text-1)] cursor-text"
+              style={{ fontSize: 16, lineHeight: 1.35, whiteSpace: 'pre' }}
+              onPointerDown={onTextDown}
+              onPointerMove={onTextMove}
+              onClick={(e) => onTextClick(tok, e)}
+            >
+              {tok.text === '' ? '​' : tok.text}
+            </span>
+          </span>
+        );
+      })}
+    </div>
   );
 });
 
