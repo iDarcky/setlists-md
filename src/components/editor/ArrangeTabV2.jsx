@@ -705,7 +705,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
       {/* The song's official structure (slide order). A checkbox toggles a custom
           slide order; chips show the play order (tap to jump). A Customize popover
           sits on the right. Shared with the Advanced tab so the two always match. */}
-      <div className="shrink-0 flex items-center gap-2 pl-3 pr-6 py-1.5 border-b border-[var(--border-1)]">
+      <div className="shrink-0 flex items-center gap-2 px-3 sm:pr-6 py-1.5 border-b border-[var(--border-1)]">
         <span className="shrink-0 text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] select-none">Song map</span>
         <StructureControl
           mode={song.structureMode}
@@ -743,7 +743,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
         </PopMenu>
       </div>
 
-      <div className="flex-1 overflow-auto pl-3 pr-6 pt-3 pb-8">
+      <div className="flex-1 overflow-auto px-3 sm:pr-6 pt-3 pb-8">
         {placements.map((sec, secIdx) => {
           const s = sectionStyle(sec.type, null, customSectionTypes);
           const base = sectionBaseType(sec.type);

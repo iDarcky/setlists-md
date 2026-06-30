@@ -931,7 +931,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           {previewEnabled ? 'Hide preview' : 'Show preview'}
         </Button>
       )}
-      {!isWide && (
+      {!isWide && !cardsHeader && (
         <IconButton variant="ghost" size="sm" onClick={() => setPreviewPeekOpen(true)} aria-label="Preview">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
@@ -1123,6 +1123,11 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   // Save/Cancel content — shared between the legacy sticky bar and the card.
   const saveCancelInner = (
     <div className="w-full flex items-center justify-end gap-3">
+      {cardsHeader && !isWide && (
+        <Button variant="secondary" size="md" className="mr-auto" onClick={() => setPreviewPeekOpen(true)}>
+          Preview
+        </Button>
+      )}
       {!readOnly && missingMetaHint && (
         <span className="text-label-11 text-[var(--ds-amber-700,#b45309)] mr-auto flex items-center gap-1.5">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
