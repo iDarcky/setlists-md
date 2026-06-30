@@ -190,7 +190,9 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   const clearDraft = useCallback(() => {
     try { localStorage.removeItem(draftKey); } catch { /* private mode */ }
   }, [draftKey]);
-  const [activeTab, setActiveTab] = useState('arrange');
+  // New songs (card layout) open on Details to fill in metadata first; editing
+  // an existing song opens on Arrange. Legacy has no Details tab → always Arrange.
+  const [activeTab, setActiveTab] = useState(() => (!song && cardsHeader ? 'details' : 'arrange'));
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
   const isWide = useMediaQuery('(min-width: 1024px)');
@@ -784,10 +786,11 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
         <span className={META_PILL_LABEL}>Time</span>
         <TimeSignatureControl value={currentTime} onChange={v => updateField('time', v)} bare />
       </div>
-      {/* Transpose stepper (after Time) */}
+      {/* Transpose stepper (after Time) — shows the resulting key between − / + */}
       <div className="inline-flex items-center h-9 rounded-[10px] border border-[var(--border-1)] bg-[var(--ds-background-100)] overflow-hidden">
+        <span className="pl-2.5 pr-1 text-[11px] text-[var(--ds-gray-600)] select-none">Transpose</span>
         <IconButton variant="ghost" size="sm" aria-label="Transpose down a semitone" title="Transpose down" onClick={() => transposeAllChords(-1)}>−</IconButton>
-        <span className="px-0.5 text-label-10 uppercase tracking-wide text-[var(--ds-gray-600)] select-none">Tr</span>
+        <span className="min-w-[2.5ch] px-0.5 text-center font-mono text-[12.5px] font-semibold tabular-nums text-[var(--ds-gray-1000)] select-none">{currentKey || '—'}</span>
         <IconButton variant="ghost" size="sm" aria-label="Transpose up a semitone" title="Transpose up" onClick={() => transposeAllChords(1)}>+</IconButton>
       </div>
     </div>

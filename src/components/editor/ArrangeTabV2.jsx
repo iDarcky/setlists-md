@@ -13,7 +13,6 @@ import { Button } from '../ui/Button';
 import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType, serializeSectionLines } from './arrangeHelpers';
 import { loadRecents, saveRecents, pushRecent } from './chordRecents';
 import ChordAutocomplete from './ChordAutocomplete';
-import FindReplaceBar from './FindReplaceBar';
 import { useConfirm } from '../ui/useConfirmHook';
 
 const SECTION_TYPES = [
@@ -411,13 +410,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     setSourceMode(m => ({ ...m, [idx]: !m[idx] }));
     setCollapsed(c => ({ ...c, [idx]: false })); // source implies expanded
   }, []);
-  // Find / replace over lyric text (shares the Advanced editor's bar UI).
-  const [showFind, setShowFind] = useState(false);
-  const [findText, setFindText] = useState('');
-  const [replaceText, setReplaceText] = useState('');
-  const [caseSensitive, setCaseSensitive] = useState(false);
-  const [matchIdx, setMatchIdx] = useState(0);
-  const findInputRef = useRef(null);
   const confirm = useConfirm();
   const sectionRefs = useRef({});
   const jumpTo = useCallback((idx) => {
@@ -467,107 +459,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     };
     emitSong(updatedSong);
   }, [song, placements, emitSong]);
-
-  // ─── Find / replace over lyric text ───
-  // Flat, document-order list of matches across every lyric line's plainText.
-  // Chords and tab/modulate blocks are skipped (lyric text only, per v1).
-  const findMatches = useMemo(() => {
-    if (!showFind || !findText) return [];
-    const needle = caseSensitive ? findText : findText.toLowerCase();
-    const out = [];
-    placements.forEach((sec, secIdx) => {
-      sec.lines.forEach((line, lineIdx) => {
-        if (!line || line.plainText === undefined || !line.plainText) return;
-        const hay = caseSensitive ? line.plainText : line.plainText.toLowerCase();
-        let i = 0;
-        while (true) {
-          const pos = hay.indexOf(needle, i);
-          if (pos === -1) break;
-          out.push({ secIdx, lineIdx, start: pos });
-          i = pos + Math.max(needle.length, 1);
-        }
-      });
-    });
-    return out;
-  }, [showFind, findText, caseSensitive, placements]);
-
-  // matchIdx may go stale after a replace shrinks the list; derive a clamped
-  // index for display/scroll/replace rather than writing state from an effect.
-  const activeIdx = findMatches.length === 0 ? 0 : Math.min(matchIdx, findMatches.length - 1);
-
-  // Scroll the active match's section into view.
-  useEffect(() => {
-    if (!showFind || findMatches.length === 0) return;
-    sectionRefs.current[findMatches[activeIdx].secIdx]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [showFind, findMatches, activeIdx]);
-
-  const closeFind = useCallback(() => {
-    setShowFind(false);
-    setFindText('');
-    setReplaceText('');
-    setMatchIdx(0);
-  }, []);
-
-  const gotoMatch = useCallback((dir) => {
-    setMatchIdx(m => {
-      const len = findMatches.length;
-      if (len === 0) return 0;
-      const cur = Math.min(m, len - 1);
-      return (cur + dir + len) % len;
-    });
-  }, [findMatches.length]);
-
-  const replaceCurrent = useCallback(() => {
-    const m = findMatches[findMatches.length === 0 ? 0 : Math.min(matchIdx, findMatches.length - 1)];
-    if (!m || !findText) return;
-    applyMutation(prev => prev.map((sec, si) => si !== m.secIdx ? sec : ({
-      ...sec,
-      lines: sec.lines.map((line, li) => {
-        if (li !== m.lineIdx || line.plainText === undefined) return line;
-        const text = line.plainText;
-        return { ...line, plainText: text.slice(0, m.start) + replaceText + text.slice(m.start + findText.length) };
-      }),
-    })));
-  }, [findMatches, matchIdx, findText, replaceText, applyMutation]);
-
-  const replaceAll = useCallback(() => {
-    if (findMatches.length === 0 || !findText) return;
-    const needle = caseSensitive ? findText : findText.toLowerCase();
-    applyMutation(prev => prev.map(sec => ({
-      ...sec,
-      lines: sec.lines.map(line => {
-        if (line.plainText === undefined || !line.plainText) return line;
-        const text = line.plainText;
-        const hay = caseSensitive ? text : text.toLowerCase();
-        if (hay.indexOf(needle) === -1) return line;
-        let out = '';
-        let cursor = 0;
-        let i = 0;
-        while (true) {
-          const pos = hay.indexOf(needle, i);
-          if (pos === -1) break;
-          out += text.slice(cursor, pos) + replaceText;
-          cursor = pos + needle.length;
-          i = cursor;
-        }
-        out += text.slice(cursor);
-        return { ...line, plainText: out };
-      }),
-    })));
-    setMatchIdx(0);
-  }, [findMatches.length, findText, replaceText, caseSensitive, applyMutation]);
-
-  // Cmd/Ctrl+F opens the find bar (this canvas is only mounted on the Arrange tab).
-  useEffect(() => {
-    const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
-        e.preventDefault();
-        setShowFind(true);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
 
   // ─── Chord entry ─── Tap a lyric position (or a chord) to arm it; the
   // full-width bottom bar handles entry on every device.
@@ -895,31 +786,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
             </div>
           </div>
         </PopMenu>
-        <IconButton variant={showFind ? 'active' : 'ghost'} size="sm" aria-label="Find and replace" title="Find & replace (⌘F)" onClick={() => setShowFind(v => !v)}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
-        </IconButton>
       </div>
-
-      {showFind && (
-        <div className="shrink-0 px-3 pt-2 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
-          <FindReplaceBar
-            findText={findText}
-            replaceText={replaceText}
-            caseSensitive={caseSensitive}
-            matchCount={findMatches.length}
-            matchIdx={activeIdx}
-            findInputRef={findInputRef}
-            onFindChange={(v) => { setFindText(v); setMatchIdx(0); }}
-            onReplaceChange={setReplaceText}
-            onToggleCase={() => setCaseSensitive(v => !v)}
-            onPrev={() => gotoMatch(-1)}
-            onNext={() => gotoMatch(1)}
-            onReplaceOne={replaceCurrent}
-            onReplaceAll={replaceAll}
-            onClose={closeFind}
-          />
-        </div>
-      )}
 
       <div className="flex-1 overflow-auto pl-3 pr-6 pt-3 pb-8">
         {placements.map((sec, secIdx) => {

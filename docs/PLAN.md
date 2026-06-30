@@ -131,6 +131,11 @@ Open, actionable items. Cross-cutting concerns at the end.
   whose lyric/chord colours auto-track the app's light/dark theme (instead of a
   fixed palette), so a reader in light mode gets light-appropriate chart colours
   without hand-picking them. (Requested 2026-06; to be designed/built later.) — P2.
+- **Structure (section) default colour rework** — the per-section-type default
+  colours (`SECTION_COLORS` in `music.js`) need a pass: they drive section
+  labels, the song-map chips, and section cards, and the current defaults don't
+  feel cohesive in the card language. Revisit the palette (and how it reads in
+  light/dark + the chip "codes" style). (Requested 2026-06.) — P2.
 
 ### Song library
 - **Doubled mobile search** — the top-bar global cross-search also shows on Songs/Setlists where it duplicates each page; scope it to the page there, keep global on Dashboard (+ the desktop ⌘K) — P2.
