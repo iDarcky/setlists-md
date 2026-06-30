@@ -20,7 +20,7 @@ function shortCode(type) {
 //   sections      — section names in document order (strings)
 //   onToggleMode(custom) / onChangeValue(next)
 //   onJump(name)  — optional; scroll to that section (Arrange tab only)
-export default function StructureControl({ mode, value, sections, customSectionTypes, onToggleMode, onChangeValue, onJump }) {
+export default function StructureControl({ mode, value, sections, customSectionTypes, onToggleMode, onChangeValue, onJump, hideToggle = false }) {
   const isCustom = mode === 'custom';
   const playOrder = (isCustom && value)
     ? value.split(',').map(s => s.trim()).filter(Boolean)
@@ -28,14 +28,16 @@ export default function StructureControl({ mode, value, sections, customSectionT
   const uniqueTypes = [...new Set(sections)];
   return (
     <div className="flex items-center gap-2 min-w-0 flex-1">
-      <input
-        type="checkbox"
-        checked={isCustom}
-        onChange={(e) => onToggleMode(e.target.checked)}
-        title="Custom slide order — repeat, reorder, or skip sections"
-        aria-label="Custom slide order"
-        className="accent-[var(--color-brand)] shrink-0 cursor-pointer"
-      />
+      {!hideToggle && (
+        <input
+          type="checkbox"
+          checked={isCustom}
+          onChange={(e) => onToggleMode(e.target.checked)}
+          title="Custom slide order — repeat, reorder, or skip sections"
+          aria-label="Custom slide order"
+          className="accent-[var(--color-brand)] shrink-0 cursor-pointer"
+        />
+      )}
       {/* Chips size to content (not flex-1) so "Edit order" sits right next to
           them; a trailing spacer keeps the group left and pushes anything after
           the control (e.g. the Arrange customize icon) to the far right. */}

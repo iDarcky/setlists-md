@@ -19,7 +19,6 @@ const SECTION_TYPES = [
   'Intro', 'Verse', 'Pre Chorus', 'Chorus', 'Bridge',
   'Instrumental', 'Interlude', 'Tag', 'Vamp', 'Outro', 'Ending', 'Refrain',
 ];
-const TEMPLATE_TYPES = ['Verse', 'Chorus', 'Bridge', 'Pre Chorus', 'Intro', 'Tag', 'Instrumental'];
 
 // Next free "Tab N" name for the library.
 function nextTabName(library = []) {
@@ -708,6 +707,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
       <div className="shrink-0 flex items-center gap-2 px-3 sm:pr-6 py-1.5 border-b border-[var(--border-1)]">
         <span className="shrink-0 text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] select-none">Song map</span>
         <StructureControl
+          hideToggle
           mode={song.structureMode}
           value={(song.structure || []).join(', ')}
           sections={placements.map(p => p.type)}
@@ -723,7 +723,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
             </IconButton>
           }
         >
-          <div className="px-3 py-2" onClick={e => e.stopPropagation()}>
+          <div className="px-3 py-2 min-w-[200px]" onClick={e => e.stopPropagation()}>
             <div className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] mb-1.5">Notation</div>
             <div className="flex gap-1">
               {[{ id: 'chords', label: 'ABC' }, { id: 'nashville', label: '123' }, { id: 'solfege', label: 'Do' }].map(o => (
@@ -739,6 +739,17 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                 </button>
               ))}
             </div>
+            <div className="my-2.5 border-t border-[var(--ds-gray-200)]" />
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={song.structureMode === 'custom'}
+                onChange={(e) => setStructureMode(e.target.checked)}
+                className="accent-[var(--color-brand)] shrink-0 cursor-pointer"
+              />
+              <span className="text-copy-12 text-[var(--ds-gray-1000)]">Custom slide order</span>
+            </label>
+            <p className="text-copy-11 text-[var(--ds-gray-500)] mt-1 mb-0">Repeat, reorder, or skip sections in the play order.</p>
           </div>
         </PopMenu>
       </div>
@@ -919,35 +930,30 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                     </div>
                   )}
 
-                  {/* Per-section add menu (append) */}
-                  <div className="mt-1">
-                    <PopMenu
-                      align="left"
-                      up
-                      trigger={<button type="button" className="text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer px-1 py-1">+ Add</button>}
-                    >
-                      {renderAddItems(secIdx, null)}
-                    </PopMenu>
-                  </div>
+                  {/* Trailing add point — the same between-lines "+" affordance,
+                      appended at the section end (the only per-section adder). */}
+                  {renderInsertPoint(secIdx, sec.lines.length)}
                 </div>
               ))}
             </div>
           );
         })}
 
-        {/* Section templates + add */}
-        <div className="mt-4 mb-8 flex flex-wrap items-center gap-1.5">
-          <span className="text-label-11 text-[var(--ds-gray-600)] mr-1">Add section:</span>
-          {TEMPLATE_TYPES.map(t => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => addSection(t)}
-              className="px-2.5 py-1 rounded-full text-label-12 font-medium bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] cursor-pointer"
-            >
-              + {t}
-            </button>
-          ))}
+        {/* One "+ Add section" button — a menu picks the section type. */}
+        <div className="mt-4 mb-8">
+          <PopMenu
+            align="left"
+            trigger={
+              <button type="button" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-label-12 font-semibold bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] cursor-pointer">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Add section
+              </button>
+            }
+          >
+            {sectionTypes.map(t => (
+              <MenuItem key={t} onClick={() => addSection(t)}>{t}</MenuItem>
+            ))}
+          </PopMenu>
         </div>
       </div>
 
