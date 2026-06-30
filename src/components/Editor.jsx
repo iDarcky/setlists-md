@@ -45,7 +45,7 @@ const TIME_NONE = '__none__'; // Radix SelectItem can't use an empty value
 const META_CTRL_CLS = 'box-border h-9 min-h-9 max-sm:min-h-11 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] px-2 text-label-12 font-mono text-[var(--ds-gray-1000)]';
 
 // Song-Hub-style meta pill (label + mono value) used in the card identity row.
-const META_PILL = 'inline-flex items-center gap-1.5 h-9 px-2.5 rounded-[10px] border border-[var(--border-1)] bg-[var(--ds-background-100)]';
+const META_PILL = 'inline-flex items-center gap-1.5 h-9 max-sm:h-11 px-2.5 rounded-[10px] border border-[var(--border-1)] bg-[var(--ds-background-100)]';
 const META_PILL_LABEL = 'font-sans text-[11px] text-[var(--ds-gray-600)] select-none';
 const META_PILL_VALUE = 'bg-transparent border-0 outline-none p-0 font-mono text-[12.5px] tabular-nums text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-500)]';
 
@@ -198,6 +198,8 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // Card layout: the raw-markdown editor (WriteTab) opens in a centered dialog
   // instead of a tab — a power-user "Source" escape hatch with paste-import.
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
+  // Mobile-only: collapse the identity card's meta rows to free editing room.
+  const [identityCollapsed, setIdentityCollapsed] = useState(false);
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
   const isWide = useMediaQuery('(min-width: 1024px)');
@@ -748,53 +750,59 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
       {tempoTimeEl}
     </div>
   );
-  // Card header row 2 — Song-Hub design: gold key chip + Tempo/Time pills, then
-  // the transpose stepper (after Time). Card-only; legacy uses musicMetaControls.
-  const cardMetaControls = (
-    <div className="flex items-center gap-2 flex-wrap">
-      {/* Gold key chip (doubles as the key dropdown) */}
-      <Select value={currentKey} onValueChange={changeSongKey}>
-        <SelectTrigger
-          aria-label="Key"
-          className={`h-9 min-h-9 w-auto gap-0.5 px-2.5 rounded-lg !border-0 font-mono font-bold text-[13px] focus:!ring-0 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
-          style={{ background: keySet ? 'var(--chord)' : 'var(--ds-gray-100)', color: keySet ? '#0a0a0a' : 'var(--ds-gray-500)' }}
-        >
-          <span>{currentKey || 'Key?'}</span>
-        </SelectTrigger>
-        <SelectContent className="font-mono">
-          {keyOpts.slice(0, 12).map(({ value, label }) => (
-            <SelectItem key={value} value={value}>{label}</SelectItem>
-          ))}
-          <SelectSeparator />
-          {keyOpts.slice(12).map(({ value, label }) => (
-            <SelectItem key={value} value={value}>{label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {/* Tempo pill */}
-      <label className={META_PILL} aria-label="Tempo">
-        <span className={META_PILL_LABEL}>Tempo</span>
-        <input
-          type="text"
-          inputMode="numeric"
-          value={currentTempo}
-          onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
-          placeholder="—"
-          className={`${META_PILL_VALUE} w-8 text-center`}
-        />
-      </label>
-      {/* Time pill */}
-      <div className={META_PILL}>
-        <span className={META_PILL_LABEL}>Time</span>
-        <TimeSignatureControl value={currentTime} onChange={v => updateField('time', v)} bare />
-      </div>
-      {/* Transpose stepper (after Time) — shows the resulting key between − / + */}
-      <div className="inline-flex items-center h-9 rounded-[10px] border border-[var(--border-1)] bg-[var(--ds-background-100)] overflow-hidden">
-        <span className="pl-2.5 pr-1 text-[11px] text-[var(--ds-gray-600)] select-none">Transpose</span>
-        <IconButton variant="ghost" size="sm" aria-label="Transpose down a semitone" title="Transpose down" onClick={() => transposeAllChords(-1)}>−</IconButton>
-        <span className="min-w-[2.5ch] px-0.5 text-center font-mono text-[12.5px] font-semibold tabular-nums text-[var(--ds-gray-1000)] select-none">{currentKey || '—'}</span>
-        <IconButton variant="ghost" size="sm" aria-label="Transpose up a semitone" title="Transpose up" onClick={() => transposeAllChords(1)}>+</IconButton>
-      </div>
+  // Card identity-card meta controls (Song-Hub design), split into pieces so the
+  // header can lay them out as rows. Heights are unified (h-9 desktop / 44px on
+  // touch) so the Key chip lines up with the Tempo/Time/Transpose controls.
+  // Gold key chip — the song key (doubles as the key dropdown). Distinct from
+  // Transpose: this is the *written key*; Transpose *moves* the chords.
+  const cardKeyChipEl = (
+    <Select value={currentKey} onValueChange={changeSongKey}>
+      <SelectTrigger
+        aria-label="Key"
+        className={`h-9 min-h-9 max-sm:min-h-11 w-auto gap-1 px-2.5 rounded-[10px] !border-0 font-mono font-bold text-[13px] focus:!ring-0 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
+        style={{ background: keySet ? 'var(--chord)' : 'var(--ds-gray-100)', color: keySet ? '#0a0a0a' : 'var(--ds-gray-500)' }}
+      >
+        <span className="text-[9px] font-sans font-bold uppercase tracking-[0.12em] opacity-60">Key</span>
+        <span>{currentKey || '?'}</span>
+      </SelectTrigger>
+      <SelectContent className="font-mono">
+        {keyOpts.slice(0, 12).map(({ value, label }) => (
+          <SelectItem key={value} value={value}>{label}</SelectItem>
+        ))}
+        <SelectSeparator />
+        {keyOpts.slice(12).map(({ value, label }) => (
+          <SelectItem key={value} value={value}>{label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+  const cardTempoPillEl = (
+    <label className={META_PILL} aria-label="Tempo">
+      <span className={META_PILL_LABEL}>Tempo</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={currentTempo}
+        onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+        placeholder="—"
+        className={`${META_PILL_VALUE} w-8 text-center`}
+      />
+    </label>
+  );
+  const cardTimePillEl = (
+    <div className={META_PILL}>
+      <span className={META_PILL_LABEL}>Time</span>
+      <TimeSignatureControl value={currentTime} onChange={v => updateField('time', v)} bare />
+    </div>
+  );
+  // Transpose = a relative ± action that rewrites every chord and shifts the key
+  // label. No key readout here (that would just mirror the Key chip and read as
+  // a duplicate); the ± tooltips name the target key instead.
+  const cardTransposeEl = (
+    <div className="inline-flex items-center h-9 max-sm:h-11 rounded-[10px] border border-[var(--border-1)] bg-[var(--ds-background-100)] overflow-hidden">
+      <span className="pl-2.5 pr-0.5 text-[11px] text-[var(--ds-gray-600)] select-none">Transpose</span>
+      <IconButton variant="ghost" size="sm" aria-label="Transpose down a semitone" title={currentKey ? `Down a semitone (to ${transposeKey(currentKey, -1)})` : 'Transpose down'} onClick={() => transposeAllChords(-1)}>−</IconButton>
+      <IconButton variant="ghost" size="sm" aria-label="Transpose up a semitone" title={currentKey ? `Up a semitone (to ${transposeKey(currentKey, 1)})` : 'Transpose up'} onClick={() => transposeAllChords(1)}>+</IconButton>
     </div>
   );
   // Legacy header layout: arrangement picker + key/tempo/time on one wrapping row.
@@ -1009,7 +1017,8 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
       className="shrink-0 rounded-2xl border border-[var(--border-1)] px-3 sm:px-4 py-3 flex flex-col gap-3"
       style={{ background: 'linear-gradient(180deg, var(--ds-background-100), var(--ds-background-200))' }}
     >
-      {/* Row 1: title + arrangement (kept together) | actions */}
+      {/* Row 1: title | actions | (mobile collapse). Title gets the whole row
+          now — the arrangement moved to row 2 — so it stops truncating. */}
       <div className="flex items-center gap-2">
         <input
           value={fmFields.title || ''}
@@ -1017,14 +1026,36 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
           placeholder={song ? 'Song title' : 'New song'}
           aria-label="Song title"
           style={{ fieldSizing: 'content' }}
-          className="min-w-[6ch] max-w-[55vw] sm:max-w-[24rem] bg-transparent border-0 outline-none text-heading-18 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
+          className="min-w-[6ch] max-w-[60vw] sm:max-w-[30rem] bg-transparent border-0 outline-none text-heading-18 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
         />
-        <div className="shrink-0">{arrangementMenuEl}</div>
         <div className="flex-1 min-w-0" />
+        {/* When collapsed on mobile, surface the key chip so it's still glanceable. */}
+        {identityCollapsed && <div className="sm:hidden shrink-0">{cardKeyChipEl}</div>}
         {headerActionsEl}
+        <button
+          type="button"
+          onClick={() => setIdentityCollapsed(v => !v)}
+          aria-label={identityCollapsed ? 'Show song details' : 'Hide song details'}
+          aria-expanded={!identityCollapsed}
+          className="sm:hidden shrink-0 w-8 h-8 grid place-items-center rounded-md text-[var(--ds-gray-600)] hover:bg-[var(--ds-gray-100)] cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${identityCollapsed ? '-rotate-90' : ''}`}><path d="m6 9 6 6 6-6" /></svg>
+        </button>
       </div>
-      {/* Row 2: key / tempo / time / transpose */}
-      <div>{cardMetaControls}</div>
+      {/* Meta rows (collapsible on mobile). Desktop: one wrapping row. Mobile:
+          a forced break after Key → row 2 = Arrangement·Key (identity), row 3 =
+          Transpose·Tempo·Time (the wide arrangement pill can't share a phone row
+          with all three, so the performance controls group on the next line). */}
+      {(isWide || !identityCollapsed) && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {arrangementMenuEl}
+          {cardKeyChipEl}
+          <div className="basis-full h-0 sm:hidden" aria-hidden="true" />
+          {cardTransposeEl}
+          {cardTempoPillEl}
+          {cardTimePillEl}
+        </div>
+      )}
     </div>
   );
 
@@ -1088,7 +1119,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // No Advanced tab in the card layout — raw markdown lives in the Source dialog.
   const cardTabList = [{ id: 'arrange', label: 'Arrange' }, { id: 'tabs', label: 'Tabs' }, { id: 'details', label: 'Details' }];
   const cardTabsHeaderEl = (
-    <div className="shrink-0 flex items-center gap-1 px-2 sm:px-3 py-2 border-b border-[var(--border-1)] overflow-x-auto">
+    <div className="shrink-0 flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 border-b border-[var(--border-1)] overflow-x-auto">
       {cardTabList.map(t => {
         const active = activeTab === t.id;
         return (
@@ -1097,7 +1128,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
             type="button"
             onClick={() => setActiveTab(t.id)}
             aria-current={active ? 'page' : undefined}
-            className={`h-9 px-3.5 sm:px-4 rounded-lg text-[13.5px] cursor-pointer transition-colors whitespace-nowrap ${active ? 'text-white font-semibold' : 'font-medium text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)]'}`}
+            className={`h-8 sm:h-9 px-2.5 sm:px-4 rounded-lg text-[12px] sm:text-[13.5px] cursor-pointer transition-colors whitespace-nowrap ${active ? 'text-white font-semibold' : 'font-medium text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)]'}`}
             style={{ background: active ? 'var(--color-brand)' : undefined }}
           >
             {t.label}
@@ -1109,9 +1140,9 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         type="button"
         onClick={() => setSourceDialogOpen(true)}
         title="Edit raw source"
-        className="ml-auto shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-medium text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer transition-colors"
+        className="ml-auto shrink-0 inline-flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg text-[12px] sm:text-[13px] font-medium text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer transition-colors"
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
         Source
       </button>
     </div>
