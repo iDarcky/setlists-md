@@ -926,11 +926,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   // key/tempo/time controls on their own row. No cover art, no artist line, no
   // Aa. Song Details live in their own tab; Save/Cancel stay in the bottom bar.
   const cardHeaderEl = (
-    <header
-      className="shrink-0 z-[60] sticky top-0 border-b border-[var(--ds-gray-200)] backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)]"
-      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-    >
-      <div className="px-3 sm:px-4 pt-3 pb-2">
+    <div className="shrink-0 px-3 sm:px-4 pt-3">
         <div
           className="rounded-2xl border border-[var(--border-1)] px-3 sm:px-4 py-3 flex flex-col gap-3"
           style={{ background: 'linear-gradient(180deg, var(--ds-background-100), var(--ds-background-200))' }}
@@ -951,9 +947,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           {/* Row 2: key / tempo / time (transpose lives in the Details tab) */}
           <div>{cardMetaControls}</div>
         </div>
-      </div>
-      {tabsRowEl}
-    </header>
+    </div>
   );
 
   // ── Legacy header (default) ───────────────────────────────────────────────
@@ -1009,14 +1003,90 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     </header>
   );
 
+  // ── Two-card workspace (Labs) ─────────────────────────────────────────────
+  // The editing surface and the preview each become their own card, mirroring
+  // Song Hub's reader card. The Arrange/Advanced/Tabs/Details tabs live as the
+  // left card's pill header.
+  const cardTabList = [...MODE_OPTIONS, { id: 'tabs', label: 'Tabs' }, { id: 'details', label: 'Details' }];
+  const cardTabsHeaderEl = (
+    <div className="shrink-0 flex items-center gap-1 px-2 sm:px-3 py-2 border-b border-[var(--border-1)] overflow-x-auto">
+      {cardTabList.map(t => {
+        const active = activeTab === t.id;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setActiveTab(t.id)}
+            aria-current={active ? 'page' : undefined}
+            className={`h-9 px-3.5 sm:px-4 rounded-lg text-[13.5px] cursor-pointer transition-colors whitespace-nowrap ${active ? 'text-white font-semibold' : 'font-medium text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)]'}`}
+            style={{ background: active ? 'var(--color-brand)' : undefined }}
+          >
+            {t.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const leftEditorCardEl = (
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)]">
+      {cardTabsHeaderEl}
+      <div className={`flex-1 min-h-0 flex flex-col w-full ${activeTab === 'write' ? 'overflow-auto pb-[18px]' : 'overflow-hidden'}`}>
+        {renderTab()}
+      </div>
+    </div>
+  );
+
+  const cardWorkAreaEl = (
+    <div className="flex-1 min-h-0 flex w-full overflow-hidden px-3 sm:px-4 pb-3">
+      {leftEditorCardEl}
+      {/* Resize divider (also the gutter between the two cards) */}
+      {showSidePreview && preview && (
+        <div onPointerDown={onPreviewResize} className="shrink-0 w-1 self-stretch mx-1.5 cursor-col-resize relative group rounded-full">
+          <span className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-[var(--ds-gray-300)] group-hover:bg-[var(--color-brand)] transition-colors" />
+        </div>
+      )}
+      {showSidePreview && preview && (
+        <aside
+          style={{ width: previewWidth }}
+          className="shrink-0 flex flex-col overflow-hidden rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)]"
+        >
+          <div className="shrink-0 px-3 py-2 border-b border-[var(--border-1)] flex items-center justify-between gap-2">
+            <span className="text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">Preview</span>
+            {previewControls}
+          </div>
+          <div className="flex-1 min-h-0 flex flex-col">
+            {previewChartEl}
+          </div>
+        </aside>
+      )}
+    </div>
+  );
+
+  // Draft recovery as a slim top card (cards layout).
+  const draftCardEl = draftFound ? (
+    <div className="shrink-0 px-3 sm:px-4 pt-3">
+      <div className="rounded-xl border border-[var(--color-brand-border)] bg-[var(--color-brand-soft)] px-3 py-2 flex items-center gap-3">
+        <span className="flex-1 min-w-0 text-label-12 text-[var(--color-brand-text)]">
+          Unsaved draft found from a previous session.
+        </span>
+        <Button variant="brand" size="sm" onClick={() => { setMd(draftFound); setDraftFound(null); }}>Restore</Button>
+        <Button variant="ghost" size="sm" onClick={() => { clearDraft(); setDraftFound(null); }}>Discard</Button>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="h-full bg-[var(--ds-background-200)] flex flex-col">
-      {/* ─── Unified header. Row 1: title (taps to toggle Song Details) +
-          (wide) arrangement/key/tempo/time + preview / actions. Row 2:
-          structure summary. Row 3: edit-mode tabs. On narrow screens the music
-          controls move into the Song Details panel so the header stays compact.
-          Save/Cancel live in the bottom bar so they stay thumb-reachable. ─── */}
-      {cardsHeader ? cardHeaderEl : legacyHeaderEl}
+      {cardsHeader ? (
+        <div className="flex-1 min-h-0 flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+          {draftCardEl}
+          {cardHeaderEl}
+          {cardWorkAreaEl}
+        </div>
+      ) : (
+      <>
+      {legacyHeaderEl}
 
       {/* ─── Content Area — full-width chrome on top, then the editor + live
           preview side-by-side beneath it, so opening Song Details / the
@@ -1086,6 +1156,8 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
         )}
         </div>
       </div>
+      </>
+      )}
 
       {/* ─── Narrow-screen preview peek (slide-over) ─── */}
       {!isWide && previewPeekOpen && (
