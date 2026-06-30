@@ -147,7 +147,7 @@ key:
 
 `;
 
-export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null }) {
+export default function Editor({ song, onSave, onBack, onDirtyChange, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null }) {
   const confirm = useConfirm();
 
   // Labs: card-based editor header (step 1 — header card). When off, the
@@ -670,17 +670,6 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     }
   };
 
-  const handleDeleteSong = useCallback(async () => {
-    if (!song || !onDelete) return;
-    const ok = await confirm({
-      title: 'Delete song?',
-      description: `"${preview?.title || song.title || 'Untitled'}" will be permanently removed. This cannot be undone.`,
-      confirmLabel: 'Delete',
-      variant: 'danger',
-    });
-    if (ok) onDelete(song.id);
-  }, [song, onDelete, confirm, preview]);
-
   // Arrangement picker. In the legacy header it rides with the key/tempo/time on
   // one wrapping row; in the card header it sits beside the title.
   const arrangementMenuEl = (
@@ -991,13 +980,6 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
             <circle cx="12" cy="12" r="3" />
-          </svg>
-        </IconButton>
-      )}
-      {song && onDelete && (
-        <IconButton variant="error" size="sm" onClick={handleDeleteSong} aria-label="Delete song">
-          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
         </IconButton>
       )}

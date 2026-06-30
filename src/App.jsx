@@ -2320,6 +2320,7 @@ export default function App() {
               onBack={goBack}
               onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
               onPlay={(arrId) => playSongCasually(currentSong, arrId)}
+              onDelete={!isTeamReadOnly ? () => handleDeleteSong(currentSong.id) : null}
               addedBy={displayName}
               onUpdateSong={isTeamReadOnly ? null : (updated) => {
                 setSongs(prev => prev.map(s => s.id === updated.id ? updated : s));
