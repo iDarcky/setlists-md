@@ -179,6 +179,16 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   }, []);
   const [md, setMd] = useState(initialMd);
   const [savedMd, setSavedMd] = useState(initialMd);
+  // ── Undo / redo — a session history of md snapshots, so the visual Arrange
+  // canvas (and Source) can step back. Rapid edits within a short window coalesce
+  // into one step; a fresh edit clears the redo stack. `timeTravel` marks changes
+  // that come from undo/redo so the tracking effect doesn't re-record them.
+  const undoStackRef = useRef([]);
+  const redoStackRef = useRef([]);
+  const prevMdRef = useRef(initialMd);
+  const timeTravelRef = useRef(false);
+  const lastEditAtRef = useRef(0);
+  const [histState, setHistState] = useState({ canUndo: false, canRedo: false });
   // Autosave/draft recovery. We stash the in-progress markdown under a per-song
   // key so a crash or accidental exit doesn't lose work. On mount we surface any
   // draft that differs from the saved content as a restore banner.
@@ -461,14 +471,40 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
+  // Record md changes into the undo stack (skips undo/redo-driven changes).
+  useEffect(() => {
+    if (md === prevMdRef.current) return;
+    if (timeTravelRef.current) { timeTravelRef.current = false; prevMdRef.current = md; return; }
+    const now = Date.now();
+    const coalesce = now - lastEditAtRef.current < 400 && undoStackRef.current.length > 0;
+    if (!coalesce) {
+      undoStackRef.current.push(prevMdRef.current);
+      if (undoStackRef.current.length > 200) undoStackRef.current.shift();
+    }
+    lastEditAtRef.current = now;
+    redoStackRef.current = [];
+    prevMdRef.current = md;
+    setHistState({ canUndo: undoStackRef.current.length > 0, canRedo: false });
+  }, [md]);
+
   const handleUndo = useCallback(() => {
-    textareaRef.current?.focus();
-    document.execCommand('undo');
+    if (!undoStackRef.current.length) return;
+    const prev = undoStackRef.current.pop();
+    redoStackRef.current.push(prevMdRef.current);
+    timeTravelRef.current = true;
+    prevMdRef.current = prev;
+    setMd(prev);
+    setHistState({ canUndo: undoStackRef.current.length > 0, canRedo: redoStackRef.current.length > 0 });
   }, []);
 
   const handleRedo = useCallback(() => {
-    textareaRef.current?.focus();
-    document.execCommand('redo');
+    if (!redoStackRef.current.length) return;
+    const next = redoStackRef.current.pop();
+    undoStackRef.current.push(prevMdRef.current);
+    timeTravelRef.current = true;
+    prevMdRef.current = next;
+    setMd(next);
+    setHistState({ canUndo: undoStackRef.current.length > 0, canRedo: redoStackRef.current.length > 0 });
   }, []);
 
   // Update a single frontmatter field without touching the body
@@ -1135,16 +1171,25 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
           </button>
         );
       })}
-      {/* Source — raw-markdown power-user editor (paste-import lives in here). */}
-      <button
-        type="button"
-        onClick={() => setSourceDialogOpen(true)}
-        title="Edit raw source"
-        className="ml-auto shrink-0 inline-flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg text-[12px] sm:text-[13px] font-medium text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer transition-colors"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
-        Source
-      </button>
+      <div className="ml-auto shrink-0 flex items-center gap-0.5">
+        {/* Undo / redo — session history across the whole editor (Arrange + Source). */}
+        <IconButton variant="ghost" size="sm" aria-label="Undo" title="Undo" disabled={!histState.canUndo} onClick={handleUndo}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" /></svg>
+        </IconButton>
+        <IconButton variant="ghost" size="sm" aria-label="Redo" title="Redo" disabled={!histState.canRedo} onClick={handleRedo}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" /></svg>
+        </IconButton>
+        {/* Source — raw-markdown power-user editor (paste-import lives in here). */}
+        <button
+          type="button"
+          onClick={() => setSourceDialogOpen(true)}
+          title="Edit raw source"
+          className="shrink-0 inline-flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg text-[12px] sm:text-[13px] font-medium text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+          Source
+        </button>
+      </div>
     </div>
   );
 
