@@ -87,6 +87,16 @@ team optimistic locking, scheduling & notifications pillar.
   details (e.g. the song's title/name) in the home top-bar / ⌘K search yields no
   results, while the same query works elsewhere. Likely a wiring gap between the
   dashboard search input and `src/lib/search.js`. P1 bug — repro + fix.
+- 🔴 **Team sync "mass conflict" (73-at-once)** — a whole-library conflict storm =
+  canonical-hash **baseline drift**, not real concurrent edits (a schema field now
+  serialized locally but absent in older server `content` → every row's
+  `canonicalSongHash` differs from its baseline). **Symptoms mitigated (0.15.0):**
+  members (`readOnly`) never get conflict prompts — cloud always wins; and
+  `ConflictResolver` gained **Keep all mine / Keep all cloud**. **Root cause still
+  open (P1):** diff `songToMd(local)` vs the stored `content` for one conflicted
+  song to find the drifting field, then normalize it out of `canonicalSongHash`
+  (or re-baseline) so admins/editors stop seeing phantom conflicts. Needs a real
+  conflicted song id from the field.
 
 ---
 
@@ -102,10 +112,15 @@ Open, actionable items. Cross-cutting concerns at the end.
 ### Song editor
 - ✅ **Preview ignores key/transpose** — relabel-only Key + explicit Transpose; preview honours it (shipped).
 - ✅ **New-song guardrails** — Title + Key start empty + mandatory; soft-remind bpm/time (shipped).
-- ✅ **Double "structure" concept** — one official control (`StructureControl`) shared by Arrange + Advanced (shipped).
+- ✅ **Double "structure" concept** — one official control shared by Arrange + Advanced (shipped).
 - ✅ Preview defaults to **1 column**, persisted per device (shipped).
-- ✅ **Editor Key field** follows the Accidentals setting + dual `F#/Gb` labels; **tempo box** height matched to Key/Time triggers (shipped — see §5).
+- ✅ **Editor Key field** follows the Accidentals setting + dual `F#/Gb` labels; **tempo box** height matched (shipped — see §5).
+- ✅ **Song editor cards (Labs `songEditorCards`)** — identity/editor/preview cards, Aa-in-preview (global), Source dialog, header declutter (⋮ overflow), mobile identity-card collapse, Key-chip vs Transpose (shipped 0.15.0 — see §5).
+- ✅ **Drag-to-reorder sections**, **drag-a-chord-to-move**, **inline Play-order chips** (Auto/Custom, no modal), **inline lyric composer + smart chord-sheet paste**, **undo/redo** (md history), **version history**, **pre-save validation chip** (shipped 0.15.0).
 - Key/chord strip follows the edited section + respects active notation — P2.
+- **Chord drag is same-line only** — allow dragging a chord across lines (recompute line + pos) — P3.
+- **Custom Play-order onboarding hint** — first time a user hits Customize, hint that chips drag / × / + (discoverability) — P3.
+- **Cross-device version history** — history is local per device (IndexedDB); consider surfacing in the Song Hub and/or syncing — P3.
 
 ### Chart view
 - ✅ **Layout menu rework** → folded display controls into one tabbed **"Aa" menu**
@@ -143,6 +158,10 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Drag-to-**reorder** table columns (show/hide shipped in 0.14.0) — P3.
 
 ### Setlists (overview / viewer)
+- 🟡 **Migrate to the card design** — bring the setlist **overview** into the same
+  card language as the song editor/hub (identity card + content cards + consistent
+  header/⋮ · Aa where relevant). Requested 2026-07; the next big redesign after the
+  song editor — P1 (pre-soft-launch: setlists are half the product).
 - Overview page visual redesign + buttons rework (Set order/Band + Play live/Practice inline) — P2.
 - Warn before editing a **past** setlist — P2.
 - Remove redundant "Set Order" control; relocate "Show details" — P2.
@@ -152,6 +171,9 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Shared-viewer: tap a song to open it; "Open app" returns to the setlist; onboarding; refresh the older share UI — P3–P4.
 
 ### Setlist editor
+- 🟡 **Migrate to the card design** — the setlist **editor** should match the song
+  editor's card layout (identity/edit/preview cards, calmer header, mobile collapse).
+  Pair with the overview redesign above — P1.
 - **Clear song-search after selecting** a song (+ an "x") so adding several is quick — P2.
 - Rework Set order/Band + relocate Draft/Ready — P2.
 - Song/break **card redesign** — P2 · _Q: what feels off?_
@@ -183,6 +205,11 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Big rework shipped (dismiss/clear-all, server-authoritative decline alerts, cross-device read state). Remaining: maybe-nudge needs a scheduled job (still client-derived).
 
 ### Cross-cutting / chores
+- **Audit remaining menus/screens for the card design** — after the song editor +
+  setlists, sweep the other menus/panels (Settings, Team, Account, dialogs) so the
+  card language is consistent app-wide. Requested 2026-07 (#3) — P2.
+- ✅ **Bottom nav DPI/scale** — `BottomNav` tiles/FAB/label use `clamp(min, vw, max)`
+  so the bar isn't oversized on smaller-viewport phones (was fixed px). Shipped 0.15.0.
 - **Naming consistency** pass (casing across headers) — P3.
 - Extend the **trash bin** (soft-delete) to setlists + a team-library bin — P2 (songs already done).
 - Repo file clean-up (dead/orphaned files, stale docs) — P3.
@@ -383,6 +410,18 @@ toggles, margins/spacing toggles, section-per-page, reset-to-defaults, jsPDF fal
 
 ## 5. Recently shipped (context)
 
+- **0.15.0-beta — A hands-on song editor** (on `claude/song-editor-cards-header-oyd2w9`) —
+  **Song editor cards (Labs `songEditorCards`)**: identity/editor/preview cards, Aa-in-preview
+  (writes global display), Source dialog for raw markdown, ⋮-overflow header declutter, mobile
+  identity-card collapse, gold Key chip vs Transpose. **Arrange (shared by both editors):**
+  drag-to-reorder sections (grip; HTML5 + native touch, collapse-on-drag + edge autoscroll +
+  insertion line), drag-a-chord-to-move, inline **Play order** editor (Auto/Custom, draggable
+  chips w/ ×/+ — no modal), inline lyric composer + smart Ultimate-Guitar/ChordPro paste on empty
+  sections, `SectionTypePicker`/menus portaled (flip up near screen bottom), duplicate-section-label
+  fix, touch-drag no-text-select. **Editor-wide:** undo/redo (md history), version history
+  (`storage.loadVersions/pushVersion`), pre-save validation chip, delete-song moved to the Song Hub ⋮.
+  **Cross-cutting:** `BottomNav` clamp(vw) sizing. **Sync:** members never conflict (cloud wins) +
+  bulk Keep-all-mine/cloud in `ConflictResolver`.
 - **Reading-view + editor polish** (current `0.14.x-beta`, on `claude/clever-galileo-hkmim6`) —
   editor Key **relabel-only** + explicit Transpose split; **new-song guardrails** (Title+Key
   mandatory, blank-key bug fixed); preview **defaults to 1 column** (per device); one official
