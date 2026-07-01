@@ -7,7 +7,7 @@ import TabGridEditor from './TabGridEditorV2';
 import KeyChangeDialog from './KeyChangeDialog';
 import { TAB_INSTRUMENTS, instrumentForStrings } from './tabInstruments';
 import SectionDrawer from './SectionDrawer';
-import StructureControl from './StructureControl';
+import StructureEditor from './StructureEditor';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
 import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType, serializeSectionLines } from './arrangeHelpers';
@@ -38,6 +38,14 @@ function tabObjectFromEditor(saved) {
   const tab = parseTabBlock(stringLines);
   tab.time = time;
   return tab;
+}
+
+// "Verse 1" -> "V1", "Pre Chorus 2" -> "PC2" — compact code for sequence chips.
+function shortCode(type) {
+  const base = type.replace(/\s*\d+$/, '');
+  const num = (type.match(/(\d+)\s*:?\s*$/) || [])[1] || '';
+  const initials = base.split(/\s+/).map(w => w[0] || '').join('').toUpperCase();
+  return initials + num;
 }
 
 // Display a chord in the chosen notation (reading aid; data stays as chords).
@@ -874,79 +882,86 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      {/* Sequence = the order sections PLAY in. Auto mirrors your section order
-          (edit it by dragging sections); Custom is a hand-set play order that can
-          repeat / reorder / skip. The state is shown explicitly (no hidden
-          checkbox) and toggled by Customize / Reset. */}
+      {/* Play order — minimal by default. In Auto it just follows the section
+          cards below (no redundant chips); tap Customize to set a hand-made
+          order with repeats, which then shows as compact chips. Notation lives
+          in its own quiet control so this row stays calm on mobile. */}
       {(() => {
-        const isCustomStructure = song.structureMode === 'custom';
+        const isCustom = song.structureMode === 'custom';
+        const playOrder = isCustom ? (song.structure || []) : [];
+        const uniqueTypes = [...new Set(placements.map(p => p.type))];
         return (
-          <div className="shrink-0 flex items-center gap-2 px-3 sm:pr-6 py-1.5 border-b border-[var(--border-1)]">
-            <span
-              className="shrink-0 inline-flex items-center gap-1 text-label-10 uppercase tracking-wider select-none"
-              title={isCustomStructure
-                ? 'Custom play order — you set it (repeat, reorder, skip). Reset to follow your sections.'
-                : 'Auto — the play order follows your sections (reorder by dragging them). Customize to set repeats or a different order.'}
-            >
-              <span className="text-[var(--ds-gray-500)]">Sequence</span>
-              <span className={isCustomStructure ? 'text-[var(--color-brand)] font-bold' : 'text-[var(--ds-gray-400)] font-semibold'}>
-                · {isCustomStructure ? 'Custom' : 'Auto'}
+          <div className="shrink-0 border-b border-[var(--border-1)]">
+            <div className="flex items-center gap-2 px-3 sm:pr-6 py-1.5">
+              <span className="shrink-0 text-label-11 text-[var(--ds-gray-600)] select-none">Play order</span>
+              <span
+                className={`shrink-0 text-label-10 uppercase tracking-wide font-bold px-1.5 py-0.5 rounded ${isCustom ? 'text-[var(--color-brand-text)] bg-[var(--color-brand-soft)]' : 'text-[var(--ds-gray-500)] bg-[var(--ds-gray-100)]'}`}
+                title={isCustom
+                  ? 'You set the play order (repeats / reorder). Reset to follow your sections.'
+                  : 'Follows your sections — reorder them by dragging. Customize to repeat or reorder.'}
+              >
+                {isCustom ? 'Custom' : 'Auto'}
               </span>
-            </span>
-            <StructureControl
-              hideToggle
-              mode={song.structureMode}
-              value={(song.structure || []).join(', ')}
-              sections={placements.map(p => p.type)}
-              customSectionTypes={customSectionTypes}
-              onToggleMode={setStructureMode}
-              onChangeValue={onStructureChange}
-              onJump={(name) => { const i = placements.findIndex(p => p.type === name); if (i >= 0) jumpTo(i); }}
-            />
-            {isCustomStructure ? (
-              <button
-                type="button"
-                onClick={() => setStructureMode(false)}
-                title="Reset to section order"
-                className="shrink-0 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer px-1"
+              <div className="flex-1" />
+              {isCustom ? (
+                <>
+                  <StructureEditor
+                    variant="link"
+                    value={(song.structure || []).join(', ')}
+                    availableSections={uniqueTypes}
+                    onChange={onStructureChange}
+                    autoSeed={false}
+                  />
+                  <button type="button" onClick={() => setStructureMode(false)} title="Reset to section order" className="shrink-0 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">Reset</button>
+                </>
+              ) : (
+                <button type="button" onClick={() => setStructureMode(true)} title="Set a custom play order (repeats / reorder)" className="shrink-0 text-label-11 font-semibold text-[var(--color-brand-text)] hover:opacity-80 bg-transparent border-none cursor-pointer">Customize</button>
+              )}
+              <PopMenu
+                trigger={
+                  <IconButton variant="ghost" size="sm" aria-label="Chord notation" title="Chord notation">
+                    <span className="text-label-11 font-bold">{notation === 'nashville' ? '123' : notation === 'solfege' ? 'Do' : 'A♭'}</span>
+                  </IconButton>
+                }
               >
-                Reset
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setStructureMode(true)}
-                title="Set a custom play order (repeats, reorder, skip)"
-                className="shrink-0 text-label-11 font-semibold text-[var(--color-brand-text)] hover:opacity-80 bg-transparent border-none cursor-pointer px-1"
-              >
-                Customize
-              </button>
-            )}
-            <PopMenu
-              trigger={
-                <IconButton variant="ghost" size="sm" aria-label="Notation" title="Chord notation">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" /></svg>
-                </IconButton>
-              }
-            >
-              <div className="px-3 py-2 min-w-[180px]" onClick={e => e.stopPropagation()}>
-                <div className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] mb-1.5">Chord notation</div>
-                <div className="flex gap-1">
-                  {[{ id: 'chords', label: 'ABC' }, { id: 'nashville', label: '123' }, { id: 'solfege', label: 'Do' }].map(o => (
-                    <button
-                      key={o.id}
-                      type="button"
-                      onClick={() => setNotation(o.id)}
-                      className={`px-2.5 py-1 rounded-md text-label-11 font-semibold cursor-pointer border ${
-                        notation === o.id ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border-[var(--color-brand-border)]' : 'bg-transparent text-[var(--ds-gray-600)] border-[var(--ds-gray-400)] hover:bg-[var(--ds-gray-100)]'
-                      }`}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
+                <div className="px-3 py-2 min-w-[180px]" onClick={e => e.stopPropagation()}>
+                  <div className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] mb-1.5">Chord notation</div>
+                  <div className="flex gap-1">
+                    {[{ id: 'chords', label: 'ABC' }, { id: 'nashville', label: '123' }, { id: 'solfege', label: 'Do' }].map(o => (
+                      <button
+                        key={o.id}
+                        type="button"
+                        onClick={() => setNotation(o.id)}
+                        className={`px-2.5 py-1 rounded-md text-label-11 font-semibold cursor-pointer border ${
+                          notation === o.id ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border-[var(--color-brand-border)]' : 'bg-transparent text-[var(--ds-gray-600)] border-[var(--ds-gray-400)] hover:bg-[var(--ds-gray-100)]'
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+              </PopMenu>
+            </div>
+            {isCustom && playOrder.length > 0 && (
+              <div className="flex flex-wrap gap-1 px-3 sm:pr-6 pb-1.5">
+                {playOrder.map((name, i) => {
+                  const st = sectionStyle(name, null, customSectionTypes);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => { const idx = placements.findIndex(p => p.type === name); if (idx >= 0) jumpTo(idx); }}
+                      className="inline-flex items-center px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold font-mono border border-[var(--border-1)] bg-[var(--ds-background-100)] hover:opacity-80 cursor-pointer"
+                      style={{ color: st.b }}
+                      title={name}
+                    >
+                      {shortCode(name)}
+                    </button>
+                  );
+                })}
               </div>
-            </PopMenu>
+            )}
           </div>
         );
       })()}
