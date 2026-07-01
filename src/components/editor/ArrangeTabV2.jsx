@@ -488,7 +488,19 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   }, [placements, applyMutation]);
 
   // ─── Section operations ───
-  const labelFor = useCallback((base, count) => `${base} ${count + 1}`, []);
+  // Lowest free "Base N" label not already taken by another section, so adding,
+  // duplicating, or relabelling a section can never collide (two "Chorus 1"s
+  // used to break the song map + structure, since type names act as ids).
+  const nextSectionLabel = useCallback((base, excludeIdx = -1) => {
+    const used = new Set(
+      (song?.sections || [])
+        .filter((s, i) => i !== excludeIdx && sectionBaseType(s.type) === base)
+        .map(s => s.type)
+    );
+    let n = 1;
+    while (used.has(`${base} ${n}`)) n++;
+    return `${base} ${n}`;
+  }, [song]);
 
   // Emit a new section list. In "auto" mode we keep `structure` mirroring
   // section order, so the chart/performance views reflect Arrange edits. In
@@ -526,18 +538,16 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   const addSection = useCallback((base = 'Verse') => {
     if (!song) return;
-    const count = song.sections.filter(s => sectionBaseType(s.type) === base).length;
-    emitSections([...song.sections, { type: labelFor(base, count), note: '', lines: [''] }]);
-  }, [song, emitSections, labelFor]);
+    emitSections([...song.sections, { type: nextSectionLabel(base), note: '', lines: [''] }]);
+  }, [song, emitSections, nextSectionLabel]);
 
   const duplicateSection = useCallback((idx) => {
     if (!song) return;
     const src = song.sections[idx];
     const base = sectionBaseType(src.type);
-    const count = song.sections.filter(s => sectionBaseType(s.type) === base).length;
-    const copy = { ...src, type: labelFor(base, count), lines: [...src.lines] };
+    const copy = { ...src, type: nextSectionLabel(base), lines: [...src.lines] };
     emitSections([...song.sections.slice(0, idx + 1), copy, ...song.sections.slice(idx + 1)]);
-  }, [song, emitSections, labelFor]);
+  }, [song, emitSections, nextSectionLabel]);
 
   const removeSection = useCallback(async (idx) => {
     if (!song) return;
@@ -654,9 +664,8 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   const changeSectionType = useCallback((idx, base) => {
     if (!song) return;
-    const count = song.sections.filter((s, i) => i < idx && sectionBaseType(s.type) === base).length;
-    emitSections(song.sections.map((s, i) => i === idx ? { ...s, type: labelFor(base, count) } : s));
-  }, [song, emitSections, labelFor]);
+    emitSections(song.sections.map((s, i) => i === idx ? { ...s, type: nextSectionLabel(base, idx) } : s));
+  }, [song, emitSections, nextSectionLabel]);
 
   const updateSectionNote = useCallback((idx, note) => {
     if (!song) return;
