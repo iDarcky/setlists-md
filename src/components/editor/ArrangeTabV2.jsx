@@ -7,7 +7,6 @@ import TabGridEditor from './TabGridEditorV2';
 import KeyChangeDialog from './KeyChangeDialog';
 import { TAB_INSTRUMENTS, instrumentForStrings } from './tabInstruments';
 import SectionDrawer from './SectionDrawer';
-import StructureEditor from './StructureEditor';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
 import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType, serializeSectionLines } from './arrangeHelpers';
@@ -320,6 +319,98 @@ function DraftLyricInput({ onCommit, onClose }) {
   );
 }
 
+// ─── Play-order editor (custom sequence) ──────────────────────────
+// The custom play order edited inline as draggable chips — drag to reorder,
+// × to remove, "+ Add" to append (repeats welcome). Replaces the old modal.
+// Desktop uses HTML5 drag; touch uses native non-passive listeners (React's are
+// passive, so text selection would kick in otherwise).
+function PlayOrderEditor({ order, availableTypes, customSectionTypes, onChange }) {
+  const [dragIdx, setDragIdx] = useState(null);
+  const [overIdx, setOverIdx] = useState(null);
+  const commit = useCallback(() => {
+    setDragIdx(from => {
+      setOverIdx(to => {
+        if (from != null && to != null && from !== to) {
+          const a = [...order];
+          const [m] = a.splice(from, 1);
+          a.splice(to, 0, m);
+          onChange(a);
+        }
+        return null;
+      });
+      return null;
+    });
+  }, [order, onChange]);
+  const beginTouch = useCallback((i) => {
+    setDragIdx(i);
+    const onMove = (e) => {
+      const t = e.touches[0];
+      if (!t) return;
+      e.preventDefault();
+      const el = document.elementFromPoint(t.clientX, t.clientY)?.closest('[data-chip-idx]');
+      if (el) setOverIdx(parseInt(el.dataset.chipIdx, 10));
+    };
+    const onEnd = () => {
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      document.removeEventListener('touchcancel', onEnd);
+      document.body.style.userSelect = '';
+      commit();
+    };
+    document.body.style.userSelect = 'none';
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
+  }, [commit]);
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {order.map((name, i) => {
+        const st = sectionStyle(name, null, customSectionTypes);
+        const isDrag = dragIdx === i;
+        const isOver = dragIdx != null && dragIdx !== i && overIdx === i;
+        return (
+          <span
+            key={i}
+            data-chip-idx={i}
+            draggable
+            onDragStart={(e) => { setDragIdx(i); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; }}
+            onDragEnter={() => { if (dragIdx != null) setOverIdx(i); }}
+            onDragOver={(e) => { if (dragIdx != null) e.preventDefault(); }}
+            onDrop={(e) => { e.preventDefault(); commit(); }}
+            onDragEnd={commit}
+            onTouchStart={() => beginTouch(i)}
+            title={`${name} — drag to reorder`}
+            className={`inline-flex items-center gap-1 pl-1 pr-0.5 py-0.5 rounded-[6px] border text-[10px] font-bold font-mono cursor-grab active:cursor-grabbing touch-none select-none bg-[var(--ds-background-100)] ${isOver ? 'border-[var(--color-brand)]' : 'border-[var(--border-1)]'} ${isDrag ? 'opacity-40' : ''}`}
+            style={{ color: st.b, WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+          >
+            <svg width="6" height="12" viewBox="0 0 6 12" fill="currentColor" className="opacity-40 shrink-0" aria-hidden="true"><circle cx="1.5" cy="2" r="1" /><circle cx="4.5" cy="2" r="1" /><circle cx="1.5" cy="6" r="1" /><circle cx="4.5" cy="6" r="1" /><circle cx="1.5" cy="10" r="1" /><circle cx="4.5" cy="10" r="1" /></svg>
+            {shortCode(name)}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onChange(order.filter((_, j) => j !== i)); }}
+              aria-label={`Remove ${name} from play order`}
+              className="ml-0.5 w-4 h-4 grid place-items-center rounded text-[var(--ds-gray-500)] hover:text-[var(--ds-red-700)] bg-transparent border-none cursor-pointer leading-none text-[12px]"
+            >
+              ×
+            </button>
+          </span>
+        );
+      })}
+      <PopMenu
+        align="left"
+        trigger={
+          <button type="button" className="inline-flex items-center px-1.5 py-1 rounded-[6px] border border-dashed border-[var(--ds-gray-400)] text-[10px] font-bold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] hover:border-[var(--ds-gray-600)] cursor-pointer bg-transparent">+ Add</button>
+        }
+      >
+        {availableTypes.length === 0 && <div className="px-3 py-2 text-copy-12 text-[var(--ds-gray-500)]">No sections yet</div>}
+        {availableTypes.map(t => (
+          <MenuItem key={t} onClick={() => onChange([...order, t])}>{t}</MenuItem>
+        ))}
+      </PopMenu>
+    </div>
+  );
+}
+
 // ─── Chord-only (instrumental) line ───────────────────────────────
 function ChordOnlyLine({ chords, secIdx, lineIdx, onEditChord, onAppend, onRemoveChord }) {
   return (
@@ -426,9 +517,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const sectionRefs = useRef({});
   const scrollRef = useRef(null);      // canvas scroll container (edge autoscroll)
   const autoScrollRef = useRef({ raf: 0, v: 0 });
-  const jumpTo = useCallback((idx) => {
-    sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
 
   const song = useMemo(() => { try { return parseSongMd(md); } catch { return null; } }, [md]);
 
@@ -904,16 +992,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
               </span>
               <div className="flex-1" />
               {isCustom ? (
-                <>
-                  <StructureEditor
-                    variant="link"
-                    value={(song.structure || []).join(', ')}
-                    availableSections={uniqueTypes}
-                    onChange={onStructureChange}
-                    autoSeed={false}
-                  />
-                  <button type="button" onClick={() => setStructureMode(false)} title="Reset to section order" className="shrink-0 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">Reset</button>
-                </>
+                <button type="button" onClick={() => setStructureMode(false)} title="Reset to section order" className="shrink-0 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">Reset</button>
               ) : (
                 <button type="button" onClick={() => setStructureMode(true)} title="Set a custom play order (repeats / reorder)" className="shrink-0 text-label-11 font-semibold text-[var(--color-brand-text)] hover:opacity-80 bg-transparent border-none cursor-pointer">Customize</button>
               )}
@@ -943,23 +1022,14 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                 </div>
               </PopMenu>
             </div>
-            {isCustom && playOrder.length > 0 && (
-              <div className="flex flex-wrap gap-1 px-3 sm:pr-6 pb-1.5">
-                {playOrder.map((name, i) => {
-                  const st = sectionStyle(name, null, customSectionTypes);
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => { const idx = placements.findIndex(p => p.type === name); if (idx >= 0) jumpTo(idx); }}
-                      className="inline-flex items-center px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold font-mono border border-[var(--border-1)] bg-[var(--ds-background-100)] hover:opacity-80 cursor-pointer"
-                      style={{ color: st.b }}
-                      title={name}
-                    >
-                      {shortCode(name)}
-                    </button>
-                  );
-                })}
+            {isCustom && (
+              <div className="px-3 sm:pr-6 pb-2">
+                <PlayOrderEditor
+                  order={playOrder}
+                  availableTypes={uniqueTypes}
+                  customSectionTypes={customSectionTypes}
+                  onChange={(next) => onStructureChange(next.join(', '))}
+                />
               </div>
             )}
           </div>
