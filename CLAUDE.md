@@ -152,7 +152,8 @@ src/
 ├── parser.js             # .md song format parser/serializer
 │                         #   exports: parseSongMd, songToMd, parseLine, generateId,
 │                         #            parseTabBlock, serializeTabBlock, parseTabPositions
-├── storage.js            # IndexedDB layer (loadSongs, saveSongs, loadSetlists, saveSetlists, clearAll)
+├── storage.js            # IndexedDB layer (loadSongs, saveSongs, loadSetlists, saveSetlists, clearAll,
+│                         #   loadVersions/pushVersion — per-song saved-markdown version history)
 ├── styles/index.css      # Global styles, CSS variables, fonts
 ├── auth/
 │   ├── supabase.js       # Supabase client (null when env vars missing)
@@ -174,7 +175,12 @@ src/
     ├── SongPlayerBar.jsx     # YouTube backing-track transport (own play/scrub controls; hidden IFrame-API player); `compact` variant for the mobile media card
     ├── ChartView.jsx         # Chord chart reader (transpose, 1/2-col, sizes). `embedded` mode + controlled props let SongHub drive it; the Aa popover + centered "Advanced" Dialog render here
     ├── AaMenu.jsx            # Single chart display popover (Page/Lyrics/Chords tabs; per-element size·font·colour; per-tab Reset)
-    ├── Editor.jsx            # Editor shell (Arrange / Advanced / Tabs, + a card-header Labs variant adding a Details tab) with split-screen preview
+    ├── Editor.jsx            # Editor shell. Legacy: Arrange / Advanced / Tabs + split-screen preview.
+    │                         #   Cards (Labs `songEditorCards`): identity card (collapsible on mobile;
+    │                         #   Key chip vs Transpose) + left editor card (Arrange/Tabs/Details tabs,
+    │                         #   undo·redo + ⋮ overflow → Source dialog / Version history) + live preview
+    │                         #   card (own Aa → global display). Session md-history undo/redo; pre-save
+    │                         #   validation chip; version history via storage loadVersions/pushVersion.
     ├── Library.jsx           # Song library with search + setlists tab
     ├── SetlistBuilder.jsx    # Build setlists: pick songs, reorder, per-song transpose & notes
     ├── SetlistPlayer.jsx     # Live mode: progress bar, song strip, prev/next navigation
@@ -191,7 +197,13 @@ src/
     │   └── AccountPanel.jsx  # Shared account bits: StageGreeting, PlanLabel, SignInButton,
     │                         #   CreateAccountButton, StatCards
     ├── editor/
-    │   ├── ArrangeTabV2.jsx  # Visual chord-chart canvas (primary editing surface)
+    │   ├── ArrangeTabV2.jsx  # Visual chord-chart canvas (primary editing surface; shared by legacy +
+    │   │                     #   cards editors). Drag-to-reorder sections (grip handle; HTML5 + native
+    │   │                     #   touch, collapse-on-drag + edge autoscroll + insertion line); drag a
+    │   │                     #   chord chip to move it; inline lyric composer w/ smart chord-sheet paste
+    │   │                     #   on empty sections; Play order row (Auto/Custom, chips always visible;
+    │   │                     #   PlayOrderEditor = inline drag/×/+ chips, no modal). SectionTypePicker +
+    │   │                     #   menus built on the portaled PopMenu (flip up near screen bottom).
     │   ├── WriteTab.jsx      # Advanced raw-markdown editor: toolbar (chord/section/cue/note/key-change/tab), find/replace, paste-import
     │   ├── TabsTab.jsx       # Per-song reusable tab library (instrument picker, create/edit/delete)
     │   ├── MetadataPanel.jsx # Song Details form (title, artist, capo, CCLI, tags, …); the legacy collapsible panel + the card-header "Details" tab
@@ -591,7 +603,15 @@ directly:
   a fallback to the previous manifest's `remoteId` mapping (legacy rows
   without embedded ids), then the row UUID. Duplicate rows for one id are
   healed (newest kept, others deleted by writers).
-- Members (`readOnly`) are a pure mirror — no writes ever leave the device.
+- Members (`readOnly`) are a pure mirror — no writes ever leave the device, and
+  **pull never raises a conflict for them** (the cloud copy is always adopted
+  silently). Conflict detection in `pull()` is guarded by `!readOnly`; conflicts
+  are only meaningful for writers (admins/editors). `ConflictResolver` also
+  offers **Keep all mine / Keep all cloud** (`onResolveAll` in App) so a
+  baseline-drift mass conflict clears in one tap instead of dozens of prompts.
+  (A whole-library "73 conflicts" symptom = canonical-hash baseline drift, e.g.
+  a schema field now serialized locally but absent in older server `content`;
+  root-cause per-song by diffing `songToMd(local)` vs the stored `content`.)
 - `createEngineForLibrary()` in App.jsx picks the engine per library; the
   file-manifest engine remains for personal Drive/Dropbox/OneDrive sync.
 - Tests: `src/__tests__/team-engine.test.js` (fake Supabase client).
