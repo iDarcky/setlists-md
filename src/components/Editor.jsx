@@ -7,6 +7,7 @@ import { keyOptions, transposeChord, transposeKey, keyPrefersSharps } from '../m
 import { isChordToken } from '../importer';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
 import { importChartText } from '../lib/importChords';
+import { loadVersions, pushVersion } from '../storage';
 import WriteTab from './editor/WriteTab';
 import ArrangeTabV2 from './editor/ArrangeTabV2';
 import TabsTab from './editor/TabsTab';
@@ -211,6 +212,12 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // Mobile-only: collapse the identity card's meta rows to free editing room.
   const [identityCollapsed, setIdentityCollapsed] = useState(false);
   const [issuesOpen, setIssuesOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [versions, setVersions] = useState([]);
+  const openHistory = useCallback(async () => {
+    setVersions(await loadVersions(song?.id));
+    setHistoryOpen(true);
+  }, [song?.id]);
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
   const isWide = useMediaQuery('(min-width: 1024px)');
@@ -340,6 +347,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     setSavedMd(md);
     clearDraft();
     setDraftFound(null);
+    if (nextSong.id) pushVersion(nextSong.id, md); // best-effort version history
     toast({
       title: 'Song saved',
       description: preview.title || 'Untitled',
@@ -1202,6 +1210,11 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         <IconButton variant="ghost" size="sm" aria-label="Redo" title="Redo" disabled={!histState.canRedo} onClick={handleRedo}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" /></svg>
         </IconButton>
+        {song && (
+          <IconButton variant="ghost" size="sm" aria-label="Version history" title="Version history" onClick={openHistory}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5" /><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" /><path d="M12 7v5l3 2" /></svg>
+          </IconButton>
+        )}
         {/* Source — raw-markdown power-user editor (paste-import lives in here). */}
         <button
           type="button"
@@ -1474,6 +1487,43 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
 
       {/* Preview display popover (card layout) — writes GLOBAL display settings. */}
       {cardAaMenuEl}
+
+      {/* Version history — restore a previously-saved snapshot of this song. */}
+      <Dialog open={historyOpen} onClose={() => setHistoryOpen(false)} size="md" ariaLabel="Version history">
+        <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-[var(--border-1)]">
+          <h2 className="text-copy-15 font-semibold text-[var(--ds-gray-1000)] m-0">Version history</h2>
+          <IconButton variant="ghost" size="sm" onClick={() => setHistoryOpen(false)} aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </IconButton>
+        </div>
+        <div className="max-h-[60vh] overflow-y-auto p-2">
+          {versions.length === 0 ? (
+            <p className="text-copy-13 text-[var(--ds-gray-600)] px-3 py-6 text-center m-0">No saved versions yet. Each time you save, a snapshot is kept here.</p>
+          ) : (
+            <ul className="m-0 p-0 list-none flex flex-col gap-1">
+              {versions.slice().reverse().map((v, i) => {
+                const title = (v.md.match(/^title:\s*(.+)$/m) || [])[1]?.trim() || 'Untitled';
+                const isLatest = i === 0;
+                return (
+                  <li key={v.ts} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[var(--ds-gray-100)]">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-copy-13 text-[var(--ds-gray-1000)] truncate">{new Date(v.ts).toLocaleString()}{isLatest && <span className="ml-2 text-label-10 uppercase tracking-wide text-[var(--ds-gray-500)]">latest</span>}</div>
+                      <div className="text-copy-11 text-[var(--ds-gray-500)] truncate">{title}</div>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => { setMd(v.md); setHistoryOpen(false); toast({ title: 'Version restored', description: 'Review, then Save to keep it.' }); }}
+                    >
+                      Restore
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </Dialog>
 
       {/* Source — raw-markdown editor (card layout). Reuses WriteTab so the
           toolbar's paste-import comes along. Edits the same body via setBody. */}

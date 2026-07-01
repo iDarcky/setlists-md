@@ -384,6 +384,33 @@ export async function saveTrash(list, libraryId = 'personal') {
   await set(TRASH_KEY(libraryId), pruneTrash(list));
 }
 
+// ── Per-song version history ── A capped list of saved markdown snapshots so a
+// past version of a song can be restored. Keyed by song id, local-only.
+const VERSIONS_KEY = (songId) => `setlists-md:versions:${songId}`;
+const MAX_VERSIONS = 25;
+
+export async function loadVersions(songId) {
+  if (!songId) return [];
+  try {
+    return (await get(VERSIONS_KEY(songId))) || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function pushVersion(songId, md) {
+  if (!songId || !md) return;
+  try {
+    const list = (await get(VERSIONS_KEY(songId))) || [];
+    if (list.length && list[list.length - 1].md === md) return; // skip no-op saves
+    list.push({ ts: Date.now(), md });
+    while (list.length > MAX_VERSIONS) list.shift();
+    await set(VERSIONS_KEY(songId), list);
+  } catch {
+    /* history is best-effort */
+  }
+}
+
 export async function clearAll(libraryId = 'personal') {
   // Per-song entries: enumerate keys under the library's song prefix.
   try {
