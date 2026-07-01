@@ -11,6 +11,7 @@ import StructureControl from './StructureControl';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
 import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType, serializeSectionLines } from './arrangeHelpers';
+import { importChartText } from '../../lib/importChords';
 import { loadRecents, saveRecents, pushRecent } from './chordRecents';
 import ChordAutocomplete from './ChordAutocomplete';
 import { useConfirm } from '../ui/useConfirmHook';
@@ -332,6 +333,34 @@ function ChordOnlyLine({ chords, secIdx, lineIdx, onEditChord, onAppend, onRemov
 // Inline raw-markdown editor for one section (the </> "Source" toggle). Seeded
 // once from the section's serialized lines (keyed per section so it remounts);
 // commits on blur via onCommit → the section re-parses into visual cards.
+// Fast lyric entry for an empty section — type or paste directly (no modal).
+// A paste of a chords-over-lyrics chart (Ultimate-Guitar / ChordPro) is converted
+// on commit; multi-section pastes expand into real sections.
+const InlineLyricComposer = memo(function InlineLyricComposer({ onCommit, onCancel }) {
+  const [text, setText] = useState('');
+  const ref = useRef(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+  return (
+    <div className="mb-1">
+      <textarea
+        ref={ref}
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onBlur={() => { if (text.trim()) onCommit(text); else onCancel(); }}
+        onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); onCancel(); } }}
+        placeholder="Type lyrics, or paste a chord sheet (chords above lyrics)…"
+        rows={Math.max(3, text.split('\n').length + 1)}
+        spellCheck={false}
+        className="w-full bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg p-3 text-copy-14 leading-relaxed text-[var(--ds-gray-1000)] resize-y outline-none"
+        style={{ caretColor: 'var(--chord)' }}
+      />
+      <p className="text-copy-11 text-[var(--ds-gray-500)] mt-1 mb-0">
+        Paste from Ultimate-Guitar / ChordPro and it converts automatically. Tap out to apply.
+      </p>
+    </div>
+  );
+});
+
 const SectionSourceEditor = memo(function SectionSourceEditor({ initial, onCommit }) {
   const [text, setText] = useState(initial);
   return (
@@ -373,6 +402,8 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   // Per-section raw "Source" editing: secIdx -> true. A </> toggle flips one
   // section card into a raw-markdown textarea and back.
   const [sourceMode, setSourceMode] = useState({});
+  // Which empty section (secIdx) has its inline lyric composer open.
+  const [lyricComposer, setLyricComposer] = useState(null);
   const toggleSource = useCallback((idx) => {
     setSourceMode(m => ({ ...m, [idx]: !m[idx] }));
     setCollapsed(c => ({ ...c, [idx]: false })); // source implies expanded
@@ -683,6 +714,26 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const updateSectionNote = useCallback((idx, note) => {
     if (!song) return;
     emitSong({ ...song, sections: song.sections.map((s, i) => i === idx ? { ...s, note } : s) });
+  }, [song, emitSong]);
+
+  // Commit the inline lyric composer for an empty section. Runs the text through
+  // the smart chart importer so a pasted chords-over-lyrics sheet converts; a
+  // multi-section paste (has `## headers`) expands into real sections in place.
+  const commitLyricComposer = useCallback((secIdx, rawText) => {
+    if (!song) { setLyricComposer(null); return; }
+    const { body } = importChartText(rawText);
+    if (/^##\s/m.test(body)) {
+      const parsed = parseSongMd(`---\n---\n\n${body}`);
+      const secs = parsed?.sections?.length ? parsed.sections : null;
+      if (secs) {
+        emitSong({ ...song, sections: [...song.sections.slice(0, secIdx), ...secs, ...song.sections.slice(secIdx + 1)] });
+      }
+    } else {
+      const lines = parseSectionLines(body);
+      while (lines.length > 1 && (typeof lines[lines.length - 1] !== 'string' ? false : lines[lines.length - 1].trim() === '')) lines.pop();
+      emitSong({ ...song, sections: song.sections.map((s, i) => i === secIdx ? { ...s, lines: lines.length ? lines : [''] } : s) });
+    }
+    setLyricComposer(null);
   }, [song, emitSong]);
 
   // ─── Line operations ───
@@ -1048,10 +1099,17 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                       if ((line.plainText || '').trim() === '' && (line.chords?.length > 0)) {
                         el = <div className="mb-2 last:mb-0"><ChordOnlyLine chords={line.chords} secIdx={secIdx} lineIdx={lineIdx} onEditChord={openEditChord} onAppend={appendChord} onRemoveChord={removeChordAt} /></div>;
                       } else if ((line.plainText || '').trim() === '' && (!line.chords || line.chords.length === 0)) {
-                        el = (
+                        el = lyricComposer === secIdx ? (
                           <div className="mb-2 last:mb-0">
-                            <button type="button" onClick={() => handleEditText(secIdx, lineIdx)} className="text-copy-13 italic text-[var(--ds-gray-500)] bg-transparent border-none cursor-text px-1 py-1">
-                              Tap to add lyrics…
+                            <InlineLyricComposer
+                              onCommit={(t) => commitLyricComposer(secIdx, t)}
+                              onCancel={() => setLyricComposer(null)}
+                            />
+                          </div>
+                        ) : (
+                          <div className="mb-2 last:mb-0">
+                            <button type="button" onClick={() => setLyricComposer(secIdx)} className="text-copy-13 italic text-[var(--ds-gray-500)] bg-transparent border-none cursor-text px-1 py-1">
+                              Tap to add lyrics or paste a chord sheet…
                             </button>
                           </div>
                         );
