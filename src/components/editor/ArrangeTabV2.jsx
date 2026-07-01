@@ -935,9 +935,9 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                   className="flex-1 bg-transparent border-none text-label-11 italic text-[var(--text-2)] outline-none min-w-0 px-1"
                   style={{ borderLeft: sec.note ? `2px solid ${s.br}` : 'none' }}
                 />
-                {/* Action cluster — reveals on hover/focus on desktop, stays
-                    visible on touch (where hover isn't reliable). */}
-                <div className="flex items-center shrink-0 transition-opacity sm:opacity-0 sm:group-hover/sec:opacity-100 sm:focus-within:opacity-100">
+                {/* Action cluster — desktop only, hover/focus-revealed. On touch
+                    these live in the ⋮ menu instead, so the header stays calm. */}
+                <div className="hidden sm:flex items-center shrink-0 transition-opacity sm:opacity-0 sm:group-hover/sec:opacity-100 sm:focus-within:opacity-100">
                   <IconButton variant="ghost" size="sm" aria-label="Edit lyrics" title="Edit lyrics" onClick={() => handleEditText(secIdx)}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
@@ -954,6 +954,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                     </IconButton>
                   }
                 >
+                  <MenuItem onClick={() => handleEditText(secIdx)}>Edit lyrics</MenuItem>
                   {secIdx > 0 && <MenuItem onClick={() => moveSection(secIdx, -1)}>Move up</MenuItem>}
                   {secIdx < placements.length - 1 && <MenuItem onClick={() => moveSection(secIdx, 1)}>Move down</MenuItem>}
                   <MenuItem onClick={() => toggleSource(secIdx)}>{sourceMode[secIdx] ? 'Close source' : 'Edit source'}</MenuItem>
