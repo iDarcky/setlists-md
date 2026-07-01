@@ -27,7 +27,7 @@ function summarize(kind, item) {
  * @param {Array} conflicts — [{ kind, id, title, local, remote }]
  * @param {(conflict, choice) => void} onResolve — choice ∈ 'cloud' | 'mine' | 'both'
  */
-export default function ConflictResolver({ conflicts = [], onResolve }) {
+export default function ConflictResolver({ conflicts = [], onResolve, onResolveAll }) {
   const conflict = conflicts[0];
   if (!conflict) return null;
 
@@ -77,6 +77,18 @@ export default function ConflictResolver({ conflicts = [], onResolve }) {
           <p className="text-copy-12 text-[var(--ds-gray-600)] text-center m-0">
             {remaining} more conflict{remaining === 1 ? '' : 's'} to review
           </p>
+        )}
+
+        {/* Bulk resolve — for the mass-conflict case, so the user isn't stuck
+            clicking through dozens of prompts one by one. */}
+        {remaining > 0 && onResolveAll && (
+          <div className="flex flex-col gap-2 border-t border-[var(--ds-gray-200)] pt-3">
+            <p className="text-copy-12 text-[var(--ds-gray-600)] text-center m-0">Or resolve all {conflicts.length} at once</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="ghost" onClick={() => onResolveAll('mine')}>Keep all mine</Button>
+              <Button variant="ghost" onClick={() => onResolveAll('cloud')}>Keep all cloud</Button>
+            </div>
+          </div>
         )}
       </div>
     </Dialog>

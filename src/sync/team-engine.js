@@ -294,7 +294,9 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         // versions so the user can choose (server copy is adopted meanwhile).
         // Skipped while migrating: the old-algorithm hash can't be compared to a
         // canonical one, so it would false-positive on every row.
-        if (!migrating && local && remoteChanged && prevEntry?.lastSyncedHash != null) {
+        // Members are a pure mirror — the server always wins, never a conflict
+        // prompt. Conflicts are only meaningful for writers (admins/editors).
+        if (!readOnly && !migrating && local && remoteChanged && prevEntry?.lastSyncedHash != null) {
           const localHash = canonicalSongHash(songToMd(local));
           if (localHash !== prevEntry.lastSyncedHash) {
             conflicts.push({ kind: 'song', id: itemId, title: local.title, local, remote: mergedRemote });
@@ -338,7 +340,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         nextSetlists.push(local);
       } else {
         const remoteSl = { ...entry.content, id: itemId };
-        if (!migrating && local && remoteChanged && prevEntry?.lastSyncedHash != null) {
+        if (!readOnly && !migrating && local && remoteChanged && prevEntry?.lastSyncedHash != null) {
           if (setlistHash(local) !== prevEntry.lastSyncedHash) {
             conflicts.push({ kind: 'setlist', id: itemId, title: local.name, local, remote: remoteSl });
           }

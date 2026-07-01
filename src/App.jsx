@@ -363,6 +363,24 @@ export default function App() {
     setPendingConflicts(prev => prev.filter(c => !(c.kind === kind && c.id === id)));
   }, []);
 
+  // Bulk-resolve every pending conflict with one choice — for the mass-conflict
+  // case (a baseline drift can flag the whole library), so the user isn't stuck
+  // clicking through dozens of prompts. 'cloud' is a no-op (server already
+  // adopted); 'mine' restores local copies; 'both' saves them as copies.
+  const resolveAllConflicts = useCallback((choice) => {
+    const list = pendingConflicts;
+    if (choice === 'mine') {
+      setSongs(prev => prev.map(x => { const c = list.find(c => c.kind === 'song' && c.id === x.id && c.local); return c ? c.local : x; }));
+      setSetlists(prev => prev.map(x => { const c = list.find(c => c.kind === 'setlist' && c.id === x.id && c.local); return c ? c.local : x; }));
+    } else if (choice === 'both') {
+      const songCopies = list.filter(c => c.kind === 'song' && c.local).map(c => ({ ...c.local, id: generateId(), title: `${c.local.title || 'Untitled'} (conflicted copy)` }));
+      const slCopies = list.filter(c => c.kind === 'setlist' && c.local).map(c => ({ ...c.local, id: generateId(), name: `${c.local.name || 'Untitled Setlist'} (conflicted copy)` }));
+      if (songCopies.length) setSongs(prev => [...prev, ...songCopies]);
+      if (slCopies.length) setSetlists(prev => [...prev, ...slCopies]);
+    }
+    setPendingConflicts([]);
+  }, [pendingConflicts]);
+
   // Initialize sync engine for the active library
   const isTeamReadOnly = activeLibrary !== 'personal' && !isAdmin && !isEditor;
   useEffect(() => {
@@ -2107,7 +2125,7 @@ export default function App() {
       <Toaster />
       <OfflineBanner />
       <UpdatePrompt suppress={view === 'setlist-play' || view === 'setlist-performance'} />
-      <ConflictResolver conflicts={pendingConflicts} onResolve={resolveConflict} />
+      <ConflictResolver conflicts={pendingConflicts} onResolve={resolveConflict} onResolveAll={resolveAllConflicts} />
       {view === 'signin' && (
         <AuthScreen
           onBack={goBack}
