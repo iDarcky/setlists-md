@@ -162,11 +162,16 @@ function PopMenu({ trigger, align = 'right', up = false, children }) {
       const el = triggerRef.current;
       if (el) {
         const r = el.getBoundingClientRect();
+        // Auto-flip upward when there isn't room below (near the bottom of the
+        // screen the menu would otherwise spill off / get clipped — the exact
+        // problem with "+ Add section" and the type picker on a phone).
+        const spaceBelow = window.innerHeight - r.bottom;
+        const openUp = up || (spaceBelow < 280 && r.top > spaceBelow);
         setCoords({
           left: align === 'right' ? null : r.left,
           right: align === 'right' ? window.innerWidth - r.right : null,
-          top: up ? null : r.bottom + 4,
-          bottom: up ? window.innerHeight - r.top + 4 : null,
+          top: openUp ? null : r.bottom + 4,
+          bottom: openUp ? window.innerHeight - r.top + 4 : null,
         });
       }
       return true;
@@ -231,6 +236,7 @@ function MenuItem({ onClick, children, danger = false }) {
 // hug the value).
 function SectionTypePicker({ value, num, options, customSectionTypes, onChange }) {
   const [open, setOpen] = useState(false);
+  const [openUp, setOpenUp] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
     if (!open) return;
@@ -239,11 +245,18 @@ function SectionTypePicker({ value, num, options, customSectionTypes, onChange }
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
   const cur = sectionStyle(value, null, customSectionTypes);
+  // Flip the menu upward when it would spill off the bottom of the screen.
+  const toggle = () => setOpen(v => {
+    if (v) return false;
+    const btn = ref.current?.querySelector('button');
+    if (btn) { const r = btn.getBoundingClientRect(); const below = window.innerHeight - r.bottom; setOpenUp(below < 300 && r.top > below); }
+    return true;
+  });
   return (
     <div ref={ref} className="relative inline-flex items-center">
       <button
         type="button"
-        onClick={() => setOpen(v => !v)}
+        onClick={toggle}
         className="inline-flex items-center gap-1 bg-transparent border-none cursor-pointer outline-none p-0 text-label-12 font-black uppercase tracking-[0.15em] leading-none"
         style={{ color: cur.b }}
       >
@@ -252,7 +265,7 @@ function SectionTypePicker({ value, num, options, customSectionTypes, onChange }
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="opacity-50"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </button>
       {open && (
-        <div role="menu" className="absolute z-50 left-0 top-full mt-1 min-w-[170px] max-h-[60vh] overflow-y-auto rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1">
+        <div role="menu" className={`absolute z-50 left-0 ${openUp ? 'bottom-full mb-1' : 'top-full mt-1'} min-w-[170px] max-h-[60vh] overflow-y-auto rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1`}>
           {options.map(t => {
             const st = sectionStyle(t, null, customSectionTypes);
             return (
