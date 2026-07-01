@@ -61,9 +61,45 @@ function formatChord(chord, notation, key) {
 const InteractiveLine = memo(function InteractiveLine({
   plainText, chords, secIdx, lineIdx, editingChordIdx,
   notation, songKey,
-  onPlace, onChordTap,
+  onPlace, onChordTap, onMoveChord,
 }) {
   const downRef = useRef(null);
+  const rootRef = useRef(null);
+  const dragChordRef = useRef(null);         // origIdx of the chord being dragged
+  const [draggingChord, setDraggingChord] = useState(null);
+
+  // Resolve a lyric caret position (char offset in plainText) from a screen
+  // point — used when a dragged chord chip is dropped over the lyric.
+  const posFromPoint = useCallback((clientX, clientY) => {
+    const span = document.elementFromPoint(clientX, clientY)?.closest?.('[data-tok-start]');
+    if (!span || !rootRef.current?.contains(span)) return null;
+    const start = parseInt(span.dataset.tokStart, 10);
+    const within = caretOffsetFromPoint(clientX, clientY, span);
+    return start + (within != null ? within : 0);
+  }, []);
+
+  // Touch drag of a chord chip → move it (HTML5 drag covers mouse; React touch
+  // events are passive so we attach native non-passive listeners instead).
+  const beginChordTouch = useCallback((origIdx) => {
+    dragChordRef.current = origIdx;
+    setDraggingChord(origIdx);
+    let last = null;
+    const onMove = (e) => { const t = e.touches[0]; if (!t) return; e.preventDefault(); last = { x: t.clientX, y: t.clientY }; };
+    const onEnd = () => {
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      document.removeEventListener('touchcancel', onEnd);
+      document.body.style.userSelect = '';
+      const ci = dragChordRef.current;
+      dragChordRef.current = null;
+      setDraggingChord(null);
+      if (ci != null && last) { const pos = posFromPoint(last.x, last.y); if (pos != null) onMoveChord?.(secIdx, lineIdx, ci, pos); }
+    };
+    document.body.style.userSelect = 'none';
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
+  }, [posFromPoint, onMoveChord, secIdx, lineIdx]);
 
   // Flow-based layout: split the line into word tokens that wrap naturally.
   // Each chord starts a token, and that token gets a min-width equal to the
@@ -111,7 +147,7 @@ const InteractiveLine = memo(function InteractiveLine({
   };
 
   return (
-    <div className="flex flex-wrap items-end" style={{ touchAction: 'pan-y' }}>
+    <div ref={rootRef} className="flex flex-wrap items-end" style={{ touchAction: 'pan-y' }}>
       {tokens.map((tok, i) => {
         const selected = tok.origIdx != null && editingChordIdx === tok.origIdx;
         const label = tok.chord != null ? formatChord(tok.chord, notation, songKey) : '';
@@ -122,13 +158,20 @@ const InteractiveLine = memo(function InteractiveLine({
               {tok.chord != null && (
                 <span
                   role="button"
-                  className="cursor-pointer rounded-[6px] border font-mono font-bold leading-none mb-[3px]"
+                  draggable
+                  onDragStart={(e) => { dragChordRef.current = tok.origIdx; setDraggingChord(tok.origIdx); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; }}
+                  onDragEnd={() => { dragChordRef.current = null; setDraggingChord(null); }}
+                  onTouchStart={(e) => { e.stopPropagation(); beginChordTouch(tok.origIdx); }}
+                  className="cursor-grab active:cursor-grabbing rounded-[6px] border font-mono font-bold leading-none mb-[3px] touch-none"
                   style={{
                     fontSize: 12, padding: '3px 5px', whiteSpace: 'nowrap',
                     color: selected ? 'var(--color-brand-text)' : 'var(--chord)',
                     borderColor: selected ? 'var(--color-brand)' : 'var(--border-1)',
                     background: selected ? 'var(--color-brand-soft)' : 'var(--ds-background-100)',
+                    opacity: draggingChord === tok.origIdx ? 0.4 : 1,
+                    WebkitUserSelect: 'none', WebkitTouchCallout: 'none',
                   }}
+                  title="Tap to edit · drag to move"
                   onClick={(e) => { e.stopPropagation(); onChordTap(secIdx, lineIdx, tok.origIdx, e.clientX, e.clientY); }}
                 >
                   {label}
@@ -136,11 +179,22 @@ const InteractiveLine = memo(function InteractiveLine({
               )}
             </span>
             <span
+              data-tok-start={tok.start}
               className="text-[var(--text-1)] cursor-text"
               style={{ fontSize: 16, lineHeight: 1.35, whiteSpace: 'pre' }}
               onPointerDown={onTextDown}
               onPointerMove={onTextMove}
               onClick={(e) => onTextClick(tok, e)}
+              onDragOver={(e) => { if (dragChordRef.current != null) e.preventDefault(); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const ci = dragChordRef.current;
+                dragChordRef.current = null;
+                setDraggingChord(null);
+                if (ci == null) return;
+                const within = caretOffsetFromPoint(e.clientX, e.clientY, e.currentTarget);
+                onMoveChord?.(secIdx, lineIdx, ci, tok.start + (within != null ? within : 0));
+              }}
             >
               {tok.text === '' ? '​' : tok.text}
             </span>
@@ -611,6 +665,18 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
       lines: sec.lines.map((line, li) => (li === lineIdx && line.plainText !== undefined)
         ? { ...line, chords: line.chords.filter((_, ci) => ci !== chordIdx) }
         : line),
+    })));
+  }, [applyMutation]);
+
+  // Move an existing chord to a new character position on the same line (drag).
+  const moveChordTo = useCallback((secIdx, lineIdx, chordIdx, newPos) => {
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec,
+      lines: sec.lines.map((line, li) => {
+        if (li !== lineIdx || line.plainText === undefined) return line;
+        const pos = Math.max(0, Math.min(newPos, (line.plainText || '').length));
+        return { ...line, chords: line.chords.map((c, ci) => ci === chordIdx ? { ...c, pos } : c).sort((a, b) => a.pos - b.pos) };
+      }),
     })));
   }, [applyMutation]);
 
@@ -1236,6 +1302,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                               songKey={song.key}
                               onPlace={openAddChord}
                               onChordTap={openEditChord}
+                              onMoveChord={moveChordTo}
                             />
                             {line.inlineNote && (
                               <span className="text-[var(--text-2)] italic text-[0.8em]">{' ---- '}{line.inlineNote}</span>
