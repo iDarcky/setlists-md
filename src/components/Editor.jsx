@@ -210,6 +210,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   // Mobile-only: collapse the identity card's meta rows to free editing room.
   const [identityCollapsed, setIdentityCollapsed] = useState(false);
+  const [issuesOpen, setIssuesOpen] = useState(false);
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
   const isWide = useMediaQuery('(min-width: 1024px)');
@@ -550,6 +551,28 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         ? 'Add a key to save'
         : null;
   const showTempoTimeNudge = canSave && (!currentTempo || !currentTime);
+
+  // Non-blocking pre-save checks — surfaced as a quiet chip, never gates Save.
+  const validationIssues = useMemo(() => {
+    if (!preview) return [];
+    const issues = [];
+    const sections = preview.sections || [];
+    for (const sec of sections) {
+      const hasContent = (sec.lines || []).some(line => (
+        typeof line === 'object'
+          ? (line.type === 'tab' || line.type === 'tabref' || line.type === 'modulate')
+          : (line || '').trim() !== ''
+      ));
+      if (!hasContent) issues.push(`"${sec.type}" has no lyrics or chords`);
+    }
+    if (preview.structureMode === 'custom') {
+      const live = new Set(sections.map(s => s.type));
+      for (const name of (preview.structure || [])) {
+        if (!live.has(name)) issues.push(`Play order lists "${name}", which has no section`);
+      }
+    }
+    return issues;
+  }, [preview]);
 
   // Structure ribbon data (always-visible, edited via the frontmatter
   // `structure` field). availableSections is derived from the body's
@@ -1258,7 +1281,35 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
           {missingMetaHint}
         </span>
       )}
-      {!readOnly && !missingMetaHint && showTempoTimeNudge && (
+      {!readOnly && !missingMetaHint && validationIssues.length > 0 && (
+        <div className="relative mr-auto">
+          <button
+            type="button"
+            onClick={() => setIssuesOpen(v => !v)}
+            aria-expanded={issuesOpen}
+            title={validationIssues.join('\n')}
+            className="inline-flex items-center gap-1.5 text-label-11 font-semibold text-[var(--ds-amber-700,#b45309)] bg-transparent border-none cursor-pointer"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+            {validationIssues.length} to review
+          </button>
+          {issuesOpen && (
+            <>
+              <button type="button" aria-hidden tabIndex={-1} onClick={() => setIssuesOpen(false)} className="fixed inset-0 z-40 cursor-default bg-transparent border-none" />
+              <div className="absolute bottom-full left-0 mb-2 z-50 w-72 max-h-52 overflow-y-auto rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg p-2.5">
+                <ul className="m-0 p-0 list-none flex flex-col gap-1.5">
+                  {validationIssues.map((it, i) => (
+                    <li key={i} className="text-copy-12 text-[var(--ds-gray-1000)] flex items-start gap-1.5">
+                      <span className="text-[var(--ds-amber-700,#b45309)] leading-5">•</span><span>{it}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      {!readOnly && !missingMetaHint && validationIssues.length === 0 && showTempoTimeNudge && (
         <span className="text-label-11 text-[var(--ds-gray-600)] mr-auto italic">
           Tip: add tempo &amp; time so the song shows its feel.
         </span>
