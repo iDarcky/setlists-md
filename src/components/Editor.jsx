@@ -16,6 +16,7 @@ import StructureControl from './editor/StructureControl';
 import ArrangementMenu, { EditArrangementsDialog } from './editor/ArrangementMenu';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import { OverflowMenu } from './ui/OverflowMenu';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { Tabs } from './ui/Tabs';
 import PromptDialog from './ui/PromptDialog';
@@ -1210,21 +1211,14 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         <IconButton variant="ghost" size="sm" aria-label="Redo" title="Redo" disabled={!histState.canRedo} onClick={handleRedo}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" /></svg>
         </IconButton>
-        {song && (
-          <IconButton variant="ghost" size="sm" aria-label="Version history" title="Version history" onClick={openHistory}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5" /><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" /><path d="M12 7v5l3 2" /></svg>
-          </IconButton>
-        )}
-        {/* Source — raw-markdown power-user editor (paste-import lives in here). */}
-        <button
-          type="button"
-          onClick={() => setSourceDialogOpen(true)}
-          title="Edit raw source"
-          className="shrink-0 inline-flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-lg text-[12px] sm:text-[13px] font-medium text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer transition-colors"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
-          Source
-        </button>
+        {/* Secondary actions folded into a ⋮ so the header stays calm. */}
+        <OverflowMenu
+          ariaLabel="Editor options"
+          items={[
+            { label: 'Edit source', icon: (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>), onClick: () => setSourceDialogOpen(true) },
+            song && { label: 'Version history', icon: (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5" /><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" /><path d="M12 7v5l3 2" /></svg>), onClick: openHistory },
+          ].filter(Boolean)}
+        />
       </div>
     </div>
   );

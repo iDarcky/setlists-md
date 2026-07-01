@@ -297,54 +297,40 @@ function MenuItem({ onClick, children, danger = false }) {
 // sits snug next to the label (a native <select> can't colour per-option or
 // hug the value).
 function SectionTypePicker({ value, num, options, customSectionTypes, onChange }) {
-  const [open, setOpen] = useState(false);
-  const [openUp, setOpenUp] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
   const cur = sectionStyle(value, null, customSectionTypes);
-  // Flip the menu upward when it would spill off the bottom of the screen.
-  const toggle = () => setOpen(v => {
-    if (v) return false;
-    const btn = ref.current?.querySelector('button');
-    if (btn) { const r = btn.getBoundingClientRect(); const below = window.innerHeight - r.bottom; setOpenUp(below < 300 && r.top > below); }
-    return true;
-  });
+  // Built on PopMenu so the list portals above everything (was `absolute`, which
+  // let it open UNDER the cards below / get clipped by the scroll container) and
+  // auto-flips near the bottom of the screen.
   return (
-    <div ref={ref} className="relative inline-flex items-center">
-      <button
-        type="button"
-        onClick={toggle}
-        className="inline-flex items-center gap-1 bg-transparent border-none cursor-pointer outline-none p-0 text-label-12 font-black uppercase tracking-[0.15em] leading-none"
-        style={{ color: cur.b }}
-      >
-        <span>{value}</span>
-        {num && <span className="font-black">{num}</span>}
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="opacity-50"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-      </button>
-      {open && (
-        <div role="menu" className={`absolute z-50 left-0 ${openUp ? 'bottom-full mb-1' : 'top-full mt-1'} min-w-[170px] max-h-[60vh] overflow-y-auto rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1`}>
-          {options.map(t => {
-            const st = sectionStyle(t, null, customSectionTypes);
-            return (
-              <button
-                key={t}
-                type="button"
-                onClick={() => { setOpen(false); if (t !== value) onChange(t); }}
-                className="w-full text-left px-3 py-2 text-label-13 font-bold uppercase tracking-wider cursor-pointer bg-transparent border-none hover:bg-[var(--ds-gray-alpha-100)]"
-                style={{ color: st.b }}
-              >
-                {t}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <PopMenu
+      align="left"
+      trigger={
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 bg-transparent border-none cursor-pointer outline-none p-0 text-label-12 font-black uppercase tracking-[0.15em] leading-none"
+          style={{ color: cur.b }}
+        >
+          <span>{value}</span>
+          {num && <span className="font-black">{num}</span>}
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="opacity-50"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      }
+    >
+      {options.map(t => {
+        const st = sectionStyle(t, null, customSectionTypes);
+        return (
+          <button
+            key={t}
+            type="button"
+            onClick={() => { if (t !== value) onChange(t); }}
+            className="w-full text-left px-3 py-2 text-label-13 font-bold uppercase tracking-wider cursor-pointer bg-transparent border-none hover:bg-[var(--ds-gray-alpha-100)]"
+            style={{ color: st.b }}
+          >
+            {t}
+          </button>
+        );
+      })}
+    </PopMenu>
   );
 }
 
@@ -1088,16 +1074,34 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                 </div>
               </PopMenu>
             </div>
-            {isCustom && (
-              <div className="px-3 sm:pr-6 pb-2">
+            <div className="px-3 sm:pr-6 pb-2">
+              {isCustom ? (
                 <PlayOrderEditor
                   order={playOrder}
                   availableTypes={uniqueTypes}
                   customSectionTypes={customSectionTypes}
                   onChange={(next) => onStructureChange(next.join(', '))}
                 />
-              </div>
-            )}
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {placements.map((p, i) => {
+                    const st = sectionStyle(p.type, null, customSectionTypes);
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                        className="inline-flex items-center px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold font-mono border border-[var(--border-1)] bg-[var(--ds-background-100)] hover:opacity-80 cursor-pointer"
+                        style={{ color: st.b }}
+                        title={`Jump to ${p.type}`}
+                      >
+                        {shortCode(p.type)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         );
       })()}
