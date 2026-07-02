@@ -78,8 +78,12 @@ team optimistic locking, scheduling & notifications pillar.
   entropy ✅, input maxLengths ✅, validate PDF-prefs/ZIP manifest ✅.
 - **Scale readiness** (P1) — assessed. Shipped: `team_id` indexes, `React.memo(SongCard)`
   + `useDeferredValue`, `.limit()`/date-filter on team hooks, realtime echo guard,
-  per-song IndexedDB persistence, incremental sync hashing. Deferred (deliberately):
-  batch the team-engine push loop (breaks per-row CAS), `team_activity` retention job.
+  per-song IndexedDB persistence, incremental sync hashing. **2026-07-02:** delta
+  pulls (content fetched only for changed rows), bulk insert for first upload
+  (updates stay per-row CAS), server-side identity keys (`song_key`/`setlist_key`,
+  replaces unique titles), Sentry actually loadable (set `VITE_SENTRY_DSN` in
+  Vercel to turn it on), two-device convergence test suite, Sync doctor panel.
+  Deferred (deliberately): `team_activity` retention job.
 - **OAuth URL cleanup synchronous** — deferred; needs the live OAuth/magic-link flow
   tested before touching (stripping the hash before Supabase consumes it can break sign-in).
 - **PDF/CSP enforcing** — shipped; **needs live print verification** on deploy (PWA + installed app).
@@ -209,7 +213,15 @@ Open, actionable items. Cross-cutting concerns at the end.
 - FAB: more actions; nav→prev/next pill morph + motion — P3.
 
 ### Notifications
-- Big rework shipped (dismiss/clear-all, server-authoritative decline alerts, cross-device read state). Remaining: maybe-nudge needs a scheduled job (still client-derived).
+- Big rework shipped (dismiss/clear-all, server-authoritative decline alerts, cross-device read state).
+- ✅ **Web Push + worker shipped (2026-07-02)** — `notify-worker` edge function on a
+  minutely pg_cron: sends real lock-screen push (RFC 8291/8292, WebCrypto impl
+  interop-tested against `http_ece`) for schedule requests/declines/nudges, and
+  generates the **maybe-nudge server-side** (was client-derived). New
+  `push_subscriptions` table + per-device opt-in button in the tray; "you've been
+  scheduled" now has a durable DB trigger too. VAPID keys live in service-role-only
+  `app_config`. Remaining: verify push end-to-end on a real phone (couldn't
+  subscribe a headless browser), and consider an unsubscribe row in Settings.
 - ✅ **"Notifications don't work" root-caused (2026-07-02):** (1) only
   `team_songs`/`team_setlists` were ever in the `supabase_realtime` publication —
   the `team_schedules`/`team_availability`/`team_notifications`/`team_activity`

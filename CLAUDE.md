@@ -492,6 +492,27 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   upsert works across partial scopes. RLS: a user reads/writes only their own
   rows, scoped to teams they belong to. Client: `src/notes/usePrivateNotes.js`
   (cloud + IndexedDB cache, offline-capable) surfaced via `ui/NotesStack`.
+- `20260701_realtime_publication.sql` — adds `team_schedules`,
+  `team_availability`, `team_notifications`, `team_activity` to the
+  `supabase_realtime` publication (they were subscribed client-side but never
+  published — realtime silently delivered nothing) + `replica identity full`
+  so delete events pass `team_id=eq.` filters.
+- `20260702_trigger_fn_hardening.sql` — revokes client EXECUTE on trigger
+  functions (they're only ever run by their triggers).
+- `20260702_identity_keys.sql` — adds `team_songs.song_key` /
+  `team_setlists.setlist_key` (the embedded content id promoted to a real
+  column), stamp triggers that derive the key from content for writers that
+  don't send it, backfill, and unique `(team_id, key)` indexes. **Drops the
+  unique title/name indexes** — same-title songs are legitimate now; identity
+  is the key. The engine sends keys on every write and heals key collisions
+  by adopting the existing row.
+- `20260702_web_push.sql` — Web Push + notification worker infra:
+  `push_subscriptions` (owner-only RLS), `team_notifications.pushed_at`,
+  service-role-only `app_config` (holds the VAPID keys — values are inserted
+  operationally, never committed), a `notify_on_schedule_request` trigger
+  (being rostered now writes a durable notification), and `pg_cron`+`pg_net`
+  jobs: `notify-worker` (every minute → the edge function) and a daily
+  `cron-history-cleanup`.
 
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).
@@ -627,6 +648,26 @@ directly:
   offset/range — offset pages over a set other members are writing to can skip
   rows, and a skipped row is indistinguishable from a server-side deletion.
   `pageSize` is injectable for tests.
+- **Pulls are DELTA pulls**: heads (`id, updated_at`) are fetched for the whole
+  set, but content only for rows the manifest can't prove unchanged
+  (`lastSyncedTime === updated_at`) — unchanged rows reuse the manifest hash
+  and skip both download and re-parse. A hash-version migration forces one
+  full content fetch to re-baseline.
+- **Identity is server-side now** (`song_key`/`setlist_key`, unique per team —
+  see `20260702_identity_keys.sql`): payloads carry the local id as the key on
+  every write, inserts that collide adopt the existing row (race/lost-manifest
+  heal), and pre-migration servers get a column-missing fallback. Never-synced
+  songs are **bulk-inserted** in chunks of 50 (matched back via `song_key`),
+  falling back to per-row insert+adopt on batch failure.
+- **Two-device convergence suite**: `src/__tests__/team-convergence.test.js`
+  runs two engines against one fake server (device-namespaced tokens mock)
+  through edit/conflict/delete/create interleavings + a seeded fuzz, asserting
+  both devices and the server converge with zero loss. Extend it when touching
+  engine semantics. Shared fixtures: `src/__tests__/helpers/fakeSupabase.js`.
+- **Sync doctor** (`components/settings/SyncDoctor.jsx`, Settings → Sync in a
+  team Space) re-runs the engine's exact hash arithmetic per song
+  (local vs server vs baseline) and names drifting fields — use it before
+  digging into any "sync is weird" report.
 - **Sync results are adopted via `sync/adopt.js`** (`reconcileAdopt` /
   `applyPulled` through App's `adoptSyncResult`): adoption runs functionally
   against CURRENT state using the sync's input snapshot as the base, so an
@@ -634,6 +675,30 @@ directly:
   the change signal). Never `setSongs(result.songs)` a sync result directly.
 - Tests: `src/__tests__/team-engine.test.js` (fake Supabase client),
   `src/__tests__/sync-adopt.test.js`.
+
+## Web Push & the notification worker
+
+- **Pipeline**: DB triggers (`schedule_request` on roster insert,
+  `schedule_decline`) write `team_notifications` rows → the `notify-worker`
+  edge function (pg_cron, every minute) sends RFC 8291/8292 Web Push to each
+  recipient's `push_subscriptions` and marks `pushed_at` (at-most-once; dead
+  subscriptions pruned on 404/410). It also generates `schedule_maybe_nudge`
+  rows server-side (one per schedule, ever).
+- **Crypto** is a dependency-free WebCrypto implementation in
+  `supabase/functions/notify-worker/webpush.ts`, interop-tested in
+  `src/__tests__/webpush-crypto.test.js` against `http_ece` (the RFC author's
+  reference lib). Don't swap it for an npm lib without keeping that test.
+- **Keys**: the VAPID public key is a client constant (`src/push/vapid.js`,
+  overridable via `VITE_VAPID_PUBLIC_KEY`); the private key lives ONLY in the
+  service-role-only `app_config` table. Rotating the pair invalidates every
+  subscription (users must re-enable push).
+- **Client**: `src/push/usePushSubscription.js` (enable/disable per device),
+  surfaced as a button in `NotificationTray`; SW handlers in
+  `public/push-sw.js`, importScripts'd into the generated Workbox SW
+  (`vite.config.js`). In the tray, server schedule rows are SUPPRESSED when a
+  live interactive prompt (virtual notification) covers the same
+  `schedule_id`, and when the schedule has been resolved — they exist to reach
+  lock screens and carry cross-device read state, not to double-render.
 
 ## Current Focus & Roadmap
 

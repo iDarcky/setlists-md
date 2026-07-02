@@ -1154,25 +1154,6 @@ export default function App() {
   // names where possible, falling back to the row's stored body.
   const resolveSetlistName = (setlistId) =>
     setlists.find(sl => matchesSetlistId(sl, setlistId))?.name;
-  const serverNotifications = (teamNotifications || []).map(n => {
-    const meta = n.metadata || {};
-    let message = n.body;
-    if (n.type === 'schedule_decline') {
-      const who = meta.declined_by ? memberDisplayName(meta.declined_by) : 'A team member';
-      const name = resolveSetlistName(meta.setlist_id);
-      message = name
-        ? `${who} can't make "${name}"${meta.role ? ` (${meta.role})` : ''}.`
-        : `${who} can't make a service${meta.role ? ` (${meta.role})` : ''}.`;
-    }
-    return {
-      id: `tn-${n.id}`,
-      type: n.type,
-      title: n.title || 'Notification',
-      message,
-      read: !!n.read_at,
-      setlistId: meta.setlist_id,
-    };
-  });
 
   // Nudge: a "maybe" on a setlist coming up within ~2 weeks → ask the user to
   // commit. Reuses the schedule_request Accept/Decline UI (Accept→available,
@@ -1195,6 +1176,48 @@ export default function App() {
       scheduleId: s.id,
       setlistId: s.setlist_id,
     }));
+
+  // Server schedule rows (schedule_request from the roster trigger,
+  // schedule_maybe_nudge from the notify-worker) exist to reach LOCK SCREENS
+  // via web push and to carry cross-device read state. In the tray, the
+  // interactive virtual prompt above is the better rendering of the same fact
+  // — so a server row is suppressed while a live prompt covers its schedule,
+  // and once the schedule is resolved (stale request/nudge).
+  const scheduleById = new Map((schedules || []).map(s => [s.id, s]));
+  const virtualScheduleIds = new Set([
+    ...pendingSchedules.map(s => s.id),
+    ...maybeNudges.map(n => n.scheduleId),
+  ]);
+  const serverNotifications = (teamNotifications || [])
+    .filter(n => {
+      const sid = n.metadata?.schedule_id;
+      if (!sid) return true;
+      if (virtualScheduleIds.has(sid)) return false; // interactive prompt shown instead
+      const sch = scheduleById.get(sid);
+      if (n.type === 'schedule_request') return !(sch && sch.availability !== 'pending');
+      if (n.type === 'schedule_maybe_nudge') return !(sch && sch.availability !== 'maybe');
+      return true;
+    })
+    .map(n => {
+      const meta = n.metadata || {};
+      let message = n.body;
+      if (n.type === 'schedule_decline') {
+        const who = meta.declined_by ? memberDisplayName(meta.declined_by) : 'A team member';
+        const name = resolveSetlistName(meta.setlist_id);
+        message = name
+          ? `${who} can't make "${name}"${meta.role ? ` (${meta.role})` : ''}.`
+          : `${who} can't make a service${meta.role ? ` (${meta.role})` : ''}.`;
+      }
+      return {
+        id: `tn-${n.id}`,
+        type: n.type === 'schedule_request' || n.type === 'schedule_maybe_nudge' ? 'server_schedule_info' : n.type,
+        title: n.title || 'Notification',
+        message,
+        read: !!n.read_at,
+        scheduleId: meta.schedule_id,
+        setlistId: meta.setlist_id,
+      };
+    });
 
   const dismissedNotifs = settings?.dismissedNotifications || [];
   const mergedNotifications = [
@@ -2542,6 +2565,7 @@ export default function App() {
               activeLibrary={activeLibrary}
               team={team}
               setlists={setlists}
+              songs={songs}
               onRemapService={handleRemapService}
               trash={trash}
               onRestoreSong={handleRestoreSong}

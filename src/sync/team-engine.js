@@ -143,17 +143,15 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     onStatusChange?.({ state, ...extra });
   };
 
-  async function fetchRows(table) {
-    const cols = table === 'team_songs' ? 'id, title, content, updated_at' : 'id, name, content, updated_at';
-    // Read the FULL set — Supabase caps a single select at 1000 rows by
-    // default, and a truncated read would make the pull below treat every
-    // un-fetched (but previously synced) song as "deleted on the server" and
-    // drop it locally. Pagination is KEYSET on the immutable primary key:
-    // OFFSET/range pages over a set that other members are writing to can
-    // skip rows when a concurrent insert/delete/update shifts row positions
-    // between page reads — and a skipped row is indistinguishable from a
-    // server-side deletion. `id` never moves, so pages tile the set exactly
-    // regardless of concurrent traffic.
+  // Row heads (id + updated_at) for the WHOLE set. The full set matters: a
+  // truncated read would make the pull treat every un-fetched (but previously
+  // synced) row as "deleted on the server" and drop it locally. Pagination is
+  // KEYSET on the immutable primary key: OFFSET/range pages over a set that
+  // other members are writing to can skip rows when a concurrent
+  // insert/delete/update shifts row positions between page reads — and a
+  // skipped row is indistinguishable from a server-side deletion. `id` never
+  // moves, so pages tile the set exactly regardless of concurrent traffic.
+  async function fetchHeads(table) {
     const out = [];
     let afterId = null;
     for (;;) {
@@ -162,7 +160,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
       const { data, error } = await withRetry(() => {
         let q = client
           .from(table)
-          .select(cols)
+          .select('id, updated_at')
           .eq('team_id', teamId)
           .order('id', { ascending: true })
           .limit(pageSize);
@@ -178,15 +176,80 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     return out;
   }
 
-  // Resolve each row to { itemId, rowId, item, hash, updatedAt }. The item id
-  // embedded in the content is canonical (it round-trips through songToMd
+  async function fetchContentByIds(table, ids) {
+    const cols = table === 'team_songs' ? 'id, title, content, updated_at' : 'id, name, content, updated_at';
+    const CHUNK = 100;
+    const out = [];
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const chunk = ids.slice(i, i + CHUNK);
+      const { data, error } = await withRetry(() => client
+        .from(table)
+        .select(cols)
+        .eq('team_id', teamId)
+        .in('id', chunk));
+      if (error) throw new Error(`${table}: ${error.message}`);
+      out.push(...(data || []));
+    }
+    return out;
+  }
+
+  // DELTA PULL: fetch heads for everything, but content only for rows we
+  // can't prove unchanged. A row is provably unchanged when the previous
+  // manifest maps its id with the SAME updated_at — for those the manifest's
+  // stored hash and identity stand in for the content, skipping both the
+  // download and the parse (on a big library nearly every row, every sync).
+  // `localIds` forces a content fetch for rows whose local copy is missing:
+  // there would be nothing to materialize them from otherwise. `forceContent`
+  // disables the shortcut wholesale — used during a hash-version migration,
+  // where the manifest's stored hashes are old-algorithm and every row must
+  // be re-fetched once to re-baseline its canonical hash.
+  async function fetchRowsDelta(table, prevByRemoteId, localIds, forceContent = false) {
+    const heads = await fetchHeads(table);
+    const unchanged = [];
+    const needContent = [];
+    for (const head of heads) {
+      const prev = prevByRemoteId.get(head.id);
+      if (!forceContent && prev && prev.entry.lastSyncedTime === head.updated_at && localIds.has(prev.itemId)) {
+        unchanged.push({
+          itemId: prev.itemId,
+          rowId: head.id,
+          hash: prev.entry.lastSyncedHash,
+          updatedAt: head.updated_at,
+        });
+      } else {
+        needContent.push(head.id);
+      }
+    }
+    const contentRows = needContent.length ? await fetchContentByIds(table, needContent) : [];
+    return { unchanged, contentRows };
+  }
+
+  // Duplicate healing shared by both indexers: one entry per item id, newest
+  // row wins, losers are collected for best-effort server deletion.
+  function dedupeInto(byId, duplicateRowIds, entry) {
+    const existing = byId.get(entry.itemId);
+    if (!existing) {
+      byId.set(entry.itemId, entry);
+    } else if (new Date(entry.updatedAt) > new Date(existing.updatedAt)) {
+      duplicateRowIds.push(existing.rowId);
+      byId.set(entry.itemId, entry);
+    } else {
+      duplicateRowIds.push(entry.rowId);
+    }
+  }
+
+  // Resolve each row to { itemId, rowId, parsed?, hash, updatedAt }. The item
+  // id embedded in the content is canonical (it round-trips through songToMd
   // frontmatter / setlist JSON). Rows synced before id preservation fall back
   // to the previous manifest's rowId→itemId mapping — this keeps local ids
   // (and setlist references to them) stable across the engine migration —
-  // and only then to the row UUID. Duplicate rows for an item keep the newest.
-  function indexSongRows(rows, rowIdToItemId) {
+  // and only then to the row UUID. `unchanged` entries come from the delta
+  // fetch with identity + hash straight from the manifest (parsed stays
+  // undefined — their content was neither downloaded nor parsed).
+  function indexSongRows(rows, rowIdToItemId, unchanged = []) {
     const byId = new Map();
     const duplicateRowIds = [];
+    for (const u of unchanged) dedupeInto(byId, duplicateRowIds, u);
     for (const row of rows) {
       let parsed;
       try {
@@ -196,23 +259,15 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         continue;
       }
       const itemId = parsed.id || rowIdToItemId.get(row.id) || row.id;
-      const entry = { itemId, rowId: row.id, parsed, hash: canonicalSongHash(row.content), updatedAt: row.updated_at };
-      const existing = byId.get(itemId);
-      if (!existing) {
-        byId.set(itemId, entry);
-      } else if (new Date(entry.updatedAt) > new Date(existing.updatedAt)) {
-        duplicateRowIds.push(existing.rowId);
-        byId.set(itemId, entry);
-      } else {
-        duplicateRowIds.push(entry.rowId);
-      }
+      dedupeInto(byId, duplicateRowIds, { itemId, rowId: row.id, parsed, hash: canonicalSongHash(row.content), updatedAt: row.updated_at });
     }
     return { byId, duplicateRowIds };
   }
 
-  function indexSetlistRows(rows, rowIdToItemId) {
+  function indexSetlistRows(rows, rowIdToItemId, unchanged = []) {
     const byId = new Map();
     const duplicateRowIds = [];
+    for (const u of unchanged) dedupeInto(byId, duplicateRowIds, u);
     for (const row of rows) {
       const content = typeof row.content === 'string' ? safeParse(row.content) : row.content;
       if (!content || typeof content !== 'object') {
@@ -220,16 +275,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         continue;
       }
       const itemId = content.id || rowIdToItemId.get(row.id) || row.id;
-      const entry = { itemId, rowId: row.id, content, hash: setlistHash(content), updatedAt: row.updated_at };
-      const existing = byId.get(itemId);
-      if (!existing) {
-        byId.set(itemId, entry);
-      } else if (new Date(entry.updatedAt) > new Date(existing.updatedAt)) {
-        duplicateRowIds.push(existing.rowId);
-        byId.set(itemId, entry);
-      } else {
-        duplicateRowIds.push(entry.rowId);
-      }
+      dedupeInto(byId, duplicateRowIds, { itemId, rowId: row.id, content, hash: setlistHash(content), updatedAt: row.updated_at });
     }
     return { byId, duplicateRowIds };
   }
@@ -248,14 +294,22 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     const migrating = (syncState.hashVersion || 0) < HASH_VERSION;
     const conflicts = [];
 
-    const [songRows, setlistRows] = await Promise.all([
-      fetchRows('team_songs'),
-      fetchRows('team_setlists'),
+    // A manifest entry proves a row unchanged only while its stored hash is
+    // trustworthy — during a hash-version migration the hash is old-algo, but
+    // the delta compare is on updated_at, which stays valid either way.
+    const songPrevByRemoteId = new Map(Object.entries(prevManifest).map(([id, e]) => [e.remoteId, { itemId: id, entry: e }]));
+    const slPrevByRemoteId = new Map(Object.entries(prevSlManifest).map(([id, e]) => [e.remoteId, { itemId: id, entry: e }]));
+    const localSongIds = new Set(songs.map(s => s.id));
+    const localSlIds = new Set(setlists.map(sl => sl.id));
+
+    const [songDelta, setlistDelta] = await Promise.all([
+      fetchRowsDelta('team_songs', songPrevByRemoteId, localSongIds, migrating),
+      fetchRowsDelta('team_setlists', slPrevByRemoteId, localSlIds, migrating),
     ]);
     const rowIdToSongId = new Map(Object.entries(prevManifest).map(([id, e]) => [e.remoteId, id]));
     const rowIdToSetlistId = new Map(Object.entries(prevSlManifest).map(([id, e]) => [e.remoteId, id]));
-    const songIndex = indexSongRows(songRows, rowIdToSongId);
-    const setlistIndex = indexSetlistRows(setlistRows, rowIdToSetlistId);
+    const songIndex = indexSongRows(songDelta.contentRows, rowIdToSongId, songDelta.unchanged);
+    const setlistIndex = indexSetlistRows(setlistDelta.contentRows, rowIdToSetlistId, setlistDelta.unchanged);
 
     const songTombstones = new Map((tombstones.songs || []).map(t => [t.id, t.deletedAt]));
     const setlistTombstones = new Map((tombstones.setlists || []).map(t => [t.id, t.deletedAt]));
@@ -286,10 +340,15 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         ? prevEntry.lastSyncedTime !== entry.updatedAt
         : prevEntry.lastSyncedHash !== entry.hash);
 
-      if (local && !remoteChanged) {
+      if ((local && !remoteChanged) || (local && !entry.parsed)) {
         // Server unchanged since last sync — keep the local copy (it may carry
-        // edits awaiting push).
+        // edits awaiting push). The second clause is a guard for a delta-pull
+        // entry that skipped the content fetch: without parsed content there
+        // is nothing to adopt, so keep local and let the next pass heal.
         nextSongs.push(local);
+        manifest[itemId] = { remoteId: entry.rowId, lastSyncedHash: entry.hash, lastSyncedTime: entry.updatedAt };
+      } else if (!entry.parsed) {
+        // No local copy and no fetched content — record the baseline only.
         manifest[itemId] = { remoteId: entry.rowId, lastSyncedHash: entry.hash, lastSyncedTime: entry.updatedAt };
       } else {
         // Server wins. Stamp the song with the SERVER's edit time, not
@@ -346,8 +405,10 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         ? prevEntry.lastSyncedTime !== entry.updatedAt
         : prevEntry.lastSyncedHash !== entry.hash);
 
-      if (local && !remoteChanged) {
+      if ((local && !remoteChanged) || (local && !entry.content)) {
         nextSetlists.push(local);
+      } else if (!entry.content) {
+        // No local copy and no fetched content — record the baseline only.
       } else {
         const remoteSl = { ...entry.content, id: itemId };
         if (!readOnly && !migrating && local && remoteChanged && prevEntry?.lastSyncedHash != null) {
@@ -381,6 +442,94 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         : tombstones,
       tombstonesChanged,
     };
+  }
+
+  // The identity-key columns (song_key/setlist_key, 20260702_identity_keys)
+  // may not exist yet on a not-yet-migrated project. PostgREST reports a write
+  // naming an unknown column as "Could not find the '<col>' column …"; detect
+  // it and retry the write without the key so older databases keep syncing
+  // (a server-side stamp trigger backfills the key from content anyway).
+  const isMissingKeyColumn = (message) =>
+    /could not find.*(song_key|setlist_key)|((song_key|setlist_key).*(does not exist|schema cache))/i.test(message || '');
+
+  // CAS update: matches 0 rows when another member wrote since our pull
+  // (returns null) — the caller records a conflict instead of overwriting.
+  async function casUpdate(table, payload, entry) {
+    const run = (p) => client
+      .from(table)
+      .update(p)
+      .eq('id', entry.remoteId)
+      .eq('team_id', teamId)
+      .eq('updated_at', entry.lastSyncedTime)
+      .select('id, updated_at')
+      .maybeSingle();
+    let res = await run(payload);
+    if (res.error && isMissingKeyColumn(res.error.message)) {
+      const stripped = { ...payload };
+      delete stripped.song_key;
+      delete stripped.setlist_key;
+      res = await run(stripped);
+    }
+    if (res.error) throw new Error(res.error.message);
+    return res.data;
+  }
+
+  // Insert a new row; on an identity collision ADOPT the existing row (update
+  // it and bind our local id to it) instead of failing or duplicating. The
+  // collision means a row for this song/setlist already exists — a push from
+  // another device racing ours, or a row our manifest lost track of. Falls
+  // back to a title/name lookup on pre-migration servers (no key column).
+  async function insertWithAdopt(table, keyCol, legacyCol, payload) {
+    let withKey = payload;
+    let ins = await client.from(table).insert(withKey).select('id, updated_at').single();
+    if (ins.error && isMissingKeyColumn(ins.error.message)) {
+      withKey = { ...payload };
+      delete withKey[keyCol];
+      ins = await client.from(table).insert(withKey).select('id, updated_at').single();
+    }
+    if (!ins.error) return ins.data;
+    if (!/duplicate key|unique/i.test(ins.error.message || '')) throw new Error(ins.error.message);
+    let found = await client
+      .from(table).select('id, updated_at')
+      .eq('team_id', teamId).eq(keyCol, payload[keyCol])
+      .limit(1).maybeSingle();
+    if (found.error || !found.data) {
+      found = await client
+        .from(table).select('id, updated_at')
+        .eq('team_id', teamId).eq(legacyCol, payload[legacyCol])
+        .limit(1).maybeSingle();
+    }
+    if (!found.data) throw new Error(ins.error.message);
+    const upd = await client
+      .from(table).update(withKey)
+      .eq('id', found.data.id).eq('team_id', teamId)
+      .select('id, updated_at').maybeSingle();
+    if (upd.error) throw new Error(upd.error.message);
+    if (!upd.data) throw new Error(ins.error.message);
+    return upd.data;
+  }
+
+  // Bulk-insert a chunk of never-synced songs (first sync, import): one round
+  // trip instead of one per song. Returned rows are matched back through
+  // song_key. Any failure (duplicate in the chunk, pre-migration server)
+  // returns null and the caller falls back to the per-row path, which heals.
+  const INSERT_BATCH = 50;
+  async function insertSongsBatch(items) {
+    const now = new Date().toISOString();
+    const payloads = items.map(({ song, md }) => ({
+      team_id: teamId,
+      title: song.title || 'Untitled',
+      content: md,
+      song_key: song.id,
+      updated_at: now,
+    }));
+    try {
+      const res = await client.from('team_songs').insert(payloads).select('id, song_key, updated_at');
+      if (res.error || !Array.isArray(res.data)) return null;
+      return new Map(res.data.map(r => [r.song_key, r]));
+    } catch {
+      return null;
+    }
   }
 
   // Push: write local changes through to the tables. Updates use
@@ -423,6 +572,9 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
       };
     }
 
+    // Updates go per-row (each needs its own CAS guard); inserts are gathered
+    // and written in bulk below.
+    const pendingInserts = [];
     for (const song of songs) {
       try {
         const { md, hash } = hashSong(song);
@@ -433,17 +585,9 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
           continue;
         }
 
-        const payload = { team_id: teamId, title: song.title || 'Untitled', content: md, updated_at: new Date().toISOString() };
         if (entry?.remoteId) {
-          const { data, error } = await client
-            .from('team_songs')
-            .update(payload)
-            .eq('id', entry.remoteId)
-            .eq('team_id', teamId)
-            .eq('updated_at', entry.lastSyncedTime)
-            .select('id, updated_at')
-            .maybeSingle();
-          if (error) throw new Error(error.message);
+          const payload = { team_id: teamId, title: song.title || 'Untitled', content: md, song_key: song.id, updated_at: new Date().toISOString() };
+          const data = await casUpdate('team_songs', payload, entry);
           if (!data) {
             // CAS miss — the row changed (or vanished) since our pull.
             const remote = await fetchConflictSong(client, teamId, entry.remoteId, song.id);
@@ -451,47 +595,30 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
             continue;
           }
           nextManifest[song.id] = { remoteId: data.id, lastSyncedHash: hash, lastSyncedTime: data.updated_at };
+          uploaded.songs += 1;
         } else {
-          const ins = await client
-            .from('team_songs')
-            .insert(payload)
-            .select('id, updated_at')
-            .single();
-          let data = ins.data;
-          if (ins.error) {
-            // A unique (team_id, title) index means a row with this title
-            // already exists. After an id-drift (e.g. the churn that renamed
-            // songs), our local copy no longer maps to that row, so we'd try to
-            // INSERT a "new" song and collide. ADOPT the existing row instead:
-            // update it and bind our id to it. This heals the id↔row link and
-            // stops both the hard sync failure (team) and duplicate creation.
-            if (/duplicate key|unique/i.test(ins.error.message || '')) {
-              const found = await client
-                .from('team_songs')
-                .select('id, updated_at')
-                .eq('team_id', teamId)
-                .eq('title', payload.title)
-                .limit(1)
-                .maybeSingle();
-              if (found.data) {
-                const upd = await client
-                  .from('team_songs')
-                  .update(payload)
-                  .eq('id', found.data.id)
-                  .eq('team_id', teamId)
-                  .select('id, updated_at')
-                  .maybeSingle();
-                if (upd.error) throw new Error(upd.error.message);
-                data = upd.data;
-              }
-            }
-            if (!data) throw new Error(ins.error.message);
-          }
-          nextManifest[song.id] = { remoteId: data.id, lastSyncedHash: hash, lastSyncedTime: data.updated_at };
+          pendingInserts.push({ song, md, hash });
         }
-        uploaded.songs += 1;
       } catch (err) {
         errors.push({ kind: 'song', id: song.id, title: song.title, message: err?.message || String(err) });
+      }
+    }
+
+    for (let i = 0; i < pendingInserts.length; i += INSERT_BATCH) {
+      const chunk = pendingInserts.slice(i, i + INSERT_BATCH);
+      const batched = chunk.length > 1 ? await insertSongsBatch(chunk) : null;
+      for (const item of chunk) {
+        try {
+          let data = batched?.get(item.song.id);
+          if (!data) {
+            const payload = { team_id: teamId, title: item.song.title || 'Untitled', content: item.md, song_key: item.song.id, updated_at: new Date().toISOString() };
+            data = await insertWithAdopt('team_songs', 'song_key', 'title', payload);
+          }
+          nextManifest[item.song.id] = { remoteId: data.id, lastSyncedHash: item.hash, lastSyncedTime: data.updated_at };
+          uploaded.songs += 1;
+        } catch (err) {
+          errors.push({ kind: 'song', id: item.song.id, title: item.song.title, message: err?.message || String(err) });
+        }
       }
     }
 
@@ -533,17 +660,9 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
           continue;
         }
 
-        const payload = { team_id: teamId, name: sl.name || 'Untitled Setlist', content: sl, updated_at: new Date().toISOString() };
+        const payload = { team_id: teamId, name: sl.name || 'Untitled Setlist', content: sl, setlist_key: sl.id, updated_at: new Date().toISOString() };
         if (entry?.remoteId) {
-          const { data, error } = await client
-            .from('team_setlists')
-            .update(payload)
-            .eq('id', entry.remoteId)
-            .eq('team_id', teamId)
-            .eq('updated_at', entry.lastSyncedTime)
-            .select('id, updated_at')
-            .maybeSingle();
-          if (error) throw new Error(error.message);
+          const data = await casUpdate('team_setlists', payload, entry);
           if (!data) {
             const remote = await fetchConflictSetlist(client, teamId, entry.remoteId, sl.id);
             conflicts.push({ kind: 'setlist', id: sl.id, title: sl.name, local: sl, remote });
@@ -551,12 +670,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
           }
           nextSlManifest[sl.id] = { remoteId: data.id, lastSyncedHash: hash, lastSyncedTime: data.updated_at };
         } else {
-          const { data, error } = await client
-            .from('team_setlists')
-            .insert(payload)
-            .select('id, updated_at')
-            .single();
-          if (error) throw new Error(error.message);
+          const data = await insertWithAdopt('team_setlists', 'setlist_key', 'name', payload);
           nextSlManifest[sl.id] = { remoteId: data.id, lastSyncedHash: hash, lastSyncedTime: data.updated_at };
         }
         uploaded.setlists += 1;

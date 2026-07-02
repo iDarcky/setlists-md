@@ -5,6 +5,7 @@ import { useEntitlement } from '../hooks/useEntitlement';
 import { Input } from './ui/Input';
 import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '../billing/checkout';
 import SyncSettings from './settings/SyncSettings';
+import SyncDoctor from './settings/SyncDoctor';
 import WhatsNewPanel from './settings/WhatsNewPanel';
 import ChartStylePanel from './settings/ChartStylePanel';
 import SectionsPanel from './settings/SectionsPanel';
@@ -688,17 +689,22 @@ function TabColorControl({ value, fallback, onChange }) {
   );
 }
 
-function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, activeLibrary, team }) {
+function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, activeLibrary, team, songs }) {
   if (activeLibrary !== 'personal') {
     return (
-      <Section subtitle={`This Space is automatically synced with your team "${team?.name || 'Team'}".`}>
-        <Row label="Provider" description="Team Cloud (Supabase Postgres)">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[var(--ds-green-500)]" />
-            <span className="text-copy-13 font-medium text-[var(--ds-green-700)]">Connected</span>
-          </div>
-        </Row>
-      </Section>
+      <>
+        <Section subtitle={`This Space is automatically synced with your team "${team?.name || 'Team'}".`}>
+          <Row label="Provider" description="Team Cloud (Supabase Postgres)">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[var(--ds-green-500)]" />
+              <span className="text-copy-13 font-medium text-[var(--ds-green-700)]">Connected</span>
+            </div>
+          </Row>
+        </Section>
+        <Section title="Diagnostics">
+          <SyncDoctor teamId={activeLibrary} songs={songs} />
+        </Section>
+      </>
     );
   }
 
@@ -1112,6 +1118,7 @@ export default function Settings({
   activeLibrary = 'personal',
   team = null,
   setlists = [],
+  songs = [],
   onRemapService,
   trash = [],
   onRestoreSong,
@@ -1177,6 +1184,7 @@ export default function Settings({
             onRequestSignIn={onRequestSignIn}
             activeLibrary={activeLibrary}
             team={team}
+            songs={songs}
           />
         );
       case 'services':
