@@ -36,19 +36,30 @@ function createFakeClient(db) {
       const rows = db[table];
       return {
         select() {
-          // Unified chain: fetchRows uses .eq().order().range(); adoption uses
+          // Unified chain: fetchRows uses .eq().order('id').limit().gt() and
+          // awaits the builder (keyset pagination); adoption uses
           // .eq().eq().limit().maybeSingle().
           const filters = [];
-          const matching = () => rows.filter(r => filters.every(([c, v]) => r[c] === v)).map(r => ({ ...r }));
+          let orderCol = null;
+          let limitN = null;
+          const matching = () => {
+            const m = rows
+              .filter(r => filters.every(([op, c, v]) => (op === 'gt' ? r[c] > v : r[c] === v)))
+              .map(r => ({ ...r }));
+            if (orderCol) m.sort((a, b) => (a[orderCol] < b[orderCol] ? -1 : a[orderCol] > b[orderCol] ? 1 : 0));
+            return limitN != null ? m.slice(0, limitN) : m;
+          };
           const chain = {
-            eq: (col, val) => { filters.push([col, val]); return chain; },
-            order: () => chain,
-            limit: () => chain,
-            range: (from, to) => Promise.resolve({ data: matching().slice(from, to + 1), error: null }),
+            eq: (col, val) => { filters.push(['eq', col, val]); return chain; },
+            gt: (col, val) => { filters.push(['gt', col, val]); return chain; },
+            order: (col) => { orderCol = col; return chain; },
+            limit: (n) => { limitN = n; return chain; },
             maybeSingle: async () => {
               const m = matching();
               return { data: m[0] ? { id: m[0].id, updated_at: m[0].updated_at } : null, error: null };
             },
+            then: (resolve, reject) =>
+              Promise.resolve({ data: matching(), error: null }).then(resolve, reject),
           };
           return chain;
         },
@@ -161,6 +172,29 @@ describe('team engine — pull (server-authoritative)', () => {
     db.team_songs.length = 0; // another member deleted it
     const second = await engine.fullSync(first.songs, [], noTombstones());
     expect(second.songs).toHaveLength(0);
+  });
+
+  it('pages through the full server set with keyset pagination (no truncation)', async () => {
+    // 5 rows with a page size of 2 → three pages (2 + 2 + 1). A truncated or
+    // mis-tiled read would surface here as missing songs — which the pull
+    // would then treat as server deletions.
+    const songs = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo'].map((t, i) => mkSong(`p${i}`, t));
+    const db = {
+      // Zero-padded ids so lexicographic `gt` ordering matches insertion order.
+      team_songs: songs.map((s, i) => ({
+        id: `page_${String(i).padStart(3, '0')}`,
+        team_id: TEAM,
+        title: s.title,
+        content: songToMd(s),
+        updated_at: '2026-06-01T00:00:00.000Z',
+      })),
+      team_setlists: [],
+    };
+
+    const result = await makeEngine(db, { pageSize: 2 }).fullSync([], [], noTombstones());
+
+    expect(result.songs).toHaveLength(5);
+    expect(result.songs.map(s => s.title).sort()).toEqual(['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo']);
   });
 
   it('keeps a never-synced local song and inserts it on the server', async () => {

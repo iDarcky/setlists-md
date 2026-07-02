@@ -297,6 +297,7 @@ export default function Dashboard({
         <CalendarWidget
           setlists={setlists}
           schedules={schedules}
+          setlistMap={setlistMap}
           userId={user.id}
           onDateClick={onViewSetlist}
           onDayClick={team ? (date) => setPickerDate(date) : undefined}

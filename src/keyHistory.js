@@ -48,8 +48,30 @@ export function computeKeyHistories(songs, setlists, today = new Date()) {
   return out;
 }
 
+// Shallow { key: count } equality — histories are flat maps of small ints.
+function historiesEqual(a, b) {
+  const ka = Object.keys(a || {});
+  const kb = Object.keys(b || {});
+  if (ka.length !== kb.length) return false;
+  for (const k of ka) if (a[k] !== b[k]) return false;
+  return true;
+}
+
+// Reference-preserving: a song whose history is already up to date keeps its
+// object identity. Downstream, reference identity is the "did it change?"
+// signal for per-song IndexedDB writes, the sync engines' hash caches, and
+// mid-sync edit detection (sync/adopt.js) — returning fresh objects for
+// unchanged songs would rewrite the whole library on every launch and make
+// every song look locally edited to a sync that was in flight.
 export function applyKeyHistories(songs, histories) {
-  return songs.map(s => ({ ...s, keyHistory: histories[s.id] || {} }));
+  let changed = false;
+  const next = songs.map(s => {
+    const h = histories[s.id] || {};
+    if (historiesEqual(s.keyHistory, h)) return s;
+    changed = true;
+    return { ...s, keyHistory: h };
+  });
+  return changed ? next : songs;
 }
 
 // Diff two snapshots of a setlist and adjust per-song histories to reflect

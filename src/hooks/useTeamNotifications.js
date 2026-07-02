@@ -15,10 +15,14 @@ export function useTeamNotifications(teamId) {
   const fetchNotifications = useCallback(async () => {
     if (!teamId || !user || !supabase) return;
     try {
+      // RLS already restricts rows to the signed-in recipient; the explicit
+      // user_id filter states the intent and lines the query up with the
+      // (user_id, dismissed_at, created_at) index.
       const { data, error } = await supabase
         .from('team_notifications')
         .select('*')
         .eq('team_id', teamId)
+        .eq('user_id', user.id)
         .is('dismissed_at', null)
         .order('created_at', { ascending: false })
         .limit(50);

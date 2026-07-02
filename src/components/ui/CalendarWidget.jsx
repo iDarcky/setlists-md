@@ -16,6 +16,8 @@ export function CalendarWidget({
   onDayClick,
   availability,
   onOpenSchedule,
+  // localId → team_setlists row UUID (schedules reference the row UUID).
+  setlistMap = {},
 }) {
   const scrollRef = useRef(null);
 
@@ -44,7 +46,7 @@ export function CalendarWidget({
     const serviceSetlists = setlists.filter(sl => sl.date === dateStr);
     const rehearsalSetlists = setlists.filter(sl => sl.rehearsalDate === dateStr);
     const mySchedulesFor = (sls) => schedules?.filter(s =>
-      s.user_id === userId && sls.some(sl => sl.id === s.setlist_id)
+      s.user_id === userId && sls.some(sl => sl.id === s.setlist_id || setlistMap[sl.id] === s.setlist_id)
     ) || [];
     return {
       serviceSetlists,

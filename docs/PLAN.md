@@ -87,16 +87,23 @@ team optimistic locking, scheduling & notifications pillar.
   details (e.g. the song's title/name) in the home top-bar / ⌘K search yields no
   results, while the same query works elsewhere. Likely a wiring gap between the
   dashboard search input and `src/lib/search.js`. P1 bug — repro + fix.
-- 🔴 **Team sync "mass conflict" (73-at-once)** — a whole-library conflict storm =
-  canonical-hash **baseline drift**, not real concurrent edits (a schema field now
-  serialized locally but absent in older server `content` → every row's
-  `canonicalSongHash` differs from its baseline). **Symptoms mitigated (0.15.0):**
-  members (`readOnly`) never get conflict prompts — cloud always wins; and
-  `ConflictResolver` gained **Keep all mine / Keep all cloud**. **Root cause still
-  open (P1):** diff `songToMd(local)` vs the stored `content` for one conflicted
-  song to find the drifting field, then normalize it out of `canonicalSongHash`
-  (or re-baseline) so admins/editors stop seeing phantom conflicts. Needs a real
-  conflicted song id from the field.
+- ✅ **Team sync "mass conflict" (73-at-once) — root-caused & fixed (2026-07-02).**
+  Serialization drift was ruled out empirically: 11 real `team_songs` rows pulled
+  from the live DB (old/new frontmatter, tags, capo, notes, cues, `/: :/` repeats,
+  `{modulate}`, `{tabref}`, duplicate-id rows) all round-trip
+  `canonicalSongHash(content) === canonicalSongHash(songToMd(songFromFlat(parse(content))))`
+  under HASH_VERSION 2 — fresh baselines are stable. The remaining storm
+  generators were **lost manifest writes** (sync state is read-modify-write in
+  IndexedDB; a second tab, or the move/copy temp engine, racing the main engine
+  silently overwrote baselines → stale hashes → phantom "changed" across many
+  rows) plus two adjacent data-loss vectors. Fixed by: a **Web Locks mutex**
+  around every sync pass (`sync/lock.js`, both engines — cross-tab and
+  cross-instance), **keyset pagination by id** in team `fetchRows` (offset pages
+  over a concurrently-written set could skip rows → phantom server-deletions),
+  **reconciled sync adoption** (`sync/adopt.js` — a finished sync no longer
+  clobbers edits made while it was in flight), and a reference-preserving
+  `applyKeyHistories` (it re-minted every song object on every launch, breaking
+  the object-identity change signal storage + engines rely on).
 
 ---
 
@@ -203,6 +210,16 @@ Open, actionable items. Cross-cutting concerns at the end.
 
 ### Notifications
 - Big rework shipped (dismiss/clear-all, server-authoritative decline alerts, cross-device read state). Remaining: maybe-nudge needs a scheduled job (still client-derived).
+- ✅ **"Notifications don't work" root-caused (2026-07-02):** (1) only
+  `team_songs`/`team_setlists` were ever in the `supabase_realtime` publication —
+  the `team_schedules`/`team_availability`/`team_notifications`/`team_activity`
+  subscriptions connected fine and received nothing (fixed in
+  `20260701_realtime_publication.sql`, applied live; replica identity full so
+  delete events pass the `team_id` filter); (2) schedule↔setlist matching used
+  the local content id against `team_schedules.setlist_id` (a row UUID) — so
+  prompts said "a setlist" and maybe-nudges never fired (fixed via the
+  `useTeamSetlistMap` mapping in App notification streams, `CalendarWidget`,
+  `LiveFinale`; the hook now refreshes on `lastSync`).
 
 ### Cross-cutting / chores
 - **Audit remaining menus/screens for the card design** — after the song editor +

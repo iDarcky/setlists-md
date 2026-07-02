@@ -11,9 +11,12 @@ import { getSyncState } from '../sync/tokens';
  * in `setlistManifest[localId].remoteId`. This hook exposes it.
  *
  * @param {string} libraryId — 'personal' or the team UUID
+ * @param {*} [refreshKey] — optional; pass a value that changes when a sync
+ *   completes (e.g. syncState.lastSync) so the mapping picks up setlists that
+ *   were created/synced after mount instead of staying frozen at first read.
  * @returns {{ map: Record<string, string>, loading: boolean }}
  */
-export function useTeamSetlistMap(libraryId) {
+export function useTeamSetlistMap(libraryId, refreshKey) {
   const [map, setMap] = useState({});
   const [loading, setLoading] = useState(false);
 
@@ -47,7 +50,7 @@ export function useTeamSetlistMap(libraryId) {
     })();
 
     return () => { cancelled = true; };
-  }, [libraryId]);
+  }, [libraryId, refreshKey]);
 
   return { map, loading };
 }

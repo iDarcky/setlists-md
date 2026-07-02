@@ -579,6 +579,9 @@ Each team/church workspace is its own Stripe subscription, paid by the team
 - `RecoveryScreen.handleBack` calls `signOut()` *before* invoking the parent `onBack`. If you ever route away from it through another path, make sure that path also ends the recovery session.
 - PDF export renders an **in-app overlay with a same-origin `<iframe srcdoc>`** on every platform (`openPrintWindow()` in `src/pdf/pdfDocument.js`); printing goes through `iframe.contentWindow.print()`. Do NOT reintroduce `window.open` + `document.write` — popups return `null` handles in installed PWAs and don't exist in Capacitor/Electron webviews. The iframe inherits the page origin (prefs read `localStorage['setlists-md:pdf-prefs']` directly) **and the page CSP** — the print document uses an inline `<script>`/`<style>`, so before flipping the report-only CSP in `vercel.json` to enforcing, `script-src`/`style-src` must accommodate it (hash/nonce or refactor).
 - `SetlistOverview` is rendered in **two places**: (1) the dedicated `setlist-view` route in `App.jsx`, and (2) the desktop preview pane inside `Setlists.jsx`. Both wire its export callbacks (`onExportZip`, `onExportPdfOverview`, `onExportPdfFull`) — when you add or rename one, update *both* call sites or the desktop preview will silently no-op.
+- **Realtime only fires for tables in the `supabase_realtime` publication.** A `postgres_changes` subscription to an unpublished table connects successfully and then receives nothing, forever — no error anywhere. `20260701_realtime_publication.sql` added `team_schedules`/`team_availability`/`team_notifications`/`team_activity`; any NEW realtime-subscribed table needs a matching `alter publication` migration (plus `replica identity full` if delete events must pass a `team_id=eq.` filter — default identity only carries the PK).
+- **`team_schedules.setlist_id` (and `team_notifications` metadata `setlist_id`) is the `team_setlists` ROW UUID, not the local setlist id.** Never match it against `setlist.id` directly — bridge through `useTeamSetlistMap` (localId→remoteId from the sync manifest; takes a `refreshKey`, App passes `syncState.lastSync`). Wrong matching is invisible: lookups just miss and fall back ("a setlist", empty calendars).
+- **`applyKeyHistories` is reference-preserving on purpose** — unchanged songs keep object identity. Per-song IndexedDB writes, both engines' hash caches, and `sync/adopt.js` mid-sync-edit detection all treat a new reference as "this song changed"; a map that re-mints every object reintroduces whole-library rewrites on launch.
 
 ## Team library sync (src/sync/team-engine.js)
 
@@ -614,7 +617,23 @@ directly:
   root-cause per-song by diffing `songToMd(local)` vs the stored `content`.)
 - `createEngineForLibrary()` in App.jsx picks the engine per library; the
   file-manifest engine remains for personal Drive/Dropbox/OneDrive sync.
-- Tests: `src/__tests__/team-engine.test.js` (fake Supabase client).
+- **Every sync pass holds a Web Lock** (`sync/lock.js`,
+  `setlists-md:sync:<libraryId>`) around fullSync/runPush in BOTH engines. The
+  manifests are read-modify-write in IndexedDB; without the lock a second tab
+  or a temp engine (song move/copy) races the main engine and loses manifest
+  writes → stale baselines → phantom "changed" storms. Keep any new sync-state
+  writer inside `withSyncLock`.
+- **Pull pagination is keyset on `id`** (`.order('id').gt('id', last)`), never
+  offset/range — offset pages over a set other members are writing to can skip
+  rows, and a skipped row is indistinguishable from a server-side deletion.
+  `pageSize` is injectable for tests.
+- **Sync results are adopted via `sync/adopt.js`** (`reconcileAdopt` /
+  `applyPulled` through App's `adoptSyncResult`): adoption runs functionally
+  against CURRENT state using the sync's input snapshot as the base, so an
+  edit made while the sync was in flight is never clobbered (object identity =
+  the change signal). Never `setSongs(result.songs)` a sync result directly.
+- Tests: `src/__tests__/team-engine.test.js` (fake Supabase client),
+  `src/__tests__/sync-adopt.test.js`.
 
 ## Current Focus & Roadmap
 
