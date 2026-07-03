@@ -2,7 +2,7 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
-## 0.15.0 — A hands-on song editor
+## 0.15.0 — A hands-on editor, and sync you can trust
 *July 2026*
 
 ### Added
@@ -14,21 +14,29 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Editable play order, inline** — build a custom sequence (repeats welcome) by dragging chips right in the header — reorder, remove, or add — with no separate dialog.
 - **Pre-save checks** — a quiet heads-up before saving flags empty sections, or a play order that points at a section you removed.
 - **Song editor cards (Labs)** — an opt-in redesign of the editor as clean cards: an editable song header, the editing surface, and a live preview that mirrors your chart display (with its own "Aa"), plus a Source view for raw markdown.
+- **Push notifications** — get told on your phone, even when the app is closed, when you're added to a service, when someone can't make it, or when a "maybe" is coming up. Turn it on per device from the notifications panel.
+- **Back up your whole library** — download every song, arrangement and setlist as a single `.zip` to keep somewhere safe (Settings → Data).
+- **Sync check-up** — a new diagnostic (Settings → Sync, in a team Space) compares every song on your device against the team cloud and tells you exactly what differs, plus a live "notification worker" health light.
 
 ### Improved
 - **Clearer play order** — the song map now says plainly whether it's Auto (follows your sections) or Custom, and shows the sequence at a glance.
 - **Calmer editor header** — fewer buttons up top; secondary actions tuck into a "⋮" menu, and on a phone the song-details header collapses to free up room for editing.
 - **Delete a song from its page** — deleting moved to the song's "⋮" menu, so you no longer open the editor just to delete.
 - **Navigation that fits your phone** — the bottom bar scales to your screen size, so it isn't oversized on smaller phones.
+- **Faster team sync on big libraries** — only the songs that actually changed are downloaded, and importing a large library goes up in far fewer steps.
+- **Quicker to load, and lighter on data** — the app starts smaller, and returning to it after an update no longer re-downloads parts that didn't change.
 
 ### Fixed
 - **Menus stay on screen** — the "add section" and section-type menus flip upward near the bottom of the screen instead of being cut off, and no longer open behind other elements.
 - **Cleaner section renaming** — changing a section's type no longer creates two sections with the same name.
 - **Drag works on touch** — dragging to rearrange no longer selects the text under your finger.
+- **Notifications actually arrive** — schedule requests, decline alerts and "still a maybe?" reminders now reach every device reliably, instead of only showing while the app was open on the right screen.
+- **Two songs can share a title** — a team library no longer refuses (or quietly merges) two different songs that happen to have the same name.
 
 ### Sync
 - **Members always get the latest from the cloud** — team members no longer see false "sync conflict" prompts; the cloud copy is taken automatically.
 - **Resolve conflicts in bulk** — when many items conflict at once, keep all yours or all cloud in a single tap.
+- **No more phantom "conflict" storms** — the whole-library conflict prompts some teams saw are gone; an edit you make while a sync is running is never quietly reverted, and two open tabs or devices can no longer trip over each other.
 
 ## 0.14.0 — Find anything, and read it your way
 *June 2026*
