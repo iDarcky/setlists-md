@@ -699,6 +699,11 @@ directly:
   live interactive prompt (virtual notification) covers the same
   `schedule_id`, and when the schedule has been resolved — they exist to reach
   lock screens and carry cross-device read state, not to double-render.
+- **Heartbeat**: every worker run upserts `worker_last_run`/`worker_last_result`
+  into `app_config`; `get_worker_health()` (SECURITY DEFINER, authenticated
+  only — whitelists the two heartbeat keys, NEVER the VAPID rows) feeds the
+  `WorkerHealthRow` in Settings → Sync diagnostics, which flags >10 min of
+  silence as a stalled worker (see `20260703_worker_health.sql`).
 
 ## Current Focus & Roadmap
 

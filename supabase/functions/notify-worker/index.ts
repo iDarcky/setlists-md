@@ -162,6 +162,16 @@ Deno.serve(async (_req: Request) => {
   }
 
   if (errors.length) result.errors = errors;
+
+  // Heartbeat — surfaced to signed-in users via get_worker_health() so the
+  // app's diagnostics can flag a stalled worker (see 20260703_worker_health).
+  try {
+    await supa.from('app_config').upsert([
+      { key: 'worker_last_run', value: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { key: 'worker_last_result', value: JSON.stringify(result), updated_at: new Date().toISOString() },
+    ], { onConflict: 'key' });
+  } catch { /* heartbeat is best-effort */ }
+
   return new Response(JSON.stringify(result), {
     headers: { 'Content-Type': 'application/json' },
   });

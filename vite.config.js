@@ -16,6 +16,21 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Long-lived vendor code in its own chunks: the app ships small,
+        // frequent releases, and without this every release invalidated one
+        // giant bundle — returning PWA users re-downloaded React + Supabase
+        // just to get a copy tweak. These chunks only change on dependency
+        // bumps, so they stay cached across app updates.
+        manualChunks(id) {
+          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'vendor-react';
+          if (id.includes('node_modules/@supabase/')) return 'vendor-supabase';
+        },
+      },
+    },
+  },
   plugins: [
     tailwindcss(),
     react(),

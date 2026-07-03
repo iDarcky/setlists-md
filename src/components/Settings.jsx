@@ -5,7 +5,7 @@ import { useEntitlement } from '../hooks/useEntitlement';
 import { Input } from './ui/Input';
 import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '../billing/checkout';
 import SyncSettings from './settings/SyncSettings';
-import SyncDoctor from './settings/SyncDoctor';
+import SyncDoctor, { WorkerHealthRow } from './settings/SyncDoctor';
 import WhatsNewPanel from './settings/WhatsNewPanel';
 import ChartStylePanel from './settings/ChartStylePanel';
 import SectionsPanel from './settings/SectionsPanel';
@@ -702,6 +702,7 @@ function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, a
           </Row>
         </Section>
         <Section title="Diagnostics">
+          <WorkerHealthRow />
           <SyncDoctor teamId={activeLibrary} songs={songs} />
         </Section>
       </>
@@ -720,7 +721,7 @@ function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, a
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function DataPanel({ songCount, setlistCount, onDownloadSongs, onClearAll, trash = [], onRestoreSong, onPurgeSong, onEmptyTrash }) {
+function DataPanel({ songCount, setlistCount, onDownloadSongs, onDownloadBackup, onClearAll, trash = [], onRestoreSong, onPurgeSong, onEmptyTrash }) {
   const confirm = useConfirm();
   // Capture "now" once (lazy init) so the per-item countdown doesn't call an
   // impure function during render.
@@ -739,6 +740,9 @@ function DataPanel({ songCount, setlistCount, onDownloadSongs, onClearAll, trash
   return (
     <>
       <Section subtitle={`${songCount} songs, ${setlistCount} setlists saved on this device.`}>
+        <Row label="Back up library" description="One .zip with every song, arrangement and setlist — keep a copy somewhere safe.">
+          <Button size="sm" variant="secondary" onClick={onDownloadBackup}>Download backup</Button>
+        </Row>
         <Row label="Export library" description="Download every song as a separate .md file.">
           <Button size="sm" variant="secondary" onClick={onDownloadSongs}>Download all</Button>
         </Row>
@@ -1095,6 +1099,7 @@ export default function Settings({
   onClose,
   onClearAll,
   onDownloadSongs,
+  onDownloadBackup,
   songCount,
   setlistCount,
   syncState,
@@ -1206,6 +1211,7 @@ export default function Settings({
             songCount={songCount}
             setlistCount={setlistCount}
             onDownloadSongs={onDownloadSongs}
+            onDownloadBackup={onDownloadBackup}
             onClearAll={onClearAll}
             trash={trash}
             onRestoreSong={onRestoreSong}

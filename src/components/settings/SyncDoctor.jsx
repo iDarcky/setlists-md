@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../ui/Button';
 import { supabase } from '../../auth/supabase';
 import { getSyncState } from '../../sync/tokens';
@@ -110,6 +110,53 @@ const STATUS_LABELS = {
   pendingPull: { label: 'Newer on the server', tone: 'var(--ds-blue-700)', hint: 'Pulls on the next sync.' },
   diverged: { label: 'Diverged (will conflict)', tone: 'var(--ds-red-800)', hint: 'Both sides changed since the last sync — the next sync raises a conflict prompt.' },
 };
+
+// "Watch the watcher" row: the notify-worker (push + nudges) runs on a
+// minutely cron; if its heartbeat is stale, notifications are silently dead
+// and someone should look at the edge function logs / cron.job_run_details.
+export function WorkerHealthRow() {
+  const [health, setHealth] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_worker_health');
+        if (cancelled) return;
+        if (error) throw new Error(error.message);
+        setHealth(data || {});
+      } catch {
+        if (!cancelled) setHealth({});
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (health === null) return null; // loading — keep the panel calm
+  const lastRun = health.worker_last_run ? new Date(health.worker_last_run) : null;
+  const ageMin = lastRun ? Math.round((Date.now() - lastRun.getTime()) / 60000) : null;
+  // The worker runs every minute; >10 min of silence means it's stuck.
+  const stale = ageMin == null || ageMin > 10;
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <div className="text-copy-14 font-medium text-[var(--ds-gray-1000)]">Notification worker</div>
+        <div className="text-copy-13 text-[var(--ds-gray-700)]">
+          Sends push notifications and schedule nudges every minute.
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="w-2 h-2 rounded-full" style={{ background: stale ? 'var(--ds-red-700)' : 'var(--ds-green-500)' }} />
+        <span className="text-copy-13" style={{ color: stale ? 'var(--ds-red-800)' : 'var(--ds-gray-700)' }}>
+          {lastRun
+            ? (ageMin <= 1 ? 'ran just now' : `ran ${ageMin} min ago`)
+            : 'no heartbeat yet'}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export default function SyncDoctor({ teamId, songs = [] }) {
   const [busy, setBusy] = useState(false);

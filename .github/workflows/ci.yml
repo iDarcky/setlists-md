@@ -1,10 +1,17 @@
 name: CI
 
+# The release train is feature branches → beta → main, so CI has to run on
+# every push — gating only `main` would mean tests first run AFTER everything
+# has already merged through beta.
 on:
   push:
-    branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, beta]
+
+# A superseded push on the same branch cancels the older run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:

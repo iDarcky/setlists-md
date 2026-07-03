@@ -111,6 +111,52 @@ team optimistic locking, scheduling & notifications pillar.
 
 ---
 
+## 2b. Production-readiness roadmap (assessed 2026-07-03)
+
+Gap analysis vs. Notion/Obsidian-grade products. ✅ = shipped that day.
+
+**Tier 1 — engineering foundation**
+- ✅ CI runs on every branch push + PRs to main/beta (was main-only — the
+  release train never saw tests until the last merge), with superseded-run
+  cancellation.
+- 🔴 **Staging environment (P1, needs an account decision):** there is ONE
+  Supabase project and it is production — migrations are applied directly to
+  live church data. Create a second project (or use Supabase branching) that
+  `beta` deploys against; prod migration becomes a promotion step. Blocked on
+  the free-tier 2-project cap / paid plan choice.
+- **Backups + restore drill (P1):** verify what the current Supabase plan
+  retains, do one actual restore. ✅ Client half shipped: one-click
+  whole-library backup .zip (Settings → Data) — every song/arrangement as .md,
+  setlists as .json + manifest; the safety net for personal (IndexedDB-only)
+  libraries.
+- ✅ Watch-the-watcher: notify-worker writes a heartbeat every run
+  (`app_config.worker_last_run`), exposed via `get_worker_health()` (never the
+  VAPID keys) and shown with a stale flag (>10 min) in Settings → Sync
+  diagnostics.
+- Sentry: wired and bundled — still needs `VITE_SENTRY_DSN` set in Vercel, and
+  leaked-password protection toggled in the Supabase dashboard.
+
+**Tier 2 — perceived quality**
+- ✅ Bundle: JSZip lazy-loaded (−97 KB), react/supabase in cache-stable vendor
+  chunks (main chunk 980→710 KB, 202 KB gzip; returning users no longer
+  re-download vendors on every release). Next: split `tabInstruments` (188 KB),
+  virtualize the song list past ~500 songs, Lighthouse budget in CI.
+- Accessibility pass (focus management, aria on icon buttons, stage-theme
+  contrast) — P2.
+- i18n: extract UI strings now, translate later (Romanian first — it's the
+  actual user base) — P2.
+
+**Tier 3 — category features**
+- **CCLI / SongSelect** (P1 for the church market): played-song reporting
+  (keyHistory + past setlists already hold the data) + SongSelect import.
+  Licensing compliance is a purchasing requirement, not a feature.
+- Capacitor wrapper for App Store presence + real APNs push on iOS (web push
+  only reaches installed-PWA users on iOS 16.4+).
+- Privacy-friendly product analytics (Plausible / self-hosted PostHog) before
+  making big roadmap bets — needs an account/hosting decision.
+
+---
+
 ## 3. Polish backlog (by area)
 
 Open, actionable items. Cross-cutting concerns at the end.

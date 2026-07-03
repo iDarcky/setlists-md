@@ -30,7 +30,7 @@ import ConflictResolver from './components/ConflictResolver';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useAuth } from './auth/useAuth';
 import { useTeam } from './auth/useTeam';
-import { exportSetlistZip, importSetlistZip, slugify } from './setlist-io';
+import { exportSetlistZip, importSetlistZip, exportLibraryZip, slugify } from './setlist-io';
 import { exportSetlistPdf } from './pdf/exportSetlistPdf';
 import UpdatePrompt from './components/ui/UpdatePrompt';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
@@ -2546,6 +2546,23 @@ export default function App() {
                   title: 'Library exported',
                   description: `${songs.length} song${songs.length === 1 ? '' : 's'} downloaded as .md files.`,
                 });
+              }}
+              onDownloadBackup={async () => {
+                try {
+                  const blob = await exportLibraryZip(songs, setlists);
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `setlists-md-backup-${new Date().toISOString().slice(0, 10)}.zip`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast({
+                    title: 'Backup downloaded',
+                    description: `${songs.length} song${songs.length === 1 ? '' : 's'} and ${setlists.length} setlist${setlists.length === 1 ? '' : 's'} in one .zip. Keep it somewhere safe.`,
+                  });
+                } catch (err) {
+                  toast({ title: 'Backup failed', description: err?.message || String(err), variant: 'error' });
+                }
               }}
               songCount={songs.length}
               setlistCount={setlists.length}
