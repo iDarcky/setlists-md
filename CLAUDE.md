@@ -124,22 +124,40 @@ bump** — do NOT cut a new MINOR. Run, in order:
 
 Do **not** tag on feature/`beta` branches.
 
-## "release" / "promote" workflow (beta → main)
+## "release" / "promote" workflow (beta → main, via PR)
 
 When the user says **"release"**, **"promote"**, **"ship to main"** (or
 "finish and push to main"), turn the accumulated beta cycle into a real
-release. Run, in order:
+release. **`main` is a protected branch** — it takes changes ONLY through a
+merged pull request (no direct pushes, no local `git merge` + push). Run, in
+order:
 
 1. **Drop the pre-release suffix.** `package.json#version`:
    `<TARGET>-beta.<N> → <TARGET>` (e.g. `0.13.0-beta.7 → 0.13.0`).
 2. **Finalise the changelog.** The newest `## <TARGET>` block becomes the
    release entry — confirm the title + `*Month YYYY*` are right.
 3. **Verify** with `npm run build`.
-4. **Commit.** Subject `Release <TARGET>: <short title>`.
-5. **Promote + tag.** Merge `beta` → `main`, and tag the release on
-   `main`: `git tag -a v<TARGET> -m "Release <TARGET>"` then push the
-   tag. Tags are cut from `main` at release — never from feature/`beta`
+4. **Commit the release bump** with subject `Release <TARGET>: <short title>`,
+   then land it on `beta`: push the active branch, and fast-forward `beta` to
+   it (`git push origin <branch>:beta`) so the PR head is `beta`. (Diverged →
+   merge into a local `beta`, never force-push.)
+5. **Open the PR: `beta → main`.** Use the GitHub MCP tools
+   (`mcp__github__create_pull_request`), base `main`, head `beta`, title
+   `Release <TARGET>: <short title>`, body summarising the cycle. If a PR
+   template exists, populate its headings.
+6. **Wait for CI to go green** on the PR (the CI workflow runs on PRs to
+   `main`). Poll `mcp__github__get_pull_request` / the checks tools; do not
+   merge on red. If the user subscribed the session to PR activity, react to
+   the CI events instead of polling.
+7. **Merge the PR into `main`** (`mcp__github__merge_pull_request`). A merge
+   commit is fine; the protected branch forbids any other path in.
+8. **Tag the release on `main`.** After the merge, fetch `main`, then
+   `git tag -a v<TARGET> -m "Release <TARGET>"` on the merge commit and push
+   the tag. Tags are cut from `main` at release — never from feature/`beta`
    branches.
+
+Do **not** attempt to push straight to `main` — it will be rejected by branch
+protection. The PR is the only door.
 
 ## Project Structure
 
