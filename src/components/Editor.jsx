@@ -12,6 +12,7 @@ import WriteTab from './editor/WriteTab';
 import ArrangeTabV2 from './editor/ArrangeTabV2';
 import TabsTab from './editor/TabsTab';
 import MetadataPanel from './editor/MetadataPanel';
+import EditorEmptyState from './editor/EditorEmptyState';
 import StructureControl from './editor/StructureControl';
 import ArrangementMenu, { EditArrangementsDialog } from './editor/ArrangementMenu';
 import { Button } from './ui/Button';
@@ -149,7 +150,7 @@ key:
 
 `;
 
-export default function Editor({ song, onSave, onBack, onDirtyChange, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null }) {
+export default function Editor({ song, onSave, onBack, onDirtyChange, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null, onOpenNewSong }) {
   const confirm = useConfirm();
 
   // Labs: card-based editor header (step 1 — header card). When off, the
@@ -204,9 +205,13 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   const clearDraft = useCallback(() => {
     try { localStorage.removeItem(draftKey); } catch { /* private mode */ }
   }, [draftKey]);
-  // New songs (card layout) open on Details to fill in metadata first; editing
-  // an existing song opens on Arrange. Legacy has no Details tab → always Arrange.
-  const [activeTab, setActiveTab] = useState(() => (!song && cardsHeader ? 'details' : 'arrange'));
+  // New songs (card layout) open on Arrange behind the New-song mode. Editing an
+  // existing song opens on Arrange. Legacy has no Details tab → always Arrange.
+  const [activeTab, setActiveTab] = useState('arrange');
+  // New-song mode (card layout): a fresh blank song shows a big paste area /
+  // import chooser first. Dismissed on "Start blank", or when pasted content is
+  // applied. No draft to restore → skip it and go straight to editing.
+  const [showNewSong, setShowNewSong] = useState(() => !song && cardsHeader && !draftFound);
   // Card layout: the raw-markdown editor (WriteTab) opens in a centered dialog
   // instead of a tab — a power-user "Source" escape hatch with paste-import.
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
@@ -257,7 +262,22 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // GLOBAL display settings (a faithful preview — same as the chart's Aa).
   const [aaAnchor, setAaAnchor] = useState(null);
   const closeAa = useCallback(() => setAaAnchor(null), []);
-  const toggleAa = (e) => setAaAnchor(a => (a ? null : e.currentTarget.getBoundingClientRect()));
+  // Read the rect synchronously in the handler — React nulls `currentTarget`
+  // once the handler returns, so reading it inside the state updater crashes.
+  const toggleAa = (e) => { const r = e.currentTarget.getBoundingClientRect(); setAaAnchor(a => (a ? null : r)); };
+  // A SECOND Aa scope — the editing CANVAS (Arrange cards). Per-device, separate
+  // from the chart/preview settings: notation + text sizes only (see AaMenu
+  // chartControls={false}). It restyles how you read the cards while editing,
+  // never how charts render elsewhere.
+  const [canvasAaAnchor, setCanvasAaAnchor] = useState(null);
+  const closeCanvasAa = useCallback(() => setCanvasAaAnchor(null), []);
+  const toggleCanvasAa = (e) => { const r = e.currentTarget.getBoundingClientRect(); setCanvasAaAnchor(a => (a ? null : r)); };
+  const [canvasLyricRaw, setCanvasLyricRaw] = usePersistentView('setlists-md:editor-canvas-lyric', '16');
+  const [canvasChordRaw, setCanvasChordRaw] = usePersistentView('setlists-md:editor-canvas-chord', '12');
+  const [canvasNotationRaw, setCanvasNotationRaw] = usePersistentView('setlists-md:editor-canvas-notation', 'letters');
+  const canvasLyricSize = parseInt(canvasLyricRaw, 10) || 16;
+  const canvasChordSize = parseInt(canvasChordRaw, 10) || 12;
+  const canvasNotation = canvasNotationRaw || 'letters';
   const [editArrangementsOpen, setEditArrangementsOpen] = useState(false);
   const [promptConfig, setPromptConfig] = useState(null);
   const textareaRef = useRef(null);
@@ -537,6 +557,11 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   const currentKey = fmFields.key || '';
   const currentTempo = fmFields.tempo ?? '';
   const currentTime = fmFields.time ?? '';
+  // The Key selector is a *relabel* (it never moves the chords), which is a
+  // surprising foot-gun on an existing song. So lock it while editing one and
+  // steer the user to Transpose (which moves chords + relabels together). A
+  // brand-new song still needs a free Key picker to satisfy the save guardrail.
+  const keyLocked = !!song;
 
   // Key picker options follow the Accidentals setting (sharps → "F#",
   // otherwise flats → "Gb"); 'auto' stores flats (the byte-stable legacy
@@ -734,9 +759,9 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
           </div>
         );
       case 'arrange':
-        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} notation={aaNotation} />;
+        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} notation={canvasNotation} lyricSize={canvasLyricSize} chordSize={canvasChordSize} />;
       default:
-        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} notation={aaNotation} />;
+        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} notation={canvasNotation} lyricSize={canvasLyricSize} chordSize={canvasChordSize} />;
     }
   };
 
@@ -760,10 +785,11 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // Key picker. The options come back as 12 majors then 12 minors, so we slice
   // at the boundary and drop a separator between the two groups.
   const keyControlEl = (
-    <Select value={currentKey} onValueChange={changeSongKey}>
+    <Select value={currentKey} onValueChange={changeSongKey} disabled={keyLocked}>
       <SelectTrigger
         aria-label="Key"
-        className={`${META_CTRL_CLS} w-auto gap-1 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
+        title={keyLocked ? 'Key is locked while editing — use Transpose to move the chords and the key together.' : undefined}
+        className={`${META_CTRL_CLS} w-auto gap-1 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'} ${keyLocked ? 'opacity-100 !cursor-default' : ''}`}
       >
         {/* Show only the chosen key in the trigger (e.g. "Gb"), not the
             dual-spelling label, so the pill stays compact. */}
@@ -824,10 +850,11 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // Gold key chip — the song key (doubles as the key dropdown). Distinct from
   // Transpose: this is the *written key*; Transpose *moves* the chords.
   const cardKeyChipEl = (
-    <Select value={currentKey} onValueChange={changeSongKey}>
+    <Select value={currentKey} onValueChange={changeSongKey} disabled={keyLocked}>
       <SelectTrigger
         aria-label="Key"
-        className={`h-9 min-h-9 max-sm:min-h-11 w-auto gap-1 px-2.5 rounded-[10px] !border-0 font-mono font-bold text-[13px] focus:!ring-0 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
+        title={keyLocked ? 'Key is locked while editing — use Transpose to move the chords and the key together.' : undefined}
+        className={`h-9 min-h-9 max-sm:min-h-11 w-auto gap-1 px-2.5 rounded-[10px] !border-0 font-mono font-bold text-[13px] focus:!ring-0 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'} ${keyLocked ? '!cursor-default' : ''}`}
         style={{ background: keySet ? 'var(--chord)' : 'var(--ds-gray-100)', color: keySet ? '#0a0a0a' : 'var(--ds-gray-500)' }}
       >
         <span className="text-[9px] font-sans font-bold uppercase tracking-[0.12em] opacity-60">Key</span>
@@ -1025,6 +1052,37 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     />
   ) : null;
 
+  // The CANVAS "Aa" — lives in the editor tab header (next to undo/redo) and
+  // controls how the Arrange cards read while editing (notation + text sizes),
+  // independent of the chart/preview above.
+  const canvasAaTriggerEl = (
+    <button
+      type="button"
+      aria-label="Canvas display options"
+      title="Display (editing canvas)"
+      aria-expanded={!!canvasAaAnchor}
+      onClick={toggleCanvasAa}
+      className="shrink-0 w-8 h-8 grid place-items-center rounded-lg border border-[var(--border-1)] bg-[var(--ds-background-100)] text-[13px] font-bold text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer"
+    >
+      Aa
+    </button>
+  );
+  const canvasAaMenuEl = (cardsHeader && canvasAaAnchor) ? (
+    <AaMenu
+      anchorRect={canvasAaAnchor}
+      onClose={closeCanvasAa}
+      chartControls={false}
+      settings={{}}
+      lyricSize={canvasLyricSize}
+      onLyricSize={(n) => setCanvasLyricRaw(String(Math.max(12, Math.min(28, n))))}
+      chordSize={canvasChordSize}
+      onChordSize={(n) => setCanvasChordRaw(String(Math.max(9, Math.min(24, n))))}
+      notation={canvasNotation}
+      onNotation={(v) => setCanvasNotationRaw(v)}
+      onReset={() => { setCanvasLyricRaw('16'); setCanvasChordRaw('12'); setCanvasNotationRaw('letters'); }}
+    />
+  ) : null;
+
   // Show the empty-state chooser for a fresh blank song (no chords/lyrics yet).
 
   // Shared header action buttons (preview toggle / peek + delete).
@@ -1211,10 +1269,9 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         <IconButton variant="ghost" size="sm" aria-label="Redo" title="Redo" disabled={!histState.canRedo} onClick={handleRedo}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" /></svg>
         </IconButton>
-        {/* Display (Aa) — chart notation + type/size, one popover shared with the
-            preview. Sits by undo/redo so it's always reachable, even when the
-            preview pane is hidden. */}
-        {aaTriggerEl}
+        {/* Display (Aa) — the editing CANVAS's notation + text size. Sits by
+            undo/redo so it's always reachable. The preview has its own Aa. */}
+        {canvasAaTriggerEl}
         {/* Secondary actions folded into a ⋮ so the header stays calm. */}
         <OverflowMenu
           ariaLabel="Editor options"
@@ -1257,6 +1314,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         >
           <div className="shrink-0 px-3 py-2 border-b border-[var(--border-1)] flex items-center justify-between gap-2">
             <span className="text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">Preview</span>
+            {aaTriggerEl}
           </div>
           <div className="flex-1 min-h-0 flex flex-col">
             {cardPreviewChartEl}
@@ -1338,6 +1396,16 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     </div>
   );
 
+  // New-song mode: a big paste-or-import surface shown before the blank cards.
+  const newSongModeEl = (
+    <EditorEmptyState
+      onApplyMd={(m) => { setMd(m); setShowNewSong(false); setActiveTab('arrange'); }}
+      onDismiss={() => setShowNewSong(false)}
+      onImport={onOpenNewSong ? () => onOpenNewSong('import') : undefined}
+      onBrowse={onOpenNewSong ? () => onOpenNewSong('browse') : undefined}
+    />
+  );
+
   return (
     <div className="h-full bg-[var(--ds-background-200)] flex flex-col">
       {cardsHeader ? (
@@ -1345,10 +1413,14 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
           className="flex-1 min-h-0 flex flex-col gap-3 px-3 sm:px-4 pb-3"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
         >
-          {draftCardEl}
-          {cardHeaderEl}
-          {cardWorkAreaEl}
-          {saveCancelCardEl}
+          {showNewSong ? newSongModeEl : (
+            <>
+              {draftCardEl}
+              {cardHeaderEl}
+              {cardWorkAreaEl}
+              {saveCancelCardEl}
+            </>
+          )}
         </div>
       ) : (
       <>
@@ -1484,6 +1556,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
 
       {/* Preview display popover (card layout) — writes GLOBAL display settings. */}
       {cardAaMenuEl}
+      {canvasAaMenuEl}
 
       {/* Version history — restore a previously-saved snapshot of this song. */}
       <Dialog open={historyOpen} onClose={() => setHistoryOpen(false)} size="md" ariaLabel="Version history">

@@ -3,13 +3,13 @@ import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { Tabs } from './ui/Tabs';
 import ImportTab from './newSong/ImportTab';
-import PasteTab from './newSong/PasteTab';
 import BrowseTab from './newSong/BrowseTab';
 
+// Pasting a chord sheet now happens inside the editor's New-song mode (a big
+// paste area), so the modal leads with Import + Browse and offers a blank song
+// from a corner button.
 const TABS = [
-  { id: 'blank', label: 'Blank' },
   { id: 'import', label: 'Import' },
-  { id: 'paste', label: 'Paste' },
   { id: 'browse', label: 'Browse' },
 ];
 
@@ -76,7 +76,7 @@ export default function NewSongModal({
           <div className="flex-1">
             <div className="text-heading-16 text-[var(--ds-gray-1000)]">New song</div>
             <div className="text-copy-12 text-[var(--ds-gray-600)] mt-0.5">
-              Start blank, import a file, paste a chord sheet, or browse songs.
+              Import a file or browse songs — or start blank and paste inside the editor.
             </div>
           </div>
           <IconButton variant="ghost" size="sm" onClick={onClose} aria-label="Close">✕</IconButton>
@@ -86,8 +86,8 @@ export default function NewSongModal({
           <Tabs tabs={TABS} activeTab={tab} onTabChange={setTab} />
         </div>
 
-        {/* License notice shows from the start (not on Blank or public-domain Browse). */}
-        {(tab === 'import' || tab === 'paste') && (
+        {/* License notice (not on the public-domain Browse tab). */}
+        {tab === 'import' && (
           <div className="px-5 py-2 border-b border-[var(--ds-gray-300)] text-label-11 text-[var(--ds-gray-700)] shrink-0" style={{ background: 'var(--ds-gray-100)' }}>
             You're responsible for ensuring you have a license to copy the content you import
             (e.g. CCLI, SongSelect, PraiseCharts, or original material).
@@ -95,21 +95,16 @@ export default function NewSongModal({
         )}
 
         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
-          {tab === 'blank' && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 gap-3">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[var(--color-brand-soft)] text-[var(--color-brand-text)]">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-              </div>
-              <div className="text-heading-16 font-semibold text-[var(--ds-gray-1000)]">Start a blank song</div>
-              <div className="text-copy-13 text-[var(--ds-gray-600)] max-w-xs">An empty chart, ready for your sections, chords and lyrics.</div>
-              <Button variant="brand" size="md" onClick={onStartBlank} className="mt-1">Start blank</Button>
-            </div>
-          )}
           {tab === 'import' && (
             <ImportTab isMobile={isMobile} onImportSongs={onImportSongs} onImportSetlistFile={onImportSetlistFile} />
           )}
-          {tab === 'paste' && <PasteTab onSubmit={onSmartImport} isMobile={isMobile} />}
           {tab === 'browse' && <BrowseTab onSelect={onSmartImport} />}
+        </div>
+
+        {/* Blank song lives in the corner — it opens the editor's paste/blank mode. */}
+        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--ds-gray-300)] shrink-0">
+          <span className="text-label-11 text-[var(--ds-gray-500)] mr-auto">Prefer a clean slate?</span>
+          <Button variant="secondary" size="sm" onClick={onStartBlank}>Start blank</Button>
         </div>
       </div>
     </div>

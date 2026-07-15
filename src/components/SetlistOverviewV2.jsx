@@ -14,7 +14,6 @@ import ShareSetlistDialog from './ShareSetlistDialog';
 import RosterPanel from './setlist/RosterPanel';
 import { headerFrostStyle } from '../lib/headerFrost';
 import { formatClockTime } from '../lib/dateFormat';
-import { useConfirm } from './ui/useConfirmHook';
 import { useIsTablet, useIsDesktop } from '../lib/useMediaQuery';
 
 // ── Small inline icon helpers (kept local; the meta row uses tiny glyphs) ──
@@ -40,7 +39,6 @@ function MetaChip({ icon, children }) {
 }
 
 export default function SetlistOverviewV2({ setlist, songs, setlists = [], onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull, onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen, clockFormat = '12h', canEdit = true, embedded = false, hidePlay = false, overscheduleWarn = false, streakLimit = 3 }) {
-  const confirm = useConfirm();
   const { team, isAdmin } = useTeam();
   const { user } = useAuth();
   const [shareOpen, setShareOpen] = useState(false);
@@ -154,15 +152,8 @@ export default function SetlistOverviewV2({ setlist, songs, setlists = [], onBac
       + (setlist.rehearsalTime ? ` ${formatClockTime(setlist.rehearsalTime, clockFormat)}` : '')
     : null;
 
-  const handleDelete = async () => {
-    const ok = await confirm({
-      title: 'Delete setlist?',
-      description: `"${setlist?.name || 'Untitled'}" will be permanently removed. This cannot be undone.`,
-      confirmLabel: 'Delete',
-      variant: 'danger',
-    });
-    if (ok) onDelete?.();
-  };
+  // Delete is undoable — App shows a 5s "Undo" toast — so no confirm modal here.
+  const handleDelete = () => { onDelete?.(); };
 
   const sheetStyle = {
     background: 'var(--ds-background-100)',

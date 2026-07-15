@@ -12,7 +12,7 @@ import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType, serializeSec
 import { importChartText } from '../../lib/importChords';
 import { loadRecents, saveRecents, pushRecent } from './chordRecents';
 import ChordAutocomplete from './ChordAutocomplete';
-import { useConfirm } from '../ui/useConfirmHook';
+import { showUndoToast } from '../../lib/undoToast';
 
 const SECTION_TYPES = [
   'Intro', 'Verse', 'Pre Chorus', 'Chorus', 'Bridge',
@@ -59,9 +59,12 @@ function formatChord(chord, notation, key) {
 // caret shows where a chord will land.
 const InteractiveLine = memo(function InteractiveLine({
   plainText, chords, secIdx, lineIdx, editingChordIdx,
-  notation, songKey,
+  notation, songKey, lyricSize = 16, chordSize = 12,
   onPlace, onChordTap, onMoveChord,
 }) {
+  // A line with no chords reserves no chord row above it — that empty band was
+  // the main source of vertical white-space on lyrics-only verses.
+  const hasChords = (chords || []).length > 0;
   const downRef = useRef(null);
   const rootRef = useRef(null);
   const dragChordRef = useRef(null);         // origIdx of the chord being dragged
@@ -153,7 +156,8 @@ const InteractiveLine = memo(function InteractiveLine({
         const minW = tok.chord != null ? `${(label || '').length * 8 + 16}px` : undefined;
         return (
           <span key={i} className="inline-flex flex-col justify-end" style={{ minWidth: minW }}>
-            <span className="flex items-end" style={{ height: '1.7em' }}>
+            {hasChords && (
+            <span className="flex items-end" style={{ height: '1.4em' }}>
               {tok.chord != null && (
                 <span
                   role="button"
@@ -161,9 +165,9 @@ const InteractiveLine = memo(function InteractiveLine({
                   onDragStart={(e) => { dragChordRef.current = tok.origIdx; setDraggingChord(tok.origIdx); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; }}
                   onDragEnd={() => { dragChordRef.current = null; setDraggingChord(null); }}
                   onTouchStart={(e) => { e.stopPropagation(); beginChordTouch(tok.origIdx); }}
-                  className="cursor-grab active:cursor-grabbing rounded-[6px] border font-mono font-bold leading-none mb-[3px] touch-none"
+                  className="cursor-grab active:cursor-grabbing rounded-[6px] border font-mono font-bold leading-none mb-[2px] touch-none"
                   style={{
-                    fontSize: 12, padding: '3px 5px', whiteSpace: 'nowrap',
+                    fontSize: chordSize, padding: '3px 5px', whiteSpace: 'nowrap',
                     color: selected ? 'var(--color-brand-text)' : 'var(--chord)',
                     borderColor: selected ? 'var(--color-brand)' : 'var(--border-1)',
                     background: selected ? 'var(--color-brand-soft)' : 'var(--ds-background-100)',
@@ -177,10 +181,11 @@ const InteractiveLine = memo(function InteractiveLine({
                 </span>
               )}
             </span>
+            )}
             <span
               data-tok-start={tok.start}
               className="text-[var(--text-1)] cursor-text"
-              style={{ fontSize: 16, lineHeight: 1.35, whiteSpace: 'pre' }}
+              style={{ fontSize: lyricSize, lineHeight: 1.3, whiteSpace: 'pre' }}
               onPointerDown={onTextDown}
               onPointerMove={onTextMove}
               onClick={(e) => onTextClick(tok, e)}
@@ -580,7 +585,7 @@ const InlineSectionLyricEditor = memo(function InlineSectionLyricEditor({ initia
   );
 });
 
-export default function ArrangeTabV2({ md, onChange, customSectionTypes, notation = 'letters' }) {
+export default function ArrangeTabV2({ md, onChange, customSectionTypes, notation = 'letters', lyricSize = 16, chordSize = 12 }) {
   const sectionTypes = useMemo(() => {
     const custom = (customSectionTypes || []).map(t => t?.name?.trim()).filter(Boolean);
     return [...SECTION_TYPES, ...custom];
@@ -621,7 +626,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
   // there can't stop the browser's scroll/text-selection).
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
-  const confirm = useConfirm();
   const sectionRefs = useRef({});
   const scrollRef = useRef(null);      // canvas scroll container (edge autoscroll)
   const autoScrollRef = useRef({ raf: 0, v: 0 });
@@ -817,17 +821,17 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
     emitSections([...song.sections.slice(0, idx + 1), copy, ...song.sections.slice(idx + 1)]);
   }, [song, emitSections, nextSectionLabel]);
 
-  const removeSection = useCallback(async (idx) => {
+  const removeSection = useCallback((idx) => {
     if (!song) return;
-    const ok = await confirm({
-      title: 'Delete this section?',
-      description: 'This removes the section and everything in it from the song.',
-      confirmLabel: 'Delete',
-      variant: 'danger',
-    });
-    if (!ok) return;
+    const prevSong = song; // snapshot for a full restore on Undo
+    const removed = song.sections[idx];
     emitSections(song.sections.filter((_, i) => i !== idx));
-  }, [song, emitSections, confirm]);
+    showUndoToast({
+      title: 'Section deleted',
+      description: sectionBaseType(removed?.type) || 'Section',
+      onUndo: () => emitSong(prevSong),
+    });
+  }, [song, emitSections, emitSong]);
 
   // Move a section from one index to another (drag-to-reorder commit).
   const reorderSection = useCallback((from, to) => {
@@ -1139,7 +1143,10 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
         const uniqueTypes = [...new Set(placements.map(p => p.type))];
         return (
           <div className="shrink-0 border-b border-[var(--border-1)]">
-            <div className="flex items-center gap-2 px-3 sm:pr-6 py-1.5">
+            {/* One calm row: label · Auto/Custom badge · chips · Customize —
+                scrolls horizontally when the map is long, so Customize stays with
+                the chips instead of flying to the far edge. */}
+            <div className="flex items-center gap-2 px-3 sm:pr-6 py-1.5 overflow-x-auto">
               <span className="shrink-0 text-label-10 uppercase tracking-[0.12em] font-semibold text-[var(--ds-gray-500)] select-none">Structure</span>
               <span
                 className={`shrink-0 text-label-10 uppercase tracking-wide font-bold px-1.5 py-0.5 rounded ${isCustom ? 'text-[var(--color-brand-text)] bg-[var(--color-brand-soft)]' : 'text-[var(--ds-gray-500)] bg-[var(--ds-gray-100)]'}`}
@@ -1149,14 +1156,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
               >
                 {isCustom ? 'Custom' : 'Auto'}
               </span>
-              <div className="flex-1" />
-              {isCustom ? (
-                <button type="button" onClick={() => setStructureMode(false)} title="Reset to section order" className="shrink-0 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">Reset</button>
-              ) : (
-                <button type="button" onClick={() => setStructureMode(true)} title="Set a custom structure (repeats / reorder)" className="shrink-0 text-label-11 font-semibold text-[var(--color-brand-text)] hover:opacity-80 bg-transparent border-none cursor-pointer">Customize</button>
-              )}
-            </div>
-            <div className="px-3 sm:pr-6 pb-2">
               {isCustom ? (
                 <PlayOrderEditor
                   order={playOrder}
@@ -1165,23 +1164,26 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
                   onChange={(next) => onStructureChange(next.join(', '))}
                 />
               ) : (
-                <div className="flex flex-wrap gap-1">
-                  {placements.map((p, i) => {
-                    const st = sectionStyle(p.type, null, customSectionTypes);
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                        className="inline-flex items-center px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold font-mono border border-[var(--border-1)] bg-[var(--ds-background-100)] hover:opacity-80 cursor-pointer"
-                        style={{ color: st.b }}
-                        title={`Jump to ${p.type}`}
-                      >
-                        {shortCode(p.type)}
-                      </button>
-                    );
-                  })}
-                </div>
+                placements.map((p, i) => {
+                  const st = sectionStyle(p.type, null, customSectionTypes);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                      className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold font-mono border border-[var(--border-1)] bg-[var(--ds-background-100)] hover:opacity-80 cursor-pointer"
+                      style={{ color: st.b }}
+                      title={`Jump to ${p.type}`}
+                    >
+                      {shortCode(p.type)}
+                    </button>
+                  );
+                })
+              )}
+              {isCustom ? (
+                <button type="button" onClick={() => setStructureMode(false)} title="Reset to section order" className="shrink-0 ml-1 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">Reset</button>
+              ) : (
+                <button type="button" onClick={() => setStructureMode(true)} title="Set a custom structure (repeats / reorder)" className="shrink-0 ml-1 text-label-11 font-semibold text-[var(--color-brand-text)] hover:opacity-80 bg-transparent border-none cursor-pointer">Customize</button>
               )}
             </div>
           </div>
@@ -1269,9 +1271,10 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
                   className="flex-1 bg-transparent border-none text-label-11 italic text-[var(--text-2)] outline-none min-w-0 px-1"
                   style={{ borderLeft: sec.note ? `2px solid ${s.br}` : 'none' }}
                 />
-                {/* Action cluster — desktop only, hover/focus-revealed. On touch
-                    these live in the ⋮ menu instead, so the header stays calm. */}
-                <div className="hidden sm:flex items-center shrink-0 transition-opacity sm:opacity-0 sm:group-hover/sec:opacity-100 sm:focus-within:opacity-100">
+                {/* Action cluster — edit lyrics / edit source. Always visible on
+                    touch (their only home there); hover/focus-revealed on desktop
+                    so the header stays calm. */}
+                <div className="flex items-center shrink-0 transition-opacity sm:opacity-0 sm:group-hover/sec:opacity-100 sm:focus-within:opacity-100">
                   <IconButton variant={lyricMode[secIdx] ? 'active' : 'ghost'} size="sm" aria-label="Edit lyrics" title="Edit lyrics" onClick={() => handleEditText(secIdx)}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
@@ -1282,14 +1285,13 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
                   </IconButton>
                 </div>
                 <PopMenu
+                  menuClassName="w-44"
                   trigger={
                     <IconButton variant="ghost" size="sm" aria-label="Section options" title="Section options">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
                     </IconButton>
                   }
                 >
-                  <MenuItem onClick={() => handleEditText(secIdx)}>{lyricMode[secIdx] ? 'Close lyrics' : 'Edit lyrics'}</MenuItem>
-                  <MenuItem onClick={() => toggleSource(secIdx)}>{sourceMode[secIdx] ? 'Close source' : 'Edit source'}</MenuItem>
                   <MenuItem onClick={() => duplicateSection(secIdx)}>Duplicate section</MenuItem>
                   <MenuItem danger onClick={() => removeSection(secIdx)}>Delete section</MenuItem>
                 </PopMenu>
@@ -1381,7 +1383,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
                       );
                     } else if (line.plainText !== undefined) {
                       if ((line.plainText || '').trim() === '' && (line.chords?.length > 0)) {
-                        el = <div className="mb-2 last:mb-0"><ChordOnlyLine chords={line.chords} secIdx={secIdx} lineIdx={lineIdx} onEditChord={openEditChord} onAppend={appendChord} onRemoveChord={removeChordAt} /></div>;
+                        el = <div className="mb-1 last:mb-0"><ChordOnlyLine chords={line.chords} secIdx={secIdx} lineIdx={lineIdx} onEditChord={openEditChord} onAppend={appendChord} onRemoveChord={removeChordAt} /></div>;
                       } else if ((line.plainText || '').trim() === '' && (!line.chords || line.chords.length === 0)) {
                         el = lyricComposer === secIdx ? (
                           <div className="mb-2 last:mb-0">
@@ -1400,7 +1402,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
                       } else {
                         const noteOpen = noteTarget && noteTarget.secIdx === secIdx && noteTarget.lineIdx === lineIdx;
                         el = (
-                          <div className="group/line relative mb-2 last:mb-0 flex items-start gap-1">
+                          <div className="group/line relative mb-1 last:mb-0 flex items-start gap-1">
                             <div className="min-w-0 flex-1">
                               <InteractiveLine
                                 plainText={line.plainText}
@@ -1410,6 +1412,8 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
                                 editingChordIdx={entry && entry.secIdx === secIdx && entry.lineIdx === lineIdx ? entry.chordIdx : null}
                                 armedCharPos={entry && entry.secIdx === secIdx && entry.lineIdx === lineIdx && entry.charPos != null ? entry.charPos : null}
                                 notation={notation}
+                                lyricSize={lyricSize}
+                                chordSize={chordSize}
                                 songKey={song.key}
                                 onPlace={openAddChord}
                                 onChordTap={openEditChord}

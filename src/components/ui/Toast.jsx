@@ -48,6 +48,18 @@ const ToastDescription = React.forwardRef(({ className, ...props }, ref) => (
 ));
 ToastDescription.displayName = ToastPrimitive.Description.displayName;
 
+const ToastAction = React.forwardRef(({ className, ...props }, ref) => (
+  <ToastPrimitive.Action
+    ref={ref}
+    className={cn(
+      "inline-flex h-8 shrink-0 items-center justify-center rounded-md border border-[var(--ds-gray-400)] bg-transparent px-3 text-label-13 font-semibold text-[var(--ds-gray-1000)] transition-colors hover:bg-[var(--ds-gray-100)] focus:outline-none focus:ring-2",
+      className
+    )}
+    {...props}
+  />
+));
+ToastAction.displayName = ToastPrimitive.Action.displayName;
+
 const ToastClose = React.forwardRef(({ className, ...props }, ref) => (
   <ToastPrimitive.Close
     ref={ref}
@@ -82,5 +94,6 @@ export {
   Toast,
   ToastTitle,
   ToastDescription,
+  ToastAction,
   ToastClose,
 };

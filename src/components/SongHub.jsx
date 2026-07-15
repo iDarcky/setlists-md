@@ -7,7 +7,6 @@ import FullscreenChartViewer from './FullscreenChartViewer';
 import { StructureRibbon } from './StructureRibbon';
 import SongPlayerBar from './SongPlayerBar';
 import { OverflowMenu } from './ui/OverflowMenu';
-import { useConfirm } from './ui/useConfirmHook';
 import { Select, SelectTrigger, SelectContent, SelectItem } from './ui/Select';
 import { exportSongPdf } from '../pdf/exportSongPdf';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -61,7 +60,6 @@ export default function SongHub({
   chartLayout = 'columns',
   onTransposed,
 }) {
-  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState('chart');
   const [activeArrId, setActiveArrId] = useState(
     songInput?.arrangements ? songInput.defaultArrangementId : undefined
@@ -153,15 +151,9 @@ export default function SongHub({
   // Overflow actions. Edit / Full screen / Play-live / View are intentionally
   // NOT here on desktop (they have dedicated controls). On mobile we fold
   // Campfire + Edit into the menu since the header has no room for them.
-  const handleDelete = async () => {
-    const ok = await confirm({
-      title: 'Delete song?',
-      description: `"${song?.title || 'Untitled'}" will be permanently removed. This cannot be undone.`,
-      confirmLabel: 'Delete',
-      variant: 'danger',
-    });
-    if (ok) onDelete?.();
-  };
+  // Delete is undoable — App soft-deletes to trash and shows a 5s "Undo" toast,
+  // so no confirm modal here.
+  const handleDelete = () => { onDelete?.(); };
   const baseOverflow = [
     { label: 'Print / Save as PDF', icon: PrintIcon, onClick: () => exportSongPdf(song, { transpose }) },
     onMoveSong && { label: 'Move to…', icon: MoveIcon, onClick: () => onMoveSong() },

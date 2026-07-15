@@ -1,5 +1,6 @@
 import { Toaster } from "./components/ui/Toaster";
 import { toast } from "./components/ui/use-toast";
+import { showUndoToast } from "./lib/undoToast";
 import { useConfirm } from "./components/ui/useConfirmHook";
 import OfflineBanner from "./components/ui/OfflineBanner";
 import WorkspacePickerDialog from "./components/ui/WorkspacePickerDialog";
@@ -1616,6 +1617,17 @@ export default function App() {
       historyRef.current.pop();
     }
     goBack();
+    if (removed) {
+      showUndoToast({
+        title: 'Song deleted',
+        description: removed.title || 'Song',
+        onUndo: () => {
+          setSongs(prev => prev.some(s => s.id === id) ? prev : [...prev, removed]);
+          setTrash(prev => prev.filter(e => e.song?.id !== id));
+          setTombstones(prev => ({ ...prev, songs: prev.songs.filter(t => t.id !== id) }));
+        },
+      });
+    }
   };
 
   // ----- Bulk song actions (Library selection toolbar) -----
@@ -1892,6 +1904,7 @@ export default function App() {
   }, []);
 
   const handleDeleteSetlist = (id) => {
+    const removed = setlists.find(s => s.id === id);
     setSetlists(prev => prev.filter(s => s.id !== id));
     setTombstones(prev => ({
       ...prev,
@@ -1906,6 +1919,16 @@ export default function App() {
       historyRef.current.pop();
     }
     goBack();
+    if (removed) {
+      showUndoToast({
+        title: 'Setlist deleted',
+        description: removed.name || 'Setlist',
+        onUndo: () => {
+          setSetlists(prev => prev.some(s => s.id === id) ? prev : [...prev, removed]);
+          setTombstones(prev => ({ ...prev, setlists: prev.setlists.filter(t => t.id !== id) }));
+        },
+      });
+    }
   };
 
   const handleDeleteSetlists = async (ids) => {

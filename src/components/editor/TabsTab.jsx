@@ -4,7 +4,7 @@ import { sectionStyle } from '../../music';
 import TabBlock from '../TabBlock';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
-import { useConfirm } from '../ui/useConfirmHook';
+import { showUndoToast } from '../../lib/undoToast';
 import TabGridEditor from './TabGridEditorV2';
 import { TAB_INSTRUMENTS, instrumentForStrings } from './tabInstruments';
 
@@ -44,6 +44,10 @@ function placementSections(sections, name) {
   return out;
 }
 
+// Default instrument for a brand-new tab — the editor lets the user switch
+// strings/tuning, so this is just a sensible starting point.
+const DEFAULT_INSTRUMENT = 'acoustic';
+
 const PencilIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
 );
@@ -58,11 +62,9 @@ const TrashIcon = () => (
 export default function TabsTab({ md, onChange, subdivision = 1 }) {
   const song = useMemo(() => { try { return parseSongMd(md); } catch { return null; } }, [md]);
   const library = useMemo(() => song?.tabLibrary || [], [song]);
-  const confirm = useConfirm();
 
   const [editorFor, setEditorFor] = useState(null);
   const [renaming, setRenaming] = useState(null); // { name, value }
-  const [pickingInstr, setPickingInstr] = useState(false); // instrument chooser for a new tab
 
   const emit = useCallback((nextSong) => onChange(songToMd(nextSong)), [onChange]);
 
@@ -91,18 +93,10 @@ export default function TabsTab({ md, onChange, subdivision = 1 }) {
     });
   }, [song, library, emit]);
 
-  const deleteTab = useCallback(async (name) => {
+  const deleteTab = useCallback((name) => {
     if (!song) return;
     const refs = countRefs(song.sections, name);
-    const ok = await confirm({
-      title: `Delete “${name}”?`,
-      description: refs > 0
-        ? `This tab is placed in ${refs} ${refs === 1 ? 'spot' : 'spots'}. Deleting it removes the block and every placement.`
-        : 'This removes the saved tab block.',
-      confirmLabel: 'Delete',
-      variant: 'danger',
-    });
-    if (!ok) return;
+    const prevSong = song; // snapshot — delete also strips every placement
     emit({
       ...song,
       tabLibrary: library.filter(t => t.name !== name),
@@ -111,7 +105,12 @@ export default function TabsTab({ md, onChange, subdivision = 1 }) {
         lines: (s.lines || []).filter(l => !(l && typeof l === 'object' && l.type === 'tabref' && l.name === name)),
       })),
     });
-  }, [song, library, emit, confirm]);
+    showUndoToast({
+      title: `Deleted “${name}”`,
+      description: refs > 0 ? `Removed the block and ${refs} ${refs === 1 ? 'placement' : 'placements'}.` : 'Removed the saved tab block.',
+      onUndo: () => emit(prevSong),
+    });
+  }, [song, library, emit]);
 
   const handleEditorSave = useCallback((saved) => {
     const tab = tabObjectFromEditor(saved);
@@ -129,7 +128,6 @@ export default function TabsTab({ md, onChange, subdivision = 1 }) {
 
   // Open the grid editor for a brand-new tab on the chosen instrument.
   const startNewTab = (instrId) => {
-    setPickingInstr(false);
     setEditorFor({
       mode: 'new',
       tab: null,
@@ -142,34 +140,16 @@ export default function TabsTab({ md, onChange, subdivision = 1 }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      {/* Header — title + a single "New tab" action. Picking the instrument is
-          folded into the new-tab flow, so the top row stays calm. */}
+      {/* Header — title + a single "New tab" action. Clicking it opens the grid
+          editor straight away (strings/tuning are adjustable inside), so there's
+          no confusing "pick an instrument at the top" detour. */}
       <div className="shrink-0 flex items-center gap-3 pl-3 pr-6 py-2.5 border-b border-[var(--border-1)]">
         <div className="min-w-0">
           <span className="text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">Tab library</span>
           <span className="text-label-10 text-[var(--ds-gray-500)] ml-2">{library.length} {library.length === 1 ? 'block' : 'blocks'}</span>
         </div>
-        <div className="ml-auto relative">
-          {pickingInstr ? (
-            <div className="flex items-center gap-1">
-              <span className="text-label-10 text-[var(--ds-gray-500)] mr-0.5">Instrument</span>
-              {Object.entries(TAB_INSTRUMENTS).map(([id, cfg]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => startNewTab(id)}
-                  className="px-2.5 py-1 rounded-md text-label-12 font-semibold cursor-pointer border bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)] border-[var(--ds-gray-400)] hover:bg-[var(--color-brand-soft)] hover:text-[var(--color-brand-text)] hover:border-[var(--color-brand-border)]"
-                >
-                  {cfg.label}
-                </button>
-              ))}
-              <IconButton variant="ghost" size="xs" aria-label="Cancel" title="Cancel" onClick={() => setPickingInstr(false)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
-              </IconButton>
-            </div>
-          ) : (
-            <Button variant="brand" size="sm" onClick={() => setPickingInstr(true)}>+ New tab</Button>
-          )}
+        <div className="ml-auto">
+          <Button variant="brand" size="sm" onClick={() => startNewTab(DEFAULT_INSTRUMENT)}>+ New tab</Button>
         </div>
       </div>
 
@@ -182,7 +162,7 @@ export default function TabsTab({ md, onChange, subdivision = 1 }) {
             </div>
             <p className="text-copy-14 font-semibold text-[var(--ds-gray-1000)] m-0">No tabs yet</p>
             <p className="text-copy-13 text-[var(--ds-gray-600)] m-0">Create a reusable riff or lick once, then drop it into any section from Arrange’s “+ Add”.</p>
-            <Button variant="brand" size="sm" onClick={() => setPickingInstr(true)}>+ New tab</Button>
+            <Button variant="brand" size="sm" onClick={() => startNewTab(DEFAULT_INSTRUMENT)}>+ New tab</Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
