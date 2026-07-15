@@ -560,6 +560,17 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   const currentKey = fmFields.key || '';
   const currentTempo = fmFields.tempo ?? '';
   const currentTime = fmFields.time ?? '';
+  // Title is edited via a LOCAL draft, not read straight back from the parsed
+  // frontmatter — the frontmatter round-trip trims values, so a just-typed
+  // trailing space would vanish before the next character (making multi-word
+  // titles impossible). We only re-adopt the parsed title when it differs from
+  // the draft *after trimming* (a real external change: paste, undo, arrangement
+  // switch), never for our own in-progress trailing space.
+  const [titleDraft, setTitleDraft] = useState(fmFields.title || '');
+  if ((fmFields.title || '') !== (titleDraft || '').trim()) {
+    setTitleDraft(fmFields.title || '');
+  }
+  const setTitle = useCallback((v) => { setTitleDraft(v); updateField('title', v); }, [updateField]);
   // The Key selector is a *relabel* (it never moves the chords), which is a
   // surprising foot-gun on an existing song. So lock it while editing one and
   // steer the user to Transpose (which moves chords + relabels together). A
@@ -794,6 +805,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
               onDismiss={() => setShowNewSong(false)}
               onImport={onOpenNewSong ? () => onOpenNewSong('import') : undefined}
               onBrowse={onOpenNewSong ? () => onOpenNewSong('browse') : undefined}
+              metaReady={titleSet && keySet}
             />
           );
         }
@@ -1199,8 +1211,8 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
           now — the arrangement moved to row 2 — so it stops truncating. */}
       <div className="flex items-center gap-2">
         <input
-          value={fmFields.title || ''}
-          onChange={e => updateField('title', e.target.value)}
+          value={titleDraft}
+          onChange={e => setTitle(e.target.value)}
           placeholder={song ? 'Song title' : 'Untitled song'}
           aria-label="Song title"
           className="flex-1 min-w-0 bg-transparent border-0 outline-none text-heading-18 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"

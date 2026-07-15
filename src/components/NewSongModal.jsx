@@ -104,7 +104,7 @@ export default function NewSongModal({
         {/* Blank song lives in the corner — it opens the editor's paste/blank mode. */}
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--ds-gray-300)] shrink-0">
           <span className="text-label-11 text-[var(--ds-gray-500)] mr-auto">Prefer a clean slate?</span>
-          <Button variant="secondary" size="sm" onClick={onStartBlank}>Start blank</Button>
+          <Button variant="brand" size="sm" onClick={onStartBlank}>Start blank</Button>
         </div>
       </div>
     </div>

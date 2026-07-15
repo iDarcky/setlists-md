@@ -30,8 +30,31 @@ export function lyricsOnly(lines) {
     .join('\n');
 }
 
+// Shift chord positions from `oldText` onto `newText` using a common
+// prefix/suffix diff, so editing the words (e.g. deleting a space) MOVES the
+// chords with the text instead of leaving them at stale absolute offsets — the
+// old clamp-only behaviour piled chords at the end and looked like they vanished.
+export function alignChords(oldText, newText, chords) {
+  const oldLen = oldText.length;
+  const newLen = newText.length;
+  let pre = 0;
+  while (pre < oldLen && pre < newLen && oldText[pre] === newText[pre]) pre++;
+  let suf = 0;
+  while (suf < (oldLen - pre) && suf < (newLen - pre)
+    && oldText[oldLen - 1 - suf] === newText[newLen - 1 - suf]) suf++;
+  const delta = newLen - oldLen;
+  const changeEnd = oldLen - suf; // exclusive end of the edited region in oldText
+  return chords.map(c => {
+    let pos = c.pos;
+    if (pos <= pre) { /* before the edit — unchanged */ }
+    else if (pos >= changeEnd) { pos += delta; } // after the edit — shift by delta
+    else { pos = pre; } // inside the edited span — snap to the edit's start
+    return { chord: c.chord, pos: Math.max(0, Math.min(pos, newLen)) };
+  });
+}
+
 // Merge edited plain-lyrics back onto a section's lines, preserving each line's
-// existing chords (clamped to the new text length), any inline note, and any
+// existing chords (moved to track the edited text), any inline note, and any
 // tab/modulate lines in place. Extra new lines become plain lyrics. Returns a
 // raw .md block (re-parsed by the caller with parseSectionLines).
 export function mergeLyrics(originalLines, lyricsText) {
@@ -44,9 +67,9 @@ export function mergeLyrics(originalLines, lyricsText) {
     p += 1;
     const { clean } = extractInlineNotes(line);
     const noteMatch = line.match(/\{!(.*?)\}/);
-    const { chords } = lineToPlacement(clean);
-    const clamped = chords.map(c => ({ chord: c.chord, pos: Math.min(c.pos, lyric.length) }));
-    let merged = placementToLine({ plainText: lyric, chords: clamped });
+    const { plainText: oldLyric, chords } = lineToPlacement(clean);
+    const aligned = alignChords(oldLyric, lyric, chords);
+    let merged = placementToLine({ plainText: lyric, chords: aligned });
     if (noteMatch) merged += ` {!${noteMatch[1]}}`;
     out.push(merged);
   }
