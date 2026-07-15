@@ -68,15 +68,14 @@ export default function TabsTab({ md, onChange, subdivision = 1 }) {
 
   const emit = useCallback((nextSong) => onChange(songToMd(nextSong)), [onChange]);
 
-  const createTab = useCallback((tab) => {
+  const createTab = useCallback((tab, desiredName) => {
     if (!song) return;
-    emit({ ...song, tabLibrary: [...library, { name: nextTabName(library), tab }] });
+    const used = new Set(library.map(t => t.name));
+    let name = (desiredName || '').trim();
+    if (!name || used.has(name)) name = nextTabName(library);
+    emit({ ...song, tabLibrary: [...library, { name, tab }] });
   }, [song, library, emit]);
 
-  const updateTabContent = useCallback((name, tab) => {
-    if (!song) return;
-    emit({ ...song, tabLibrary: library.map(t => t.name === name ? { ...t, tab } : t) });
-  }, [song, library, emit]);
 
   const renameTab = useCallback((oldName, raw) => {
     const newName = (raw || '').trim();
@@ -112,15 +111,31 @@ export default function TabsTab({ md, onChange, subdivision = 1 }) {
     });
   }, [song, library, emit]);
 
-  const handleEditorSave = useCallback((saved) => {
+  const handleEditorSave = useCallback((saved, opts = {}) => {
     const tab = tabObjectFromEditor(saved);
     // Carry the chosen instrument so it round-trips through the .md format and
     // can be filtered in the chart/practice/live views.
-    if (editorFor.instrument) tab.instrument = editorFor.instrument;
-    if (editorFor.mode === 'new') createTab(tab);
-    else updateTabContent(editorFor.name, tab);
+    const instrument = opts.instrument || editorFor.instrument;
+    if (instrument) tab.instrument = instrument;
+    const desiredName = (opts.name || '').trim();
+    if (editorFor.mode === 'new') {
+      createTab(tab, desiredName);
+    } else if (song) {
+      // Rename (updating every placement) + content in a single write so the
+      // second op doesn't run against a stale library.
+      const oldName = editorFor.name;
+      const newName = desiredName && desiredName !== oldName && !library.some(t => t.name === desiredName) ? desiredName : oldName;
+      emit({
+        ...song,
+        tabLibrary: library.map(t => t.name === oldName ? { name: newName, tab } : t),
+        sections: newName === oldName ? song.sections : song.sections.map(s => ({
+          ...s,
+          lines: (s.lines || []).map(l => (l && typeof l === 'object' && l.type === 'tabref' && l.name === oldName) ? { ...l, name: newName } : l),
+        })),
+      });
+    }
     setEditorFor(null);
-  }, [editorFor, createTab, updateTabContent]);
+  }, [editorFor, createTab, song, library, emit]);
 
   if (!song) {
     return <div className="flex items-center justify-center h-40 text-[var(--ds-gray-600)]">Start a song in the Advanced tab to add tabs</div>;
@@ -235,6 +250,7 @@ export default function TabsTab({ md, onChange, subdivision = 1 }) {
       {editorFor && (
         <TabGridEditor
           initialTab={editorFor.tab}
+          initialName={editorFor.mode === 'new' ? nextTabName(library) : (editorFor.name || '')}
           strings={editorFor.strings}
           tunings={editorFor.tunings}
           instrument={editorFor.instrument}

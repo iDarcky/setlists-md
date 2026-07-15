@@ -688,6 +688,25 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     }
   }, [md, confirm, setBody]);
 
+  // Apply pasted chord-sheet text directly (used by the New-song canvas). Same
+  // conversion as handleImport but from a passed string, and it fills empty
+  // frontmatter fields the source declared without clobbering the identity card.
+  const applyPastedText = useCallback((text) => {
+    if (!text || !text.trim()) return;
+    const { body, meta } = importChartText(text);
+    setBody(body);
+    const fm = parseFrontmatterFields(splitMd(md).frontmatter);
+    const patch = {};
+    for (const k of ['title', 'artist', 'key', 'tempo', 'time', 'capo']) {
+      if (meta[k] && !fm[k]) patch[k] = meta[k];
+    }
+    if (Object.keys(patch).length) {
+      setMd((cur) => replaceFrontmatter(cur, serializeFrontmatterFields({ ...parseFrontmatterFields(splitMd(cur).frontmatter), ...patch })));
+    }
+    setShowNewSong(false);
+    setActiveTab('arrange');
+  }, [md, setBody]);
+
   // Changing the Key field is a *relabel only* — it records what key the song
   // is written in and never touches the chords the user typed. (A composer who
   // notices the song is actually in D, not C, can fix the label without their
@@ -759,8 +778,19 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
           </div>
         );
       case 'arrange':
-        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} notation={canvasNotation} lyricSize={canvasLyricSize} chordSize={canvasChordSize} />;
       default:
+        // A fresh blank song shows an empty paste canvas in place of the
+        // structure + section cards (the rest of the editor chrome stays).
+        if (showNewSong) {
+          return (
+            <EditorEmptyState
+              onApplyText={applyPastedText}
+              onDismiss={() => setShowNewSong(false)}
+              onImport={onOpenNewSong ? () => onOpenNewSong('import') : undefined}
+              onBrowse={onOpenNewSong ? () => onOpenNewSong('browse') : undefined}
+            />
+          );
+        }
         return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} notation={canvasNotation} lyricSize={canvasLyricSize} chordSize={canvasChordSize} />;
     }
   };
@@ -1396,16 +1426,6 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     </div>
   );
 
-  // New-song mode: a big paste-or-import surface shown before the blank cards.
-  const newSongModeEl = (
-    <EditorEmptyState
-      onApplyMd={(m) => { setMd(m); setShowNewSong(false); setActiveTab('arrange'); }}
-      onDismiss={() => setShowNewSong(false)}
-      onImport={onOpenNewSong ? () => onOpenNewSong('import') : undefined}
-      onBrowse={onOpenNewSong ? () => onOpenNewSong('browse') : undefined}
-    />
-  );
-
   return (
     <div className="h-full bg-[var(--ds-background-200)] flex flex-col">
       {cardsHeader ? (
@@ -1413,14 +1433,10 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
           className="flex-1 min-h-0 flex flex-col gap-3 px-3 sm:px-4 pb-3"
           style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
         >
-          {showNewSong ? newSongModeEl : (
-            <>
-              {draftCardEl}
-              {cardHeaderEl}
-              {cardWorkAreaEl}
-              {saveCancelCardEl}
-            </>
-          )}
+          {draftCardEl}
+          {cardHeaderEl}
+          {cardWorkAreaEl}
+          {saveCancelCardEl}
         </div>
       ) : (
       <>

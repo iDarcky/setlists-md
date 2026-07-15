@@ -1141,12 +1141,41 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
         const isCustom = song.structureMode === 'custom';
         const playOrder = isCustom ? (song.structure || []) : [];
         const uniqueTypes = [...new Set(placements.map(p => p.type))];
+        const toggleBtn = isCustom ? (
+          <button type="button" onClick={() => setStructureMode(false)} title="Reset to section order" className="shrink-0 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">Reset</button>
+        ) : (
+          <button type="button" onClick={() => setStructureMode(true)} title="Set a custom structure (repeats / reorder)" className="shrink-0 text-label-11 font-semibold text-[var(--color-brand-text)] hover:opacity-80 bg-transparent border-none cursor-pointer">Customize</button>
+        );
+        const chips = isCustom ? (
+          <PlayOrderEditor
+            order={playOrder}
+            availableTypes={uniqueTypes}
+            customSectionTypes={customSectionTypes}
+            onChange={(next) => onStructureChange(next.join(', '))}
+          />
+        ) : (
+          placements.map((p, i) => {
+            const st = sectionStyle(p.type, null, customSectionTypes);
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold font-mono border border-[var(--border-1)] bg-[var(--ds-background-100)] hover:opacity-80 cursor-pointer"
+                style={{ color: st.b }}
+                title={`Jump to ${p.type}`}
+              >
+                {shortCode(p.type)}
+              </button>
+            );
+          })
+        );
         return (
-          <div className="shrink-0 border-b border-[var(--border-1)]">
-            {/* One calm row: label · Auto/Custom badge · chips · Customize —
-                scrolls horizontally when the map is long, so Customize stays with
-                the chips instead of flying to the far edge. */}
-            <div className="flex items-center gap-2 px-3 sm:pr-6 py-1.5 overflow-x-auto">
+          <div className="shrink-0 border-b border-[var(--border-1)] px-3 sm:pr-6 py-1.5">
+            {/* Desktop: one line (label · badge · chips · Customize). Mobile:
+                the chips break to their own scrolling row so the label + toggle
+                stay readable instead of crushing together. */}
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
               <span className="shrink-0 text-label-10 uppercase tracking-[0.12em] font-semibold text-[var(--ds-gray-500)] select-none">Structure</span>
               <span
                 className={`shrink-0 text-label-10 uppercase tracking-wide font-bold px-1.5 py-0.5 rounded ${isCustom ? 'text-[var(--color-brand-text)] bg-[var(--color-brand-soft)]' : 'text-[var(--ds-gray-500)] bg-[var(--ds-gray-100)]'}`}
@@ -1156,35 +1185,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
               >
                 {isCustom ? 'Custom' : 'Auto'}
               </span>
-              {isCustom ? (
-                <PlayOrderEditor
-                  order={playOrder}
-                  availableTypes={uniqueTypes}
-                  customSectionTypes={customSectionTypes}
-                  onChange={(next) => onStructureChange(next.join(', '))}
-                />
-              ) : (
-                placements.map((p, i) => {
-                  const st = sectionStyle(p.type, null, customSectionTypes);
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                      className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold font-mono border border-[var(--border-1)] bg-[var(--ds-background-100)] hover:opacity-80 cursor-pointer"
-                      style={{ color: st.b }}
-                      title={`Jump to ${p.type}`}
-                    >
-                      {shortCode(p.type)}
-                    </button>
-                  );
-                })
-              )}
-              {isCustom ? (
-                <button type="button" onClick={() => setStructureMode(false)} title="Reset to section order" className="shrink-0 ml-1 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">Reset</button>
-              ) : (
-                <button type="button" onClick={() => setStructureMode(true)} title="Set a custom structure (repeats / reorder)" className="shrink-0 ml-1 text-label-11 font-semibold text-[var(--color-brand-text)] hover:opacity-80 bg-transparent border-none cursor-pointer">Customize</button>
-              )}
+              {/* Toggle: pinned right on mobile's first row; inline (after chips) on desktop. */}
+              <div className="ml-auto sm:hidden shrink-0">{toggleBtn}</div>
+              <div className="basis-full order-last sm:basis-auto sm:order-none min-w-0 flex items-center gap-1.5 overflow-x-auto sm:pl-1">
+                {chips}
+              </div>
+              <div className="hidden sm:block shrink-0 ml-1">{toggleBtn}</div>
             </div>
           </div>
         );
@@ -1195,6 +1201,9 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
         className="flex-1 overflow-auto px-3 sm:pr-6 pt-3 pb-8"
         onDragOver={dragIdx != null ? (e) => updateAutoScroll(e.clientY) : undefined}
       >
+        {/* Cap the editing column so short lyric lines don't leave a huge empty
+            band on the right of a wide editor pane. */}
+        <div className="w-full max-w-3xl">
         {placements.map((sec, secIdx) => {
           const s = sectionStyle(sec.type, null, customSectionTypes);
           const base = sectionBaseType(sec.type);
@@ -1496,6 +1505,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
         {/* Scroll sentinel — a freshly added section scrolls this into view
             (deferred via scrollPendingRef, same idiom as the setlist builder). */}
         <div ref={listEndRef} className="h-px" style={{ scrollMarginBottom: '6rem' }} />
+        </div>
       </div>
 
       {/* Full-width chord entry bar (all devices) */}

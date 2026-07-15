@@ -1,22 +1,12 @@
 import { toast } from '../components/ui/use-toast';
-import { ToastAction } from '../components/ui/Toast';
+import UndoToastContent from '../components/ui/UndoToastContent';
 
-// Show a "deleted — Undo" toast. The caller has ALREADY removed the thing
-// optimistically; this just offers a 5s window (the Radix default) to put it
-// back via `onUndo`. Pattern: remove now, restore on Undo — no deferred-commit
-// timer, so it sidesteps the TOAST_LIMIT=1 eviction of back-to-back deletes.
-export function showUndoToast({ title, description, onUndo }) {
+// Show a compact "deleted — Undo" toast with a 5s countdown ring. The caller has
+// ALREADY removed the thing optimistically; Undo puts it back via `onUndo`.
+export function showUndoToast({ title, onUndo }) {
   const t = toast({
-    title,
-    description,
-    action: (
-      <ToastAction
-        altText="Undo"
-        onClick={() => { onUndo?.(); t.dismiss(); }}
-      >
-        Undo
-      </ToastAction>
-    ),
+    className: 'p-2.5 pr-9 w-auto min-w-0',
+    title: <UndoToastContent label={title} onUndo={() => { onUndo?.(); t.dismiss(); }} />,
   });
   return t;
 }

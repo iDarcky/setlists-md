@@ -1,32 +1,43 @@
+import { useState } from 'react';
 import { Button } from '../ui/Button';
-import PasteTab from '../newSong/PasteTab';
 
-// New-song mode for the editor: a big paste area up front. Paste a chord sheet
-// and "Create song" transforms it into the cards (via the smart importer);
-// Import/Browse hand off to the New-Song modal; "Start blank" drops straight
-// into an empty chart.
-export default function EditorEmptyState({ onApplyMd, onDismiss, onImport, onBrowse }) {
+// New-song canvas — shown in place of the Arrange structure + section cards for a
+// fresh blank song. A big empty space to paste a chord sheet into (auto-formats
+// into the cards), or start blank and build sections by hand. The identity card,
+// tabs and preview around it stay put — this only replaces the canvas body.
+export default function EditorEmptyState({ onApplyText, onDismiss, onImport, onBrowse }) {
+  const [text, setText] = useState('');
+  const canApply = text.trim().length > 0;
+
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto">
-      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-4 flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="min-w-0">
-            <h2 className="text-heading-18 font-bold text-[var(--ds-gray-1000)] m-0">Start your song</h2>
-            <p className="text-copy-13 text-[var(--ds-gray-600)] mt-0.5 mb-0">
-              Paste a chord sheet below and it auto-formats into the editor — or start from a blank chart.
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {onImport && <Button variant="secondary" size="sm" onClick={onImport}>Import file</Button>}
-            {onBrowse && <Button variant="secondary" size="sm" onClick={onBrowse}>Browse</Button>}
-            <Button variant="ghost" size="sm" onClick={onDismiss}>Start blank</Button>
-          </div>
+    <div className="flex-1 min-h-0 flex flex-col px-3 sm:px-4 pt-3 pb-4 gap-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <p className="text-copy-13 text-[var(--ds-gray-600)] m-0">
+          Paste a chord sheet to auto-format it — or start blank and add sections.
+        </p>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {onImport && <Button variant="secondary" size="sm" onClick={onImport}>Import file</Button>}
+          {onBrowse && <Button variant="secondary" size="sm" onClick={onBrowse}>Browse</Button>}
+          <Button variant="ghost" size="sm" onClick={onDismiss}>Start blank</Button>
         </div>
+      </div>
 
-        {/* The paste surface — smart importer with a live .md preview. "Create
-            song" applies the converted markdown, which builds the cards. */}
-        <div className="rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] overflow-hidden">
-          <PasteTab onSubmit={onApplyMd} />
+      {/* The empty space: a full-height paste area. */}
+      <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-dashed border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] overflow-hidden">
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder={'Paste your song here…\n\n[Verse 1]\nG        D          Em       C\nAmazing grace, how sweet the sound'}
+          spellCheck={false}
+          className="flex-1 min-h-[220px] w-full bg-transparent p-4 text-copy-14 leading-relaxed text-[var(--ds-gray-1000)] resize-none outline-none font-mono whitespace-pre"
+        />
+        <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-2.5 border-t border-[var(--ds-gray-300)]">
+          <span className="text-label-11 text-[var(--ds-gray-500)]">
+            {canApply ? `${text.split('\n').length} lines` : 'ChordPro, Ultimate-Guitar, OpenSong or plain lyrics'}
+          </span>
+          <Button variant="brand" size="sm" disabled={!canApply} onClick={() => onApplyText(text)}>
+            Turn into chart
+          </Button>
         </div>
       </div>
     </div>
