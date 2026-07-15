@@ -6,6 +6,7 @@ import { parseSongMd, songToMd, generateId } from '../parser';
 import { songFromFlat, withArrangement } from '../arrangements';
 import { canonicalSongHash, canonicalSetlistHash, HASH_VERSION } from './canonical';
 import { createAmplificationGuard } from './amplification-guard';
+import { withSyncLock } from './lock';
 
 function sanitizeFilename(name) {
   return (name || 'Untitled')
@@ -477,22 +478,26 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
       setStatus('syncing');
 
       try {
-        const pullResult = await pull(songs, setlists, tombstones);
-        const pushResult = await push(pullResult.songs, pullResult.setlists, pullResult.tombstones);
+        // Serialize with any other sync pass over this library (another tab,
+        // a temp engine) — the manifests are read-modify-write.
+        return await withSyncLock(libraryId, async () => {
+          const pullResult = await pull(songs, setlists, tombstones);
+          const pushResult = await push(pullResult.songs, pullResult.setlists, pullResult.tombstones);
 
-        const lastSync = new Date().toISOString();
-        const syncState = await getSyncState(libraryId);
-        await setPendingPush(false, libraryId);
-        await setHashVersion(HASH_VERSION, libraryId);
-        setStatus('synced', { lastSync, provider: syncState.activeProvider });
+          const lastSync = new Date().toISOString();
+          const syncState = await getSyncState(libraryId);
+          await setPendingPush(false, libraryId);
+          await setHashVersion(HASH_VERSION, libraryId);
+          setStatus('synced', { lastSync, provider: syncState.activeProvider });
 
-        return {
-          ...pullResult,
-          tombstones: pushResult.tombstones,
-          tombstonesChanged: pullResult.tombstonesChanged || pushResult.tombstonesChanged,
-          uploaded: pushResult.uploaded,
-          errors: pushResult.errors,
-        };
+          return {
+            ...pullResult,
+            tombstones: pushResult.tombstones,
+            tombstonesChanged: pullResult.tombstonesChanged || pushResult.tombstonesChanged,
+            uploaded: pushResult.uploaded,
+            errors: pushResult.errors,
+          };
+        });
       } catch (err) {
         console.error('Sync error:', err);
         setStatus('error');
@@ -539,19 +544,21 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
     if (!syncState.activeProvider) return;
 
     syncing = true;
-    await setPendingPush(true, libraryId);
     try {
-      const pushResult = await push(songs, setlists, tombstones);
-      if (pushResult?.tombstonesChanged) {
-        onTombstonesPruned?.(pushResult.tombstones);
-      }
-      await setPendingPush(false, libraryId);
-      // Only surface "synced" when work actually happened — otherwise the
-      // status churns ("Syncing…/Synced") on every keystroke-debounce.
-      const uploaded = (pushResult?.uploaded?.songs || 0) + (pushResult?.uploaded?.setlists || 0);
-      if (uploaded > 0 || pushResult?.tombstonesChanged) {
-        setStatus('synced', { lastSync: new Date().toISOString(), provider: syncState.activeProvider });
-      }
+      await withSyncLock(libraryId, async () => {
+        await setPendingPush(true, libraryId);
+        const pushResult = await push(songs, setlists, tombstones);
+        if (pushResult?.tombstonesChanged) {
+          onTombstonesPruned?.(pushResult.tombstones);
+        }
+        await setPendingPush(false, libraryId);
+        // Only surface "synced" when work actually happened — otherwise the
+        // status churns ("Syncing…/Synced") on every keystroke-debounce.
+        const uploaded = (pushResult?.uploaded?.songs || 0) + (pushResult?.uploaded?.setlists || 0);
+        if (uploaded > 0 || pushResult?.tombstonesChanged) {
+          setStatus('synced', { lastSync: new Date().toISOString(), provider: syncState.activeProvider });
+        }
+      });
     } catch (err) {
       console.error('Sync push error:', err);
       setStatus('error');

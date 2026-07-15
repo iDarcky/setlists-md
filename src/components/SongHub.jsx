@@ -7,6 +7,7 @@ import FullscreenChartViewer from './FullscreenChartViewer';
 import { StructureRibbon } from './StructureRibbon';
 import SongPlayerBar from './SongPlayerBar';
 import { OverflowMenu } from './ui/OverflowMenu';
+import { useConfirm } from './ui/useConfirmHook';
 import { Select, SelectTrigger, SelectContent, SelectItem } from './ui/Select';
 import { exportSongPdf } from '../pdf/exportSongPdf';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -39,13 +40,14 @@ const EditIcon = (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" st
 const PlayIcon = (<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>);
 const MoveIcon = (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>);
 const CopyIcon = (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>);
+const TrashIcon = (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>);
 
 export default function SongHub({
   song: songInput,
   onBack,
   onEdit,
   onPlay,
-  onMoveSong, onCopySong,
+  onMoveSong, onCopySong, onDelete,
   onUpdateSong,
   addedBy,
   settings,
@@ -59,6 +61,7 @@ export default function SongHub({
   chartLayout = 'columns',
   onTransposed,
 }) {
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState('chart');
   const [activeArrId, setActiveArrId] = useState(
     songInput?.arrangements ? songInput.defaultArrangementId : undefined
@@ -150,10 +153,20 @@ export default function SongHub({
   // Overflow actions. Edit / Full screen / Play-live / View are intentionally
   // NOT here on desktop (they have dedicated controls). On mobile we fold
   // Campfire + Edit into the menu since the header has no room for them.
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: 'Delete song?',
+      description: `"${song?.title || 'Untitled'}" will be permanently removed. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (ok) onDelete?.();
+  };
   const baseOverflow = [
     { label: 'Print / Save as PDF', icon: PrintIcon, onClick: () => exportSongPdf(song, { transpose }) },
     onMoveSong && { label: 'Move to…', icon: MoveIcon, onClick: () => onMoveSong() },
     onCopySong && { label: 'Copy to…', icon: CopyIcon, onClick: () => onCopySong() },
+    onDelete && { label: 'Delete song', icon: TrashIcon, onClick: handleDelete, danger: true },
   ].filter(Boolean);
   const overflowDesktop = baseOverflow;
   const overflowMobile = [
@@ -162,13 +175,14 @@ export default function SongHub({
     ...baseOverflow,
   ].filter(Boolean);
 
-  // Gold key chip that doubles as the transpose control (dropdown + chevron).
+  // Key chip that doubles as the transpose control (dropdown + chevron). Its
+  // fill follows the chord colour (--chord) so it tracks the theme/palette.
   const keyChip = (cls) => (
     <Select value={keyValue} onValueChange={setSelectedKey}>
       <SelectTrigger
         aria-label="Key (transpose)"
         className={cn('!border-0 gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90', cls)}
-        style={{ background: '#e0b341', color: '#0a0a0a' }}
+        style={{ background: 'var(--chord)', color: '#0a0a0a' }}
       >
         <span>{keyValue}</span>
       </SelectTrigger>

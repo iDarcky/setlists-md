@@ -1,19 +1,8 @@
 import { useState } from 'react';
-import { serializeTabBlock, lineToPlacement, placementToLine, extractInlineNotes } from '../../parser';
+import { lineToPlacement, placementToLine, extractInlineNotes } from '../../parser';
 import { sectionStyle } from '../../music';
 import { Button } from '../ui/Button';
-
-function serializeLine(l) {
-  if (typeof l === 'string') return l;
-  if (l.type === 'tab') return serializeTabBlock(l);
-  if (l.type === 'tabref') return `{tabref: ${l.name}}`;
-  if (l.type === 'modulate') return `{modulate: ${l.semitones > 0 ? '+' : ''}${l.semitones}}`;
-  return '';
-}
-
-function serializeSectionLines(lines) {
-  return lines.map(serializeLine).join('\n');
-}
+import { serializeLine, serializeSectionLines } from './arrangeHelpers';
 
 // Plain lyrics (chords + inline notes stripped) for the string lines only.
 function lyricsOnly(lines) {

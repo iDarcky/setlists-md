@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, memo, Fragment } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, memo, Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import { parseSongMd, songToMd, placementToLine, parseTabBlock, parseSectionLines } from '../../parser';
 import { sectionStyle, getNashvilleNumber, getSolfege } from '../../music';
@@ -7,10 +7,10 @@ import TabGridEditor from './TabGridEditorV2';
 import KeyChangeDialog from './KeyChangeDialog';
 import { TAB_INSTRUMENTS, instrumentForStrings } from './tabInstruments';
 import SectionDrawer from './SectionDrawer';
-import StructureControl from './StructureControl';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
-import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType } from './arrangeHelpers';
+import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType, serializeSectionLines } from './arrangeHelpers';
+import { importChartText } from '../../lib/importChords';
 import { loadRecents, saveRecents, pushRecent } from './chordRecents';
 import ChordAutocomplete from './ChordAutocomplete';
 import { useConfirm } from '../ui/useConfirmHook';
@@ -19,7 +19,6 @@ const SECTION_TYPES = [
   'Intro', 'Verse', 'Pre Chorus', 'Chorus', 'Bridge',
   'Instrumental', 'Interlude', 'Tag', 'Vamp', 'Outro', 'Ending', 'Refrain',
 ];
-const TEMPLATE_TYPES = ['Verse', 'Chorus', 'Bridge', 'Pre Chorus', 'Intro', 'Tag', 'Instrumental'];
 
 // Next free "Tab N" name for the library.
 function nextTabName(library = []) {
@@ -40,6 +39,14 @@ function tabObjectFromEditor(saved) {
   return tab;
 }
 
+// "Verse 1" -> "V1", "Pre Chorus 2" -> "PC2" — compact code for sequence chips.
+function shortCode(type) {
+  const base = type.replace(/\s*\d+$/, '');
+  const num = (type.match(/(\d+)\s*:?\s*$/) || [])[1] || '';
+  const initials = base.split(/\s+/).map(w => w[0] || '').join('').toUpperCase();
+  return initials + num;
+}
+
 // Display a chord in the chosen notation (reading aid; data stays as chords).
 function formatChord(chord, notation, key) {
   if (notation === 'nashville') return getNashvilleNumber(chord, key);
@@ -52,140 +59,149 @@ function formatChord(chord, notation, key) {
 // tapping an existing chord opens it pre-filled to edit/move/remove. A hover
 // caret shows where a chord will land.
 const InteractiveLine = memo(function InteractiveLine({
-  plainText, chords, secIdx, lineIdx, editingChordIdx, armedCharPos,
+  plainText, chords, secIdx, lineIdx, editingChordIdx,
   notation, songKey,
-  onPlace, onChordTap,
+  onPlace, onChordTap, onMoveChord,
 }) {
-  const containerRef = useRef(null);
-  const textRef = useRef(null);
   const downRef = useRef(null);
-  const [chips, setChips] = useState([]);
-  const [caret, setCaret] = useState(null);
-  const [armedCaret, setArmedCaret] = useState(null);
-  const [hoverPos, setHoverPos] = useState(null);
-  const [tick, setTick] = useState(0);
+  const rootRef = useRef(null);
+  const dragChordRef = useRef(null);         // origIdx of the chord being dragged
+  const [draggingChord, setDraggingChord] = useState(null);
 
-  const indexedChords = useMemo(
-    () => (chords || []).map((c, i) => ({ chord: c.chord, pos: c.pos, origIdx: i })),
-    [chords],
-  );
-
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    const textEl = textRef.current;
-    if (!container || !textEl) return;
-    const textNode = textEl.firstChild;
-    const len = textNode && textNode.nodeType === 3 ? textNode.length : 0;
-    const cRect = container.getBoundingClientRect();
-    const measure = (pos) => {
-      if (!textNode || len === 0) {
-        const r = textEl.getBoundingClientRect();
-        return { left: r.left - cRect.left, top: r.top - cRect.top };
-      }
-      const atEnd = pos >= len;
-      const i = atEnd ? len - 1 : Math.max(0, pos);
-      const range = document.createRange();
-      range.setStart(textNode, i);
-      range.setEnd(textNode, i + 1);
-      const r = range.getClientRects()[0];
-      if (!r) return null;
-      return { left: (atEnd ? r.right : r.left) - cRect.left, top: r.top - cRect.top };
-    };
-    const next = [];
-    for (const c of indexedChords) {
-      const m = measure(c.pos);
-      if (m) next.push({ chord: c.chord, origIdx: c.origIdx, left: m.left, top: m.top });
-    }
-    next.sort((a, b) => a.top - b.top || a.left - b.left);
-    const CHAR_W = 7.8;
-    for (let i = 1; i < next.length; i++) {
-      const prev = next[i - 1];
-      if (Math.abs(next[i].top - prev.top) < 4) {
-        const prevRight = prev.left + prev.chord.length * CHAR_W + 4;
-        if (next[i].left < prevRight) next[i].left = prevRight;
-      }
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setChips(next);
-    setCaret(hoverPos != null ? measure(hoverPos) : null);
-    setArmedCaret(armedCharPos != null ? measure(armedCharPos) : null);
-  }, [plainText, indexedChords, hoverPos, armedCharPos, tick]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => setTick(t => t + 1));
-    ro.observe(container);
-    return () => ro.disconnect();
+  // Resolve a lyric caret position (char offset in plainText) from a screen
+  // point — used when a dragged chord chip is dropped over the lyric.
+  const posFromPoint = useCallback((clientX, clientY) => {
+    const span = document.elementFromPoint(clientX, clientY)?.closest?.('[data-tok-start]');
+    if (!span || !rootRef.current?.contains(span)) return null;
+    const start = parseInt(span.dataset.tokStart, 10);
+    const within = caretOffsetFromPoint(clientX, clientY, span);
+    return start + (within != null ? within : 0);
   }, []);
 
-  // Distinguish a tap (place a chord) from a scroll/drag. Mouse hovers show a
-  // guide caret; touch never opens on the initial press — only on a clean
-  // pointerup that didn't move, so swiping to scroll won't fire the popover.
-  const handlePointerMove = (e) => {
-    if (downRef.current) {
-      const d = downRef.current;
-      if (Math.abs(e.clientX - d.x) > 8 || Math.abs(e.clientY - d.y) > 8) { d.moved = true; setHoverPos(null); }
-      return;
+  // Touch drag of a chord chip → move it (HTML5 drag covers mouse; React touch
+  // events are passive so we attach native non-passive listeners instead).
+  const beginChordTouch = useCallback((origIdx) => {
+    dragChordRef.current = origIdx;
+    setDraggingChord(origIdx);
+    let last = null;
+    const onMove = (e) => { const t = e.touches[0]; if (!t) return; e.preventDefault(); last = { x: t.clientX, y: t.clientY }; };
+    const onEnd = () => {
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      document.removeEventListener('touchcancel', onEnd);
+      document.body.style.userSelect = '';
+      const ci = dragChordRef.current;
+      dragChordRef.current = null;
+      setDraggingChord(null);
+      if (ci != null && last) { const pos = posFromPoint(last.x, last.y); if (pos != null) onMoveChord?.(secIdx, lineIdx, ci, pos); }
+    };
+    document.body.style.userSelect = 'none';
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
+  }, [posFromPoint, onMoveChord, secIdx, lineIdx]);
+
+  // Flow-based layout: split the line into word tokens that wrap naturally.
+  // Each chord starts a token, and that token gets a min-width equal to the
+  // chord chip — so a chord ALWAYS pushes the lyric apart and two chords placed
+  // next to each other stay readable instead of overlapping.
+  const tokens = useMemo(() => {
+    const text = plainText || '';
+    const sorted = (chords || [])
+      .map((c, i) => ({ chord: c.chord, pos: Math.max(0, Math.min(c.pos, text.length)), origIdx: i }))
+      .sort((a, b) => a.pos - b.pos);
+    const bounds = [];
+    if (sorted.length === 0 || sorted[0].pos > 0) bounds.push({ pos: 0, chord: null, origIdx: null });
+    for (const c of sorted) bounds.push({ pos: c.pos, chord: c.chord, origIdx: c.origIdx });
+    const out = [];
+    for (let i = 0; i < bounds.length; i++) {
+      const start = bounds[i].pos;
+      const end = i + 1 < bounds.length ? bounds[i + 1].pos : text.length;
+      const slice = text.slice(start, end);
+      const chunks = slice.length ? (slice.match(/\S+\s*|\s+/g) || [slice]) : [''];
+      let offset = start;
+      chunks.forEach((chunk, ci) => {
+        out.push({
+          chord: ci === 0 ? bounds[i].chord : null,
+          origIdx: ci === 0 ? bounds[i].origIdx : null,
+          text: chunk,
+          start: offset,
+        });
+        offset += chunk.length;
+      });
     }
-    if (e.pointerType !== 'touch') {
-      const pos = caretOffsetFromPoint(e.clientX, e.clientY, textRef.current);
-      if (pos != null) setHoverPos(pos);
-    }
-  };
-  const handlePointerLeave = () => setHoverPos(null);
-  const handlePointerDown = (e) => {
-    downRef.current = { x: e.clientX, y: e.clientY, moved: false };
-  };
-  const handlePointerUp = (e) => {
-    const d = downRef.current;
-    downRef.current = null;
-    if (!d || d.moved) return;
-    const pos = caretOffsetFromPoint(e.clientX, e.clientY, textRef.current);
-    onPlace(secIdx, lineIdx, pos == null ? (plainText?.length || 0) : pos, e.clientX, e.clientY);
+    return out;
+  }, [plainText, chords]);
+
+
+
+  // Tap (add a chord) vs scroll/drag: ignore a pointerup that moved >8px.
+  const onTextDown = (e) => { downRef.current = { x: e.clientX, y: e.clientY, moved: false }; };
+  const onTextMove = (e) => { const d = downRef.current; if (d && (Math.abs(e.clientX - d.x) > 8 || Math.abs(e.clientY - d.y) > 8)) d.moved = true; };
+  const onTextClick = (tok, e) => {
+    const d = downRef.current; downRef.current = null;
+    if (d && d.moved) return;
+    const within = caretOffsetFromPoint(e.clientX, e.clientY, e.currentTarget);
+    const pos = tok.start + (within != null ? within : (tok.text ? tok.text.length : 0));
+    onPlace(secIdx, lineIdx, pos, e.clientX, e.clientY);
   };
 
   return (
-      <div
-        ref={containerRef}
-        className="relative font-mono min-w-0"
-        onPointerMove={handlePointerMove}
-        onPointerLeave={handlePointerLeave}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={() => { downRef.current = null; setHoverPos(null); }}
-        style={{ cursor: 'text', fontSize: 16, lineHeight: 2.0, paddingTop: '1.1em', touchAction: 'pan-y' }}
-      >
-        <div ref={textRef} className="whitespace-pre-wrap text-[var(--text-1)]">
-          {plainText ? plainText : ' '}
-        </div>
-        {chips.map((c) => {
-          const selected = editingChordIdx === c.origIdx;
-          return (
-            <span
-              key={c.origIdx}
-              className="absolute font-bold cursor-pointer"
-              style={{
-                left: c.left, top: c.top, transform: 'translateY(-100%)', lineHeight: 1, fontSize: 13,
-                color: selected ? 'var(--color-brand)' : 'var(--chord)',
-                borderBottom: selected ? '2px solid var(--color-brand)' : '2px solid transparent',
-                whiteSpace: 'nowrap',
-                padding: '6px 8px 2px 0',
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => { e.stopPropagation(); onChordTap(secIdx, lineIdx, c.origIdx, e.clientX, e.clientY); }}
-            >
-              {formatChord(c.chord, notation, songKey)}
+    <div ref={rootRef} className="flex flex-wrap items-end" style={{ touchAction: 'pan-y' }}>
+      {tokens.map((tok, i) => {
+        const selected = tok.origIdx != null && editingChordIdx === tok.origIdx;
+        const label = tok.chord != null ? formatChord(tok.chord, notation, songKey) : '';
+        const minW = tok.chord != null ? `${(label || '').length * 8 + 16}px` : undefined;
+        return (
+          <span key={i} className="inline-flex flex-col justify-end" style={{ minWidth: minW }}>
+            <span className="flex items-end" style={{ height: '1.7em' }}>
+              {tok.chord != null && (
+                <span
+                  role="button"
+                  draggable
+                  onDragStart={(e) => { dragChordRef.current = tok.origIdx; setDraggingChord(tok.origIdx); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; }}
+                  onDragEnd={() => { dragChordRef.current = null; setDraggingChord(null); }}
+                  onTouchStart={(e) => { e.stopPropagation(); beginChordTouch(tok.origIdx); }}
+                  className="cursor-grab active:cursor-grabbing rounded-[6px] border font-mono font-bold leading-none mb-[3px] touch-none"
+                  style={{
+                    fontSize: 12, padding: '3px 5px', whiteSpace: 'nowrap',
+                    color: selected ? 'var(--color-brand-text)' : 'var(--chord)',
+                    borderColor: selected ? 'var(--color-brand)' : 'var(--border-1)',
+                    background: selected ? 'var(--color-brand-soft)' : 'var(--ds-background-100)',
+                    opacity: draggingChord === tok.origIdx ? 0.4 : 1,
+                    WebkitUserSelect: 'none', WebkitTouchCallout: 'none',
+                  }}
+                  title="Tap to edit · drag to move"
+                  onClick={(e) => { e.stopPropagation(); onChordTap(secIdx, lineIdx, tok.origIdx, e.clientX, e.clientY); }}
+                >
+                  {label}
+                </span>
+              )}
             </span>
-          );
-        })}
-        {caret && (
-          <span className="absolute pointer-events-none" style={{ left: caret.left, top: caret.top, width: 2, height: '1.2em', background: 'var(--chord)', opacity: 0.6 }} aria-hidden="true" />
-        )}
-        {armedCaret && (
-          <span className="absolute pointer-events-none" style={{ left: armedCaret.left - 1, top: armedCaret.top, width: 2.5, height: '1.2em', background: 'var(--color-brand)', boxShadow: '0 0 0 2px color-mix(in srgb, var(--color-brand) 25%, transparent)' }} aria-hidden="true" />
-        )}
-      </div>
+            <span
+              data-tok-start={tok.start}
+              className="text-[var(--text-1)] cursor-text"
+              style={{ fontSize: 16, lineHeight: 1.35, whiteSpace: 'pre' }}
+              onPointerDown={onTextDown}
+              onPointerMove={onTextMove}
+              onClick={(e) => onTextClick(tok, e)}
+              onDragOver={(e) => { if (dragChordRef.current != null) e.preventDefault(); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const ci = dragChordRef.current;
+                dragChordRef.current = null;
+                setDraggingChord(null);
+                if (ci == null) return;
+                const within = caretOffsetFromPoint(e.clientX, e.clientY, e.currentTarget);
+                onMoveChord?.(secIdx, lineIdx, ci, tok.start + (within != null ? within : 0));
+              }}
+            >
+              {tok.text === '' ? '​' : tok.text}
+            </span>
+          </span>
+        );
+      })}
+    </div>
   );
 });
 
@@ -208,11 +224,16 @@ function PopMenu({ trigger, align = 'right', up = false, children }) {
       const el = triggerRef.current;
       if (el) {
         const r = el.getBoundingClientRect();
+        // Auto-flip upward when there isn't room below (near the bottom of the
+        // screen the menu would otherwise spill off / get clipped — the exact
+        // problem with "+ Add section" and the type picker on a phone).
+        const spaceBelow = window.innerHeight - r.bottom;
+        const openUp = up || (spaceBelow < 280 && r.top > spaceBelow);
         setCoords({
           left: align === 'right' ? null : r.left,
           right: align === 'right' ? window.innerWidth - r.right : null,
-          top: up ? null : r.bottom + 4,
-          bottom: up ? window.innerHeight - r.top + 4 : null,
+          top: openUp ? null : r.bottom + 4,
+          bottom: openUp ? window.innerHeight - r.top + 4 : null,
         });
       }
       return true;
@@ -276,46 +297,40 @@ function MenuItem({ onClick, children, danger = false }) {
 // sits snug next to the label (a native <select> can't colour per-option or
 // hug the value).
 function SectionTypePicker({ value, num, options, customSectionTypes, onChange }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
   const cur = sectionStyle(value, null, customSectionTypes);
+  // Built on PopMenu so the list portals above everything (was `absolute`, which
+  // let it open UNDER the cards below / get clipped by the scroll container) and
+  // auto-flips near the bottom of the screen.
   return (
-    <div ref={ref} className="relative inline-flex items-baseline">
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="inline-flex items-baseline gap-1 bg-transparent border-none cursor-pointer outline-none p-0 text-label-14 font-black uppercase tracking-[0.15em]"
-        style={{ color: cur.b }}
-      >
-        <span>{value}</span>
-        {num && <span className="font-black">{num}</span>}
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="opacity-50 self-center"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-      </button>
-      {open && (
-        <div role="menu" className="absolute z-50 left-0 top-full mt-1 min-w-[170px] max-h-[60vh] overflow-y-auto rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1">
-          {options.map(t => {
-            const st = sectionStyle(t, null, customSectionTypes);
-            return (
-              <button
-                key={t}
-                type="button"
-                onClick={() => { setOpen(false); if (t !== value) onChange(t); }}
-                className="w-full text-left px-3 py-2 text-label-13 font-bold uppercase tracking-wider cursor-pointer bg-transparent border-none hover:bg-[var(--ds-gray-alpha-100)]"
-                style={{ color: st.b }}
-              >
-                {t}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <PopMenu
+      align="left"
+      trigger={
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 bg-transparent border-none cursor-pointer outline-none p-0 text-label-12 font-black uppercase tracking-[0.15em] leading-none"
+          style={{ color: cur.b }}
+        >
+          <span>{value}</span>
+          {num && <span className="font-black">{num}</span>}
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="opacity-50"><path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      }
+    >
+      {options.map(t => {
+        const st = sectionStyle(t, null, customSectionTypes);
+        return (
+          <button
+            key={t}
+            type="button"
+            onClick={() => { if (t !== value) onChange(t); }}
+            className="w-full text-left px-3 py-2 text-label-13 font-bold uppercase tracking-wider cursor-pointer bg-transparent border-none hover:bg-[var(--ds-gray-alpha-100)]"
+            style={{ color: st.b }}
+          >
+            {t}
+          </button>
+        );
+      })}
+    </PopMenu>
   );
 }
 
@@ -338,9 +353,101 @@ function DraftLyricInput({ onCommit, onClose }) {
       }}
       onBlur={() => { if (text.trim()) onCommit(text); onClose(); }}
       placeholder="Type a lyric line, Enter for the next…"
-      className="w-full bg-transparent border-b border-dashed border-[var(--ds-gray-400)] text-[var(--text-1)] font-mono outline-none py-1.5 px-1"
+      className="w-full bg-transparent border-b border-dashed border-[var(--ds-gray-400)] text-[var(--text-1)] outline-none py-1.5 px-1"
       style={{ fontSize: 16 }}
     />
+  );
+}
+
+// ─── Play-order editor (custom sequence) ──────────────────────────
+// The custom play order edited inline as draggable chips — drag to reorder,
+// × to remove, "+ Add" to append (repeats welcome). Replaces the old modal.
+// Desktop uses HTML5 drag; touch uses native non-passive listeners (React's are
+// passive, so text selection would kick in otherwise).
+function PlayOrderEditor({ order, availableTypes, customSectionTypes, onChange }) {
+  const [dragIdx, setDragIdx] = useState(null);
+  const [overIdx, setOverIdx] = useState(null);
+  const commit = useCallback(() => {
+    setDragIdx(from => {
+      setOverIdx(to => {
+        if (from != null && to != null && from !== to) {
+          const a = [...order];
+          const [m] = a.splice(from, 1);
+          a.splice(to, 0, m);
+          onChange(a);
+        }
+        return null;
+      });
+      return null;
+    });
+  }, [order, onChange]);
+  const beginTouch = useCallback((i) => {
+    setDragIdx(i);
+    const onMove = (e) => {
+      const t = e.touches[0];
+      if (!t) return;
+      e.preventDefault();
+      const el = document.elementFromPoint(t.clientX, t.clientY)?.closest('[data-chip-idx]');
+      if (el) setOverIdx(parseInt(el.dataset.chipIdx, 10));
+    };
+    const onEnd = () => {
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      document.removeEventListener('touchcancel', onEnd);
+      document.body.style.userSelect = '';
+      commit();
+    };
+    document.body.style.userSelect = 'none';
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
+  }, [commit]);
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {order.map((name, i) => {
+        const st = sectionStyle(name, null, customSectionTypes);
+        const isDrag = dragIdx === i;
+        const isOver = dragIdx != null && dragIdx !== i && overIdx === i;
+        return (
+          <span
+            key={i}
+            data-chip-idx={i}
+            draggable
+            onDragStart={(e) => { setDragIdx(i); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; }}
+            onDragEnter={() => { if (dragIdx != null) setOverIdx(i); }}
+            onDragOver={(e) => { if (dragIdx != null) e.preventDefault(); }}
+            onDrop={(e) => { e.preventDefault(); commit(); }}
+            onDragEnd={commit}
+            onTouchStart={() => beginTouch(i)}
+            title={`${name} — drag to reorder`}
+            className={`inline-flex items-center gap-1 pl-1 pr-0.5 py-0.5 rounded-[6px] border text-[10px] font-bold font-mono cursor-grab active:cursor-grabbing touch-none select-none bg-[var(--ds-background-100)] ${isOver ? 'border-[var(--color-brand)]' : 'border-[var(--border-1)]'} ${isDrag ? 'opacity-40' : ''}`}
+            style={{ color: st.b, WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+          >
+            <svg width="6" height="12" viewBox="0 0 6 12" fill="currentColor" className="opacity-40 shrink-0" aria-hidden="true"><circle cx="1.5" cy="2" r="1" /><circle cx="4.5" cy="2" r="1" /><circle cx="1.5" cy="6" r="1" /><circle cx="4.5" cy="6" r="1" /><circle cx="1.5" cy="10" r="1" /><circle cx="4.5" cy="10" r="1" /></svg>
+            {shortCode(name)}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onChange(order.filter((_, j) => j !== i)); }}
+              aria-label={`Remove ${name} from play order`}
+              className="ml-0.5 w-4 h-4 grid place-items-center rounded text-[var(--ds-gray-500)] hover:text-[var(--ds-red-700)] bg-transparent border-none cursor-pointer leading-none text-[12px]"
+            >
+              ×
+            </button>
+          </span>
+        );
+      })}
+      <PopMenu
+        align="left"
+        trigger={
+          <button type="button" className="inline-flex items-center px-1.5 py-1 rounded-[6px] border border-dashed border-[var(--ds-gray-400)] text-[10px] font-bold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] hover:border-[var(--ds-gray-600)] cursor-pointer bg-transparent">+ Add</button>
+        }
+      >
+        {availableTypes.length === 0 && <div className="px-3 py-2 text-copy-12 text-[var(--ds-gray-500)]">No sections yet</div>}
+        {availableTypes.map(t => (
+          <MenuItem key={t} onClick={() => onChange([...order, t])}>{t}</MenuItem>
+        ))}
+      </PopMenu>
+    </div>
   );
 }
 
@@ -362,6 +469,58 @@ function ChordOnlyLine({ chords, secIdx, lineIdx, onEditChord, onAppend, onRemov
 }
 
 // ─── ArrangeTabV2 ─────────────────────────────────────────────────
+// Inline raw-markdown editor for one section (the </> "Source" toggle). Seeded
+// once from the section's serialized lines (keyed per section so it remounts);
+// commits on blur via onCommit → the section re-parses into visual cards.
+// Fast lyric entry for an empty section — type or paste directly (no modal).
+// A paste of a chords-over-lyrics chart (Ultimate-Guitar / ChordPro) is converted
+// on commit; multi-section pastes expand into real sections.
+const InlineLyricComposer = memo(function InlineLyricComposer({ onCommit, onCancel }) {
+  const [text, setText] = useState('');
+  const ref = useRef(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+  return (
+    <div className="mb-1">
+      <textarea
+        ref={ref}
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onBlur={() => { if (text.trim()) onCommit(text); else onCancel(); }}
+        onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); onCancel(); } }}
+        placeholder="Type lyrics, or paste a chord sheet (chords above lyrics)…"
+        rows={Math.max(3, text.split('\n').length + 1)}
+        spellCheck={false}
+        className="w-full bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg p-3 text-copy-14 leading-relaxed text-[var(--ds-gray-1000)] resize-y outline-none"
+        style={{ caretColor: 'var(--chord)' }}
+      />
+      <p className="text-copy-11 text-[var(--ds-gray-500)] mt-1 mb-0">
+        Paste from Ultimate-Guitar / ChordPro and it converts automatically. Tap out to apply.
+      </p>
+    </div>
+  );
+});
+
+const SectionSourceEditor = memo(function SectionSourceEditor({ initial, onCommit }) {
+  const [text, setText] = useState(initial);
+  return (
+    <div className="mb-1">
+      <textarea
+        autoFocus
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onBlur={() => { if (text !== initial) onCommit(text); }}
+        spellCheck={false}
+        rows={Math.max(3, text.split('\n').length + 1)}
+        className="w-full bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg p-3 text-copy-13 leading-relaxed text-[var(--ds-gray-1000)] resize-y outline-none font-mono"
+        style={{ caretColor: 'var(--chord)' }}
+      />
+      <p className="text-copy-11 text-[var(--ds-gray-500)] mt-1 mb-0">
+        Raw format — [C]inline chords, {'{tab}…{/tab}'}, {'{modulate: +N}'}. Tap out to apply.
+      </p>
+    </div>
+  );
+});
+
 export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const sectionTypes = useMemo(() => {
     const custom = (customSectionTypes || []).map(t => t?.name?.trim()).filter(Boolean);
@@ -379,11 +538,25 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   const [tabEditorTarget, setTabEditorTarget] = useState(null);
   const [draftTarget, setDraftTarget] = useState(null); // { secIdx, idx } open inline lyric draft
   const [keyChangeTarget, setKeyChangeTarget] = useState(null); // { secIdx, idx } key-change dialog
+  // Per-section raw "Source" editing: secIdx -> true. A </> toggle flips one
+  // section card into a raw-markdown textarea and back.
+  const [sourceMode, setSourceMode] = useState({});
+  // Which empty section (secIdx) has its inline lyric composer open.
+  const [lyricComposer, setLyricComposer] = useState(null);
+  const toggleSource = useCallback((idx) => {
+    setSourceMode(m => ({ ...m, [idx]: !m[idx] }));
+    setCollapsed(c => ({ ...c, [idx]: false })); // source implies expanded
+  }, []);
+  // Section drag-to-reorder (grip handle only, so the card's inner fields stay
+  // interactive). Desktop uses HTML5 drag; touch uses pointer math via native
+  // non-passive listeners (React's touch handlers are passive, so preventDefault
+  // there can't stop the browser's scroll/text-selection).
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
   const confirm = useConfirm();
   const sectionRefs = useRef({});
-  const jumpTo = useCallback((idx) => {
-    sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
+  const scrollRef = useRef(null);      // canvas scroll container (edge autoscroll)
+  const autoScrollRef = useRef({ raf: 0, v: 0 });
 
   const song = useMemo(() => { try { return parseSongMd(md); } catch { return null; } }, [md]);
 
@@ -481,6 +654,18 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     })));
   }, [applyMutation]);
 
+  // Move an existing chord to a new character position on the same line (drag).
+  const moveChordTo = useCallback((secIdx, lineIdx, chordIdx, newPos) => {
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec,
+      lines: sec.lines.map((line, li) => {
+        if (li !== lineIdx || line.plainText === undefined) return line;
+        const pos = Math.max(0, Math.min(newPos, (line.plainText || '').length));
+        return { ...line, chords: line.chords.map((c, ci) => ci === chordIdx ? { ...c, pos } : c).sort((a, b) => a.pos - b.pos) };
+      }),
+    })));
+  }, [applyMutation]);
+
   const appendChord = useCallback((secIdx, lineIdx, clientX, clientY) => {
     const line = placements[secIdx]?.lines[lineIdx];
     const pos = ((line?.chords?.length) || 0) * 4;
@@ -495,7 +680,19 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   }, [placements, applyMutation]);
 
   // ─── Section operations ───
-  const labelFor = useCallback((base, count) => `${base} ${count + 1}`, []);
+  // Lowest free "Base N" label not already taken by another section, so adding,
+  // duplicating, or relabelling a section can never collide (two "Chorus 1"s
+  // used to break the song map + structure, since type names act as ids).
+  const nextSectionLabel = useCallback((base, excludeIdx = -1) => {
+    const used = new Set(
+      (song?.sections || [])
+        .filter((s, i) => i !== excludeIdx && sectionBaseType(s.type) === base)
+        .map(s => s.type)
+    );
+    let n = 1;
+    while (used.has(`${base} ${n}`)) n++;
+    return `${base} ${n}`;
+  }, [song]);
 
   // Emit a new section list. In "auto" mode we keep `structure` mirroring
   // section order, so the chart/performance views reflect Arrange edits. In
@@ -533,18 +730,16 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   const addSection = useCallback((base = 'Verse') => {
     if (!song) return;
-    const count = song.sections.filter(s => sectionBaseType(s.type) === base).length;
-    emitSections([...song.sections, { type: labelFor(base, count), note: '', lines: [''] }]);
-  }, [song, emitSections, labelFor]);
+    emitSections([...song.sections, { type: nextSectionLabel(base), note: '', lines: [''] }]);
+  }, [song, emitSections, nextSectionLabel]);
 
   const duplicateSection = useCallback((idx) => {
     if (!song) return;
     const src = song.sections[idx];
     const base = sectionBaseType(src.type);
-    const count = song.sections.filter(s => sectionBaseType(s.type) === base).length;
-    const copy = { ...src, type: labelFor(base, count), lines: [...src.lines] };
+    const copy = { ...src, type: nextSectionLabel(base), lines: [...src.lines] };
     emitSections([...song.sections.slice(0, idx + 1), copy, ...song.sections.slice(idx + 1)]);
-  }, [song, emitSections, labelFor]);
+  }, [song, emitSections, nextSectionLabel]);
 
   const removeSection = useCallback(async (idx) => {
     if (!song) return;
@@ -567,15 +762,126 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     emitSections(arr);
   }, [song, emitSections]);
 
+  // Move a section from one index to another (drag-to-reorder commit).
+  const reorderSection = useCallback((from, to) => {
+    if (!song || from == null || to == null || from === to) return;
+    const arr = [...song.sections];
+    const [moved] = arr.splice(from, 1);
+    arr.splice(to, 0, moved);
+    emitSections(arr);
+  }, [song, emitSections]);
+
+  // ── Edge autoscroll ── While dragging near the top/bottom of the canvas,
+  // scroll it so long songs can be reordered without lifting the finger/mouse.
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollRef.current.raf) cancelAnimationFrame(autoScrollRef.current.raf);
+    autoScrollRef.current = { raf: 0, v: 0 };
+  }, []);
+  const updateAutoScroll = useCallback((clientY) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const EDGE = 64, MAX = 16;
+    let v = 0;
+    if (clientY < r.top + EDGE) v = -Math.ceil(MAX * Math.min(1, (r.top + EDGE - clientY) / EDGE));
+    else if (clientY > r.bottom - EDGE) v = Math.ceil(MAX * Math.min(1, (clientY - (r.bottom - EDGE)) / EDGE));
+    autoScrollRef.current.v = v;
+    if (v && !autoScrollRef.current.raf) {
+      const tick = () => {
+        const node = scrollRef.current;
+        const vel = autoScrollRef.current.v;
+        if (node && vel) { node.scrollTop += vel; autoScrollRef.current.raf = requestAnimationFrame(tick); }
+        else autoScrollRef.current.raf = 0;
+      };
+      autoScrollRef.current.raf = requestAnimationFrame(tick);
+    }
+  }, []);
+
+  // Resolve the section under a point and arm it as the drop target.
+  const pointToDropTarget = useCallback((clientX, clientY) => {
+    const row = document.elementFromPoint(clientX, clientY)?.closest('[data-drag-idx]');
+    if (row) setDragOverIdx(parseInt(row.dataset.dragIdx, 10));
+  }, []);
+
+  // Commit whatever the drag landed on, then clear all drag state. Reads the
+  // latest dragIdx/dragOverIdx via the state updaters so it works from both the
+  // dragend and touchend paths without stale closures.
+  const endDrag = useCallback(() => {
+    setDragIdx(from => {
+      setDragOverIdx(to => { reorderSection(from, to); return null; });
+      return null;
+    });
+    stopAutoScroll();
+  }, [reorderSection, stopAutoScroll]);
+
+  // ── Touch drag (native, non-passive) ── React's onTouchMove is passive, so
+  // preventDefault there can't stop the page scrolling or selecting text under
+  // the finger. We attach our own listeners while a touch drag is live and
+  // suppress text selection on <body> for the duration.
+  const beginTouchDrag = useCallback((idx) => {
+    setDragIdx(idx);
+    const onMove = (e) => {
+      if (!e.touches[0]) return;
+      e.preventDefault(); // non-passive: stops scroll + text selection
+      updateAutoScroll(e.touches[0].clientY);
+      pointToDropTarget(e.touches[0].clientX, e.touches[0].clientY);
+    };
+    const onEnd = () => {
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      document.removeEventListener('touchcancel', onEnd);
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
+      endDrag();
+    };
+    document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
+  }, [updateAutoScroll, pointToDropTarget, endDrag]);
+
+  // Desktop HTML5 drag — the card itself is the drag image.
+  const onGripDragStart = useCallback((idx, e) => {
+    setDragIdx(idx);
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', String(idx)); } catch { /* IE */ }
+      const card = sectionRefs.current[idx];
+      if (card) e.dataTransfer.setDragImage(card, 24, 16);
+    }
+  }, []);
+
+  useEffect(() => stopAutoScroll, [stopAutoScroll]);
+
   const changeSectionType = useCallback((idx, base) => {
     if (!song) return;
-    const count = song.sections.filter((s, i) => i < idx && sectionBaseType(s.type) === base).length;
-    emitSections(song.sections.map((s, i) => i === idx ? { ...s, type: labelFor(base, count) } : s));
-  }, [song, emitSections, labelFor]);
+    emitSections(song.sections.map((s, i) => i === idx ? { ...s, type: nextSectionLabel(base, idx) } : s));
+  }, [song, emitSections, nextSectionLabel]);
 
   const updateSectionNote = useCallback((idx, note) => {
     if (!song) return;
     emitSong({ ...song, sections: song.sections.map((s, i) => i === idx ? { ...s, note } : s) });
+  }, [song, emitSong]);
+
+  // Commit the inline lyric composer for an empty section. Runs the text through
+  // the smart chart importer so a pasted chords-over-lyrics sheet converts; a
+  // multi-section paste (has `## headers`) expands into real sections in place.
+  const commitLyricComposer = useCallback((secIdx, rawText) => {
+    if (!song) { setLyricComposer(null); return; }
+    const { body } = importChartText(rawText);
+    if (/^##\s/m.test(body)) {
+      const parsed = parseSongMd(`---\n---\n\n${body}`);
+      const secs = parsed?.sections?.length ? parsed.sections : null;
+      if (secs) {
+        emitSong({ ...song, sections: [...song.sections.slice(0, secIdx), ...secs, ...song.sections.slice(secIdx + 1)] });
+      }
+    } else {
+      const lines = parseSectionLines(body);
+      while (lines.length > 1 && (typeof lines[lines.length - 1] !== 'string' ? false : lines[lines.length - 1].trim() === '')) lines.pop();
+      emitSong({ ...song, sections: song.sections.map((s, i) => i === secIdx ? { ...s, lines: lines.length ? lines : [''] } : s) });
+    }
+    setLyricComposer(null);
   }, [song, emitSong]);
 
   // ─── Line operations ───
@@ -638,6 +944,20 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   }, [insertLineAt]);
   const removeLine = useCallback((secIdx, lineIdx) => {
     applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({ ...sec, lines: sec.lines.filter((_, li) => li !== lineIdx) })));
+  }, [applyMutation]);
+  // Nudge an existing key-change marker inline (±1 semitone), so tweaking it
+  // doesn't need the KeyChangeDialog. Skips the no-op 0 and clamps to ±11.
+  const stepModulate = useCallback((secIdx, lineIdx, current, dir) => {
+    let next = current + dir;
+    if (next === 0) next += dir;
+    next = Math.max(-11, Math.min(11, next));
+    if (next === current) return;
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec,
+      lines: sec.lines.map((line, li) => (li === lineIdx && typeof line === 'object' && line.type === 'modulate')
+        ? { ...line, semitones: next }
+        : line),
+    })));
   }, [applyMutation]);
 
   // Text is edited a whole section at a time (the bottom-sheet drawer) — robust
@@ -702,57 +1022,147 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      {/* The song's official structure (slide order). A checkbox toggles a custom
-          slide order; chips show the play order (tap to jump). A Customize popover
-          sits on the right. Shared with the Advanced tab so the two always match. */}
-      <div className="shrink-0 flex items-center gap-2 pl-3 pr-6 py-1.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
-        <StructureControl
-          mode={song.structureMode}
-          value={(song.structure || []).join(', ')}
-          sections={placements.map(p => p.type)}
-          customSectionTypes={customSectionTypes}
-          onToggleMode={setStructureMode}
-          onChangeValue={onStructureChange}
-          onJump={(name) => { const i = placements.findIndex(p => p.type === name); if (i >= 0) jumpTo(i); }}
-        />
-        <PopMenu
-          trigger={
-            <IconButton variant="ghost" size="sm" aria-label="Customize" title="Customize">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" /></svg>
-            </IconButton>
-          }
-        >
-          <div className="px-3 py-2" onClick={e => e.stopPropagation()}>
-            <div className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] mb-1.5">Notation</div>
-            <div className="flex gap-1">
-              {[{ id: 'chords', label: 'ABC' }, { id: 'nashville', label: '123' }, { id: 'solfege', label: 'Do' }].map(o => (
-                <button
-                  key={o.id}
-                  type="button"
-                  onClick={() => setNotation(o.id)}
-                  className={`px-2.5 py-1 rounded-md text-label-11 font-semibold cursor-pointer border ${
-                    notation === o.id ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border-[var(--color-brand-border)]' : 'bg-transparent text-[var(--ds-gray-600)] border-[var(--ds-gray-400)] hover:bg-[var(--ds-gray-100)]'
-                  }`}
-                >
-                  {o.label}
-                </button>
-              ))}
+      {/* Play order — minimal by default. In Auto it just follows the section
+          cards below (no redundant chips); tap Customize to set a hand-made
+          order with repeats, which then shows as compact chips. Notation lives
+          in its own quiet control so this row stays calm on mobile. */}
+      {(() => {
+        const isCustom = song.structureMode === 'custom';
+        const playOrder = isCustom ? (song.structure || []) : [];
+        const uniqueTypes = [...new Set(placements.map(p => p.type))];
+        return (
+          <div className="shrink-0 border-b border-[var(--border-1)]">
+            <div className="flex items-center gap-2 px-3 sm:pr-6 py-1.5">
+              <span className="shrink-0 text-label-11 text-[var(--ds-gray-600)] select-none">Play order</span>
+              <span
+                className={`shrink-0 text-label-10 uppercase tracking-wide font-bold px-1.5 py-0.5 rounded ${isCustom ? 'text-[var(--color-brand-text)] bg-[var(--color-brand-soft)]' : 'text-[var(--ds-gray-500)] bg-[var(--ds-gray-100)]'}`}
+                title={isCustom
+                  ? 'You set the play order (repeats / reorder). Reset to follow your sections.'
+                  : 'Follows your sections — reorder them by dragging. Customize to repeat or reorder.'}
+              >
+                {isCustom ? 'Custom' : 'Auto'}
+              </span>
+              <div className="flex-1" />
+              {isCustom ? (
+                <button type="button" onClick={() => setStructureMode(false)} title="Reset to section order" className="shrink-0 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">Reset</button>
+              ) : (
+                <button type="button" onClick={() => setStructureMode(true)} title="Set a custom play order (repeats / reorder)" className="shrink-0 text-label-11 font-semibold text-[var(--color-brand-text)] hover:opacity-80 bg-transparent border-none cursor-pointer">Customize</button>
+              )}
+              <PopMenu
+                trigger={
+                  <IconButton variant="ghost" size="sm" aria-label="Chord notation" title="Chord notation">
+                    <span className="text-label-11 font-bold">{notation === 'nashville' ? '123' : notation === 'solfege' ? 'Do' : 'A♭'}</span>
+                  </IconButton>
+                }
+              >
+                <div className="px-3 py-2 min-w-[180px]" onClick={e => e.stopPropagation()}>
+                  <div className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] mb-1.5">Chord notation</div>
+                  <div className="flex gap-1">
+                    {[{ id: 'chords', label: 'ABC' }, { id: 'nashville', label: '123' }, { id: 'solfege', label: 'Do' }].map(o => (
+                      <button
+                        key={o.id}
+                        type="button"
+                        onClick={() => setNotation(o.id)}
+                        className={`px-2.5 py-1 rounded-md text-label-11 font-semibold cursor-pointer border ${
+                          notation === o.id ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border-[var(--color-brand-border)]' : 'bg-transparent text-[var(--ds-gray-600)] border-[var(--ds-gray-400)] hover:bg-[var(--ds-gray-100)]'
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </PopMenu>
+            </div>
+            <div className="px-3 sm:pr-6 pb-2">
+              {isCustom ? (
+                <PlayOrderEditor
+                  order={playOrder}
+                  availableTypes={uniqueTypes}
+                  customSectionTypes={customSectionTypes}
+                  onChange={(next) => onStructureChange(next.join(', '))}
+                />
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {placements.map((p, i) => {
+                    const st = sectionStyle(p.type, null, customSectionTypes);
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                        className="inline-flex items-center px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold font-mono border border-[var(--border-1)] bg-[var(--ds-background-100)] hover:opacity-80 cursor-pointer"
+                        style={{ color: st.b }}
+                        title={`Jump to ${p.type}`}
+                      >
+                        {shortCode(p.type)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
-        </PopMenu>
-      </div>
+        );
+      })()}
 
-      <div className="flex-1 overflow-auto pl-3 pr-6 pt-3 pb-8">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-auto px-3 sm:pr-6 pt-3 pb-8"
+        onDragOver={dragIdx != null ? (e) => updateAutoScroll(e.clientY) : undefined}
+      >
         {placements.map((sec, secIdx) => {
           const s = sectionStyle(sec.type, null, customSectionTypes);
           const base = sectionBaseType(sec.type);
           const num = (sec.type.match(/(\d+)\s*:?\s*$/) || [])[1] || '';
           const typeOptions = !base || sectionTypes.includes(base) ? sectionTypes : [base, ...sectionTypes];
           const isCollapsed = !!collapsed[secIdx];
+          const isReordering = dragIdx != null;
+          const isDragging = dragIdx === secIdx;
+          const isDropTarget = isReordering && dragIdx !== secIdx && dragOverIdx === secIdx;
+          // While reordering, every card collapses to its header so the whole
+          // song is a short, easy-to-aim stack (restores on drop — no mutation
+          // of the real collapsed state).
+          const showBody = !isCollapsed && !isReordering;
           return (
-            <div key={secIdx} className="mb-6" ref={el => { sectionRefs.current[secIdx] = el; }}>
+            <div
+              key={secIdx}
+              data-drag-idx={secIdx}
+              onDragEnter={() => { if (dragIdx != null) setDragOverIdx(secIdx); }}
+              onDragOver={(e) => { if (dragIdx != null) e.preventDefault(); }}
+              onDrop={(e) => { e.preventDefault(); endDrag(); }}
+              className={`group/sec relative mb-4 rounded-xl border border-[var(--border-1)] bg-[var(--ds-background-100)] px-3 pt-2 pb-3 transition-opacity ${isDragging ? 'opacity-40' : ''}`}
+              ref={el => { sectionRefs.current[secIdx] = el; }}
+            >
+              {/* Drop insertion line — sits in the gap above/below the target. */}
+              {isDropTarget && (
+                <div
+                  className="pointer-events-none absolute left-1 right-1 h-[3px] rounded-full bg-[var(--color-brand)] z-[1]"
+                  style={{ [dragIdx > secIdx ? 'top' : 'bottom']: -10 }}
+                />
+              )}
               {/* Section header */}
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-1.5 mb-2">
+                {/* Drag handle — only the grip starts a drag, so the card's
+                    inner fields (lyrics, chords, cue) stay fully interactive. */}
+                <span
+                  role="button"
+                  tabIndex={-1}
+                  aria-label="Drag to reorder section"
+                  title="Drag to reorder"
+                  draggable
+                  onDragStart={(e) => onGripDragStart(secIdx, e)}
+                  onDragEnd={endDrag}
+                  onTouchStart={() => beginTouchDrag(secIdx)}
+                  style={{ WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
+                  className="shrink-0 w-4 h-6 grid place-items-center cursor-grab active:cursor-grabbing text-[var(--ds-gray-400)] hover:text-[var(--ds-gray-700)] touch-none transition-opacity sm:opacity-40 sm:group-hover/sec:opacity-100"
+                >
+                  <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor" aria-hidden="true">
+                    <circle cx="2.5" cy="3" r="1.3" /><circle cx="7.5" cy="3" r="1.3" />
+                    <circle cx="2.5" cy="8" r="1.3" /><circle cx="7.5" cy="8" r="1.3" />
+                    <circle cx="2.5" cy="13" r="1.3" /><circle cx="7.5" cy="13" r="1.3" />
+                  </svg>
+                </span>
                 <button
                   type="button"
                   onClick={() => setCollapsed(c => ({ ...c, [secIdx]: !c[secIdx] }))}
@@ -777,17 +1187,18 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                   className="flex-1 bg-transparent border-none text-label-11 italic text-[var(--text-2)] outline-none min-w-0 px-1"
                   style={{ borderLeft: sec.note ? `2px solid ${s.br}` : 'none' }}
                 />
-                <IconButton variant="ghost" size="sm" aria-label="Move section up" title="Move up" disabled={secIdx === 0} onClick={() => moveSection(secIdx, -1)}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
-                </IconButton>
-                <IconButton variant="ghost" size="sm" aria-label="Move section down" title="Move down" disabled={secIdx === placements.length - 1} onClick={() => moveSection(secIdx, 1)}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                </IconButton>
-                <IconButton variant="ghost" size="sm" aria-label="Edit lyrics" title="Edit lyrics" onClick={() => handleEditText(secIdx)}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                  </svg>
-                </IconButton>
+                {/* Action cluster — desktop only, hover/focus-revealed. On touch
+                    these live in the ⋮ menu instead, so the header stays calm. */}
+                <div className="hidden sm:flex items-center shrink-0 transition-opacity sm:opacity-0 sm:group-hover/sec:opacity-100 sm:focus-within:opacity-100">
+                  <IconButton variant="ghost" size="sm" aria-label="Edit lyrics" title="Edit lyrics" onClick={() => handleEditText(secIdx)}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                    </svg>
+                  </IconButton>
+                  <IconButton variant={sourceMode[secIdx] ? 'active' : 'ghost'} size="sm" aria-label="Edit source" title="Edit raw source" onClick={() => toggleSource(secIdx)}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+                  </IconButton>
+                </div>
                 <PopMenu
                   trigger={
                     <IconButton variant="ghost" size="sm" aria-label="Section options" title="Section options">
@@ -795,13 +1206,23 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                     </IconButton>
                   }
                 >
+                  <MenuItem onClick={() => handleEditText(secIdx)}>Edit lyrics</MenuItem>
+                  {secIdx > 0 && <MenuItem onClick={() => moveSection(secIdx, -1)}>Move up</MenuItem>}
+                  {secIdx < placements.length - 1 && <MenuItem onClick={() => moveSection(secIdx, 1)}>Move down</MenuItem>}
+                  <MenuItem onClick={() => toggleSource(secIdx)}>{sourceMode[secIdx] ? 'Close source' : 'Edit source'}</MenuItem>
                   <MenuItem onClick={() => duplicateSection(secIdx)}>Duplicate section</MenuItem>
                   <MenuItem danger onClick={() => removeSection(secIdx)}>Delete section</MenuItem>
                 </PopMenu>
               </div>
 
-              {/* Lines */}
-              {!isCollapsed && (
+              {/* Lines (or the raw Source editor when toggled) */}
+              {showBody && (sourceMode[secIdx] ? (
+                <SectionSourceEditor
+                  key={`src-${secIdx}`}
+                  initial={serializeSectionLines(song.sections[secIdx]?.lines || [])}
+                  onCommit={(text) => handleDrawerSave(secIdx, text)}
+                />
+              ) : (
                 <div>
                   {sec.lines.map((line, lineIdx) => {
                     let el = null;
@@ -842,8 +1263,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                       el = (
                         <div className="my-4 flex items-center gap-3">
                           <div className="h-[1px] flex-1 bg-[var(--color-brand-border)]" />
-                          <span className="text-label-10 font-black uppercase tracking-[0.2em] px-3 py-1 bg-[var(--color-brand)] text-white rounded-full shadow-sm">
-                            Key Change: {line.semitones > 0 ? '+' : ''}{line.semitones}
+                          <span className="inline-flex items-center gap-0.5 pl-1 pr-1 py-0.5 bg-[var(--color-brand)] text-white rounded-full shadow-sm">
+                            <button type="button" onClick={() => stepModulate(secIdx, lineIdx, line.semitones, -1)} aria-label="Lower key change" title="Lower key change" className="shrink-0 w-5 h-5 grid place-items-center rounded-full hover:bg-white/25 bg-transparent border-none cursor-pointer text-white leading-none">−</button>
+                            <span className="text-label-10 font-black uppercase tracking-[0.15em] px-1.5 tabular-nums select-none">
+                              Key Change: {line.semitones > 0 ? '+' : ''}{line.semitones}
+                            </span>
+                            <button type="button" onClick={() => stepModulate(secIdx, lineIdx, line.semitones, 1)} aria-label="Raise key change" title="Raise key change" className="shrink-0 w-5 h-5 grid place-items-center rounded-full hover:bg-white/25 bg-transparent border-none cursor-pointer text-white leading-none">+</button>
                           </span>
                           <button type="button" onClick={() => removeLine(secIdx, lineIdx)} aria-label="Remove key change" className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[var(--ds-gray-600)] hover:text-[var(--ds-red-700)] hover:bg-[var(--ds-gray-alpha-100)] bg-transparent border-none cursor-pointer leading-none">✕</button>
                           <div className="h-[1px] flex-1 bg-[var(--color-brand-border)]" />
@@ -853,10 +1278,17 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                       if ((line.plainText || '').trim() === '' && (line.chords?.length > 0)) {
                         el = <div className="mb-2 last:mb-0"><ChordOnlyLine chords={line.chords} secIdx={secIdx} lineIdx={lineIdx} onEditChord={openEditChord} onAppend={appendChord} onRemoveChord={removeChordAt} /></div>;
                       } else if ((line.plainText || '').trim() === '' && (!line.chords || line.chords.length === 0)) {
-                        el = (
+                        el = lyricComposer === secIdx ? (
                           <div className="mb-2 last:mb-0">
-                            <button type="button" onClick={() => handleEditText(secIdx, lineIdx)} className="text-copy-13 italic text-[var(--ds-gray-500)] bg-transparent border-none cursor-text px-1 py-1">
-                              Tap to add lyrics…
+                            <InlineLyricComposer
+                              onCommit={(t) => commitLyricComposer(secIdx, t)}
+                              onCancel={() => setLyricComposer(null)}
+                            />
+                          </div>
+                        ) : (
+                          <div className="mb-2 last:mb-0">
+                            <button type="button" onClick={() => setLyricComposer(secIdx)} className="text-copy-13 italic text-[var(--ds-gray-500)] bg-transparent border-none cursor-text px-1 py-1">
+                              Tap to add lyrics or paste a chord sheet…
                             </button>
                           </div>
                         );
@@ -874,6 +1306,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                               songKey={song.key}
                               onPlace={openAddChord}
                               onChordTap={openEditChord}
+                              onMoveChord={moveChordTo}
                             />
                             {line.inlineNote && (
                               <span className="text-[var(--text-2)] italic text-[0.8em]">{' ---- '}{line.inlineNote}</span>
@@ -900,35 +1333,30 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                     </div>
                   )}
 
-                  {/* Per-section add menu (append) */}
-                  <div className="mt-1">
-                    <PopMenu
-                      align="left"
-                      up
-                      trigger={<button type="button" className="text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer px-1 py-1">+ Add</button>}
-                    >
-                      {renderAddItems(secIdx, null)}
-                    </PopMenu>
-                  </div>
+                  {/* Trailing add point — the same between-lines "+" affordance,
+                      appended at the section end (the only per-section adder). */}
+                  {renderInsertPoint(secIdx, sec.lines.length)}
                 </div>
-              )}
+              ))}
             </div>
           );
         })}
 
-        {/* Section templates + add */}
-        <div className="mt-4 mb-8 flex flex-wrap items-center gap-1.5">
-          <span className="text-label-11 text-[var(--ds-gray-600)] mr-1">Add section:</span>
-          {TEMPLATE_TYPES.map(t => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => addSection(t)}
-              className="px-2.5 py-1 rounded-full text-label-12 font-medium bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] cursor-pointer"
-            >
-              + {t}
-            </button>
-          ))}
+        {/* One "+ Add section" button — a menu picks the section type. */}
+        <div className="mt-4 mb-8">
+          <PopMenu
+            align="left"
+            trigger={
+              <button type="button" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-label-12 font-semibold bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] cursor-pointer">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                Add section
+              </button>
+            }
+          >
+            {sectionTypes.map(t => (
+              <MenuItem key={t} onClick={() => addSection(t)}>{t}</MenuItem>
+            ))}
+          </PopMenu>
         </div>
       </div>
 

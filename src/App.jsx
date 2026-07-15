@@ -13,6 +13,8 @@ import { DEMO_SONGS_MD } from './data/demos';
 import { createSyncEngine } from './sync/engine';
 import { createTeamSyncEngine } from './sync/team-engine';
 import { getSyncState, setActiveProvider } from './sync/tokens';
+import { reconcileAdopt, applyPulled } from './sync/adopt';
+import { useTeamSetlistMap } from './hooks/useTeamSetlistMap';
 import OnboardingFlow from './onboarding/OnboardingFlow';
 import Dashboard from './components/Dashboard';
 import Library from './components/Library';
@@ -28,7 +30,7 @@ import ConflictResolver from './components/ConflictResolver';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useAuth } from './auth/useAuth';
 import { useTeam } from './auth/useTeam';
-import { exportSetlistZip, importSetlistZip, slugify } from './setlist-io';
+import { exportSetlistZip, importSetlistZip, exportLibraryZip, slugify } from './setlist-io';
 import { exportSetlistPdf } from './pdf/exportSetlistPdf';
 import UpdatePrompt from './components/ui/UpdatePrompt';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
@@ -128,6 +130,7 @@ const PORTABLE_PREF_KEYS = [
   'ribbonStyle',
   'structurePosition',
   'mockupPalette',
+  'songEditorCards',
   'keepAwake',
   'lockOrientation',
   'accidentals',
@@ -226,6 +229,17 @@ export default function App() {
   useChartTheme(settings);
   const [loaded, setLoaded] = useState(false);
   const [syncState, setSyncState] = useState({ state: 'idle', lastSync: null, provider: null });
+  // team_schedules.setlist_id / team_notifications metadata carry the
+  // team_setlists ROW UUID, while local setlists keep their content id — the
+  // sync manifest's localId→remoteId mapping bridges the two everywhere a
+  // schedule has to be matched to a setlist (notifications, nudges, calendar).
+  // Keyed on lastSync so setlists synced after mount resolve too.
+  const { map: teamSetlistMap } = useTeamSetlistMap(team?.id, syncState.lastSync);
+  const matchesSetlistId = useCallback(
+    (sl, scheduleSetlistId) => !!sl && !!scheduleSetlistId
+      && (sl.id === scheduleSetlistId || teamSetlistMap[sl.id] === scheduleSetlistId),
+    [teamSetlistMap]
+  );
   const [previewSongId, setPreviewSongId] = useState(null);
   const [previewSetlistId, setPreviewSetlistId] = useState(null);
   // Schedule list/calendar view — lifted here so the BottomNav morphing FAB can
@@ -362,6 +376,63 @@ export default function App() {
     setPendingConflicts(prev => prev.filter(c => !(c.kind === kind && c.id === id)));
   }, []);
 
+  // Bulk-resolve every pending conflict with one choice — for the mass-conflict
+  // case (a baseline drift can flag the whole library), so the user isn't stuck
+  // clicking through dozens of prompts. 'cloud' is a no-op (server already
+  // adopted); 'mine' restores local copies; 'both' saves them as copies.
+  const resolveAllConflicts = useCallback((choice) => {
+    const list = pendingConflicts;
+    if (choice === 'mine') {
+      setSongs(prev => prev.map(x => { const c = list.find(c => c.kind === 'song' && c.id === x.id && c.local); return c ? c.local : x; }));
+      setSetlists(prev => prev.map(x => { const c = list.find(c => c.kind === 'setlist' && c.id === x.id && c.local); return c ? c.local : x; }));
+    } else if (choice === 'both') {
+      const songCopies = list.filter(c => c.kind === 'song' && c.local).map(c => ({ ...c.local, id: generateId(), title: `${c.local.title || 'Untitled'} (conflicted copy)` }));
+      const slCopies = list.filter(c => c.kind === 'setlist' && c.local).map(c => ({ ...c.local, id: generateId(), name: `${c.local.name || 'Untitled Setlist'} (conflicted copy)` }));
+      if (songCopies.length) setSongs(prev => [...prev, ...songCopies]);
+      if (slCopies.length) setSetlists(prev => [...prev, ...slCopies]);
+    }
+    setPendingConflicts([]);
+  }, [pendingConflicts]);
+
+  // Fold a finished sync into React state. `base*` are the snapshots the sync
+  // ran against (its input arrays), NOT the current state — the sync may have
+  // taken seconds, and the user may have edited meanwhile. The reconcile
+  // helpers keep any item that changed after the snapshot (its own debounced
+  // push follows), so adopting a sync result can never clobber an in-flight
+  // edit. Both the startup sync and every later sync go through here.
+  const adoptSyncResult = useCallback((result, baseSongs, baseSetlists, baseTombstones) => {
+    if (result.replaced) {
+      // Team engine is server-authoritative — adopt its arrays so remote
+      // deletions disappear here too. SAFETY NET: any song that was present
+      // when the sync started but is gone from the adopted set — and that the
+      // user did NOT delete (no local tombstone) — is copied to the trash, so
+      // a server-wins drop (truncated fetch, unparseable row, a teammate's
+      // delete, a race) stays recoverable for 30 days.
+      const nextIds = new Set(result.songs.map(s => s.id));
+      const deletedIds = new Set((baseTombstones?.songs || []).map(t => t.id));
+      const dropped = baseSongs.filter(s => s?.id && !nextIds.has(s.id) && !deletedIds.has(s.id));
+      if (dropped.length) {
+        const now = Date.now();
+        setTrash(prev => {
+          const have = new Set(prev.map(e => e.song?.id));
+          const add = dropped.filter(s => !have.has(s.id)).map(song => ({ song, deletedAt: now }));
+          return add.length ? [...prev, ...add] : prev;
+        });
+      }
+      setSongs(prev => reconcileAdopt(prev, baseSongs, result.songs));
+      setSetlists(prev => reconcileAdopt(prev, baseSetlists, result.setlists));
+    } else if (result.changed) {
+      setSongs(prev => applyPulled(prev, baseSongs, result.songs, result.pulledSongIds));
+      setSetlists(prev => applyPulled(prev, baseSetlists, result.setlists, result.pulledSetlistIds));
+    }
+    if (result.tombstonesChanged) {
+      setTombstones(result.tombstones);
+    }
+    if (result.conflicts?.length > 0) {
+      enqueueConflicts(result.conflicts);
+    }
+  }, [enqueueConflicts]);
+
   // Initialize sync engine for the active library
   const isTeamReadOnly = activeLibrary !== 'personal' && !isAdmin && !isEditor;
   useEffect(() => {
@@ -384,58 +455,7 @@ export default function App() {
       return;
     }
     const result = await syncEngineRef.current.fullSync(songs, setlists, tombstones);
-    if (result.replaced) {
-      // Team engine is server-authoritative — adopt its arrays wholesale so
-      // remote deletions disappear here too. SAFETY NET: any song that was
-      // present locally but is gone from the adopted set — and that the user
-      // did NOT delete (no local tombstone) — is moved to the trash instead of
-      // vanishing, so a server-wins drop (truncated fetch, unparseable row, a
-      // teammate's delete, a race) stays recoverable for 30 days.
-      const nextIds = new Set(result.songs.map(s => s.id));
-      const deletedIds = new Set((tombstones.songs || []).map(t => t.id));
-      const dropped = songs.filter(s => s?.id && !nextIds.has(s.id) && !deletedIds.has(s.id));
-      if (dropped.length) {
-        const now = Date.now();
-        setTrash(prev => {
-          const have = new Set(prev.map(e => e.song?.id));
-          const add = dropped.filter(s => !have.has(s.id)).map(song => ({ song, deletedAt: now }));
-          return add.length ? [...prev, ...add] : prev;
-        });
-      }
-      setSongs(result.songs);
-      setSetlists(result.setlists);
-    } else if (result.changed) {
-      setSongs(prev => {
-        const next = [...prev];
-        for (const id of result.pulledSongIds || []) {
-          const pulled = result.songs.find(s => s.id === id);
-          if (pulled) {
-            const idx = next.findIndex(s => s.id === id);
-            if (idx >= 0) next[idx] = pulled;
-            else next.push(pulled);
-          }
-        }
-        return next;
-      });
-      setSetlists(prev => {
-        const next = [...prev];
-        for (const id of result.pulledSetlistIds || []) {
-          const pulled = result.setlists.find(s => s.id === id);
-          if (pulled) {
-            const idx = next.findIndex(s => s.id === id);
-            if (idx >= 0) next[idx] = pulled;
-            else next.push(pulled);
-          }
-        }
-        return next;
-      });
-    }
-    if (result.tombstonesChanged) {
-      setTombstones(result.tombstones);
-    }
-    if (result.conflicts?.length > 0) {
-      enqueueConflicts(result.conflicts);
-    }
+    adoptSyncResult(result, songs, setlists, tombstones);
     if (result.errors?.length > 0) {
       const first = result.errors[0];
       const more = result.errors.length > 1 ? ` (+${result.errors.length - 1} more)` : '';
@@ -451,7 +471,7 @@ export default function App() {
       if (result.uploaded.setlists) parts.push(`${result.uploaded.setlists} setlist${result.uploaded.setlists === 1 ? '' : 's'}`);
       toast({ title: 'Synced', description: `Uploaded ${parts.join(', ')}.` });
     }
-  }, [songs, setlists, tombstones, activeLibrary, enqueueConflicts]);
+  }, [songs, setlists, tombstones, activeLibrary, adoptSyncResult]);
 
   // Subscribe to realtime changes for team libraries. Ignore the echo of our
   // own recent writes so a local edit doesn't bounce back as a redundant sync.
@@ -476,35 +496,35 @@ export default function App() {
     setPreviewSetlistId(null);
 
     (async () => {
-      const savedSongs = await loadSongs(activeLibrary);
+      let savedSongs = await loadSongs(activeLibrary);
       if (ignore) return;
-      if (savedSongs.length > 0) {
-        setSongs(savedSongs);
-      } else if (activeLibrary === 'personal') {
+      const isFirstRun = savedSongs.length === 0;
+      if (isFirstRun && activeLibrary === 'personal') {
         // First time in personal library — load demo songs
         const demos = DEMO_SONGS_MD.map(md => songFromFlat({
           ...parseSongMd(md),
           id: generateId(),
         }));
         if (ignore) return;
-        setSongs(demos);
+        savedSongs = demos;
         await saveSongs(demos, 'personal');
-      } else {
-        setSongs([]);
       }
 
       const savedSetlists = await loadSetlists(activeLibrary);
       if (ignore) return;
-      setSetlists(savedSetlists || []);
 
       // Recompute keyHistory once on load by scanning past-dated setlists.
       // This is cheap and self-healing — if the device missed an
       // increment-on-save (e.g. it was offline) the history catches up.
-      setSongs(prev => {
-        if (!prev || prev.length === 0) return prev;
-        const histories = computeKeyHistories(prev, savedSetlists || []);
-        return applyKeyHistories(prev, histories);
-      });
+      // Done BEFORE the initial setSongs (and before the startup sync gets
+      // its base snapshot) so the sync sees the same object references React
+      // holds — applyKeyHistories preserves identity for unchanged songs.
+      if (savedSongs.length > 0) {
+        const histories = computeKeyHistories(savedSongs, savedSetlists || []);
+        savedSongs = applyKeyHistories(savedSongs, histories);
+      }
+      setSongs(savedSongs);
+      setSetlists(savedSetlists || []);
 
       const savedTombstones = await loadTombstones(activeLibrary);
       if (ignore) return;
@@ -541,7 +561,7 @@ export default function App() {
         const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback' || view === 'share-view';
         if (isAuthFlow) {
           // Keep the current auth view
-        } else if (!savedSettings.onboardingComplete && savedSongs.length === 0) {
+        } else if (!savedSettings.onboardingComplete && isFirstRun) {
           setView('onboarding');
         } else if (!savedSettings.onboardingComplete) {
           // Existing user who predates onboarding — skip it, go to the landing view.
@@ -572,58 +592,11 @@ export default function App() {
         // since React state (songs/setlists) hasn't settled yet
         const engine = syncEngineRef.current;
         if (engine) {
-          const currentSongs = savedSongs.length > 0 ? savedSongs : [];
+          const currentSongs = savedSongs;
           const currentSetlists = savedSetlists || [];
           engine.fullSync(currentSongs, currentSetlists, savedTombstones).then(result => {
             if (ignore) return;
-            if (result.replaced) {
-              // Safety net (see handleSync): trash any locally-present song the
-              // server-authoritative sync drops and the user didn't delete.
-              const nextIds = new Set(result.songs.map(s => s.id));
-              const deletedIds = new Set((savedTombstones?.songs || []).map(t => t.id));
-              const dropped = currentSongs.filter(s => s?.id && !nextIds.has(s.id) && !deletedIds.has(s.id));
-              if (dropped.length) {
-                const now = Date.now();
-                setTrash(prev => {
-                  const have = new Set(prev.map(e => e.song?.id));
-                  const add = dropped.filter(s => !have.has(s.id)).map(song => ({ song, deletedAt: now }));
-                  return add.length ? [...prev, ...add] : prev;
-                });
-              }
-              setSongs(result.songs);
-              setSetlists(result.setlists);
-            } else if (result.changed) {
-              setSongs(prev => {
-                const next = [...prev];
-                for (const id of result.pulledSongIds || []) {
-                  const pulled = result.songs.find(s => s.id === id);
-                  if (pulled) {
-                    const idx = next.findIndex(s => s.id === id);
-                    if (idx >= 0) next[idx] = pulled;
-                    else next.push(pulled);
-                  }
-                }
-                return next;
-              });
-              setSetlists(prev => {
-                const next = [...prev];
-                for (const id of result.pulledSetlistIds || []) {
-                  const pulled = result.setlists.find(s => s.id === id);
-                  if (pulled) {
-                    const idx = next.findIndex(s => s.id === id);
-                    if (idx >= 0) next[idx] = pulled;
-                    else next.push(pulled);
-                  }
-                }
-                return next;
-              });
-            }
-            if (result.tombstonesChanged) {
-              setTombstones(result.tombstones);
-            }
-            if (result.conflicts?.length > 0) {
-              enqueueConflicts(result.conflicts);
-            }
+            adoptSyncResult(result, currentSongs, currentSetlists, savedTombstones);
           }).catch(err => console.error('Startup sync failed:', err));
         }
       } else {
@@ -1154,7 +1127,7 @@ export default function App() {
   // Pending schedules for the current user → "you've been scheduled" prompts.
   const pendingSchedules = schedules?.filter(s => s.user_id === user?.id && s.availability === 'pending') || [];
   const virtualNotifications = pendingSchedules.map(s => {
-    const setlist = setlists.find(sl => sl.id === s.setlist_id) || { name: 'a setlist' };
+    const setlist = setlists.find(sl => matchesSetlistId(sl, s.setlist_id)) || { name: 'a setlist' };
     return {
       id: `schedule-${s.id}`,
       type: 'schedule_request',
@@ -1180,26 +1153,7 @@ export default function App() {
   // across devices. We enrich the generic server copy with locally-resolvable
   // names where possible, falling back to the row's stored body.
   const resolveSetlistName = (setlistId) =>
-    setlists.find(sl => sl.id === setlistId || sl.remoteId === setlistId)?.name;
-  const serverNotifications = (teamNotifications || []).map(n => {
-    const meta = n.metadata || {};
-    let message = n.body;
-    if (n.type === 'schedule_decline') {
-      const who = meta.declined_by ? memberDisplayName(meta.declined_by) : 'A team member';
-      const name = resolveSetlistName(meta.setlist_id);
-      message = name
-        ? `${who} can't make "${name}"${meta.role ? ` (${meta.role})` : ''}.`
-        : `${who} can't make a service${meta.role ? ` (${meta.role})` : ''}.`;
-    }
-    return {
-      id: `tn-${n.id}`,
-      type: n.type,
-      title: n.title || 'Notification',
-      message,
-      read: !!n.read_at,
-      setlistId: meta.setlist_id,
-    };
-  });
+    setlists.find(sl => matchesSetlistId(sl, setlistId))?.name;
 
   // Nudge: a "maybe" on a setlist coming up within ~2 weeks → ask the user to
   // commit. Reuses the schedule_request Accept/Decline UI (Accept→available,
@@ -1207,7 +1161,7 @@ export default function App() {
   const MAYBE_NUDGE_DAYS = 14;
   const maybeNudges = (schedules || [])
     .filter(s => s.user_id === user?.id && s.availability === 'maybe')
-    .map(s => ({ s, setlist: setlists.find(sl => sl.id === s.setlist_id) }))
+    .map(s => ({ s, setlist: setlists.find(sl => matchesSetlistId(sl, s.setlist_id)) }))
     .filter(({ setlist }) => {
       if (!setlist?.date) return false;
       const days = (new Date(`${setlist.date}T00:00:00`) - new Date(`${todayStr}T00:00:00`)) / 86400000;
@@ -1222,6 +1176,48 @@ export default function App() {
       scheduleId: s.id,
       setlistId: s.setlist_id,
     }));
+
+  // Server schedule rows (schedule_request from the roster trigger,
+  // schedule_maybe_nudge from the notify-worker) exist to reach LOCK SCREENS
+  // via web push and to carry cross-device read state. In the tray, the
+  // interactive virtual prompt above is the better rendering of the same fact
+  // — so a server row is suppressed while a live prompt covers its schedule,
+  // and once the schedule is resolved (stale request/nudge).
+  const scheduleById = new Map((schedules || []).map(s => [s.id, s]));
+  const virtualScheduleIds = new Set([
+    ...pendingSchedules.map(s => s.id),
+    ...maybeNudges.map(n => n.scheduleId),
+  ]);
+  const serverNotifications = (teamNotifications || [])
+    .filter(n => {
+      const sid = n.metadata?.schedule_id;
+      if (!sid) return true;
+      if (virtualScheduleIds.has(sid)) return false; // interactive prompt shown instead
+      const sch = scheduleById.get(sid);
+      if (n.type === 'schedule_request') return !(sch && sch.availability !== 'pending');
+      if (n.type === 'schedule_maybe_nudge') return !(sch && sch.availability !== 'maybe');
+      return true;
+    })
+    .map(n => {
+      const meta = n.metadata || {};
+      let message = n.body;
+      if (n.type === 'schedule_decline') {
+        const who = meta.declined_by ? memberDisplayName(meta.declined_by) : 'A team member';
+        const name = resolveSetlistName(meta.setlist_id);
+        message = name
+          ? `${who} can't make "${name}"${meta.role ? ` (${meta.role})` : ''}.`
+          : `${who} can't make a service${meta.role ? ` (${meta.role})` : ''}.`;
+      }
+      return {
+        id: `tn-${n.id}`,
+        type: n.type === 'schedule_request' || n.type === 'schedule_maybe_nudge' ? 'server_schedule_info' : n.type,
+        title: n.title || 'Notification',
+        message,
+        read: !!n.read_at,
+        scheduleId: meta.schedule_id,
+        setlistId: meta.setlist_id,
+      };
+    });
 
   const dismissedNotifs = settings?.dismissedNotifications || [];
   const mergedNotifications = [
@@ -2106,7 +2102,7 @@ export default function App() {
       <Toaster />
       <OfflineBanner />
       <UpdatePrompt suppress={view === 'setlist-play' || view === 'setlist-performance'} />
-      <ConflictResolver conflicts={pendingConflicts} onResolve={resolveConflict} />
+      <ConflictResolver conflicts={pendingConflicts} onResolve={resolveConflict} onResolveAll={resolveAllConflicts} />
       {view === 'signin' && (
         <AuthScreen
           onBack={goBack}
@@ -2319,6 +2315,7 @@ export default function App() {
               onBack={goBack}
               onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
               onPlay={(arrId) => playSongCasually(currentSong, arrId)}
+              onDelete={!isTeamReadOnly ? () => handleDeleteSong(currentSong.id) : null}
               addedBy={displayName}
               onUpdateSong={isTeamReadOnly ? null : (updated) => {
                 setSongs(prev => prev.map(s => s.id === updated.id ? updated : s));
@@ -2550,6 +2547,23 @@ export default function App() {
                   description: `${songs.length} song${songs.length === 1 ? '' : 's'} downloaded as .md files.`,
                 });
               }}
+              onDownloadBackup={async () => {
+                try {
+                  const blob = await exportLibraryZip(songs, setlists);
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `setlists-md-backup-${new Date().toISOString().slice(0, 10)}.zip`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast({
+                    title: 'Backup downloaded',
+                    description: `${songs.length} song${songs.length === 1 ? '' : 's'} and ${setlists.length} setlist${setlists.length === 1 ? '' : 's'} in one .zip. Keep it somewhere safe.`,
+                  });
+                } catch (err) {
+                  toast({ title: 'Backup failed', description: err?.message || String(err), variant: 'error' });
+                }
+              }}
               songCount={songs.length}
               setlistCount={setlists.length}
               syncState={syncState}
@@ -2568,6 +2582,7 @@ export default function App() {
               activeLibrary={activeLibrary}
               team={team}
               setlists={setlists}
+              songs={songs}
               onRemapService={handleRemapService}
               trash={trash}
               onRestoreSong={handleRestoreSong}

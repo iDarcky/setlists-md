@@ -3,6 +3,7 @@ import { Button } from './ui/Button';
 import NoteContent from './ui/NoteContent';
 import { useTeam } from '../auth/useTeam';
 import { useTeamSchedules } from '../hooks/useTeamSchedules';
+import { useTeamSetlistMap } from '../hooks/useTeamSetlistMap';
 import { headerFrostStyle } from '../lib/headerFrost';
 
 // Wake-lock is intentionally NOT acquired here — the finale lives off-stage.
@@ -66,16 +67,18 @@ export default function LiveFinale({ setlist, sessionStats, onRunAgain, onUpdate
   // Roster acknowledgement — only resolves with a team plan + scheduled rows.
   const { team, members } = useTeam();
   const { schedules } = useTeamSchedules(team?.id || null);
+  // Schedules reference the team_setlists row UUID; map the local id to it.
+  const { map: setlistMap } = useTeamSetlistMap(team?.id || null);
   const roster = useMemo(() => {
     if (!team || !schedules?.length || !members?.length) return [];
     return schedules
-      .filter(s => s.setlist_id === setlist.id && s.availability !== 'unavailable')
+      .filter(s => (s.setlist_id === setlist.id || setlistMap[setlist.id] === s.setlist_id) && s.availability !== 'unavailable')
       .map(s => {
         const m = members.find(mm => mm.user_id === s.user_id);
         const name = m?.profile?.display_name || m?.profile?.email || 'Bandmate';
         return { key: s.id, name, role: s.role || null };
       });
-  }, [team, schedules, members, setlist.id]);
+  }, [team, schedules, members, setlist.id, setlistMap]);
 
   const reflectionInitial = setlist.serviceNote || '';
   const [reflection, setReflection] = useState(reflectionInitial);

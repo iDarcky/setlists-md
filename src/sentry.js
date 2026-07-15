@@ -1,24 +1,24 @@
-// Optional Sentry integration. We load @sentry/react via a dynamic-import
-// expression that Rollup/Vite cannot statically analyze — that way the app
-// builds even when the package isn't installed yet. A missing dep just
-// means errors aren't reported. Set VITE_SENTRY_DSN in your Vercel/.env to
-// turn it on; everything else here is sane defaults.
-
-// `new Function` keeps the import string opaque to the bundler, so the
-// production build never tries to resolve @sentry/react when it isn't a
-// real dependency. This is the standard "optional peer dep" pattern.
-const lazyImport = (mod) => new Function('m', 'return import(m)')(mod);
+// Sentry crash reporting. Dormant until VITE_SENTRY_DSN is set (Vercel env /
+// .env); with no DSN this is a no-op and the Sentry chunk is never fetched.
+//
+// NOTE the import below must be a REAL dynamic import (not the old
+// `new Function('return import(m)')` trick): the bundler has to see the
+// specifier to include @sentry/react in the build as a lazy chunk. A native
+// browser `import('@sentry/react')` of a bare specifier can never resolve —
+// which is why the old pattern silently reported nothing even with a DSN.
 
 export async function initSentry() {
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   if (!dsn) return; // No-op until DSN is configured.
 
   try {
-    const Sentry = await lazyImport('@sentry/react');
+    const Sentry = await import('@sentry/react');
     Sentry.init({
       dsn,
       environment: import.meta.env.MODE,
-      release: import.meta.env.VITE_APP_VERSION || undefined,
+      // Ties every event to the exact deployed version (package.json#version
+      // via Vite's define) so a crash maps to a release, not "latest".
+      release: `setlists-md@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}`,
       // Conservative defaults — bump tracesSampleRate when you want
       // performance data, replaysSessionSampleRate for session replays.
       tracesSampleRate: 0.1,
@@ -31,14 +31,9 @@ export async function initSentry() {
           blockAllMedia: true,
         }),
       ].filter(Boolean),
-      // The parser is the highest-risk surface in this app — capture
-      // its errors aggressively while sampling routine UI errors.
-      beforeSend(event) {
-        return event;
-      },
     });
   } catch (err) {
-    // Package isn't installed (or import failed). Don't crash; just log.
+    // Import/init failure must never take the app down with it.
     console.warn('[sentry] init skipped:', err?.message || err);
   }
 }

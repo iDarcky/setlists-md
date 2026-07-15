@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import ChartView from './ChartView';
+import AaMenu from './AaMenu';
 import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields, EXTRA_META_KEYS } from '../parser';
 import { keyOptions, transposeChord, transposeKey, keyPrefersSharps } from '../music';
 import { isChordToken } from '../importer';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
 import { importChartText } from '../lib/importChords';
+import { loadVersions, pushVersion } from '../storage';
 import WriteTab from './editor/WriteTab';
 import ArrangeTabV2 from './editor/ArrangeTabV2';
 import TabsTab from './editor/TabsTab';
@@ -14,10 +16,12 @@ import StructureControl from './editor/StructureControl';
 import ArrangementMenu, { EditArrangementsDialog } from './editor/ArrangementMenu';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import { OverflowMenu } from './ui/OverflowMenu';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { Tabs } from './ui/Tabs';
 import PromptDialog from './ui/PromptDialog';
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from './ui/Select';
+import { Dialog } from './ui/Dialog';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue, SelectSeparator } from './ui/Select';
 import { toast } from './ui/use-toast';
 import { useConfirm } from './ui/useConfirmHook';
 import { headerFrostStyle } from '../lib/headerFrost';
@@ -35,7 +39,19 @@ const TIME_OPTIONS = ['4/4', '3/4', '6/8', '7/8', '12/8', '2/4', '5/4'];
 const CUSTOM_TIME = '__custom__';
 const TIME_NONE = '__none__'; // Radix SelectItem can't use an empty value
 
-function TimeSignatureControl({ value, onChange }) {
+// One shared sizing/skin for the Key / Tempo / Time controls so they read as a
+// single, pixel-identical control group (height, border, fill, radius, font).
+// Width is set per-control. The Select triggers are <button>s, which a global
+// rule floors to 36px (44px on phones) — so the `<input>` tempo box matches via
+// the same min-heights, otherwise it renders 4px shorter than the dropdowns.
+const META_CTRL_CLS = 'box-border h-9 min-h-9 max-sm:min-h-11 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] px-2 text-label-12 font-mono text-[var(--ds-gray-1000)]';
+
+// Song-Hub-style meta pill (label + mono value) used in the card identity row.
+const META_PILL = 'inline-flex items-center gap-1.5 h-9 max-sm:h-11 px-2.5 rounded-[10px] border border-[var(--border-1)] bg-[var(--ds-background-100)]';
+const META_PILL_LABEL = 'font-sans text-[11px] text-[var(--ds-gray-600)] select-none';
+const META_PILL_VALUE = 'bg-transparent border-0 outline-none p-0 font-mono text-[12.5px] tabular-nums text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-500)]';
+
+function TimeSignatureControl({ value, onChange, bare = false }) {
   const isCustom = value && !TIME_OPTIONS.includes(value);
   const [customOpen, setCustomOpen] = useState(isCustom);
   const [numerator, denominator] = (isCustom ? value.split('/') : ['', '']);
@@ -62,6 +78,12 @@ function TimeSignatureControl({ value, onChange }) {
     onChange(next === '/' ? '' : next);
   };
 
+  // In `bare` mode the trigger/inputs are borderless so they can sit inside a
+  // meta pill (the pill provides the border/fill).
+  const customInputCls = bare
+    ? 'w-7 px-0 text-center bg-transparent border-0 outline-none font-mono text-[12.5px] tabular-nums text-[var(--ds-gray-1000)]'
+    : `${META_CTRL_CLS} w-9 px-1 text-center outline-none`;
+
   if (customOpen) {
     return (
       <div className="flex items-center gap-1">
@@ -70,7 +92,7 @@ function TimeSignatureControl({ value, onChange }) {
           inputMode="numeric"
           value={numerator}
           onChange={e => setPart(0, e.target.value)}
-          className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-9 text-center"
+          className={customInputCls}
           aria-label="Time signature beats"
           placeholder="4"
         />
@@ -80,7 +102,7 @@ function TimeSignatureControl({ value, onChange }) {
           inputMode="numeric"
           value={denominator}
           onChange={e => setPart(1, e.target.value)}
-          className="bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded px-1 py-0.5 text-label-11 font-mono text-[var(--ds-gray-1000)] outline-none w-9 text-center"
+          className={customInputCls}
           aria-label="Time signature unit"
           placeholder="4"
         />
@@ -100,7 +122,9 @@ function TimeSignatureControl({ value, onChange }) {
     <Select value={value || TIME_NONE} onValueChange={handleSelect}>
       <SelectTrigger
         aria-label="Time signature"
-        className="h-8 w-auto gap-1 px-2 text-label-12 font-mono bg-[var(--ds-gray-100)]"
+        className={bare
+          ? '!h-auto !min-h-0 w-auto gap-0.5 !px-0 !border-0 !bg-transparent !ring-0 focus:!ring-0 font-mono text-[12.5px] tabular-nums text-[var(--ds-gray-1000)]'
+          : `${META_CTRL_CLS} w-auto gap-1`}
       >
         <SelectValue />
       </SelectTrigger>
@@ -125,8 +149,12 @@ key:
 
 `;
 
-export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null }) {
+export default function Editor({ song, onSave, onBack, onDirtyChange, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null }) {
   const confirm = useConfirm();
+
+  // Labs: card-based editor header (step 1 — header card). When off, the
+  // original sticky-bar header with the collapsible Song Details panel is used.
+  const cardsHeader = !!chartDefaults?.settings?.songEditorCards;
 
   // Working copy of the song we're editing. For a new song, songFromFlat
   // produces a fresh v2 song with one "Main Arrangement". For existing v2
@@ -153,6 +181,16 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   }, []);
   const [md, setMd] = useState(initialMd);
   const [savedMd, setSavedMd] = useState(initialMd);
+  // ── Undo / redo — a session history of md snapshots, so the visual Arrange
+  // canvas (and Source) can step back. Rapid edits within a short window coalesce
+  // into one step; a fresh edit clears the redo stack. `timeTravel` marks changes
+  // that come from undo/redo so the tracking effect doesn't re-record them.
+  const undoStackRef = useRef([]);
+  const redoStackRef = useRef([]);
+  const prevMdRef = useRef(initialMd);
+  const timeTravelRef = useRef(false);
+  const lastEditAtRef = useRef(0);
+  const [histState, setHistState] = useState({ canUndo: false, canRedo: false });
   // Autosave/draft recovery. We stash the in-progress markdown under a per-song
   // key so a crash or accidental exit doesn't lose work. On mount we surface any
   // draft that differs from the saved content as a restore banner.
@@ -166,7 +204,21 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
   const clearDraft = useCallback(() => {
     try { localStorage.removeItem(draftKey); } catch { /* private mode */ }
   }, [draftKey]);
-  const [activeTab, setActiveTab] = useState('arrange');
+  // New songs (card layout) open on Details to fill in metadata first; editing
+  // an existing song opens on Arrange. Legacy has no Details tab → always Arrange.
+  const [activeTab, setActiveTab] = useState(() => (!song && cardsHeader ? 'details' : 'arrange'));
+  // Card layout: the raw-markdown editor (WriteTab) opens in a centered dialog
+  // instead of a tab — a power-user "Source" escape hatch with paste-import.
+  const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
+  // Mobile-only: collapse the identity card's meta rows to free editing room.
+  const [identityCollapsed, setIdentityCollapsed] = useState(false);
+  const [issuesOpen, setIssuesOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [versions, setVersions] = useState([]);
+  const openHistory = useCallback(async () => {
+    setVersions(await loadVersions(song?.id));
+    setHistoryOpen(true);
+  }, [song?.id]);
   const [preview, setPreview] = useState(null);
   const [metaPanelOpen, setMetaPanelOpen] = useState(!song);
   const isWide = useMediaQuery('(min-width: 1024px)');
@@ -201,6 +253,11 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     () => (typeof chartDefaults.settings?.chordFontSize === 'number' ? chartDefaults.settings.chordFontSize : 14),
   );
   const [previewLinkSizes, setPreviewLinkSizes] = useState(true);
+  // Card layout: the preview gets the real "Aa" display popover, wired to the
+  // GLOBAL display settings (a faithful preview — same as the chart's Aa).
+  const [aaAnchor, setAaAnchor] = useState(null);
+  const closeAa = useCallback(() => setAaAnchor(null), []);
+  const toggleAa = (e) => setAaAnchor(a => (a ? null : e.currentTarget.getBoundingClientRect()));
   const [editArrangementsOpen, setEditArrangementsOpen] = useState(false);
   const [promptConfig, setPromptConfig] = useState(null);
   const textareaRef = useRef(null);
@@ -213,6 +270,15 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
   useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
+
+  // The Details tab only exists in the card-header layout; if the Labs flag is
+  // off (or gets turned off) while it's active, fall back to Arrange. The card
+  // layout has no Advanced tab either — raw editing lives in the Source dialog —
+  // so 'write' also falls back to Arrange there.
+  useEffect(() => {
+    if (!cardsHeader && activeTab === 'details') setActiveTab('arrange');
+    if (cardsHeader && activeTab === 'write') setActiveTab('arrange');
+  }, [cardsHeader, activeTab]);
 
   // Parse md → preview with debounce
   useEffect(() => {
@@ -282,6 +348,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     setSavedMd(md);
     clearDraft();
     setDraftFound(null);
+    if (nextSong.id) pushVersion(nextSong.id, md); // best-effort version history
     toast({
       title: 'Song saved',
       description: preview.title || 'Untitled',
@@ -414,14 +481,40 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
+  // Record md changes into the undo stack (skips undo/redo-driven changes).
+  useEffect(() => {
+    if (md === prevMdRef.current) return;
+    if (timeTravelRef.current) { timeTravelRef.current = false; prevMdRef.current = md; return; }
+    const now = Date.now();
+    const coalesce = now - lastEditAtRef.current < 400 && undoStackRef.current.length > 0;
+    if (!coalesce) {
+      undoStackRef.current.push(prevMdRef.current);
+      if (undoStackRef.current.length > 200) undoStackRef.current.shift();
+    }
+    lastEditAtRef.current = now;
+    redoStackRef.current = [];
+    prevMdRef.current = md;
+    setHistState({ canUndo: undoStackRef.current.length > 0, canRedo: false });
+  }, [md]);
+
   const handleUndo = useCallback(() => {
-    textareaRef.current?.focus();
-    document.execCommand('undo');
+    if (!undoStackRef.current.length) return;
+    const prev = undoStackRef.current.pop();
+    redoStackRef.current.push(prevMdRef.current);
+    timeTravelRef.current = true;
+    prevMdRef.current = prev;
+    setMd(prev);
+    setHistState({ canUndo: undoStackRef.current.length > 0, canRedo: redoStackRef.current.length > 0 });
   }, []);
 
   const handleRedo = useCallback(() => {
-    textareaRef.current?.focus();
-    document.execCommand('redo');
+    if (!redoStackRef.current.length) return;
+    const next = redoStackRef.current.pop();
+    undoStackRef.current.push(prevMdRef.current);
+    timeTravelRef.current = true;
+    prevMdRef.current = next;
+    setMd(next);
+    setHistState({ canUndo: undoStackRef.current.length > 0, canRedo: redoStackRef.current.length > 0 });
   }, []);
 
   // Update a single frontmatter field without touching the body
@@ -467,6 +560,28 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
         ? 'Add a key to save'
         : null;
   const showTempoTimeNudge = canSave && (!currentTempo || !currentTime);
+
+  // Non-blocking pre-save checks — surfaced as a quiet chip, never gates Save.
+  const validationIssues = useMemo(() => {
+    if (!preview) return [];
+    const issues = [];
+    const sections = preview.sections || [];
+    for (const sec of sections) {
+      const hasContent = (sec.lines || []).some(line => (
+        typeof line === 'object'
+          ? (line.type === 'tab' || line.type === 'tabref' || line.type === 'modulate')
+          : (line || '').trim() !== ''
+      ));
+      if (!hasContent) issues.push(`"${sec.type}" has no lyrics or chords`);
+    }
+    if (preview.structureMode === 'custom') {
+      const live = new Set(sections.map(s => s.type));
+      for (const name of (preview.structure || [])) {
+        if (!live.has(name)) issues.push(`Play order lists "${name}", which has no section`);
+      }
+    }
+    return issues;
+  }, [preview]);
 
   // Structure ribbon data (always-visible, edited via the frontmatter
   // `structure` field). availableSections is derived from the body's
@@ -607,6 +722,17 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
         );
       case 'tabs':
         return <TabsTab md={md} onChange={setMd} subdivision={chartDefaults.settings?.tabSubdivision || 1} />;
+      case 'details':
+        // Card-header layout only: Song Details get their own full-width tab
+        // (the intuitive home for artist, capo, CCLI, tags, …) instead of the
+        // legacy collapsible panel. (Transpose lives in the header meta row.)
+        return (
+          <div className="flex-1 min-h-0 overflow-y-auto w-full">
+            <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-4">
+              <MetadataPanel md={md} onChange={setMd} isOpen keyHistory={workingSong.keyHistory} />
+            </div>
+          </div>
+        );
       case 'arrange':
         return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
       default:
@@ -614,73 +740,144 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     }
   };
 
-  const handleDeleteSong = useCallback(async () => {
-    if (!song || !onDelete) return;
-    const ok = await confirm({
-      title: 'Delete song?',
-      description: `"${preview?.title || song.title || 'Untitled'}" will be permanently removed. This cannot be undone.`,
-      confirmLabel: 'Delete',
-      variant: 'danger',
-    });
-    if (ok) onDelete(song.id);
-  }, [song, onDelete, confirm, preview]);
-
-  // Arrangement picker + key/tempo/time. Rendered inline on the title row when
-  // wide; tucked into the Song Details panel on narrow screens so the header
-  // collapses to just title + structure + mode tabs.
+  // Arrangement picker. In the legacy header it rides with the key/tempo/time on
+  // one wrapping row; in the card header it sits beside the title.
+  const arrangementMenuEl = (
+    <ArrangementMenu
+      arrangements={workingSong.arrangements}
+      activeId={activeArrangementId}
+      defaultId={workingSong.defaultArrangementId}
+      onSwitch={switchArrangement}
+      onAdd={handleAddArrangement}
+      onRename={handleRenameArrangement}
+      onDelete={handleDeleteArrangementById}
+      onEdit={() => setEditArrangementsOpen(true)}
+    />
+  );
+  // Just the musical metadata controls (Key / Transpose / Tempo / Time) — split
+  // out from the arrangement picker so the card header can put the arrangement
+  // beside the title and the key/tempo/time on their own row.
+  // Key picker. The options come back as 12 majors then 12 minors, so we slice
+  // at the boundary and drop a separator between the two groups.
+  const keyControlEl = (
+    <Select value={currentKey} onValueChange={changeSongKey}>
+      <SelectTrigger
+        aria-label="Key"
+        className={`${META_CTRL_CLS} w-auto gap-1 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
+      >
+        {/* Show only the chosen key in the trigger (e.g. "Gb"), not the
+            dual-spelling label, so the pill stays compact. */}
+        <span className={keySet ? '' : 'text-[var(--ds-gray-500)]'}>{currentKey || 'Key?'}</span>
+      </SelectTrigger>
+      <SelectContent className="font-mono">
+        {keyOpts.slice(0, 12).map(({ value, label }) => (
+          <SelectItem key={value} value={value}>{label}</SelectItem>
+        ))}
+        <SelectSeparator />
+        {keyOpts.slice(12).map(({ value, label }) => (
+          <SelectItem key={value} value={value}>{label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+  // Explicit transpose: moves the actual chords (and the key label) by a
+  // semitone. Separate from the Key field so relabelling never rewrites the
+  // user's chords. Extracted so the card layout can relocate it to Details.
+  const transposeControlEl = (
+    <div className="flex items-center h-8 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] overflow-hidden">
+      <IconButton variant="ghost" size="xs" aria-label="Transpose down a semitone" title="Transpose down" onClick={() => transposeAllChords(-1)}>−</IconButton>
+      <span className="px-1 text-label-10 uppercase tracking-wide text-[var(--ds-gray-600)] select-none">Tr</span>
+      <IconButton variant="ghost" size="xs" aria-label="Transpose up a semitone" title="Transpose up" onClick={() => transposeAllChords(1)}>+</IconButton>
+    </div>
+  );
+  // Tempo + time signature. The tempo input IS the sized box: same h-8 + border
+  // + rounded + bg as the Key/Time triggers, with box-border + leading-none so
+  // its content line-height can't push it past 32px.
+  const tempoTimeEl = (
+    <>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={currentTempo}
+        onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+        className={`${META_CTRL_CLS} w-14 appearance-none leading-none text-center outline-none`}
+        placeholder="bpm"
+        aria-label="Tempo"
+      />
+      <TimeSignatureControl
+        value={currentTime}
+        onChange={v => updateField('time', v)}
+      />
+    </>
+  );
+  // Legacy header: key + transpose + tempo + time on one wrapping row.
+  const musicMetaControls = (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {keyControlEl}
+      {transposeControlEl}
+      {tempoTimeEl}
+    </div>
+  );
+  // Card identity-card meta controls (Song-Hub design), split into pieces so the
+  // header can lay them out as rows. Heights are unified (h-9 desktop / 44px on
+  // touch) so the Key chip lines up with the Tempo/Time/Transpose controls.
+  // Gold key chip — the song key (doubles as the key dropdown). Distinct from
+  // Transpose: this is the *written key*; Transpose *moves* the chords.
+  const cardKeyChipEl = (
+    <Select value={currentKey} onValueChange={changeSongKey}>
+      <SelectTrigger
+        aria-label="Key"
+        className={`h-9 min-h-9 max-sm:min-h-11 w-auto gap-1 px-2.5 rounded-[10px] !border-0 font-mono font-bold text-[13px] focus:!ring-0 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
+        style={{ background: keySet ? 'var(--chord)' : 'var(--ds-gray-100)', color: keySet ? '#0a0a0a' : 'var(--ds-gray-500)' }}
+      >
+        <span className="text-[9px] font-sans font-bold uppercase tracking-[0.12em] opacity-60">Key</span>
+        <span>{currentKey || '?'}</span>
+      </SelectTrigger>
+      <SelectContent className="font-mono">
+        {keyOpts.slice(0, 12).map(({ value, label }) => (
+          <SelectItem key={value} value={value}>{label}</SelectItem>
+        ))}
+        <SelectSeparator />
+        {keyOpts.slice(12).map(({ value, label }) => (
+          <SelectItem key={value} value={value}>{label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+  const cardTempoPillEl = (
+    <label className={META_PILL} aria-label="Tempo">
+      <span className={META_PILL_LABEL}>Tempo</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={currentTempo}
+        onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+        placeholder="—"
+        className={`${META_PILL_VALUE} w-8 text-center`}
+      />
+    </label>
+  );
+  const cardTimePillEl = (
+    <div className={META_PILL}>
+      <span className={META_PILL_LABEL}>Time</span>
+      <TimeSignatureControl value={currentTime} onChange={v => updateField('time', v)} bare />
+    </div>
+  );
+  // Transpose = a relative ± action that rewrites every chord and shifts the key
+  // label. No key readout here (that would just mirror the Key chip and read as
+  // a duplicate); the ± tooltips name the target key instead.
+  const cardTransposeEl = (
+    <div className="inline-flex items-center h-9 max-sm:h-11 rounded-[10px] border border-[var(--border-1)] bg-[var(--ds-background-100)] overflow-hidden">
+      <span className="pl-2.5 pr-0.5 text-[11px] text-[var(--ds-gray-600)] select-none">Transpose</span>
+      <IconButton variant="ghost" size="sm" aria-label="Transpose down a semitone" title={currentKey ? `Down a semitone (to ${transposeKey(currentKey, -1)})` : 'Transpose down'} onClick={() => transposeAllChords(-1)}>−</IconButton>
+      <IconButton variant="ghost" size="sm" aria-label="Transpose up a semitone" title={currentKey ? `Up a semitone (to ${transposeKey(currentKey, 1)})` : 'Transpose up'} onClick={() => transposeAllChords(1)}>+</IconButton>
+    </div>
+  );
+  // Legacy header layout: arrangement picker + key/tempo/time on one wrapping row.
   const musicControls = (
     <div className="flex items-center gap-2 flex-wrap">
-      <ArrangementMenu
-        arrangements={workingSong.arrangements}
-        activeId={activeArrangementId}
-        defaultId={workingSong.defaultArrangementId}
-        onSwitch={switchArrangement}
-        onAdd={handleAddArrangement}
-        onRename={handleRenameArrangement}
-        onDelete={handleDeleteArrangementById}
-        onEdit={() => setEditArrangementsOpen(true)}
-      />
-      <div className="flex items-center gap-1.5">
-        <Select value={currentKey} onValueChange={changeSongKey}>
-          <SelectTrigger
-            aria-label="Key"
-            className={`h-8 w-auto gap-1 px-2 text-label-12 font-mono bg-[var(--ds-gray-100)] ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
-          >
-            {/* Show only the chosen key in the trigger (e.g. "Gb"), not the
-                dual-spelling label, so the pill stays compact. */}
-            <span className={keySet ? '' : 'text-[var(--ds-gray-500)]'}>{currentKey || 'Key?'}</span>
-          </SelectTrigger>
-          <SelectContent className="font-mono">
-            {keyOpts.map(({ value, label }) => (
-              <SelectItem key={value} value={value}>{label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {/* Explicit transpose: moves the actual chords (and the key label) by a
-            semitone. Separate from the Key field so relabelling never rewrites
-            the user's chords. */}
-        <div className="flex items-center h-8 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] overflow-hidden">
-          <IconButton variant="ghost" size="xs" aria-label="Transpose down a semitone" title="Transpose down" onClick={() => transposeAllChords(-1)}>−</IconButton>
-          <span className="px-1 text-label-10 uppercase tracking-wide text-[var(--ds-gray-600)] select-none">Tr</span>
-          <IconButton variant="ghost" size="xs" aria-label="Transpose up a semitone" title="Transpose up" onClick={() => transposeAllChords(1)}>+</IconButton>
-        </div>
-        {/* The tempo input IS the sized box: same h-8 + border + rounded + bg
-            as the Key/Time triggers, with box-border + leading-none so its
-            content line-height can't push it past 32px. No wrapper needed. */}
-        <input
-          type="text"
-          inputMode="numeric"
-          value={currentTempo}
-          onChange={e => updateField('tempo', e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
-          className="box-border h-8 w-14 appearance-none rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] px-2 text-label-12 font-mono leading-none text-center text-[var(--ds-gray-1000)] outline-none"
-          placeholder="bpm"
-          aria-label="Tempo"
-        />
-        <TimeSignatureControl
-          value={currentTime}
-          onChange={v => updateField('time', v)}
-        />
-      </div>
+      {arrangementMenuEl}
+      {musicMetaControls}
     </div>
   );
 
@@ -786,108 +983,373 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
     />
   ) : null;
 
+  // Card layout: a FAITHFUL preview — reads the real global display settings and
+  // writes through them (the Aa popover below edits global, same as the chart).
+  const cardPreviewChartEl = preview ? (
+    <ChartView song={preview} isPreview {...chartDefaults} />
+  ) : null;
+  const gSettings = chartDefaults.settings || {};
+  const gUpdate = chartDefaults.onUpdateSettings;
+  const aaNotation = gSettings.notation || (gSettings.nashville ? 'nashville' : 'letters');
+  // An "Aa" trigger styled like Song Hub's, opening the global display popover.
+  const aaTriggerEl = (
+    <button
+      type="button"
+      aria-label="Display options"
+      aria-expanded={!!aaAnchor}
+      onClick={toggleAa}
+      className="shrink-0 w-8 h-8 grid place-items-center rounded-lg border border-[var(--border-1)] bg-[var(--ds-background-100)] text-[13px] font-bold text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer"
+    >
+      Aa
+    </button>
+  );
+  const cardAaMenuEl = (cardsHeader && aaAnchor) ? (
+    <AaMenu
+      anchorRect={aaAnchor}
+      onClose={closeAa}
+      settings={gSettings}
+      onUpdateSettings={gUpdate}
+      lyricSize={typeof gSettings.defaultFontSize === 'number' ? gSettings.defaultFontSize : 16}
+      onLyricSize={(n) => gUpdate?.('defaultFontSize', Math.max(10, Math.min(30, n)))}
+      chordSize={typeof gSettings.chordFontSize === 'number' ? gSettings.chordFontSize : 14}
+      onChordSize={(n) => gUpdate?.('chordFontSize', Math.max(8, Math.min(30, n)))}
+      columns={gSettings.defaultColumns ?? 'auto'}
+      onColumns={(v) => gUpdate?.('defaultColumns', v)}
+      notation={aaNotation}
+      onNotation={(v) => { gUpdate?.('notation', v); gUpdate?.('nashville', v === 'nashville'); }}
+      onReset={(which) => {
+        if (which === 'lyrics') { gUpdate?.('defaultFontSize', undefined); gUpdate?.('chartLyricFont', undefined); gUpdate?.('chartLyricColor', undefined); }
+        else if (which === 'chords') { gUpdate?.('chordFontSize', undefined); gUpdate?.('chartChordFont', undefined); gUpdate?.('chartChordColor', undefined); }
+        else { gUpdate?.('chartTheme', undefined); gUpdate?.('notation', undefined); gUpdate?.('nashville', undefined); gUpdate?.('defaultColumns', undefined); }
+      }}
+    />
+  ) : null;
+
   // Show the empty-state chooser for a fresh blank song (no chords/lyrics yet).
+
+  // Shared header action buttons (preview toggle / peek + delete).
+  const headerActionsEl = (
+    <div className="flex items-center gap-2 shrink-0">
+      {importProgress && (
+        <span
+          className="hidden sm:inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 text-label-11 font-semibold border"
+          style={{ color: 'var(--color-brand-text)', borderColor: 'var(--color-brand-border)', background: 'var(--color-brand-soft)' }}
+        >
+          Importing {importProgress.current} of {importProgress.total}
+          {importProgress.onSkip && (
+            <button onClick={importProgress.onSkip} className="bg-transparent border-none p-0 text-[var(--color-brand-text)] underline cursor-pointer text-label-11 font-semibold">Skip</button>
+          )}
+        </span>
+      )}
+      {isWide && (
+        <Button
+          variant={previewEnabled ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => setPreviewEnabled(v => !v)}
+          aria-pressed={previewEnabled}
+        >
+          {previewEnabled ? 'Hide preview' : 'Show preview'}
+        </Button>
+      )}
+      {!isWide && !cardsHeader && (
+        <IconButton variant="ghost" size="sm" onClick={() => setPreviewPeekOpen(true)} aria-label="Preview">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </IconButton>
+      )}
+    </div>
+  );
+
+  // Edit-mode tabs. The Details tab is card-header only.
+  const tabsRowEl = (
+    <div className="px-1 sm:px-2">
+      <Tabs
+        tabs={cardsHeader
+          ? [...MODE_OPTIONS, { id: 'tabs', label: 'Tabs' }, { id: 'details', label: 'Details' }]
+          : [...MODE_OPTIONS, { id: 'tabs', label: 'Tabs' }]}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
+    </div>
+  );
+
+  // ── Card-based header (Labs) ──────────────────────────────────────────────
+  // Minimal identity card: inline-editable title beside the arrangement picker
+  // (the arrangement changes everything, so it sits with the title), then the
+  // key/tempo/time controls on their own row. No cover art, no artist line, no
+  // Aa. Song Details live in their own tab; Save/Cancel stay in the bottom bar.
+  const cardHeaderEl = (
+    <div
+      className="shrink-0 rounded-2xl border border-[var(--border-1)] px-3 sm:px-4 py-3 flex flex-col gap-3"
+      style={{ background: 'linear-gradient(180deg, var(--ds-background-100), var(--ds-background-200))' }}
+    >
+      {/* Row 1: title | actions | (mobile collapse). Title gets the whole row
+          now — the arrangement moved to row 2 — so it stops truncating. */}
+      <div className="flex items-center gap-2">
+        <input
+          value={fmFields.title || ''}
+          onChange={e => updateField('title', e.target.value)}
+          placeholder={song ? 'Song title' : 'New song'}
+          aria-label="Song title"
+          style={{ fieldSizing: 'content' }}
+          className="min-w-[6ch] max-w-[60vw] sm:max-w-[30rem] bg-transparent border-0 outline-none text-heading-18 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
+        />
+        <div className="flex-1 min-w-0" />
+        {/* When collapsed on mobile, surface the key chip so it's still glanceable. */}
+        {identityCollapsed && <div className="sm:hidden shrink-0">{cardKeyChipEl}</div>}
+        {headerActionsEl}
+        <button
+          type="button"
+          onClick={() => setIdentityCollapsed(v => !v)}
+          aria-label={identityCollapsed ? 'Show song details' : 'Hide song details'}
+          aria-expanded={!identityCollapsed}
+          className="sm:hidden shrink-0 w-8 h-8 grid place-items-center rounded-md text-[var(--ds-gray-600)] hover:bg-[var(--ds-gray-100)] cursor-pointer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${identityCollapsed ? '-rotate-90' : ''}`}><path d="m6 9 6 6 6-6" /></svg>
+        </button>
+      </div>
+      {/* Meta rows (collapsible on mobile). Desktop: one wrapping row. Mobile:
+          a forced break after Key → row 2 = Arrangement·Key (identity), row 3 =
+          Transpose·Tempo·Time (the wide arrangement pill can't share a phone row
+          with all three, so the performance controls group on the next line). */}
+      {(isWide || !identityCollapsed) && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {arrangementMenuEl}
+          {cardKeyChipEl}
+          <div className="basis-full h-0 sm:hidden" aria-hidden="true" />
+          {cardTransposeEl}
+          {cardTempoPillEl}
+          {cardTimePillEl}
+        </div>
+      )}
+    </div>
+  );
+
+  // ── Legacy header (default) ───────────────────────────────────────────────
+  const legacyHeaderEl = (
+    <header
+      className="shrink-0 z-[60] sticky top-0 border-b border-[var(--ds-gray-200)] backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)]"
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+    >
+      <div className="flex items-center gap-2 px-3 sm:px-4 h-14">
+        <button
+          type="button"
+          onClick={() => setMetaPanelOpen(v => !v)}
+          aria-expanded={metaPanelOpen}
+          aria-label="Song details"
+          className="min-w-0 shrink flex items-center gap-1.5 text-left bg-transparent border-none cursor-pointer p-0"
+        >
+          <h1 className="text-heading-18 text-[var(--text-1)] m-0 leading-tight truncate">
+            {fmFields.title || (song ? 'Edit Song' : 'New Song')}
+          </h1>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 text-[var(--ds-gray-600)] transition-transform duration-200 ${metaPanelOpen ? 'rotate-180' : ''}`}>
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+
+        {isWide && musicControls}
+
+        <div className="flex-1 min-w-0" />
+
+        {headerActionsEl}
+      </div>
+
+      {/* ─── Song Details (collapsible, drops directly below the title) ─── */}
+      {metaPanelOpen && (
+        <div className="shrink-0 max-h-[45vh] overflow-y-auto border-t border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] px-4 sm:px-6 py-2" style={headerFrostStyle}>
+          {!isWide && (
+            <div className="pb-3 mb-3 border-b border-[var(--ds-gray-200)]">
+              {musicControls}
+            </div>
+          )}
+          <MetadataPanel
+            md={md}
+            onChange={setMd}
+            isOpen
+            keyHistory={workingSong.keyHistory}
+          />
+        </div>
+      )}
+
+      {/* Structure now lives inside the Arrange + Advanced tabs (one official
+          source), not in the header. */}
+
+      {tabsRowEl}
+    </header>
+  );
+
+  // ── Two-card workspace (Labs) ─────────────────────────────────────────────
+  // The editing surface and the preview each become their own card, mirroring
+  // Song Hub's reader card. The Arrange/Advanced/Tabs/Details tabs live as the
+  // left card's pill header.
+  // No Advanced tab in the card layout — raw markdown lives in the Source dialog.
+  const cardTabList = [{ id: 'arrange', label: 'Arrange' }, { id: 'tabs', label: 'Tabs' }, { id: 'details', label: 'Details' }];
+  const cardTabsHeaderEl = (
+    <div className="shrink-0 flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 border-b border-[var(--border-1)] overflow-x-auto">
+      {cardTabList.map(t => {
+        const active = activeTab === t.id;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setActiveTab(t.id)}
+            aria-current={active ? 'page' : undefined}
+            className={`h-8 sm:h-9 px-2.5 sm:px-4 rounded-lg text-[12px] sm:text-[13.5px] cursor-pointer transition-colors whitespace-nowrap ${active ? 'text-white font-semibold' : 'font-medium text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)]'}`}
+            style={{ background: active ? 'var(--color-brand)' : undefined }}
+          >
+            {t.label}
+          </button>
+        );
+      })}
+      <div className="ml-auto shrink-0 flex items-center gap-0.5">
+        {/* Undo / redo — session history across the whole editor (Arrange + Source). */}
+        <IconButton variant="ghost" size="sm" aria-label="Undo" title="Undo" disabled={!histState.canUndo} onClick={handleUndo}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" /></svg>
+        </IconButton>
+        <IconButton variant="ghost" size="sm" aria-label="Redo" title="Redo" disabled={!histState.canRedo} onClick={handleRedo}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" /></svg>
+        </IconButton>
+        {/* Secondary actions folded into a ⋮ so the header stays calm. */}
+        <OverflowMenu
+          ariaLabel="Editor options"
+          items={[
+            { label: 'Edit source', icon: (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>), onClick: () => setSourceDialogOpen(true) },
+            song && { label: 'Version history', icon: (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5" /><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" /><path d="M12 7v5l3 2" /></svg>), onClick: openHistory },
+          ].filter(Boolean)}
+        />
+      </div>
+    </div>
+  );
+
+  const leftEditorCardEl = (
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)]">
+      {cardTabsHeaderEl}
+      <div className={`flex-1 min-h-0 flex flex-col w-full ${activeTab === 'write' ? 'overflow-auto pb-[18px]' : 'overflow-hidden'}`}>
+        {renderTab()}
+      </div>
+    </div>
+  );
+
+  const cardWorkAreaEl = (
+    <div className="flex-1 min-h-0 flex w-full overflow-hidden">
+      {leftEditorCardEl}
+      {/* Resize gutter — transparent strip; a slim grip fades in on hover. No line. */}
+      {showSidePreview && preview && (
+        <div
+          onPointerDown={onPreviewResize}
+          role="separator"
+          aria-label="Resize preview"
+          className="group shrink-0 w-3 self-stretch cursor-col-resize flex items-center justify-center touch-none"
+        >
+          <span className="w-1 h-10 rounded-full bg-[var(--ds-gray-400)] opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+      )}
+      {showSidePreview && preview && (
+        <aside
+          style={{ width: previewWidth }}
+          className="shrink-0 flex flex-col overflow-hidden rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)]"
+        >
+          <div className="shrink-0 px-3 py-2 border-b border-[var(--border-1)] flex items-center justify-between gap-2">
+            <span className="text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">Preview</span>
+            {aaTriggerEl}
+          </div>
+          <div className="flex-1 min-h-0 flex flex-col">
+            {cardPreviewChartEl}
+          </div>
+        </aside>
+      )}
+    </div>
+  );
+
+  // Draft recovery as a slim top card (cards layout).
+  const draftCardEl = draftFound ? (
+    <div className="shrink-0 rounded-xl border border-[var(--color-brand-border)] bg-[var(--color-brand-soft)] px-3 py-2 flex items-center gap-3">
+      <span className="flex-1 min-w-0 text-label-12 text-[var(--color-brand-text)]">
+        Unsaved draft found from a previous session.
+      </span>
+      <Button variant="brand" size="sm" onClick={() => { setMd(draftFound); setDraftFound(null); }}>Restore</Button>
+      <Button variant="ghost" size="sm" onClick={() => { clearDraft(); setDraftFound(null); }}>Discard</Button>
+    </div>
+  ) : null;
+
+  // Save/Cancel content — shared between the legacy sticky bar and the card.
+  const saveCancelInner = (
+    <div className="w-full flex items-center justify-end gap-3">
+      {cardsHeader && !isWide && (
+        <Button variant="secondary" size="md" className="mr-auto" onClick={() => setPreviewPeekOpen(true)}>
+          Preview
+        </Button>
+      )}
+      {!readOnly && missingMetaHint && (
+        <span className="text-label-11 text-[var(--ds-amber-700,#b45309)] mr-auto flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+          {missingMetaHint}
+        </span>
+      )}
+      {!readOnly && !missingMetaHint && validationIssues.length > 0 && (
+        <div className="relative mr-auto">
+          <button
+            type="button"
+            onClick={() => setIssuesOpen(v => !v)}
+            aria-expanded={issuesOpen}
+            title={validationIssues.join('\n')}
+            className="inline-flex items-center gap-1.5 text-label-11 font-semibold text-[var(--ds-amber-700,#b45309)] bg-transparent border-none cursor-pointer"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+            {validationIssues.length} to review
+          </button>
+          {issuesOpen && (
+            <>
+              <button type="button" aria-hidden tabIndex={-1} onClick={() => setIssuesOpen(false)} className="fixed inset-0 z-40 cursor-default bg-transparent border-none" />
+              <div className="absolute bottom-full left-0 mb-2 z-50 w-72 max-h-52 overflow-y-auto rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg p-2.5">
+                <ul className="m-0 p-0 list-none flex flex-col gap-1.5">
+                  {validationIssues.map((it, i) => (
+                    <li key={i} className="text-copy-12 text-[var(--ds-gray-1000)] flex items-start gap-1.5">
+                      <span className="text-[var(--ds-amber-700,#b45309)] leading-5">•</span><span>{it}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+      {!readOnly && !missingMetaHint && validationIssues.length === 0 && showTempoTimeNudge && (
+        <span className="text-label-11 text-[var(--ds-gray-600)] mr-auto italic">
+          Tip: add tempo &amp; time so the song shows its feel.
+        </span>
+      )}
+      <Button variant="ghost" size="md" onClick={handleBack}>{readOnly ? 'Back' : 'Cancel'}</Button>
+      {!readOnly && <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave || !canSave}>Save</Button>}
+    </div>
+  );
+  // Cards layout: Save/Cancel as a bottom card (mirrors the draft card).
+  const saveCancelCardEl = (
+    <div
+      className="shrink-0 rounded-xl border border-[var(--border-1)] bg-[var(--ds-background-100)] px-3 sm:px-4 py-2.5"
+      style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    >
+      {saveCancelInner}
+    </div>
+  );
 
   return (
     <div className="h-full bg-[var(--ds-background-200)] flex flex-col">
-      {/* ─── Unified header. Row 1: title (taps to toggle Song Details) +
-          (wide) arrangement/key/tempo/time + preview / actions. Row 2:
-          structure summary. Row 3: edit-mode tabs. On narrow screens the music
-          controls move into the Song Details panel so the header stays compact.
-          Save/Cancel live in the bottom bar so they stay thumb-reachable. ─── */}
-      <header
-        className="shrink-0 z-[60] sticky top-0 border-b border-[var(--ds-gray-200)] backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)]"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
-        <div className="flex items-center gap-2 px-3 sm:px-4 h-14">
-          <button
-            type="button"
-            onClick={() => setMetaPanelOpen(v => !v)}
-            aria-expanded={metaPanelOpen}
-            aria-label="Song details"
-            className="min-w-0 shrink flex items-center gap-1.5 text-left bg-transparent border-none cursor-pointer p-0"
-          >
-            <h1 className="text-heading-18 text-[var(--text-1)] m-0 leading-tight truncate">
-              {fmFields.title || (song ? 'Edit Song' : 'New Song')}
-            </h1>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 text-[var(--ds-gray-600)] transition-transform duration-200 ${metaPanelOpen ? 'rotate-180' : ''}`}>
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-
-          {isWide && musicControls}
-
-          <div className="flex-1 min-w-0" />
-
-          <div className="flex items-center gap-2 shrink-0">
-            {importProgress && (
-              <span
-                className="hidden sm:inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 text-label-11 font-semibold border"
-                style={{ color: 'var(--color-brand-text)', borderColor: 'var(--color-brand-border)', background: 'var(--color-brand-soft)' }}
-              >
-                Importing {importProgress.current} of {importProgress.total}
-                {importProgress.onSkip && (
-                  <button onClick={importProgress.onSkip} className="bg-transparent border-none p-0 text-[var(--color-brand-text)] underline cursor-pointer text-label-11 font-semibold">Skip</button>
-                )}
-              </span>
-            )}
-            {isWide && (
-              <Button
-                variant={previewEnabled ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setPreviewEnabled(v => !v)}
-                aria-pressed={previewEnabled}
-              >
-                {previewEnabled ? 'Hide preview' : 'Show preview'}
-              </Button>
-            )}
-            {!isWide && (
-              <IconButton variant="ghost" size="sm" onClick={() => setPreviewPeekOpen(true)} aria-label="Preview">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </IconButton>
-            )}
-            {song && onDelete && (
-              <IconButton variant="error" size="sm" onClick={handleDeleteSong} aria-label="Delete song">
-                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </IconButton>
-            )}
-          </div>
+      {cardsHeader ? (
+        <div
+          className="flex-1 min-h-0 flex flex-col gap-3 px-3 sm:px-4 pb-3"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+        >
+          {draftCardEl}
+          {cardHeaderEl}
+          {cardWorkAreaEl}
+          {saveCancelCardEl}
         </div>
-
-        {/* ─── Song Details (collapsible, drops directly below the title) ─── */}
-        {metaPanelOpen && (
-          <div className="shrink-0 max-h-[45vh] overflow-y-auto border-t border-[var(--ds-gray-200)] bg-[var(--ds-background-200)] px-4 sm:px-6 py-2" style={headerFrostStyle}>
-            {!isWide && (
-              <div className="pb-3 mb-3 border-b border-[var(--ds-gray-200)]">
-                {musicControls}
-              </div>
-            )}
-            <MetadataPanel
-              md={md}
-              onChange={setMd}
-              isOpen
-              keyHistory={workingSong.keyHistory}
-            />
-          </div>
-        )}
-
-        {/* Structure now lives inside the Arrange + Advanced tabs (one official
-            source), not in the header. */}
-
-        {/* Row: edit-mode tabs (Arrange / Advanced / Tabs), left-aligned */}
-        <div className="px-1 sm:px-2">
-          <Tabs
-            tabs={[...MODE_OPTIONS, { id: 'tabs', label: 'Tabs' }]}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
-        </div>
-      </header>
+      ) : (
+      <>
+      {legacyHeaderEl}
 
       {/* ─── Content Area — full-width chrome on top, then the editor + live
           preview side-by-side beneath it, so opening Song Details / the
@@ -957,6 +1419,8 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
         )}
         </div>
       </div>
+      </>
+      )}
 
       {/* ─── Narrow-screen preview peek (slide-over) ─── */}
       {!isWide && previewPeekOpen && (
@@ -966,8 +1430,8 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
         >
           <div className="shrink-0 px-3 py-2 border-b border-[var(--ds-gray-200)] flex items-center justify-between gap-2">
             <span className="text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">Preview</span>
-            <div className="flex items-center gap-1">
-              {previewControls}
+            <div className="flex items-center gap-1.5">
+              {cardsHeader ? aaTriggerEl : previewControls}
               <IconButton variant="ghost" size="sm" onClick={() => setPreviewPeekOpen(false)} aria-label="Close preview">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 6 6 18M6 6l12 12" />
@@ -976,7 +1440,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
             </div>
           </div>
           <div className="flex-1 min-h-0 flex flex-col">
-            {previewChartEl || (
+            {(cardsHeader ? cardPreviewChartEl : previewChartEl) || (
               <div className="flex-1 flex items-center justify-center text-copy-13 text-[var(--ds-gray-600)] italic">
                 Nothing to preview yet.
               </div>
@@ -985,32 +1449,22 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
         </div>
       )}
 
-      {/* ─── Sticky bottom action bar — Cancel + Save, mirrors SetlistBuilder ─── */}
-      <div
-        className="shrink-0 sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)] w-full"
-        style={{
-          background: 'var(--header-bg-blur)',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-        }}
-      >
-        <div className="w-full px-5 py-3 flex items-center justify-end gap-3">
-          {!readOnly && missingMetaHint && (
-            <span className="text-label-11 text-[var(--ds-amber-700,#b45309)] mr-auto flex items-center gap-1.5">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-              {missingMetaHint}
-            </span>
-          )}
-          {!readOnly && !missingMetaHint && showTempoTimeNudge && (
-            <span className="text-label-11 text-[var(--ds-gray-600)] mr-auto italic">
-              Tip: add tempo &amp; time so the song shows its feel.
-            </span>
-          )}
-          <Button variant="ghost" size="md" onClick={handleBack}>{readOnly ? 'Back' : 'Cancel'}</Button>
-          {!readOnly && <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave || !canSave}>Save</Button>}
+      {/* ─── Legacy sticky bottom action bar (cards layout uses saveCancelCardEl) ─── */}
+      {!cardsHeader && (
+        <div
+          className="shrink-0 sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)] w-full"
+          style={{
+            background: 'var(--header-bg-blur)',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+          }}
+        >
+          <div className="w-full px-5 py-3">
+            {saveCancelInner}
+          </div>
         </div>
-      </div>
+      )}
 
       {promptConfig && (
         <PromptDialog
@@ -1023,6 +1477,76 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, onDelete, 
           onSubmit={(v) => promptConfig.onSubmit?.(v)}
           onClose={() => setPromptConfig(null)}
         />
+      )}
+
+      {/* Preview display popover (card layout) — writes GLOBAL display settings. */}
+      {cardAaMenuEl}
+
+      {/* Version history — restore a previously-saved snapshot of this song. */}
+      <Dialog open={historyOpen} onClose={() => setHistoryOpen(false)} size="md" ariaLabel="Version history">
+        <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-[var(--border-1)]">
+          <h2 className="text-copy-15 font-semibold text-[var(--ds-gray-1000)] m-0">Version history</h2>
+          <IconButton variant="ghost" size="sm" onClick={() => setHistoryOpen(false)} aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </IconButton>
+        </div>
+        <div className="max-h-[60vh] overflow-y-auto p-2">
+          {versions.length === 0 ? (
+            <p className="text-copy-13 text-[var(--ds-gray-600)] px-3 py-6 text-center m-0">No saved versions yet. Each time you save, a snapshot is kept here.</p>
+          ) : (
+            <ul className="m-0 p-0 list-none flex flex-col gap-1">
+              {versions.slice().reverse().map((v, i) => {
+                const title = (v.md.match(/^title:\s*(.+)$/m) || [])[1]?.trim() || 'Untitled';
+                const isLatest = i === 0;
+                return (
+                  <li key={v.ts} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[var(--ds-gray-100)]">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-copy-13 text-[var(--ds-gray-1000)] truncate">{new Date(v.ts).toLocaleString()}{isLatest && <span className="ml-2 text-label-10 uppercase tracking-wide text-[var(--ds-gray-500)]">latest</span>}</div>
+                      <div className="text-copy-11 text-[var(--ds-gray-500)] truncate">{title}</div>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => { setMd(v.md); setHistoryOpen(false); toast({ title: 'Version restored', description: 'Review, then Save to keep it.' }); }}
+                    >
+                      Restore
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </Dialog>
+
+      {/* Source — raw-markdown editor (card layout). Reuses WriteTab so the
+          toolbar's paste-import comes along. Edits the same body via setBody. */}
+      {cardsHeader && (
+        <Dialog open={sourceDialogOpen} onClose={() => setSourceDialogOpen(false)} size="xl" ariaLabel="Edit source" className="h-[85vh] flex flex-col overflow-hidden">
+          <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3 border-b border-[var(--border-1)]">
+            <div className="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--ds-gray-600)]"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+              <h2 className="text-copy-15 font-semibold text-[var(--ds-gray-1000)] m-0">Source</h2>
+            </div>
+            <IconButton variant="ghost" size="sm" onClick={() => setSourceDialogOpen(false)} aria-label="Close source">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </IconButton>
+          </div>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <WriteTab
+              md={splitMd(md).body.replace(/^\n+/, '')}
+              onChange={setBody}
+              textareaRef={textareaRef}
+              customSectionTypes={customSectionTypes}
+              time={currentTime || '4/4'}
+              songKey={currentKey || 'C'}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              onImport={handleImport}
+              structureRow={structureRowEl}
+            />
+          </div>
+        </Dialog>
       )}
 
       <EditArrangementsDialog

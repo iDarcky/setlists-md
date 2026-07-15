@@ -5,8 +5,8 @@ import { IconButton } from '../ui/IconButton';
 import { Input } from '../ui/Input';
 import { useConfirm } from '../ui/useConfirmHook';
 
-const ChevronDown = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+const ChevronDown = ({ className = '' }) => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="m6 9 6 6 6-6" />
   </svg>
 );
@@ -79,28 +79,32 @@ export default function ArrangementMenu({
 
   return (
     <div ref={rootRef} className="relative inline-block">
+      {/* Outlined split-button: a label region + a divided chevron affordance,
+          in the spirit of a clean "Save preset ▾" control. */}
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="inline-flex items-center h-8 gap-1.5 px-2.5 rounded-md bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-label-12 font-semibold text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] cursor-pointer transition-colors max-w-[220px]"
+        className="group inline-flex items-stretch h-8 rounded-lg border border-[var(--color-brand-border)] bg-transparent text-label-12 font-semibold text-[var(--color-brand-text)] hover:bg-[var(--color-brand-soft)] cursor-pointer transition-colors max-w-[240px] overflow-hidden"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Arrangement"
       >
-        <span className="truncate">{active?.name || 'Arrangement'}</span>
-        <span className="opacity-70 shrink-0"><ChevronDown /></span>
+        <span className="flex items-center truncate pl-2.5 pr-2">{active?.name || 'Arrangement'}</span>
+        <span className="shrink-0 grid place-items-center px-1.5 border-l border-[var(--color-brand-border)]">
+          <ChevronDown className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        </span>
       </button>
 
       {open && (
         <div
           role="menu"
-          className="absolute z-40 left-0 mt-1 min-w-[260px] max-w-[320px] rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl overflow-hidden"
+          className="absolute z-40 left-0 mt-1.5 min-w-[260px] max-w-[320px] rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] shadow-lg overflow-hidden p-1"
         >
           <ul className="max-h-[300px] overflow-y-auto m-0 p-0 list-none">
             {arrangements.map(arr => (
               <li key={arr.id} className="m-0 p-0">
                 <div
-                  className={`flex items-center gap-2 px-3 py-2 cursor-pointer text-copy-13 ${
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer text-copy-13 ${
                     arr.id === activeId
                       ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] font-semibold'
                       : 'text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-alpha-100)]'
@@ -129,11 +133,11 @@ export default function ArrangementMenu({
             ))}
           </ul>
 
-          <div className="border-t border-[var(--ds-gray-300)]" />
+          <div className="my-1 -mx-1 border-t border-[var(--ds-gray-200)]" />
 
           <button
             type="button"
-            className="w-full flex items-center gap-2 px-3 py-2 text-copy-13 text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-alpha-100)] cursor-pointer bg-transparent border-none text-left"
+            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-copy-13 text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-alpha-100)] cursor-pointer bg-transparent border-none text-left"
             onClick={() => { setOpen(false); onAdd?.(); }}
           >
             <Plus />
@@ -141,14 +145,14 @@ export default function ArrangementMenu({
           </button>
           <button
             type="button"
-            className="w-full flex items-center gap-2 px-3 py-2 text-copy-13 text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-alpha-100)] cursor-pointer bg-transparent border-none text-left"
+            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-copy-13 text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-alpha-100)] cursor-pointer bg-transparent border-none text-left"
             onClick={() => { setOpen(false); onRename?.(); }}
           >
             Rename Arrangement
           </button>
           <button
             type="button"
-            className="w-full flex items-center gap-2 px-3 py-2 text-copy-13 font-semibold text-[var(--color-brand-text)] hover:bg-[var(--color-brand-soft)] cursor-pointer bg-transparent border-none text-left"
+            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-copy-13 font-semibold text-[var(--color-brand-text)] hover:bg-[var(--color-brand-soft)] cursor-pointer bg-transparent border-none text-left"
             onClick={() => { setOpen(false); onEdit?.(); }}
           >
             Edit Arrangements…

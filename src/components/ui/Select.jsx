@@ -94,6 +94,15 @@ const SelectItem = React.forwardRef(({ className, children, ...props }, ref) => 
 ));
 SelectItem.displayName = SelectPrimitive.Item.displayName;
 
+const SelectSeparator = React.forwardRef(({ className, ...props }, ref) => (
+  <SelectPrimitive.Separator
+    ref={ref}
+    className={cn("-mx-1 my-1 h-px bg-[var(--ds-gray-300)]", className)}
+    {...props}
+  />
+));
+SelectSeparator.displayName = SelectPrimitive.Separator.displayName;
+
 export {
   Select,
   SelectGroup,
@@ -101,4 +110,5 @@ export {
   SelectTrigger,
   SelectContent,
   SelectItem,
+  SelectSeparator,
 };

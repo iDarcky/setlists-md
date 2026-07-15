@@ -1,7 +1,25 @@
 // Shared line helpers for the Arrange editors. Extracted so the V2 editor can
 // reuse the proven caret-mapping + placement parsing without duplicating it.
 
-import { lineToPlacement, extractInlineNotes } from '../../parser';
+import { lineToPlacement, extractInlineNotes, serializeTabBlock } from '../../parser';
+
+// Serialize one section line (string lyric, tab, tabref, or modulate) back to
+// its raw .md form. Shared by SectionDrawer's raw editor and the Arrange
+// per-section Source toggle.
+export function serializeLine(l) {
+  if (typeof l === 'string') return l;
+  if (l.type === 'tab') return serializeTabBlock(l);
+  if (l.type === 'tabref') return `{tabref: ${l.name}}`;
+  if (l.type === 'modulate') return `{modulate: ${l.semitones > 0 ? '+' : ''}${l.semitones}}`;
+  return '';
+}
+
+// Serialize a whole section's lines[] to a raw .md block (lyrics + chords +
+// tabs + modulate markers). The section cue (`section.note`) is NOT included —
+// it's edited separately.
+export function serializeSectionLines(lines) {
+  return lines.map(serializeLine).join('\n');
+}
 
 // Map a screen point to a character offset within a line's lyric text node.
 // Uses native caret APIs when available, then falls back to a per-character

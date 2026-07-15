@@ -78,8 +78,12 @@ team optimistic locking, scheduling & notifications pillar.
   entropy ✅, input maxLengths ✅, validate PDF-prefs/ZIP manifest ✅.
 - **Scale readiness** (P1) — assessed. Shipped: `team_id` indexes, `React.memo(SongCard)`
   + `useDeferredValue`, `.limit()`/date-filter on team hooks, realtime echo guard,
-  per-song IndexedDB persistence, incremental sync hashing. Deferred (deliberately):
-  batch the team-engine push loop (breaks per-row CAS), `team_activity` retention job.
+  per-song IndexedDB persistence, incremental sync hashing. **2026-07-02:** delta
+  pulls (content fetched only for changed rows), bulk insert for first upload
+  (updates stay per-row CAS), server-side identity keys (`song_key`/`setlist_key`,
+  replaces unique titles), Sentry actually loadable (set `VITE_SENTRY_DSN` in
+  Vercel to turn it on), two-device convergence test suite, Sync doctor panel.
+  Deferred (deliberately): `team_activity` retention job.
 - **OAuth URL cleanup synchronous** — deferred; needs the live OAuth/magic-link flow
   tested before touching (stripping the hash before Supabase consumes it can break sign-in).
 - **PDF/CSP enforcing** — shipped; **needs live print verification** on deploy (PWA + installed app).
@@ -87,6 +91,69 @@ team optimistic locking, scheduling & notifications pillar.
   details (e.g. the song's title/name) in the home top-bar / ⌘K search yields no
   results, while the same query works elsewhere. Likely a wiring gap between the
   dashboard search input and `src/lib/search.js`. P1 bug — repro + fix.
+- ✅ **Team sync "mass conflict" (73-at-once) — root-caused & fixed (2026-07-02).**
+  Serialization drift was ruled out empirically: 11 real `team_songs` rows pulled
+  from the live DB (old/new frontmatter, tags, capo, notes, cues, `/: :/` repeats,
+  `{modulate}`, `{tabref}`, duplicate-id rows) all round-trip
+  `canonicalSongHash(content) === canonicalSongHash(songToMd(songFromFlat(parse(content))))`
+  under HASH_VERSION 2 — fresh baselines are stable. The remaining storm
+  generators were **lost manifest writes** (sync state is read-modify-write in
+  IndexedDB; a second tab, or the move/copy temp engine, racing the main engine
+  silently overwrote baselines → stale hashes → phantom "changed" across many
+  rows) plus two adjacent data-loss vectors. Fixed by: a **Web Locks mutex**
+  around every sync pass (`sync/lock.js`, both engines — cross-tab and
+  cross-instance), **keyset pagination by id** in team `fetchRows` (offset pages
+  over a concurrently-written set could skip rows → phantom server-deletions),
+  **reconciled sync adoption** (`sync/adopt.js` — a finished sync no longer
+  clobbers edits made while it was in flight), and a reference-preserving
+  `applyKeyHistories` (it re-minted every song object on every launch, breaking
+  the object-identity change signal storage + engines rely on).
+
+---
+
+## 2b. Production-readiness roadmap (assessed 2026-07-03)
+
+Gap analysis vs. Notion/Obsidian-grade products. ✅ = shipped that day.
+
+**Tier 1 — engineering foundation**
+- ✅ CI runs on every branch push + PRs to main/beta (was main-only — the
+  release train never saw tests until the last merge), with superseded-run
+  cancellation.
+- 🔴 **Staging environment (P1, needs an account decision):** there is ONE
+  Supabase project and it is production — migrations are applied directly to
+  live church data. Create a second project (or use Supabase branching) that
+  `beta` deploys against; prod migration becomes a promotion step. Blocked on
+  the free-tier 2-project cap / paid plan choice.
+- **Backups + restore drill (P1):** verify what the current Supabase plan
+  retains, do one actual restore. ✅ Client half shipped: one-click
+  whole-library backup .zip (Settings → Data) — every song/arrangement as .md,
+  setlists as .json + manifest; the safety net for personal (IndexedDB-only)
+  libraries.
+- ✅ Watch-the-watcher: notify-worker writes a heartbeat every run
+  (`app_config.worker_last_run`), exposed via `get_worker_health()` (never the
+  VAPID keys) and shown with a stale flag (>10 min) in Settings → Sync
+  diagnostics.
+- Sentry: wired and bundled — still needs `VITE_SENTRY_DSN` set in Vercel, and
+  leaked-password protection toggled in the Supabase dashboard.
+
+**Tier 2 — perceived quality**
+- ✅ Bundle: JSZip lazy-loaded (−97 KB), react/supabase in cache-stable vendor
+  chunks (main chunk 980→710 KB, 202 KB gzip; returning users no longer
+  re-download vendors on every release). Next: split `tabInstruments` (188 KB),
+  virtualize the song list past ~500 songs, Lighthouse budget in CI.
+- Accessibility pass (focus management, aria on icon buttons, stage-theme
+  contrast) — P2.
+- i18n: extract UI strings now, translate later (Romanian first — it's the
+  actual user base) — P2.
+
+**Tier 3 — category features**
+- **CCLI / SongSelect** (P1 for the church market): played-song reporting
+  (keyHistory + past setlists already hold the data) + SongSelect import.
+  Licensing compliance is a purchasing requirement, not a feature.
+- Capacitor wrapper for App Store presence + real APNs push on iOS (web push
+  only reaches installed-PWA users on iOS 16.4+).
+- Privacy-friendly product analytics (Plausible / self-hosted PostHog) before
+  making big roadmap bets — needs an account/hosting decision.
 
 ---
 
@@ -102,10 +169,15 @@ Open, actionable items. Cross-cutting concerns at the end.
 ### Song editor
 - ✅ **Preview ignores key/transpose** — relabel-only Key + explicit Transpose; preview honours it (shipped).
 - ✅ **New-song guardrails** — Title + Key start empty + mandatory; soft-remind bpm/time (shipped).
-- ✅ **Double "structure" concept** — one official control (`StructureControl`) shared by Arrange + Advanced (shipped).
+- ✅ **Double "structure" concept** — one official control shared by Arrange + Advanced (shipped).
 - ✅ Preview defaults to **1 column**, persisted per device (shipped).
-- ✅ **Editor Key field** follows the Accidentals setting + dual `F#/Gb` labels; **tempo box** height matched to Key/Time triggers (shipped — see §5).
+- ✅ **Editor Key field** follows the Accidentals setting + dual `F#/Gb` labels; **tempo box** height matched (shipped — see §5).
+- ✅ **Song editor cards (Labs `songEditorCards`)** — identity/editor/preview cards, Aa-in-preview (global), Source dialog, header declutter (⋮ overflow), mobile identity-card collapse, Key-chip vs Transpose (shipped 0.15.0 — see §5).
+- ✅ **Drag-to-reorder sections**, **drag-a-chord-to-move**, **inline Play-order chips** (Auto/Custom, no modal), **inline lyric composer + smart chord-sheet paste**, **undo/redo** (md history), **version history**, **pre-save validation chip** (shipped 0.15.0).
 - Key/chord strip follows the edited section + respects active notation — P2.
+- **Chord drag is same-line only** — allow dragging a chord across lines (recompute line + pos) — P3.
+- **Custom Play-order onboarding hint** — first time a user hits Customize, hint that chips drag / × / + (discoverability) — P3.
+- **Cross-device version history** — history is local per device (IndexedDB); consider surfacing in the Song Hub and/or syncing — P3.
 
 ### Chart view
 - ✅ **Layout menu rework** → folded display controls into one tabbed **"Aa" menu**
@@ -127,6 +199,15 @@ Open, actionable items. Cross-cutting concerns at the end.
 - **Hub fullscreen viewer (WIP)** — `FullscreenChartViewer.jsx` is a scaffold;
   bring the chart **view modes** (chords/lyrics/song map/tabs, formerly in the ⋮
   menu) and live controls (auto-scroll, metronome, font stepping) into it. — P2.
+- **Default chart theme that follows the app theme** — add a chart theme option
+  whose lyric/chord colours auto-track the app's light/dark theme (instead of a
+  fixed palette), so a reader in light mode gets light-appropriate chart colours
+  without hand-picking them. (Requested 2026-06; to be designed/built later.) — P2.
+- **Structure (section) default colour rework** — the per-section-type default
+  colours (`SECTION_COLORS` in `music.js`) need a pass: they drive section
+  labels, the song-map chips, and section cards, and the current defaults don't
+  feel cohesive in the card language. Revisit the palette (and how it reads in
+  light/dark + the chip "codes" style). (Requested 2026-06.) — P2.
 
 ### Song library
 - **Doubled mobile search** — the top-bar global cross-search also shows on Songs/Setlists where it duplicates each page; scope it to the page there, keep global on Dashboard (+ the desktop ⌘K) — P2.
@@ -134,6 +215,10 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Drag-to-**reorder** table columns (show/hide shipped in 0.14.0) — P3.
 
 ### Setlists (overview / viewer)
+- 🟡 **Migrate to the card design** — bring the setlist **overview** into the same
+  card language as the song editor/hub (identity card + content cards + consistent
+  header/⋮ · Aa where relevant). Requested 2026-07; the next big redesign after the
+  song editor — P1 (pre-soft-launch: setlists are half the product).
 - Overview page visual redesign + buttons rework (Set order/Band + Play live/Practice inline) — P2.
 - Warn before editing a **past** setlist — P2.
 - Remove redundant "Set Order" control; relocate "Show details" — P2.
@@ -143,6 +228,9 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Shared-viewer: tap a song to open it; "Open app" returns to the setlist; onboarding; refresh the older share UI — P3–P4.
 
 ### Setlist editor
+- 🟡 **Migrate to the card design** — the setlist **editor** should match the song
+  editor's card layout (identity/edit/preview cards, calmer header, mobile collapse).
+  Pair with the overview redesign above — P1.
 - **Clear song-search after selecting** a song (+ an "x") so adding several is quick — P2.
 - Rework Set order/Band + relocate Draft/Ready — P2.
 - Song/break **card redesign** — P2 · _Q: what feels off?_
@@ -171,9 +259,32 @@ Open, actionable items. Cross-cutting concerns at the end.
 - FAB: more actions; nav→prev/next pill morph + motion — P3.
 
 ### Notifications
-- Big rework shipped (dismiss/clear-all, server-authoritative decline alerts, cross-device read state). Remaining: maybe-nudge needs a scheduled job (still client-derived).
+- Big rework shipped (dismiss/clear-all, server-authoritative decline alerts, cross-device read state).
+- ✅ **Web Push + worker shipped (2026-07-02)** — `notify-worker` edge function on a
+  minutely pg_cron: sends real lock-screen push (RFC 8291/8292, WebCrypto impl
+  interop-tested against `http_ece`) for schedule requests/declines/nudges, and
+  generates the **maybe-nudge server-side** (was client-derived). New
+  `push_subscriptions` table + per-device opt-in button in the tray; "you've been
+  scheduled" now has a durable DB trigger too. VAPID keys live in service-role-only
+  `app_config`. Remaining: verify push end-to-end on a real phone (couldn't
+  subscribe a headless browser), and consider an unsubscribe row in Settings.
+- ✅ **"Notifications don't work" root-caused (2026-07-02):** (1) only
+  `team_songs`/`team_setlists` were ever in the `supabase_realtime` publication —
+  the `team_schedules`/`team_availability`/`team_notifications`/`team_activity`
+  subscriptions connected fine and received nothing (fixed in
+  `20260701_realtime_publication.sql`, applied live; replica identity full so
+  delete events pass the `team_id` filter); (2) schedule↔setlist matching used
+  the local content id against `team_schedules.setlist_id` (a row UUID) — so
+  prompts said "a setlist" and maybe-nudges never fired (fixed via the
+  `useTeamSetlistMap` mapping in App notification streams, `CalendarWidget`,
+  `LiveFinale`; the hook now refreshes on `lastSync`).
 
 ### Cross-cutting / chores
+- **Audit remaining menus/screens for the card design** — after the song editor +
+  setlists, sweep the other menus/panels (Settings, Team, Account, dialogs) so the
+  card language is consistent app-wide. Requested 2026-07 (#3) — P2.
+- ✅ **Bottom nav DPI/scale** — `BottomNav` tiles/FAB/label use `clamp(min, vw, max)`
+  so the bar isn't oversized on smaller-viewport phones (was fixed px). Shipped 0.15.0.
 - **Naming consistency** pass (casing across headers) — P3.
 - Extend the **trash bin** (soft-delete) to setlists + a team-library bin — P2 (songs already done).
 - Repo file clean-up (dead/orphaned files, stale docs) — P3.
@@ -374,6 +485,18 @@ toggles, margins/spacing toggles, section-per-page, reset-to-defaults, jsPDF fal
 
 ## 5. Recently shipped (context)
 
+- **0.15.0-beta — A hands-on song editor** (on `claude/song-editor-cards-header-oyd2w9`) —
+  **Song editor cards (Labs `songEditorCards`)**: identity/editor/preview cards, Aa-in-preview
+  (writes global display), Source dialog for raw markdown, ⋮-overflow header declutter, mobile
+  identity-card collapse, gold Key chip vs Transpose. **Arrange (shared by both editors):**
+  drag-to-reorder sections (grip; HTML5 + native touch, collapse-on-drag + edge autoscroll +
+  insertion line), drag-a-chord-to-move, inline **Play order** editor (Auto/Custom, draggable
+  chips w/ ×/+ — no modal), inline lyric composer + smart Ultimate-Guitar/ChordPro paste on empty
+  sections, `SectionTypePicker`/menus portaled (flip up near screen bottom), duplicate-section-label
+  fix, touch-drag no-text-select. **Editor-wide:** undo/redo (md history), version history
+  (`storage.loadVersions/pushVersion`), pre-save validation chip, delete-song moved to the Song Hub ⋮.
+  **Cross-cutting:** `BottomNav` clamp(vw) sizing. **Sync:** members never conflict (cloud wins) +
+  bulk Keep-all-mine/cloud in `ConflictResolver`.
 - **Reading-view + editor polish** (current `0.14.x-beta`, on `claude/clever-galileo-hkmim6`) —
   editor Key **relabel-only** + explicit Transpose split; **new-song guardrails** (Title+Key
   mandatory, blank-key bug fixed); preview **defaults to 1 column** (per device); one official

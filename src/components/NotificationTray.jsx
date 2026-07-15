@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Button } from './ui/Button';
+import { usePushSubscription } from '../push/usePushSubscription';
 
 const CloseIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -30,6 +31,8 @@ const DismissIcon = () => (
 
 export default function NotificationTray({ open, onClose, notifications = [], onMarkRead, onAction, onUpdateSchedule, onDismiss, onClearAll }) {
   const trayRef = useRef(null);
+  // Per-device Web Push opt-in (no-op UI on unsupported browsers / guests).
+  const push = usePushSubscription();
 
   // Close on Escape
   useEffect(() => {
@@ -202,6 +205,23 @@ export default function NotificationTray({ open, onClose, notifications = [], on
             </div>
           )}
         </div>
+
+        {/* Per-device push opt-in — shown until enabled (hidden when the
+            browser doesn't support push, the user is signed out, or
+            permission was hard-denied). */}
+        {push.supported && !push.subscribed && !push.denied && (
+          <div className="px-5 py-3 border-t border-[var(--ds-gray-200)] shrink-0">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={push.busy}
+              onClick={() => push.enable()}
+              className="w-full"
+            >
+              Enable push notifications on this device
+            </Button>
+          </div>
+        )}
 
         {/* Footer: Mark all read + Clear all */}
         {(unreadCount > 0 || dismissible.length > 0) && (

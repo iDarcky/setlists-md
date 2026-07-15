@@ -169,17 +169,22 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
               onClick={() => onNavigate(id)}
               aria-label={label}
               aria-current={active ? 'page' : undefined}
-              className={`relative flex flex-col items-center justify-center gap-1 w-[84px] h-[62px] rounded-full border-none cursor-pointer transition-all duration-200 active:scale-[0.95] ${
+              className={`relative flex flex-col items-center justify-center gap-1 rounded-full border-none cursor-pointer transition-all duration-200 active:scale-[0.95] ${
                 active ? 'text-[var(--color-brand)]' : 'text-[var(--ds-gray-700)] bg-transparent'
               }`}
               style={{
+                // Size as a fraction of the viewport (clamped), not fixed px, so
+                // the bar stays the same *proportion* of the screen regardless of
+                // the phone's CSS-viewport width / Android Display-size setting.
+                width: 'clamp(58px, 20vw, 84px)',
+                height: 'clamp(46px, 14.5vw, 62px)',
                 WebkitTapHighlightColor: 'transparent',
                 background: active ? 'rgba(255,255,255,0.16)' : undefined,
                 boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.25)' : undefined,
               }}
             >
               {tabIcon(id, active)}
-              <span className={`text-[11px] leading-tight ${active ? 'font-semibold' : 'font-medium'}`}>{label}</span>
+              <span className={`leading-tight ${active ? 'font-semibold' : 'font-medium'}`} style={{ fontSize: 'clamp(9px, 2.5vw, 11px)' }}>{label}</span>
             </button>
           );
         })}
@@ -217,8 +222,11 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
           <button
             onClick={() => fab.kind === 'menu' ? setMenuOpen(o => !o) : fab.onClick()}
             aria-label={fab.label}
-            className="w-[68px] h-[68px] rounded-full flex items-center justify-center cursor-pointer active:scale-95 transition-transform border border-white/15 text-white"
+            className="rounded-full flex items-center justify-center cursor-pointer active:scale-95 transition-transform border border-white/15 text-white"
             style={{
+              // Scales with the viewport like the tabs (see note above).
+              width: 'clamp(52px, 15.5vw, 68px)',
+              height: 'clamp(52px, 15.5vw, 68px)',
               WebkitTapHighlightColor: 'transparent',
               background: 'var(--color-brand)',
               boxShadow: '0 10px 28px rgba(0,0,0,0.35)',

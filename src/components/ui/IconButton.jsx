@@ -17,7 +17,7 @@ const IconButton = React.forwardRef(({
   children,
   ...props
 }, ref) => {
-  const baseStyles = "inline-flex items-center justify-center rounded-md font-medium transition-all duration-100 focus:outline-none focus:ring-2 focus:ring-[var(--ds-gray-400)] focus:ring-offset-1 disabled:opacity-40 disabled:pointer-events-none active:scale-95 border cursor-pointer font-mono";
+  const baseStyles = "inline-flex items-center justify-center rounded-md font-medium transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-gray-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ds-background-100)] disabled:opacity-50 disabled:pointer-events-none active:scale-[0.97] border cursor-pointer";
 
   const variants = {
     ghost: "bg-transparent border-transparent text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)]",

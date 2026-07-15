@@ -27,100 +27,11 @@ vi.mock('../sync/tokens', () => {
 
 import { __resetSyncStates, getSyncState, updateSyncManifest } from '../sync/tokens';
 
-// ── Fake Supabase client over in-memory tables ───────────────────────────────
-
-let rowSeq = 0;
-function createFakeClient(db) {
-  return {
-    from(table) {
-      const rows = db[table];
-      return {
-        select() {
-          // Unified chain: fetchRows uses .eq().order().range(); adoption uses
-          // .eq().eq().limit().maybeSingle().
-          const filters = [];
-          const matching = () => rows.filter(r => filters.every(([c, v]) => r[c] === v)).map(r => ({ ...r }));
-          const chain = {
-            eq: (col, val) => { filters.push([col, val]); return chain; },
-            order: () => chain,
-            limit: () => chain,
-            range: (from, to) => Promise.resolve({ data: matching().slice(from, to + 1), error: null }),
-            maybeSingle: async () => {
-              const m = matching();
-              return { data: m[0] ? { id: m[0].id, updated_at: m[0].updated_at } : null, error: null };
-            },
-          };
-          return chain;
-        },
-        insert(payload) {
-          return {
-            select: () => ({
-              single: async () => {
-                // Emulate the unique (team_id, title) index on team_songs.
-                if (table === 'team_songs' && rows.some(r => r.team_id === payload.team_id && r.title === payload.title)) {
-                  return { data: null, error: { message: 'duplicate key value violates unique constraint "idx_team_songs_team_title"' } };
-                }
-                const row = { id: `row_${++rowSeq}`, ...payload };
-                rows.push(row);
-                return { data: { id: row.id, updated_at: row.updated_at }, error: null };
-              },
-            }),
-          };
-        },
-        update(payload) {
-          const filters = [];
-          const chain = {
-            eq: (col, val) => { filters.push([col, val]); return chain; },
-            select: () => ({
-              maybeSingle: async () => {
-                const idx = rows.findIndex(r => filters.every(([c, v]) => r[c] === v));
-                if (idx < 0) return { data: null, error: null };
-                rows[idx] = { ...rows[idx], ...payload };
-                return { data: { id: rows[idx].id, updated_at: rows[idx].updated_at }, error: null };
-              },
-            }),
-          };
-          return chain;
-        },
-        delete() {
-          const filters = [];
-          const chain = {
-            eq: (col, val) => { filters.push([col, val]); return chain; },
-            then: (resolve, reject) => {
-              for (let i = rows.length - 1; i >= 0; i--) {
-                if (filters.every(([c, v]) => rows[i][c] === v)) rows.splice(i, 1);
-              }
-              return Promise.resolve({ data: null, error: null }).then(resolve, reject);
-            },
-          };
-          return chain;
-        },
-      };
-    },
-  };
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// Fake Supabase client + fixture helpers shared with the convergence suite.
+import { createFakeClient, mkSong, mkSetlist, makeRowHelpers, noTombstones } from './helpers/fakeSupabase';
 
 const TEAM = 'team-1';
-const noTombstones = () => ({ songs: [], setlists: [] });
-
-function mkSong(id, title, lyric = 'Amazing grace') {
-  const md = `---\ntitle: ${title}\nkey: C\n---\n\n## Verse 1\n[C]${lyric}\n`;
-  return songFromFlat({ ...parseSongMd(md), id });
-}
-
-function songRow(song, updatedAt = '2026-06-01T00:00:00.000Z') {
-  return { id: `row_${++rowSeq}`, team_id: TEAM, title: song.title, content: songToMd(song), updated_at: updatedAt };
-}
-
-function mkSetlist(id, name) {
-  return { id, name, date: '2026-06-14', items: [{ songId: 's1', note: '' }] };
-}
-
-function setlistRow(sl, updatedAt = '2026-06-01T00:00:00.000Z') {
-  return { id: `row_${++rowSeq}`, team_id: TEAM, name: sl.name, content: JSON.parse(JSON.stringify(sl)), updated_at: updatedAt };
-}
+const { songRow, setlistRow } = makeRowHelpers(TEAM);
 
 function makeEngine(db, opts = {}) {
   return createTeamSyncEngine(() => {}, TEAM, { client: createFakeClient(db), ...opts });
@@ -161,6 +72,29 @@ describe('team engine — pull (server-authoritative)', () => {
     db.team_songs.length = 0; // another member deleted it
     const second = await engine.fullSync(first.songs, [], noTombstones());
     expect(second.songs).toHaveLength(0);
+  });
+
+  it('pages through the full server set with keyset pagination (no truncation)', async () => {
+    // 5 rows with a page size of 2 → three pages (2 + 2 + 1). A truncated or
+    // mis-tiled read would surface here as missing songs — which the pull
+    // would then treat as server deletions.
+    const songs = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo'].map((t, i) => mkSong(`p${i}`, t));
+    const db = {
+      // Zero-padded ids so lexicographic `gt` ordering matches insertion order.
+      team_songs: songs.map((s, i) => ({
+        id: `page_${String(i).padStart(3, '0')}`,
+        team_id: TEAM,
+        title: s.title,
+        content: songToMd(s),
+        updated_at: '2026-06-01T00:00:00.000Z',
+      })),
+      team_setlists: [],
+    };
+
+    const result = await makeEngine(db, { pageSize: 2 }).fullSync([], [], noTombstones());
+
+    expect(result.songs).toHaveLength(5);
+    expect(result.songs.map(s => s.title).sort()).toEqual(['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo']);
   });
 
   it('keeps a never-synced local song and inserts it on the server', async () => {
@@ -308,6 +242,33 @@ arrangementId: arr_legacy_id
     expect(second.errors).toHaveLength(0);
   });
 
+  it('delta pull: does not re-download content for unchanged rows', async () => {
+    const songs = Array.from({ length: 5 }, (_, i) => mkSong(`s${i}`, `Song ${i}`));
+    const db = { team_songs: songs.map(s => songRow(s)), team_setlists: [], __queries: [] };
+    const engine = makeEngine(db);
+
+    const first = await engine.fullSync([], [], noTombstones());
+    expect(first.songs).toHaveLength(5);
+
+    // Second sync, nothing changed anywhere: only head fetches (id/updated_at)
+    // may hit team_songs — no content download, no re-parse.
+    db.__queries.length = 0;
+    await engine.fullSync(first.songs, first.setlists, noTombstones());
+    const contentFetches = db.__queries.filter(q => q.table === 'team_songs' && /content/.test(q.cols));
+    expect(contentFetches).toHaveLength(0);
+
+    // One row edited remotely → exactly that row's content is fetched.
+    const remoteEdit = mkSong('s2', 'Song 2', 'brand new lyric');
+    db.team_songs[2].content = songToMd(remoteEdit);
+    db.team_songs[2].updated_at = '2026-06-09T00:00:00.000Z';
+    db.__queries.length = 0;
+    const third = await engine.fullSync(first.songs, first.setlists, noTombstones());
+    const fetched = db.__queries.filter(q => q.table === 'team_songs' && /content/.test(q.cols));
+    expect(fetched).toHaveLength(1);
+    expect(fetched[0].filters).toContain('in:id');
+    expect(songToMd(third.songs.find(s => s.id === 's2'))).toContain('brand new lyric');
+  });
+
   it('is insensitive to JSONB key reordering in setlist content', async () => {
     const sl = mkSetlist('sl1', 'Sunday');
     const db = { team_songs: [], team_setlists: [setlistRow(sl)] };
@@ -339,21 +300,40 @@ describe('team engine — deletes and tombstones', () => {
     expect(second.tombstones.songs).toHaveLength(0); // pruned after remote delete
   });
 
-  it('adopts an existing row on a unique-title conflict instead of failing/duplicating', async () => {
-    // Server has the song under one id; locally it drifted to a different id
-    // (e.g. after the churn). Pushing the local copy would INSERT and collide
-    // with the unique (team_id, title) index.
+  it('allows two DIFFERENT songs with the same title to coexist (identity keys)', async () => {
+    // Identity is (team_id, song_key) since 20260702_identity_keys — the old
+    // unique title index silently merged distinct songs that shared a title.
     const serverSong = mkSong('server-id', 'Same Title', 'server body');
     const db = { team_songs: [songRow(serverSong)], team_setlists: [] };
     const engine = makeEngine(db);
 
-    const localDrifted = mkSong('drifted-id', 'Same Title', 'local body');
-    const result = await engine.fullSync([localDrifted], [], noTombstones());
+    const differentSong = mkSong('other-id', 'Same Title', 'local body');
+    const result = await engine.fullSync([differentSong], [], noTombstones());
 
-    // No hard failure, no duplicate row — the existing row was adopted/updated.
     expect(result.errors).toHaveLength(0);
+    expect(db.team_songs).toHaveLength(2);
+    expect(result.songs.map(s => s.id).sort()).toEqual(['other-id', 'server-id']);
+  });
+
+  it('adopts the existing row on a song_key collision instead of failing/duplicating', async () => {
+    // A row for this exact song already exists (another device inserted it
+    // between our pull and push, or our manifest lost the mapping). The insert
+    // collides on unique (team_id, song_key) and must ADOPT the row.
+    const local = mkSong('s1', 'Racing Song', 'my body');
+    const db = { team_songs: [songRow(mkSong('s1', 'Racing Song', 'their body'))], team_setlists: [] };
+    const engine = makeEngine(db);
+
+    // Push-only pass (empty manifest → tries to INSERT), skipping the pull
+    // that would otherwise adopt the row first.
+    vi.useFakeTimers();
+    engine.debouncedPush([local], [], noTombstones(), () => {});
+    await vi.advanceTimersByTimeAsync(SYNC_DEBOUNCE_MS + 10);
+    vi.useRealTimers();
+
     expect(db.team_songs).toHaveLength(1);
-    expect(db.team_songs[0].content).toContain('local body');
+    expect(db.team_songs[0].content).toContain('my body');
+    const state = await getSyncState(TEAM);
+    expect(state.syncManifest.s1?.remoteId).toBe(db.team_songs[0].id);
   });
 
   it('circuit breaker: refuses to delete a large share of the library in one sync', async () => {

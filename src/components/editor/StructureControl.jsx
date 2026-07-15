@@ -20,7 +20,7 @@ function shortCode(type) {
 //   sections      — section names in document order (strings)
 //   onToggleMode(custom) / onChangeValue(next)
 //   onJump(name)  — optional; scroll to that section (Arrange tab only)
-export default function StructureControl({ mode, value, sections, customSectionTypes, onToggleMode, onChangeValue, onJump }) {
+export default function StructureControl({ mode, value, sections, customSectionTypes, onToggleMode, onChangeValue, onJump, hideToggle = false }) {
   const isCustom = mode === 'custom';
   const playOrder = (isCustom && value)
     ? value.split(',').map(s => s.trim()).filter(Boolean)
@@ -28,14 +28,16 @@ export default function StructureControl({ mode, value, sections, customSectionT
   const uniqueTypes = [...new Set(sections)];
   return (
     <div className="flex items-center gap-2 min-w-0 flex-1">
-      <input
-        type="checkbox"
-        checked={isCustom}
-        onChange={(e) => onToggleMode(e.target.checked)}
-        title="Custom slide order — repeat, reorder, or skip sections"
-        aria-label="Custom slide order"
-        className="accent-[var(--color-brand)] shrink-0 cursor-pointer"
-      />
+      {!hideToggle && (
+        <input
+          type="checkbox"
+          checked={isCustom}
+          onChange={(e) => onToggleMode(e.target.checked)}
+          title="Custom slide order — repeat, reorder, or skip sections"
+          aria-label="Custom slide order"
+          className="accent-[var(--color-brand)] shrink-0 cursor-pointer"
+        />
+      )}
       {/* Chips size to content (not flex-1) so "Edit order" sits right next to
           them; a trailing spacer keeps the group left and pushes anything after
           the control (e.g. the Arrange customize icon) to the far right. */}
@@ -47,7 +49,7 @@ export default function StructureControl({ mode, value, sections, customSectionT
             <Tag
               key={i}
               {...(onJump ? { type: 'button', onClick: () => onJump(name) } : {})}
-              className={`shrink-0 inline-flex items-center px-2 py-1 rounded-md text-label-11 font-bold font-mono border border-[var(--ds-gray-300)] bg-[var(--ds-gray-100)] ${onJump ? 'hover:bg-[var(--ds-gray-200)] cursor-pointer' : ''}`}
+              className={`shrink-0 inline-flex items-center px-2 py-1 rounded-[7px] text-[11px] font-bold font-mono border border-[var(--border-1)] bg-[var(--ds-background-100)] ${onJump ? 'hover:opacity-80 cursor-pointer' : ''}`}
               style={{ color: st.b }}
               title={name}
             >

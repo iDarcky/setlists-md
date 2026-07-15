@@ -124,22 +124,40 @@ bump** — do NOT cut a new MINOR. Run, in order:
 
 Do **not** tag on feature/`beta` branches.
 
-## "release" / "promote" workflow (beta → main)
+## "release" / "promote" workflow (beta → main, via PR)
 
 When the user says **"release"**, **"promote"**, **"ship to main"** (or
 "finish and push to main"), turn the accumulated beta cycle into a real
-release. Run, in order:
+release. **`main` is a protected branch** — it takes changes ONLY through a
+merged pull request (no direct pushes, no local `git merge` + push). Run, in
+order:
 
 1. **Drop the pre-release suffix.** `package.json#version`:
    `<TARGET>-beta.<N> → <TARGET>` (e.g. `0.13.0-beta.7 → 0.13.0`).
 2. **Finalise the changelog.** The newest `## <TARGET>` block becomes the
    release entry — confirm the title + `*Month YYYY*` are right.
 3. **Verify** with `npm run build`.
-4. **Commit.** Subject `Release <TARGET>: <short title>`.
-5. **Promote + tag.** Merge `beta` → `main`, and tag the release on
-   `main`: `git tag -a v<TARGET> -m "Release <TARGET>"` then push the
-   tag. Tags are cut from `main` at release — never from feature/`beta`
+4. **Commit the release bump** with subject `Release <TARGET>: <short title>`,
+   then land it on `beta`: push the active branch, and fast-forward `beta` to
+   it (`git push origin <branch>:beta`) so the PR head is `beta`. (Diverged →
+   merge into a local `beta`, never force-push.)
+5. **Open the PR: `beta → main`.** Use the GitHub MCP tools
+   (`mcp__github__create_pull_request`), base `main`, head `beta`, title
+   `Release <TARGET>: <short title>`, body summarising the cycle. If a PR
+   template exists, populate its headings.
+6. **Wait for CI to go green** on the PR (the CI workflow runs on PRs to
+   `main`). Poll `mcp__github__get_pull_request` / the checks tools; do not
+   merge on red. If the user subscribed the session to PR activity, react to
+   the CI events instead of polling.
+7. **Merge the PR into `main`** (`mcp__github__merge_pull_request`). A merge
+   commit is fine; the protected branch forbids any other path in.
+8. **Tag the release on `main`.** After the merge, fetch `main`, then
+   `git tag -a v<TARGET> -m "Release <TARGET>"` on the merge commit and push
+   the tag. Tags are cut from `main` at release — never from feature/`beta`
    branches.
+
+Do **not** attempt to push straight to `main` — it will be rejected by branch
+protection. The PR is the only door.
 
 ## Project Structure
 
@@ -152,7 +170,8 @@ src/
 ├── parser.js             # .md song format parser/serializer
 │                         #   exports: parseSongMd, songToMd, parseLine, generateId,
 │                         #            parseTabBlock, serializeTabBlock, parseTabPositions
-├── storage.js            # IndexedDB layer (loadSongs, saveSongs, loadSetlists, saveSetlists, clearAll)
+├── storage.js            # IndexedDB layer (loadSongs, saveSongs, loadSetlists, saveSetlists, clearAll,
+│                         #   loadVersions/pushVersion — per-song saved-markdown version history)
 ├── styles/index.css      # Global styles, CSS variables, fonts
 ├── auth/
 │   ├── supabase.js       # Supabase client (null when env vars missing)
@@ -174,7 +193,12 @@ src/
     ├── SongPlayerBar.jsx     # YouTube backing-track transport (own play/scrub controls; hidden IFrame-API player); `compact` variant for the mobile media card
     ├── ChartView.jsx         # Chord chart reader (transpose, 1/2-col, sizes). `embedded` mode + controlled props let SongHub drive it; the Aa popover + centered "Advanced" Dialog render here
     ├── AaMenu.jsx            # Single chart display popover (Page/Lyrics/Chords tabs; per-element size·font·colour; per-tab Reset)
-    ├── Editor.jsx            # 3-tab editor shell (Form/Visual/Raw) with split-screen preview
+    ├── Editor.jsx            # Editor shell. Legacy: Arrange / Advanced / Tabs + split-screen preview.
+    │                         #   Cards (Labs `songEditorCards`): identity card (collapsible on mobile;
+    │                         #   Key chip vs Transpose) + left editor card (Arrange/Tabs/Details tabs,
+    │                         #   undo·redo + ⋮ overflow → Source dialog / Version history) + live preview
+    │                         #   card (own Aa → global display). Session md-history undo/redo; pre-save
+    │                         #   validation chip; version history via storage loadVersions/pushVersion.
     ├── Library.jsx           # Song library with search + setlists tab
     ├── SetlistBuilder.jsx    # Build setlists: pick songs, reorder, per-song transpose & notes
     ├── SetlistPlayer.jsx     # Live mode: progress bar, song strip, prev/next navigation
@@ -191,9 +215,16 @@ src/
     │   └── AccountPanel.jsx  # Shared account bits: StageGreeting, PlanLabel, SignInButton,
     │                         #   CreateAccountButton, StatCards
     ├── editor/
-    │   ├── FormTab.jsx       # Structured form editor: metadata fields + section blocks
-    │   ├── VisualTab.jsx     # Toolbar + textarea: chord picker, section inserter, tab grid editor
-    │   ├── RawTab.jsx        # Plain textarea with collapsible syntax reference
+    │   ├── ArrangeTabV2.jsx  # Visual chord-chart canvas (primary editing surface; shared by legacy +
+    │   │                     #   cards editors). Drag-to-reorder sections (grip handle; HTML5 + native
+    │   │                     #   touch, collapse-on-drag + edge autoscroll + insertion line); drag a
+    │   │                     #   chord chip to move it; inline lyric composer w/ smart chord-sheet paste
+    │   │                     #   on empty sections; Play order row (Auto/Custom, chips always visible;
+    │   │                     #   PlayOrderEditor = inline drag/×/+ chips, no modal). SectionTypePicker +
+    │   │                     #   menus built on the portaled PopMenu (flip up near screen bottom).
+    │   ├── WriteTab.jsx      # Advanced raw-markdown editor: toolbar (chord/section/cue/note/key-change/tab), find/replace, paste-import
+    │   ├── TabsTab.jsx       # Per-song reusable tab library (instrument picker, create/edit/delete)
+    │   ├── MetadataPanel.jsx # Song Details form (title, artist, capo, CCLI, tags, …); the legacy collapsible panel + the card-header "Details" tab
     │   ├── PreviewPanel.jsx  # Live preview of parsed song (used in split-screen)
     │   ├── ChordPicker.jsx   # Popup: root (A-G), accidental (#/b), suffix, slash chord
     │   └── TabGridEditor.jsx # Interactive tab grid: duration picker, auto-advance, technique buttons
@@ -220,7 +251,7 @@ supabase/
 - **Transpose** is applied at render time via `transposeChord()` — stored data is always in the original key
 - **Tab blocks** are parsed into structured objects `{ type: 'tab', strings, time, raw }` — `raw` preserves original ASCII for round-trip fidelity
 - **Modulate markers** are parsed into `{ type: 'modulate', semitones: N }` objects in `section.lines[]` — cumulative offsets computed per section in ChartView, applied mid-section in SectionBlock with visual key-change badges
-- **Tab editing** — VisualTab detects cursor inside `{tab}...{/tab}` to open TabGridEditor pre-loaded; FormTab shows "Edit Tab" buttons per tab block; saves replace in-place
+- **Tab editing** — the dedicated `TabsTab` manages a per-song reusable tab library (create/edit/delete via `TabGridEditor`); the Advanced (`WriteTab`) editor can insert tab references and convert clipboard tabs in-place
 - **Editor** — `md` state lives in Editor.jsx shell; all tabs receive `md` + `onChange`; switching tabs preserves content
 - **Split-screen preview** — `useSyncExternalStore` with `window.matchMedia('(min-width: 768px)')` — side-by-side on wide, toggle on narrow
 
@@ -479,6 +510,27 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   upsert works across partial scopes. RLS: a user reads/writes only their own
   rows, scoped to teams they belong to. Client: `src/notes/usePrivateNotes.js`
   (cloud + IndexedDB cache, offline-capable) surfaced via `ui/NotesStack`.
+- `20260701_realtime_publication.sql` — adds `team_schedules`,
+  `team_availability`, `team_notifications`, `team_activity` to the
+  `supabase_realtime` publication (they were subscribed client-side but never
+  published — realtime silently delivered nothing) + `replica identity full`
+  so delete events pass `team_id=eq.` filters.
+- `20260702_trigger_fn_hardening.sql` — revokes client EXECUTE on trigger
+  functions (they're only ever run by their triggers).
+- `20260702_identity_keys.sql` — adds `team_songs.song_key` /
+  `team_setlists.setlist_key` (the embedded content id promoted to a real
+  column), stamp triggers that derive the key from content for writers that
+  don't send it, backfill, and unique `(team_id, key)` indexes. **Drops the
+  unique title/name indexes** — same-title songs are legitimate now; identity
+  is the key. The engine sends keys on every write and heals key collisions
+  by adopting the existing row.
+- `20260702_web_push.sql` — Web Push + notification worker infra:
+  `push_subscriptions` (owner-only RLS), `team_notifications.pushed_at`,
+  service-role-only `app_config` (holds the VAPID keys — values are inserted
+  operationally, never committed), a `notify_on_schedule_request` trigger
+  (being rostered now writes a durable notification), and `pg_cron`+`pg_net`
+  jobs: `notify-worker` (every minute → the edge function) and a daily
+  `cron-history-cleanup`.
 
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).
@@ -566,6 +618,9 @@ Each team/church workspace is its own Stripe subscription, paid by the team
 - `RecoveryScreen.handleBack` calls `signOut()` *before* invoking the parent `onBack`. If you ever route away from it through another path, make sure that path also ends the recovery session.
 - PDF export renders an **in-app overlay with a same-origin `<iframe srcdoc>`** on every platform (`openPrintWindow()` in `src/pdf/pdfDocument.js`); printing goes through `iframe.contentWindow.print()`. Do NOT reintroduce `window.open` + `document.write` — popups return `null` handles in installed PWAs and don't exist in Capacitor/Electron webviews. The iframe inherits the page origin (prefs read `localStorage['setlists-md:pdf-prefs']` directly) **and the page CSP** — the print document uses an inline `<script>`/`<style>`, so before flipping the report-only CSP in `vercel.json` to enforcing, `script-src`/`style-src` must accommodate it (hash/nonce or refactor).
 - `SetlistOverview` is rendered in **two places**: (1) the dedicated `setlist-view` route in `App.jsx`, and (2) the desktop preview pane inside `Setlists.jsx`. Both wire its export callbacks (`onExportZip`, `onExportPdfOverview`, `onExportPdfFull`) — when you add or rename one, update *both* call sites or the desktop preview will silently no-op.
+- **Realtime only fires for tables in the `supabase_realtime` publication.** A `postgres_changes` subscription to an unpublished table connects successfully and then receives nothing, forever — no error anywhere. `20260701_realtime_publication.sql` added `team_schedules`/`team_availability`/`team_notifications`/`team_activity`; any NEW realtime-subscribed table needs a matching `alter publication` migration (plus `replica identity full` if delete events must pass a `team_id=eq.` filter — default identity only carries the PK).
+- **`team_schedules.setlist_id` (and `team_notifications` metadata `setlist_id`) is the `team_setlists` ROW UUID, not the local setlist id.** Never match it against `setlist.id` directly — bridge through `useTeamSetlistMap` (localId→remoteId from the sync manifest; takes a `refreshKey`, App passes `syncState.lastSync`). Wrong matching is invisible: lookups just miss and fall back ("a setlist", empty calendars).
+- **`applyKeyHistories` is reference-preserving on purpose** — unchanged songs keep object identity. Per-song IndexedDB writes, both engines' hash caches, and `sync/adopt.js` mid-sync-edit detection all treat a new reference as "this song changed"; a map that re-mints every object reintroduces whole-library rewrites on launch.
 
 ## Team library sync (src/sync/team-engine.js)
 
@@ -590,10 +645,83 @@ directly:
   a fallback to the previous manifest's `remoteId` mapping (legacy rows
   without embedded ids), then the row UUID. Duplicate rows for one id are
   healed (newest kept, others deleted by writers).
-- Members (`readOnly`) are a pure mirror — no writes ever leave the device.
+- Members (`readOnly`) are a pure mirror — no writes ever leave the device, and
+  **pull never raises a conflict for them** (the cloud copy is always adopted
+  silently). Conflict detection in `pull()` is guarded by `!readOnly`; conflicts
+  are only meaningful for writers (admins/editors). `ConflictResolver` also
+  offers **Keep all mine / Keep all cloud** (`onResolveAll` in App) so a
+  baseline-drift mass conflict clears in one tap instead of dozens of prompts.
+  (A whole-library "73 conflicts" symptom = canonical-hash baseline drift, e.g.
+  a schema field now serialized locally but absent in older server `content`;
+  root-cause per-song by diffing `songToMd(local)` vs the stored `content`.)
 - `createEngineForLibrary()` in App.jsx picks the engine per library; the
   file-manifest engine remains for personal Drive/Dropbox/OneDrive sync.
-- Tests: `src/__tests__/team-engine.test.js` (fake Supabase client).
+- **Every sync pass holds a Web Lock** (`sync/lock.js`,
+  `setlists-md:sync:<libraryId>`) around fullSync/runPush in BOTH engines. The
+  manifests are read-modify-write in IndexedDB; without the lock a second tab
+  or a temp engine (song move/copy) races the main engine and loses manifest
+  writes → stale baselines → phantom "changed" storms. Keep any new sync-state
+  writer inside `withSyncLock`.
+- **Pull pagination is keyset on `id`** (`.order('id').gt('id', last)`), never
+  offset/range — offset pages over a set other members are writing to can skip
+  rows, and a skipped row is indistinguishable from a server-side deletion.
+  `pageSize` is injectable for tests.
+- **Pulls are DELTA pulls**: heads (`id, updated_at`) are fetched for the whole
+  set, but content only for rows the manifest can't prove unchanged
+  (`lastSyncedTime === updated_at`) — unchanged rows reuse the manifest hash
+  and skip both download and re-parse. A hash-version migration forces one
+  full content fetch to re-baseline.
+- **Identity is server-side now** (`song_key`/`setlist_key`, unique per team —
+  see `20260702_identity_keys.sql`): payloads carry the local id as the key on
+  every write, inserts that collide adopt the existing row (race/lost-manifest
+  heal), and pre-migration servers get a column-missing fallback. Never-synced
+  songs are **bulk-inserted** in chunks of 50 (matched back via `song_key`),
+  falling back to per-row insert+adopt on batch failure.
+- **Two-device convergence suite**: `src/__tests__/team-convergence.test.js`
+  runs two engines against one fake server (device-namespaced tokens mock)
+  through edit/conflict/delete/create interleavings + a seeded fuzz, asserting
+  both devices and the server converge with zero loss. Extend it when touching
+  engine semantics. Shared fixtures: `src/__tests__/helpers/fakeSupabase.js`.
+- **Sync doctor** (`components/settings/SyncDoctor.jsx`, Settings → Sync in a
+  team Space) re-runs the engine's exact hash arithmetic per song
+  (local vs server vs baseline) and names drifting fields — use it before
+  digging into any "sync is weird" report.
+- **Sync results are adopted via `sync/adopt.js`** (`reconcileAdopt` /
+  `applyPulled` through App's `adoptSyncResult`): adoption runs functionally
+  against CURRENT state using the sync's input snapshot as the base, so an
+  edit made while the sync was in flight is never clobbered (object identity =
+  the change signal). Never `setSongs(result.songs)` a sync result directly.
+- Tests: `src/__tests__/team-engine.test.js` (fake Supabase client),
+  `src/__tests__/sync-adopt.test.js`.
+
+## Web Push & the notification worker
+
+- **Pipeline**: DB triggers (`schedule_request` on roster insert,
+  `schedule_decline`) write `team_notifications` rows → the `notify-worker`
+  edge function (pg_cron, every minute) sends RFC 8291/8292 Web Push to each
+  recipient's `push_subscriptions` and marks `pushed_at` (at-most-once; dead
+  subscriptions pruned on 404/410). It also generates `schedule_maybe_nudge`
+  rows server-side (one per schedule, ever).
+- **Crypto** is a dependency-free WebCrypto implementation in
+  `supabase/functions/notify-worker/webpush.ts`, interop-tested in
+  `src/__tests__/webpush-crypto.test.js` against `http_ece` (the RFC author's
+  reference lib). Don't swap it for an npm lib without keeping that test.
+- **Keys**: the VAPID public key is a client constant (`src/push/vapid.js`,
+  overridable via `VITE_VAPID_PUBLIC_KEY`); the private key lives ONLY in the
+  service-role-only `app_config` table. Rotating the pair invalidates every
+  subscription (users must re-enable push).
+- **Client**: `src/push/usePushSubscription.js` (enable/disable per device),
+  surfaced as a button in `NotificationTray`; SW handlers in
+  `public/push-sw.js`, importScripts'd into the generated Workbox SW
+  (`vite.config.js`). In the tray, server schedule rows are SUPPRESSED when a
+  live interactive prompt (virtual notification) covers the same
+  `schedule_id`, and when the schedule has been resolved — they exist to reach
+  lock screens and carry cross-device read state, not to double-render.
+- **Heartbeat**: every worker run upserts `worker_last_run`/`worker_last_result`
+  into `app_config`; `get_worker_health()` (SECURITY DEFINER, authenticated
+  only — whitelists the two heartbeat keys, NEVER the VAPID rows) feeds the
+  `WorkerHealthRow` in Settings → Sync diagnostics, which flags >10 min of
+  silence as a stalled worker (see `20260703_worker_health.sql`).
 
 ## Current Focus & Roadmap
 
