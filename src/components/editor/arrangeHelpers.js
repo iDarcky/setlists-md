@@ -1,10 +1,10 @@
 // Shared line helpers for the Arrange editors. Extracted so the V2 editor can
 // reuse the proven caret-mapping + placement parsing without duplicating it.
 
-import { lineToPlacement, extractInlineNotes, serializeTabBlock } from '../../parser';
+import { lineToPlacement, placementToLine, extractInlineNotes, serializeTabBlock } from '../../parser';
 
 // Serialize one section line (string lyric, tab, tabref, or modulate) back to
-// its raw .md form. Shared by SectionDrawer's raw editor and the Arrange
+// its raw .md form. Shared by the inline lyric editor and the Arrange
 // per-section Source toggle.
 export function serializeLine(l) {
   if (typeof l === 'string') return l;
@@ -19,6 +19,39 @@ export function serializeLine(l) {
 // it's edited separately.
 export function serializeSectionLines(lines) {
   return lines.map(serializeLine).join('\n');
+}
+
+// Plain lyrics (chords + inline notes stripped) for the string lines only.
+// Used by the inline "Edit lyrics" surface so the writer sees just the words.
+export function lyricsOnly(lines) {
+  return lines
+    .filter(l => typeof l === 'string')
+    .map(l => lineToPlacement(extractInlineNotes(l).clean).plainText)
+    .join('\n');
+}
+
+// Merge edited plain-lyrics back onto a section's lines, preserving each line's
+// existing chords (clamped to the new text length), any inline note, and any
+// tab/modulate lines in place. Extra new lines become plain lyrics. Returns a
+// raw .md block (re-parsed by the caller with parseSectionLines).
+export function mergeLyrics(originalLines, lyricsText) {
+  const newLyrics = lyricsText.split('\n');
+  const out = [];
+  let p = 0;
+  for (const line of originalLines) {
+    if (typeof line !== 'string') { out.push(serializeLine(line)); continue; }
+    const lyric = newLyrics[p] ?? '';
+    p += 1;
+    const { clean } = extractInlineNotes(line);
+    const noteMatch = line.match(/\{!(.*?)\}/);
+    const { chords } = lineToPlacement(clean);
+    const clamped = chords.map(c => ({ chord: c.chord, pos: Math.min(c.pos, lyric.length) }));
+    let merged = placementToLine({ plainText: lyric, chords: clamped });
+    if (noteMatch) merged += ` {!${noteMatch[1]}}`;
+    out.push(merged);
+  }
+  for (; p < newLyrics.length; p++) out.push(newLyrics[p]);
+  return out.join('\n');
 }
 
 // Map a screen point to a character offset within a line's lyric text node.

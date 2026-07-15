@@ -728,15 +728,15 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         // legacy collapsible panel. (Transpose lives in the header meta row.)
         return (
           <div className="flex-1 min-h-0 overflow-y-auto w-full">
-            <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-4">
+            <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 py-4">
               <MetadataPanel md={md} onChange={setMd} isOpen keyHistory={workingSong.keyHistory} />
             </div>
           </div>
         );
       case 'arrange':
-        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
+        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} notation={aaNotation} />;
       default:
-        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
+        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} notation={aaNotation} />;
     }
   };
 
@@ -1211,6 +1211,10 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         <IconButton variant="ghost" size="sm" aria-label="Redo" title="Redo" disabled={!histState.canRedo} onClick={handleRedo}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" /></svg>
         </IconButton>
+        {/* Display (Aa) — chart notation + type/size, one popover shared with the
+            preview. Sits by undo/redo so it's always reachable, even when the
+            preview pane is hidden. */}
+        {aaTriggerEl}
         {/* Secondary actions folded into a ⋮ so the header stays calm. */}
         <OverflowMenu
           ariaLabel="Editor options"
@@ -1253,7 +1257,6 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         >
           <div className="shrink-0 px-3 py-2 border-b border-[var(--border-1)] flex items-center justify-between gap-2">
             <span className="text-label-11 font-semibold uppercase tracking-wider text-[var(--ds-gray-600)]">Preview</span>
-            {aaTriggerEl}
           </div>
           <div className="flex-1 min-h-0 flex flex-col">
             {cardPreviewChartEl}
