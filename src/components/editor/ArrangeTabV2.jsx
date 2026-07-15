@@ -1174,8 +1174,9 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
           <div className="shrink-0 border-b border-[var(--border-1)] px-3 sm:pr-6 py-1.5">
             {/* Desktop: one line (label · badge · chips · Customize). Mobile:
                 the chips break to their own scrolling row so the label + toggle
-                stay readable instead of crushing together. */}
-            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                stay readable instead of crushing together. Capped to the same
+                centered column as the section cards below. */}
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full max-w-3xl mx-auto">
               <span className="shrink-0 text-label-10 uppercase tracking-[0.12em] font-semibold text-[var(--ds-gray-500)] select-none">Structure</span>
               <span
                 className={`shrink-0 text-label-10 uppercase tracking-wide font-bold px-1.5 py-0.5 rounded ${isCustom ? 'text-[var(--color-brand-text)] bg-[var(--color-brand-soft)]' : 'text-[var(--ds-gray-500)] bg-[var(--ds-gray-100)]'}`}
@@ -1201,9 +1202,10 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
         className="flex-1 overflow-auto px-3 sm:pr-6 pt-3 pb-8"
         onDragOver={dragIdx != null ? (e) => updateAutoScroll(e.clientY) : undefined}
       >
-        {/* Cap the editing column so short lyric lines don't leave a huge empty
-            band on the right of a wide editor pane. */}
-        <div className="w-full max-w-3xl">
+        {/* One centered column so a wide editor pane doesn't strand the short
+            lyric lines against a huge empty right margin. The structure row
+            below the header is capped to the same width so they align. */}
+        <div className="w-full max-w-3xl mx-auto">
         {placements.map((sec, secIdx) => {
           const s = sectionStyle(sec.type, null, customSectionTypes);
           const base = sectionBaseType(sec.type);

@@ -1,13 +1,12 @@
-import { useState } from 'react';
 import { Button } from '../ui/Button';
 
 // New-song canvas — shown in place of the Arrange structure + section cards for a
 // fresh blank song. A big empty space to paste a chord sheet into (auto-formats
-// into the cards), or start blank and build sections by hand. The identity card,
-// tabs and preview around it stay put — this only replaces the canvas body.
-export default function EditorEmptyState({ onApplyText, onDismiss, onImport, onBrowse }) {
-  const [text, setText] = useState('');
-  const canApply = text.trim().length > 0;
+// into the cards, with a live preview alongside), or start blank and build
+// sections by hand. Controlled: `value`/`onChange` live in the editor so the
+// preview pane can render the draft as you type.
+export default function EditorEmptyState({ value, onChange, onApply, onDismiss, onImport, onBrowse }) {
+  const canApply = (value || '').trim().length > 0;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col px-3 sm:px-4 pt-3 pb-4 gap-3">
@@ -25,17 +24,17 @@ export default function EditorEmptyState({ onApplyText, onDismiss, onImport, onB
       {/* The empty space: a full-height paste area. */}
       <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-dashed border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] overflow-hidden">
         <textarea
-          value={text}
-          onChange={e => setText(e.target.value)}
+          value={value || ''}
+          onChange={e => onChange(e.target.value)}
           placeholder={'Paste your song here…\n\n[Verse 1]\nG        D          Em       C\nAmazing grace, how sweet the sound'}
           spellCheck={false}
           className="flex-1 min-h-[220px] w-full bg-transparent p-4 text-copy-14 leading-relaxed text-[var(--ds-gray-1000)] resize-none outline-none font-mono whitespace-pre"
         />
         <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-2.5 border-t border-[var(--ds-gray-300)]">
           <span className="text-label-11 text-[var(--ds-gray-500)]">
-            {canApply ? `${text.split('\n').length} lines` : 'ChordPro, Ultimate-Guitar, OpenSong or plain lyrics'}
+            {canApply ? `${(value || '').split('\n').length} lines` : 'ChordPro, Ultimate-Guitar, OpenSong or plain lyrics'}
           </span>
-          <Button variant="brand" size="sm" disabled={!canApply} onClick={() => onApplyText(text)}>
+          <Button variant="brand" size="sm" disabled={!canApply} onClick={onApply}>
             Turn into chart
           </Button>
         </div>

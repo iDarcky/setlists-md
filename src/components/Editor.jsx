@@ -212,6 +212,9 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // import chooser first. Dismissed on "Start blank", or when pasted content is
   // applied. No draft to restore → skip it and go straight to editing.
   const [showNewSong, setShowNewSong] = useState(() => !song && cardsHeader && !draftFound);
+  // The paste text in New-song mode — kept here so the preview pane can render a
+  // live parse of it before the user commits ("Turn into chart").
+  const [newSongDraft, setNewSongDraft] = useState('');
   // Card layout: the raw-markdown editor (WriteTab) opens in a centered dialog
   // instead of a tab — a power-user "Source" escape hatch with paste-import.
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
@@ -704,6 +707,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
       setMd((cur) => replaceFrontmatter(cur, serializeFrontmatterFields({ ...parseFrontmatterFields(splitMd(cur).frontmatter), ...patch })));
     }
     setShowNewSong(false);
+    setNewSongDraft('');
     setActiveTab('arrange');
   }, [md, setBody]);
 
@@ -784,7 +788,9 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         if (showNewSong) {
           return (
             <EditorEmptyState
-              onApplyText={applyPastedText}
+              value={newSongDraft}
+              onChange={setNewSongDraft}
+              onApply={() => applyPastedText(newSongDraft)}
               onDismiss={() => setShowNewSong(false)}
               onImport={onOpenNewSong ? () => onOpenNewSong('import') : undefined}
               onBrowse={onOpenNewSong ? () => onOpenNewSong('browse') : undefined}
@@ -1040,10 +1046,26 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     />
   ) : null;
 
+  // Live preview of the New-song paste box: parse the draft on the fly (merging
+  // the identity card's title/key) so the preview pane fills in as you paste,
+  // before you commit with "Turn into chart".
+  const newSongPreview = useMemo(() => {
+    if (!showNewSong || !newSongDraft.trim()) return null;
+    try {
+      const { body, meta } = importChartText(newSongDraft);
+      const fm = { ...parseFrontmatterFields(splitMd(md).frontmatter) };
+      for (const k of ['title', 'artist', 'key', 'tempo', 'time', 'capo']) {
+        if (meta[k] && !fm[k]) fm[k] = meta[k];
+      }
+      return parseSongMd(`---\n${serializeFrontmatterFields(fm)}\n---\n\n${body}`);
+    } catch { return null; }
+  }, [showNewSong, newSongDraft, md]);
+  const previewSong = (showNewSong && newSongPreview) ? newSongPreview : (showNewSong ? null : preview);
+
   // Card layout: a FAITHFUL preview — reads the real global display settings and
   // writes through them (the Aa popover below edits global, same as the chart).
-  const cardPreviewChartEl = preview ? (
-    <ChartView song={preview} isPreview {...chartDefaults} />
+  const cardPreviewChartEl = previewSong ? (
+    <ChartView song={previewSong} isPreview {...chartDefaults} />
   ) : null;
   const gSettings = chartDefaults.settings || {};
   const gUpdate = chartDefaults.onUpdateSettings;
@@ -1179,12 +1201,10 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         <input
           value={fmFields.title || ''}
           onChange={e => updateField('title', e.target.value)}
-          placeholder={song ? 'Song title' : 'New song'}
+          placeholder={song ? 'Song title' : 'Untitled song'}
           aria-label="Song title"
-          style={{ fieldSizing: 'content' }}
-          className="min-w-[6ch] max-w-[60vw] sm:max-w-[30rem] bg-transparent border-0 outline-none text-heading-18 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
+          className="flex-1 min-w-0 bg-transparent border-0 outline-none text-heading-18 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
         />
-        <div className="flex-1 min-w-0" />
         {/* When collapsed on mobile, surface the key chip so it's still glanceable. */}
         {identityCollapsed && <div className="sm:hidden shrink-0">{cardKeyChipEl}</div>}
         {headerActionsEl}

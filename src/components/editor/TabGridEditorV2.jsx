@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { stringsForCount, TAB_INSTRUMENTS } from './tabInstruments';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '../ui/Select';
 
 const DEFAULT_STRINGS = ['e', 'B', 'G', 'D', 'A', 'E'];
 const TECHNIQUES = [
@@ -211,14 +212,14 @@ export default function TabGridEditorV2({
             aria-label="Tab name"
             className="min-w-0 flex-1 max-w-[220px] h-8 px-2 rounded-md bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-label-13 font-semibold text-[var(--ds-gray-1000)] outline-none focus:border-[var(--color-brand-border)]"
           />
-          <select
-            value={instr}
-            onChange={e => changeInstrument(e.target.value)}
-            aria-label="Instrument"
-            className="h-8 px-1.5 rounded-md bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-label-12 text-[var(--ds-gray-1000)] outline-none"
-          >
-            {Object.entries(TAB_INSTRUMENTS).map(([id, cfg]) => <option key={id} value={id}>{cfg.label}</option>)}
-          </select>
+          <Select value={instr} onValueChange={changeInstrument}>
+            <SelectTrigger aria-label="Instrument" className="h-8 w-auto gap-1.5 px-2.5 text-label-12">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(TAB_INSTRUMENTS).map(([id, cfg]) => <SelectItem key={id} value={id}>{cfg.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <div className="flex-1" />
           <IconButton variant="ghost" size="xs" aria-label="Help" title="How to use" onClick={() => setShowHelp(v => !v)}>?</IconButton>
         </div>
