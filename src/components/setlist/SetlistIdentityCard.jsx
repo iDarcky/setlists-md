@@ -40,6 +40,10 @@ const FieldLabel = ({ children }) => (
   <span className="text-label-11 font-semibold text-[var(--ds-gray-600)] shrink-0">{children}</span>
 );
 
+// Opt these plain text fields out of password managers (Dashlane/1Password/
+// LastPass) — they're setlist metadata, not credentials.
+const NO_AUTOFILL = { autoComplete: 'off', 'data-1p-ignore': true, 'data-lpignore': 'true', 'data-form-type': 'other' };
+
 /**
  * Identity card for the card-language setlist editor. Compact inline-label
  * fields keep Date · Start · End · Location on one line (wrapping gracefully,
@@ -77,10 +81,12 @@ export default function SetlistIdentityCard({
       {/* Header: title + status */}
       <div className="flex items-start gap-3">
         <input
+          {...NO_AUTOFILL}
+          name="setlist-title"
           value={name}
           onChange={e => onNameChange(e.target.value)}
           placeholder="Untitled setlist"
-          aria-label="Setlist name"
+          aria-label="Setlist title"
           maxLength={50}
           className="flex-1 min-w-0 bg-transparent border-0 outline-none text-heading-24 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
         />
@@ -108,7 +114,7 @@ export default function SetlistIdentityCard({
         )}
         <div className="flex items-center gap-2 flex-1 min-w-[180px]">
           <FieldLabel>Location</FieldLabel>
-          <Input value={location} onChange={e => onLocationChange(e.target.value)} placeholder="e.g. The Blue Note" maxLength={120} className="flex-1" />
+          <Input {...NO_AUTOFILL} value={location} onChange={e => onLocationChange(e.target.value)} placeholder="e.g. The Blue Note" maxLength={120} className="flex-1" />
         </div>
       </div>
 
@@ -120,7 +126,7 @@ export default function SetlistIdentityCard({
             <>
               <DatePicker value={rehearsalDate} onChange={onRehearsalDateChange} firstDayOfWeek={firstDayOfWeek} className="w-[172px]" />
               <TimePicker value={rehearsalTime || '19:00'} onChange={onRehearsalTimeChange} clockFormat={clockFormat} className="w-[118px]" />
-              <Input value={rehearsalLocation || ''} onChange={e => onRehearsalLocationChange?.(e.target.value)} placeholder="Location (if different)" maxLength={120} className="w-[200px]" />
+              <Input {...NO_AUTOFILL} value={rehearsalLocation || ''} onChange={e => onRehearsalLocationChange?.(e.target.value)} placeholder="Location (if different)" maxLength={120} className="w-[200px]" />
               <button type="button" onClick={() => onRehearsalDateChange('')} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Remove rehearsal">clear</button>
             </>
           ) : (
@@ -130,7 +136,7 @@ export default function SetlistIdentityCard({
         {canService && (
           <div className="flex items-center gap-2">
             <FieldLabel>Service</FieldLabel>
-            <Input value={service} onChange={e => onServiceChange(e.target.value)} placeholder="Service" maxLength={40} className="w-[160px]" list="known-services" />
+            <Input {...NO_AUTOFILL} value={service} onChange={e => onServiceChange(e.target.value)} placeholder="Service" maxLength={40} className="w-[160px]" list="known-services" />
             <datalist id="known-services">{knownServices.map(s => <option key={s} value={s} />)}</datalist>
           </div>
         )}
@@ -148,13 +154,14 @@ export default function SetlistIdentityCard({
               </span>
             ))}
             {tags.length < MAX_TAGS && (
-              <input value={tagInput} onChange={e => setTagInput(e.target.value.slice(0, 10))} onKeyDown={onTagKey} onBlur={addTag} maxLength={10} placeholder={tags.length === 0 ? 'Type, then Enter…' : ''} className="flex-1 min-w-[80px] bg-transparent border-none outline-none text-copy-14 text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-600)] py-1" />
+              <input {...NO_AUTOFILL} name="setlist-tag" value={tagInput} onChange={e => setTagInput(e.target.value.slice(0, 10))} onKeyDown={onTagKey} onBlur={addTag} maxLength={10} placeholder={tags.length === 0 ? 'Type, then Enter…' : ''} className="flex-1 min-w-[80px] bg-transparent border-none outline-none text-copy-14 text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-600)] py-1" />
             )}
           </div>
         </div>
         <div className="flex-1 flex flex-col gap-1">
           <FieldLabel>Setlist note</FieldLabel>
           <textarea
+            {...NO_AUTOFILL}
             value={notes || ''}
             onChange={e => onNotesChange(e.target.value.slice(0, 500))}
             maxLength={500}
