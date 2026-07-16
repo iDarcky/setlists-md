@@ -133,9 +133,9 @@ export default function SetlistMetaForm({ name, date, time = '20:00', endTime = 
               />
             </div>
           ) : (
-            <div className="flex-1 sm:flex-none flex flex-col gap-1 justify-end">
+            <div className="flex-1 sm:flex-none flex flex-col gap-1">
               <label className="text-label-12 font-semibold text-transparent px-0.5 select-none" aria-hidden="true">End</label>
-              <Button size="sm" variant="ghost" onClick={() => onEndTimeChange?.('12:00')} className="h-9 w-full sm:w-auto text-[var(--ds-gray-700)]">+ End time</Button>
+              <Button size="sm" variant="secondary" onClick={() => onEndTimeChange?.('12:00')} className="w-full sm:w-auto text-[var(--ds-gray-700)]">+ End time</Button>
             </div>
           )}
         </div>
