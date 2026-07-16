@@ -18,7 +18,6 @@ import SetlistCardRow from './setlist/SetlistCardRow';
 import SetlistIdentityCard from './setlist/SetlistIdentityCard';
 import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RecommendedNextPanel from './setlist/RecommendedNextPanel';
-import BottomSheet from './ui/BottomSheet';
 import { useDragReorder } from '../lib/useDragReorder';
 
 export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h', cards = false }) {
@@ -50,8 +49,6 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   // Setlist-level note (shared across the whole set — distinct from per-song
   // cue notes and per-break notes).
   const [notes, setNotes] = useState(setlist?.notes || '');
-  // Mobile: the library (add-songs) lives in a bottom sheet behind a FAB.
-  const [libSheetOpen, setLibSheetOpen] = useState(false);
 
   // Snapshot the form on first render so Cancel/back can warn about unsaved
   // changes (only when something actually changed — no nag on a pristine form).
@@ -395,14 +392,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
                     Add songs from the library
                   </div>
                 ) : setRows}
-                <div className="flex gap-2 mt-3">
-                  <button
-                    type="button"
-                    onClick={() => setLibSheetOpen(true)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl border border-dashed border-[var(--ds-gray-400)] text-label-12 font-semibold text-[var(--ds-gray-700)] cursor-pointer hover:bg-[var(--ds-gray-100)] transition-colors"
-                  >
-                    + Add song
-                  </button>
+                <div className="flex mt-3">
                   <button
                     type="button"
                     onClick={addBreak}
@@ -414,29 +404,13 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
               </div>
             </div>
 
-            {/* Library card — desktop side pane */}
-            <div className="hidden lg:block lg:w-[340px] shrink-0 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] p-4">
+            {/* Library card — beside the set on desktop, stacked below on mobile */}
+            <div className="w-full lg:w-[340px] shrink-0 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] p-4">
               <h3 className="text-heading-14 font-semibold text-[var(--ds-gray-1000)] m-0 mb-4">Library</h3>
               {libraryContent}
             </div>
           </div>
         </div>
-
-        {/* Mobile: FAB opens the library sheet */}
-        <button
-          type="button"
-          onClick={() => setLibSheetOpen(true)}
-          className="lg:hidden fixed right-4 z-40 flex items-center gap-2 px-4 py-3 rounded-full text-white font-semibold shadow-lg"
-          style={{ background: 'var(--color-brand)', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 5rem)' }}
-          aria-label="Add songs"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-          Add songs
-        </button>
-
-        <BottomSheet open={libSheetOpen} onClose={() => setLibSheetOpen(false)} title="Add songs">
-          {libraryContent}
-        </BottomSheet>
 
         {/* Sticky bottom Save/Cancel — the source of truth on every screen. */}
         <div

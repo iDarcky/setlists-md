@@ -44,23 +44,21 @@ export default function SetlistCardRow({
         style={{ ...wrapStyle, borderColor: 'var(--color-brand-border)', background: 'var(--color-brand-soft)' }}
         role="listitem"
       >
-        <div className="flex items-center gap-2 px-3 py-2.5">
+        <div className="flex items-center gap-2.5 px-3 py-2.5">
           <span {...gripProps} className="shrink-0 text-[var(--color-brand-text)] opacity-70" aria-label="Drag to reorder">{GRIP}</span>
           <span className="text-[var(--color-brand-text)] shrink-0" aria-hidden="true">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
           </span>
-          <span className="text-label-11 font-semibold text-[var(--color-brand-text)] shrink-0">Break</span>
           <div className="flex-1 min-w-0">
-            <Input
-              value={item.label}
+            <input
+              value={item.label || ''}
               onChange={e => onUpdateField(idx, 'label', e.target.value)}
-              placeholder="e.g. Welcome & offering"
-              size="sm"
-              variant="ghost"
-              className="font-medium"
+              placeholder="Break — e.g. Welcome & offering"
+              aria-label="Break label"
+              className="w-full bg-transparent border-0 outline-none text-copy-14 font-medium text-[var(--color-brand-text)] placeholder:text-[var(--color-brand-text)] placeholder:opacity-60"
             />
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             <input
               type="number"
               min="0"
@@ -68,37 +66,32 @@ export default function SetlistCardRow({
               onChange={e => onUpdateField(idx, 'duration', parseInt(e.target.value) || 0)}
               placeholder="0"
               aria-label="Break duration in minutes"
-              className="w-10 px-1 py-0.5 text-center text-label-12-mono bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] rounded-md text-[var(--ds-gray-1000)] outline-none"
+              className="w-11 px-1 py-1 text-center text-label-12-mono bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] rounded-md text-[var(--ds-gray-1000)] outline-none focus:border-[var(--color-brand)]"
               style={{ minHeight: 'auto' }}
             />
             <span className="text-label-10 text-[var(--color-brand-text)]">min</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setBreakNotesOpen(v => !v)}
-            aria-label={breakNotesOpen ? 'Hide notes' : 'Add notes'}
-            aria-expanded={breakNotesOpen}
-            className={`shrink-0 flex items-center gap-1 px-1.5 h-7 rounded-md border transition-colors ${note ? 'border-[var(--color-brand)] text-[var(--color-brand-text)]' : 'border-[var(--ds-gray-400)] text-[var(--ds-gray-600)]'} bg-[var(--ds-background-100)]`}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M8 13h6" /><path d="M8 17h4" /></svg>
-            {note && <span className="text-label-10-mono tabular-nums">{note.length}</span>}
-          </button>
-          <IconButton size="xs" variant="error" onClick={() => onRemove(idx)} aria-label="Remove break">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
+          <IconButton size="xs" variant="ghost" onClick={() => setBreakNotesOpen(v => !v)} aria-label={breakNotesOpen ? 'Hide note' : 'Break note'} aria-expanded={breakNotesOpen}
+            className={note ? 'text-[var(--color-brand-text)]' : ''}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${breakNotesOpen ? 'rotate-90' : ''}`}><path d="m9 18 6-6-6-6" /></svg>
+          </IconButton>
+          <IconButton size="xs" variant="ghost" onClick={() => onRemove(idx)} aria-label="Remove break">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
           </IconButton>
         </div>
         {breakNotesOpen && (
-          <div className="border-t border-dashed border-[var(--color-brand-border)] px-3 py-2 bg-[var(--ds-background-100)]">
+          <div className="border-t border-dashed border-[var(--color-brand-border)] px-3 py-2.5 bg-[var(--ds-background-100)]">
+            <label className="text-label-10 text-[var(--ds-gray-600)] block mb-1">Note (shown during the break)</label>
             <textarea
               value={note}
               onChange={e => onUpdateField(idx, 'note', e.target.value.slice(0, 500))}
               maxLength={500}
-              placeholder={"# Heading\n\nParagraph text."}
+              placeholder="What happens during this break — announcements, communion, offering…"
               rows={3}
-              className="w-full px-2 py-1.5 text-copy-13 bg-transparent border-none outline-none resize-y text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-500)]"
+              className="w-full px-2.5 py-2 text-copy-13 bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] rounded-lg outline-none resize-y text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-500)] focus:border-[var(--ds-gray-600)]"
               style={{ minHeight: '3rem' }}
             />
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-end mt-0.5">
               <span className={`text-label-10-mono tabular-nums ${note.length >= 500 ? 'text-[var(--ds-error-600)]' : 'text-[var(--ds-gray-500)]'}`}>{note.length}/500</span>
             </div>
           </div>

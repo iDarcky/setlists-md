@@ -1,6 +1,37 @@
-import { SegmentedControl } from '../ui/SegmentedControl';
 import { Button } from '../ui/Button';
 import SetlistMetaForm from './SetlistMetaForm';
+
+// Colour-coded Draft/Ready toggle — a soft pill where the active side lights up
+// (amber for Draft, brand-green for Ready) so the status reads at a glance.
+function StatusToggle({ status, onChange }) {
+  const opts = [
+    { value: 'draft', label: 'Draft', dot: 'var(--ds-amber-600, #d97706)', activeBg: 'var(--ds-amber-100)', activeText: 'var(--ds-amber-900)' },
+    { value: 'ready', label: 'Ready', dot: 'var(--color-brand)', activeBg: 'var(--color-brand-soft)', activeText: 'var(--color-brand-text)' },
+  ];
+  return (
+    <div className="inline-flex p-0.5 rounded-lg border border-[var(--border-1)] bg-[var(--ds-background-100)]" role="tablist" aria-label="Setlist status">
+      {opts.map(o => {
+        const active = status === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(o.value)}
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-label-12 font-semibold transition-colors cursor-pointer"
+            style={active
+              ? { background: o.activeBg, color: o.activeText }
+              : { background: 'transparent', color: 'var(--ds-gray-600)' }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? o.dot : 'var(--ds-gray-400)' }} aria-hidden="true" />
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 /**
  * Identity card for the card-language setlist editor — an inline-editable title
@@ -32,12 +63,7 @@ export default function SetlistIdentityCard({
           className="flex-1 min-w-0 bg-transparent border-0 outline-none text-heading-24 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
         />
         <div className="flex items-center gap-2 shrink-0">
-          <SegmentedControl
-            value={status}
-            onChange={onStatusChange}
-            size="sm"
-            options={[{ value: 'draft', label: 'Draft' }, { value: 'ready', label: 'Ready' }]}
-          />
+          <StatusToggle status={status} onChange={onStatusChange} />
           {onCancel && <Button variant="ghost" size="sm" className="hidden lg:inline-flex" onClick={onCancel}>Cancel</Button>}
           {onSave && <Button variant="brand" size="sm" className="hidden lg:inline-flex" onClick={onSave}>Save</Button>}
         </div>

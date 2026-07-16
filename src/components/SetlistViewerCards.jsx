@@ -8,7 +8,7 @@ import { IconButton } from './ui/IconButton';
 import { Button } from './ui/Button';
 import ExportSetlistDialog from './ExportSetlistDialog';
 import ShareSetlistDialog from './ShareSetlistDialog';
-import RosterReadCard from './setlist/RosterReadCard';
+import RosterPanel from './setlist/RosterPanel';
 import { useTeam } from '../auth/useTeam';
 import { useAuth } from '../auth/useAuth';
 import { SHARE_ENABLED } from '../share/setlistShare';
@@ -16,21 +16,23 @@ import { formatClockTime } from '../lib/dateFormat';
 import { useConfirm } from './ui/useConfirmHook';
 
 /**
- * Card-language setlist viewer (Labs `setlistCards`). Read-only: an identity
- * card leading with Play Live / Practice, the set as one card, and an optional
- * roster + notes card alongside. Tapping a song opens it in the Song Hub.
+ * Card-language setlist viewer (Labs `setlistCards`). Read-only: a pinned
+ * identity card leading with Play Live / Practice, then a Set order / Band tab
+ * switcher. Tapping a song opens the practice view from that song.
  */
 export default function SetlistViewerCards({
-  setlist, songs, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull,
-  onPlay, onPractice, onOpenSong, onDelete, isFullscreen = false, onToggleFullscreen,
+  setlist, songs, setlists = [], onEdit, onExportZip, onExportPdfOverview, onExportPdfFull,
+  onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen,
   clockFormat = '12h', canEdit = true, embedded = false, hidePlay = false,
+  overscheduleWarn = false, streakLimit = 3,
 }) {
   const confirm = useConfirm();
-  const { team } = useTeam();
+  const { team, isAdmin } = useTeam();
   const { user } = useAuth();
   const [shareOpen, setShareOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [tab, setTab] = useState('setlist'); // 'setlist' | 'band'
 
   const canShare = SHARE_ENABLED && !!user?.id && !embedded;
 
@@ -39,6 +41,8 @@ export default function SetlistViewerCards({
     if (!s && title) s = songs.find(s => s.title === title);
     return s ? resolveSongView(s, arrangementId) : null;
   };
+
+  const practiceAt = (i) => onPractice?.(Number.isInteger(i) ? i : 0);
 
   const { songCount, breakCount, totalSeconds, anyEstimated } = useMemo(() => {
     let sc = 0, bc = 0, total = 0, est = false;
@@ -88,23 +92,30 @@ export default function SetlistViewerCards({
   const container = 'mx-auto w-full max-w-[1040px] px-3 sm:px-6';
   const notes = setlist.notes;
 
+  const tabBtn = (id, label) => {
+    const active = tab === id;
+    return (
+      <button
+        type="button"
+        onClick={() => setTab(id)}
+        aria-current={active ? 'page' : undefined}
+        className="h-8 px-3.5 rounded-lg text-label-13 font-semibold transition-colors cursor-pointer"
+        style={active ? { background: 'var(--color-brand)', color: '#fff' } : { color: 'var(--ds-gray-600)' }}
+      >
+        {label}
+      </button>
+    );
+  };
+
   return (
     <div className={embedded ? 'h-full overflow-y-auto overflow-x-hidden material-page pb-10' : 'material-page pb-10'}>
-      <div className={`${container} pt-4 sm:pt-6 flex flex-col gap-3`}>
+      <div className={`${container} pt-4 sm:pt-6`}>
 
-        {/* ── Identity card ── */}
+        {/* ── Identity card (pinned) ── */}
         <div
-          className="rounded-2xl border border-[var(--border-1)] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start gap-4"
-          style={{ background: 'linear-gradient(180deg, var(--ds-background-100), var(--ds-background-200))' }}
+          className="sticky top-0 z-20 rounded-2xl border border-[var(--border-1)] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start gap-4"
+          style={{ background: 'linear-gradient(180deg, var(--ds-background-100), var(--ds-background-200))', boxShadow: '0 6px 20px rgba(0,0,0,0.18)' }}
         >
-          <div
-            className="w-16 h-16 rounded-2xl shrink-0 grid place-items-center text-[#bcd6f5]"
-            style={{ border: '1px solid var(--border-1)', background: 'radial-gradient(120% 120% at 25% 15%, #244e74, #10243a 55%, #160f22)' }}
-            aria-hidden="true"
-          >
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></svg>
-          </div>
-
           <div className="flex-1 min-w-0">
             <div className="flex items-start gap-2 flex-wrap">
               <h1 className="text-heading-24 font-semibold text-[var(--text-1)] m-0 leading-tight">{setlist.name || 'Untitled Setlist'}</h1>
@@ -167,79 +178,102 @@ export default function SetlistViewerCards({
           </div>
         </div>
 
-        {/* ── Work area: set card + side card ── */}
-        <div className="flex flex-col lg:flex-row gap-3 items-start">
-          {/* Set card */}
-          <div className="flex-1 min-w-0 w-full rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border-1)]">
-              <h3 className="text-heading-14 font-semibold text-[var(--ds-gray-1000)] m-0">Set order</h3>
-              <span className="text-copy-12 text-[var(--ds-gray-600)] tabular-nums">
-                {songCount} song{songCount !== 1 ? 's' : ''}{breakCount > 0 && ` · ${breakCount} break${breakCount !== 1 ? 's' : ''}`} · {anyEstimated ? '~' : ''}{formatTotalDuration(totalSeconds)}
-              </span>
+        {/* ── Tabs (only when a team gives us a Band tab) ── */}
+        {team && (
+          <div className="mt-3 flex items-center gap-1">
+            {tabBtn('setlist', 'Set order')}
+            {tabBtn('band', 'Band')}
+          </div>
+        )}
+
+        {/* ── Band tab ── */}
+        {team && tab === 'band' ? (
+          <div className="mt-3 rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] p-4 sm:p-5">
+            <RosterPanel
+              inline
+              v2
+              setlistId={setlist.id}
+              setlistDate={setlist.date}
+              setlists={setlists}
+              overscheduleWarn={overscheduleWarn}
+              streakLimit={streakLimit}
+              readOnly={!isAdmin}
+              onClose={() => setTab('setlist')}
+            />
+          </div>
+        ) : (
+          /* ── Set order tab ── */
+          <div className="mt-3 flex flex-col gap-3">
+            <div className="rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border-1)]">
+                <h3 className="text-heading-14 font-semibold text-[var(--ds-gray-1000)] m-0">Set order</h3>
+                <span className="text-copy-12 text-[var(--ds-gray-600)] tabular-nums">
+                  {songCount} song{songCount !== 1 ? 's' : ''}{breakCount > 0 && ` · ${breakCount} break${breakCount !== 1 ? 's' : ''}`} · {anyEstimated ? '~' : ''}{formatTotalDuration(totalSeconds)}
+                </span>
+              </div>
+
+              {setlist.items.length === 0 ? (
+                <div className="py-12 text-center text-copy-13 text-[var(--ds-gray-600)]">No songs yet.</div>
+              ) : (
+                <div className="divide-y divide-[var(--border-1)]">
+                  {setlist.items.map((item, idx) => {
+                    if (item.type === 'break') {
+                      return (
+                        <div key={idx} className="px-4 py-3" style={{ background: 'var(--color-brand-soft)' }} aria-label="Break">
+                          <div className="flex items-center gap-3">
+                            <span className="text-[var(--color-brand-text)]" aria-hidden="true">
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+                            </span>
+                            <span className="flex-1 min-w-0 text-label-13 font-semibold text-[var(--color-brand-text)] truncate">{item.label || 'Break'}</span>
+                            {(item.duration || 0) > 0 && <span className="text-label-12 text-[var(--color-brand-text)] tabular-nums shrink-0">{item.duration} min</span>}
+                          </div>
+                          {item.note && <p className="text-copy-12 text-[var(--color-brand-text)] opacity-80 m-0 mt-1.5 pl-6 whitespace-pre-wrap break-words">{item.note}</p>}
+                        </div>
+                      );
+                    }
+                    const song = getSong(item.songId, item.songTitle, item.arrangementId);
+                    const num = String(songNumberByIdx[idx] || 0).padStart(2, '0');
+                    if (!song) {
+                      return (
+                        <div key={idx} className="flex items-center gap-3 px-4 py-3 opacity-60">
+                          <span className="text-label-13 text-[var(--ds-gray-500)] tabular-nums w-6 text-center shrink-0">{num}</span>
+                          <p className="text-heading-14 text-[var(--ds-gray-700)] m-0 truncate italic">Missing song (waiting for sync)</p>
+                        </div>
+                      );
+                    }
+                    const displayKey = transposeKey(song.key, item.transpose);
+                    const names = (Array.isArray(item.structure) && item.structure.length) ? item.structure : (song.structure || song.sections?.map(s => s.type) || []);
+                    const tempo = item.tempo ?? song.tempo;
+                    const dur = song.duration ? formatTotalDuration(durationToSeconds(song.duration)) : null;
+                    return (
+                      <div
+                        key={idx}
+                        {...(onPractice ? { role: 'button', tabIndex: 0, onClick: () => practiceAt(idx), onKeyDown: (e) => e.key === 'Enter' && practiceAt(idx), title: 'Open practice from here' } : {})}
+                        className={`flex items-start gap-3 px-4 py-3 transition-colors ${onPractice ? 'cursor-pointer hover:bg-[var(--ds-gray-alpha-100)]' : ''}`}
+                      >
+                        <span className="text-label-13 text-[var(--ds-gray-500)] tabular-nums w-6 text-center shrink-0 pt-0.5">{num}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-heading-15 text-[var(--ds-gray-1000)] m-0 truncate">{song.title}</p>
+                          <p className="text-copy-12 text-[var(--ds-gray-600)] m-0 mt-0.5 truncate">
+                            {[song.artist, (item.capo || 0) > 0 ? `capo ${item.capo}` : null].filter(Boolean).join(' · ')}
+                          </p>
+                          {names.length > 0 && <div className="mt-1.5 -ml-0.5"><StructureRibbon structure={names} compact wrap /></div>}
+                          {item.note && (
+                            <p className="text-copy-12 text-[var(--ds-gray-700)] italic m-0 mt-1.5 pl-2 border-l-2 whitespace-pre-wrap break-words" style={{ borderColor: 'var(--chord)' }}>{item.note}</p>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="font-mono text-[12px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'var(--chord)', color: '#0a0a0a' }}>{displayKey}</span>
+                          {dur && <span className="text-label-11 text-[var(--ds-gray-500)] tabular-nums">{dur}</span>}
+                          {tempo && <span className="text-label-10 text-[var(--ds-gray-500)] tabular-nums">{tempo} bpm</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {setlist.items.length === 0 ? (
-              <div className="py-12 text-center text-copy-13 text-[var(--ds-gray-600)]">No songs yet.</div>
-            ) : (
-              <div className="divide-y divide-[var(--border-1)]">
-                {setlist.items.map((item, idx) => {
-                  if (item.type === 'break') {
-                    return (
-                      <div key={idx} className="flex items-center gap-3 px-4 py-3" style={{ background: 'var(--color-brand-soft)' }} aria-label="Break">
-                        <span className="text-[var(--color-brand-text)]" aria-hidden="true">
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
-                        </span>
-                        <span className="flex-1 min-w-0 text-label-13 font-semibold text-[var(--color-brand-text)] truncate">{item.label || 'Break'}</span>
-                        {(item.duration || 0) > 0 && <span className="text-label-12 text-[var(--color-brand-text)] tabular-nums shrink-0">{item.duration} min</span>}
-                      </div>
-                    );
-                  }
-                  const song = getSong(item.songId, item.songTitle, item.arrangementId);
-                  const num = String(songNumberByIdx[idx] || 0).padStart(2, '0');
-                  if (!song) {
-                    return (
-                      <div key={idx} className="flex items-center gap-3 px-4 py-3 opacity-60">
-                        <span className="text-label-13 text-[var(--ds-gray-500)] tabular-nums w-6 text-center shrink-0">{num}</span>
-                        <p className="text-heading-14 text-[var(--ds-gray-700)] m-0 truncate italic">Missing song (waiting for sync)</p>
-                      </div>
-                    );
-                  }
-                  const displayKey = transposeKey(song.key, item.transpose);
-                  const names = (Array.isArray(item.structure) && item.structure.length) ? item.structure : (song.structure || song.sections?.map(s => s.type) || []);
-                  const tempo = item.tempo ?? song.tempo;
-                  const dur = song.duration ? formatTotalDuration(durationToSeconds(song.duration)) : null;
-                  return (
-                    <div
-                      key={idx}
-                      {...(onOpenSong ? { role: 'button', tabIndex: 0, onClick: () => onOpenSong(song), onKeyDown: (e) => e.key === 'Enter' && onOpenSong(song), title: 'Open in Song Hub' } : {})}
-                      className={`flex items-start gap-3 px-4 py-3 transition-colors ${onOpenSong ? 'cursor-pointer hover:bg-[var(--ds-gray-alpha-100)]' : ''}`}
-                    >
-                      <span className="text-label-13 text-[var(--ds-gray-500)] tabular-nums w-6 text-center shrink-0 pt-0.5">{num}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-heading-15 text-[var(--ds-gray-1000)] m-0 truncate">{song.title}</p>
-                        <p className="text-copy-12 text-[var(--ds-gray-600)] m-0 mt-0.5 truncate">
-                          {[song.artist, (item.capo || 0) > 0 ? `capo ${item.capo}` : null].filter(Boolean).join(' · ')}
-                        </p>
-                        {names.length > 0 && <div className="mt-1.5 -ml-0.5"><StructureRibbon structure={names} compact wrap /></div>}
-                        {item.note && (
-                          <p className="text-copy-12 text-[var(--ds-gray-700)] italic m-0 mt-1.5 pl-2 border-l-2 whitespace-pre-wrap break-words" style={{ borderColor: 'var(--chord)' }}>{item.note}</p>
-                        )}
-                      </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className="font-mono text-[12px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'var(--chord)', color: '#0a0a0a' }}>{displayKey}</span>
-                        {dur && <span className="text-label-11 text-[var(--ds-gray-500)] tabular-nums">{dur}</span>}
-                        {tempo && <span className="text-label-10 text-[var(--ds-gray-500)] tabular-nums">{tempo} bpm</span>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Side card: roster + notes */}
-          <div className="w-full lg:w-[320px] shrink-0 flex flex-col gap-3">
-            <RosterReadCard setlistId={setlist.id} setlistDate={setlist.date} />
             {notes && (
               <div className="rounded-2xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden">
                 <div className="px-4 py-3 border-b border-[var(--ds-gray-300)]">
@@ -249,7 +283,7 @@ export default function SetlistViewerCards({
               </div>
             )}
           </div>
-        </div>
+        )}
       </div>
 
       {exportOpen && (

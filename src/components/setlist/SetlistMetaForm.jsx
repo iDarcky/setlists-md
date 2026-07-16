@@ -100,8 +100,9 @@ export default function SetlistMetaForm({ name, date, time = '20:00', endTime = 
         </div>
       )}
 
-      {/* Date & Time */}
-      <div className="flex gap-4">
+      {/* Date & Time — date on its own line on mobile; start/end share a row
+          so "+ End time" never overflows the viewport. */}
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1 flex flex-col gap-1">
           <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Date</label>
           <DatePicker
@@ -110,32 +111,45 @@ export default function SetlistMetaForm({ name, date, time = '20:00', endTime = 
             firstDayOfWeek={firstDayOfWeek}
           />
         </div>
-        <div className="w-32 flex flex-col gap-1">
-          <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Start</label>
-          <TimePicker
-            value={time}
-            onChange={onTimeChange}
-            clockFormat={clockFormat}
-          />
-        </div>
-        {endTime ? (
-          <div className="w-32 flex flex-col gap-1">
-            <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5 flex items-center justify-between">
-              End
-              <button type="button" onClick={() => onEndTimeChange?.('')} className="font-normal text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Clear end time">clear</button>
-            </label>
+        <div className="flex gap-3">
+          <div className="flex-1 sm:w-32 sm:flex-none flex flex-col gap-1">
+            <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Start</label>
             <TimePicker
-              value={endTime}
-              onChange={onEndTimeChange}
+              value={time}
+              onChange={onTimeChange}
               clockFormat={clockFormat}
             />
           </div>
-        ) : (
-          <div className="flex flex-col gap-1 justify-end">
-            <label className="text-label-12 font-semibold text-transparent px-0.5 select-none" aria-hidden="true">End</label>
-            <Button size="sm" variant="ghost" onClick={() => onEndTimeChange?.('12:00')} className="h-9 text-[var(--ds-gray-700)]">+ End time</Button>
-          </div>
-        )}
+          {endTime ? (
+            <div className="flex-1 sm:w-32 sm:flex-none flex flex-col gap-1">
+              <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5 flex items-center justify-between">
+                End
+                <button type="button" onClick={() => onEndTimeChange?.('')} className="font-normal text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Clear end time">clear</button>
+              </label>
+              <TimePicker
+                value={endTime}
+                onChange={onEndTimeChange}
+                clockFormat={clockFormat}
+              />
+            </div>
+          ) : (
+            <div className="flex-1 sm:flex-none flex flex-col gap-1 justify-end">
+              <label className="text-label-12 font-semibold text-transparent px-0.5 select-none" aria-hidden="true">End</label>
+              <Button size="sm" variant="ghost" onClick={() => onEndTimeChange?.('12:00')} className="h-9 w-full sm:w-auto text-[var(--ds-gray-700)]">+ End time</Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Location */}
+      <div className="flex flex-col gap-1">
+        <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Location</label>
+        <Input
+          value={location}
+          onChange={e => onLocationChange(e.target.value)}
+          placeholder="e.g. The Blue Note"
+          maxLength={120}
+        />
       </div>
 
       {/* Rehearsal day (optional) — surfaces as a distinct entry in the schedule */}
@@ -171,17 +185,6 @@ export default function SetlistMetaForm({ name, date, time = '20:00', endTime = 
           )}
         </div>
       )}
-
-      {/* Location */}
-      <div className="flex flex-col gap-1">
-        <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Location</label>
-        <Input
-          value={location}
-          onChange={e => onLocationChange(e.target.value)}
-          placeholder="e.g. The Blue Note"
-          maxLength={120}
-        />
-      </div>
 
       {/* Service — Church tier only */}
       {useEntitlement('multi-service').allowed && onServiceChange && (
