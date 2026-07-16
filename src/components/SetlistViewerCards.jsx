@@ -68,6 +68,12 @@ export default function SetlistViewerCards({
   const startStr = formatClockTime(setlist.time, clockFormat);
   const endStr = setlist.endTime ? formatClockTime(setlist.endTime, clockFormat) : null;
   const timeRange = startStr ? (endStr ? `${startStr}–${endStr}` : startStr) : null;
+  const rehearsalStr = setlist.rehearsalDate
+    ? new Date(setlist.rehearsalDate + 'T' + (setlist.rehearsalTime || '19:00') + ':00')
+        .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+      + (setlist.rehearsalTime ? ` · ${formatClockTime(setlist.rehearsalTime, clockFormat)}` : '')
+      + (setlist.rehearsalLocation ? ` · ${setlist.rehearsalLocation}` : '')
+    : null;
 
   const handleDelete = async () => {
     const ok = await confirm({
@@ -132,8 +138,17 @@ export default function SetlistViewerCards({
               <span className="text-[var(--ds-gray-500)]">·</span>
               <span className="tabular-nums">{songCount} song{songCount !== 1 ? 's' : ''} · {anyEstimated ? '~' : ''}{formatTotalDuration(totalSeconds)}</span>
             </p>
-            {(team && setlist.updatedByName) || (setlist.tags?.length) ? (
+            {(rehearsalStr || setlist.service || (team && setlist.updatedByName) || setlist.tags?.length) ? (
               <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                {rehearsalStr && (
+                  <span className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-label-12" style={{ background: 'var(--ds-purple-100, rgba(147,112,219,0.14))', color: 'var(--ds-purple-800, #7c5cbf)' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
+                    <span className="text-[11px] opacity-70">Rehearsal</span>{rehearsalStr}
+                  </span>
+                )}
+                {setlist.service && (
+                  <span className="inline-flex items-center h-7 px-2.5 rounded-lg text-label-12" style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand-text)' }}>{setlist.service}</span>
+                )}
                 {team && setlist.updatedByName && (
                   <span className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-[var(--border-1)] bg-[var(--ds-background-100)] text-label-12 text-[var(--ds-gray-1000)]">
                     <span className="text-[11px] text-[var(--ds-gray-500)]">Edited by</span>{setlist.updatedByName}

@@ -52,7 +52,8 @@ export default function SetlistCardRow({
           <div className="flex-1 min-w-0">
             <input
               value={item.label || ''}
-              onChange={e => onUpdateField(idx, 'label', e.target.value)}
+              onChange={e => onUpdateField(idx, 'label', e.target.value.slice(0, 80))}
+              maxLength={80}
               placeholder="Break — e.g. Welcome & offering"
               aria-label="Break label"
               className="w-full bg-transparent border-0 outline-none text-copy-14 font-medium text-[var(--color-brand-text)] placeholder:text-[var(--color-brand-text)] placeholder:opacity-60"

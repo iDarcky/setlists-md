@@ -172,20 +172,31 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     scrollPendingRef.current = true;
     applyStructural(p => [...p, { type: 'break', label: '', note: '', duration: 0 }]);
   };
-  const removeItem = async (idx) => {
-    const item = items[idx];
-    const isBreak = item?.type === 'break';
-    const ok = await confirm({
-      title: isBreak ? 'Remove break?' : 'Remove song?',
-      description: isBreak
-        ? 'This break will be removed from the setlist.'
-        : `"${item?.songTitle || 'This song'}" will be removed from the setlist.`,
-      confirmLabel: 'Remove',
-      cancelLabel: 'Keep',
-      variant: 'danger',
-    });
-    if (!ok) return;
+  // Remove immediately and offer a timed Undo toast (no blocking modal). Undo
+  // re-inserts the exact item at its original position.
+  const removeItem = (idx) => {
+    const removed = items[idx];
+    if (!removed) return;
+    const isBreak = removed.type === 'break';
     applyStructural(p => p.filter((_, i) => i !== idx));
+    let handle;
+    handle = toast({
+      title: `Removed ${isBreak ? 'break' : 'song'}`,
+      description: isBreak ? (removed.label || 'Break') : (removed.songTitle || 'Song'),
+      duration: 6000,
+      action: (
+        <button
+          type="button"
+          onClick={() => {
+            setItems(p => { const n = [...p]; n.splice(Math.min(idx, n.length), 0, removed); return n; });
+            handle?.dismiss();
+          }}
+          className="shrink-0 inline-flex items-center h-8 px-3 rounded-md text-label-12 font-semibold border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer"
+        >
+          Undo
+        </button>
+      ),
+    });
   };
 
   // Move item up or down by one position (for mobile-friendly reorder buttons)
@@ -417,13 +428,19 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
           className="sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)] w-full"
           style={{ background: 'var(--header-bg-blur)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
         >
-          <div className="w-full max-w-6xl mx-auto px-5 py-3 flex items-center gap-2">
+          <div className="w-full max-w-6xl mx-auto px-5 py-3 flex items-center gap-3">
             {setlist && onDelete && (
-              <Button variant="ghost" size="md" className="mr-auto text-[var(--ds-error-600)]" onClick={handleDelete}>Delete</Button>
+              <Button variant="ghost" size="md" className="text-[var(--ds-error-600)]" onClick={handleDelete}>Delete</Button>
+            )}
+            {!name.trim() && (
+              <span className="inline-flex items-center gap-1.5 text-label-11 font-semibold text-[var(--ds-amber-700,#b45309)]">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                Add a setlist name to save
+              </span>
             )}
             <span className="flex-1" />
             <Button variant="ghost" size="md" onClick={handleCancel}>Cancel</Button>
-            <Button variant="brand" size="md" onClick={handleSave}>Save</Button>
+            <Button variant="brand" size="md" onClick={handleSave} disabled={!name.trim()}>Save</Button>
           </div>
         </div>
       </div>
