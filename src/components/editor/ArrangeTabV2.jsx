@@ -13,7 +13,7 @@ import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType, serializeSec
 import { importChartText } from '../../lib/importChords';
 import { loadRecents, saveRecents, pushRecent } from './chordRecents';
 import ChordAutocomplete from './ChordAutocomplete';
-import { useConfirm } from '../ui/useConfirmHook';
+import { showUndoToast } from '../../lib/undoToast';
 
 const SECTION_TYPES = [
   'Intro', 'Verse', 'Pre Chorus', 'Chorus', 'Bridge',
@@ -553,7 +553,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   // there can't stop the browser's scroll/text-selection).
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
-  const confirm = useConfirm();
   const sectionRefs = useRef({});
   const scrollRef = useRef(null);      // canvas scroll container (edge autoscroll)
   const autoScrollRef = useRef({ raf: 0, v: 0 });
@@ -741,17 +740,15 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     emitSections([...song.sections.slice(0, idx + 1), copy, ...song.sections.slice(idx + 1)]);
   }, [song, emitSections, nextSectionLabel]);
 
-  const removeSection = useCallback(async (idx) => {
+  const removeSection = useCallback((idx) => {
     if (!song) return;
-    const ok = await confirm({
-      title: 'Delete this section?',
-      description: 'This removes the section and everything in it from the song.',
-      confirmLabel: 'Delete',
-      variant: 'danger',
-    });
-    if (!ok) return;
+    const prevSong = song; // snapshot for a full restore on Undo
     emitSections(song.sections.filter((_, i) => i !== idx));
-  }, [song, emitSections, confirm]);
+    showUndoToast({
+      title: 'Section deleted',
+      onUndo: () => emitSong(prevSong),
+    });
+  }, [song, emitSections, emitSong]);
 
   const moveSection = useCallback((idx, dir) => {
     if (!song) return;

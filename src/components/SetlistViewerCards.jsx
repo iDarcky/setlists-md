@@ -310,30 +310,34 @@ export default function SetlistViewerCards({
           )}
         </div>
 
-        {/* ── Desktop / tablet: Set order beside a Who's playing + Notes card ── */}
+        {/* ── Desktop / tablet: Set order beside a Who's playing + Notes card.
+            The roster card is team/church-only; personal & sync never see it. ── */}
         <div className="hidden md:flex gap-3 mt-3 items-start">
           <div className="flex-1 min-w-0">{setCardEl}</div>
-          <div className="w-[320px] shrink-0 flex flex-col gap-3">
-            <RosterReadCard setlistId={setlist.id} setlistDate={setlist.date} />
-            {notesEl}
-          </div>
-        </div>
-
-        {/* ── Mobile: Set order / Band tabs ── */}
-        <div className="md:hidden">
-          <div className="mt-3 flex items-center gap-1">
-            {tabBtn('setlist', 'Set order')}
-            {tabBtn('band', 'Band')}
-          </div>
-          {tab === 'band' ? (
-            <div className="mt-3 rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] p-4">
-              {bandContent}
-            </div>
-          ) : (
-            <div className="mt-3 flex flex-col gap-3">
-              {setCardEl}
+          {(team || notesEl) && (
+            <div className="w-[320px] shrink-0 flex flex-col gap-3">
+              {team && <RosterReadCard setlistId={setlist.id} setlistDate={setlist.date} />}
               {notesEl}
             </div>
+          )}
+        </div>
+
+        {/* ── Mobile: Set order / Band tabs (Band only for team/church) ── */}
+        <div className="md:hidden">
+          {team ? (
+            <>
+              <div className="mt-3 flex items-center gap-1">
+                {tabBtn('setlist', 'Set order')}
+                {tabBtn('band', 'Band')}
+              </div>
+              {tab === 'band' ? (
+                <div className="mt-3 rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] p-4">{bandContent}</div>
+              ) : (
+                <div className="mt-3 flex flex-col gap-3">{setCardEl}{notesEl}</div>
+              )}
+            </>
+          ) : (
+            <div className="mt-3 flex flex-col gap-3">{setCardEl}{notesEl}</div>
           )}
         </div>
       </div>

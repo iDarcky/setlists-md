@@ -6,6 +6,7 @@ import { mostPlayedKey } from '../keyHistory';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { toast } from './ui/use-toast';
+import { showUndoToast } from '../lib/undoToast';
 import { useConfirm } from './ui/useConfirmHook';
 import ScreenHeader from './ui/ScreenHeader';
 import { SegmentedControl } from './ui/SegmentedControl';
@@ -172,30 +173,17 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     scrollPendingRef.current = true;
     applyStructural(p => [...p, { type: 'break', label: '', note: '', duration: 0 }]);
   };
-  // Remove immediately and offer a timed Undo toast (no blocking modal). Undo
-  // re-inserts the exact item at its original position.
+  // Remove immediately and offer a timed Undo toast (no blocking modal) — the
+  // same countdown toast the song editor uses. Undo re-inserts the exact item
+  // at its original position.
   const removeItem = (idx) => {
     const removed = items[idx];
     if (!removed) return;
     const isBreak = removed.type === 'break';
     applyStructural(p => p.filter((_, i) => i !== idx));
-    let handle;
-    handle = toast({
-      title: `Removed ${isBreak ? 'break' : 'song'}`,
-      description: isBreak ? (removed.label || 'Break') : (removed.songTitle || 'Song'),
-      duration: 6000,
-      action: (
-        <button
-          type="button"
-          onClick={() => {
-            setItems(p => { const n = [...p]; n.splice(Math.min(idx, n.length), 0, removed); return n; });
-            handle?.dismiss();
-          }}
-          className="shrink-0 inline-flex items-center h-8 px-3 rounded-md text-label-12 font-semibold border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer"
-        >
-          Undo
-        </button>
-      ),
+    showUndoToast({
+      title: `${isBreak ? 'Break' : (removed.songTitle || 'Song')} removed`,
+      onUndo: () => setItems(p => { const n = [...p]; n.splice(Math.min(idx, n.length), 0, removed); return n; }),
     });
   };
 
@@ -423,12 +411,13 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
           </div>
         </div>
 
-        {/* Sticky bottom Save/Cancel — the source of truth on every screen. */}
-        <div
-          className="sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)] w-full"
-          style={{ background: 'var(--header-bg-blur)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
-        >
-          <div className="w-full max-w-6xl mx-auto px-5 py-3 flex items-center gap-3">
+        {/* Sticky bottom Save/Cancel — a floating card (mirrors the song editor)
+            rather than a full-width bar. */}
+        <div className="sticky bottom-0 z-30 px-3 sm:px-5 pt-2 pb-3 pointer-events-none">
+          <div
+            className="max-w-6xl mx-auto rounded-xl border border-[var(--border-1)] bg-[var(--ds-background-100)] shadow-lg px-3 sm:px-4 py-2.5 flex items-center gap-3 pointer-events-auto"
+            style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          >
             {!name.trim() && (
               <span className="inline-flex items-center gap-1.5 text-label-11 font-semibold text-[var(--ds-amber-700,#b45309)]">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
