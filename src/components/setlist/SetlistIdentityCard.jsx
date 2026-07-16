@@ -1,12 +1,11 @@
-import { Button } from '../ui/Button';
 import SetlistMetaForm from './SetlistMetaForm';
 
 // Colour-coded Draft/Ready toggle — a soft pill where the active side lights up
 // (amber for Draft, brand-green for Ready) so the status reads at a glance.
 function StatusToggle({ status, onChange }) {
   const opts = [
-    { value: 'draft', label: 'Draft', dot: 'var(--ds-amber-600, #d97706)', activeBg: 'var(--ds-amber-100)', activeText: 'var(--ds-amber-900)' },
-    { value: 'ready', label: 'Ready', dot: 'var(--color-brand)', activeBg: 'var(--color-brand-soft)', activeText: 'var(--color-brand-text)' },
+    { value: 'draft', label: 'Draft', activeBg: 'var(--ds-amber-100)', activeText: 'var(--ds-amber-900)' },
+    { value: 'ready', label: 'Ready', activeBg: 'var(--color-brand-soft)', activeText: 'var(--color-brand-text)' },
   ];
   return (
     <div className="inline-flex p-0.5 rounded-lg border border-[var(--border-1)] bg-[var(--ds-background-100)]" role="tablist" aria-label="Setlist status">
@@ -19,12 +18,11 @@ function StatusToggle({ status, onChange }) {
             role="tab"
             aria-selected={active}
             onClick={() => onChange(o.value)}
-            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-label-12 font-semibold transition-colors cursor-pointer"
+            className="inline-flex items-center h-7 px-3 rounded-md text-label-12 font-semibold transition-colors cursor-pointer"
             style={active
               ? { background: o.activeBg, color: o.activeText }
               : { background: 'transparent', color: 'var(--ds-gray-600)' }}
           >
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? o.dot : 'var(--ds-gray-400)' }} aria-hidden="true" />
             {o.label}
           </button>
         );
@@ -35,8 +33,8 @@ function StatusToggle({ status, onChange }) {
 
 /**
  * Identity card for the card-language setlist editor — an inline-editable title
- * with the Draft/Ready toggle (and, on desktop, Save/Cancel) in its header,
- * over the full metadata form plus a setlist-level note.
+ * with the Draft/Ready toggle in its header, over the full metadata form plus a
+ * setlist-level note. Save/Cancel live in the sticky bottom bar.
  */
 export default function SetlistIdentityCard({
   name, date, time, endTime, location, tags, service,
@@ -45,14 +43,13 @@ export default function SetlistIdentityCard({
   onNameChange, onDateChange, onTimeChange, onEndTimeChange, onLocationChange,
   onTagsChange, onServiceChange, onRehearsalDateChange, onRehearsalTimeChange,
   onRehearsalLocationChange, onNotesChange, onStatusChange,
-  onSave, onCancel,
 }) {
   return (
     <div
       className="rounded-2xl border border-[var(--border-1)] p-4 sm:p-5 flex flex-col gap-4"
       style={{ background: 'linear-gradient(180deg, var(--ds-background-100), var(--ds-background-200))' }}
     >
-      {/* Header: title + status + (desktop) Save/Cancel */}
+      {/* Header: title + status */}
       <div className="flex items-start gap-3">
         <input
           value={name}
@@ -64,8 +61,6 @@ export default function SetlistIdentityCard({
         />
         <div className="flex items-center gap-2 shrink-0">
           <StatusToggle status={status} onChange={onStatusChange} />
-          {onCancel && <Button variant="ghost" size="sm" className="hidden lg:inline-flex" onClick={onCancel}>Cancel</Button>}
-          {onSave && <Button variant="brand" size="sm" className="hidden lg:inline-flex" onClick={onSave}>Save</Button>}
         </div>
       </div>
 

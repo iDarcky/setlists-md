@@ -100,10 +100,10 @@ export default function SetlistMetaForm({ name, date, time = '20:00', endTime = 
         </div>
       )}
 
-      {/* Date & Time — date on its own line on mobile; start/end share a row
-          so "+ End time" never overflows the viewport. */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1 flex flex-col gap-1">
+      {/* Date · Start · End on one line (wraps on very narrow screens). Bottom
+          alignment keeps the fields level even though labels differ in height. */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex-1 min-w-[150px] flex flex-col gap-1">
           <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Date</label>
           <DatePicker
             value={date}
@@ -111,34 +111,29 @@ export default function SetlistMetaForm({ name, date, time = '20:00', endTime = 
             firstDayOfWeek={firstDayOfWeek}
           />
         </div>
-        <div className="flex gap-3">
-          <div className="flex-1 sm:w-32 sm:flex-none flex flex-col gap-1">
-            <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Start</label>
+        <div className="w-32 flex flex-col gap-1">
+          <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Start</label>
+          <TimePicker
+            value={time}
+            onChange={onTimeChange}
+            clockFormat={clockFormat}
+          />
+        </div>
+        {endTime ? (
+          <div className="w-32 flex flex-col gap-1">
+            <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5 flex items-center justify-between">
+              End
+              <button type="button" onClick={() => onEndTimeChange?.('')} className="font-normal text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Clear end time">clear</button>
+            </label>
             <TimePicker
-              value={time}
-              onChange={onTimeChange}
+              value={endTime}
+              onChange={onEndTimeChange}
               clockFormat={clockFormat}
             />
           </div>
-          {endTime ? (
-            <div className="flex-1 sm:w-32 sm:flex-none flex flex-col gap-1">
-              <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5 flex items-center justify-between">
-                End
-                <button type="button" onClick={() => onEndTimeChange?.('')} className="font-normal text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Clear end time">clear</button>
-              </label>
-              <TimePicker
-                value={endTime}
-                onChange={onEndTimeChange}
-                clockFormat={clockFormat}
-              />
-            </div>
-          ) : (
-            <div className="flex-1 sm:flex-none flex flex-col gap-1">
-              <label className="text-label-12 font-semibold text-transparent px-0.5 select-none" aria-hidden="true">End</label>
-              <Button size="sm" variant="secondary" onClick={() => onEndTimeChange?.('12:00')} className="w-full sm:w-auto text-[var(--ds-gray-700)]">+ End time</Button>
-            </div>
-          )}
-        </div>
+        ) : (
+          <Button size="sm" variant="secondary" onClick={() => onEndTimeChange?.('12:00')} className="text-[var(--ds-gray-700)]">+ End time</Button>
+        )}
       </div>
 
       {/* Location */}

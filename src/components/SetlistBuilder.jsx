@@ -373,7 +373,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     return (
       <div className="min-h-screen material-page flex flex-col">
         <div className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-5 pt-4 pb-28 lg:pb-6 flex flex-col gap-3">
-          <SetlistIdentityCard {...identityProps} onSave={handleSave} onCancel={handleCancel} />
+          <SetlistIdentityCard {...identityProps} />
 
           <div className="flex flex-col lg:flex-row gap-3 items-start">
             {/* Set card */}
