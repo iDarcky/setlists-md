@@ -1445,7 +1445,12 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
           {issuesOpen && (
             <>
               <button type="button" aria-hidden tabIndex={-1} onClick={() => setIssuesOpen(false)} className="fixed inset-0 z-40 cursor-default bg-transparent border-none" />
-              <div className="absolute bottom-full left-0 mb-2 z-50 w-72 max-h-52 overflow-y-auto rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg p-2.5">
+              {/* Mobile: a full-width panel pinned above the action bar so it can't
+                  run off the screen edge or need scrolling. Desktop: a small
+                  popover anchored to the chip. Grows to fit its (usually short)
+                  list; the 70vh cap only ever engages for an unusually long one. */}
+              <div className="fixed inset-x-3 bottom-[76px] z-50 sm:absolute sm:inset-x-auto sm:bottom-full sm:left-0 sm:mb-2 sm:w-72 max-h-[70vh] overflow-y-auto rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg p-2.5">
+                <div className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] mb-1.5">To review</div>
                 <ul className="m-0 p-0 list-none flex flex-col gap-1.5">
                   {validationIssues.map((it, i) => (
                     <li key={i} className="text-copy-12 text-[var(--ds-gray-1000)] flex items-start gap-1.5">
