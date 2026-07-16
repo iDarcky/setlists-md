@@ -14,10 +14,14 @@ import { nextSundayDateStr } from '../lib/dateFormat';
 const UNDO_STACK_LIMIT = 50;
 import SetlistMetaForm from './setlist/SetlistMetaForm';
 import SetlistItemRow from './setlist/SetlistItemRow';
+import SetlistCardRow from './setlist/SetlistCardRow';
+import SetlistIdentityCard from './setlist/SetlistIdentityCard';
 import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RecommendedNextPanel from './setlist/RecommendedNextPanel';
+import BottomSheet from './ui/BottomSheet';
+import { useDragReorder } from '../lib/useDragReorder';
 
-export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
+export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h', cards = false }) {
   const confirm = useConfirm();
   const [name, setName] = useState(setlist?.name || '');
   // New setlists default to the upcoming Sunday at 10:00 — the most common
@@ -43,12 +47,16 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   // New setlists start as drafts; existing ones without a status are treated as
   // ready (don't surprise-demote a legacy setlist to draft on edit).
   const [status, setStatus] = useState(setlist?.status || (setlist ? 'ready' : 'draft'));
-  // Builder tabs — Roster only available once the setlist has been saved.
+  // Setlist-level note (shared across the whole set — distinct from per-song
+  // cue notes and per-break notes).
+  const [notes, setNotes] = useState(setlist?.notes || '');
+  // Mobile: the library (add-songs) lives in a bottom sheet behind a FAB.
+  const [libSheetOpen, setLibSheetOpen] = useState(false);
 
   // Snapshot the form on first render so Cancel/back can warn about unsaved
   // changes (only when something actually changed — no nag on a pristine form).
-  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, endTime, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation }));
-  const isDirty = JSON.stringify({ name, date, time, endTime, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation }) !== initialSnapshot;
+  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, endTime, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation, notes }));
+  const isDirty = JSON.stringify({ name, date, time, endTime, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation, notes }) !== initialSnapshot;
 
   // Report dirty state up so App can guard header nav / browser back. Reset on
   // unmount so a stale flag never blocks navigation after we leave.
@@ -201,11 +209,42 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     setItems(p => p.map((it, i) => i === idx ? { ...it, capo: val } : it));
   const updateBreakField = (idx, field, value) =>
     setItems(p => p.map((it, i) => i === idx ? { ...it, [field]: value } : it));
+  // Generic per-item field update (cards row: key/capo/tempo/structure/note/…).
+  const updateItemField = (idx, field, value) =>
+    setItems(p => p.map((it, i) => i === idx ? { ...it, [field]: value } : it));
+  // Reorder used by the drag hook (grip drag + touch).
+  const reorderItems = useCallback((from, to) => {
+    applyStructural(prev => {
+      if (from == null || to == null || from === to || to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }, [applyStructural]);
   const getSong = (id, title, arrangementId) => {
     let s = songs.find(s => s.id === id);
     if (!s && title) s = songs.find(s => s.title === title);
     return s ? resolveSongView(s, arrangementId) : null;
   };
+
+  // Card-language drag-to-reorder (grip HTML5 + native touch + autoscroll).
+  const dnd = useDragReorder(reorderItems);
+  // Running "N songs · ~X min" for the Set card header. Unknown song lengths
+  // estimate at 4 min so the total is never wildly off; breaks add their minutes.
+  const setStats = useMemo(() => {
+    let songCount = 0;
+    let seconds = 0;
+    for (const it of items) {
+      if (it.type === 'break') { seconds += (it.duration || 0) * 60; continue; }
+      songCount += 1;
+      const s = songs.find(x => x.id === it.songId);
+      const arr = s ? getArrangement(s, it.arrangementId) : null;
+      const dur = it.tempo ? null : arr?.duration;
+      seconds += dur || 240;
+    }
+    return { songCount, minutes: Math.round(seconds / 60) };
+  }, [items, songs]);
 
   // Drag handlers
   const handleDragStart = useCallback((idx) => {
@@ -264,6 +303,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
       ...setlist, // preserve fields the builder doesn't edit (workspace/authorship/etc.)
       id: setlist?.id || generateId(),
       name: name.trim(), date, time, endTime: endTime || '', location, tags, items, service, status,
+      notes: notes || '',
       rehearsalDate: rehearsalDate || null,
       rehearsalTime: rehearsalDate ? rehearsalTime : null,
       rehearsalLocation: rehearsalDate ? (rehearsalLocation || null) : null,
@@ -280,6 +320,141 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     });
     if (ok) onDelete(setlist.id);
   };
+
+  // Per-item arrangement switch (preserve transpose only when source keys match).
+  const selectArrangement = (idx, arrId) => setItems(p => p.map((it, i) => {
+    if (i !== idx) return it;
+    const raw = songs.find(s => s.id === it.songId);
+    const newArr = getArrangement(raw, arrId);
+    const oldArr = getArrangement(raw, it.arrangementId);
+    const keepTranspose = newArr && oldArr && newArr.key === oldArr.key;
+    return { ...it, arrangementId: arrId, arrangementName: newArr?.name || it.arrangementName, transpose: keepTranspose ? it.transpose : 0 };
+  }));
+
+  // ─────────────────────────── Card-language layout ──────────────────────────
+  if (cards) {
+    const identityProps = {
+      name, date, time, endTime, location, tags, service,
+      rehearsalDate, rehearsalTime, rehearsalLocation, notes, status,
+      knownServices, firstDayOfWeek, clockFormat,
+      onNameChange: setName, onDateChange: setDate, onTimeChange: setTime,
+      onEndTimeChange: setEndTime, onLocationChange: setLocation, onTagsChange: setTags,
+      onServiceChange: setService, onRehearsalDateChange: setRehearsalDate,
+      onRehearsalTimeChange: setRehearsalTime, onRehearsalLocationChange: setRehearsalLocation,
+      onNotesChange: setNotes, onStatusChange: setStatus,
+    };
+
+    const libraryContent = (
+      <div className="flex flex-col gap-5">
+        <SetlistSongPicker songs={songs} currentItems={items} onAddSong={addSong} />
+        <RecommendedNextPanel songs={songs} currentItems={items} onAddSong={(song, k) => addSong(song, k)} />
+      </div>
+    );
+
+    const setRows = (
+      <div className="flex flex-col gap-2" role="list">
+        {items.map((item, idx) => (
+          <div key={idx} {...dnd.getRowProps(idx)}>
+            <SetlistCardRow
+              item={item}
+              idx={idx}
+              songNum={songNumberFor[idx]}
+              song={item.type !== 'break' ? getSong(item.songId, item.songTitle, item.arrangementId) : null}
+              rawSong={item.type !== 'break' ? songs.find(s => s.id === item.songId) : null}
+              onRemove={removeItem}
+              onUpdateField={updateItemField}
+              onSelectArrangement={(arrId) => selectArrangement(idx, arrId)}
+              gripProps={dnd.getGripProps(idx)}
+              dragging={dnd.dragIdx === idx}
+              dragOver={dnd.dragOverIdx === idx && dnd.dragIdx !== null && dnd.dragIdx !== idx}
+            />
+          </div>
+        ))}
+      </div>
+    );
+
+    return (
+      <div className="min-h-screen material-page flex flex-col">
+        <div className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-5 pt-4 pb-28 lg:pb-6 flex flex-col gap-3">
+          <SetlistIdentityCard {...identityProps} onSave={handleSave} onCancel={handleCancel} />
+
+          <div className="flex flex-col lg:flex-row gap-3 items-start">
+            {/* Set card */}
+            <div className="flex-1 min-w-0 w-full rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border-1)]">
+                <h3 className="text-heading-14 font-semibold text-[var(--ds-gray-1000)] m-0">Set order</h3>
+                <span className="text-copy-12 text-[var(--ds-gray-600)]">
+                  {setStats.songCount} {setStats.songCount === 1 ? 'song' : 'songs'} · ~{setStats.minutes} min
+                </span>
+                <span className="flex-1" />
+                <span className="hidden sm:inline text-copy-12 text-[var(--ds-gray-500)]">drag to reorder</span>
+              </div>
+              <div className="p-3">
+                {items.length === 0 ? (
+                  <div className="py-10 text-center border-2 border-dashed border-[var(--ds-gray-400)] rounded-xl text-copy-14 text-[var(--ds-gray-700)]">
+                    Add songs from the library
+                  </div>
+                ) : setRows}
+                <div className="flex gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setLibSheetOpen(true)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl border border-dashed border-[var(--ds-gray-400)] text-label-12 font-semibold text-[var(--ds-gray-700)] cursor-pointer hover:bg-[var(--ds-gray-100)] transition-colors"
+                  >
+                    + Add song
+                  </button>
+                  <button
+                    type="button"
+                    onClick={addBreak}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl border border-dashed border-[var(--color-brand-border)] text-label-12 font-semibold text-[var(--color-brand-text)] cursor-pointer hover:bg-[var(--color-brand-soft)] transition-colors"
+                  >
+                    + Add break
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Library card — desktop side pane */}
+            <div className="hidden lg:block lg:w-[340px] shrink-0 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] p-4">
+              <h3 className="text-heading-14 font-semibold text-[var(--ds-gray-1000)] m-0 mb-4">Library</h3>
+              {libraryContent}
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile: FAB opens the library sheet */}
+        <button
+          type="button"
+          onClick={() => setLibSheetOpen(true)}
+          className="lg:hidden fixed right-4 z-40 flex items-center gap-2 px-4 py-3 rounded-full text-white font-semibold shadow-lg"
+          style={{ background: 'var(--color-brand)', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 5rem)' }}
+          aria-label="Add songs"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+          Add songs
+        </button>
+
+        <BottomSheet open={libSheetOpen} onClose={() => setLibSheetOpen(false)} title="Add songs">
+          {libraryContent}
+        </BottomSheet>
+
+        {/* Sticky bottom Save/Cancel — the source of truth on every screen. */}
+        <div
+          className="sticky bottom-0 z-30 border-t border-[var(--ds-gray-300)] w-full"
+          style={{ background: 'var(--header-bg-blur)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
+        >
+          <div className="w-full max-w-6xl mx-auto px-5 py-3 flex items-center gap-2">
+            {setlist && onDelete && (
+              <Button variant="ghost" size="md" className="mr-auto text-[var(--ds-error-600)]" onClick={handleDelete}>Delete</Button>
+            )}
+            <span className="flex-1" />
+            <Button variant="ghost" size="md" onClick={handleCancel}>Cancel</Button>
+            <Button variant="brand" size="md" onClick={handleSave}>Save</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen material-page flex flex-col">

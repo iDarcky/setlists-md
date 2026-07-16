@@ -55,7 +55,7 @@ function ServiceField({ value, options, onChange }) {
 /**
  * Setlist metadata form — name, date, freeform tags, and (Church tier only) service.
  */
-export default function SetlistMetaForm({ name, date, time = '20:00', endTime = '', location = '', tags, service = '', rehearsalDate = '', rehearsalTime = '19:00', rehearsalLocation = '', knownServices = [], firstDayOfWeek = 'sunday', clockFormat = '12h', onNameChange, onDateChange, onTimeChange, onEndTimeChange, onLocationChange, onTagsChange, onServiceChange, onRehearsalDateChange, onRehearsalTimeChange, onRehearsalLocationChange }) {
+export default function SetlistMetaForm({ name, date, time = '20:00', endTime = '', location = '', tags, service = '', rehearsalDate = '', rehearsalTime = '19:00', rehearsalLocation = '', knownServices = [], firstDayOfWeek = 'sunday', clockFormat = '12h', hideTitle = false, onNameChange, onDateChange, onTimeChange, onEndTimeChange, onLocationChange, onTagsChange, onServiceChange, onRehearsalDateChange, onRehearsalTimeChange, onRehearsalLocationChange }) {
   const [tagInput, setTagInput] = useState('');
 
   const addTag = () => {
@@ -88,15 +88,17 @@ export default function SetlistMetaForm({ name, date, time = '20:00', endTime = 
   return (
     <div className="flex flex-col gap-4">
       {/* Title */}
-      <div className="flex flex-col gap-1">
-        <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Setlist Title</label>
-        <Input
-          value={name}
-          onChange={e => onNameChange(e.target.value)}
-          placeholder="e.g. Sunday Morning Service"
-          maxLength={120}
-        />
-      </div>
+      {!hideTitle && (
+        <div className="flex flex-col gap-1">
+          <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Setlist Title</label>
+          <Input
+            value={name}
+            onChange={e => onNameChange(e.target.value)}
+            placeholder="e.g. Sunday Morning Service"
+            maxLength={120}
+          />
+        </div>
+      )}
 
       {/* Date & Time */}
       <div className="flex gap-4">

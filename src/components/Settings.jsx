@@ -636,9 +636,9 @@ function LabsPanel({ settings, update }) {
       <LabsToggle settings={settings} update={update} flag="mockupPalette"
         label="Neutral palette (preview)"
         description="Preview the Song Hub V2 neutral-dark colours across the whole app, so you can compare them with the current dark theme before we commit." />
-      <LabsToggle settings={settings} update={update} flag="songEditorCards"
-        label="Song editor cards (preview)"
-        description="Try the redesigned, card-based song editor header: title beside the arrangement, a cleaner controls row, and song details in their own tab." />
+      <LabsToggle settings={settings} update={update} flag="setlistCards"
+        label="Setlist cards (preview)"
+        description="Try the redesigned, card-based setlist editor and viewer: an identity card up top, the set as its own card, and a library / roster card alongside." />
     </Section>
   );
 }

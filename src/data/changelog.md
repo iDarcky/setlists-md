@@ -2,6 +2,21 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.16.0 — Setlists in the card language
+*July 2026*
+
+### Added
+- **Setlist cards (Labs)** — an opt-in redesign of the setlist editor and viewer as clean cards: an identity card up top, the set as its own card, and a library (editor) or band + notes card alongside. Turn it on in Settings → Labs.
+- **Per-song tweaks that stay in the set** — open a song inside the setlist editor to change its key, capo, tempo, structure or note just for that setlist, without changing the song everywhere else.
+- **A note for the whole set** — jot one shared note on a setlist (e.g. "capo 2 on the acoustic, confirm keys by Friday").
+- **Who's playing, at a glance** — the new setlist viewer shows your band and their availability beside the set; everyone can see it, leaders still edit the roster.
+
+### Improved
+- **Smarter "Recommended next"** — song suggestions now also favour picks that share a theme or tag with your set, and each one tells you why it's there.
+- **The card-based song editor is now the default** — the cleaner editor with a live preview and a Source view is no longer a Labs preview; it's simply the editor now.
+- **Reorder by dragging, on any device** — dragging songs and breaks into a new order works smoothly on touch too, with edge auto-scroll for long sets.
+- **Breaks stand out** — breaks read as distinct coloured slides in both the setlist editor and the setlist view.
+
 ## 0.15.0 — A hands-on editor, and sync you can trust
 *July 2026*
 

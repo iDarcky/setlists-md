@@ -130,7 +130,7 @@ const PORTABLE_PREF_KEYS = [
   'ribbonStyle',
   'structurePosition',
   'mockupPalette',
-  'songEditorCards',
+  'setlistCards',
   'keepAwake',
   'lockOrientation',
   'accidentals',
@@ -2393,8 +2393,10 @@ export default function App() {
               streakLimit={settings?.rosterStreakLimit || 3}
               onPlay={() => goSetlistPerformance(currentSetlist)}
               onPractice={(startIndex) => goSetlistPractice(currentSetlist, startIndex)}
+              onOpenSong={(song) => goChart(song)}
               onDelete={isTeamReadOnly ? null : () => handleDeleteSetlist(currentSetlist.id)}
               canEdit={canEdit}
+              cards={!!settings?.setlistCards}
             />
           )}
           {view === 'setlist-build' && (
@@ -2411,6 +2413,7 @@ export default function App() {
               onUpdateSong={handleUpdateSong}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
               clockFormat={settings?.clockFormat || '12h'}
+              cards={!!settings?.setlistCards}
             />
           )}
           {view === 'setlist-play' && currentSetlist && (

@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { recommendNextSongs } from '../recommendations';
 import { songFromFlat } from '../arrangements';
 
-function v2Song({ id, key = 'G', tempo = 120, keyHistory = {} }) {
+function v2Song({ id, key = 'G', tempo = 120, keyHistory = {}, tags, themes }) {
   const s = songFromFlat({ id, title: id, artist: 'A', key, tempo, time: '4/4', sections: [] });
   s.keyHistory = keyHistory;
+  if (tags) s.tags = tags;
+  if (themes) s.themes = themes;
   return s;
 }
 
@@ -61,6 +63,24 @@ describe('recommendNextSongs', () => {
     const songs = Array.from({ length: 10 }, (_, i) => v2Song({ id: `s${i}` }));
     const recs = recommendNextSongs(songs, { items: [] }, { limit: 2 });
     expect(recs.length).toBe(2);
+  });
+
+  it('boosts candidates sharing a theme with the set, and reports it', () => {
+    // Both candidates equally far in key/tempo from the last song; the one that
+    // shares the set's "advent" theme should win and carry a reason.
+    const songs = [
+      v2Song({ id: 'last', key: 'C', tags: ['advent'] }),
+      v2Song({ id: 'onTheme',  key: 'F#', tags: ['advent'] }),
+      v2Song({ id: 'offTheme', key: 'F#', tags: ['praise'] }),
+    ];
+    const recs = recommendNextSongs(
+      songs,
+      { items: [{ songId: 'last', arrangementId: songs[0].defaultArrangementId, transpose: 0 }] },
+    );
+    expect(recs[0].song.id).toBe('onTheme');
+    expect(recs[0].reason).toBe('Shared theme: advent');
+    expect(recs[0].breakdown.themeScore).toBeGreaterThan(0);
+    expect(recs.find(r => r.song.id === 'offTheme').breakdown.themeScore).toBe(0);
   });
 
   it('returns suggestedKey from keyHistory when available', () => {

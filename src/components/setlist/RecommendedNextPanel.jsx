@@ -56,6 +56,11 @@ export default function RecommendedNextPanel({ songs, currentItems, onAddSong })
                   <> · {rec.song.artist}</>
                 )}
               </p>
+              {rec.reason && (
+                <p className="text-copy-12 text-[var(--color-brand-text)] m-0 mt-0.5 truncate">
+                  {rec.reason}
+                </p>
+              )}
             </div>
             <span
               aria-hidden="true"
