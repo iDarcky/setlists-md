@@ -2,6 +2,32 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.16.0 — The editor, refined
+*July 2026*
+
+### Added
+- **Display controls for the editing canvas** — the editor's "Aa" now sets how the cards read while you work (notation, lyric size, chord size), separate from the "Aa" on the live preview.
+- **Comment on a line** — jot a note on any lyric line (e.g. "hold", "soft") right where it belongs.
+- **Undo instead of "Are you sure?"** — deleting a section, tab, song or setlist no longer asks first; it deletes and shows a 5-second Undo with a countdown, so removing things is quick and safe.
+- **Start a song by pasting** — a new blank song opens to a big paste area with a live preview; drop in a chord sheet and turn it into the cards in one step (⌘/Ctrl+Enter). Import and Browse are one tap away.
+- **Name and instrument on a tab** — the tab editor now lets you name the tab and pick the instrument (electric / acoustic / bass) as you build it.
+- **Save with the keyboard** — ⌘/Ctrl+S saves, and a small "Saved / Unsaved changes" marker shows where you stand.
+
+### Improved
+- **One calm Structure row** — the song map sits on a single line (and reflows nicely on a phone), with Customize right beside the chips.
+- **Edit lyrics in place** — "Edit lyrics" swaps the card into a words-only box inline, just like "Edit source", instead of a pop-up sheet.
+- **Adding a section drops you in** — a new section scrolls into view and opens ready for you to type or paste.
+- **New tab, one tap** — "New tab" opens the tab editor straight away.
+- **Song details, grouped** — the Details tab lays fields out in labelled groups, wider and easier to scan.
+- **Tidier tab library** — a single "New tab" button, a friendlier empty state, and chips showing which sections use each tab.
+- **Key is protected while editing** — changing an existing song's key is steered to Transpose (which moves the chords with it), so the label and the chords never drift apart.
+- **Tighter lyrics** — less empty space above lyric lines that have no chords.
+
+### Fixed
+- **Spaces in the title** — you can type multi-word song titles again (a space no longer disappeared as you typed).
+- **Editing words keeps your chords** — deleting a space in "Edit lyrics" no longer knocks the chords out of place.
+- **A rare editor crash** when opening a display menu is fixed.
+
 ## 0.15.0 — A hands-on editor, and sync you can trust
 *July 2026*
 

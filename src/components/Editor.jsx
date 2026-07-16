@@ -504,6 +504,19 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
+  // ⌘/Ctrl+S saves (swallowing the browser's save dialog) when there's
+  // something to save.
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        if (!readOnly && onSave && isDirty && preview) handleSave();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [readOnly, onSave, isDirty, preview, handleSave]);
+
   // Record md changes into the undo stack (skips undo/redo-driven changes).
   useEffect(() => {
     if (md === prevMdRef.current) return;
@@ -1379,7 +1392,13 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
             {aaTriggerEl}
           </div>
           <div className="flex-1 min-h-0 flex flex-col">
-            {cardPreviewChartEl}
+            {cardPreviewChartEl || (
+              <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 p-6 text-[var(--ds-gray-500)]">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
+                <p className="text-copy-13 m-0">Your chart will appear here</p>
+                <p className="text-copy-11 m-0 max-w-[200px]">Paste a song or add a section and the live preview fills in.</p>
+              </div>
+            )}
           </div>
         </aside>
       )}
@@ -1444,8 +1463,23 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
           Tip: add tempo &amp; time so the song shows its feel.
         </span>
       )}
+      {!readOnly && (
+        <span className={`hidden sm:flex items-center gap-1.5 text-label-11 ${isDirty ? 'text-[var(--ds-amber-700,#b45309)]' : 'text-[var(--ds-gray-500)]'}`} aria-live="polite">
+          {isDirty ? (
+            <>
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--ds-amber-700,#b45309)]" />
+              Unsaved changes
+            </>
+          ) : (
+            <>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+              Saved
+            </>
+          )}
+        </span>
+      )}
       <Button variant="ghost" size="md" onClick={handleBack}>{readOnly ? 'Back' : 'Cancel'}</Button>
-      {!readOnly && <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave || !canSave}>Save</Button>}
+      {!readOnly && <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave || !canSave || !isDirty} title={!isDirty ? 'No changes to save' : undefined}>Save</Button>}
     </div>
   );
   // Cards layout: Save/Cancel as a bottom card (mirrors the draft card).

@@ -28,6 +28,7 @@ export default function EditorEmptyState({ value, onChange, onApply, onDismiss, 
         <textarea
           value={value || ''}
           onChange={e => onChange(e.target.value)}
+          onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canApply) { e.preventDefault(); onApply(); } }}
           placeholder={'Paste your song here…\n\n[Verse 1]\nG        D          Em       C\nAmazing grace, how sweet the sound'}
           spellCheck={false}
           className="flex-1 min-h-[220px] w-full bg-transparent p-4 text-copy-14 leading-relaxed text-[var(--ds-gray-1000)] resize-none outline-none font-mono whitespace-pre"
@@ -40,7 +41,7 @@ export default function EditorEmptyState({ value, onChange, onApply, onDismiss, 
                 ? `${(value || '').split('\n').length} lines`
                 : 'ChordPro, Ultimate-Guitar, OpenSong or plain lyrics'}
           </span>
-          <Button variant="brand" size="sm" disabled={!canApply} onClick={onApply}>
+          <Button variant="brand" size="sm" disabled={!canApply} onClick={onApply} title="⌘/Ctrl + Enter">
             Turn into chart
           </Button>
         </div>
