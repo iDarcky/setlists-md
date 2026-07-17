@@ -94,48 +94,51 @@ export default function SetlistIdentityCard({
         <StatusToggle status={status} onChange={onStatusChange} />
       </div>
 
-      {/* Row: Date · Start · End · Location — inline labels keep them aligned. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
-        <div className="flex items-center gap-2">
+      {/* Row: Date · Start · End · Location — each field stacks its label on top
+          of the control; items-end keeps every control on the same baseline. */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1 flex-1 min-w-[150px]">
           <FieldLabel>Date</FieldLabel>
-          <DatePicker value={date} onChange={onDateChange} firstDayOfWeek={firstDayOfWeek} className="w-[172px]" />
+          <DatePicker value={date} onChange={onDateChange} firstDayOfWeek={firstDayOfWeek} className="w-full" />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-1 w-[118px]">
           <FieldLabel>Start</FieldLabel>
-          <TimePicker value={time} onChange={onTimeChange} clockFormat={clockFormat} className="w-[118px]" />
+          <TimePicker value={time} onChange={onTimeChange} clockFormat={clockFormat} className="w-full" />
         </div>
         {endTime ? (
-          <div className="flex items-center gap-2">
-            <FieldLabel>End</FieldLabel>
-            <TimePicker value={endTime} onChange={onEndTimeChange} clockFormat={clockFormat} className="w-[118px]" />
-            <button type="button" onClick={() => onEndTimeChange?.('')} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Clear end time">clear</button>
+          <div className="flex flex-col gap-1 w-[118px]">
+            <div className="flex items-center justify-between">
+              <FieldLabel>End</FieldLabel>
+              <button type="button" onClick={() => onEndTimeChange?.('')} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Clear end time">clear</button>
+            </div>
+            <TimePicker value={endTime} onChange={onEndTimeChange} clockFormat={clockFormat} className="w-full" />
           </div>
         ) : (
           <Button size="sm" variant="secondary" onClick={() => onEndTimeChange?.('12:00')} className="text-[var(--ds-gray-700)]">+ End time</Button>
         )}
-        <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+        <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
           <FieldLabel>Location</FieldLabel>
-          <Input {...NO_AUTOFILL} value={location} onChange={e => onLocationChange(e.target.value)} placeholder="e.g. The Blue Note" maxLength={120} className="flex-1" />
+          <Input {...NO_AUTOFILL} value={location} onChange={e => onLocationChange(e.target.value)} placeholder="e.g. The Blue Note" maxLength={120} className="w-full" />
         </div>
       </div>
 
-      {/* Row: Rehearsal (+ optional Service pill) */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
-        <div className="flex items-center gap-2 flex-wrap">
+      {/* Row: Rehearsal (+ optional Service), label on top */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
           <FieldLabel>Rehearsal</FieldLabel>
           {rehearsalDate ? (
-            <>
+            <div className="flex flex-wrap items-center gap-2">
               <DatePicker value={rehearsalDate} onChange={onRehearsalDateChange} firstDayOfWeek={firstDayOfWeek} className="w-[172px]" />
               <TimePicker value={rehearsalTime || '19:00'} onChange={onRehearsalTimeChange} clockFormat={clockFormat} className="w-[118px]" />
               <Input {...NO_AUTOFILL} value={rehearsalLocation || ''} onChange={e => onRehearsalLocationChange?.(e.target.value)} placeholder="Location (if different)" maxLength={120} className="w-[200px]" />
               <button type="button" onClick={() => onRehearsalDateChange('')} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Remove rehearsal">clear</button>
-            </>
+            </div>
           ) : (
             <Button size="sm" variant="secondary" onClick={() => onRehearsalDateChange(date || new Date().toISOString().slice(0, 10))} className="text-[var(--ds-gray-700)]">+ Add rehearsal</Button>
           )}
         </div>
         {canService && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-1">
             <FieldLabel>Service</FieldLabel>
             <Input {...NO_AUTOFILL} value={service} onChange={e => onServiceChange(e.target.value)} placeholder="Service" maxLength={40} className="w-[160px]" list="known-services" />
             <datalist id="known-services">{knownServices.map(s => <option key={s} value={s} />)}</datalist>
@@ -143,12 +146,11 @@ export default function SetlistIdentityCard({
         )}
       </div>
 
-      {/* Row: Tags (single-line, grows with chips) + a "+ Note" adder so the
-          note textarea only appears when there's actually a note. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
-        <div className="flex items-center gap-2 flex-1 min-w-[220px]">
+      {/* Row: Tags (label on top, single-line box) + a "+ Add note" adder. */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1 flex-1 min-w-[220px]">
           <FieldLabel>Tags {tags.length > 0 && <span className="font-normal">({tags.length}/{MAX_TAGS})</span>}</FieldLabel>
-          <div className="flex-1 flex flex-wrap items-center gap-1.5 px-2.5 min-h-9 py-1 rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] focus-within:border-[var(--ds-gray-600)]">
+          <div className="flex flex-wrap items-center gap-1.5 px-2.5 min-h-9 py-1 rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] focus-within:border-[var(--ds-gray-600)]">
             {tags.map((tag, idx) => (
               <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--ds-gray-200)] text-label-12 text-[var(--ds-gray-1000)]">
                 {tag}
