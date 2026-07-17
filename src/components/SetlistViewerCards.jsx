@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { transposeKey } from '../music';
 import { resolveSongView } from '../arrangements';
 import { durationToSeconds, formatTotalDuration } from '../lib/duration';
@@ -86,7 +87,6 @@ export default function SetlistViewerCards({
   };
 
   const menuItems = [
-    { label: 'Practice this set', onClick: () => onPractice?.(0), show: !!onPractice },
     { label: 'Export / Download', onClick: () => setExportOpen(true), show: true },
     { label: 'Share', onClick: () => setShareOpen(true), show: canShare },
     { label: isFullscreen ? 'Exit fullscreen' : 'Fullscreen', onClick: onToggleFullscreen, show: !!onToggleFullscreen },
@@ -136,26 +136,21 @@ export default function SetlistViewerCards({
     </>
   );
 
+  // Practice is a first-class action (not hidden in the ⋯ menu). Desktop shows
+  // a labelled button; mobile a compact icon button.
+  const practiceIconPath = <><circle cx="12" cy="12" r="9" /><path d="M10 8.5 16 12l-6 3.5v-7z" /></>;
+  const practiceBtnDesktop = onPractice && (
+    <Button variant="secondary" size="sm" onClick={() => practiceAt(0)}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">{practiceIconPath}</svg>
+      Practice
+    </Button>
+  );
+  const practiceIconBtn = onPractice && iconBtn('Practice', () => practiceAt(0), practiceIconPath);
+
   const editIconBtn = onEdit && iconBtn('Edit', onEdit, <><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></>);
+
   const moreMenuEl = menuItems.length > 0 && (
-    <div className="relative">
-      <IconButton variant="ghost" size="sm" onClick={() => setMenuOpen(o => !o)} aria-label="More actions" aria-expanded={menuOpen}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg>
-      </IconButton>
-      {menuOpen && (
-        <>
-          <div className="fixed inset-0 z-[60]" onClick={() => setMenuOpen(false)} aria-hidden="true" />
-          <div className="absolute right-0 top-full mt-1 z-[61] min-w-[184px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-xl py-1.5">
-            {menuItems.map(item => (
-              <button key={item.label} type="button" onClick={() => { setMenuOpen(false); item.onClick?.(); }}
-                className={`w-full text-left px-3.5 py-2 text-copy-14 cursor-pointer border-none bg-transparent hover:bg-[var(--ds-gray-100)] ${item.danger ? 'text-[var(--ds-red-700)]' : 'text-[var(--ds-gray-1000)]'}`}>
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+    <MoreMenu items={menuItems} open={menuOpen} setOpen={setMenuOpen} />
   );
 
   // ── Shared pieces (reused by the desktop two-card layout + the mobile tabs) ──
@@ -302,6 +297,7 @@ export default function SetlistViewerCards({
                   Play Live
                 </Button>
               )}
+              {practiceBtnDesktop}
               {editIconBtn}
               {moreMenuEl}
               {onBack && (
@@ -325,6 +321,7 @@ export default function SetlistViewerCards({
                 <h1 className="m-0 truncate font-bold leading-tight text-heading-17 text-[var(--text-1)]">{setlist.name || 'Untitled Setlist'}</h1>
                 {statusBadge}
               </div>
+              {practiceIconBtn}
               {editIconBtn}
               {moreMenuEl}
             </div>
@@ -374,6 +371,56 @@ export default function SetlistViewerCards({
       )}
       {canShare && shareOpen && (
         <ShareSetlistDialog setlist={setlist} songs={songs} ownerId={user?.id} onClose={() => setShareOpen(false)} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * The ⋯ overflow menu. The dropdown is rendered through a portal with fixed
+ * positioning anchored to the trigger, so the identity card's `overflow-hidden`
+ * (needed for its rounded corners) can never clip it.
+ */
+function MoreMenu({ items, open, setOpen }) {
+  const triggerRef = useRef(null);
+  const [pos, setPos] = useState(null);
+
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const place = () => {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (r) setPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open]);
+
+  return (
+    <div ref={triggerRef} className="inline-flex">
+      <IconButton variant="ghost" size="sm" onClick={() => setOpen(o => !o)} aria-label="More actions" aria-expanded={open}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg>
+      </IconButton>
+      {open && pos && createPortal(
+        <>
+          <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            className="fixed z-[61] min-w-[184px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-xl py-1.5"
+            style={{ top: pos.top, right: pos.right }}
+          >
+            {items.map(item => (
+              <button key={item.label} type="button" onClick={() => { setOpen(false); item.onClick?.(); }}
+                className={`w-full text-left px-3.5 py-2 text-copy-14 cursor-pointer border-none bg-transparent hover:bg-[var(--ds-gray-100)] ${item.danger ? 'text-[var(--ds-red-700)]' : 'text-[var(--ds-gray-1000)]'}`}>
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body,
       )}
     </div>
   );

@@ -73,7 +73,10 @@ export default function SetlistIdentityCard({
 }) {
   const [tagInput, setTagInput] = useState('');
   const [noteOpen, setNoteOpen] = useState(!!notes);
+  const [tagsOpen, setTagsOpen] = useState(tags.length > 0);
   const canService = useEntitlement('multi-service').allowed && onServiceChange;
+  const showTags = tagsOpen || tags.length > 0;
+  const showNote = noteOpen || !!notes;
 
   const addTag = () => {
     const value = tagInput.trim().slice(0, 10);
@@ -133,35 +136,42 @@ export default function SetlistIdentityCard({
         </Field>
       </div>
 
-      {/* Rehearsal (+ optional Service), label on top */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1">
-          <FieldLabel>Rehearsal</FieldLabel>
-          {rehearsalDate ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <DatePicker value={rehearsalDate} onChange={onRehearsalDateChange} firstDayOfWeek={firstDayOfWeek} hideIcon className="w-[172px]" />
-              <TimePicker value={rehearsalTime || '19:00'} onChange={onRehearsalTimeChange} clockFormat={clockFormat} hideIcon className="w-[110px]" />
-              <Input {...NO_AUTOFILL} value={rehearsalLocation || ''} onChange={e => onRehearsalLocationChange?.(e.target.value)} placeholder="Location (if different)" maxLength={120} className="w-[200px]" />
-              <button type="button" onClick={() => onRehearsalDateChange('')} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Remove rehearsal">clear</button>
-            </div>
-          ) : (
-            <Button size="sm" variant="secondary" onClick={() => onRehearsalDateChange(date || new Date().toISOString().slice(0, 10))} className="text-[var(--ds-gray-700)]">+ Add rehearsal</Button>
-          )}
+      {/* Rehearsal — expands into its own labelled grid row (same shape as the
+          Date row above), collapses to a "+ Add rehearsal" chip below. */}
+      {rehearsalDate && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-start">
+          <Field
+            label="Rehearsal"
+            className="col-span-2 sm:col-span-1"
+            action={<button type="button" onClick={() => onRehearsalDateChange('')} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Remove rehearsal">remove</button>}
+          >
+            <DatePicker value={rehearsalDate} onChange={onRehearsalDateChange} firstDayOfWeek={firstDayOfWeek} hideIcon className="w-full" />
+          </Field>
+          <Field label="Time">
+            <TimePicker value={rehearsalTime || '19:00'} onChange={onRehearsalTimeChange} clockFormat={clockFormat} hideIcon className="w-full" />
+          </Field>
+          <Field label="Location" className="col-span-2 sm:col-span-2">
+            <Input {...NO_AUTOFILL} value={rehearsalLocation || ''} onChange={e => onRehearsalLocationChange?.(e.target.value)} placeholder="If different from the setlist" maxLength={120} className="w-full" />
+          </Field>
         </div>
-        {canService && (
-          <div className="flex flex-col gap-1">
-            <FieldLabel>Service</FieldLabel>
-            <Input {...NO_AUTOFILL} value={service} onChange={e => onServiceChange(e.target.value)} placeholder="Service" maxLength={40} className="w-[160px]" list="known-services" />
-            <datalist id="known-services">{knownServices.map(s => <option key={s} value={s} />)}</datalist>
-          </div>
-        )}
-      </div>
+      )}
 
-      {/* Row: Tags (label on top, single-line box) + a "+ Add note" adder. */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1 flex-1 min-w-[220px]">
-          <FieldLabel>Tags {tags.length > 0 && <span className="font-normal">({tags.length}/{MAX_TAGS})</span>}</FieldLabel>
-          <div className="flex flex-wrap items-center gap-1.5 px-2.5 min-h-9 py-1 rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] focus-within:border-[var(--ds-gray-600)]">
+      {/* Optional Service field (church tier). */}
+      {canService && (
+        <Field label="Service" className="sm:max-w-[240px]">
+          <Input {...NO_AUTOFILL} value={service} onChange={e => onServiceChange(e.target.value)} placeholder="Service" maxLength={40} className="w-full" list="known-services" />
+          <datalist id="known-services">{knownServices.map(s => <option key={s} value={s} />)}</datalist>
+        </Field>
+      )}
+
+      {/* Tags — expands into a labelled chip box, collapses to a "+ Add tags"
+          chip below. */}
+      {showTags && (
+        <Field
+          label={<>Tags {tags.length > 0 && <span className="font-normal">({tags.length}/{MAX_TAGS})</span>}</>}
+          action={tags.length === 0 ? <button type="button" onClick={() => setTagsOpen(false)} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer">remove</button> : null}
+        >
+          <div className="flex flex-wrap items-center gap-1.5 px-2.5 min-h-10 py-1 rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] focus-within:border-[var(--ds-gray-600)]">
             {tags.map((tag, idx) => (
               <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--ds-gray-200)] text-label-12 text-[var(--ds-gray-1000)]">
                 {tag}
@@ -169,22 +179,19 @@ export default function SetlistIdentityCard({
               </span>
             ))}
             {tags.length < MAX_TAGS && (
-              <input {...NO_AUTOFILL} name="setlist-tag" value={tagInput} onChange={e => setTagInput(e.target.value.slice(0, 10))} onKeyDown={onTagKey} onBlur={addTag} maxLength={10} placeholder={tags.length === 0 ? 'Type, then Enter…' : ''} className="flex-1 min-w-[80px] bg-transparent border-none outline-none text-copy-14 text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-600)]" />
+              <input {...NO_AUTOFILL} name="setlist-tag" autoFocus={tagsOpen && tags.length === 0} value={tagInput} onChange={e => setTagInput(e.target.value.slice(0, 10))} onKeyDown={onTagKey} onBlur={addTag} maxLength={10} placeholder={tags.length === 0 ? 'Type, then Enter…' : ''} className="flex-1 min-w-[80px] bg-transparent border-none outline-none text-copy-14 text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-600)]" />
             )}
           </div>
-        </div>
-        {!(noteOpen || notes) && (
-          <Button size="sm" variant="secondary" onClick={() => setNoteOpen(true)} className="text-[var(--ds-gray-700)]">+ Add note</Button>
-        )}
-      </div>
+        </Field>
+      )}
 
-      {/* Setlist note — only shown once opened / when it has content. */}
-      {(noteOpen || notes) && (
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <FieldLabel>Setlist note</FieldLabel>
-            {!notes && <button type="button" onClick={() => setNoteOpen(false)} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer">remove</button>}
-          </div>
+      {/* Setlist note — expands into a textarea, collapses to a "+ Add note"
+          chip below. */}
+      {showNote && (
+        <Field
+          label="Setlist note"
+          action={!notes ? <button type="button" onClick={() => setNoteOpen(false)} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer">remove</button> : null}
+        >
           <textarea
             {...NO_AUTOFILL}
             autoFocus={noteOpen && !notes}
@@ -195,6 +202,21 @@ export default function SetlistIdentityCard({
             rows={2}
             className="w-full px-3 py-2 rounded-xl border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] text-copy-14 text-[var(--ds-gray-1000)] outline-none focus:border-[var(--ds-gray-600)] resize-y placeholder:text-[var(--ds-gray-500)]"
           />
+        </Field>
+      )}
+
+      {/* Adders for whatever optional fields are still collapsed. */}
+      {(!rehearsalDate || !showTags || !showNote) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {!rehearsalDate && (
+            <Button size="sm" variant="secondary" onClick={() => onRehearsalDateChange(date || new Date().toISOString().slice(0, 10))} className="text-[var(--ds-gray-700)]">+ Add rehearsal</Button>
+          )}
+          {!showTags && (
+            <Button size="sm" variant="secondary" onClick={() => setTagsOpen(true)} className="text-[var(--ds-gray-700)]">+ Add tags</Button>
+          )}
+          {!showNote && (
+            <Button size="sm" variant="secondary" onClick={() => setNoteOpen(true)} className="text-[var(--ds-gray-700)]">+ Add note</Button>
+          )}
         </div>
       )}
     </div>
