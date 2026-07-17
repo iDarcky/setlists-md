@@ -23,8 +23,8 @@ export default function RecommendedNextPanel({ songs, currentItems, onAddSong })
 
   return (
     <div className="flex flex-col gap-1.5 pt-3 mt-1 border-t border-[var(--border-1)]">
-      <p className="text-label-11 font-semibold uppercase tracking-wide text-[var(--ds-gray-600)] m-0 px-2 flex items-center gap-1.5">
-        <span aria-hidden="true">✨</span>{heading}
+      <p className="text-label-11 font-semibold uppercase tracking-wide text-[var(--ds-gray-600)] m-0 px-2">
+        {heading}
       </p>
       <div className="-mx-1">
         {recs.map(rec => (

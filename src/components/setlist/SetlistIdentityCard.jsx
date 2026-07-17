@@ -164,6 +164,10 @@ export default function SetlistIdentityCard({
         </Field>
       )}
 
+      {/* Hairline splitting the scheduling fields (when & where) from the
+          descriptive ones (tags, note) so the card reads as two calm zones. */}
+      <div className="h-px bg-[var(--border-1)] -mx-3 sm:-mx-4" aria-hidden="true" />
+
       {/* Tags — expands into a labelled chip box, collapses to a "+ Add tags"
           chip below. */}
       {showTags && (

@@ -10,7 +10,6 @@ import { Button } from './ui/Button';
 import ExportSetlistDialog from './ExportSetlistDialog';
 import ShareSetlistDialog from './ShareSetlistDialog';
 import RosterPanel from './setlist/RosterPanel';
-import RosterReadCard from './setlist/RosterReadCard';
 import { useTeam } from '../auth/useTeam';
 import { useAuth } from '../auth/useAuth';
 import { SHARE_ENABLED } from '../share/setlistShare';
@@ -257,6 +256,12 @@ export default function SetlistViewerCards({
     </div>
   );
 
+  // The band as a card (editable for admins, read-only for members) — reused by
+  // the desktop side column and the mobile Band tab so both can add/remove.
+  const bandCardEl = (
+    <div className="rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] p-4">{bandContent}</div>
+  );
+
   const tabBtn = (id, label) => {
     const active = tab === id;
     return (
@@ -335,7 +340,7 @@ export default function SetlistViewerCards({
           <div className="flex-1 min-w-0">{setCardEl}</div>
           {(team || notesEl) && (
             <div className="w-[320px] shrink-0 flex flex-col gap-3">
-              {team && <RosterReadCard setlistId={setlist.id} setlistDate={setlist.date} />}
+              {team && bandCardEl}
               {notesEl}
             </div>
           )}
@@ -350,7 +355,7 @@ export default function SetlistViewerCards({
                 {tabBtn('band', 'Band')}
               </div>
               {tab === 'band' ? (
-                <div className="mt-3 rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] p-4">{bandContent}</div>
+                <div className="mt-3">{bandCardEl}</div>
               ) : (
                 <div className="mt-3 flex flex-col gap-3">{setCardEl}{notesEl}</div>
               )}
