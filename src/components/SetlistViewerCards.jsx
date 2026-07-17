@@ -390,11 +390,11 @@ export default function SetlistViewerCards({
                 {tabBtn('setlist', 'Set order')}
                 {tabBtn('band', 'Band')}
               </div>
-              {tab === 'band' ? (
-                <div className="mt-3">{bandCardEl}</div>
-              ) : (
-                <div className="mt-3 flex flex-col gap-3">{setCardEl}{notesEl}</div>
-              )}
+              {/* Both panels stay mounted and toggle with `hidden` so the band's
+                  roster is fetched on load — switching to it is instant, no
+                  "Loading roster…" flash. */}
+              <div className={tab === 'setlist' ? 'mt-3 flex flex-col gap-3' : 'hidden'}>{setCardEl}{notesEl}</div>
+              <div className={tab === 'band' ? 'mt-3' : 'hidden'}>{bandCardEl}</div>
             </>
           ) : (
             <div className="mt-3 flex flex-col gap-3">{setCardEl}{notesEl}</div>
