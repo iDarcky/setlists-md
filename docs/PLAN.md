@@ -236,6 +236,24 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Song/break **card redesign** — P2 · _Q: what feels off?_
 - Rework **Recommended-next engine** (weigh more song-detail fields) — P2.
 - Desktop **3-pane** layout (details · current set · library) — P2.
+- **Setlist templates** — let a user save a setlist as a reusable template and
+  start new setlists from one — P2. _Recommended approach (Option A): a flag on
+  the setlist object, no migration._
+  - **Data:** add `isTemplate: true` (+ optional `templateName`) to the setlist.
+    `storage.isValidSetlist` only requires `id/name/items`, so it rides along in
+    IndexedDB and syncs for free; no schema change.
+  - **Save as template:** editor/viewer ⋯ → clones the current setlist with
+    `isTemplate: true` and strips date/time/rehearsal (templates are date-less).
+  - **New from template:** "New setlist → From template" picker deep-clones the
+    template's `items` (songs + per-item key/capo/tempo/structure/notes) into a
+    fresh setlist with a new `id` and today's date. Roster/schedules are **not**
+    copied (per-service).
+  - **Manage:** filter templates out of the normal Setlists list (own section or
+    a facet chip) so they don't clutter it.
+  - _Alt (Option B): a dedicated `templates` IndexedDB store + shape — cleaner
+    separation, but new storage/list/sync plumbing. Prefer A unless templates
+    need to diverge from the setlist shape._
+  - Build behind the `setlistCards` Labs flag alongside the rest of the redesign.
 
 ### Dashboard
 - **Live customize mode** (drag widgets in place, tray for unused) — P2.
