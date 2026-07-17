@@ -16,7 +16,6 @@ import { SHARE_ENABLED } from '../share/setlistShare';
 import { formatClockTime } from '../lib/dateFormat';
 import { useConfirm } from './ui/useConfirmHook';
 import { toast } from './ui/use-toast';
-import { useWakeLock } from '../hooks/useWakeLock';
 
 /**
  * Card-language setlist viewer (Labs `setlistCards`). Read-only: a pinned
@@ -36,10 +35,6 @@ export default function SetlistViewerCards({
   const [exportOpen, setExportOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [tab, setTab] = useState('setlist'); // 'setlist' | 'band'
-  // Keep-awake is a per-session toggle so a leader can prop the set on a stand
-  // during a service/rehearsal without the screen dimming. Works offline.
-  const [keepAwake, setKeepAwake] = useState(false);
-  useWakeLock(keepAwake);
 
   const canShare = SHARE_ENABLED && !!user?.id && !embedded;
 
@@ -147,8 +142,7 @@ export default function SetlistViewerCards({
   const metaBlock = (
     <>
       <div className="mt-1.5 text-label-12 sm:text-copy-13 text-[var(--ds-gray-700)] flex flex-col gap-0.5">
-        <span>{[dateStr, timeRange].filter(Boolean).join(' · ')}</span>
-        <span className="tabular-nums">{[setlist.location, `${songCount} song${songCount !== 1 ? 's' : ''}`, `${anyEstimated ? '~' : ''}${formatTotalDuration(totalSeconds)}`].filter(Boolean).join(' · ')}</span>
+        <span>{[dateStr, timeRange, setlist.location].filter(Boolean).join(' · ')}</span>
       </div>
       {(rehearsalStr || setlist.service || (team && setlist.updatedByName) || setlist.tags?.length) ? (
         <div className="mt-2 flex items-center gap-1.5 flex-wrap">
@@ -180,25 +174,14 @@ export default function SetlistViewerCards({
       Practice
     </Button>
   );
-  const practiceIconBtn = onPractice && iconBtn('Practice', () => practiceAt(0), practiceIconPath);
+  const practiceBtnMobile = onPractice && (
+    <Button variant="secondary" size="sm" onClick={() => practiceAt(0)} className="shrink-0 px-2.5">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">{practiceIconPath}</svg>
+      Practice
+    </Button>
+  );
 
   const editIconBtn = onEdit && iconBtn('Edit', onEdit, <><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></>);
-
-  // Keep-screen-awake toggle (sun icon) — lit when active.
-  const keepAwakeBtn = (
-    <IconButton
-      variant={keepAwake ? 'active' : 'ghost'}
-      size="sm"
-      onClick={() => setKeepAwake(v => !v)}
-      aria-label="Keep screen awake"
-      aria-pressed={keepAwake}
-      title={keepAwake ? 'Screen stays awake — tap to allow sleeping' : 'Keep screen awake'}
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4" />
-      </svg>
-    </IconButton>
-  );
 
   const moreMenuEl = menuItems.length > 0 && (
     <MoreMenu items={menuItems} open={menuOpen} setOpen={setMenuOpen} />
@@ -246,6 +229,8 @@ export default function SetlistViewerCards({
             const names = (Array.isArray(item.structure) && item.structure.length) ? item.structure : (song.structure || song.sections?.map(s => s.type) || []);
             const tempo = item.tempo ?? song.tempo;
             const dur = song.duration ? formatTotalDuration(durationToSeconds(song.duration)) : null;
+            const tempoLine = [tempo ? `${tempo} bpm` : null, song.time].filter(Boolean).join(' · ');
+            const capoStr = (item.capo || 0) > 0 ? `capo ${item.capo}` : null;
             return (
               <div
                 key={idx}
@@ -255,9 +240,9 @@ export default function SetlistViewerCards({
                 <span className="text-label-13 text-[var(--ds-gray-500)] tabular-nums w-6 text-center shrink-0 pt-0.5">{num}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-heading-15 text-[var(--ds-gray-1000)] m-0 truncate">{song.title}</p>
-                  <p className="text-copy-12 text-[var(--ds-gray-600)] m-0 mt-0.5 truncate">
-                    {[song.artist, (item.capo || 0) > 0 ? `capo ${item.capo}` : null].filter(Boolean).join(' · ')}
-                  </p>
+                  {capoStr && (
+                    <p className="text-copy-12 text-[var(--ds-gray-600)] m-0 mt-0.5 truncate">{capoStr}</p>
+                  )}
                   {names.length > 0 && <div className="mt-1.5 -ml-0.5"><StructureRibbon structure={names} compact wrap /></div>}
                   {item.note && (
                     <p className="text-copy-12 text-[var(--ds-gray-700)] italic m-0 mt-1.5 pl-2 border-l-2 whitespace-pre-wrap break-words" style={{ borderColor: 'var(--chord)' }}>{item.note}</p>
@@ -266,7 +251,7 @@ export default function SetlistViewerCards({
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   <span className="font-mono text-[12px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'var(--chord)', color: '#0a0a0a' }}>{displayKey}</span>
                   {dur && <span className="text-label-11 text-[var(--ds-gray-500)] tabular-nums">{dur}</span>}
-                  {tempo && <span className="text-label-10 text-[var(--ds-gray-500)] tabular-nums">{tempo} bpm</span>}
+                  {tempoLine && <span className="text-label-10 text-[var(--ds-gray-500)] tabular-nums">{tempoLine}</span>}
                 </div>
               </div>
             );
@@ -290,6 +275,7 @@ export default function SetlistViewerCards({
     <RosterPanel
       inline
       v2
+      cardSections
       setlistId={setlist.id}
       setlistDate={setlist.date}
       setlists={setlists}
@@ -308,11 +294,9 @@ export default function SetlistViewerCards({
     </div>
   );
 
-  // The band as a card (editable for admins, read-only for members) — reused by
-  // the desktop side column and the mobile Band tab so both can add/remove.
-  const bandCardEl = (
-    <div className="rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] p-4">{bandContent}</div>
-  );
+  // The band — RosterPanel renders its own "Band" + "Add to the band" cards
+  // (cardSections). Reused by the desktop side column and the mobile Band tab.
+  const bandCardEl = bandContent;
 
   const tabBtn = (id, label) => {
     const active = tab === id;
@@ -355,7 +339,6 @@ export default function SetlistViewerCards({
                 </Button>
               )}
               {practiceBtnDesktop}
-              {keepAwakeBtn}
               {editIconBtn}
               {moreMenuEl}
               {onBack && (
@@ -376,15 +359,14 @@ export default function SetlistViewerCards({
                 </button>
               )}
               <div className="min-w-0 flex-1 flex items-center gap-1.5">
-                <h1 className="m-0 truncate font-bold leading-tight text-heading-17 text-[var(--text-1)]">{setlist.name || 'Untitled Setlist'}</h1>
+                <h1 className="m-0 truncate font-bold leading-tight text-[22px] text-[var(--text-1)]">{setlist.name || 'Untitled Setlist'}</h1>
                 {statusBadge}
               </div>
-              {practiceIconBtn}
-              {keepAwakeBtn}
               {editIconBtn}
               {moreMenuEl}
             </div>
             {metaBlock}
+            {practiceBtnMobile && <div className="mt-3">{practiceBtnMobile}</div>}
           </div>
         </div>
 
@@ -468,7 +450,7 @@ function MoreMenu({ items, open, setOpen }) {
         <>
           <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} aria-hidden="true" />
           <div
-            className="fixed z-[61] min-w-[184px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-xl py-1.5"
+            className="fixed z-[61] min-w-[150px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-xl py-1.5"
             style={{ top: pos.top, right: pos.right }}
           >
             {items.map(item => (

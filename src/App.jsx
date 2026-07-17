@@ -319,7 +319,13 @@ export default function App() {
   // (left/deleted). activeLibrary only becomes a team id via an explicit
   // switch — after teams have loaded — so this never resets prematurely.
   useEffect(() => {
-    if (activeLibrary === 'personal') return;
+    if (activeLibrary === 'personal') {
+      // In the Personal space there is NO active team — clear it so team-only
+      // surfaces (Band, roster, church members, team activity) don't leak in.
+      // (TeamProvider otherwise defaults activeTeamId to the first team on load.)
+      setActiveTeam(null);
+      return;
+    }
     const ids = teams.map(t => t.id);
     if (ids.includes(activeLibrary)) {
       setActiveTeam(activeLibrary);

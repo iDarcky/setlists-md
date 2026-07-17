@@ -53,7 +53,7 @@ function availabilityLabel(status) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly = false, inline = false, v2 = false, setlists = [], overscheduleWarn = false, streakLimit = 3 }) {
+export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly = false, inline = false, v2 = false, cardSections = false, setlists = [], overscheduleWarn = false, streakLimit = 3 }) {
   const confirm = useConfirm();
   const { team, members } = useTeam();
   const { schedules, createSchedule, updateSchedule, deleteSchedule, loading } = useTeamSchedules(team?.id);
@@ -254,7 +254,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
         </div>
       )}
 
-      <div className={inline ? 'flex flex-col gap-6' : 'flex-1 overflow-y-auto p-4 flex flex-col gap-6'}>
+      <div className={inline ? `flex flex-col ${cardSections ? 'gap-3' : 'gap-6'}` : 'flex-1 overflow-y-auto p-4 flex flex-col gap-6'}>
         {loading && schedules.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <span className="text-copy-14 text-[var(--ds-gray-500)]">Loading roster...</span>
@@ -262,7 +262,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
         ) : (
           <>
             {/* Current Roster */}
-            <div className="flex flex-col gap-3">
+            <div className={`flex flex-col gap-3 ${cardSections ? 'rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] p-4' : ''}`}>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <p className={labelClass}>{bandLabel}</p>
                 {setlistSchedules.length > 0 && (
@@ -408,7 +408,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
 
             {/* Add Member — admins only */}
             {!readOnly && (
-              <div className="flex flex-col gap-3">
+              <div className={`flex flex-col gap-3 ${cardSections ? 'rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] p-4' : ''}`}>
                 <p className={labelClass}>{addLabel}</p>
 
                 {!setlistDate && (

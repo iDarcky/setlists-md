@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
@@ -56,6 +56,53 @@ const Field = ({ label, action, className = '', children }) => (
 // Opt these plain text fields out of password managers (Dashlane/1Password/
 // LastPass) — they're setlist metadata, not credentials.
 const NO_AUTOFILL = { autoComplete: 'off', 'data-1p-ignore': true, 'data-lpignore': 'true', 'data-form-type': 'other' };
+
+// Service picker: choose an existing service or type a new one. A chevron
+// opens the list of previously-used services; typing filters it and any free
+// text becomes a new service (nothing to "confirm" — the value is live).
+function ServiceCombobox({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (!wrapRef.current?.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  const q = (value || '').trim().toLowerCase();
+  const filtered = options.filter(o => o.toLowerCase().includes(q));
+  const showAdd = !!q && !options.some(o => o.toLowerCase() === q);
+  return (
+    <div ref={wrapRef} className="relative">
+      <Input
+        {...NO_AUTOFILL}
+        value={value}
+        onChange={e => { onChange(e.target.value.slice(0, 40)); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder="e.g. Sunday AM"
+        maxLength={40}
+        className="w-full"
+        suffix={
+          <button type="button" onClick={() => setOpen(o => !o)} aria-label="Show services" className="-mr-1 w-5 h-5 grid place-items-center text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+        }
+      />
+      {open && (filtered.length > 0 || showAdd) && (
+        <div className="absolute z-[60] mt-1 left-0 right-0 max-h-56 overflow-y-auto rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] shadow-xl py-1">
+          {filtered.map(o => (
+            <button key={o} type="button" onClick={() => { onChange(o); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-copy-14 text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer border-none bg-transparent">{o}</button>
+          ))}
+          {showAdd && (
+            <button type="button" onClick={() => setOpen(false)} className="w-full text-left px-3 py-1.5 text-copy-13 text-[var(--color-brand-text)] hover:bg-[var(--ds-gray-100)] cursor-pointer border-none bg-transparent">Use “{value.trim()}”</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Identity card for the card-language setlist editor. Compact inline-label
@@ -142,7 +189,6 @@ export default function SetlistIdentityCard({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-start">
           <Field
             label="Rehearsal"
-            className="col-span-2 sm:col-span-1"
             action={<button type="button" onClick={() => onRehearsalDateChange('')} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Remove rehearsal">remove</button>}
           >
             <DatePicker value={rehearsalDate} onChange={onRehearsalDateChange} firstDayOfWeek={firstDayOfWeek} hideIcon className="w-full" />
@@ -159,8 +205,7 @@ export default function SetlistIdentityCard({
       {/* Optional Service field (church tier). */}
       {canService && (
         <Field label="Service" className="sm:max-w-[240px]">
-          <Input {...NO_AUTOFILL} value={service} onChange={e => onServiceChange(e.target.value)} placeholder="Service" maxLength={40} className="w-full" list="known-services" />
-          <datalist id="known-services">{knownServices.map(s => <option key={s} value={s} />)}</datalist>
+          <ServiceCombobox value={service} onChange={onServiceChange} options={knownServices} />
         </Field>
       )}
 

@@ -299,8 +299,9 @@ Open, actionable items. Cross-cutting concerns at the end.
 
 ### Cross-cutting / chores
 - **Audit remaining menus/screens for the card design** — after the song editor +
-  setlists, sweep the other menus/panels (Settings, Team, Account, dialogs) so the
-  card language is consistent app-wide. Requested 2026-07 (#3) — P2.
+  setlists, sweep the other menus/panels so the card language is consistent
+  app-wide. Requested 2026-07 (#3) — P2. **Order: (1) Homepage/Dashboard**, then
+  Settings, Account, Team, Pricing, remaining dialogs.
 - ✅ **Bottom nav DPI/scale** — `BottomNav` tiles/FAB/label use `clamp(min, vw, max)`
   so the bar isn't oversized on smaller-viewport phones (was fixed px). Shipped 0.15.0.
 - **Naming consistency** pass (casing across headers) — P3.
