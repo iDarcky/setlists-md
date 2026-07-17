@@ -59,6 +59,7 @@ export default function SetlistIdentityCard({
   onRehearsalLocationChange, onNotesChange, onStatusChange,
 }) {
   const [tagInput, setTagInput] = useState('');
+  const [noteOpen, setNoteOpen] = useState(!!notes);
   const canService = useEntitlement('multi-service').allowed && onServiceChange;
 
   const addTag = () => {
@@ -75,7 +76,7 @@ export default function SetlistIdentityCard({
 
   return (
     <div
-      className="rounded-2xl border border-[var(--border-1)] p-4 sm:p-5 flex flex-col gap-4"
+      className="rounded-2xl border border-[var(--border-1)] p-3 sm:p-4 flex flex-col gap-3"
       style={{ background: 'linear-gradient(180deg, var(--ds-background-100), var(--ds-background-200))' }}
     >
       {/* Header: title + status */}
@@ -142,11 +143,12 @@ export default function SetlistIdentityCard({
         )}
       </div>
 
-      {/* Row: Tags + Notes side by side */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="flex-1 flex flex-col gap-1">
+      {/* Row: Tags (single-line, grows with chips) + a "+ Note" adder so the
+          note textarea only appears when there's actually a note. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
+        <div className="flex items-center gap-2 flex-1 min-w-[220px]">
           <FieldLabel>Tags {tags.length > 0 && <span className="font-normal">({tags.length}/{MAX_TAGS})</span>}</FieldLabel>
-          <div className="flex flex-wrap items-center gap-1.5 px-3 min-h-[42px] rounded-xl border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] focus-within:border-[var(--ds-gray-600)]">
+          <div className="flex-1 flex flex-wrap items-center gap-1.5 px-2.5 min-h-9 py-1 rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] focus-within:border-[var(--ds-gray-600)]">
             {tags.map((tag, idx) => (
               <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--ds-gray-200)] text-label-12 text-[var(--ds-gray-1000)]">
                 {tag}
@@ -154,14 +156,25 @@ export default function SetlistIdentityCard({
               </span>
             ))}
             {tags.length < MAX_TAGS && (
-              <input {...NO_AUTOFILL} name="setlist-tag" value={tagInput} onChange={e => setTagInput(e.target.value.slice(0, 10))} onKeyDown={onTagKey} onBlur={addTag} maxLength={10} placeholder={tags.length === 0 ? 'Type, then Enter…' : ''} className="flex-1 min-w-[80px] bg-transparent border-none outline-none text-copy-14 text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-600)] py-1" />
+              <input {...NO_AUTOFILL} name="setlist-tag" value={tagInput} onChange={e => setTagInput(e.target.value.slice(0, 10))} onKeyDown={onTagKey} onBlur={addTag} maxLength={10} placeholder={tags.length === 0 ? 'Type, then Enter…' : ''} className="flex-1 min-w-[80px] bg-transparent border-none outline-none text-copy-14 text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-600)]" />
             )}
           </div>
         </div>
-        <div className="flex-1 flex flex-col gap-1">
-          <FieldLabel>Setlist note</FieldLabel>
+        {!(noteOpen || notes) && (
+          <Button size="sm" variant="secondary" onClick={() => setNoteOpen(true)} className="text-[var(--ds-gray-700)]">+ Add note</Button>
+        )}
+      </div>
+
+      {/* Setlist note — only shown once opened / when it has content. */}
+      {(noteOpen || notes) && (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <FieldLabel>Setlist note</FieldLabel>
+            {!notes && <button type="button" onClick={() => setNoteOpen(false)} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer">remove</button>}
+          </div>
           <textarea
             {...NO_AUTOFILL}
+            autoFocus={noteOpen && !notes}
             value={notes || ''}
             onChange={e => onNotesChange(e.target.value.slice(0, 500))}
             maxLength={500}
@@ -170,7 +183,7 @@ export default function SetlistIdentityCard({
             className="w-full px-3 py-2 rounded-xl border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] text-copy-14 text-[var(--ds-gray-1000)] outline-none focus:border-[var(--ds-gray-600)] resize-y placeholder:text-[var(--ds-gray-500)]"
           />
         </div>
-      </div>
+      )}
     </div>
   );
 }
