@@ -108,6 +108,28 @@ team optimistic locking, scheduling & notifications pillar.
   clobbers edits made while it was in flight), and a reference-preserving
   `applyKeyHistories` (it re-minted every song object on every launch, breaking
   the object-identity change signal storage + engines rely on).
+- ✅ **Setlist ↔ song reference integrity — shipped (2026-07-17).** Setlist items
+  reference a song by a snapshotted `songId`; re-importing a song mints a new id
+  and orphans every past setlist that pointed at the old one (a live main-church
+  audit found **106/160 items orphaned**: 50 re-linkable by title, 14 song-missing,
+  42 with no title snapshot). Fixes: (1) `src/setlist/setlistLinks.js` —
+  reference-preserving `healSetlistLinks` (re-link orphans whose stored `songTitle`
+  matches a current song + backfill missing titles) run on load next to
+  `applyKeyHistories`, plus `analyzeSetlistLinks`; (2) **stable identity on
+  import** — `handleSmartImport` adopts an existing same-title song's id so a
+  re-import UPDATES in place instead of orphaning; (3) **Settings → Sync →
+  "Setlist links"** diagnostic (`SetlistLinkDoctor.jsx`) showing linked /
+  re-linkable / missing / untitled with a manual Repair. Tests:
+  `src/__tests__/setlistLinks.test.js`. **Follow-ups:** apply import-adopt to the
+  **batch** import path (`handleImportParsedSongs`) too; consider fuzzy title
+  matching for **renamed** songs (e.g. item "Apă vie (Living Water)" vs song
+  "Apă vie" — currently reads as missing); surface the diagnostic for the
+  **personal** library as well; a one-time `songTitle` backfill covers old items
+  but the 42 title-less orphans (oldest sets, Mar–May) are unrecoverable from data.
+  Note: the earlier "87 duplicate songs" scare was a **cross-team query artifact**
+  (un-scoped `team_songs`) — within each team, identity is `UNIQUE (team_id,
+  song_key)` and there are ~0 within-team duplicates; the app's cross-team model is
+  correct.
 
 ---
 

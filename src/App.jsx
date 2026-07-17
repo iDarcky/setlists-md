@@ -10,6 +10,7 @@ import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSet
 import { shareTokenFromUrl } from './share/setlistShare';
 import { withArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
+import { healSetlistLinks, matchSongByTitle } from './setlist/setlistLinks';
 import { DEMO_SONGS_MD } from './data/demos';
 import { createSyncEngine } from './sync/engine';
 import { createTeamSyncEngine } from './sync/team-engine';
@@ -517,7 +518,7 @@ export default function App() {
         await saveSongs(demos, 'personal');
       }
 
-      const savedSetlists = await loadSetlists(activeLibrary);
+      let savedSetlists = await loadSetlists(activeLibrary);
       if (ignore) return;
 
       // Recompute keyHistory once on load by scanning past-dated setlists.
@@ -530,6 +531,17 @@ export default function App() {
         const histories = computeKeyHistories(savedSongs, savedSetlists || []);
         savedSongs = applyKeyHistories(savedSongs, histories);
       }
+
+      // Self-heal orphaned setlist references: re-link items whose songId no
+      // longer resolves but whose stored title matches a current song, and
+      // backfill a missing title so a future id change stays recoverable.
+      // Same reference-preserving contract as applyKeyHistories — unchanged
+      // setlists keep identity, so the sync engine only pushes real changes.
+      // Runs before the initial setSetlists and the startup-sync snapshot.
+      if ((savedSetlists?.length || 0) > 0 && savedSongs.length > 0) {
+        savedSetlists = healSetlistLinks(savedSetlists, savedSongs).setlists;
+      }
+
       setSongs(savedSongs);
       setSetlists(savedSetlists || []);
 
@@ -1767,6 +1779,18 @@ export default function App() {
     if (guardTeamReadOnly()) return; // adds to songs before navigate()'s gate
     try {
       const parsed = parseSongMd(mdText);
+      // Stable identity across re-imports: if a song with this title already
+      // exists, adopt its id so the import UPDATES it in place (keeping every
+      // setlist reference intact) instead of minting a new id that orphans
+      // past setlists. The editor still opens for review before Save.
+      const existing = matchSongByTitle(songs, parsed.title);
+      if (existing) {
+        const adopted = { ...songFromFlat({ ...parsed, id: existing.id }), id: existing.id, keyHistory: existing.keyHistory };
+        toast({ title: `Updating "${existing.title}"`, description: 'This song already exists — your import updates it and keeps setlist links.' });
+        setNewSongModal(null);
+        navigate('editor', { song: adopted });
+        return;
+      }
       const song = songFromFlat({ ...parsed, id: generateId(), updatedAt: Date.now() });
       setSongs(prev => [...prev, song]);
       setNewSongModal(null);
@@ -1915,6 +1939,12 @@ export default function App() {
       return arr;
     });
   }, []);
+
+  // Manual trigger for the Settings → Sync "Setlist links" panel. Same heal the
+  // load path runs; useful right after re-importing a missing song.
+  const handleRepairSetlistLinks = useCallback(() => {
+    setSetlists(prev => healSetlistLinks(prev, songs).setlists);
+  }, [songs]);
 
   const handleUpdateSetlist = useCallback((updatedSetlist) => {
     setSetlists(prev => {
@@ -2632,6 +2662,7 @@ export default function App() {
               team={team}
               setlists={setlists}
               songs={songs}
+              onRepairSetlistLinks={handleRepairSetlistLinks}
               onRemapService={handleRemapService}
               trash={trash}
               onRestoreSong={handleRestoreSong}

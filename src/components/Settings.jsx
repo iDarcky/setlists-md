@@ -6,6 +6,7 @@ import { Input } from './ui/Input';
 import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '../billing/checkout';
 import SyncSettings from './settings/SyncSettings';
 import SyncDoctor, { WorkerHealthRow } from './settings/SyncDoctor';
+import SetlistLinkDoctor from './settings/SetlistLinkDoctor';
 import WhatsNewPanel from './settings/WhatsNewPanel';
 import ChartStylePanel from './settings/ChartStylePanel';
 import SectionsPanel from './settings/SectionsPanel';
@@ -704,6 +705,7 @@ function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, a
         <Section title="Diagnostics">
           <WorkerHealthRow />
           <SyncDoctor teamId={activeLibrary} songs={songs} />
+          <SetlistLinkDoctor songs={songs} setlists={setlists} onRepair={onRepairSetlistLinks} />
         </Section>
       </>
     );
@@ -1124,6 +1126,7 @@ export default function Settings({
   team = null,
   setlists = [],
   songs = [],
+  onRepairSetlistLinks,
   onRemapService,
   trash = [],
   onRestoreSong,
