@@ -16,6 +16,8 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Start a song by pasting** — a new blank song opens to a big paste area with a live preview; drop in a chord sheet and turn it into the cards in one step (⌘/Ctrl+Enter). Import and Browse are one tap away.
 - **Name and instrument on a tab** — the tab editor now lets you name the tab and pick the instrument (electric / acoustic / bass) as you build it.
 - **Save with the keyboard** — ⌘/Ctrl+S saves, and a small "Saved / Unsaved changes" marker shows where you stand.
+- **Copy the running order** — copy a setlist as plain text (numbered songs with key, capo, tempo and time signature) to paste into a chat or email.
+- **A heads-up before editing a past setlist** — editing a service that has already happened now asks you to confirm first.
 
 ### Improved
 - **The card-based song editor is now the default** — the cleaner editor with a live preview and a Source view is no longer a Labs preview; it's simply the editor now.
@@ -30,11 +32,19 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Tidier tab library** — a single "New tab" button, a friendlier empty state, and chips showing which sections use each tab.
 - **Key is protected while editing** — changing an existing song's key is steered to Transpose (which moves the chords with it), so the label and the chords never drift apart.
 - **Tighter lyrics** — less empty space above lyric lines that have no chords.
+- **A calmer setlist editor** — field labels sit above each control on a shared baseline, date and time line up, rehearsal and tags fold away until you need them, and a divider groups the "when & where" fields apart from the rest.
+- **Pick or add a service** — the Service field is now a dropdown you can also type a new value into.
+- **A clearer setlist view** — the header leads with Play Live and Practice, song rows show key · tempo · time signature (no repeated artist or counts), and the band splits into "Band" and "Add to the band" cards.
+- **Readiness at a glance** — the band card sums up who's confirmed, unsure, out, or hasn't replied yet.
+- **The band opens instantly** — no "loading roster" flicker when you switch to it.
+- **Clear the song search** — a one-tap × empties the library search after you add a song.
 
 ### Fixed
 - **Spaces in the title** — you can type multi-word song titles again (a space no longer disappeared as you typed).
 - **Editing words keeps your chords** — deleting a space in "Edit lyrics" no longer knocks the chords out of place.
 - **A rare editor crash** when opening a display menu is fixed.
+- **Team stuff stays in the team** — your band, church members, and team activity no longer show up in your Personal space.
+- **One colour for rehearsals** — rehearsal times use the same blue everywhere (they'd drifted to purple and amber in a few places).
 
 ## 0.15.0 — A hands-on editor, and sync you can trust
 *July 2026*
