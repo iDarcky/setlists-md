@@ -100,6 +100,18 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
   // Filter schedules for this specific setlist (match against the DB ID)
   const setlistSchedules = schedules.filter(s => s.setlist_id === dbSetlistId);
 
+  // Readiness roll-up: how many of those rostered have confirmed / are unsure /
+  // are out / haven't replied. Drives the one-line summary above the roster.
+  const availSummary = useMemo(() => {
+    const c = { available: 0, maybe: 0, unavailable: 0, pending: 0 };
+    for (const s of setlistSchedules) {
+      const k = s.availability;
+      if (k === 'available' || k === 'maybe' || k === 'unavailable') c[k] += 1;
+      else c.pending += 1;
+    }
+    return c;
+  }, [setlistSchedules]);
+
   // Members not yet on the roster
   const candidates = useMemo(() => {
     const onRoster = new Set(setlistSchedules.map(s => s.user_id));
@@ -251,7 +263,17 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
           <>
             {/* Current Roster */}
             <div className="flex flex-col gap-3">
-              <p className={labelClass}>{bandLabel}</p>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className={labelClass}>{bandLabel}</p>
+                {setlistSchedules.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={`text-label-11 px-2 py-0.5 rounded-full ${availabilityBadgeClasses('available')}`}>{availSummary.available} confirmed</span>
+                    {availSummary.maybe > 0 && <span className={`text-label-11 px-2 py-0.5 rounded-full ${availabilityBadgeClasses('maybe')}`}>{availSummary.maybe} maybe</span>}
+                    {availSummary.unavailable > 0 && <span className={`text-label-11 px-2 py-0.5 rounded-full ${availabilityBadgeClasses('unavailable')}`}>{availSummary.unavailable} out</span>}
+                    {availSummary.pending > 0 && <span className={`text-label-11 px-2 py-0.5 rounded-full ${availabilityBadgeClasses(null)}`}>{availSummary.pending} no reply</span>}
+                  </div>
+                )}
+              </div>
 
               {setlistSchedules.length === 0 && (
                 <p className="text-copy-14 text-[var(--ds-gray-500)] italic py-4 text-center">

@@ -239,7 +239,7 @@ export default function SetlistOverviewV2({ setlist, songs, setlists = [], onBac
           </div>
 
           {/* Row 2: the event meta on one line — date · time · location, with
-              the rehearsal as a distinct (purple) chip so it reads apart. */}
+              the rehearsal as a distinct (blue) chip so it reads apart. */}
           {!collapsed && (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 min-w-0 mt-2 mb-3">
               <MetaChip icon="calendar">{dateStr}</MetaChip>

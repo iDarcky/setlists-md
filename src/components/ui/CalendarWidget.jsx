@@ -66,7 +66,7 @@ export function CalendarWidget({
 
   // ── Colour language ──────────────────────────────────────────────────────
   // Two independent axes, never mixed onto one swatch:
-  //   • Event TYPE colours the cell:  Service = brand (teal), Rehearsal = purple.
+  //   • Event TYPE colours the cell:  Service = brand (teal), Rehearsal = blue.
   //   • My AVAILABILITY is a small dot: available = green, maybe = amber,
   //     unavailable = red, pending = grey. (No dot when there's no response.)
   const EVENT_STYLE = {

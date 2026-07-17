@@ -15,6 +15,8 @@ import { useAuth } from '../auth/useAuth';
 import { SHARE_ENABLED } from '../share/setlistShare';
 import { formatClockTime } from '../lib/dateFormat';
 import { useConfirm } from './ui/useConfirmHook';
+import { toast } from './ui/use-toast';
+import { useWakeLock } from '../hooks/useWakeLock';
 
 /**
  * Card-language setlist viewer (Labs `setlistCards`). Read-only: a pinned
@@ -34,6 +36,10 @@ export default function SetlistViewerCards({
   const [exportOpen, setExportOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [tab, setTab] = useState('setlist'); // 'setlist' | 'band'
+  // Keep-awake is a per-session toggle so a leader can prop the set on a stand
+  // during a service/rehearsal without the screen dimming. Works offline.
+  const [keepAwake, setKeepAwake] = useState(false);
+  useWakeLock(keepAwake);
 
   const canShare = SHARE_ENABLED && !!user?.id && !embedded;
 
@@ -85,7 +91,37 @@ export default function SetlistViewerCards({
     if (ok) onDelete?.();
   };
 
+  // Plain-text running order for pasting into a group chat / email.
+  const copySetOrder = async () => {
+    const lines = [setlist.name || 'Untitled Setlist'];
+    const meta = [dateStr, timeRange, setlist.location].filter(Boolean).join(' · ');
+    if (meta) lines.push(meta);
+    lines.push('');
+    let n = 0;
+    for (const item of setlist.items) {
+      if (item.type === 'break') {
+        const dur = (item.duration || 0) > 0 ? ` (${item.duration} min)` : '';
+        lines.push(`— ${item.label || 'Break'}${dur} —`);
+        continue;
+      }
+      const song = getSong(item.songId, item.songTitle, item.arrangementId);
+      n += 1;
+      if (!song) { lines.push(`${n}. (missing song)`); continue; }
+      const key = transposeKey(song.key, item.transpose);
+      const capo = (item.capo || 0) > 0 ? ` (capo ${item.capo})` : '';
+      const artist = song.artist ? ` — ${song.artist}` : '';
+      lines.push(`${n}. ${song.title}${artist} · ${key}${capo}`);
+    }
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      toast({ title: 'Copied', description: 'Set order copied to clipboard.' });
+    } catch {
+      toast({ title: 'Could not copy', description: 'Clipboard is not available here.', variant: 'error' });
+    }
+  };
+
   const menuItems = [
+    { label: 'Copy set order', onClick: copySetOrder, show: setlist.items.length > 0 },
     { label: 'Export / Download', onClick: () => setExportOpen(true), show: true },
     { label: 'Share', onClick: () => setShareOpen(true), show: canShare },
     { label: isFullscreen ? 'Exit fullscreen' : 'Fullscreen', onClick: onToggleFullscreen, show: !!onToggleFullscreen },
@@ -117,7 +153,7 @@ export default function SetlistViewerCards({
       {(rehearsalStr || setlist.service || (team && setlist.updatedByName) || setlist.tags?.length) ? (
         <div className="mt-2 flex items-center gap-1.5 flex-wrap">
           {rehearsalStr && (
-            <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-label-11 font-medium" style={{ background: 'var(--ds-purple-100, rgba(124,92,191,0.16))', color: 'var(--ds-purple-900, #b69cf0)' }}>
+            <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-label-11 font-medium bg-[var(--ds-blue-100)] text-[var(--ds-blue-900)]">
               <span className="opacity-70">Rehearsal</span>{rehearsalStr}
             </span>
           )}
@@ -147,6 +183,22 @@ export default function SetlistViewerCards({
   const practiceIconBtn = onPractice && iconBtn('Practice', () => practiceAt(0), practiceIconPath);
 
   const editIconBtn = onEdit && iconBtn('Edit', onEdit, <><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></>);
+
+  // Keep-screen-awake toggle (sun icon) — lit when active.
+  const keepAwakeBtn = (
+    <IconButton
+      variant={keepAwake ? 'active' : 'ghost'}
+      size="sm"
+      onClick={() => setKeepAwake(v => !v)}
+      aria-label="Keep screen awake"
+      aria-pressed={keepAwake}
+      title={keepAwake ? 'Screen stays awake — tap to allow sleeping' : 'Keep screen awake'}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4" />
+      </svg>
+    </IconButton>
+  );
 
   const moreMenuEl = menuItems.length > 0 && (
     <MoreMenu items={menuItems} open={menuOpen} setOpen={setMenuOpen} />
@@ -303,6 +355,7 @@ export default function SetlistViewerCards({
                 </Button>
               )}
               {practiceBtnDesktop}
+              {keepAwakeBtn}
               {editIconBtn}
               {moreMenuEl}
               {onBack && (
@@ -327,6 +380,7 @@ export default function SetlistViewerCards({
                 {statusBadge}
               </div>
               {practiceIconBtn}
+              {keepAwakeBtn}
               {editIconBtn}
               {moreMenuEl}
             </div>
