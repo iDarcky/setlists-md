@@ -307,15 +307,8 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     });
   };
 
-  const handleDelete = async () => {
-    const ok = await confirm({
-      title: 'Delete setlist?',
-      description: `"${setlist?.name || 'Untitled'}" will be permanently removed. This cannot be undone.`,
-      confirmLabel: 'Delete',
-      variant: 'danger',
-    });
-    if (ok) onDelete(setlist.id);
-  };
+  // Delete is undoable — App shows a 5s "Undo" toast — so no confirm modal here.
+  const handleDelete = () => { onDelete(setlist.id); };
 
   // Per-item arrangement switch (preserve transpose only when source keys match).
   const selectArrangement = (idx, arrId) => setItems(p => p.map((it, i) => {

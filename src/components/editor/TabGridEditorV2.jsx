@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
-import { stringsForCount } from './tabInstruments';
+import { stringsForCount, TAB_INSTRUMENTS } from './tabInstruments';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '../ui/Select';
 
 const DEFAULT_STRINGS = ['e', 'B', 'G', 'D', 'A', 'E'];
 const TECHNIQUES = [
@@ -78,11 +79,17 @@ function gridFromTab(initialTab, timeSig, strings) {
 // Controls are all visible and grouped; the grid reads like a real tab.
 // Click a cell and type the fret (auto-advances by the chosen note value).
 export default function TabGridEditorV2({
-  initialTab, time, strings = DEFAULT_STRINGS, tunings = null,
+  initialTab, initialName = '', time, strings = DEFAULT_STRINGS, tunings = null,
   instrument = 'electric', counts = null, subdivision = 1,
   onSave, onClose,
 }) {
   const timeSig = time || '4/4';
+  // Name + instrument are editable here now (they used to be chosen/auto-named
+  // before opening). Instrument drives the string set / tuning options.
+  const [name, setName] = useState(initialName);
+  const [instr, setInstr] = useState(instrument);
+  const effCounts = TAB_INSTRUMENTS[instr]?.counts || counts;
+  const effTunings = TAB_INSTRUMENTS[instr]?.tunings || tunings;
   const initStrings = initialTab?.strings?.length ? initialTab.strings.map(s => s.note) : strings;
   const initState = initialTab?.strings?.length
     ? gridFromTab(initialTab, timeSig, initStrings)
@@ -142,6 +149,11 @@ export default function TabGridEditorV2({
     setGrid(prev => next.map((_, i) => (prev[i] ? [...prev[i]] : Array(totalSlots).fill(null))));
     setCurStrings(next); setCursor({ string: 0, pos: 0 }); setEditing(null);
   };
+  const changeInstrument = (id) => {
+    setInstr(id);
+    const s = TAB_INSTRUMENTS[id]?.strings;
+    if (s) changeStrings(s);
+  };
   const changeCpb = (newCpb) => {
     setGrid(prev => {
       const nt = slotsPerMeasure(timeSig, newCpb) * measures;
@@ -175,7 +187,7 @@ export default function TabGridEditorV2({
   const handleInsert = () => {
     if (editing) commit(editing.string, editing.pos, val, false);
     const ascii = gridToAscii(grid, measures, timeSig, curStrings, cpb);
-    onSave(`{tab, time: ${timeSig}}\n${ascii}\n{/tab}`);
+    onSave(`{tab, time: ${timeSig}}\n${ascii}\n{/tab}`, { name: name.trim(), instrument: instr });
   };
 
   const CW = 32, CH = 30, LW = 24;
@@ -191,9 +203,23 @@ export default function TabGridEditorV2({
         className="bg-[var(--ds-background-200)] rounded-2xl border border-[var(--ds-gray-400)] w-full max-w-[820px] max-h-[92vh] flex flex-col outline-none select-none"
         style={{ boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}
       >
-        {/* Header */}
+        {/* Header — name + instrument, so a new tab is identifiable. */}
         <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--ds-gray-300)]">
-          <span className="text-heading-14 font-semibold text-[var(--ds-gray-1000)]">Tab</span>
+          <input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Tab name"
+            aria-label="Tab name"
+            className="min-w-0 flex-1 max-w-[220px] h-8 px-2 rounded-md bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-label-13 font-semibold text-[var(--ds-gray-1000)] outline-none focus:border-[var(--color-brand-border)]"
+          />
+          <Select value={instr} onValueChange={changeInstrument}>
+            <SelectTrigger aria-label="Instrument" className="h-8 w-auto gap-1.5 px-2.5 text-label-12">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(TAB_INSTRUMENTS).map(([id, cfg]) => <SelectItem key={id} value={id}>{cfg.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <div className="flex-1" />
           <IconButton variant="ghost" size="xs" aria-label="Help" title="How to use" onClick={() => setShowHelp(v => !v)}>?</IconButton>
         </div>
@@ -206,20 +232,20 @@ export default function TabGridEditorV2({
 
         {/* Visible, grouped controls */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 border-b border-[var(--ds-gray-200)] bg-[var(--ds-background-100)]">
-          {counts && counts.length > 1 && (
+          {effCounts && effCounts.length > 1 && (
             <Group label="Strings">
-              {counts.map(n => <Chip key={n} active={curStrings.length === n} onClick={() => changeStrings(stringsForCount(instrument, n))}>{n}</Chip>)}
+              {effCounts.map(n => <Chip key={n} active={curStrings.length === n} onClick={() => changeStrings(stringsForCount(instr, n))}>{n}</Chip>)}
             </Group>
           )}
-          {tunings && tunings.filter(t => t.strings.length === curStrings.length).length > 1 && (
+          {effTunings && effTunings.filter(t => t.strings.length === curStrings.length).length > 1 && (
             <Group label="Tuning">
               <select
-                value={tunings.find(t => t.strings.join('') === curStrings.join(''))?.id || ''}
-                onChange={e => { const t = tunings.find(x => x.id === e.target.value); if (t) changeStrings(t.strings); }}
+                value={effTunings.find(t => t.strings.join('') === curStrings.join(''))?.id || ''}
+                onChange={e => { const t = effTunings.find(x => x.id === e.target.value); if (t) changeStrings(t.strings); }}
                 className="h-7 px-1.5 rounded-md bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-label-12 text-[var(--ds-gray-1000)] outline-none"
               >
-                {!tunings.some(t => t.strings.join('') === curStrings.join('')) && <option value="">Custom</option>}
-                {tunings.filter(t => t.strings.length === curStrings.length).map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                {!effTunings.some(t => t.strings.join('') === curStrings.join('')) && <option value="">Custom</option>}
+                {effTunings.filter(t => t.strings.length === curStrings.length).map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
               </select>
             </Group>
           )}
