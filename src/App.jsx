@@ -1303,6 +1303,7 @@ export default function App() {
           title: 'Edit a past setlist?',
           description: "This setlist's date has already passed. Editing changes the record of a service that already happened. Continue?",
           confirmLabel: 'Edit anyway',
+          variant: 'brand',
         });
         if (!ok) return;
       }
