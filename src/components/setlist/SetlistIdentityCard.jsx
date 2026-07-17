@@ -40,6 +40,19 @@ const FieldLabel = ({ children }) => (
   <span className="text-label-11 font-semibold text-[var(--ds-gray-600)] shrink-0">{children}</span>
 );
 
+// A labelled field with a fixed-height header row so every field's label and
+// control line up on a shared baseline, whether or not the field carries a
+// trailing action (like a "clear" link). `action` sits at the right of the row.
+const Field = ({ label, action, className = '', children }) => (
+  <div className={`flex flex-col gap-1 ${className}`}>
+    <div className="h-4 flex items-center justify-between gap-2">
+      <FieldLabel>{label}</FieldLabel>
+      {action}
+    </div>
+    {children}
+  </div>
+);
+
 // Opt these plain text fields out of password managers (Dashlane/1Password/
 // LastPass) — they're setlist metadata, not credentials.
 const NO_AUTOFILL = { autoComplete: 'off', 'data-1p-ignore': true, 'data-lpignore': 'true', 'data-form-type': 'other' };
@@ -94,42 +107,40 @@ export default function SetlistIdentityCard({
         <StatusToggle status={status} onChange={onStatusChange} />
       </div>
 
-      {/* Row: Date · Start · End · Location — each field stacks its label on top
-          of the control; items-end keeps every control on the same baseline. */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex flex-col gap-1 flex-1 min-w-[150px]">
-          <FieldLabel>Date</FieldLabel>
-          <DatePicker value={date} onChange={onDateChange} firstDayOfWeek={firstDayOfWeek} className="w-full" />
-        </div>
-        <div className="flex flex-col gap-1 w-[118px]">
-          <FieldLabel>Start</FieldLabel>
-          <TimePicker value={time} onChange={onTimeChange} clockFormat={clockFormat} className="w-full" />
-        </div>
+      {/* Date · Start · End · Location on a uniform grid (2-up on phones, one
+          row on desktop) so every field shares the same gap. Label on top. */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-start">
+        <Field label="Date" className="col-span-2 sm:col-span-1">
+          <DatePicker value={date} onChange={onDateChange} firstDayOfWeek={firstDayOfWeek} hideIcon className="w-full" />
+        </Field>
+        <Field label="Start">
+          <TimePicker value={time} onChange={onTimeChange} clockFormat={clockFormat} hideIcon className="w-full" />
+        </Field>
         {endTime ? (
-          <div className="flex flex-col gap-1 w-[118px]">
-            <div className="flex items-center justify-between">
-              <FieldLabel>End</FieldLabel>
-              <button type="button" onClick={() => onEndTimeChange?.('')} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Clear end time">clear</button>
-            </div>
-            <TimePicker value={endTime} onChange={onEndTimeChange} clockFormat={clockFormat} className="w-full" />
-          </div>
+          <Field
+            label="End"
+            action={<button type="button" onClick={() => onEndTimeChange?.('')} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Clear end time">clear</button>}
+          >
+            <TimePicker value={endTime} onChange={onEndTimeChange} clockFormat={clockFormat} hideIcon className="w-full" />
+          </Field>
         ) : (
-          <Button size="sm" variant="secondary" onClick={() => onEndTimeChange?.('12:00')} className="text-[var(--ds-gray-700)]">+ End time</Button>
+          <Field label={<span className="invisible" aria-hidden="true">End</span>}>
+            <Button size="sm" variant="secondary" onClick={() => onEndTimeChange?.('12:00')} className="w-full h-10 justify-center text-[var(--ds-gray-700)]">+ End time</Button>
+          </Field>
         )}
-        <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
-          <FieldLabel>Location</FieldLabel>
+        <Field label="Location" className="col-span-2 sm:col-span-1">
           <Input {...NO_AUTOFILL} value={location} onChange={e => onLocationChange(e.target.value)} placeholder="e.g. The Blue Note" maxLength={120} className="w-full" />
-        </div>
+        </Field>
       </div>
 
-      {/* Row: Rehearsal (+ optional Service), label on top */}
+      {/* Rehearsal (+ optional Service), label on top */}
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
           <FieldLabel>Rehearsal</FieldLabel>
           {rehearsalDate ? (
             <div className="flex flex-wrap items-center gap-2">
-              <DatePicker value={rehearsalDate} onChange={onRehearsalDateChange} firstDayOfWeek={firstDayOfWeek} className="w-[172px]" />
-              <TimePicker value={rehearsalTime || '19:00'} onChange={onRehearsalTimeChange} clockFormat={clockFormat} className="w-[118px]" />
+              <DatePicker value={rehearsalDate} onChange={onRehearsalDateChange} firstDayOfWeek={firstDayOfWeek} hideIcon className="w-[172px]" />
+              <TimePicker value={rehearsalTime || '19:00'} onChange={onRehearsalTimeChange} clockFormat={clockFormat} hideIcon className="w-[110px]" />
               <Input {...NO_AUTOFILL} value={rehearsalLocation || ''} onChange={e => onRehearsalLocationChange?.(e.target.value)} placeholder="Location (if different)" maxLength={120} className="w-[200px]" />
               <button type="button" onClick={() => onRehearsalDateChange('')} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Remove rehearsal">clear</button>
             </div>
