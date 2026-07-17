@@ -99,7 +99,7 @@ export default function SetlistViewerCards({
     </IconButton>
   );
 
-  const container = 'mx-auto w-full px-3 sm:px-7';
+  const container = 'mx-auto w-full max-w-[1040px] px-3 sm:px-6';
   const notes = setlist.notes;
 
   // Shared identity pieces (desktop + mobile hub-style header reuse these).

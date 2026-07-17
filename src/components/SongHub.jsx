@@ -222,7 +222,7 @@ export default function SongHub({
 
   return (
     <div className="h-full flex flex-col bg-[var(--ds-background-200)]" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-      <div className="flex-1 min-h-0 flex flex-col w-full mx-auto px-3 pt-3 pb-3 gap-3 sm:px-7 sm:pt-6 sm:pb-5 sm:gap-4">
+      <div className="flex-1 min-h-0 flex flex-col w-full max-w-[1040px] mx-auto px-3 pt-3 pb-3 gap-3 sm:px-6 sm:pt-6 sm:pb-5 sm:gap-4">
 
         {/* ════ HUB CARD ════ */}
         <div
