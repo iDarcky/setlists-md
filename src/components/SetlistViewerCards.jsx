@@ -140,7 +140,7 @@ export default function SetlistViewerCards({
   // a labelled button; mobile a compact icon button.
   const practiceIconPath = <><circle cx="12" cy="12" r="9" /><path d="M10 8.5 16 12l-6 3.5v-7z" /></>;
   const practiceBtnDesktop = onPractice && (
-    <Button variant="secondary" size="sm" onClick={() => practiceAt(0)}>
+    <Button variant="secondary" size="sm" onClick={() => practiceAt(0)} className="min-w-[108px] justify-center">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">{practiceIconPath}</svg>
       Practice
     </Button>
@@ -292,7 +292,7 @@ export default function SetlistViewerCards({
             </div>
             <div className="shrink-0 ml-auto flex items-center gap-2">
               {!hidePlay && onPlay && (
-                <Button variant="brand" size="sm" onClick={onPlay}>
+                <Button variant="brand" size="sm" onClick={onPlay} className="min-w-[108px] justify-center">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="mr-1.5"><path d="M8 5v14l11-7z" /></svg>
                   Play Live
                 </Button>
