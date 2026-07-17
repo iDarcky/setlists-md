@@ -104,8 +104,9 @@ export default function SetlistViewerCards({
       if (!song) { lines.push(`${n}. (missing song)`); continue; }
       const key = transposeKey(song.key, item.transpose);
       const capo = (item.capo || 0) > 0 ? ` (capo ${item.capo})` : '';
-      const artist = song.artist ? ` — ${song.artist}` : '';
-      lines.push(`${n}. ${song.title}${artist} · ${key}${capo}`);
+      const tempo = item.tempo ?? song.tempo;
+      const extra = [tempo ? `${tempo} bpm` : null, song.time].filter(Boolean).join(' · ');
+      lines.push(`${n}. ${song.title} · ${key}${capo}${extra ? ` · ${extra}` : ''}`);
     }
     try {
       await navigator.clipboard.writeText(lines.join('\n'));
@@ -117,7 +118,7 @@ export default function SetlistViewerCards({
 
   const menuItems = [
     { label: 'Copy set order', onClick: copySetOrder, show: setlist.items.length > 0 },
-    { label: 'Export / Download', onClick: () => setExportOpen(true), show: true },
+    { label: 'Export', onClick: () => setExportOpen(true), show: true },
     { label: 'Share', onClick: () => setShareOpen(true), show: canShare },
     { label: isFullscreen ? 'Exit fullscreen' : 'Fullscreen', onClick: onToggleFullscreen, show: !!onToggleFullscreen },
     { label: 'Delete', onClick: handleDelete, show: canEdit && !!onDelete, danger: true },
@@ -211,7 +212,6 @@ export default function SetlistViewerCards({
                     <span className="flex-1 min-w-0 text-label-13 font-semibold text-[var(--color-brand-text)] truncate">{item.label || 'Break'}</span>
                     {(item.duration || 0) > 0 && <span className="text-label-12 text-[var(--color-brand-text)] tabular-nums shrink-0">{item.duration} min</span>}
                   </div>
-                  {item.note && <p className="text-copy-12 text-[var(--color-brand-text)] opacity-80 m-0 mt-1.5 pl-6 whitespace-pre-wrap break-words">{item.note}</p>}
                 </div>
               );
             }
@@ -450,12 +450,12 @@ function MoreMenu({ items, open, setOpen }) {
         <>
           <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} aria-hidden="true" />
           <div
-            className="fixed z-[61] min-w-[150px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-xl py-1.5"
+            className="fixed z-[61] w-[160px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-xl py-1.5"
             style={{ top: pos.top, right: pos.right }}
           >
             {items.map(item => (
               <button key={item.label} type="button" onClick={() => { setOpen(false); item.onClick?.(); }}
-                className={`w-full text-left px-3.5 py-2 text-copy-14 cursor-pointer border-none bg-transparent hover:bg-[var(--ds-gray-100)] ${item.danger ? 'text-[var(--ds-red-700)]' : 'text-[var(--ds-gray-1000)]'}`}>
+                className={`w-full text-left px-3 py-1.5 text-copy-13 cursor-pointer border-none bg-transparent hover:bg-[var(--ds-gray-100)] ${item.danger ? 'text-[var(--ds-red-700)]' : 'text-[var(--ds-gray-1000)]'}`}>
                 {item.label}
               </button>
             ))}

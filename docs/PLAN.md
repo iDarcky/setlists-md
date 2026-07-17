@@ -232,6 +232,14 @@ Open, actionable items. Cross-cutting concerns at the end.
   editor's card layout (identity/edit/preview cards, calmer header, mobile collapse).
   Pair with the overview redesign above — P1.
 - **Clear song-search after selecting** a song (+ an "x") so adding several is quick — P2.
+- **Location → Google Maps (easy tier)** — P2. Places Autocomplete on the
+  Location field (type a venue → real suggestions; store the name + optional
+  lat/lng); in the viewer the location becomes a tappable link that opens the
+  native maps app (`https://maps.google.com/?q=…` / `geo:` — no SDK, no embed).
+  Needs a billing-enabled Places API key + a CSP allowance for the Places
+  endpoint + a privacy note. _Skip the embedded map tier — Maps JS/Embed API
+  conflicts with our strict CSP (external script + tiles), same issue that
+  killed Spotify playback._
 - Rework Set order/Band + relocate Draft/Ready — P2.
 - Song/break **card redesign** — P2 · _Q: what feels off?_
 - Rework **Recommended-next engine** (weigh more song-detail fields) — P2.
