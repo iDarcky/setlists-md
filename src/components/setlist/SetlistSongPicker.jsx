@@ -42,6 +42,16 @@ export default function SetlistSongPicker({ songs, currentItems, onAddSong }) {
             <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
           </svg>
         }
+        suffix={search ? (
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            aria-label="Clear search"
+            className="-mr-1 w-5 h-5 grid place-items-center rounded-full text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-100)] cursor-pointer"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </button>
+        ) : null}
       />
 
       <div className="max-h-[420px] overflow-y-auto -mx-1">
