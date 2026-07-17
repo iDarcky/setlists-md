@@ -86,6 +86,7 @@ export default function SetlistViewerCards({
   };
 
   const menuItems = [
+    { label: 'Practice this set', onClick: () => onPractice?.(0), show: !!onPractice },
     { label: 'Export / Download', onClick: () => setExportOpen(true), show: true },
     { label: 'Share', onClick: () => setShareOpen(true), show: canShare },
     { label: isFullscreen ? 'Exit fullscreen' : 'Fullscreen', onClick: onToggleFullscreen, show: !!onToggleFullscreen },
@@ -98,8 +99,64 @@ export default function SetlistViewerCards({
     </IconButton>
   );
 
-  const container = 'mx-auto w-full max-w-[1040px] px-3 sm:px-6';
+  const container = 'mx-auto w-full px-3 sm:px-7';
   const notes = setlist.notes;
+
+  // Shared identity pieces (desktop + mobile hub-style header reuse these).
+  const statusBadge = setlist.status === 'ready' ? (
+    <span className="text-label-11 font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand-text)', border: '1px solid var(--color-brand-border)' }}>Ready</span>
+  ) : setlist.status === 'draft' ? (
+    <span className="text-label-11 font-semibold px-2 py-0.5 rounded-full shrink-0 bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)]">Draft</span>
+  ) : null;
+
+  const metaBlock = (
+    <>
+      <div className="mt-1.5 text-label-12 sm:text-copy-13 text-[var(--ds-gray-700)] flex flex-col gap-0.5">
+        <span>{[dateStr, timeRange].filter(Boolean).join(' · ')}</span>
+        <span className="tabular-nums">{[setlist.location, `${songCount} song${songCount !== 1 ? 's' : ''}`, `${anyEstimated ? '~' : ''}${formatTotalDuration(totalSeconds)}`].filter(Boolean).join(' · ')}</span>
+      </div>
+      {(rehearsalStr || setlist.service || (team && setlist.updatedByName) || setlist.tags?.length) ? (
+        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+          {rehearsalStr && (
+            <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-label-11 font-medium" style={{ background: 'var(--ds-purple-100, rgba(124,92,191,0.16))', color: 'var(--ds-purple-900, #b69cf0)' }}>
+              <span className="opacity-70">Rehearsal</span>{rehearsalStr}
+            </span>
+          )}
+          {setlist.service && (
+            <span className="inline-flex items-center h-6 px-2 rounded-md text-label-11" style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand-text)' }}>{setlist.service}</span>
+          )}
+          {team && setlist.updatedByName && (
+            <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-[var(--border-1)] bg-[var(--ds-background-100)] text-label-11 text-[var(--ds-gray-1000)]">
+              <span className="text-[10px] text-[var(--ds-gray-500)]">Edited by</span>{setlist.updatedByName}
+            </span>
+          )}
+          {setlist.tags?.map(t => <Chip key={t}>{t}</Chip>)}
+        </div>
+      ) : null}
+    </>
+  );
+
+  const editIconBtn = onEdit && iconBtn('Edit', onEdit, <><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></>);
+  const moreMenuEl = menuItems.length > 0 && (
+    <div className="relative">
+      <IconButton variant="ghost" size="sm" onClick={() => setMenuOpen(o => !o)} aria-label="More actions" aria-expanded={menuOpen}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg>
+      </IconButton>
+      {menuOpen && (
+        <>
+          <div className="fixed inset-0 z-[60]" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+          <div className="absolute right-0 top-full mt-1 z-[61] min-w-[184px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-xl py-1.5">
+            {menuItems.map(item => (
+              <button key={item.label} type="button" onClick={() => { setMenuOpen(false); item.onClick?.(); }}
+                className={`w-full text-left px-3.5 py-2 text-copy-14 cursor-pointer border-none bg-transparent hover:bg-[var(--ds-gray-100)] ${item.danger ? 'text-[var(--ds-red-700)]' : 'text-[var(--ds-gray-1000)]'}`}>
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
 
   // ── Shared pieces (reused by the desktop two-card layout + the mobile tabs) ──
   const setCardEl = (
@@ -224,90 +281,55 @@ export default function SetlistViewerCards({
     <div className={embedded ? 'h-full overflow-y-auto overflow-x-hidden material-page pb-10' : 'material-page pb-10'}>
       <div className={`${container} pt-4 sm:pt-6`}>
 
-        {/* ── Identity card (pinned) ── */}
+        {/* ── Identity card (pinned) — mirrors the Song Hub header ── */}
         <div
-          className="sticky top-0 z-20 rounded-2xl border border-[var(--border-1)] p-4 sm:p-5 flex flex-col gap-3 sm:gap-4"
+          className="sticky top-0 z-20 rounded-2xl border border-[var(--border-1)] overflow-hidden"
           style={{ background: 'linear-gradient(180deg, var(--ds-background-100), var(--ds-background-200))', boxShadow: '0 6px 20px rgba(0,0,0,0.18)' }}
         >
-          {/* Title row: back (mobile) · title/meta · actions */}
-          <div className="flex items-start gap-2 sm:gap-4">
-            {onBack && (
-              <IconButton variant="ghost" size="sm" className="sm:hidden -ml-1.5 shrink-0" onClick={onBack} aria-label="Back">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-              </IconButton>
-            )}
+          {/* Desktop / tablet (≥ sm) */}
+          <div className="hidden sm:flex gap-4 px-5 pt-5 pb-4 items-start">
             <div className="flex-1 min-w-0">
-              <div className="flex items-start gap-2 flex-wrap">
-                <h1 className="text-heading-20 sm:text-heading-24 font-semibold text-[var(--text-1)] m-0 leading-tight">{setlist.name || 'Untitled Setlist'}</h1>
-                {setlist.status === 'ready' ? (
-                  <span className="text-label-11 font-semibold px-2 py-0.5 rounded-full mt-0.5" style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand-text)', border: '1px solid var(--color-brand-border)' }}>Ready</span>
-                ) : setlist.status === 'draft' ? (
-                  <span className="text-label-11 font-semibold px-2 py-0.5 rounded-full mt-0.5 bg-[var(--ds-amber-100)] text-[var(--ds-amber-900)]">Draft</span>
-                ) : null}
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="m-0 truncate font-[650] leading-[1.1] tracking-[-0.01em] text-[28px] text-[var(--text-1)]">{setlist.name || 'Untitled Setlist'}</h1>
+                {statusBadge}
               </div>
-              {/* Meta on tidy lines — avoids orphaned separators when it wraps
-                  on a phone: date · time on line 1, location · count on line 2. */}
-              <div className="mt-1.5 text-copy-13 text-[var(--ds-gray-700)] flex flex-col gap-0.5">
-                <span>{[dateStr, timeRange].filter(Boolean).join(' · ')}</span>
-                <span className="tabular-nums">{[setlist.location, `${songCount} song${songCount !== 1 ? 's' : ''}`, `${anyEstimated ? '~' : ''}${formatTotalDuration(totalSeconds)}`].filter(Boolean).join(' · ')}</span>
-              </div>
-              {(rehearsalStr || setlist.service || (team && setlist.updatedByName) || setlist.tags?.length) ? (
-                <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-                  {rehearsalStr && (
-                    <span className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-label-12 font-medium" style={{ background: 'var(--ds-purple-100, rgba(124,92,191,0.16))', color: 'var(--ds-purple-900, #b69cf0)' }}>
-                      <span className="opacity-70">Rehearsal</span>{rehearsalStr}
-                    </span>
-                  )}
-                  {setlist.service && (
-                    <span className="inline-flex items-center h-7 px-2.5 rounded-lg text-label-12" style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand-text)' }}>{setlist.service}</span>
-                  )}
-                  {team && setlist.updatedByName && (
-                    <span className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-[var(--border-1)] bg-[var(--ds-background-100)] text-label-12 text-[var(--ds-gray-1000)]">
-                      <span className="text-[11px] text-[var(--ds-gray-500)]">Edited by</span>{setlist.updatedByName}
-                    </span>
-                  )}
-                  {setlist.tags?.map(t => <Chip key={t}>{t}</Chip>)}
-                </div>
-              ) : null}
+              {metaBlock}
             </div>
-
-            {/* Actions: Play Live + Practice (desktop only) · Edit · ⋯ (Export/Share live in ⋯) */}
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="shrink-0 ml-auto flex items-center gap-2">
               {!hidePlay && onPlay && (
-                <Button variant="brand" size="sm" className="hidden sm:inline-flex" onClick={onPlay}>
+                <Button variant="brand" size="sm" onClick={onPlay}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="mr-1.5"><path d="M8 5v14l11-7z" /></svg>
                   Play Live
                 </Button>
               )}
-              {onPractice && <Button variant="secondary" size="sm" className="hidden sm:inline-flex" onClick={() => onPractice(0)}>Practice</Button>}
-              {onEdit && iconBtn('Edit', onEdit, <><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></>)}
-              {menuItems.length > 0 && (
-                <div className="relative">
-                  <IconButton variant="ghost" size="sm" onClick={() => setMenuOpen(o => !o)} aria-label="More actions" aria-expanded={menuOpen}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg>
-                  </IconButton>
-                  {menuOpen && (
-                    <>
-                      <div className="fixed inset-0 z-[60]" onClick={() => setMenuOpen(false)} aria-hidden="true" />
-                      <div className="absolute right-0 top-full mt-1 z-[61] min-w-[184px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-xl py-1.5">
-                        {menuItems.map(item => (
-                          <button key={item.label} type="button" onClick={() => { setMenuOpen(false); item.onClick?.(); }}
-                            className={`w-full text-left px-3.5 py-2 text-copy-14 cursor-pointer border-none bg-transparent hover:bg-[var(--ds-gray-100)] ${item.danger ? 'text-[var(--ds-red-700)]' : 'text-[var(--ds-gray-1000)]'}`}>
-                            {item.label}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
+              {editIconBtn}
+              {moreMenuEl}
+              {onBack && (
+                <IconButton variant="ghost" size="sm" onClick={onBack} aria-label="Close">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                </IconButton>
               )}
             </div>
           </div>
 
-          {/* Mobile primary action — Practice (Play Live is the FAB below). */}
-          {onPractice && (
-            <Button variant="secondary" size="md" className="sm:hidden w-full justify-center" onClick={() => onPractice(0)}>Practice this set</Button>
-          )}
+          {/* Mobile (< sm) — back · title · edit · ⋯, then details below */}
+          <div className="sm:hidden p-3">
+            <div className="flex items-center gap-1.5">
+              {onBack && (
+                <button type="button" onClick={onBack} aria-label="Back"
+                  className="shrink-0 -ml-1.5 w-10 grid place-items-center rounded-xl text-[var(--text-1)] active:bg-[var(--ds-gray-100)] cursor-pointer" style={{ WebkitTapHighlightColor: 'transparent' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+              )}
+              <div className="min-w-0 flex-1 flex items-center gap-1.5">
+                <h1 className="m-0 truncate font-bold leading-tight text-heading-17 text-[var(--text-1)]">{setlist.name || 'Untitled Setlist'}</h1>
+                {statusBadge}
+              </div>
+              {editIconBtn}
+              {moreMenuEl}
+            </div>
+            {metaBlock}
+          </div>
         </div>
 
         {/* ── Desktop / tablet: Set order beside a Who's playing + Notes card.
