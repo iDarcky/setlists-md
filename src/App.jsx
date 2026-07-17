@@ -1289,8 +1289,24 @@ export default function App() {
     if (isTeamReadOnly) return;
     navigate('editor', { song, arrangementId });
   };
-  const goSetlistBuild = (sl = null) => {
+  const goSetlistBuild = async (sl = null) => {
     if (isTeamReadOnly) return;
+    // Warn before editing a setlist whose date has already passed — editing it
+    // rewrites the record of a service that already happened. Only for existing
+    // setlists (has an id); creating a new one for any date is fine.
+    if (sl?.id && sl?.date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const d = new Date(sl.date + 'T00:00:00');
+      if (!Number.isNaN(d.getTime()) && d < today) {
+        const ok = await confirm({
+          title: 'Edit a past setlist?',
+          description: "This setlist's date has already passed. Editing changes the record of a service that already happened. Continue?",
+          confirmLabel: 'Edit anyway',
+        });
+        if (!ok) return;
+      }
+    }
     navigate('setlist-build', { setlist: sl });
   };
   const goSetlistView = (sl) => {
