@@ -151,6 +151,8 @@ const PORTABLE_PREF_KEYS = [
   'rosterOverscheduleWarning',
   'rosterStreakLimit',
   'tableColumns',
+  'serviceReminders',
+  'rehearsalReminders',
 ];
 
 function extractPortablePrefs(s) {

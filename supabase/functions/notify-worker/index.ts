@@ -72,24 +72,66 @@ async function generateMaybeNudges(supa: SupabaseClient): Promise<number> {
 
 // Rostered users only: anyone on the setlist's roster who hasn't said "no".
 const ROSTERED = ['available', 'maybe', 'pending'];
+const REMINDER_WINDOW_DAYS = 8;      // cover up to "1 week before"
+const CATCHUP_MS = 6 * 3600 * 1000;  // don't resurrect reminders whose time long passed
+const DEFAULT_REMINDERS = [1440];    // 24h before
 
-// Day-before/day-of reminder generator, shared by service + rehearsal. Fires
-// once per schedule row per type (dedup on metadata.schedule_id), so a member
-// gets at most one service reminder and one rehearsal reminder per setlist.
+// Minutes that `tz` is ahead of UTC at `date` (handles DST).
+function tzOffsetMinutes(date: Date, tz: string): number {
+  try {
+    const dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+    const p: Record<string, string> = {};
+    for (const part of dtf.formatToParts(date)) p[part.type] = part.value;
+    const asUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+    return (asUTC - date.getTime()) / 60000;
+  } catch { return 0; }
+}
+
+// UTC epoch ms for a naive wall-clock date+time interpreted in `tz`.
+function eventUtcMs(dateStr: string, timeStr: string | null, tz: string): number {
+  const naive = Date.parse(`${dateStr}T${(timeStr || '09:00')}:00Z`);
+  if (Number.isNaN(naive)) return NaN;
+  return naive - tzOffsetMinutes(new Date(naive), tz) * 60000;
+}
+
+function reminderPhrase(mins: number): string {
+  if (mins <= 0) return 'now';
+  if (mins < 60) return `in ${mins} min`;
+  if (mins < 1440) { const h = Math.round(mins / 60); return `in ${h} hour${h === 1 ? '' : 's'}`; }
+  const d = Math.round(mins / 1440);
+  if (d === 1) return 'tomorrow';
+  if (d === 7) return 'in a week';
+  return `in ${d} days`;
+}
+
+// Reminder generator, shared by service + rehearsal. Each ROSTERED user is
+// reminded at their OWN chosen lead-times (settings.serviceReminders /
+// rehearsalReminders, synced into profiles.preferences; default 24h). The
+// event moment is the setlist's naive date+time read in the team's timezone.
+// Deduped per (schedule, offset), so each reminder fires at most once.
 async function generateReminders(
   supa: SupabaseClient,
-  opts: { dateField: 'date' | 'rehearsalDate'; type: string; label: string },
+  opts: { dateField: 'date' | 'rehearsalDate'; timeField: 'time' | 'rehearsalTime'; type: string; prefKey: string; label: string },
 ): Promise<number> {
-  const today = new Date().toISOString().slice(0, 10);
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const now = Date.now();
+  const today = new Date(now).toISOString().slice(0, 10);
+  const horizon = new Date(now + REMINDER_WINDOW_DAYS * 86400000).toISOString().slice(0, 10);
 
   const { data: setlists, error: slErr } = await supa
     .from('team_setlists')
     .select('id, team_id, name, content')
     .gte(`content->>${opts.dateField}`, today)
-    .lte(`content->>${opts.dateField}`, tomorrow);
+    .lte(`content->>${opts.dateField}`, horizon);
   if (slErr) throw new Error(slErr.message);
   if (!setlists?.length) return 0;
+
+  const teamIds = [...new Set(setlists.map((s) => s.team_id))];
+  const { data: teams } = await supa.from('teams').select('id, timezone').in('id', teamIds);
+  const tzByTeam = new Map((teams || []).map((t) => [t.id, t.timezone || 'Europe/Bucharest']));
 
   const { data: rostered, error: schErr } = await supa
     .from('team_schedules')
@@ -99,31 +141,46 @@ async function generateReminders(
   if (schErr) throw new Error(schErr.message);
   if (!rostered?.length) return 0;
 
+  const userIds = [...new Set(rostered.map((r) => r.user_id))];
+  const { data: profiles } = await supa.from('profiles').select('id, preferences').in('id', userIds);
+  const remindersByUser = new Map<string, number[]>();
+  for (const p of profiles || []) {
+    const raw = p.preferences?.[opts.prefKey];
+    remindersByUser.set(p.id, Array.isArray(raw) ? raw : DEFAULT_REMINDERS);
+  }
+
+  // One row per (schedule, offset).
   const { data: existing } = await supa
     .from('team_notifications')
     .select('metadata')
     .eq('type', opts.type)
     .in('metadata->>schedule_id', rostered.map((m) => m.id));
-  const done = new Set((existing || []).map((r) => r.metadata?.schedule_id));
+  const sent = new Set((existing || []).map((r) => `${r.metadata?.schedule_id}:${r.metadata?.offset}`));
 
-  const rows = rostered
-    .filter((m) => !done.has(m.id))
-    .map((m) => {
-      const sl = setlists.find((s) => s.id === m.setlist_id);
+  const rows: Record<string, unknown>[] = [];
+  for (const m of rostered) {
+    const sl = setlists.find((s) => s.id === m.setlist_id);
+    const d = sl?.content?.[opts.dateField];
+    if (!d) continue;
+    const tz = tzByTeam.get(m.team_id) || 'Europe/Bucharest';
+    const eventMs = eventUtcMs(d, sl?.content?.[opts.timeField] || null, tz);
+    if (Number.isNaN(eventMs) || now >= eventMs) continue; // already happened / invalid
+    const offsets = remindersByUser.get(m.user_id) ?? DEFAULT_REMINDERS;
+    for (const off of offsets) {
+      if (sent.has(`${m.id}:${off}`)) continue;
+      const fireAt = eventMs - off * 60000;
+      if (now < fireAt || now - fireAt > CATCHUP_MS) continue; // not yet, or too late
       const name = sl?.content?.name || sl?.name || 'A service';
-      const d = sl?.content?.[opts.dateField];
-      const when = d === today ? 'today' : 'tomorrow';
-      const time = opts.dateField === 'rehearsalDate' ? sl?.content?.rehearsalTime : sl?.content?.time;
-      const at = time ? ` at ${time}` : '';
-      return {
+      rows.push({
         team_id: m.team_id,
         user_id: m.user_id,
         type: opts.type,
-        title: opts.dateField === 'rehearsalDate' ? `Rehearsal ${when}` : `Playing ${when}`,
-        body: `${opts.label} for "${name}" is ${when}${at} — you're on the roster.`,
-        metadata: { schedule_id: m.id, setlist_id: m.setlist_id, date: d, role: m.role },
-      };
-    });
+        title: `${opts.label} ${reminderPhrase(off)}`,
+        body: `"${name}" ${reminderPhrase(off)} — you're on the roster.`,
+        metadata: { schedule_id: m.id, setlist_id: m.setlist_id, date: d, offset: off, role: m.role },
+      });
+    }
+  }
   if (rows.length) {
     const { error } = await supa.from('team_notifications').insert(rows);
     if (error) throw new Error(error.message);
@@ -203,13 +260,13 @@ Deno.serve(async (_req: Request) => {
   }
 
   try {
-    result.serviceReminders = await generateReminders(supa, { dateField: 'date', type: 'schedule_reminder', label: 'Service' });
+    result.serviceReminders = await generateReminders(supa, { dateField: 'date', timeField: 'time', type: 'schedule_reminder', prefKey: 'serviceReminders', label: 'Service' });
   } catch (err) {
     errors.push(`service-reminders: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   try {
-    result.rehearsalReminders = await generateReminders(supa, { dateField: 'rehearsalDate', type: 'rehearsal_reminder', label: 'Rehearsal' });
+    result.rehearsalReminders = await generateReminders(supa, { dateField: 'rehearsalDate', timeField: 'rehearsalTime', type: 'rehearsal_reminder', prefKey: 'rehearsalReminders', label: 'Rehearsal' });
   } catch (err) {
     errors.push(`rehearsal-reminders: ${err instanceof Error ? err.message : String(err)}`);
   }

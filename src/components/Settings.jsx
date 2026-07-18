@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import Account from './Account';
 import { useAuth } from '../auth/useAuth';
 import { usePushSubscription } from '../push/usePushSubscription';
+import { REMINDER_OPTIONS, normalizeReminders } from '../lib/reminderOffsets';
 import { useEntitlement } from '../hooks/useEntitlement';
 import { Input } from './ui/Input';
 import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '../billing/checkout';
@@ -734,7 +735,55 @@ function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, a
 // Per-device Web Push opt-in. Push is per-device (each phone/tablet subscribes
 // separately) and requires being signed in. On iOS the app must be installed to
 // the Home Screen first; the browser reports supported=false until then.
-function NotificationsPanel({ isSignedIn, onRequestSignIn }) {
+// Google-Calendar-style list of reminder lead-times. Each row is a dropdown;
+// duplicates are disabled in the picker so a person can't add "1 day" twice.
+function ReminderEditor({ label, value, onChange }) {
+  const list = normalizeReminders(value);
+  const used = new Set(list);
+  const addOne = () => {
+    const next = REMINDER_OPTIONS.find(o => !used.has(o.value));
+    if (next) onChange(normalizeReminders([...list, next.value]));
+  };
+  const setAt = (idx, v) => onChange(normalizeReminders(list.map((m, i) => (i === idx ? v : m))));
+  const removeAt = (idx) => onChange(list.filter((_, i) => i !== idx));
+  const canAdd = list.length < REMINDER_OPTIONS.length;
+
+  return (
+    <div className="p-4 flex flex-col gap-2">
+      <span className="text-copy-14 text-[var(--modes-text)] font-medium">{label}</span>
+      {list.length === 0 && (
+        <span className="text-copy-13 text-[var(--modes-text-muted)]">No reminders — you won't be alerted for these.</span>
+      )}
+      {list.map((mins, idx) => (
+        <div key={idx} className="flex items-center gap-2">
+          <select
+            value={mins}
+            onChange={(e) => setAt(idx, Number(e.target.value))}
+            className="flex-1 h-10 px-3 rounded-lg bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] text-copy-14 text-[var(--modes-text)]"
+          >
+            {REMINDER_OPTIONS.map(o => (
+              <option key={o.value} value={o.value} disabled={o.value !== mins && used.has(o.value)}>{o.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => removeAt(idx)}
+            aria-label="Remove reminder"
+            className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-transparent border border-[var(--modes-border)] cursor-pointer text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      ))}
+      {canAdd && (
+        <button onClick={addOne} className="self-start text-copy-13 font-medium text-[var(--color-brand)] bg-transparent border-none cursor-pointer px-0 py-1">
+          + Add a reminder
+        </button>
+      )}
+    </div>
+  );
+}
+
+function NotificationsPanel({ isSignedIn, onRequestSignIn, settings, onUpdate }) {
   const push = usePushSubscription();
 
   if (!isSignedIn) {
@@ -760,7 +809,7 @@ function NotificationsPanel({ isSignedIn, onRequestSignIn }) {
     action = <Button variant="brand" size="sm" loading={push.busy} onClick={() => push.enable()}>Turn on</Button>;
   }
 
-  return (
+  const pushSection = (
     <Section
       title="Notifications"
       subtitle="Get a lock-screen alert when you're scheduled, when someone declines, or for a rehearsal reminder. This is per-device — turn it on wherever you want alerts."
@@ -783,6 +832,27 @@ function NotificationsPanel({ isSignedIn, onRequestSignIn }) {
         </Row>
       )}
     </Section>
+  );
+
+  return (
+    <div className="flex flex-col gap-6">
+      {pushSection}
+      <Section
+        title="Reminders"
+        subtitle="When to remind you before a service or rehearsal you're on. Add as many as you like — these apply to every setlist."
+      >
+        <ReminderEditor
+          label="Services"
+          value={settings?.serviceReminders}
+          onChange={(v) => onUpdate?.('serviceReminders', v)}
+        />
+        <ReminderEditor
+          label="Rehearsals"
+          value={settings?.rehearsalReminders}
+          onChange={(v) => onUpdate?.('rehearsalReminders', v)}
+        />
+      </Section>
+    </div>
   );
 }
 
@@ -1275,7 +1345,7 @@ export default function Settings({
           />
         );
       case 'notifications':
-        return <NotificationsPanel isSignedIn={isSignedIn} onRequestSignIn={onRequestSignIn} />;
+        return <NotificationsPanel isSignedIn={isSignedIn} onRequestSignIn={onRequestSignIn} settings={settings} onUpdate={update} />;
       case 'services':
         return <ServicesPanel setlists={setlists} onRemapService={onRemapService} />;
       case 'plan':
