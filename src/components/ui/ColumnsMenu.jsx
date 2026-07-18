@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { cn } from '../../lib/utils';
 import {
   availableColumns,
   resolveVisibleColumns,
@@ -35,6 +36,7 @@ const GripIcon = () => (
 export default function ColumnsMenu({ table, context = {}, saved, onChange, orderable = false }) {
   const [open, setOpen] = useState(false);
   const [dragId, setDragId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -59,11 +61,12 @@ export default function ColumnsMenu({ table, context = {}, saved, onChange, orde
   const canReorder = orderable && orderedVisible.length > 1;
 
   const onDrop = (targetId) => {
-    if (!dragId || dragId === targetId) { setDragId(null); return; }
+    if (!dragId || dragId === targetId) { setDragId(null); setDragOverId(null); return; }
     const ids = orderedVisible.map(c => c.id);
     const toIndex = ids.indexOf(targetId);
     onChange(reorderColumns(table, saved, context, dragId, toIndex));
     setDragId(null);
+    setDragOverId(null);
   };
 
   return (
@@ -93,10 +96,14 @@ export default function ColumnsMenu({ table, context = {}, saved, onChange, orde
                   key={col.id}
                   draggable={canReorder && isVisible}
                   onDragStart={() => canReorder && setDragId(col.id)}
-                  onDragOver={(e) => { if (canReorder && dragId) e.preventDefault(); }}
+                  onDragOver={(e) => { if (canReorder && dragId) { e.preventDefault(); if (dragOverId !== col.id) setDragOverId(col.id); } }}
                   onDrop={() => canReorder && onDrop(col.id)}
-                  onDragEnd={() => setDragId(null)}
-                  className={`flex items-center gap-2 px-4 py-2 hover:bg-[var(--bg-2)] transition-colors ${dragId === col.id ? 'opacity-40' : ''}`}
+                  onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+                  className={cn(
+                    'flex items-center gap-2 px-4 py-2 hover:bg-[var(--bg-2)] transition-colors relative',
+                    dragId === col.id && 'opacity-40',
+                    canReorder && dragId && dragOverId === col.id && dragId !== col.id && 'before:content-[""] before:absolute before:left-2 before:right-2 before:top-0 before:h-0.5 before:rounded-full before:bg-[var(--color-brand)]',
+                  )}
                 >
                   {canReorder && (
                     <span className="text-[var(--text-2)] cursor-grab active:cursor-grabbing shrink-0" title="Drag to reorder"><GripIcon /></span>

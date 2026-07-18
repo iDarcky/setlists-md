@@ -11,7 +11,9 @@ import ColumnsMenu from './ui/ColumnsMenu';
 import SetlistFilters from './setlist/SetlistFilters';
 import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
 import { useResizablePane } from '../lib/useResizablePane';
-import { usePersistentView } from '../lib/usePersistentView';
+import { usePersistentView, usePersistentJSON } from '../lib/usePersistentView';
+import CardFieldsMenu from './ui/CardFieldsMenu';
+import { resolveCardFields } from '../lib/cardFields';
 import { setlistStartMs, isSetlistUpcoming } from '../lib/setlistTime';
 import { searchSetlistsPlus, setlistDurationSeconds } from '../lib/libraryPlus';
 import { formatTotalDuration } from '../lib/duration';
@@ -201,6 +203,8 @@ export default function Setlists({
   const [bulkTagInput, setBulkTagInput] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
   const [galleryGroup, setGalleryGroup] = usePersistentView('setlists-md:setlists-groupby'); // null=auto | month | service
+  const [cardFieldsSaved, setCardFieldsSaved] = usePersistentJSON('setlists-md:setlists-card-fields');
+  const cardFields = useMemo(() => resolveCardFields('setlists', cardFieldsSaved), [cardFieldsSaved]);
   const fabRef = useRef(null);
   const bulkBarRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -209,13 +213,6 @@ export default function Setlists({
   const songMap = useMemo(() => new Map((songs || []).map(s => [s.id, s])), [songs]);
   const durationOf = (sl) => setlistDurationSeconds(sl, songMap);
   const durLabel = (sl) => { if (!plus) return null; const s = durationOf(sl); return s > 0 ? formatTotalDuration(s) : null; };
-  // Common plus-only props for the (non-compact) setlist cards. Library mode: a
-  // calm, browse-first card — title + date primary, then service + tags. No
-  // Play/Practice, song count, duration, previews, or status strip.
-  const cardPlusProps = (sl) => plus ? {
-    library: true,
-    serviceBadge: showService ? (sl.service || null) : null,
-  } : {};
 
   useEffect(() => {
     const handler = (e) => {
@@ -426,20 +423,23 @@ export default function Setlists({
   // mobile-only; on desktop it falls back to the card gallery.
   const autoView = advanced ? 'table' : 'gallery';
   const vm = viewMode ?? autoView;
-  // setlistsLibraryPlus removes the Table view on phones (Cards/Compact only).
-  const mobileTableAllowed = !plus;
+  // Table is desktop/tablet only — phones get Cards + Compact.
   const effectiveView = advanced
     ? (vm === 'compact' ? 'gallery' : vm)
-    : (!mobileTableAllowed && vm === 'table' ? 'gallery' : vm);
-  // Mobile full-table mode scrolls horizontally and drops the responsive column
-  // floors so the chosen columns all show.
+    : (vm === 'table' ? 'gallery' : vm);
   const mobileTable = !advanced && effectiveView === 'table';
   const colFloor = (cls) => (mobileTable ? '' : cls);
+  // Plus unifies the card gallery with the Songs list: divided rows (with a date
+  // badge) instead of standalone cards. Non-plus keeps the standalone Play cards.
+  const galleryVariant = plus ? 'row' : 'card';
+  const galleryListClass = plus
+    ? 'modes-card overflow-hidden divide-y divide-[var(--modes-border)]'
+    : 'flex flex-col gap-4';
 
   // Shared view switcher — Table / (Compact, mobile-only) / Cards.
   const renderSwitcher = (showCompact) => (
     <div className="flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
-      {(advanced || mobileTableAllowed) && (
+      {advanced && (
         <button onClick={() => setViewMode('table')} aria-label="Table view" title="Table view"
           className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
             effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
@@ -495,6 +495,10 @@ export default function Setlists({
     />
   ) : null;
 
+  const cardFieldsEl = plus && effectiveView !== 'table' ? (
+    <CardFieldsMenu kind="setlists" saved={cardFieldsSaved} onChange={setCardFieldsSaved} />
+  ) : null;
+
   // A single Templates toggle button (Status/When/Group now live in the filters
   // popover). Only shown when templates exist.
   const templatesToggleEl = plus && templates.length > 0 ? (
@@ -545,6 +549,18 @@ export default function Setlists({
     setSelected(prev => allIn ? prev.filter(id => !ids.includes(id)) : [...new Set([...prev, ...ids])]);
   };
   const clearSelection = () => setSelected([]);
+  // iOS-style card selection (plus) + shared card props.
+  const selectionActive = plus && !readOnly && selected.length > 0;
+  const enterSelect = (id) => setSelected(prev => prev.includes(id) ? prev : [...prev, id]);
+  const setlistCardPlus = (sl) => (plus ? {
+    fields: cardFields,
+    showPlay: false,
+    selectable: !readOnly,
+    selectActive: selectionActive,
+    isSelected: selectedSet.has(sl.id),
+    onToggleSelect: !readOnly ? () => toggleSelect(sl.id) : null,
+    onLongPress: !readOnly ? () => enterSelect(sl.id) : null,
+  } : {});
   const bulkDelete = () => {
     if (onDeleteSetlists) onDeleteSetlists(selected);
     else selected.forEach(id => onDeleteSetlist?.(id));
@@ -643,6 +659,7 @@ export default function Setlists({
           {renderSwitcher(false)}
 
           {columnsEl}
+          {cardFieldsEl}
 
           {!readOnly && (
             <div className="hidden lg:flex items-center gap-2 shrink-0">
@@ -673,6 +690,7 @@ export default function Setlists({
             {renderSwitcher(true)}
             {filtersEl}
             {columnsEl}
+            {cardFieldsEl}
             {templatesToggleEl}
           </div>
         )}
@@ -784,7 +802,7 @@ export default function Setlists({
                 </div>
                 <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
                   {upcoming.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...cardPlusProps(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
                   ))}
                 </div>
               </section>
@@ -797,7 +815,7 @@ export default function Setlists({
                 </div>
                 <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
                   {past.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...cardPlusProps(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
                   ))}
                 </div>
               </section>
@@ -811,9 +829,9 @@ export default function Setlists({
                   <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">{group.key}</h2>
                   <span className="text-label-12 text-[var(--modes-text-dim)]">{group.items.length}</span>
                 </div>
-                <div className="flex flex-col gap-4">
+                <div className={galleryListClass}>
                   {group.items.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...cardPlusProps(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} variant={galleryVariant} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
                   ))}
                 </div>
               </section>
@@ -827,9 +845,9 @@ export default function Setlists({
                   <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">Upcoming</h2>
                   <span className="text-label-12 text-[var(--modes-text-dim)]">{upcoming.length}</span>
                 </div>
-                <div className="flex flex-col gap-4">
+                <div className={galleryListClass}>
                   {upcoming.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...cardPlusProps(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} variant={galleryVariant} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
                   ))}
                 </div>
               </section>
@@ -840,9 +858,9 @@ export default function Setlists({
                   <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">Past</h2>
                   <span className="text-label-12 text-[var(--modes-text-dim)]">{past.length}</span>
                 </div>
-                <div className="flex flex-col gap-4">
+                <div className={galleryListClass}>
                   {past.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...cardPlusProps(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} variant={galleryVariant} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
                   ))}
                 </div>
               </section>
@@ -932,13 +950,13 @@ export default function Setlists({
 
       <input ref={fileInputRef} type="file" accept=".zip" onChange={(e) => { const file = e.target.files[0]; if (file) onImportSetlist?.(file); e.target.value = ''; }} className="hidden" />
 
-      {/* Bulk action bar — desktop + tablet. On touch tablets it must clear the
-          floating bottom nav, so lift it above the nav there. */}
-      {advanced && !readOnly && selected.length > 0 && (
+      {/* Bulk action bar — desktop + tablet, plus phones when setlistsLibraryPlus
+          multi-select is active (long-press a card). Lift above the bottom nav. */}
+      {!readOnly && selected.length > 0 && (advanced || plus) && (
         <div
           ref={bulkBarRef}
-          className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl"
-          style={isTablet ? { bottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' } : undefined}
+          className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl max-w-[calc(100vw-1rem)] flex-wrap justify-center"
+          style={(!advanced || isTablet) ? { bottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' } : undefined}
         >
           <span className="text-label-14 font-semibold text-[var(--ds-gray-1000)] whitespace-nowrap">{selected.length} selected</span>
           <span className="w-px h-5 bg-[var(--ds-gray-300)]" />

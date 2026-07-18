@@ -40,9 +40,8 @@ export default function LibraryFilters({
   activeCount = 0,
   onClearAll,
   // songsLibraryPlus: data-quality "issues" filters folded into the popover.
-  issues = null,        // { active: string[], dupOnly, dupCount, defs }
+  issues = null,        // { active: string[], defs }
   onToggleIssue,
-  onToggleDup,
 }) {
   const [open, setOpen] = useState(false);
   const [tagQuery, setTagQuery] = useState('');
@@ -90,7 +89,7 @@ export default function LibraryFilters({
       </button>
 
       {open && (
-        <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-[300px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden flex flex-col max-h-[70vh]">
+        <div className="absolute left-0 right-0 sm:left-auto sm:right-0 sm:w-[300px] top-full mt-2 rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden flex flex-col max-h-[70vh]">
           <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4">
             {issues && (
               <div className="flex flex-col gap-2">
@@ -101,9 +100,6 @@ export default function LibraryFilters({
                       {def.label}
                     </Chip>
                   ))}
-                  <Chip active={issues.dupOnly} onClick={() => onToggleDup?.()}>
-                    Duplicates{issues.dupCount > 0 ? <span className="opacity-50">{issues.dupCount}</span> : null}
-                  </Chip>
                 </div>
               </div>
             )}

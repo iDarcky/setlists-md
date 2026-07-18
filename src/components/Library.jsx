@@ -5,16 +5,17 @@ import { Button } from './ui/Button';
 import WorkspacePickerDialog from './ui/WorkspacePickerDialog';
 import { SearchBar } from './ui/SearchBar';
 import { cn } from '../lib/utils';
-import { searchSongs } from '../lib/search';
+import { searchSongs, normalizeText } from '../lib/search';
 import { buildFacetOptions, matchesFacets, countActiveFacets } from '../lib/songFacets';
 import LibraryFilters from './library/LibraryFilters';
 import { orderedVisibleColumns } from '../lib/tableColumns';
 import ColumnsMenu from './ui/ColumnsMenu';
+import CardFieldsMenu from './ui/CardFieldsMenu';
+import { resolveCardFields } from '../lib/cardFields';
 import { useIsDesktop, useIsTablet } from '../lib/useMediaQuery';
-import { usePersistentView } from '../lib/usePersistentView';
+import { usePersistentView, usePersistentJSON } from '../lib/usePersistentView';
 import {
   buildSongUsage,
-  duplicateTitleIds,
   DATA_QUALITY,
   matchesDataQuality,
   songColumnValue,
@@ -46,8 +47,9 @@ function formatUpdated(ts) {
 
 function getGroupKey(song, groupMode) {
   if (groupMode === 'title') {
-    const first = (song.title || '').trim()[0]?.toUpperCase();
-    return first && /[A-Z]/.test(first) ? first : '#';
+    // Fold accents so "Împărate" groups under I (not #); digits/symbols → #.
+    const first = normalizeText(song.title || '')[0];
+    return first && /[a-z]/.test(first) ? first.toUpperCase() : '#';
   }
   if (groupMode === 'artist') {
     return (song.artist || 'Unknown').trim();
@@ -378,9 +380,11 @@ export default function Library({
   const [bulkMenu, setBulkMenu] = useState(null); // 'setlist' | 'tags' | null
   const [bulkPicker, setBulkPicker] = useState(null); // 'copy' | 'move' | null — workspace modal
   // songsLibraryPlus state — data-quality "issues" filters (in the Filters popover).
-  const [dataQuality, setDataQuality] = useState([]);   // ['untagged','noKey','noTempo']
-  const [dupOnly, setDupOnly] = useState(false);         // duplicate-title filter
+  const [dataQuality, setDataQuality] = useState([]);   // ['untagged','noTempo']
   const [bulkTagInput, setBulkTagInput] = useState('');
+  // Per-device "what shows on cards" selection (Card + Compact views).
+  const [cardFieldsSaved, setCardFieldsSaved] = usePersistentJSON('setlists-md:songs-card-fields');
+  const cardFields = useMemo(() => resolveCardFields('songs', cardFieldsSaved), [cardFieldsSaved]);
 
   const fabRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -404,11 +408,10 @@ export default function Library({
       return { ...prev, [facetKey]: next };
     });
   };
-  const clearAllFilters = () => { setSelectedTags([]); setFacetSel({}); setDataQuality([]); setDupOnly(false); };
+  const clearAllFilters = () => { setSelectedTags([]); setFacetSel({}); setDataQuality([]); };
 
-  // Song usage across setlists + duplicate-title ids (songsLibraryPlus).
+  // Song usage across setlists (songsLibraryPlus — for the Setlists column/sort).
   const usage = useMemo(() => buildSongUsage(setlists), [setlists]);
-  const duplicateIds = useMemo(() => plus ? duplicateTitleIds(songs) : new Set(), [plus, songs]);
 
   // Customizable table columns (synced via settings.tableColumns). The plus
   // context unlocks the extra CCLI/Year/… columns + drag-reorder.
@@ -447,15 +450,12 @@ export default function Library({
     if (plus && dataQuality.length > 0) {
       result = result.filter(s => matchesDataQuality(s, dataQuality));
     }
-    if (plus && dupOnly) {
-      result = result.filter(s => duplicateIds.has(s.id));
-    }
     return searchSongs(result, deferredQuery);
-  }, [songs, deferredQuery, selectedTags, facetSel, activeFacetCount, plus, dataQuality, dupOnly, duplicateIds]);
+  }, [songs, deferredQuery, selectedTags, facetSel, activeFacetCount, plus, dataQuality]);
 
   // Reset pagination + selection when filter criteria change.
   const [prevFilterKey, setPrevFilterKey] = useState(null);
-  const filterKey = JSON.stringify([deferredQuery, selectedTags, facetSel, sortMode, sortAsc, dataQuality, dupOnly]);
+  const filterKey = JSON.stringify([deferredQuery, selectedTags, facetSel, sortMode, sortAsc, dataQuality]);
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey);
     setVisibleCount(INITIAL_VISIBLE);
@@ -541,20 +541,32 @@ export default function Library({
   // the card gallery.
   const autoView = advanced ? 'table' : 'gallery';
   const vm = viewMode ?? autoView;
+  // Table is desktop/tablet only — phones get Cards + Compact. A stored 'table'
+  // choice falls back to the card gallery on phones.
   const effectiveView = advanced
     ? (vm === 'compact' ? 'gallery' : vm)
-    : vm;
-  // The table always horizontally scrolls (so extra columns never overflow the
-  // card) and drops the responsive column floors so the chosen columns all show.
-  // On phones this is what makes the Table view usable.
-  const mobileTable = !advanced && effectiveView === 'table';
+    : (vm === 'table' ? 'gallery' : vm);
+  // Desktop table horizontally scrolls when the chosen columns overflow (plus).
+  const mobileTable = false;
   // In plus mode every table column is user-chosen, so never hide any by
   // breakpoint — the horizontal scroller carries them instead.
   const colFloor = (cls) => (plus ? '' : (mobileTable ? '' : cls));
   const rowPad = 'py-3.5';
-  // In the plus card view, once anything is selected a tap toggles selection
-  // instead of opening (multi-select mode).
+  // In the plus card/compact views, once anything is selected a tap toggles
+  // selection instead of opening (iOS-style multi-select mode).
   const selectionActive = plus && !readOnly && selected.length > 0;
+  const enterSelect = (id) => setSelected(prev => prev.includes(id) ? prev : [...prev, id]);
+  // Shared plus-card props for the gallery + compact SongCards.
+  const songCardPlus = (song) => (plus ? {
+    fields: cardFields,
+    songMapSettings: chartDefaults?.settings,
+    onEdit: onEditSong ? () => onEditSong(song) : null,
+    selectable: !readOnly,
+    selectActive: selectionActive,
+    isSelected: selectedSet.has(song.id),
+    onToggleSelect: !readOnly ? () => toggleSelect(song.id) : null,
+    onLongPress: !readOnly ? () => enterSelect(song.id) : null,
+  } : {});
   // A row tap opens the full Song Hub on every device. Desktop also keeps a
   // dedicated per-row button that opens the side-peek preview.
   const onRowActivate = openFull;
@@ -581,17 +593,18 @@ export default function Library({
               onChange={e => setQuery(e.target.value)}
             />
 
-            {/* View switcher — Table / Compact (mobile-only) / Cards. Table works
-                on phones too (it scrolls horizontally). */}
+            {/* View switcher — Table (desktop only) / Compact (mobile only) / Cards. */}
             <div className="flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
-              <button
-                onClick={() => setViewMode('table')}
-                aria-label="Table view" title="Table view"
-                className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
-                  effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
-              >
-                <TableViewIcon />
-              </button>
+              {advanced && (
+                <button
+                  onClick={() => setViewMode('table')}
+                  aria-label="Table view" title="Table view"
+                  className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
+                    effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
+                >
+                  <TableViewIcon />
+                </button>
+              )}
               <button
                 onClick={() => setViewMode('compact')}
                 aria-label="Compact list view" title="Compact list"
@@ -621,11 +634,10 @@ export default function Library({
               allTags={allTags}
               selectedTags={selectedTags}
               onToggleTag={toggleTag}
-              activeCount={selectedTags.length + activeFacetCount + (plus ? dataQuality.length + (dupOnly ? 1 : 0) : 0)}
+              activeCount={selectedTags.length + activeFacetCount + (plus ? dataQuality.length : 0)}
               onClearAll={clearAllFilters}
-              issues={plus ? { active: dataQuality, dupOnly, dupCount: duplicateIds.size, defs: DATA_QUALITY } : null}
+              issues={plus ? { active: dataQuality, defs: DATA_QUALITY } : null}
               onToggleIssue={(key) => setDataQuality(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])}
-              onToggleDup={() => setDupOnly(v => !v)}
             />
 
             {effectiveView === 'table' && onSetTableColumns && (
@@ -636,6 +648,10 @@ export default function Library({
                 onChange={(ids) => onSetTableColumns('library', ids)}
                 orderable={plus}
               />
+            )}
+
+            {plus && effectiveView !== 'table' && (
+              <CardFieldsMenu kind="songs" saved={cardFieldsSaved} onChange={setCardFieldsSaved} />
             )}
 
             {/* Import + New song (desktop) */}
@@ -679,7 +695,7 @@ export default function Library({
         {!loaded ? (
           <SkeletonRows />
         ) : filtered.length === 0 ? (
-          (query || selectedTags.length > 0 || activeFacetCount > 0 || dataQuality.length > 0 || dupOnly) ? (
+          (query || selectedTags.length > 0 || activeFacetCount > 0 || dataQuality.length > 0) ? (
             <div className="modes-card py-14 text-center flex flex-col items-center gap-3 border-dashed">
               <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">No songs matching your filters.</p>
             </div>
@@ -788,16 +804,27 @@ export default function Library({
             )}
           </div>
         ) : effectiveView === 'compact' ? (
-          <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
-            {flatRows.map(song => (
-              <SongCard
-                key={song.id}
-                song={song}
-                variant="compact"
-                highlight={deferredQuery}
-                selected={advanced && song.id === previewSongId}
-                onClick={() => onRowActivate(song)}
-              />
+          <div className="flex flex-col gap-8">
+            {sortedKeys.map(groupKey => (
+              <div key={groupKey} className="flex flex-col gap-3">
+                <div className="flex items-baseline gap-2 px-1">
+                  <h3 className="text-heading-18 font-bold text-[var(--modes-text)] m-0">{groupKey}</h3>
+                  <span className="text-label-12 text-[var(--modes-text-dim)]">{groups[groupKey].length}</span>
+                </div>
+                <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
+                  {groups[groupKey].map(song => (
+                    <SongCard
+                      key={song.id}
+                      song={song}
+                      variant="compact"
+                      highlight={deferredQuery}
+                      selected={advanced && song.id === previewSongId}
+                      onClick={() => onRowActivate(song)}
+                      {...songCardPlus(song)}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
             {hasMore && (
               <div ref={sentinelRef} className="py-5 text-center text-copy-12 text-[var(--modes-text-dim)]">
@@ -821,14 +848,8 @@ export default function Library({
                       variant="row"
                       showTags={true}
                       selected={advanced && song.id === previewSongId}
-                      onClick={() => (selectionActive ? toggleSelect(song.id) : onRowActivate(song))}
-                      songMap={plus ? (Array.isArray(defaultArrangement(song).structure) ? defaultArrangement(song).structure : []) : null}
-                      songMapSettings={plus ? chartDefaults?.settings : null}
-                      onEdit={plus && onEditSong ? () => onEditSong(song) : null}
-                      selectable={plus && !readOnly}
-                      selectActive={selectionActive}
-                      isSelected={selectedSet.has(song.id)}
-                      onToggleSelect={plus && !readOnly ? () => toggleSelect(song.id) : null}
+                      onClick={() => onRowActivate(song)}
+                      {...songCardPlus(song)}
                     />
                   ))}
                 </div>

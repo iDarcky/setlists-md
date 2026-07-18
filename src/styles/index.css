@@ -634,10 +634,12 @@
     color: var(--ds-gray-700);
   }
 
-  .hide-scrollbar {
+  .hide-scrollbar,
+  .no-scrollbar {
     scrollbar-width: none;
   }
-  .hide-scrollbar::-webkit-scrollbar {
+  .hide-scrollbar::-webkit-scrollbar,
+  .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
 

@@ -59,10 +59,6 @@ export const DATA_QUALITY = {
     label: 'Untagged',
     test: (s) => !(s.tags && s.tags.length),
   },
-  noKey: {
-    label: 'No key',
-    test: (s) => !defaultArrangement(s).key && !s.key,
-  },
   noTempo: {
     label: 'No tempo',
     test: (s) => {

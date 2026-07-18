@@ -82,7 +82,7 @@ export default function SetlistFilters({
       </button>
 
       {open && (
-        <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-[260px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden flex flex-col max-h-[70vh]">
+        <div className="absolute left-0 right-0 sm:left-auto sm:right-0 sm:w-[260px] top-full mt-2 rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden flex flex-col max-h-[70vh]">
           <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4">
             {plus && (
               <div className="flex flex-col gap-2">

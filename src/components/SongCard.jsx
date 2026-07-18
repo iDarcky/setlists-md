@@ -1,8 +1,10 @@
 import React from 'react';
 import { Card } from './ui/Card';
-import { cn } from '../lib/utils';
+import { cn, selectPad } from '../lib/utils';
 import Highlight from './ui/Highlight';
 import { StructureRibbon } from './StructureRibbon';
+import { SelectCircle } from './ui/SelectCircle';
+import { useLongPress } from '../lib/useLongPress';
 
 const EditGlyph = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -30,30 +32,47 @@ function formatRelativeTime(ts) {
 
 function SongCard({
   song, onClick, variant = 'card', showTags = false, selected = false, highlight,
-  // songsLibraryPlus 'row' extras — all optional so other callers are unaffected.
-  songMap = null, songMapSettings = null, onEdit = null,
-  selectable = false, selectActive = false, isSelected = false, onToggleSelect = null,
+  // Card/Compact display + selection (songsLibraryPlus). All optional so the
+  // other call sites (mobile search, etc.) are unaffected.
+  fields = null,            // Set of visible field ids; null = show the defaults
+  songMapSettings = null, onEdit = null,
+  selectable = false, selectActive = false, isSelected = false, onToggleSelect = null, onLongPress = null,
 }) {
   const arr = defaultArr(song);
   const songKey = arr?.key || song?.key || 'C';
   const songTempo = arr?.tempo ?? song?.tempo;
   const arrCount = Array.isArray(song?.arrangements) ? song.arrangements.length : 1;
+  const structure = Array.isArray(arr?.structure) ? arr.structure : [];
+
+  // Field visibility — when no explicit set is passed, fall back to the legacy
+  // behaviour (artist + key + tempo always; tags via showTags).
+  const has = (id) => (fields ? fields.has(id) : (id === 'artist' || id === 'key' || id === 'tempo' || (id === 'tags' && showTags)));
+
+  const lp = useLongPress(onLongPress);
+  const handleClick = (e) => {
+    if (lp.consumeClick()) return;             // a long-press already selected
+    if (selectActive) { onToggleSelect?.(); return; }
+    onClick?.(e);
+  };
+
   if (variant === 'compact') {
-    const tempo = arr?.tempo ?? song?.tempo;
     return (
       <div
-        onClick={onClick}
+        onClick={handleClick}
+        {...(onLongPress ? lp.bind : {})}
         className={cn(
-          'flex items-center justify-between gap-3 px-4 py-2.5 cursor-pointer transition-colors duration-150 hover:bg-[var(--bg-2)] active:bg-[var(--bg-2)]',
-          selected && 'bg-[var(--ds-teal-100)] hover:bg-[var(--ds-teal-100)]',
+          'group relative flex items-center justify-between gap-3 px-4 py-2.5 cursor-pointer transition-[background-color,padding] duration-150 hover:bg-[var(--bg-2)] active:bg-[var(--bg-2)]',
+          (selected || isSelected) && 'bg-[var(--ds-teal-100)] hover:bg-[var(--ds-teal-100)]',
+          selectPad(selectable, selectActive),
         )}
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
+        {selectable && <SelectCircle active={selectActive} selected={isSelected} onToggle={onToggleSelect} label={`Select ${song.title || 'song'}`} />}
         <div className="min-w-0 flex-1">
           <span className="block text-copy-15 font-medium text-[var(--text-1)] truncate">
             {highlight ? <Highlight text={song.title} query={highlight} /> : (song.title || 'Untitled')}
           </span>
-          {song.artist && (
+          {has('artist') && song.artist && (
             <span className="block text-label-12 text-[var(--text-2)] truncate">
               {highlight ? <Highlight text={song.artist} query={highlight} /> : song.artist}
             </span>
@@ -63,45 +82,33 @@ function SongCard({
           {arrCount > 1 && (
             <span className="text-label-11 text-[var(--text-2)] px-1.5 py-0.5 rounded border border-[var(--border-1)]">{arrCount}</span>
           )}
-          <span className="text-label-12-mono text-[var(--chord)] font-semibold">{songKey}</span>
-          {tempo && <span className="text-label-12-mono text-[var(--text-2)]">{tempo}</span>}
+          {has('key') && <span className="text-label-12-mono text-[var(--chord)] font-semibold">{songKey}</span>}
+          {has('tempo') && songTempo && <span className="text-label-12-mono text-[var(--text-2)]">{songTempo}</span>}
         </div>
       </div>
     );
   }
+
   if (variant === 'row') {
-    const hasMap = Array.isArray(songMap) && songMap.length > 0;
+    const hasMap = has('songMap') && structure.length > 0;
     return (
       <div
-        onClick={onClick}
+        onClick={handleClick}
+        {...(onLongPress ? lp.bind : {})}
         className={cn(
-          "group flex items-center justify-between px-5 py-4 cursor-pointer transition-[background-color,transform] duration-150 hover:bg-[var(--bg-2)] active:scale-[0.99]",
+          "group relative flex items-center justify-between px-5 py-4 cursor-pointer transition-[background-color,padding] duration-150 hover:bg-[var(--bg-2)]",
           (selected || isSelected) && "bg-[var(--ds-teal-100)] hover:bg-[var(--ds-teal-100)]",
+          selectPad(selectable, selectActive),
         )}
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
-        {/* Selection checkbox — shown in select mode or on hover (plus). */}
-        {selectable && (
-          <label
-            onClick={(e) => e.stopPropagation()}
-            className={cn('mr-3 shrink-0 flex items-center transition-opacity',
-              (selectActive || isSelected) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}
-          >
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => onToggleSelect?.()}
-              aria-label={`Select ${song.title || 'song'}`}
-              className="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer"
-            />
-          </label>
-        )}
+        {selectable && <SelectCircle active={selectActive} selected={isSelected} onToggle={onToggleSelect} label={`Select ${song.title || 'song'}`} />}
         <div className="flex flex-col gap-1 min-w-0 flex-1">
           <span className="text-heading-16 text-[var(--text-1)] truncate">
             {highlight ? <Highlight text={song.title} query={highlight} /> : song.title}
           </span>
           <div className="flex items-center gap-1.5 flex-wrap">
-            {song.artist && (
+            {has('artist') && song.artist && (
               <span className="text-copy-14 text-[var(--color-brand)] truncate">
                 {highlight ? <Highlight text={song.artist} query={highlight} /> : song.artist}
               </span>
@@ -111,7 +118,7 @@ function SongCard({
                 {arrCount} arrangements
               </span>
             )}
-            {showTags && song.tags?.length > 0 && song.tags.map(tag => (
+            {has('tags') && song.tags?.length > 0 && song.tags.map(tag => (
               <span
                 key={tag}
                 className="text-label-11 text-[var(--text-2)] px-2 py-0.5 rounded-md border border-[var(--border-1)] bg-[var(--bg-1)]"
@@ -120,11 +127,10 @@ function SongCard({
               </span>
             ))}
           </div>
-          {/* Section-code song map — a quiet structure glance (plus). */}
           {hasMap && (
-            <div className="mt-1 overflow-x-auto no-scrollbar max-w-full">
+            <div className="mt-1 max-w-full">
               <StructureRibbon
-                structure={songMap}
+                structure={structure}
                 compact
                 collapse
                 style="codes"
@@ -136,7 +142,7 @@ function SongCard({
             </div>
           )}
         </div>
-        {/* Quick edit — revealed on hover, hidden in select mode (plus). */}
+        {/* Quick edit — revealed on hover, hidden in select mode. */}
         {onEdit && !selectActive && (
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
@@ -146,48 +152,33 @@ function SongCard({
             <EditGlyph />
           </button>
         )}
-        <div className="flex flex-col items-end gap-1 ml-4 shrink-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-label-12-mono text-[var(--chord)] font-semibold">
-              {songKey}
-            </span>
-            <span className="text-[var(--text-2)] text-[12px] opacity-60">•</span>
-            <span className="text-label-12-mono text-[var(--text-2)]">
-              {songTempo ? `${songTempo} BPM` : 'No Tempo'}
-            </span>
+        {(has('key') || has('tempo') || has('updated')) && (
+          <div className="flex flex-col items-end gap-1 ml-4 shrink-0">
+            {(has('key') || has('tempo')) && (
+              <div className="flex items-center gap-1.5">
+                {has('key') && <span className="text-label-12-mono text-[var(--chord)] font-semibold">{songKey}</span>}
+                {has('key') && has('tempo') && <span className="text-[var(--text-2)] text-[12px] opacity-60">•</span>}
+                {has('tempo') && <span className="text-label-12-mono text-[var(--text-2)]">{songTempo ? `${songTempo} BPM` : 'No Tempo'}</span>}
+              </div>
+            )}
+            {has('updated') && song.updatedAt && (
+              <span className="text-label-12 text-[var(--text-2)]">{formatRelativeTime(song.updatedAt)}</span>
+            )}
           </div>
-          {song.updatedAt && (
-            <span className="text-label-12 text-[var(--text-2)]">
-              {formatRelativeTime(song.updatedAt)}
-            </span>
-          )}
-        </div>
+        )}
       </div>
     );
   }
 
   return (
-    <Card
-      onClick={onClick}
-      className="cursor-pointer flex flex-col gap-2"
-    >
-      <h3 className="text-heading-18 text-[var(--text-1)] m-0 leading-tight truncate">
-        {song.title}
-      </h3>
+    <Card onClick={onClick} className="cursor-pointer flex flex-col gap-2">
+      <h3 className="text-heading-18 text-[var(--text-1)] m-0 leading-tight truncate">{song.title}</h3>
       <div className="flex items-center gap-2">
-        <span className="text-label-12 text-[var(--text-2)] uppercase font-semibold">
-          {song.key || 'C'}
-        </span>
+        <span className="text-label-12 text-[var(--text-2)] uppercase font-semibold">{song.key || 'C'}</span>
         <span className="text-[var(--text-2)] text-[12px] opacity-60">•</span>
-        <span className="text-label-12 text-[var(--text-2)]">
-          {song.tempo ? `${song.tempo} BPM` : 'No Tempo'}
-        </span>
+        <span className="text-label-12 text-[var(--text-2)]">{song.tempo ? `${song.tempo} BPM` : 'No Tempo'}</span>
       </div>
-      {song.artist && (
-        <p className="text-copy-14 text-[var(--text-2)] mt-1 line-clamp-1">
-          {song.artist}
-        </p>
-      )}
+      {song.artist && <p className="text-copy-14 text-[var(--text-2)] mt-1 line-clamp-1">{song.artist}</p>}
     </Card>
   );
 }
