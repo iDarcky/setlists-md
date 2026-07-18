@@ -70,6 +70,10 @@ export default function MobileTopBar({
   onNewWorkspace,
   newWorkspaceLocked = false,
   supportContact,
+  // 'songs' | 'setlists' | 'all'. When scoped, the page's own list is the only
+  // result type (avoids duplicating the cross-search that already lives on the
+  // Dashboard). Driven by the *LibraryPlus Labs flags in App.
+  searchScope = 'all',
 }) {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
@@ -83,10 +87,10 @@ export default function MobileTopBar({
   const results = useMemo(() => {
     if (!q) return { songs: [], setlists: [] };
     return {
-      songs: searchSongs(songs, q, { limit: 6 }),
-      setlists: searchSetlists(setlists, q, { limit: 4 }),
+      songs: searchScope === 'setlists' ? [] : searchSongs(songs, q, { limit: searchScope === 'songs' ? 10 : 6 }),
+      setlists: searchScope === 'songs' ? [] : searchSetlists(setlists, q, { limit: searchScope === 'setlists' ? 8 : 4 }),
     };
-  }, [q, songs, setlists]);
+  }, [q, songs, setlists, searchScope]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -108,7 +112,9 @@ export default function MobileTopBar({
   }, []);
 
   const placeholder =
-    view === 'setlists' ? 'Search setlists & songs…'
+    searchScope === 'songs' ? 'Search songs…'
+    : searchScope === 'setlists' ? 'Search setlists…'
+    : view === 'setlists' ? 'Search setlists & songs…'
     : view === 'library' ? 'Search songs & setlists…'
     : 'Search library…';
 

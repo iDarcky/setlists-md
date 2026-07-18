@@ -13,6 +13,8 @@ import { useIsDesktop, useIsTablet, useIsLandscape } from '../lib/useMediaQuery'
 import { useResizablePane } from '../lib/useResizablePane';
 import { usePersistentView } from '../lib/usePersistentView';
 import { setlistStartMs, isSetlistUpcoming } from '../lib/setlistTime';
+import { searchSetlistsPlus, setlistDurationSeconds } from '../lib/libraryPlus';
+import { formatTotalDuration } from '../lib/duration';
 import { useEntitlement } from '../hooks/useEntitlement';
 import { useTeam } from '../auth/useTeam';
 import { useTeamSchedules } from '../hooks/useTeamSchedules';
@@ -107,6 +109,7 @@ function TableGroup({ title, count, rows, renderRow, readOnly, allChecked, onTog
               <th className="text-left px-5 py-3"><HeaderSort label="Name" modeKey="name" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>
               {show('date') && <th className="text-left px-5 py-3 w-[180px]"><HeaderSort label="Date" modeKey="date" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>}
               {show('songs') && <th className={cn('text-left px-5 py-3 w-[90px]', floor('hidden md:table-cell'))}><HeaderSort label="Songs" modeKey="songs" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>}
+              {show('duration') && <th className={cn('text-left px-5 py-3 w-[100px]', floor('hidden lg:table-cell'))}><HeaderSort label="Length" modeKey="duration" sortMode={sortMode} sortAsc={sortAsc} onSort={onSort} /></th>}
               {showSchedule && (
                 <>
                   {show('instr') && <th title="Instrumentalists scheduled" className={cn('text-left px-4 py-3 w-[80px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', floor('hidden lg:table-cell'))}>Instr.</th>}
@@ -153,6 +156,11 @@ export default function Setlists({
   onExportSetlistPdfFull,
   onDeleteSetlist,
   onDeleteSetlists,
+  plus = false,
+  onDuplicateSetlist,
+  onSaveAsTemplate,
+  onNewFromTemplate,
+  onTagSetlists,
   canEdit = true,
 }) {
   // Responsive shell — see Library.jsx for the breakpoint rationale.
@@ -181,12 +189,25 @@ export default function Setlists({
   const [selectedTags, setSelectedTags] = useState([]);
   // Persisted per device (localStorage); null = auto per-device default.
   const [viewMode, setViewMode] = usePersistentView('setlists-md:setlists-view'); // 'gallery' | 'compact' | 'table'
-  const [sortMode, setSortMode] = useState('date');   // 'name' | 'date' | 'songs'
+  const [sortMode, setSortMode] = useState('date');   // 'name' | 'date' | 'songs' | 'duration'
   const [sortAsc, setSortAsc] = useState(false);
   const [selected, setSelected] = useState([]);
   const [fabOpen, setFabOpen] = useState(false);
+  // setlistsLibraryPlus state.
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'draft' | 'ready'
+  const [dateFilter, setDateFilter] = useState('all');     // 'all' | 'week' | 'month'
+  const [bulkMenu, setBulkMenu] = useState(null);          // 'tags' | null
+  const [bulkTagInput, setBulkTagInput] = useState('');
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [galleryGroup, setGalleryGroup] = usePersistentView('setlists-md:setlists-groupby'); // null=auto | month | service
   const fabRef = useRef(null);
+  const bulkBarRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  // Song lookup + per-setlist total duration (setlistsLibraryPlus).
+  const songMap = useMemo(() => new Map((songs || []).map(s => [s.id, s])), [songs]);
+  const durationOf = (sl) => setlistDurationSeconds(sl, songMap);
+  const durLabel = (sl) => { if (!plus) return null; const s = durationOf(sl); return s > 0 ? formatTotalDuration(s) : null; };
 
   useEffect(() => {
     const handler = (e) => {
@@ -197,10 +218,17 @@ export default function Setlists({
   }, []);
 
   useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') setFabOpen(false); };
+    const handler = (e) => { if (e.key === 'Escape') { setFabOpen(false); setBulkMenu(null); } };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
+
+  useEffect(() => {
+    if (!bulkMenu) return;
+    const handler = (e) => { if (bulkBarRef.current && !bulkBarRef.current.contains(e.target)) setBulkMenu(null); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [bulkMenu]);
 
   // Distinct services across all setlists (church tier) — powers the filter.
   const serviceOptions = useMemo(
@@ -215,26 +243,55 @@ export default function Setlists({
   );
   const toggleTag = (tag) => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
 
+  // Templates (setlistsLibraryPlus) live in their own section, never in the
+  // normal Upcoming/Past lists.
+  const templates = useMemo(
+    () => plus ? setlists.filter(s => s.isTemplate) : [],
+    [plus, setlists],
+  );
+
+  // Captured once on mount (Date.now() is flagged impure if called in render).
+  const [nowTs] = useState(() => Date.now());
+
+  // Date-window predicate for the plus quick filters.
+  const inDateWindow = (sl, window) => {
+    if (window === 'all') return true;
+    if (!sl.date) return false;
+    const start = setlistStartMs(sl);
+    if (!start) return false;
+    const days = window === 'week' ? 7 : 31;
+    const now = nowTs;
+    const horizon = now + days * 86400000;
+    // Upcoming within the window (or anything today onward up to the horizon).
+    return start >= now - 86400000 && start <= horizon;
+  };
+
   const filtered = useMemo(() => {
     // Service + tag chips are orthogonal filters; apply them first, then run
     // the shared ultra-search over the text query.
     const scoped = setlists.filter(sl => {
+      if (plus && sl.isTemplate) return false; // templates have their own section
       if (showService && serviceFilter !== 'all' && (sl.service || '') !== serviceFilter) return false;
       if (selectedTags.length > 0 && !selectedTags.every(t => (sl.tags || []).includes(t))) return false;
+      if (plus && statusFilter !== 'all') {
+        const isDraft = sl.status === 'draft';
+        if (statusFilter === 'draft' && !isDraft) return false;
+        if (statusFilter === 'ready' && isDraft) return false;
+      }
+      if (plus && dateFilter !== 'all' && !inDateWindow(sl, dateFilter)) return false;
       return true;
     });
-    return searchSetlists(scoped, query);
-  }, [setlists, query, showService, serviceFilter, selectedTags]);
+    // Plus: also surface setlists that CONTAIN a matched song.
+    return plus ? searchSetlistsPlus(scoped, songs, query) : searchSetlists(scoped, query);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setlists, songs, query, showService, serviceFilter, selectedTags, plus, statusFilter, dateFilter, nowTs]);
 
   const [prevSelKey, setPrevSelKey] = useState(null);
-  const selKey = JSON.stringify([query, sortMode, sortAsc, serviceFilter, selectedTags]);
+  const selKey = JSON.stringify([query, sortMode, sortAsc, serviceFilter, selectedTags, statusFilter, dateFilter]);
   if (selKey !== prevSelKey) {
     setPrevSelKey(selKey);
     setSelected([]);
   }
-
-  // Captured once on mount (Date.now() is flagged impure if called in render).
-  const [nowTs] = useState(() => Date.now());
 
   // Per-setlist schedule counts (team workspaces only). Visible by default and
   // toggleable via the shared ColumnsMenu (Instr./Vocals/Sched. columns).
@@ -260,9 +317,10 @@ export default function Setlists({
   // Customizable table columns (synced via settings.tableColumns). Gated by the
   // workspace context so Service (church) / Schedule (team) only appear when
   // available.
+  const colCtx = useMemo(() => ({ showService, showSchedule, plus }), [showService, showSchedule, plus]);
   const columnVisible = useMemo(
-    () => resolveVisibleColumns('setlists', tableColumns, { showService, showSchedule }),
-    [tableColumns, showService, showSchedule],
+    () => resolveVisibleColumns('setlists', tableColumns, colCtx),
+    [tableColumns, colCtx],
   );
   const showCol = (id) => columnVisible.has(id);
 
@@ -280,19 +338,54 @@ export default function Setlists({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, nowTs]);
 
+  // Custom card-gallery grouping (setlistsLibraryPlus): by Month or Service,
+  // replacing the Upcoming/Past split. Returns an ordered [{ key, items }].
+  const customGroups = useMemo(() => {
+    if (!plus || !galleryGroup) return null;
+    const keyOf = (sl) => {
+      if (galleryGroup === 'service') return sl.service || 'No service';
+      // month
+      if (!sl.date) return 'No date';
+      const d = new Date(sl.date + 'T12:00:00');
+      if (isNaN(d)) return 'No date';
+      return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    };
+    const map = new Map();
+    for (const sl of filtered) {
+      const k = keyOf(sl);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(sl);
+    }
+    const CATCHALL = new Set(['No date', 'No service']);
+    const entries = [...map.entries()].map(([key, items]) => ({ key, items }));
+    entries.forEach(g => g.items.sort((a, b) => setlistStartMs(b) - setlistStartMs(a)));
+    entries.sort((a, b) => {
+      if (CATCHALL.has(a.key)) return 1;
+      if (CATCHALL.has(b.key)) return -1;
+      if (galleryGroup === 'service') return a.key.localeCompare(b.key);
+      // month: newest first by the first item's start
+      return (b.items[0] ? setlistStartMs(b.items[0]) : 0) - (a.items[0] ? setlistStartMs(a.items[0]) : 0);
+    });
+    return entries;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plus, galleryGroup, filtered, nowTs]);
+
   // Flat table rows
   const flatRows = useMemo(() => {
     const dir = sortAsc ? 1 : -1;
     const val = (s) =>
       sortMode === 'name' ? (s.name || '').toLowerCase() :
       sortMode === 'songs' ? songCount(s) :
+      sortMode === 'duration' ? durationOf(s) :
       (s.date || '');
     return [...filtered].sort((a, b) => {
       const av = val(a), bv = val(b);
       const cmp = av < bv ? -1 : av > bv ? 1 : 0;
       return cmp * dir;
     });
-  }, [filtered, sortMode, sortAsc]);
+  // durationOf is stable within a render (derived from songMap); intentionally omitted.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, sortMode, sortAsc, songMap]);
 
   // Table view splits the (sorted) rows into Upcoming / Past. For the default
   // Date sort each group gets its own natural order — upcoming soonest-first,
@@ -325,9 +418,11 @@ export default function Setlists({
   // mobile-only; on desktop it falls back to the card gallery.
   const autoView = advanced ? 'table' : 'gallery';
   const vm = viewMode ?? autoView;
+  // setlistsLibraryPlus removes the Table view on phones (Cards/Compact only).
+  const mobileTableAllowed = !plus;
   const effectiveView = advanced
     ? (vm === 'compact' ? 'gallery' : vm)
-    : vm;
+    : (!mobileTableAllowed && vm === 'table' ? 'gallery' : vm);
   // Mobile full-table mode scrolls horizontally and drops the responsive column
   // floors so the chosen columns all show.
   const mobileTable = !advanced && effectiveView === 'table';
@@ -336,11 +431,13 @@ export default function Setlists({
   // Shared view switcher — Table / (Compact, mobile-only) / Cards.
   const renderSwitcher = (showCompact) => (
     <div className="flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
-      <button onClick={() => setViewMode('table')} aria-label="Table view" title="Table view"
-        className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
-          effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
-        <TableViewIcon />
-      </button>
+      {(advanced || mobileTableAllowed) && (
+        <button onClick={() => setViewMode('table')} aria-label="Table view" title="Table view"
+          className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
+            effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
+          <TableViewIcon />
+        </button>
+      )}
       {showCompact && (
         <button onClick={() => setViewMode('compact')} aria-label="Compact list view" title="Compact list"
           className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
@@ -372,10 +469,102 @@ export default function Setlists({
   const columnsEl = effectiveView === 'table' && onSetTableColumns ? (
     <ColumnsMenu
       table="setlists"
-      context={{ showService, showSchedule }}
+      context={colCtx}
       saved={tableColumns}
       onChange={(ids) => onSetTableColumns('setlists', ids)}
+      orderable={plus}
     />
+  ) : null;
+
+  // Plus quick filters: Draft/Ready + This week/month.
+  const plusFiltersEl = plus ? (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {[
+        { key: 'all', label: 'All' },
+        { key: 'ready', label: 'Ready' },
+        { key: 'draft', label: 'Draft' },
+      ].map(opt => (
+        <button
+          key={opt.key}
+          onClick={() => setStatusFilter(opt.key)}
+          className={cn('px-3 py-1.5 rounded-full text-label-13 font-medium cursor-pointer border transition-colors',
+            statusFilter === opt.key ? 'bg-[var(--color-brand)] text-white border-transparent' : 'bg-transparent text-[var(--modes-text-muted)] border-[var(--modes-border)] hover:bg-[var(--modes-surface)]')}
+        >
+          {opt.label}
+        </button>
+      ))}
+      <span className="w-px h-5 bg-[var(--modes-border)] mx-0.5" />
+      {[
+        { key: 'week', label: 'This week' },
+        { key: 'month', label: 'This month' },
+      ].map(opt => (
+        <button
+          key={opt.key}
+          onClick={() => setDateFilter(dateFilter === opt.key ? 'all' : opt.key)}
+          className={cn('px-3 py-1.5 rounded-full text-label-13 font-medium cursor-pointer border transition-colors',
+            dateFilter === opt.key ? 'bg-[var(--color-brand)] text-white border-transparent' : 'bg-transparent text-[var(--modes-text-muted)] border-[var(--modes-border)] hover:bg-[var(--modes-surface)]')}
+        >
+          {opt.label}
+        </button>
+      ))}
+      {templates.length > 0 && (
+        <button
+          onClick={() => setShowTemplates(v => !v)}
+          className={cn('px-3 py-1.5 rounded-full text-label-13 font-medium cursor-pointer border transition-colors',
+            showTemplates ? 'bg-[var(--color-brand)] text-white border-transparent' : 'bg-transparent text-[var(--modes-text-muted)] border-[var(--modes-border)] hover:bg-[var(--modes-surface)]')}
+        >
+          Templates ({templates.length})
+        </button>
+      )}
+      {effectiveView === 'gallery' && (
+        <div className="flex items-center gap-1 ml-1 pl-2 border-l border-[var(--modes-border)]">
+          <span className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wide mr-0.5">Group</span>
+          {[
+            { key: null, label: 'Auto' },
+            { key: 'month', label: 'Month' },
+            ...(showService ? [{ key: 'service', label: 'Service' }] : []),
+          ].map(opt => (
+            <button
+              key={opt.label}
+              onClick={() => setGalleryGroup(opt.key)}
+              className={cn('px-2.5 py-1.5 rounded-full text-label-13 font-medium cursor-pointer border-none transition-colors',
+                (galleryGroup ?? null) === opt.key ? 'bg-[var(--ds-gray-100)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  // The Templates panel (setlistsLibraryPlus) — starting a fresh setlist from a
+  // saved template.
+  const templatesPanel = plus && showTemplates && templates.length > 0 ? (
+    <div className="modes-card p-4 mb-5">
+      <div className="flex items-baseline gap-2 mb-3">
+        <h2 className="text-heading-16 font-bold text-[var(--modes-text)] m-0">Templates</h2>
+        <span className="text-label-12 text-[var(--modes-text-dim)]">{templates.length}</span>
+      </div>
+      <div className="flex flex-col divide-y divide-[var(--modes-border)]">
+        {templates.map(tpl => (
+          <div key={tpl.id} className="flex items-center gap-3 py-2.5">
+            <div className="flex-1 min-w-0">
+              <div className="text-copy-15 font-semibold text-[var(--modes-text)] truncate">{tpl.name || 'Untitled template'}</div>
+              <div className="text-label-12 text-[var(--modes-text-dim)]">{songCount(tpl)} songs</div>
+            </div>
+            {onNewFromTemplate && !readOnly && (
+              <Button variant="brand" size="sm" onClick={() => onNewFromTemplate(tpl.id)}>Use</Button>
+            )}
+            {onDeleteSetlist && !readOnly && (
+              <button onClick={() => onDeleteSetlist(tpl.id)} aria-label="Delete template" title="Delete template" className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer border-none bg-transparent text-[var(--modes-text-dim)] hover:bg-[var(--ds-red-100)] hover:text-[var(--ds-red-700)] transition-colors">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   ) : null;
 
   // Selection
@@ -415,6 +604,9 @@ export default function Setlists({
             {sl.status === 'draft' && (
               <span className="shrink-0 text-label-11 font-semibold px-1.5 py-0.5 rounded bg-[var(--ds-amber-100)] text-[var(--ds-amber-1000)] border border-[var(--ds-amber-400)]">Draft</span>
             )}
+            {plus && !isUpcoming(sl) && (
+              <span className="shrink-0 text-label-11 font-semibold px-1.5 py-0.5 rounded bg-[var(--modes-surface-strong)] text-[var(--modes-text-dim)] border border-[var(--modes-border)]">Past</span>
+            )}
             {onSelectPreview && !isTablet && (
               <button onClick={(e) => openPeek(sl, e)} aria-label="Open in pane" title="Open in pane"
                 className="hidden lg:inline-flex ml-auto items-center justify-center w-7 h-7 rounded-md border-none bg-transparent text-[var(--modes-text-muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--modes-surface-strong)] hover:text-[var(--modes-text)] transition-all cursor-pointer">
@@ -425,6 +617,10 @@ export default function Setlists({
         </td>
         {showCol('date') && <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap">{formatDate(sl.date)}</td>}
         {showCol('songs') && <td className={cn('px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)]', colFloor('hidden md:table-cell'))}>{songCount(sl)}</td>}
+        {showCol('duration') && (() => {
+          const secs = durationOf(sl);
+          return <td className={cn('px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] tabular-nums whitespace-nowrap', colFloor('hidden lg:table-cell'))}>{secs > 0 ? formatTotalDuration(secs) : '—'}</td>;
+        })()}
         {showSchedule && (() => {
           const st = scheduleStats[sl.id] || { total: 0, instrumentalists: 0, vocalists: 0 };
           const cell = (n) => n > 0
@@ -495,6 +691,7 @@ export default function Setlists({
               )}
             </div>
           )}
+          {plusFiltersEl && <div className="w-full">{plusFiltersEl}</div>}
         </div>
       </div>
 
@@ -507,12 +704,14 @@ export default function Setlists({
             {renderSwitcher(true)}
             {filtersEl}
             {columnsEl}
+            {plusFiltersEl}
           </div>
         )}
+        {templatesPanel}
         {!loaded ? (
           <SkeletonRows />
         ) : filtered.length === 0 ? (
-          query ? (
+          (query || selectedTags.length > 0 || (showService && serviceFilter !== 'all') || statusFilter !== 'all' || dateFilter !== 'all') ? (
             <div className="modes-card py-14 text-center flex flex-col items-center gap-3 border-dashed">
               <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">No setlists matching your search.</p>
             </div>
@@ -585,7 +784,7 @@ export default function Setlists({
                 </div>
                 <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
                   {upcoming.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} />
+                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} />
                   ))}
                 </div>
               </section>
@@ -598,11 +797,27 @@ export default function Setlists({
                 </div>
                 <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
                   {past.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} />
+                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} />
                   ))}
                 </div>
               </section>
             )}
+          </div>
+        ) : customGroups ? (
+          <div className="flex flex-col gap-10">
+            {customGroups.map(group => (
+              <section key={group.key} className="flex flex-col gap-4">
+                <div className="flex items-baseline gap-2">
+                  <h2 className="text-heading-20 font-bold text-[var(--modes-text)] m-0">{group.key}</h2>
+                  <span className="text-label-12 text-[var(--modes-text-dim)]">{group.items.length}</span>
+                </div>
+                <div className="flex flex-col gap-4">
+                  {group.items.map(sl => (
+                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} />
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
         ) : (
           <div className="flex flex-col gap-10">
@@ -614,7 +829,7 @@ export default function Setlists({
                 </div>
                 <div className="flex flex-col gap-4">
                   {upcoming.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} />
+                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} />
                   ))}
                 </div>
               </section>
@@ -627,7 +842,7 @@ export default function Setlists({
                 </div>
                 <div className="flex flex-col gap-4">
                   {past.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} />
+                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} />
                   ))}
                 </div>
               </section>
@@ -721,11 +936,50 @@ export default function Setlists({
           floating bottom nav, so lift it above the nav there. */}
       {advanced && !readOnly && selected.length > 0 && (
         <div
+          ref={bulkBarRef}
           className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl"
           style={isTablet ? { bottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' } : undefined}
         >
           <span className="text-label-14 font-semibold text-[var(--ds-gray-1000)] whitespace-nowrap">{selected.length} selected</span>
           <span className="w-px h-5 bg-[var(--ds-gray-300)]" />
+
+          {plus && onTagSetlists && (
+            <div className="relative">
+              <button onClick={() => setBulkMenu(bulkMenu === 'tags' ? null : 'tags')} className="h-8 px-3 rounded-full text-label-14 font-medium cursor-pointer border-none bg-transparent text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-200)] transition-colors">Tags…</button>
+              {bulkMenu === 'tags' && (
+                <div className="absolute bottom-full mb-2 left-0 w-[260px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg p-3 flex flex-col gap-2">
+                  <form
+                    onSubmit={(e) => { e.preventDefault(); const t = bulkTagInput.trim(); if (t) { onTagSetlists(selected, { add: [t] }); setBulkTagInput(''); setBulkMenu(null); clearSelection(); } }}
+                    className="flex gap-2"
+                  >
+                    <input value={bulkTagInput} onChange={(e) => setBulkTagInput(e.target.value)} placeholder="Add a tag…" autoFocus
+                      className="flex-1 min-w-0 h-8 px-2.5 rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] text-label-14 text-[var(--ds-gray-1000)] outline-none focus:border-[var(--color-brand)]" />
+                    <button type="submit" className="h-8 px-3 rounded-lg text-label-14 font-medium cursor-pointer border-none bg-[var(--color-brand)] text-white">Add</button>
+                  </form>
+                  {allTags.length > 0 && (
+                    <div className="max-h-[160px] overflow-y-auto flex flex-col">
+                      <div className="text-label-11 uppercase tracking-wider text-[var(--ds-gray-600)] px-0.5 pb-1">Remove a tag</div>
+                      {allTags.map(t => (
+                        <button key={t} onClick={() => { onTagSetlists(selected, { remove: [t] }); setBulkMenu(null); clearSelection(); }} className="w-full text-left px-2 py-1.5 rounded-md cursor-pointer border-none bg-transparent text-label-14 text-[var(--ds-gray-900)] hover:bg-[var(--ds-red-100)] hover:text-[var(--ds-red-700)] transition-colors flex items-center gap-2">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {plus && onDuplicateSetlist && selected.length === 1 && (
+            <button onClick={() => { onDuplicateSetlist(selected[0]); clearSelection(); }} className="h-8 px-3 rounded-full text-label-14 font-medium cursor-pointer border-none bg-transparent text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-200)] transition-colors">Duplicate</button>
+          )}
+
+          {plus && onSaveAsTemplate && selected.length === 1 && (
+            <button onClick={() => { onSaveAsTemplate(selected[0]); clearSelection(); }} className="h-8 px-3 rounded-full text-label-14 font-medium cursor-pointer border-none bg-transparent text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-200)] transition-colors">Save as template</button>
+          )}
+
           {onDeleteSetlist && (
             <button onClick={bulkDelete} className="h-8 px-3 rounded-full text-label-14 font-medium cursor-pointer border-none bg-transparent text-[var(--ds-red-700)] hover:bg-[var(--ds-red-100)] transition-colors">Delete</button>
           )}

@@ -8,10 +8,18 @@ import { cn } from '../lib/utils';
 import { searchSongs } from '../lib/search';
 import { buildFacetOptions, matchesFacets, countActiveFacets } from '../lib/songFacets';
 import LibraryFilters from './library/LibraryFilters';
-import { resolveVisibleColumns } from '../lib/tableColumns';
+import { orderedVisibleColumns } from '../lib/tableColumns';
 import ColumnsMenu from './ui/ColumnsMenu';
 import { useIsDesktop, useIsTablet } from '../lib/useMediaQuery';
 import { usePersistentView } from '../lib/usePersistentView';
+import {
+  buildSongUsage,
+  duplicateTitleIds,
+  DATA_QUALITY,
+  matchesDataQuality,
+  songColumnValue,
+} from '../lib/libraryPlus';
+import { splitMulti } from '../lib/songFacets';
 
 const ChartView = lazy(() => import('./ChartView'));
 
@@ -36,57 +44,80 @@ function formatUpdated(ts) {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function getGroupKey(song, sortMode) {
-  if (sortMode === 'title') {
+function getGroupKey(song, groupMode) {
+  if (groupMode === 'title') {
     const first = (song.title || '').trim()[0]?.toUpperCase();
     return first && /[A-Z]/.test(first) ? first : '#';
   }
-  if (sortMode === 'artist') {
+  if (groupMode === 'artist') {
     return (song.artist || 'Unknown').trim();
   }
-  if (sortMode === 'key') {
+  if (groupMode === 'key') {
     return defaultArrangementKey(song).replace(/[#bmb]/g, '').toUpperCase();
+  }
+  if (groupMode === 'theme') {
+    const themes = splitMulti(song.themes, song.genres);
+    return themes[0] || 'No theme';
+  }
+  if (groupMode === 'year') {
+    return song.year ? String(song.year).trim() : 'No year';
   }
   return '#';
 }
 
-function groupAndSort(songs, sortMode, sortAsc) {
+function groupAndSort(songs, groupMode, sortAsc) {
   const groups = {};
   songs.forEach(song => {
-    const key = getGroupKey(song, sortMode);
+    const key = getGroupKey(song, groupMode);
     if (!groups[key]) groups[key] = [];
     groups[key].push(song);
   });
 
   const dir = sortAsc ? 1 : -1;
+  const CATCHALL = new Set(['#', 'No theme', 'No year', 'Unknown']);
 
   const sortedKeys = Object.keys(groups).sort((a, b) => {
-    if (a === '#') return 1;
-    if (b === '#') return -1;
-    if (sortMode === 'key') {
+    if (CATCHALL.has(a)) return 1;
+    if (CATCHALL.has(b)) return -1;
+    if (groupMode === 'key') {
       const order = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
       return (order.indexOf(a) - order.indexOf(b)) * dir;
+    }
+    if (groupMode === 'year') {
+      return (Number(b) - Number(a)) * dir; // newest first
     }
     return a.localeCompare(b) * dir;
   });
 
   sortedKeys.forEach(key => {
-    groups[key].sort((a, b) => a.title.localeCompare(b.title) * dir);
+    groups[key].sort((a, b) => (a.title || '').localeCompare(b.title || '') * dir);
   });
 
   return { groups, sortedKeys };
 }
 
-// Flat sort for the table view (no letter grouping).
-function flatSort(songs, sortMode, sortAsc) {
+// Flat sort for the table view (no letter grouping). Numeric modes (tempo /
+// year / updated / usage) compare as numbers; the rest fold to strings. Ties
+// break on title so the order is stable.
+function flatSort(songs, sortMode, sortAsc, usage) {
   const dir = sortAsc ? 1 : -1;
-  const val = (s) =>
+  const numeric = new Set(['tempo', 'year', 'updated', 'usage']);
+  const num = (s) =>
+    sortMode === 'tempo' ? (defaultArrangementTempo(s) ?? -1) :
+    sortMode === 'year' ? (Number(s.year) || -1) :
+    sortMode === 'updated' ? (s.updatedAt || 0) :
+    sortMode === 'usage' ? (usage?.get(s.id) || 0) :
+    0;
+  const str = (s) =>
     sortMode === 'artist' ? (s.artist || '') :
     sortMode === 'key' ? defaultArrangementKey(s) :
     (s.title || '');
   return [...songs].sort((a, b) => {
-    const cmp = val(a).localeCompare(val(b));
-    return (cmp !== 0 ? cmp : (a.title || '').localeCompare(b.title || '')) * dir;
+    let cmp;
+    if (numeric.has(sortMode)) cmp = num(a) - num(b);
+    else cmp = str(a).localeCompare(str(b));
+    if (cmp === 0) cmp = (a.title || '').localeCompare(b.title || '');
+    return cmp * dir;
   });
 }
 
@@ -173,6 +204,137 @@ function SortArrow({ asc }) {
   );
 }
 
+// A tiny pill list for the multi-value metadata columns (Themes/Language/…).
+function MiniTags({ values, max = 2 }) {
+  if (!values || values.length === 0) return <span className="text-[var(--modes-text-dim)]">—</span>;
+  const shown = values.slice(0, max);
+  const rest = values.length - shown.length;
+  return (
+    <div className="flex flex-wrap gap-1 items-center">
+      {shown.map(v => (
+        <span key={v} className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface)] text-[var(--modes-text-muted)] border border-[var(--modes-border)] whitespace-nowrap">{v}</span>
+      ))}
+      {rest > 0 && <span className="text-label-12 text-[var(--modes-text-dim)]">+{rest}</span>}
+    </div>
+  );
+}
+
+// Row-density segmented control (songsLibraryPlus, table view).
+function DensityToggle({ density, onChange }) {
+  return (
+    <div className="hidden sm:flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden" title="Row density">
+      {[
+        { key: 'comfortable', label: 'Cozy' },
+        { key: 'compact', label: 'Dense' },
+      ].map(opt => (
+        <button
+          key={opt.key}
+          onClick={() => onChange(opt.key)}
+          className={cn('h-9 px-3 text-label-13 font-medium cursor-pointer border-none transition-colors',
+            density === opt.key ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Group-by picker for the card gallery (songsLibraryPlus). null = follow sort.
+function GroupByControl({ value, onChange }) {
+  const OPTIONS = [
+    { key: null, label: 'Auto' },
+    { key: 'key', label: 'Key' },
+    { key: 'artist', label: 'Artist' },
+    { key: 'theme', label: 'Theme' },
+    { key: 'year', label: 'Year' },
+  ];
+  return (
+    <div className="flex items-center gap-1 ml-1 pl-2 border-l border-[var(--modes-border)]">
+      <span className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wide mr-0.5">Group</span>
+      {OPTIONS.map(opt => (
+        <button
+          key={opt.label}
+          onClick={() => onChange(opt.key)}
+          className={cn('px-3 py-1.5 rounded-full text-label-13 font-medium cursor-pointer border-none transition-colors',
+            (value ?? null) === opt.key ? 'bg-[var(--ds-gray-100)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Per-column render config for the Songs table. `sortKey` (when set) makes the
+// header a sort toggle; `floor` is the responsive-visibility class applied on
+// desktop (dropped in mobile-table mode). The Name column is rendered
+// separately (always first). Extra ids beyond artist/key/tags/tempo/updated are
+// unlocked by the songsLibraryPlus flag.
+const LIB_COL = {
+  artist:       { header: 'Artist', sortKey: 'artist', width: 'w-[26%]', floor: 'hidden md:table-cell' },
+  key:          { header: 'Key', sortKey: 'key', width: 'w-[72px]' },
+  tempo:        { header: 'Tempo', sortKey: 'tempo', width: 'w-[90px]', floor: 'hidden lg:table-cell' },
+  usage:        { header: 'Setlists', sortKey: 'usage', width: 'w-[92px]', floor: 'hidden lg:table-cell' },
+  tags:         { header: 'Tags', width: 'w-[200px]', floor: 'hidden lg:table-cell' },
+  ccli:         { header: 'CCLI', width: 'w-[112px]', floor: 'hidden lg:table-cell' },
+  year:         { header: 'Year', sortKey: 'year', width: 'w-[74px]', floor: 'hidden lg:table-cell' },
+  capo:         { header: 'Capo', width: 'w-[64px]', floor: 'hidden xl:table-cell' },
+  duration:     { header: 'Length', width: 'w-[84px]', floor: 'hidden xl:table-cell' },
+  arrangements: { header: 'Arr.', width: 'w-[64px]', floor: 'hidden xl:table-cell' },
+  themes:       { header: 'Themes', width: 'w-[190px]', floor: 'hidden xl:table-cell' },
+  language:     { header: 'Language', width: 'w-[120px]', floor: 'hidden xl:table-cell' },
+  scripture:    { header: 'Scripture', width: 'w-[150px]', floor: 'hidden xl:table-cell' },
+  updated:      { header: 'Updated', sortKey: 'updated', width: 'w-[130px]', floor: 'hidden xl:table-cell' },
+};
+
+// Cell content for a Songs-table column id.
+function songCellContent(id, song, usage) {
+  switch (id) {
+    case 'artist': return <span className="text-copy-14 text-[var(--modes-text-muted)] truncate">{song.artist}</span>;
+    case 'key': return <KeyChip value={defaultArrangementKey(song)} />;
+    case 'tempo': return <span className="text-copy-14 text-[var(--modes-text-muted)] tabular-nums">{defaultArrangementTempo(song) || '—'}</span>;
+    case 'usage': {
+      const n = usage?.get(song.id) || 0;
+      return n > 0
+        ? <span className="text-copy-14 text-[var(--modes-text)] tabular-nums">{n}</span>
+        : <span className="text-copy-14 text-[var(--modes-text-dim)]">—</span>;
+    }
+    case 'tags': return (
+      <div className="flex flex-wrap gap-1">
+        {(song.tags || []).slice(0, 3).map(t => (
+          <span key={t} className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface)] text-[var(--modes-text-muted)] border border-[var(--modes-border)]">{t}</span>
+        ))}
+      </div>
+    );
+    case 'ccli': {
+      const v = songColumnValue(song, 'ccli');
+      return v ? <span className="text-copy-13 font-mono text-[var(--modes-text-muted)] truncate">{v}</span> : <span className="text-[var(--modes-text-dim)]">—</span>;
+    }
+    case 'year': {
+      const v = songColumnValue(song, 'year');
+      return v ? <span className="text-copy-14 text-[var(--modes-text-muted)] tabular-nums">{v}</span> : <span className="text-[var(--modes-text-dim)]">—</span>;
+    }
+    case 'capo': {
+      const v = songColumnValue(song, 'capo');
+      return v ? <span className="text-copy-14 text-[var(--modes-text-muted)] tabular-nums">{v}</span> : <span className="text-[var(--modes-text-dim)]">—</span>;
+    }
+    case 'duration': {
+      const v = songColumnValue(song, 'duration');
+      return v ? <span className="text-copy-14 text-[var(--modes-text-muted)] tabular-nums">{v}</span> : <span className="text-[var(--modes-text-dim)]">—</span>;
+    }
+    case 'arrangements': {
+      const n = songColumnValue(song, 'arrangements');
+      return <span className="text-copy-14 text-[var(--modes-text-muted)] tabular-nums">{n}</span>;
+    }
+    case 'themes': return <MiniTags values={songColumnValue(song, 'themes')} />;
+    case 'language': return <MiniTags values={songColumnValue(song, 'language')} max={2} />;
+    case 'scripture': return <MiniTags values={songColumnValue(song, 'scripture')} max={1} />;
+    case 'updated': return <span className="text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap">{formatUpdated(song.updatedAt)}</span>;
+    default: return null;
+  }
+}
+
 export default function Library({
   songs,
   loaded = true,
@@ -194,9 +356,11 @@ export default function Library({
   onMoveSongs,
   onCopySongs,
   onAddSongsToSetlist,
+  onTagSongs,
   tableColumns,
   onSetTableColumns,
   chartMoveCopy,
+  plus = false,
 }) {
   // Responsive shell. Touch tablets (pointer: coarse) get the two-pane master-
   // detail; true desktops (fine pointer) keep the Phase 1 overlay peek.
@@ -230,8 +394,14 @@ export default function Library({
   const [facetSel, setFacetSel] = useState({}); // { facetKey: string[] }
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [selected, setSelected] = useState([]);
-  const [bulkMenu, setBulkMenu] = useState(null); // 'setlist' | 'copy' | 'move' | null
+  const [bulkMenu, setBulkMenu] = useState(null); // 'setlist' | 'tags' | null
   const [bulkPicker, setBulkPicker] = useState(null); // 'copy' | 'move' | null — workspace modal
+  // songsLibraryPlus state.
+  const [dataQuality, setDataQuality] = useState([]);   // ['untagged','noKey','noTempo']
+  const [dupOnly, setDupOnly] = useState(false);         // duplicate-title filter
+  const [density, setDensity] = usePersistentView('setlists-md:songs-density');   // 'comfortable' | 'compact'
+  const [groupBy, setGroupBy] = usePersistentView('setlists-md:songs-groupby');   // null=auto | key|artist|theme|year
+  const [bulkTagInput, setBulkTagInput] = useState('');
 
   const fabRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -255,10 +425,16 @@ export default function Library({
       return { ...prev, [facetKey]: next };
     });
   };
-  const clearAllFilters = () => { setSelectedTags([]); setFacetSel({}); };
+  const clearAllFilters = () => { setSelectedTags([]); setFacetSel({}); setDataQuality([]); setDupOnly(false); };
 
-  // Customizable table columns (synced via settings.tableColumns).
-  const columnVisible = useMemo(() => resolveVisibleColumns('library', tableColumns, {}), [tableColumns]);
+  // Song usage across setlists + duplicate-title ids (songsLibraryPlus).
+  const usage = useMemo(() => buildSongUsage(setlists), [setlists]);
+  const duplicateIds = useMemo(() => plus ? duplicateTitleIds(songs) : new Set(), [plus, songs]);
+
+  // Customizable table columns (synced via settings.tableColumns). The plus
+  // context unlocks the extra CCLI/Year/… columns + drag-reorder.
+  const colCtx = useMemo(() => ({ plus }), [plus]);
+  const orderedCols = useMemo(() => orderedVisibleColumns('library', tableColumns, colCtx), [tableColumns, colCtx]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -283,12 +459,18 @@ export default function Library({
     if (activeFacetCount > 0) {
       result = result.filter(s => matchesFacets(s, facetSel));
     }
+    if (plus && dataQuality.length > 0) {
+      result = result.filter(s => matchesDataQuality(s, dataQuality));
+    }
+    if (plus && dupOnly) {
+      result = result.filter(s => duplicateIds.has(s.id));
+    }
     return searchSongs(result, deferredQuery);
-  }, [songs, deferredQuery, selectedTags, facetSel, activeFacetCount]);
+  }, [songs, deferredQuery, selectedTags, facetSel, activeFacetCount, plus, dataQuality, dupOnly, duplicateIds]);
 
   // Reset pagination + selection when filter criteria change.
   const [prevFilterKey, setPrevFilterKey] = useState(null);
-  const filterKey = JSON.stringify([deferredQuery, selectedTags, facetSel, sortMode, sortAsc]);
+  const filterKey = JSON.stringify([deferredQuery, selectedTags, facetSel, sortMode, sortAsc, dataQuality, dupOnly]);
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey);
     setVisibleCount(INITIAL_VISIBLE);
@@ -301,14 +483,17 @@ export default function Library({
   );
   const hasMore = filtered.length > truncated.length;
 
+  // Card gallery grouping: an explicit songsLibraryPlus Group-by wins; otherwise
+  // grouping follows the active sort mode (the pre-plus behaviour).
+  const groupMode = (plus && groupBy) ? groupBy : sortMode;
   const { groups, sortedKeys } = useMemo(
-    () => groupAndSort(truncated, sortMode, sortAsc),
-    [truncated, sortMode, sortAsc]
+    () => groupAndSort(truncated, groupMode, sortAsc),
+    [truncated, groupMode, sortAsc]
   );
 
   const flatRows = useMemo(
-    () => flatSort(truncated, sortMode, sortAsc),
-    [truncated, sortMode, sortAsc]
+    () => flatSort(truncated, sortMode, sortAsc, usage),
+    [truncated, sortMode, sortAsc, usage]
   );
 
   useEffect(() => {
@@ -373,13 +558,19 @@ export default function Library({
   // the card gallery.
   const autoView = advanced ? 'table' : 'gallery';
   const vm = viewMode ?? autoView;
+  // songsLibraryPlus removes the Table view on phones (Cards/Compact only) — a
+  // stored 'table' choice falls back to the card gallery there.
+  const mobileTableAllowed = !plus;
   const effectiveView = advanced
     ? (vm === 'compact' ? 'gallery' : vm)
-    : vm;
+    : (!mobileTableAllowed && vm === 'table' ? 'gallery' : vm);
   // Mobile full-table mode scrolls horizontally and drops the responsive column
   // floors so the user's chosen columns all show (see colFloor below).
   const mobileTable = !advanced && effectiveView === 'table';
   const colFloor = (cls) => (mobileTable ? '' : cls);
+  // Row padding follows the density toggle (songsLibraryPlus); comfortable is
+  // the pre-plus default.
+  const rowPad = (plus && density === 'compact') ? 'py-2' : 'py-3.5';
   // A row tap opens the full Song Hub on every device. Desktop also keeps a
   // dedicated per-row button that opens the side-peek preview.
   const onRowActivate = openFull;
@@ -406,16 +597,19 @@ export default function Library({
               onChange={e => setQuery(e.target.value)}
             />
 
-            {/* View switcher — Table / Compact (mobile-only) / Cards. */}
+            {/* View switcher — Table / Compact (mobile-only) / Cards. The Table
+                option is hidden on phones when songsLibraryPlus is on. */}
             <div className="flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
-              <button
-                onClick={() => setViewMode('table')}
-                aria-label="Table view" title="Table view"
-                className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
-                  effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
-              >
-                <TableViewIcon />
-              </button>
+              {(advanced || mobileTableAllowed) && (
+                <button
+                  onClick={() => setViewMode('table')}
+                  aria-label="Table view" title="Table view"
+                  className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
+                    effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
+                >
+                  <TableViewIcon />
+                </button>
+              )}
               <button
                 onClick={() => setViewMode('compact')}
                 aria-label="Compact list view" title="Compact list"
@@ -451,9 +645,15 @@ export default function Library({
             {effectiveView === 'table' && onSetTableColumns && (
               <ColumnsMenu
                 table="library"
+                context={colCtx}
                 saved={tableColumns}
                 onChange={(ids) => onSetTableColumns('library', ids)}
+                orderable={plus}
               />
+            )}
+
+            {plus && effectiveView === 'table' && (
+              <DensityToggle density={density || 'comfortable'} onChange={setDensity} />
             )}
 
             {/* Import + New song (desktop) */}
@@ -464,8 +664,35 @@ export default function Library({
             )}
           </div>
 
+          {/* songsLibraryPlus quick filters — data quality + duplicate finder. */}
+          {plus && (dataQuality.length > 0 || dupOnly || songs.length > 0) && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {Object.entries(DATA_QUALITY).map(([key, def]) => {
+                const active = dataQuality.includes(key);
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setDataQuality(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])}
+                    className={cn('px-3 py-1.5 rounded-full text-label-13 font-medium cursor-pointer border transition-colors',
+                      active ? 'bg-[var(--color-brand)] text-white border-transparent' : 'bg-transparent text-[var(--modes-text-muted)] border-[var(--modes-border)] hover:bg-[var(--modes-surface)]')}
+                  >
+                    {def.label}
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => setDupOnly(v => !v)}
+                title="Songs that share a title with another song"
+                className={cn('px-3 py-1.5 rounded-full text-label-13 font-medium cursor-pointer border transition-colors',
+                  dupOnly ? 'bg-[var(--color-brand)] text-white border-transparent' : 'bg-transparent text-[var(--modes-text-muted)] border-[var(--modes-border)] hover:bg-[var(--modes-surface)]')}
+              >
+                Duplicates{duplicateIds.size > 0 ? ` (${duplicateIds.size})` : ''}
+              </button>
+            </div>
+          )}
+
           {effectiveView === 'gallery' && (
-            <div className="hidden sm:flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2 flex-wrap">
               {SORT_MODES.map(mode => (
                 <button
                   key={mode.key}
@@ -478,6 +705,7 @@ export default function Library({
                   {sortMode === mode.key && <SortArrow asc={sortAsc} />}
                 </button>
               ))}
+              {plus && <GroupByControl value={groupBy} onChange={setGroupBy} />}
             </div>
           )}
         </div>
@@ -488,7 +716,7 @@ export default function Library({
         {!loaded ? (
           <SkeletonRows />
         ) : filtered.length === 0 ? (
-          query || selectedTags.length > 0 ? (
+          (query || selectedTags.length > 0 || activeFacetCount > 0 || dataQuality.length > 0 || dupOnly) ? (
             <div className="modes-card py-14 text-center flex flex-col items-center gap-3 border-dashed">
               <p className="text-copy-14 text-[var(--modes-text-muted)] font-medium">No songs matching your filters.</p>
             </div>
@@ -509,39 +737,29 @@ export default function Library({
             <table className={cn('w-full border-collapse table-fixed', mobileTable && 'min-w-[640px]')}>
               <thead>
                 <tr className="border-b border-[var(--modes-border)]">
-                  <th className="w-[44px] px-4 py-3">
+                  <th className={cn('w-[44px] px-4', rowPad)}>
                     {!readOnly && (
                       <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label="Select all" className="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer align-middle" />
                     )}
                   </th>
-                  <th className="text-left px-5 py-3">
+                  <th className={cn('text-left px-5', rowPad)}>
                     <button onClick={() => handleSortClick('title')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
                       Name {sortMode === 'title' && <SortArrow asc={sortAsc} />}
                     </button>
                   </th>
-                  {!splitDock && columnVisible.has('artist') && (
-                    <th className={cn('text-left px-5 py-3 w-[34%]', colFloor('hidden md:table-cell'))}>
-                      <button onClick={() => handleSortClick('artist')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
-                        Artist {sortMode === 'artist' && <SortArrow asc={sortAsc} />}
-                      </button>
-                    </th>
-                  )}
-                  {columnVisible.has('key') && (
-                    <th className="text-left px-5 py-3 w-[72px]">
-                      <button onClick={() => handleSortClick('key')} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
-                        Key {sortMode === 'key' && <SortArrow asc={sortAsc} />}
-                      </button>
-                    </th>
-                  )}
-                  {!splitDock && columnVisible.has('tempo') && (
-                    <th className={cn('text-left px-5 py-3 w-[90px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', colFloor('hidden lg:table-cell'))}>Tempo</th>
-                  )}
-                  {!splitDock && columnVisible.has('tags') && (
-                    <th className={cn('text-left px-5 py-3 w-[200px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', colFloor('hidden lg:table-cell'))}>Tags</th>
-                  )}
-                  {!splitDock && columnVisible.has('updated') && (
-                    <th className={cn('text-left px-5 py-3 w-[130px] text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', colFloor('hidden xl:table-cell'))}>Updated</th>
-                  )}
+                  {orderedCols.map(col => {
+                    const cfg = LIB_COL[col.id];
+                    if (!cfg) return null;
+                    return (
+                      <th key={col.id} className={cn('text-left px-5 text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold', rowPad, cfg.width, colFloor(cfg.floor))}>
+                        {cfg.sortKey ? (
+                          <button onClick={() => handleSortClick(cfg.sortKey)} className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-dim)] uppercase tracking-wider text-label-12 font-semibold hover:text-[var(--modes-text)]">
+                            {cfg.header} {sortMode === cfg.sortKey && <SortArrow asc={sortAsc} />}
+                          </button>
+                        ) : cfg.header}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -557,12 +775,12 @@ export default function Library({
                       className={cn('group cursor-pointer border-b border-[var(--modes-border)] transition-colors',
                         isSel || isPreview ? 'bg-[var(--modes-surface-strong)]' : 'hover:bg-[var(--modes-surface)]')}
                     >
-                      <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                      <td className={cn('px-4', rowPad)} onClick={(e) => e.stopPropagation()}>
                         {!readOnly && (
                           <input type="checkbox" checked={isSel} onChange={(e) => toggleSelect(song.id, e)} aria-label={`Select ${song.title}`} className="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer align-middle" />
                         )}
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className={cn('px-5', rowPad)}>
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="text-copy-15 font-semibold text-[var(--modes-text)] truncate">{song.title || 'Untitled'}</span>
                           <ArrangementsBadge count={arrCount} />
@@ -577,31 +795,19 @@ export default function Library({
                             </button>
                           )}
                         </div>
-                        <div className={cn('text-copy-13 text-[var(--modes-text-muted)] truncate mt-0.5', mobileTable ? 'hidden' : 'md:hidden')}>{song.artist}</div>
+                        {!orderedCols.some(c => c.id === 'artist') || mobileTable ? null : (
+                          <div className="text-copy-13 text-[var(--modes-text-muted)] truncate mt-0.5 md:hidden">{song.artist}</div>
+                        )}
                       </td>
-                      {!splitDock && columnVisible.has('artist') && (
-                        <td className={cn('px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] truncate', colFloor('hidden md:table-cell'))}>{song.artist}</td>
-                      )}
-                      {columnVisible.has('key') && (
-                        <td className="px-5 py-3.5"><KeyChip value={defaultArrangementKey(song)} /></td>
-                      )}
-                      {!splitDock && columnVisible.has('tempo') && (
-                        <td className={cn('px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] tabular-nums', colFloor('hidden lg:table-cell'))}>
-                          {defaultArrangementTempo(song) ? `${defaultArrangementTempo(song)}` : '—'}
-                        </td>
-                      )}
-                      {!splitDock && columnVisible.has('tags') && (
-                        <td className={cn('px-5 py-3.5', colFloor('hidden lg:table-cell'))}>
-                          <div className="flex flex-wrap gap-1">
-                            {(song.tags || []).slice(0, 3).map(t => (
-                              <span key={t} className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface)] text-[var(--modes-text-muted)] border border-[var(--modes-border)]">{t}</span>
-                            ))}
-                          </div>
-                        </td>
-                      )}
-                      {!splitDock && columnVisible.has('updated') && (
-                        <td className={cn('px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap', colFloor('hidden xl:table-cell'))}>{formatUpdated(song.updatedAt)}</td>
-                      )}
+                      {orderedCols.map(col => {
+                        const cfg = LIB_COL[col.id];
+                        if (!cfg) return null;
+                        return (
+                          <td key={col.id} className={cn('px-5', rowPad, colFloor(cfg.floor))}>
+                            {songCellContent(col.id, song, usage)}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 })}
@@ -689,6 +895,40 @@ export default function Library({
                   ) : setlists.map(sl => (
                     <button key={sl.id} onClick={() => runBulk(onAddSongsToSetlist, sl.id)} className="w-full text-left px-4 py-2.5 cursor-pointer border-none bg-transparent text-label-14 text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] transition-colors truncate">{sl.name || 'Untitled setlist'}</button>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {plus && onTagSongs && (
+            <div className="relative">
+              <button onClick={() => setBulkMenu(bulkMenu === 'tags' ? null : 'tags')} className="h-8 px-3 rounded-full text-label-14 font-medium cursor-pointer border-none bg-transparent text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-200)] transition-colors">Tags…</button>
+              {bulkMenu === 'tags' && (
+                <div className="absolute bottom-full mb-2 left-0 w-[260px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg p-3 flex flex-col gap-2">
+                  <form
+                    onSubmit={(e) => { e.preventDefault(); const t = bulkTagInput.trim(); if (t) { onTagSongs(selected, { add: [t] }); setBulkTagInput(''); clearSelection(); } }}
+                    className="flex gap-2"
+                  >
+                    <input
+                      value={bulkTagInput}
+                      onChange={(e) => setBulkTagInput(e.target.value)}
+                      placeholder="Add a tag…"
+                      className="flex-1 min-w-0 h-8 px-2.5 rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] text-label-14 text-[var(--ds-gray-1000)] outline-none focus:border-[var(--color-brand)]"
+                      autoFocus
+                    />
+                    <button type="submit" className="h-8 px-3 rounded-lg text-label-14 font-medium cursor-pointer border-none bg-[var(--color-brand)] text-white">Add</button>
+                  </form>
+                  {allTags.length > 0 && (
+                    <div className="max-h-[160px] overflow-y-auto flex flex-col">
+                      <div className="text-label-11 uppercase tracking-wider text-[var(--ds-gray-600)] px-0.5 pb-1">Remove a tag</div>
+                      {allTags.map(t => (
+                        <button key={t} onClick={() => { onTagSongs(selected, { remove: [t] }); clearSelection(); }} className="w-full text-left px-2 py-1.5 rounded-md cursor-pointer border-none bg-transparent text-label-14 text-[var(--ds-gray-900)] hover:bg-[var(--ds-red-100)] hover:text-[var(--ds-red-700)] transition-colors flex items-center gap-2">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

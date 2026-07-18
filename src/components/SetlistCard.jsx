@@ -45,7 +45,7 @@ const PlayGlyph = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
 );
 
-export default function SetlistCard({ setlist, onPlay, onView, selected = false, clockFormat = '12h', variant = 'card' }) {
+export default function SetlistCard({ setlist, onPlay, onView, selected = false, clockFormat = '12h', variant = 'card', durationLabel = null }) {
   const songCount = setlist.items?.filter(it => it.type !== 'break').length || 0;
   const displayTags = setlist.tags?.length
     ? setlist.tags
@@ -74,7 +74,9 @@ export default function SetlistCard({ setlist, onPlay, onView, selected = false,
           </span>
           <span className="block text-label-12 text-[var(--text-2)] truncate">{dateLabel}</span>
         </div>
-        <span className="shrink-0 text-label-12 text-[var(--text-2)] tabular-nums">{songCount} song{songCount !== 1 ? 's' : ''}</span>
+        <span className="shrink-0 text-label-12 text-[var(--text-2)] tabular-nums">
+          {songCount} song{songCount !== 1 ? 's' : ''}{durationLabel ? ` • ${durationLabel}` : ''}
+        </span>
         <button
           onClick={(e) => { e.stopPropagation(); onPlay(); }}
           aria-label="Play live"
@@ -129,7 +131,9 @@ export default function SetlistCard({ setlist, onPlay, onView, selected = false,
           <PlayGlyph size={16} />
           <span className="hidden sm:inline">Play Live</span>
         </button>
-        <span className="text-label-12 text-[var(--modes-text-dim)] font-medium">{songCount} Song{songCount !== 1 ? 's' : ''}</span>
+        <span className="text-label-12 text-[var(--modes-text-dim)] font-medium">
+          {songCount} Song{songCount !== 1 ? 's' : ''}{durationLabel ? ` • ${durationLabel}` : ''}
+        </span>
       </div>
     </div>
   );

@@ -153,6 +153,8 @@ const PORTABLE_PREF_KEYS = [
   'tableColumns',
   'serviceReminders',
   'rehearsalReminders',
+  'songsLibraryPlus',
+  'setlistsLibraryPlus',
 ];
 
 function extractPortablePrefs(s) {
@@ -1783,6 +1785,30 @@ export default function App() {
     });
   };
 
+  // Bulk add/remove tags across a selection (songsLibraryPlus). Reference-
+  // preserving: only touched songs get a new object + bumped updatedAt so sync
+  // re-uploads exactly them.
+  const handleTagSongs = (ids, { add = [], remove = [] } = {}) => {
+    const idSet = new Set(ids);
+    const addList = add.map(t => t.trim()).filter(Boolean);
+    const removeSet = new Set(remove.map(t => t.trim()).filter(Boolean));
+    let changed = 0;
+    setSongs(prev => prev.map(s => {
+      if (!idSet.has(s.id)) return s;
+      const cur = Array.isArray(s.tags) ? s.tags : [];
+      let next = cur.filter(t => !removeSet.has(t));
+      for (const t of addList) if (!next.includes(t)) next.push(t);
+      // No-op if the tag set is unchanged (avoids a pointless re-sync).
+      if (next.length === cur.length && next.every((t, i) => t === cur[i])) return s;
+      changed++;
+      return { ...s, tags: next, updatedAt: Date.now() };
+    }));
+    if (changed > 0) {
+      const label = addList.length ? `Tagged ${changed} song${changed === 1 ? '' : 's'}` : `Untagged ${changed} song${changed === 1 ? '' : 's'}`;
+      toast({ title: label });
+    }
+  };
+
   const handleMoveSongs = async (ids, target) => {
     for (const id of ids) await handleMoveSongToLibrary(id, target);
   };
@@ -2026,6 +2052,76 @@ export default function App() {
     }));
     setPreviewSetlistId(null);
     toast({ title: `Deleted ${ids.length} setlist${ids.length === 1 ? '' : 's'}` });
+  };
+
+  // --- setlistsLibraryPlus: duplicate / templates / bulk tags ---------------
+  const handleDuplicateSetlist = (id) => {
+    const src = setlists.find(s => s.id === id);
+    if (!src) return;
+    const copy = {
+      ...src,
+      id: generateId(),
+      name: `${src.name || 'Untitled Setlist'} (copy)`,
+      isTemplate: false,
+      updatedAt: Date.now(),
+      items: (src.items || []).map(it => ({ ...it })),
+    };
+    setSetlists(prev => [...prev, copy]);
+    toast({ title: 'Setlist duplicated', description: copy.name });
+  };
+
+  const handleSaveSetlistAsTemplate = (id) => {
+    const src = setlists.find(s => s.id === id);
+    if (!src) return;
+    const tpl = {
+      ...src,
+      id: generateId(),
+      name: `${(src.name || 'Untitled').replace(/\s*template$/i, '')} template`,
+      isTemplate: true,
+      updatedAt: Date.now(),
+      items: (src.items || []).map(it => ({ ...it })),
+    };
+    // Templates are date-less + roster-less (those are per-service).
+    delete tpl.date; delete tpl.time; delete tpl.endTime; delete tpl.rehearsal;
+    setSetlists(prev => [...prev, tpl]);
+    toast({ title: 'Saved as template', description: tpl.name });
+  };
+
+  const handleNewFromTemplate = (id) => {
+    const tpl = setlists.find(s => s.id === id);
+    if (!tpl) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const fresh = {
+      ...tpl,
+      id: generateId(),
+      name: tpl.templateName || (tpl.name || 'Setlist').replace(/\s*template$/i, '') || 'New setlist',
+      isTemplate: false,
+      date: today,
+      status: 'draft',
+      updatedAt: Date.now(),
+      items: (tpl.items || []).map(it => ({ ...it })),
+    };
+    setSetlists(prev => [...prev, fresh]);
+    goSetlistBuild(fresh);
+  };
+
+  const handleTagSetlists = (ids, { add = [], remove = [] } = {}) => {
+    const idSet = new Set(ids);
+    const addList = add.map(t => t.trim()).filter(Boolean);
+    const removeSet = new Set(remove.map(t => t.trim()).filter(Boolean));
+    let changed = 0;
+    setSetlists(prev => prev.map(s => {
+      if (!idSet.has(s.id)) return s;
+      const cur = Array.isArray(s.tags) ? s.tags : [];
+      let next = cur.filter(t => !removeSet.has(t));
+      for (const t of addList) if (!next.includes(t)) next.push(t);
+      if (next.length === cur.length && next.every((t, i) => t === cur[i])) return s;
+      changed++;
+      return { ...s, tags: next, updatedAt: Date.now() };
+    }));
+    if (changed > 0) {
+      toast({ title: `${addList.length ? 'Tagged' : 'Untagged'} ${changed} setlist${changed === 1 ? '' : 's'}` });
+    }
   };
 
   const handleClearAll = async () => {
@@ -2303,6 +2399,11 @@ export default function App() {
               onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
               newWorkspaceLocked={newWorkspaceLocked}
               supportContact={SUPPORT_CONTACT}
+              searchScope={
+                view === 'library' && settings?.songsLibraryPlus ? 'songs'
+                : view === 'setlists' && settings?.setlistsLibraryPlus ? 'setlists'
+                : 'all'
+              }
             />
           )}
           {view === 'home' && (
@@ -2352,6 +2453,8 @@ export default function App() {
               workspaces={[{ id: 'personal', name: 'Personal' }, ...teams.map(t => ({ id: t.id, name: t.name }))]}
               onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
               onAddSongsToSetlist={isTeamReadOnly ? null : handleAddSongsToSetlist}
+              onTagSongs={isTeamReadOnly ? null : handleTagSongs}
+              plus={!!settings?.songsLibraryPlus}
               tableColumns={settings?.tableColumns}
               onSetTableColumns={setTableColumns}
               onMoveSongs={!isTeamReadOnly && teams.length > 0 ? handleMoveSongs : null}
@@ -2407,6 +2510,11 @@ export default function App() {
                 setPreviewSetlistId(null);
               }}
               onDeleteSetlists={isTeamReadOnly ? null : handleDeleteSetlists}
+              plus={!!settings?.setlistsLibraryPlus}
+              onDuplicateSetlist={isTeamReadOnly ? null : handleDuplicateSetlist}
+              onSaveAsTemplate={isTeamReadOnly ? null : handleSaveSetlistAsTemplate}
+              onNewFromTemplate={isTeamReadOnly ? null : handleNewFromTemplate}
+              onTagSetlists={isTeamReadOnly ? null : handleTagSetlists}
               canEdit={canEdit}
             />
           )}

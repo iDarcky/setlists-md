@@ -650,6 +650,12 @@ function LabsPanel({ settings, update }) {
       <LabsToggle settings={settings} update={update} flag="setlistCards"
         label="Setlist cards (preview)"
         description="Try the redesigned, card-based setlist editor and viewer: an identity card up top, the set as its own card, and a library / roster card alongside." />
+      <LabsToggle settings={settings} update={update} flag="songsLibraryPlus"
+        label="Songs library +"
+        description="Extra Songs-list power: more columns (CCLI, year, length, arrangements, themes…) with drag-to-reorder, a 'used in setlists' count, group-by and data-quality quick filters, bulk tagging, and a row-density toggle. Removes the table view on phones." />
+      <LabsToggle settings={settings} update={update} flag="setlistsLibraryPlus"
+        label="Setlists library +"
+        description="Extra Setlists-list power: search by a contained song, total-duration column, draft & date quick filters, duplicate / save-as-template, bulk tagging, and a past-setlist badge. Removes the table view on phones." />
     </Section>
   );
 }

@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { availableColumns, resolveVisibleColumns, toggleColumn, defaultVisibleColumns } from '../../lib/tableColumns';
+import {
+  availableColumns,
+  resolveVisibleColumns,
+  toggleColumn,
+  defaultVisibleColumns,
+  orderedVisibleColumns,
+  reorderColumns,
+} from '../../lib/tableColumns';
 
 const ColumnsIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -11,15 +18,23 @@ const ChevronDown = ({ open }) => (
     <path d="m6 9 6 6 6-6" />
   </svg>
 );
+const GripIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="9" cy="6" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="9" cy="18" r="1" />
+    <circle cx="15" cy="6" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="15" cy="18" r="1" />
+  </svg>
+);
 
 /**
  * Shared "Columns" popover for the list tables. Lets the user show/hide the
- * optional columns of a table; the Name/Title column is always present. State
- * lives in the parent (settings.tableColumns); this component reads the saved
- * value, resolves visibility, and emits the next id array on change.
+ * optional columns of a table; the Name/Title column is always present. When
+ * `orderable`, visible columns can be dragged to reorder (persisted in the same
+ * settings.tableColumns id array). State lives in the parent; this component
+ * reads the saved value, resolves visibility/order, and emits the next id array.
  */
-export default function ColumnsMenu({ table, context = {}, saved, onChange }) {
+export default function ColumnsMenu({ table, context = {}, saved, onChange, orderable = false }) {
   const [open, setOpen] = useState(false);
+  const [dragId, setDragId] = useState(null);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -39,6 +54,18 @@ export default function ColumnsMenu({ table, context = {}, saved, onChange }) {
   const visible = resolveVisibleColumns(table, saved, context);
   const isCustomized = saved && Array.isArray(saved[table]);
 
+  const orderedVisible = orderedVisibleColumns(table, saved, context);
+  const hidden = columns.filter(c => !visible.has(c.id));
+  const canReorder = orderable && orderedVisible.length > 1;
+
+  const onDrop = (targetId) => {
+    if (!dragId || dragId === targetId) { setDragId(null); return; }
+    const ids = orderedVisible.map(c => c.id);
+    const toIndex = ids.indexOf(targetId);
+    onChange(reorderColumns(table, saved, context, dragId, toIndex));
+    setDragId(null);
+  };
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -54,19 +81,54 @@ export default function ColumnsMenu({ table, context = {}, saved, onChange }) {
       </button>
 
       {open && (
-        <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-[230px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden flex flex-col">
-          <div className="py-1 max-h-[320px] overflow-y-auto">
-            {columns.map(col => (
-              <label key={col.id} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--bg-2)] transition-colors">
-                <input
-                  type="checkbox"
-                  checked={visible.has(col.id)}
-                  onChange={() => onChange(toggleColumn(table, saved, context, col.id))}
-                  className="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer"
-                />
-                <span className="text-copy-14 text-[var(--text-1)]">{col.label}</span>
-              </label>
-            ))}
+        <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-[240px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden flex flex-col">
+          <div className="py-1 max-h-[340px] overflow-y-auto">
+            {canReorder && (
+              <div className="px-4 pt-1.5 pb-1 text-label-11 uppercase tracking-wider text-[var(--text-2)]">Shown · drag to reorder</div>
+            )}
+            {(canReorder ? orderedVisible : columns).map(col => {
+              const isVisible = visible.has(col.id);
+              return (
+                <div
+                  key={col.id}
+                  draggable={canReorder && isVisible}
+                  onDragStart={() => canReorder && setDragId(col.id)}
+                  onDragOver={(e) => { if (canReorder && dragId) e.preventDefault(); }}
+                  onDrop={() => canReorder && onDrop(col.id)}
+                  onDragEnd={() => setDragId(null)}
+                  className={`flex items-center gap-2 px-4 py-2 hover:bg-[var(--bg-2)] transition-colors ${dragId === col.id ? 'opacity-40' : ''}`}
+                >
+                  {canReorder && (
+                    <span className="text-[var(--text-2)] cursor-grab active:cursor-grabbing shrink-0" title="Drag to reorder"><GripIcon /></span>
+                  )}
+                  <label className="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={isVisible}
+                      onChange={() => onChange(toggleColumn(table, saved, context, col.id))}
+                      className="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer shrink-0"
+                    />
+                    <span className="text-copy-14 text-[var(--text-1)] truncate">{col.label}</span>
+                  </label>
+                </div>
+              );
+            })}
+            {canReorder && hidden.length > 0 && (
+              <>
+                <div className="px-4 pt-2 pb-1 text-label-11 uppercase tracking-wider text-[var(--text-2)]">Hidden</div>
+                {hidden.map(col => (
+                  <label key={col.id} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[var(--bg-2)] transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      onChange={() => onChange(toggleColumn(table, saved, context, col.id))}
+                      className="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer shrink-0"
+                    />
+                    <span className="text-copy-14 text-[var(--text-1)] truncate">{col.label}</span>
+                  </label>
+                ))}
+              </>
+            )}
           </div>
           {isCustomized && (
             <button
