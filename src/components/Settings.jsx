@@ -690,7 +690,7 @@ function TabColorControl({ value, fallback, onChange }) {
   );
 }
 
-function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, activeLibrary, team, songs }) {
+function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, activeLibrary, team, songs, setlists = [], onRepairSetlistLinks }) {
   if (activeLibrary !== 'personal') {
     return (
       <>
@@ -1138,8 +1138,20 @@ export default function Settings({
   // changes — otherwise switching to a shorter panel keeps the previous
   // scroll offset and lands the user mid-page.
   const desktopScrollRef = useRef(null);
+  const mobileTopRef = useRef(null);
   useEffect(() => {
     if (desktopScrollRef.current) desktopScrollRef.current.scrollTop = 0;
+    // Mobile/tablet: the settings content scrolls inside a parent (<main>), not
+    // a Settings-owned box — reset the nearest scrollable ancestor so drilling
+    // into (or back out of) a panel always lands at the top, not mid-page.
+    let el = mobileTopRef.current?.parentElement;
+    while (el) {
+      if (el.scrollHeight > el.clientHeight && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) {
+        el.scrollTop = 0;
+        break;
+      }
+      el = el.parentElement;
+    }
   }, [panel]);
   // Accepts (key, value) for single-field tweaks or a patch object for
   // multi-field updates done in the same render — without this, two
@@ -1193,6 +1205,8 @@ export default function Settings({
             activeLibrary={activeLibrary}
             team={team}
             songs={songs}
+            setlists={setlists}
+            onRepairSetlistLinks={onRepairSetlistLinks}
           />
         );
       case 'services':
@@ -1364,7 +1378,7 @@ export default function Settings({
 
   // Mobile/tablet: existing full-page hub-and-drilldown layout.
   return (
-    <div data-theme-variant="modes" className="flex flex-col">
+    <div ref={mobileTopRef} data-theme-variant="modes" className="flex flex-col">
       <PageHeader
         title={PANEL_TITLES[panel]}
         onBack={panel === 'hub' ? undefined : () => onChangePanel('hub')}
