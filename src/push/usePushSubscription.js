@@ -41,11 +41,13 @@ export function usePushSubscription() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!supported || !user) {
-      setState((s) => ({ ...s, supported: false, subscribed: false }));
-      return;
-    }
     (async () => {
+      // Guard inside the async body (not synchronously in the effect) so we
+      // don't trip react-hooks/set-state-in-effect.
+      if (!supported || !user) {
+        if (!cancelled) setState((s) => ({ ...s, supported: false, subscribed: false }));
+        return;
+      }
       try {
         const reg = await navigator.serviceWorker.ready;
         let sub = await reg.pushManager.getSubscription();

@@ -45,11 +45,12 @@ export default function DesktopLayout({
   // sub-routes onto their nav tab (setlist-view→setlists, design→settings), so
   // navigating list→viewer wouldn't otherwise reset the scroll. Falls back to
   // activeView when no scrollKey is supplied.
+  const scrollResetKey = scrollKey ?? activeView;
   useEffect(() => {
     if (mainRef.current) {
       mainRef.current.scrollTop = 0;
     }
-  }, [scrollKey ?? activeView]);
+  }, [scrollResetKey]);
 
   return (
     <div className="w-full h-[100dvh] flex flex-col overflow-hidden">
