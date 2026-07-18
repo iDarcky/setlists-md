@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Account from './Account';
 import { useAuth } from '../auth/useAuth';
+import { usePushSubscription } from '../push/usePushSubscription';
 import { useEntitlement } from '../hooks/useEntitlement';
 import { Input } from './ui/Input';
 import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '../billing/checkout';
@@ -96,6 +97,13 @@ const LabsIcon = () => (
 const ChevronRight = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="9 18 15 12 9 6" />
+  </svg>
+);
+
+const BellIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.7 21a2 2 0 0 1-3.4 0" />
   </svg>
 );
 
@@ -256,6 +264,7 @@ const PANEL_TITLES = {
   'chart-style': 'Chart Style',
   sections: 'Sections',
   sync: 'Cloud Sync',
+  notifications: 'Notifications',
   services: 'Services',
   plan: 'Plan & billing',
   data: 'Data',
@@ -718,6 +727,62 @@ function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, a
       onSyncNow={onSyncNow}
       onRequestSignIn={onRequestSignIn}
     />
+  );
+}
+
+// ─── Notifications panel ─────────────────────────────────────────────────
+// Per-device Web Push opt-in. Push is per-device (each phone/tablet subscribes
+// separately) and requires being signed in. On iOS the app must be installed to
+// the Home Screen first; the browser reports supported=false until then.
+function NotificationsPanel({ isSignedIn, onRequestSignIn }) {
+  const push = usePushSubscription();
+
+  if (!isSignedIn) {
+    return (
+      <Section title="Notifications" subtitle="Sign in to get schedule reminders on this device.">
+        <Row label="Push notifications" description="Requires an account.">
+          <Button variant="brand" size="sm" onClick={onRequestSignIn}>Sign in</Button>
+        </Row>
+      </Section>
+    );
+  }
+
+  let status = 'Off on this device';
+  let action = null;
+  if (!push.supported) {
+    status = 'Not available here';
+  } else if (push.denied) {
+    status = 'Blocked';
+  } else if (push.subscribed) {
+    status = 'On for this device';
+    action = <Button variant="secondary" size="sm" loading={push.busy} onClick={() => push.disable()}>Turn off</Button>;
+  } else {
+    action = <Button variant="brand" size="sm" loading={push.busy} onClick={() => push.enable()}>Turn on</Button>;
+  }
+
+  return (
+    <Section
+      title="Notifications"
+      subtitle="Get a lock-screen alert when you're scheduled, when someone declines, or for a rehearsal reminder. This is per-device — turn it on wherever you want alerts."
+    >
+      <Row label="Push on this device" description={status}>
+        {action}
+      </Row>
+      {push.denied && (
+        <Row label="Blocked in your settings">
+          <span className="text-copy-13 text-[var(--modes-text-muted)]">
+            Notifications are turned off for this app in your browser/phone settings — re-enable them there, then come back.
+          </span>
+        </Row>
+      )}
+      {!push.supported && (
+        <Row label="On iPhone/iPad">
+          <span className="text-copy-13 text-[var(--modes-text-muted)]">
+            Add the app to your Home Screen first (Share → Add to Home Screen), open it from there, then turn this on.
+          </span>
+        </Row>
+      )}
+    </Section>
   );
 }
 
@@ -1209,6 +1274,8 @@ export default function Settings({
             onRepairSetlistLinks={onRepairSetlistLinks}
           />
         );
+      case 'notifications':
+        return <NotificationsPanel isSignedIn={isSignedIn} onRequestSignIn={onRequestSignIn} />;
       case 'services':
         return <ServicesPanel setlists={setlists} onRemapService={onRemapService} />;
       case 'plan':
@@ -1278,6 +1345,7 @@ export default function Settings({
       title: 'Sync & data',
       items: [
         { key: 'sync', label: 'Cloud Sync', icon: CloudIcon, value: syncSummary(syncState) },
+        { key: 'notifications', label: 'Notifications', icon: BellIcon, value: 'Push alerts on this device' },
         { key: 'services', label: 'Services', icon: PlanIcon, value: `${serviceCount} service${serviceCount === 1 ? '' : 's'}`, show: canManageServices },
         { key: 'data', label: 'Data', icon: DataIcon, value: `${songCount} songs · ${setlistCount} setlists` },
       ],
