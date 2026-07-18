@@ -37,6 +37,11 @@ export default function SetlistFilters({
   selectedTags = [],
   onToggleTag,
   onClearTags,
+  // setlistsLibraryPlus: status / date-window / group-by folded into the popover.
+  plus = false,
+  statusFilter = 'all', onSetStatus,
+  dateFilter = 'all', onSetDate,
+  groupBy = null, onSetGroup, groupOptions = [],
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -54,9 +59,10 @@ export default function SetlistFilters({
   }, [open]);
 
   const hasService = showService && serviceOptions.length > 0;
-  if (!hasService && allTags.length === 0) return null;
+  if (!hasService && allTags.length === 0 && !plus) return null;
 
-  const activeCount = (serviceFilter !== 'all' ? 1 : 0) + selectedTags.length;
+  const activeCount = (serviceFilter !== 'all' ? 1 : 0) + selectedTags.length
+    + (plus && statusFilter !== 'all' ? 1 : 0) + (plus && dateFilter !== 'all' ? 1 : 0);
 
   return (
     <div ref={ref} className="relative">
@@ -78,6 +84,36 @@ export default function SetlistFilters({
       {open && (
         <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-[260px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden flex flex-col max-h-[70vh]">
           <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4">
+            {plus && (
+              <div className="flex flex-col gap-2">
+                <span className="text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)]">Status</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[['all', 'All'], ['ready', 'Ready'], ['draft', 'Draft']].map(([val, label]) => (
+                    <Chip key={val} active={statusFilter === val} onClick={() => onSetStatus?.(val)}>{label}</Chip>
+                  ))}
+                </div>
+              </div>
+            )}
+            {plus && (
+              <div className="flex flex-col gap-2">
+                <span className="text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)]">When</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[['all', 'Any time'], ['week', 'This week'], ['month', 'This month']].map(([val, label]) => (
+                    <Chip key={val} active={dateFilter === val} onClick={() => onSetDate?.(val)}>{label}</Chip>
+                  ))}
+                </div>
+              </div>
+            )}
+            {plus && groupOptions.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <span className="text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)]">Group by</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {groupOptions.map(([val, label]) => (
+                    <Chip key={label} active={(groupBy ?? null) === val} onClick={() => onSetGroup?.(val)}>{label}</Chip>
+                  ))}
+                </div>
+              </div>
+            )}
             {hasService && (
               <div className="flex flex-col gap-2">
                 <span className="text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)]">Service</span>
@@ -103,7 +139,7 @@ export default function SetlistFilters({
 
           {activeCount > 0 && (
             <button
-              onClick={() => { onSetService('all'); onClearTags(); }}
+              onClick={() => { onSetService('all'); onClearTags(); if (plus) { onSetStatus?.('all'); onSetDate?.('all'); } }}
               className="shrink-0 border-t border-[var(--modes-border)] px-4 py-2.5 text-copy-14 text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] hover:bg-[var(--modes-surface)] transition-colors cursor-pointer bg-transparent text-center"
             >
               Clear all filters

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense } from 'react';
 import SongCard from './SongCard';
-import SongMediaCard from './SongMediaCard';
 import SidePeek from './shell/SidePeek';
 import { Button } from './ui/Button';
 import WorkspacePickerDialog from './ui/WorkspacePickerDialog';
@@ -149,27 +148,6 @@ function SkeletonRows() {
 }
 
 // Media-card skeletons (songsLibraryPlus) — mirror the grid so there's no
-// layout shift when the library finishes loading.
-function SkeletonCards() {
-  return (
-    <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="modes-card-strong rounded-2xl p-3 flex flex-col gap-2.5">
-          <div className="flex items-start gap-3">
-            <div className="w-14 h-14 rounded-xl bg-[var(--modes-surface-strong)] animate-pulse shrink-0" />
-            <div className="flex-1 flex flex-col gap-2 pt-1">
-              <div className="h-4 w-3/4 bg-[var(--modes-surface-strong)] rounded animate-pulse" />
-              <div className="h-3 w-1/2 bg-[var(--modes-surface-strong)] rounded animate-pulse" />
-              <div className="h-5 w-24 bg-[var(--modes-surface-strong)] rounded animate-pulse" />
-            </div>
-          </div>
-          <div className="h-4 w-full bg-[var(--modes-surface-strong)] rounded animate-pulse" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // Active-filter pills (songsLibraryPlus) — the current facet/tag selections as
 // removable chip-cards, so the active filter set reads as its own row.
 function ActiveFacetChips({ facetSel, selectedTags, onRemoveFacet, onRemoveTag, onClearAll }) {
@@ -269,72 +247,26 @@ function MiniTags({ values, max = 2 }) {
 }
 
 // Row-density segmented control (songsLibraryPlus, table view).
-function DensityToggle({ density, onChange }) {
-  return (
-    <div className="hidden sm:flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden" title="Row density">
-      {[
-        { key: 'comfortable', label: 'Cozy' },
-        { key: 'compact', label: 'Dense' },
-      ].map(opt => (
-        <button
-          key={opt.key}
-          onClick={() => onChange(opt.key)}
-          className={cn('h-9 px-3 text-label-13 font-medium cursor-pointer border-none transition-colors',
-            density === opt.key ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// Group-by picker for the card gallery (songsLibraryPlus). null = follow sort.
-function GroupByControl({ value, onChange }) {
-  const OPTIONS = [
-    { key: null, label: 'Auto' },
-    { key: 'key', label: 'Key' },
-    { key: 'artist', label: 'Artist' },
-    { key: 'theme', label: 'Theme' },
-    { key: 'year', label: 'Year' },
-  ];
-  return (
-    <div className="flex items-center gap-1 ml-1 pl-2 border-l border-[var(--modes-border)]">
-      <span className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wide mr-0.5">Group</span>
-      {OPTIONS.map(opt => (
-        <button
-          key={opt.label}
-          onClick={() => onChange(opt.key)}
-          className={cn('px-3 py-1.5 rounded-full text-label-13 font-medium cursor-pointer border-none transition-colors',
-            (value ?? null) === opt.key ? 'bg-[var(--ds-gray-100)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // Per-column render config for the Songs table. `sortKey` (when set) makes the
 // header a sort toggle; `floor` is the responsive-visibility class applied on
 // desktop (dropped in mobile-table mode). The Name column is rendered
 // separately (always first). Extra ids beyond artist/key/tags/tempo/updated are
 // unlocked by the songsLibraryPlus flag.
 const LIB_COL = {
-  artist:       { header: 'Artist', sortKey: 'artist', width: 'w-[26%]', floor: 'hidden md:table-cell' },
-  key:          { header: 'Key', sortKey: 'key', width: 'w-[72px]' },
-  tempo:        { header: 'Tempo', sortKey: 'tempo', width: 'w-[90px]', floor: 'hidden lg:table-cell' },
-  usage:        { header: 'Setlists', sortKey: 'usage', width: 'w-[92px]', floor: 'hidden lg:table-cell' },
-  tags:         { header: 'Tags', width: 'w-[200px]', floor: 'hidden lg:table-cell' },
-  ccli:         { header: 'CCLI', width: 'w-[112px]', floor: 'hidden lg:table-cell' },
-  year:         { header: 'Year', sortKey: 'year', width: 'w-[74px]', floor: 'hidden lg:table-cell' },
-  capo:         { header: 'Capo', width: 'w-[64px]', floor: 'hidden xl:table-cell' },
-  duration:     { header: 'Length', width: 'w-[84px]', floor: 'hidden xl:table-cell' },
-  arrangements: { header: 'Arr.', width: 'w-[64px]', floor: 'hidden xl:table-cell' },
-  themes:       { header: 'Themes', width: 'w-[190px]', floor: 'hidden xl:table-cell' },
-  language:     { header: 'Language', width: 'w-[120px]', floor: 'hidden xl:table-cell' },
-  scripture:    { header: 'Scripture', width: 'w-[150px]', floor: 'hidden xl:table-cell' },
-  updated:      { header: 'Updated', sortKey: 'updated', width: 'w-[130px]', floor: 'hidden xl:table-cell' },
+  artist:       { header: 'Artist', sortKey: 'artist', width: 'w-[200px]', px: 200, floor: 'hidden md:table-cell' },
+  key:          { header: 'Key', sortKey: 'key', width: 'w-[72px]', px: 72 },
+  tempo:        { header: 'Tempo', sortKey: 'tempo', width: 'w-[90px]', px: 90, floor: 'hidden lg:table-cell' },
+  usage:        { header: 'Setlists', sortKey: 'usage', width: 'w-[92px]', px: 92, floor: 'hidden lg:table-cell' },
+  tags:         { header: 'Tags', width: 'w-[200px]', px: 200, floor: 'hidden lg:table-cell' },
+  ccli:         { header: 'CCLI', width: 'w-[112px]', px: 112, floor: 'hidden lg:table-cell' },
+  year:         { header: 'Year', sortKey: 'year', width: 'w-[74px]', px: 74, floor: 'hidden lg:table-cell' },
+  capo:         { header: 'Capo', width: 'w-[64px]', px: 64, floor: 'hidden xl:table-cell' },
+  duration:     { header: 'Length', width: 'w-[84px]', px: 84, floor: 'hidden xl:table-cell' },
+  arrangements: { header: 'Arr.', width: 'w-[64px]', px: 64, floor: 'hidden xl:table-cell' },
+  themes:       { header: 'Themes', width: 'w-[190px]', px: 190, floor: 'hidden xl:table-cell' },
+  language:     { header: 'Language', width: 'w-[120px]', px: 120, floor: 'hidden xl:table-cell' },
+  scripture:    { header: 'Scripture', width: 'w-[150px]', px: 150, floor: 'hidden xl:table-cell' },
+  updated:      { header: 'Updated', sortKey: 'updated', width: 'w-[130px]', px: 130, floor: 'hidden xl:table-cell' },
 };
 
 // Cell content for a Songs-table column id.
@@ -445,11 +377,9 @@ export default function Library({
   const [selected, setSelected] = useState([]);
   const [bulkMenu, setBulkMenu] = useState(null); // 'setlist' | 'tags' | null
   const [bulkPicker, setBulkPicker] = useState(null); // 'copy' | 'move' | null — workspace modal
-  // songsLibraryPlus state.
+  // songsLibraryPlus state — data-quality "issues" filters (in the Filters popover).
   const [dataQuality, setDataQuality] = useState([]);   // ['untagged','noKey','noTempo']
   const [dupOnly, setDupOnly] = useState(false);         // duplicate-title filter
-  const [density, setDensity] = usePersistentView('setlists-md:songs-density');   // 'comfortable' | 'compact'
-  const [groupBy, setGroupBy] = usePersistentView('setlists-md:songs-groupby');   // null=auto | key|artist|theme|year
   const [bulkTagInput, setBulkTagInput] = useState('');
 
   const fabRef = useRef(null);
@@ -484,6 +414,12 @@ export default function Library({
   // context unlocks the extra CCLI/Year/… columns + drag-reorder.
   const colCtx = useMemo(() => ({ plus }), [plus]);
   const orderedCols = useMemo(() => orderedVisibleColumns('library', tableColumns, colCtx), [tableColumns, colCtx]);
+  // Min width of the table = checkbox + name + every visible column, so extra
+  // columns push the table wider and its scroller kicks in instead of crushing.
+  const tableMinWidth = useMemo(
+    () => 300 + orderedCols.reduce((sum, c) => sum + (LIB_COL[c.id]?.px || 100), 0),
+    [orderedCols],
+  );
 
   useEffect(() => {
     const handler = (e) => {
@@ -532,12 +468,10 @@ export default function Library({
   );
   const hasMore = filtered.length > truncated.length;
 
-  // Card gallery grouping: an explicit songsLibraryPlus Group-by wins; otherwise
-  // grouping follows the active sort mode (the pre-plus behaviour).
-  const groupMode = (plus && groupBy) ? groupBy : sortMode;
+  // Card gallery grouping follows the active sort mode.
   const { groups, sortedKeys } = useMemo(
-    () => groupAndSort(truncated, groupMode, sortAsc),
-    [truncated, groupMode, sortAsc]
+    () => groupAndSort(truncated, sortMode, sortAsc),
+    [truncated, sortMode, sortAsc]
   );
 
   const flatRows = useMemo(
@@ -607,21 +541,19 @@ export default function Library({
   // the card gallery.
   const autoView = advanced ? 'table' : 'gallery';
   const vm = viewMode ?? autoView;
-  // songsLibraryPlus removes the Table view on phones (Cards/Compact only) — a
-  // stored 'table' choice falls back to the card gallery there.
-  const mobileTableAllowed = !plus;
   const effectiveView = advanced
     ? (vm === 'compact' ? 'gallery' : vm)
-    : (!mobileTableAllowed && vm === 'table' ? 'gallery' : vm);
-  // Mobile full-table mode scrolls horizontally and drops the responsive column
-  // floors so the user's chosen columns all show (see colFloor below).
+    : vm;
+  // The table always horizontally scrolls (so extra columns never overflow the
+  // card) and drops the responsive column floors so the chosen columns all show.
+  // On phones this is what makes the Table view usable.
   const mobileTable = !advanced && effectiveView === 'table';
-  const colFloor = (cls) => (mobileTable ? '' : cls);
-  // Row padding follows the density toggle (songsLibraryPlus); comfortable is
-  // the pre-plus default.
-  const rowPad = (plus && density === 'compact') ? 'py-2' : 'py-3.5';
-  // In the plus card/compact views, once anything is selected a tap toggles
-  // selection instead of opening (multi-select mode).
+  // In plus mode every table column is user-chosen, so never hide any by
+  // breakpoint — the horizontal scroller carries them instead.
+  const colFloor = (cls) => (plus ? '' : (mobileTable ? '' : cls));
+  const rowPad = 'py-3.5';
+  // In the plus card view, once anything is selected a tap toggles selection
+  // instead of opening (multi-select mode).
   const selectionActive = plus && !readOnly && selected.length > 0;
   // A row tap opens the full Song Hub on every device. Desktop also keeps a
   // dedicated per-row button that opens the side-peek preview.
@@ -649,19 +581,17 @@ export default function Library({
               onChange={e => setQuery(e.target.value)}
             />
 
-            {/* View switcher — Table / Compact (mobile-only) / Cards. The Table
-                option is hidden on phones when songsLibraryPlus is on. */}
+            {/* View switcher — Table / Compact (mobile-only) / Cards. Table works
+                on phones too (it scrolls horizontally). */}
             <div className="flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
-              {(advanced || mobileTableAllowed) && (
-                <button
-                  onClick={() => setViewMode('table')}
-                  aria-label="Table view" title="Table view"
-                  className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
-                    effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
-                >
-                  <TableViewIcon />
-                </button>
-              )}
+              <button
+                onClick={() => setViewMode('table')}
+                aria-label="Table view" title="Table view"
+                className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
+                  effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
+              >
+                <TableViewIcon />
+              </button>
               <button
                 onClick={() => setViewMode('compact')}
                 aria-label="Compact list view" title="Compact list"
@@ -682,7 +612,8 @@ export default function Library({
               </button>
             </div>
 
-            {/* Unified filters — tags (AND) + faceted metadata (OR per facet) */}
+            {/* Unified filters — tags (AND) + faceted metadata (OR per facet) +
+                (songsLibraryPlus) data-quality "issues" folded into the popover. */}
             <LibraryFilters
               facetOptions={facetOptions}
               selected={facetSel}
@@ -690,8 +621,11 @@ export default function Library({
               allTags={allTags}
               selectedTags={selectedTags}
               onToggleTag={toggleTag}
-              activeCount={selectedTags.length + activeFacetCount}
+              activeCount={selectedTags.length + activeFacetCount + (plus ? dataQuality.length + (dupOnly ? 1 : 0) : 0)}
               onClearAll={clearAllFilters}
+              issues={plus ? { active: dataQuality, dupOnly, dupCount: duplicateIds.size, defs: DATA_QUALITY } : null}
+              onToggleIssue={(key) => setDataQuality(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])}
+              onToggleDup={() => setDupOnly(v => !v)}
             />
 
             {effectiveView === 'table' && onSetTableColumns && (
@@ -704,10 +638,6 @@ export default function Library({
               />
             )}
 
-            {plus && effectiveView === 'table' && (
-              <DensityToggle density={density || 'comfortable'} onChange={setDensity} />
-            )}
-
             {/* Import + New song (desktop) */}
             {!readOnly && onNewSong && (
               <div className="hidden lg:block">
@@ -715,33 +645,6 @@ export default function Library({
               </div>
             )}
           </div>
-
-          {/* songsLibraryPlus quick filters — data quality + duplicate finder. */}
-          {plus && (dataQuality.length > 0 || dupOnly || songs.length > 0) && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {Object.entries(DATA_QUALITY).map(([key, def]) => {
-                const active = dataQuality.includes(key);
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setDataQuality(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])}
-                    className={cn('px-3 py-1.5 rounded-full text-label-13 font-medium cursor-pointer border transition-colors',
-                      active ? 'bg-[var(--color-brand)] text-white border-transparent' : 'bg-transparent text-[var(--modes-text-muted)] border-[var(--modes-border)] hover:bg-[var(--modes-surface)]')}
-                  >
-                    {def.label}
-                  </button>
-                );
-              })}
-              <button
-                onClick={() => setDupOnly(v => !v)}
-                title="Songs that share a title with another song"
-                className={cn('px-3 py-1.5 rounded-full text-label-13 font-medium cursor-pointer border transition-colors',
-                  dupOnly ? 'bg-[var(--color-brand)] text-white border-transparent' : 'bg-transparent text-[var(--modes-text-muted)] border-[var(--modes-border)] hover:bg-[var(--modes-surface)]')}
-              >
-                Duplicates{duplicateIds.size > 0 ? ` (${duplicateIds.size})` : ''}
-              </button>
-            </div>
-          )}
 
           {effectiveView === 'gallery' && (
             <div className="hidden sm:flex items-center gap-2 flex-wrap">
@@ -757,7 +660,6 @@ export default function Library({
                   {sortMode === mode.key && <SortArrow asc={sortAsc} />}
                 </button>
               ))}
-              {plus && <GroupByControl value={groupBy} onChange={setGroupBy} />}
             </div>
           )}
         </div>
@@ -775,7 +677,7 @@ export default function Library({
           />
         )}
         {!loaded ? (
-          plus ? <SkeletonCards /> : <SkeletonRows />
+          <SkeletonRows />
         ) : filtered.length === 0 ? (
           (query || selectedTags.length > 0 || activeFacetCount > 0 || dataQuality.length > 0 || dupOnly) ? (
             <div className="modes-card py-14 text-center flex flex-col items-center gap-3 border-dashed">
@@ -794,8 +696,11 @@ export default function Library({
             </div>
           )
         ) : effectiveView === 'table' ? (
-          <div className={cn('modes-card', mobileTable ? 'overflow-x-auto' : 'overflow-hidden')}>
-            <table className={cn('w-full border-collapse table-fixed', mobileTable && 'min-w-[640px]')}>
+          <div className={cn('modes-card', (plus || mobileTable) ? 'overflow-x-auto' : 'overflow-hidden')}>
+            <table
+              className="w-full border-collapse table-fixed"
+              style={(plus || mobileTable) ? { minWidth: tableMinWidth } : undefined}
+            >
               <thead>
                 <tr className="border-b border-[var(--modes-border)]">
                   <th className={cn('w-[44px] px-4', rowPad)}>
@@ -856,7 +761,9 @@ export default function Library({
                             </button>
                           )}
                         </div>
-                        {!orderedCols.some(c => c.id === 'artist') || mobileTable ? null : (
+                        {/* Mobile artist sub-line — only when the Artist column
+                            is responsively hidden (non-plus; plus always shows it). */}
+                        {(plus || mobileTable || !orderedCols.some(c => c.id === 'artist')) ? null : (
                           <div className="text-copy-13 text-[var(--modes-text-muted)] truncate mt-0.5 md:hidden">{song.artist}</div>
                         )}
                       </td>
@@ -887,7 +794,6 @@ export default function Library({
                 key={song.id}
                 song={song}
                 variant="compact"
-                accent={plus}
                 highlight={deferredQuery}
                 selected={advanced && song.id === previewSongId}
                 onClick={() => onRowActivate(song)}
@@ -895,40 +801,6 @@ export default function Library({
             ))}
             {hasMore && (
               <div ref={sentinelRef} className="py-5 text-center text-copy-12 text-[var(--modes-text-dim)]">
-                Loading more… ({truncated.length} of {filtered.length})
-              </div>
-            )}
-          </div>
-        ) : plus ? (
-          /* Media-card gallery (songsLibraryPlus): card-style group headers +
-             a responsive grid of true media cards. */
-          <div className="flex flex-col gap-8">
-            {sortedKeys.map(groupKey => (
-              <div key={groupKey} className="flex flex-col gap-3">
-                <div className="sticky top-[76px] z-[5] self-start inline-flex items-center gap-2 px-3 py-1.5 rounded-full modes-card-strong">
-                  <h3 className="text-heading-16 font-bold text-[var(--modes-text)] m-0">{groupKey}</h3>
-                  <span className="text-label-12 text-[var(--modes-text-dim)]">{groups[groupKey].length}</span>
-                </div>
-                <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-                  {groups[groupKey].map(song => (
-                    <SongMediaCard
-                      key={song.id}
-                      song={song}
-                      highlight={deferredQuery}
-                      duplicate={duplicateIds.has(song.id)}
-                      settings={chartDefaults?.settings}
-                      selected={selectedSet.has(song.id)}
-                      selectionActive={selectionActive}
-                      onToggleSelect={!readOnly ? (id) => toggleSelect(id) : undefined}
-                      onOpen={onRowActivate}
-                      onEdit={onEditSong || undefined}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-            {hasMore && (
-              <div ref={sentinelRef} className="py-6 text-center text-copy-12 text-[var(--modes-text-dim)]">
                 Loading more… ({truncated.length} of {filtered.length})
               </div>
             )}
@@ -943,7 +815,21 @@ export default function Library({
                 </div>
                 <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
                   {groups[groupKey].map(song => (
-                    <SongCard key={song.id} song={song} variant="row" showTags={true} selected={advanced && song.id === previewSongId} onClick={() => onRowActivate(song)} />
+                    <SongCard
+                      key={song.id}
+                      song={song}
+                      variant="row"
+                      showTags={true}
+                      selected={advanced && song.id === previewSongId}
+                      onClick={() => (selectionActive ? toggleSelect(song.id) : onRowActivate(song))}
+                      songMap={plus ? (Array.isArray(defaultArrangement(song).structure) ? defaultArrangement(song).structure : []) : null}
+                      songMapSettings={plus ? chartDefaults?.settings : null}
+                      onEdit={plus && onEditSong ? () => onEditSong(song) : null}
+                      selectable={plus && !readOnly}
+                      selectActive={selectionActive}
+                      isSelected={selectedSet.has(song.id)}
+                      onToggleSelect={plus && !readOnly ? () => toggleSelect(song.id) : null}
+                    />
                   ))}
                 </div>
               </div>

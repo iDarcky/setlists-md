@@ -15,7 +15,7 @@ import { usePersistentView } from '../lib/usePersistentView';
 import { setlistStartMs, isSetlistUpcoming } from '../lib/setlistTime';
 import { searchSetlistsPlus, setlistDurationSeconds } from '../lib/libraryPlus';
 import { formatTotalDuration } from '../lib/duration';
-import { normalizeText } from '../lib/search';
+import { formatClockTime } from '../lib/dateFormat';
 import { useEntitlement } from '../hooks/useEntitlement';
 import { useTeam } from '../auth/useTeam';
 import { useTeamSchedules } from '../hooks/useTeamSchedules';
@@ -209,31 +209,12 @@ export default function Setlists({
   const songMap = useMemo(() => new Map((songs || []).map(s => [s.id, s])), [songs]);
   const durationOf = (sl) => setlistDurationSeconds(sl, songMap);
   const durLabel = (sl) => { if (!plus) return null; const s = durationOf(sl); return s > 0 ? formatTotalDuration(s) : null; };
-  // First few song titles for the card mini-preview.
-  const songPreviewOf = (sl) => (sl.items || []).filter(i => i.songId).slice(0, 3).map(i => i.songTitle || songMap.get(i.songId)?.title || 'Song');
-  // When a setlist matched the query only via a contained song (not its own
-  // name), which song matched — surfaced as a "Contains: X" note on the card.
-  const matchNoteOf = (sl) => {
-    const q = query.trim();
-    if (!plus || !q) return null;
-    if (normalizeText(sl.name).includes(normalizeText(q))) return null;
-    const tokens = normalizeText(q).split(/\s+/).filter(Boolean);
-    for (const it of sl.items || []) {
-      if (!it.songId) continue;
-      const title = it.songTitle || songMap.get(it.songId)?.title || '';
-      const hay = normalizeText(title);
-      if (title && tokens.every(t => hay.includes(t))) return title;
-    }
-    return null;
-  };
-  // Common plus-only props for the (non-compact) setlist cards.
+  // Common plus-only props for the (non-compact) setlist cards. Library mode: a
+  // calm, browse-first card — title + date primary, then service + tags. No
+  // Play/Practice, song count, duration, previews, or status strip.
   const cardPlusProps = (sl) => plus ? {
-    statusHeader: true,
+    library: true,
     serviceBadge: showService ? (sl.service || null) : null,
-    bandCount: showSchedule ? (scheduleStats[sl.id]?.total || 0) : 0,
-    songPreview: songPreviewOf(sl),
-    matchNote: matchNoteOf(sl),
-    onPractice: onPracticeSetlist ? () => onPracticeSetlist(sl, 0) : undefined,
   } : {};
 
   useEffect(() => {
@@ -481,6 +462,7 @@ export default function Setlists({
   );
 
   // Shared filters popover — reused in the desktop header + the mobile toolbar.
+  // When plus, Status / When / Group-by live inside it too (calmer header).
   const filtersEl = (
     <SetlistFilters
       showService={showService}
@@ -491,6 +473,16 @@ export default function Setlists({
       selectedTags={selectedTags}
       onToggleTag={toggleTag}
       onClearTags={() => setSelectedTags([])}
+      plus={plus}
+      statusFilter={statusFilter}
+      onSetStatus={setStatusFilter}
+      dateFilter={dateFilter}
+      onSetDate={(v) => setDateFilter(v)}
+      groupBy={galleryGroup}
+      onSetGroup={setGalleryGroup}
+      groupOptions={plus && effectiveView === 'gallery'
+        ? [[null, 'Auto'], ['month', 'Month'], ...(showService ? [['service', 'Service']] : [])]
+        : []}
     />
   );
   const columnsEl = effectiveView === 'table' && onSetTableColumns ? (
@@ -503,66 +495,16 @@ export default function Setlists({
     />
   ) : null;
 
-  // Plus quick filters: Draft/Ready + This week/month.
-  const plusFiltersEl = plus ? (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      {[
-        { key: 'all', label: 'All' },
-        { key: 'ready', label: 'Ready' },
-        { key: 'draft', label: 'Draft' },
-      ].map(opt => (
-        <button
-          key={opt.key}
-          onClick={() => setStatusFilter(opt.key)}
-          className={cn('px-3 py-1.5 rounded-full text-label-13 font-medium cursor-pointer border transition-colors',
-            statusFilter === opt.key ? 'bg-[var(--color-brand)] text-white border-transparent' : 'bg-transparent text-[var(--modes-text-muted)] border-[var(--modes-border)] hover:bg-[var(--modes-surface)]')}
-        >
-          {opt.label}
-        </button>
-      ))}
-      <span className="w-px h-5 bg-[var(--modes-border)] mx-0.5" />
-      {[
-        { key: 'week', label: 'This week' },
-        { key: 'month', label: 'This month' },
-      ].map(opt => (
-        <button
-          key={opt.key}
-          onClick={() => setDateFilter(dateFilter === opt.key ? 'all' : opt.key)}
-          className={cn('px-3 py-1.5 rounded-full text-label-13 font-medium cursor-pointer border transition-colors',
-            dateFilter === opt.key ? 'bg-[var(--color-brand)] text-white border-transparent' : 'bg-transparent text-[var(--modes-text-muted)] border-[var(--modes-border)] hover:bg-[var(--modes-surface)]')}
-        >
-          {opt.label}
-        </button>
-      ))}
-      {templates.length > 0 && (
-        <button
-          onClick={() => setShowTemplates(v => !v)}
-          className={cn('px-3 py-1.5 rounded-full text-label-13 font-medium cursor-pointer border transition-colors',
-            showTemplates ? 'bg-[var(--color-brand)] text-white border-transparent' : 'bg-transparent text-[var(--modes-text-muted)] border-[var(--modes-border)] hover:bg-[var(--modes-surface)]')}
-        >
-          Templates ({templates.length})
-        </button>
-      )}
-      {effectiveView === 'gallery' && (
-        <div className="flex items-center gap-1 ml-1 pl-2 border-l border-[var(--modes-border)]">
-          <span className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wide mr-0.5">Group</span>
-          {[
-            { key: null, label: 'Auto' },
-            { key: 'month', label: 'Month' },
-            ...(showService ? [{ key: 'service', label: 'Service' }] : []),
-          ].map(opt => (
-            <button
-              key={opt.label}
-              onClick={() => setGalleryGroup(opt.key)}
-              className={cn('px-2.5 py-1.5 rounded-full text-label-13 font-medium cursor-pointer border-none transition-colors',
-                (galleryGroup ?? null) === opt.key ? 'bg-[var(--ds-gray-100)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+  // A single Templates toggle button (Status/When/Group now live in the filters
+  // popover). Only shown when templates exist.
+  const templatesToggleEl = plus && templates.length > 0 ? (
+    <button
+      onClick={() => setShowTemplates(v => !v)}
+      className={cn('h-9 px-4 rounded-lg border cursor-pointer flex items-center gap-2 text-label-14 transition-colors',
+        showTemplates ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--modes-surface)]' : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]')}
+    >
+      Templates ({templates.length})
+    </button>
   ) : null;
 
   // The Templates panel (setlistsLibraryPlus) — starting a fresh setlist from a
@@ -718,7 +660,7 @@ export default function Setlists({
               )}
             </div>
           )}
-          {plusFiltersEl && <div className="w-full">{plusFiltersEl}</div>}
+          {templatesToggleEl}
         </div>
       </div>
 
@@ -731,30 +673,41 @@ export default function Setlists({
             {renderSwitcher(true)}
             {filtersEl}
             {columnsEl}
-            {plusFiltersEl}
+            {templatesToggleEl}
           </div>
         )}
         {templatesPanel}
-        {plus && !query && statusFilter === 'all' && dateFilter === 'all' && upcoming.length > 0 && (
-          <div
-            role="button"
-            onClick={() => onRowActivate(upcoming[0])}
-            className="modes-card-strong rounded-2xl p-5 mb-6 flex items-center gap-4 cursor-pointer relative overflow-hidden group"
-            style={{ background: 'radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--color-brand) 22%, transparent), transparent 60%)' }}
-          >
-            <div className="min-w-0 flex-1">
-              <div className="text-label-11 uppercase tracking-[0.14em] text-[var(--color-brand)] font-semibold mb-1">Next up</div>
-              <div className="text-heading-22 font-bold text-[var(--modes-text)] truncate">{upcoming[0].name || 'Untitled setlist'}</div>
-              <div className="text-label-13 text-[var(--modes-text-muted)] mt-0.5 truncate">
-                {formatDate(upcoming[0].date)}
-                {songCount(upcoming[0]) > 0 ? ` · ${songCount(upcoming[0])} songs` : ''}
-                {durLabel(upcoming[0]) ? ` · ${durLabel(upcoming[0])}` : ''}
-                {upcoming[0].location ? ` · ${upcoming[0].location}` : ''}
+        {plus && !query && statusFilter === 'all' && dateFilter === 'all' && upcoming.length > 0 && (() => {
+          const next = upcoming[0];
+          const d = next.date ? new Date(next.date + 'T12:00:00') : null;
+          const valid = d && !isNaN(d);
+          const timeStr = formatClockTime(next.time, clockFormat);
+          return (
+            <div
+              role="button"
+              onClick={() => onRowActivate(next)}
+              className="rounded-2xl p-5 sm:p-6 mb-6 flex items-center gap-5 cursor-pointer relative overflow-hidden border border-[color-mix(in_srgb,var(--color-brand)_30%,transparent)]"
+              style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--color-brand) 20%, var(--ds-background-100)) 0%, var(--ds-background-100) 55%)' }}
+            >
+              {/* Calendar tile */}
+              <div className="shrink-0 w-16 h-16 rounded-2xl bg-[var(--color-brand)] text-white flex flex-col items-center justify-center shadow-md">
+                <span className="text-[10px] uppercase tracking-wide leading-none opacity-90">{valid ? d.toLocaleDateString('en-US', { month: 'short' }) : '—'}</span>
+                <span className="text-heading-24 font-bold leading-none mt-0.5">{valid ? d.getDate() : '·'}</span>
               </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-label-11 uppercase tracking-[0.16em] text-[var(--color-brand)] font-semibold mb-1">Next up</div>
+                <div className="text-heading-22 sm:text-heading-24 font-bold text-[var(--modes-text)] truncate leading-tight">{next.name || 'Untitled setlist'}</div>
+                <div className="text-label-13 text-[var(--modes-text-muted)] mt-1 truncate">
+                  {valid ? d.toLocaleDateString('en-US', { weekday: 'long' }) : formatDate(next.date)}
+                  {timeStr ? ` · ${timeStr}` : ''}
+                  {next.service ? ` · ${next.service}` : ''}
+                  {next.location ? ` · ${next.location}` : ''}
+                </div>
+              </div>
+              <Button variant="brand" size="sm" onClick={(e) => { e.stopPropagation(); onPlaySetlist(next); }} className="shrink-0 hidden sm:inline-flex">Play Live</Button>
             </div>
-            <Button variant="brand" size="sm" onClick={(e) => { e.stopPropagation(); onPlaySetlist(upcoming[0]); }} className="shrink-0">Play Live</Button>
-          </div>
-        )}
+          );
+        })()}
         {!loaded ? (
           <SkeletonRows />
         ) : filtered.length === 0 ? (

@@ -39,6 +39,10 @@ export default function LibraryFilters({
   onToggleTag,
   activeCount = 0,
   onClearAll,
+  // songsLibraryPlus: data-quality "issues" filters folded into the popover.
+  issues = null,        // { active: string[], dupOnly, dupCount, defs }
+  onToggleIssue,
+  onToggleDup,
 }) {
   const [open, setOpen] = useState(false);
   const [tagQuery, setTagQuery] = useState('');
@@ -65,7 +69,7 @@ export default function LibraryFilters({
     return { sel, unsel, total: filtered.length };
   })();
 
-  const hasAnything = activeFacets.length > 0 || allTags.length > 0;
+  const hasAnything = activeFacets.length > 0 || allTags.length > 0 || !!issues;
   if (!hasAnything) return null;
 
   return (
@@ -88,6 +92,21 @@ export default function LibraryFilters({
       {open && (
         <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-[300px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden flex flex-col max-h-[70vh]">
           <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4">
+            {issues && (
+              <div className="flex flex-col gap-2">
+                <span className="text-label-11 uppercase tracking-wider text-[var(--text-2)]">Issues</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(issues.defs || {}).map(([key, def]) => (
+                    <Chip key={key} active={(issues.active || []).includes(key)} onClick={() => onToggleIssue?.(key)}>
+                      {def.label}
+                    </Chip>
+                  ))}
+                  <Chip active={issues.dupOnly} onClick={() => onToggleDup?.()}>
+                    Duplicates{issues.dupCount > 0 ? <span className="opacity-50">{issues.dupCount}</span> : null}
+                  </Chip>
+                </div>
+              </div>
+            )}
             {activeFacets.map(facet => (
               <div key={facet.key} className="flex flex-col gap-2">
                 <span className="text-label-11 uppercase tracking-wider text-[var(--text-2)]">{facet.label}</span>
