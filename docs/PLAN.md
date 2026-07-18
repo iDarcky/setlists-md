@@ -157,12 +157,19 @@ team optimistic locking, scheduling & notifications pillar.
   conflict points (pull Yes/Yes and push CAS-miss), which must be validated by the
   two-device convergence suite before touching production sync. Do it as its own
   focused PR; the pure merge core is done and tested so that PR is wiring + tests.
-- ⏭️ **Cross-device / server-side version history (P2).** Version history is
-  per-device IndexedDB (`storage.loadVersions/pushVersion`). Now that import
-  *updates in place* (stable identity), a bad re-import is only recoverable on the
-  device that made it. Store a bounded per-song version trail server-side (or a
-  content snapshot on `team_activity`) so any device can roll back. Its own PR
-  (schema + client surfacing in the Song Hub / editor version panel).
+- ✅ **Cloud song version history — CAPTURE shipped, restore UI next (P2).**
+  Version history was per-device IndexedDB; now that import *updates in place*, a
+  bad re-import was only recoverable on the device that made it. Shipped
+  (`20260718_song_version_history.sql`, applied live): an append-only
+  `team_song_versions` table + a SECURITY DEFINER `snapshot_team_song` trigger
+  that captures every `team_songs` content change (any writer), capped at 30
+  snapshots per song, wrapped so a capture failure can NEVER block/roll back the
+  song write. RLS: team members read their team's history. **No engine change.**
+  **Remaining (its own PR):** the RESTORE UI — surface cloud versions alongside
+  the local ones in the Song Hub / editor version panel (read
+  `team_song_versions` for the team library; a "restore" writes the chosen
+  snapshot back through the normal save path). Until then, history is being
+  preserved and an emergency restore can be done from the DB.
 
 ---
 
