@@ -93,6 +93,9 @@ export default function AaMenu({
   lyricSize, onLyricSize, chordSize, onChordSize,
   columns, onColumns, notation, onNotation,
   onAdvanced, onReset,
+  // When false, hide chart-only controls (theme, columns, fonts, colours,
+  // advanced) — used by the editing-canvas Aa, which only needs notation + sizes.
+  chartControls = true,
 }) {
   const [tab, setTab] = useState('page');
   const { allowed: styleAllowed } = useEntitlement('chart-style');
@@ -150,14 +153,16 @@ export default function AaMenu({
             <>
               <Label>Size</Label>
               <Stepper value={lyricSize} min={10} max={40} onChange={onLyricSize} label="lyric size" />
-              <Label>Font</Label>
-              {styleAllowed
-                ? <FontList activeId={lyricFontId} onPick={(id) => onUpdateSettings?.('chartLyricFont', id)} />
-                : <ProHint>Upgrade to choose lyric fonts.</ProHint>}
-              <Label>Colour</Label>
-              {styleAllowed
-                ? <Swatches activeValue={settings?.chartLyricColor} onPick={(v) => onUpdateSettings?.('chartLyricColor', v || undefined)} />
-                : <ProHint>Upgrade to recolour lyrics.</ProHint>}
+              {chartControls && (<>
+                <Label>Font</Label>
+                {styleAllowed
+                  ? <FontList activeId={lyricFontId} onPick={(id) => onUpdateSettings?.('chartLyricFont', id)} />
+                  : <ProHint>Upgrade to choose lyric fonts.</ProHint>}
+                <Label>Colour</Label>
+                {styleAllowed
+                  ? <Swatches activeValue={settings?.chartLyricColor} onPick={(v) => onUpdateSettings?.('chartLyricColor', v || undefined)} />
+                  : <ProHint>Upgrade to recolour lyrics.</ProHint>}
+              </>)}
             </>
           )}
 
@@ -165,21 +170,24 @@ export default function AaMenu({
             <>
               <Label>Size</Label>
               <Stepper value={chordSize} min={8} max={40} onChange={onChordSize} label="chord size" />
-              <Label>Font</Label>
-              {styleAllowed
-                ? <FontList activeId={chordFontId} onPick={(id) => onUpdateSettings?.('chartChordFont', id)} />
-                : <ProHint>Upgrade to choose chord fonts.</ProHint>}
-              <Label>Colour</Label>
-              {styleAllowed
-                ? <Swatches activeValue={settings?.chartChordColor} onPick={(v) => onUpdateSettings?.('chartChordColor', v || undefined)} />
-                : <ProHint>Upgrade to recolour chords.</ProHint>}
-              {/* TODO: chord fingering-diagrams display — pulled for now,
-                  revisit (tracked in docs/PLAN.md). */}
+              {chartControls && (<>
+                <Label>Font</Label>
+                {styleAllowed
+                  ? <FontList activeId={chordFontId} onPick={(id) => onUpdateSettings?.('chartChordFont', id)} />
+                  : <ProHint>Upgrade to choose chord fonts.</ProHint>}
+                <Label>Colour</Label>
+                {styleAllowed
+                  ? <Swatches activeValue={settings?.chartChordColor} onPick={(v) => onUpdateSettings?.('chartChordColor', v || undefined)} />
+                  : <ProHint>Upgrade to recolour chords.</ProHint>}
+                {/* TODO: chord fingering-diagrams display — pulled for now,
+                    revisit (tracked in docs/PLAN.md). */}
+              </>)}
             </>
           )}
 
           {tab === 'page' && (
             <>
+              {chartControls && (<>
               <Label>Theme</Label>
               <div ref={themesRef} className="flex gap-2 overflow-x-auto -mx-1 px-1 py-1">
                 {visibleThemes.map(t => (
@@ -194,6 +202,7 @@ export default function AaMenu({
                   </button>
                 ))}
               </div>
+              </>)}
 
               <Label>Notation</Label>
               <div className="flex flex-wrap gap-1.5">
@@ -205,6 +214,7 @@ export default function AaMenu({
                 ))}
               </div>
 
+              {chartControls && (<>
               <Label>Columns</Label>
               <div className="flex flex-wrap gap-1.5">
                 {[{ v: 1, l: '1' }, { v: 2, l: '2' }].map(o => (
@@ -214,8 +224,9 @@ export default function AaMenu({
                   </button>
                 ))}
               </div>
+              </>)}
 
-              {onAdvanced && (
+              {chartControls && onAdvanced && (
                 <button type="button" onClick={() => { onClose(); onAdvanced(); }}
                   className="mt-4 w-full h-10 rounded-xl bg-[var(--bg-1)] border border-[var(--border-1)] text-label-13 font-semibold text-[var(--text-1)] flex items-center justify-center gap-2 hover:bg-[var(--bg-2)] transition-colors">
                   Spacing, role &amp; advanced

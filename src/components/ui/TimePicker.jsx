@@ -41,6 +41,7 @@ export function TimePicker({
   onChange,
   clockFormat = '12h',
   className = '',
+  hideIcon = false,
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef(null);
@@ -113,10 +114,12 @@ export function TimePicker({
         } text-[var(--ds-gray-1000)]`}
       >
         <span className="truncate tabular-nums">{displayLabel}</span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--ds-gray-600)]">
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
-        </svg>
+        {!hideIcon && (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--ds-gray-600)]">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+        )}
       </button>
 
       {open && (

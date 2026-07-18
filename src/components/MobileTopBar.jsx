@@ -46,11 +46,22 @@ function WorkspaceBadge({ workspace, size = 22 }) {
   );
 }
 
+function BellIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+    </svg>
+  );
+}
+
 export default function MobileTopBar({
   view,
   songs,
   setlists,
   onOpenDrawer,
+  onOpenNotifications,
+  unreadCount = 0,
   onSelectSong,
   onSelectSetlist,
   activeLibrary = 'personal',
@@ -138,6 +149,22 @@ export default function MobileTopBar({
               className="w-full h-full px-4 bg-transparent border-none text-copy-15 text-[var(--text-1)] placeholder:text-[var(--text-2)] outline-none"
             />
           </div>
+          {/* Bell — surfaces notifications without opening the drawer */}
+          {onOpenNotifications && (
+            <button
+              onClick={onOpenNotifications}
+              aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+              className="relative shrink-0 w-11 flex items-center justify-center bg-transparent text-[var(--text-1)] cursor-pointer active:bg-[var(--ds-gray-200)] transition-colors border-none"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <BellIcon />
+              {unreadCount > 0 && (
+                <span className="absolute top-2.5 right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-[var(--color-brand)] text-white text-[10px] font-bold leading-[16px] text-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+          )}
           {/* Workspace avatar — inside the field, on the right */}
           <div className="shrink-0 flex items-center pr-2.5 pl-0.5">
             <span className="w-px h-7 bg-[var(--ds-gray-300)] mr-2" aria-hidden="true" />

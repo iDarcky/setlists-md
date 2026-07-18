@@ -55,7 +55,7 @@ function ServiceField({ value, options, onChange }) {
 /**
  * Setlist metadata form — name, date, freeform tags, and (Church tier only) service.
  */
-export default function SetlistMetaForm({ name, date, time = '20:00', endTime = '', location = '', tags, service = '', rehearsalDate = '', rehearsalTime = '19:00', rehearsalLocation = '', knownServices = [], firstDayOfWeek = 'sunday', clockFormat = '12h', onNameChange, onDateChange, onTimeChange, onEndTimeChange, onLocationChange, onTagsChange, onServiceChange, onRehearsalDateChange, onRehearsalTimeChange, onRehearsalLocationChange }) {
+export default function SetlistMetaForm({ name, date, time = '20:00', endTime = '', location = '', tags, service = '', rehearsalDate = '', rehearsalTime = '19:00', rehearsalLocation = '', knownServices = [], firstDayOfWeek = 'sunday', clockFormat = '12h', hideTitle = false, onNameChange, onDateChange, onTimeChange, onEndTimeChange, onLocationChange, onTagsChange, onServiceChange, onRehearsalDateChange, onRehearsalTimeChange, onRehearsalLocationChange }) {
   const [tagInput, setTagInput] = useState('');
 
   const addTag = () => {
@@ -88,19 +88,22 @@ export default function SetlistMetaForm({ name, date, time = '20:00', endTime = 
   return (
     <div className="flex flex-col gap-4">
       {/* Title */}
-      <div className="flex flex-col gap-1">
-        <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Setlist Title</label>
-        <Input
-          value={name}
-          onChange={e => onNameChange(e.target.value)}
-          placeholder="e.g. Sunday Morning Service"
-          maxLength={120}
-        />
-      </div>
+      {!hideTitle && (
+        <div className="flex flex-col gap-1">
+          <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Setlist Title</label>
+          <Input
+            value={name}
+            onChange={e => onNameChange(e.target.value)}
+            placeholder="e.g. Sunday Morning Service"
+            maxLength={120}
+          />
+        </div>
+      )}
 
-      {/* Date & Time */}
-      <div className="flex gap-4">
-        <div className="flex-1 flex flex-col gap-1">
+      {/* Date · Start · End on one line (wraps on very narrow screens). Bottom
+          alignment keeps the fields level even though labels differ in height. */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex-1 min-w-[150px] flex flex-col gap-1">
           <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Date</label>
           <DatePicker
             value={date}
@@ -129,11 +132,19 @@ export default function SetlistMetaForm({ name, date, time = '20:00', endTime = 
             />
           </div>
         ) : (
-          <div className="flex flex-col gap-1 justify-end">
-            <label className="text-label-12 font-semibold text-transparent px-0.5 select-none" aria-hidden="true">End</label>
-            <Button size="sm" variant="ghost" onClick={() => onEndTimeChange?.('12:00')} className="h-9 text-[var(--ds-gray-700)]">+ End time</Button>
-          </div>
+          <Button size="sm" variant="secondary" onClick={() => onEndTimeChange?.('12:00')} className="text-[var(--ds-gray-700)]">+ End time</Button>
         )}
+      </div>
+
+      {/* Location */}
+      <div className="flex flex-col gap-1">
+        <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Location</label>
+        <Input
+          value={location}
+          onChange={e => onLocationChange(e.target.value)}
+          placeholder="e.g. The Blue Note"
+          maxLength={120}
+        />
       </div>
 
       {/* Rehearsal day (optional) — surfaces as a distinct entry in the schedule */}
@@ -169,17 +180,6 @@ export default function SetlistMetaForm({ name, date, time = '20:00', endTime = 
           )}
         </div>
       )}
-
-      {/* Location */}
-      <div className="flex flex-col gap-1">
-        <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5">Location</label>
-        <Input
-          value={location}
-          onChange={e => onLocationChange(e.target.value)}
-          placeholder="e.g. The Blue Note"
-          maxLength={120}
-        />
-      </div>
 
       {/* Service — Church tier only */}
       {useEntitlement('multi-service').allowed && onServiceChange && (

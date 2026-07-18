@@ -14,7 +14,7 @@ function defaultArrangement(song) {
 
 // Split a multi-value metadata string ("grace, redemption; advent") into trimmed
 // parts. Accepts arrays too. Returns [] for empty.
-function splitMulti(...vals) {
+export function splitMulti(...vals) {
   const out = [];
   for (const v of vals) {
     if (v == null || v === '') continue;

@@ -108,6 +108,67 @@ team optimistic locking, scheduling & notifications pillar.
   clobbers edits made while it was in flight), and a reference-preserving
   `applyKeyHistories` (it re-minted every song object on every launch, breaking
   the object-identity change signal storage + engines rely on).
+- ✅ **Setlist ↔ song reference integrity — shipped (2026-07-17).** Setlist items
+  reference a song by a snapshotted `songId`; re-importing a song mints a new id
+  and orphans every past setlist that pointed at the old one (a live main-church
+  audit found **106/160 items orphaned**: 50 re-linkable by title, 14 song-missing,
+  42 with no title snapshot). Fixes: (1) `src/setlist/setlistLinks.js` —
+  reference-preserving `healSetlistLinks` (re-link orphans whose stored `songTitle`
+  matches a current song + backfill missing titles) run on load next to
+  `applyKeyHistories`, plus `analyzeSetlistLinks`; (2) **stable identity on
+  import** — `handleSmartImport` adopts an existing same-title song's id so a
+  re-import UPDATES in place instead of orphaning; (3) **Settings → Sync →
+  "Setlist links"** diagnostic (`SetlistLinkDoctor.jsx`) showing linked /
+  re-linkable / missing / untitled with a manual Repair. Tests:
+  `src/__tests__/setlistLinks.test.js`. **Follow-ups:** consider fuzzy title
+  matching for **renamed** songs (e.g. item "Apă vie (Living Water)" vs song
+  "Apă vie" — currently reads as missing); surface the diagnostic for the
+  **personal** library as well; a one-time `songTitle` backfill covers old items
+  but the 42 title-less orphans (oldest sets, Mar–May) are unrecoverable from data.
+  Note: the earlier "87 duplicate songs" scare was a **cross-team query artifact**
+  (un-scoped `team_songs`) — within each team, identity is `UNIQUE (team_id,
+  song_key)` and there are ~0 within-team duplicates; the app's cross-team model is
+  correct.
+- ✅ **Sync hardening batch (2026-07-18).** Follow-ups from the setlist-link work:
+  (1) **heal-after-pull** — `healSetlistLinks` now also runs on any `songs`-set
+  change (a mid-session server pull can re-orphan links that were fine at load),
+  not just at initial load; (2) **batch-import identity adoption** —
+  `handleImportParsedSongs` adopts existing same-title ids too, matching the paste
+  path; (3) **activity feed no longer cries "edited" on canonical no-ops** — new
+  `content_hash` column (`20260718_activity_content_hash.sql`) carrying the
+  engine's canonical hash; the `log_team_activity` trigger skips when it's
+  unchanged, falling back to the byte comparison when NULL. Client stamps it on
+  every `team_songs`/`team_setlists` write (`team-engine.js`) behind the existing
+  column-missing-safe strip fallback, so it's safe in any deploy/migration order.
+  **Verified non-issue:** `song_key` already equals the embedded `songId` in all
+  three teams (0 mismatches) — identity is single-sourced; no change needed.
+  Server-authoritative delete is already durable for the normal flow (tombstones +
+  pull-drop); only raw out-of-band SQL deletes risk a re-push, so bulk cleanup must
+  run client-side.
+- ⏭️ **Field-level (3-way) merge — core ready, engine wiring deferred (P2).**
+  `src/sync/merge.js` (`threeWayMergeSong`/`threeWayMergeSetlist`, 11 tests):
+  metadata fields merge independently against the last-synced baseline, so a
+  Yes/Yes conflict where the two sides touched *disjoint* fields (one fixed tempo,
+  the other added a tag) auto-resolves; the chart (`arrangements`) and setlist
+  `items` are single units (both-edited → real conflict), `keyHistory` unions play
+  counts. **Not yet wired into the engine** — that needs per-field baseline hashes
+  in the manifest + a `HASH_VERSION` bump to re-baseline + auto-resolve at both
+  conflict points (pull Yes/Yes and push CAS-miss), which must be validated by the
+  two-device convergence suite before touching production sync. Do it as its own
+  focused PR; the pure merge core is done and tested so that PR is wiring + tests.
+- ✅ **Cloud song version history — CAPTURE shipped, restore UI next (P2).**
+  Version history was per-device IndexedDB; now that import *updates in place*, a
+  bad re-import was only recoverable on the device that made it. Shipped
+  (`20260718_song_version_history.sql`, applied live): an append-only
+  `team_song_versions` table + a SECURITY DEFINER `snapshot_team_song` trigger
+  that captures every `team_songs` content change (any writer), capped at 30
+  snapshots per song, wrapped so a capture failure can NEVER block/roll back the
+  song write. RLS: team members read their team's history. **No engine change.**
+  **Remaining (its own PR):** the RESTORE UI — surface cloud versions alongside
+  the local ones in the Song Hub / editor version panel (read
+  `team_song_versions` for the team library; a "restore" writes the chosen
+  snapshot back through the normal save path). Until then, history is being
+  preserved and an emergency restore can be done from the DB.
 
 ---
 
@@ -123,7 +184,10 @@ Gap analysis vs. Notion/Obsidian-grade products. ✅ = shipped that day.
   Supabase project and it is production — migrations are applied directly to
   live church data. Create a second project (or use Supabase branching) that
   `beta` deploys against; prod migration becomes a promotion step. Blocked on
-  the free-tier 2-project cap / paid plan choice.
+  the free-tier 2-project cap / paid plan choice (**needs Supabase Pro $25/mo —
+  see `docs/COSTS.md`**). Until then beta + prod share ONE database, so "test on
+  beta" = "test on live data" — safe only while migrations stay additive +
+  backward-compatible.
 - **Backups + restore drill (P1):** verify what the current Supabase plan
   retains, do one actual restore. ✅ Client half shipped: one-click
   whole-library backup .zip (Settings → Data) — every song/arrangement as .md,
@@ -232,10 +296,36 @@ Open, actionable items. Cross-cutting concerns at the end.
   editor's card layout (identity/edit/preview cards, calmer header, mobile collapse).
   Pair with the overview redesign above — P1.
 - **Clear song-search after selecting** a song (+ an "x") so adding several is quick — P2.
+- **Location → Google Maps (easy tier)** — P2. Places Autocomplete on the
+  Location field (type a venue → real suggestions; store the name + optional
+  lat/lng); in the viewer the location becomes a tappable link that opens the
+  native maps app (`https://maps.google.com/?q=…` / `geo:` — no SDK, no embed).
+  Needs a billing-enabled Places API key + a CSP allowance for the Places
+  endpoint + a privacy note. _Skip the embedded map tier — Maps JS/Embed API
+  conflicts with our strict CSP (external script + tiles), same issue that
+  killed Spotify playback._
 - Rework Set order/Band + relocate Draft/Ready — P2.
 - Song/break **card redesign** — P2 · _Q: what feels off?_
 - Rework **Recommended-next engine** (weigh more song-detail fields) — P2.
 - Desktop **3-pane** layout (details · current set · library) — P2.
+- **Setlist templates** — let a user save a setlist as a reusable template and
+  start new setlists from one — P2. _Recommended approach (Option A): a flag on
+  the setlist object, no migration._
+  - **Data:** add `isTemplate: true` (+ optional `templateName`) to the setlist.
+    `storage.isValidSetlist` only requires `id/name/items`, so it rides along in
+    IndexedDB and syncs for free; no schema change.
+  - **Save as template:** editor/viewer ⋯ → clones the current setlist with
+    `isTemplate: true` and strips date/time/rehearsal (templates are date-less).
+  - **New from template:** "New setlist → From template" picker deep-clones the
+    template's `items` (songs + per-item key/capo/tempo/structure/notes) into a
+    fresh setlist with a new `id` and today's date. Roster/schedules are **not**
+    copied (per-service).
+  - **Manage:** filter templates out of the normal Setlists list (own section or
+    a facet chip) so they don't clutter it.
+  - _Alt (Option B): a dedicated `templates` IndexedDB store + shape — cleaner
+    separation, but new storage/list/sync plumbing. Prefer A unless templates
+    need to diverge from the setlist shape._
+  - Build behind the `setlistCards` Labs flag alongside the rest of the redesign.
 
 ### Dashboard
 - **Live customize mode** (drag widgets in place, tray for unused) — P2.
@@ -281,8 +371,9 @@ Open, actionable items. Cross-cutting concerns at the end.
 
 ### Cross-cutting / chores
 - **Audit remaining menus/screens for the card design** — after the song editor +
-  setlists, sweep the other menus/panels (Settings, Team, Account, dialogs) so the
-  card language is consistent app-wide. Requested 2026-07 (#3) — P2.
+  setlists, sweep the other menus/panels so the card language is consistent
+  app-wide. Requested 2026-07 (#3) — P2. **Order: (1) Homepage/Dashboard**, then
+  Settings, Account, Team, Pricing, remaining dialogs.
 - ✅ **Bottom nav DPI/scale** — `BottomNav` tiles/FAB/label use `clamp(min, vw, max)`
   so the bar isn't oversized on smaller-viewport phones (was fixed px). Shipped 0.15.0.
 - **Naming consistency** pass (casing across headers) — P3.

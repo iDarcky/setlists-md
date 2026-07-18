@@ -6,6 +6,7 @@ import { mostPlayedKey } from '../keyHistory';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
 import { toast } from './ui/use-toast';
+import { showUndoToast } from '../lib/undoToast';
 import { useConfirm } from './ui/useConfirmHook';
 import ScreenHeader from './ui/ScreenHeader';
 import { SegmentedControl } from './ui/SegmentedControl';
@@ -14,10 +15,13 @@ import { nextSundayDateStr } from '../lib/dateFormat';
 const UNDO_STACK_LIMIT = 50;
 import SetlistMetaForm from './setlist/SetlistMetaForm';
 import SetlistItemRow from './setlist/SetlistItemRow';
+import SetlistCardRow from './setlist/SetlistCardRow';
+import SetlistIdentityCard from './setlist/SetlistIdentityCard';
 import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RecommendedNextPanel from './setlist/RecommendedNextPanel';
+import { useDragReorder } from '../lib/useDragReorder';
 
-export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h' }) {
+export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h', cards = false }) {
   const confirm = useConfirm();
   const [name, setName] = useState(setlist?.name || '');
   // New setlists default to the upcoming Sunday at 10:00 — the most common
@@ -43,12 +47,14 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   // New setlists start as drafts; existing ones without a status are treated as
   // ready (don't surprise-demote a legacy setlist to draft on edit).
   const [status, setStatus] = useState(setlist?.status || (setlist ? 'ready' : 'draft'));
-  // Builder tabs — Roster only available once the setlist has been saved.
+  // Setlist-level note (shared across the whole set — distinct from per-song
+  // cue notes and per-break notes).
+  const [notes, setNotes] = useState(setlist?.notes || '');
 
   // Snapshot the form on first render so Cancel/back can warn about unsaved
   // changes (only when something actually changed — no nag on a pristine form).
-  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, endTime, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation }));
-  const isDirty = JSON.stringify({ name, date, time, endTime, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation }) !== initialSnapshot;
+  const [initialSnapshot] = useState(() => JSON.stringify({ name, date, time, endTime, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation, notes }));
+  const isDirty = JSON.stringify({ name, date, time, endTime, location, tags, items, service, status, rehearsalDate, rehearsalTime, rehearsalLocation, notes }) !== initialSnapshot;
 
   // Report dirty state up so App can guard header nav / browser back. Reset on
   // unmount so a stale flag never blocks navigation after we leave.
@@ -167,20 +173,18 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     scrollPendingRef.current = true;
     applyStructural(p => [...p, { type: 'break', label: '', note: '', duration: 0 }]);
   };
-  const removeItem = async (idx) => {
-    const item = items[idx];
-    const isBreak = item?.type === 'break';
-    const ok = await confirm({
-      title: isBreak ? 'Remove break?' : 'Remove song?',
-      description: isBreak
-        ? 'This break will be removed from the setlist.'
-        : `"${item?.songTitle || 'This song'}" will be removed from the setlist.`,
-      confirmLabel: 'Remove',
-      cancelLabel: 'Keep',
-      variant: 'danger',
-    });
-    if (!ok) return;
+  // Remove immediately and offer a timed Undo toast (no blocking modal) — the
+  // same countdown toast the song editor uses. Undo re-inserts the exact item
+  // at its original position.
+  const removeItem = (idx) => {
+    const removed = items[idx];
+    if (!removed) return;
+    const isBreak = removed.type === 'break';
     applyStructural(p => p.filter((_, i) => i !== idx));
+    showUndoToast({
+      title: `${isBreak ? 'Break' : (removed.songTitle || 'Song')} removed`,
+      onUndo: () => setItems(p => { const n = [...p]; n.splice(Math.min(idx, n.length), 0, removed); return n; }),
+    });
   };
 
   // Move item up or down by one position (for mobile-friendly reorder buttons)
@@ -201,11 +205,42 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     setItems(p => p.map((it, i) => i === idx ? { ...it, capo: val } : it));
   const updateBreakField = (idx, field, value) =>
     setItems(p => p.map((it, i) => i === idx ? { ...it, [field]: value } : it));
+  // Generic per-item field update (cards row: key/capo/tempo/structure/note/…).
+  const updateItemField = (idx, field, value) =>
+    setItems(p => p.map((it, i) => i === idx ? { ...it, [field]: value } : it));
+  // Reorder used by the drag hook (grip drag + touch).
+  const reorderItems = useCallback((from, to) => {
+    applyStructural(prev => {
+      if (from == null || to == null || from === to || to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }, [applyStructural]);
   const getSong = (id, title, arrangementId) => {
     let s = songs.find(s => s.id === id);
     if (!s && title) s = songs.find(s => s.title === title);
     return s ? resolveSongView(s, arrangementId) : null;
   };
+
+  // Card-language drag-to-reorder (grip HTML5 + native touch + autoscroll).
+  const dnd = useDragReorder(reorderItems);
+  // Running "N songs · ~X min" for the Set card header. Unknown song lengths
+  // estimate at 4 min so the total is never wildly off; breaks add their minutes.
+  const setStats = useMemo(() => {
+    let songCount = 0;
+    let seconds = 0;
+    for (const it of items) {
+      if (it.type === 'break') { seconds += (it.duration || 0) * 60; continue; }
+      songCount += 1;
+      const s = songs.find(x => x.id === it.songId);
+      const arr = s ? getArrangement(s, it.arrangementId) : null;
+      const dur = it.tempo ? null : arr?.duration;
+      seconds += dur || 240;
+    }
+    return { songCount, minutes: Math.round(seconds / 60) };
+  }, [items, songs]);
 
   // Drag handlers
   const handleDragStart = useCallback((idx) => {
@@ -264,6 +299,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
       ...setlist, // preserve fields the builder doesn't edit (workspace/authorship/etc.)
       id: setlist?.id || generateId(),
       name: name.trim(), date, time, endTime: endTime || '', location, tags, items, service, status,
+      notes: notes || '',
       rehearsalDate: rehearsalDate || null,
       rehearsalTime: rehearsalDate ? rehearsalTime : null,
       rehearsalLocation: rehearsalDate ? (rehearsalLocation || null) : null,
@@ -271,15 +307,124 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     });
   };
 
-  const handleDelete = async () => {
-    const ok = await confirm({
-      title: 'Delete setlist?',
-      description: `"${setlist?.name || 'Untitled'}" will be permanently removed. This cannot be undone.`,
-      confirmLabel: 'Delete',
-      variant: 'danger',
-    });
-    if (ok) onDelete(setlist.id);
-  };
+  // Delete is undoable — App shows a 5s "Undo" toast — so no confirm modal here.
+  const handleDelete = () => { onDelete(setlist.id); };
+
+  // Per-item arrangement switch (preserve transpose only when source keys match).
+  const selectArrangement = (idx, arrId) => setItems(p => p.map((it, i) => {
+    if (i !== idx) return it;
+    const raw = songs.find(s => s.id === it.songId);
+    const newArr = getArrangement(raw, arrId);
+    const oldArr = getArrangement(raw, it.arrangementId);
+    const keepTranspose = newArr && oldArr && newArr.key === oldArr.key;
+    return { ...it, arrangementId: arrId, arrangementName: newArr?.name || it.arrangementName, transpose: keepTranspose ? it.transpose : 0 };
+  }));
+
+  // ─────────────────────────── Card-language layout ──────────────────────────
+  if (cards) {
+    const identityProps = {
+      name, date, time, endTime, location, tags, service,
+      rehearsalDate, rehearsalTime, rehearsalLocation, notes, status,
+      knownServices, firstDayOfWeek, clockFormat,
+      onNameChange: setName, onDateChange: setDate, onTimeChange: setTime,
+      onEndTimeChange: setEndTime, onLocationChange: setLocation, onTagsChange: setTags,
+      onServiceChange: setService, onRehearsalDateChange: setRehearsalDate,
+      onRehearsalTimeChange: setRehearsalTime, onRehearsalLocationChange: setRehearsalLocation,
+      onNotesChange: setNotes, onStatusChange: setStatus,
+    };
+
+    const libraryContent = (
+      <div className="flex flex-col gap-5">
+        <SetlistSongPicker songs={songs} currentItems={items} onAddSong={addSong} />
+        <RecommendedNextPanel songs={songs} currentItems={items} onAddSong={(song, k) => addSong(song, k)} />
+      </div>
+    );
+
+    const setRows = (
+      <div className="flex flex-col gap-2" role="list">
+        {items.map((item, idx) => (
+          <div key={idx} {...dnd.getRowProps(idx)}>
+            <SetlistCardRow
+              item={item}
+              idx={idx}
+              songNum={songNumberFor[idx]}
+              song={item.type !== 'break' ? getSong(item.songId, item.songTitle, item.arrangementId) : null}
+              rawSong={item.type !== 'break' ? songs.find(s => s.id === item.songId) : null}
+              onRemove={removeItem}
+              onUpdateField={updateItemField}
+              onSelectArrangement={(arrId) => selectArrangement(idx, arrId)}
+              gripProps={dnd.getGripProps(idx)}
+              dragging={dnd.dragIdx === idx}
+              dragOver={dnd.dragOverIdx === idx && dnd.dragIdx !== null && dnd.dragIdx !== idx}
+            />
+          </div>
+        ))}
+      </div>
+    );
+
+    return (
+      <div className="min-h-screen material-page flex flex-col">
+        <div className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-5 pt-4 pb-28 lg:pb-6 flex flex-col gap-3">
+          <SetlistIdentityCard {...identityProps} />
+
+          <div className="flex flex-col lg:flex-row gap-3 items-start">
+            {/* Set card */}
+            <div className="flex-1 min-w-0 w-full rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border-1)]">
+                <h3 className="text-heading-14 font-semibold text-[var(--ds-gray-1000)] m-0">Set order</h3>
+                <span className="text-copy-12 text-[var(--ds-gray-600)]">
+                  {setStats.songCount} {setStats.songCount === 1 ? 'song' : 'songs'} · ~{setStats.minutes} min
+                </span>
+                <span className="flex-1" />
+                <span className="hidden sm:inline text-copy-12 text-[var(--ds-gray-500)]">drag to reorder</span>
+              </div>
+              <div className="p-3">
+                {items.length === 0 ? (
+                  <div className="py-10 text-center border-2 border-dashed border-[var(--ds-gray-400)] rounded-xl text-copy-14 text-[var(--ds-gray-700)]">
+                    Add songs from the library
+                  </div>
+                ) : setRows}
+                <div className="flex mt-3">
+                  <button
+                    type="button"
+                    onClick={addBreak}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl border border-dashed border-[var(--color-brand-border)] text-label-12 font-semibold text-[var(--color-brand-text)] cursor-pointer hover:bg-[var(--color-brand-soft)] transition-colors"
+                  >
+                    + Add break
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Library card — beside the set on desktop, stacked below on mobile */}
+            <div className="w-full lg:w-[340px] shrink-0 lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] p-4">
+              <h3 className="text-heading-14 font-semibold text-[var(--ds-gray-1000)] m-0 mb-4">Library</h3>
+              {libraryContent}
+            </div>
+          </div>
+        </div>
+
+        {/* Sticky bottom Save/Cancel — a floating card (mirrors the song editor)
+            rather than a full-width bar. */}
+        <div className="sticky bottom-0 z-30 px-3 sm:px-5 pt-2 pb-3 pointer-events-none">
+          <div
+            className="max-w-6xl mx-auto rounded-xl border border-[var(--border-1)] bg-[var(--ds-background-100)] shadow-lg px-3 sm:px-4 py-2.5 flex items-center gap-3 pointer-events-auto"
+            style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          >
+            {!name.trim() && (
+              <span className="inline-flex items-center gap-1.5 text-label-11 font-semibold text-[var(--ds-amber-700,#b45309)]">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                Add a setlist name to save
+              </span>
+            )}
+            <span className="flex-1" />
+            <Button variant="ghost" size="md" onClick={handleCancel}>Cancel</Button>
+            <Button variant="brand" size="md" onClick={handleSave} disabled={!name.trim()}>Save</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen material-page flex flex-col">

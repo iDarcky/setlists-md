@@ -1,5 +1,6 @@
 import { Toaster } from "./components/ui/Toaster";
 import { toast } from "./components/ui/use-toast";
+import { showUndoToast } from "./lib/undoToast";
 import { useConfirm } from "./components/ui/useConfirmHook";
 import OfflineBanner from "./components/ui/OfflineBanner";
 import WorkspacePickerDialog from "./components/ui/WorkspacePickerDialog";
@@ -9,6 +10,7 @@ import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSet
 import { shareTokenFromUrl } from './share/setlistShare';
 import { withArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
+import { healSetlistLinks, matchSongByTitle } from './setlist/setlistLinks';
 import { DEMO_SONGS_MD } from './data/demos';
 import { createSyncEngine } from './sync/engine';
 import { createTeamSyncEngine } from './sync/team-engine';
@@ -26,6 +28,7 @@ import DesktopLayout from './components/DesktopLayout';
 import MobileTopBar from './components/MobileTopBar';
 import MobileDrawer from './components/MobileDrawer';
 import NotificationTray from './components/NotificationTray';
+import NotificationsPage from './components/NotificationsPage';
 import ConflictResolver from './components/ConflictResolver';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useAuth } from './auth/useAuth';
@@ -130,7 +133,7 @@ const PORTABLE_PREF_KEYS = [
   'ribbonStyle',
   'structurePosition',
   'mockupPalette',
-  'songEditorCards',
+  'setlistCards',
   'keepAwake',
   'lockOrientation',
   'accidentals',
@@ -148,6 +151,8 @@ const PORTABLE_PREF_KEYS = [
   'rosterOverscheduleWarning',
   'rosterStreakLimit',
   'tableColumns',
+  'serviceReminders',
+  'rehearsalReminders',
 ];
 
 function extractPortablePrefs(s) {
@@ -318,7 +323,13 @@ export default function App() {
   // (left/deleted). activeLibrary only becomes a team id via an explicit
   // switch — after teams have loaded — so this never resets prematurely.
   useEffect(() => {
-    if (activeLibrary === 'personal') return;
+    if (activeLibrary === 'personal') {
+      // In the Personal space there is NO active team — clear it so team-only
+      // surfaces (Band, roster, church members, team activity) don't leak in.
+      // (TeamProvider otherwise defaults activeTeamId to the first team on load.)
+      setActiveTeam(null);
+      return;
+    }
     const ids = teams.map(t => t.id);
     if (ids.includes(activeLibrary)) {
       setActiveTeam(activeLibrary);
@@ -510,7 +521,7 @@ export default function App() {
         await saveSongs(demos, 'personal');
       }
 
-      const savedSetlists = await loadSetlists(activeLibrary);
+      let savedSetlists = await loadSetlists(activeLibrary);
       if (ignore) return;
 
       // Recompute keyHistory once on load by scanning past-dated setlists.
@@ -523,6 +534,17 @@ export default function App() {
         const histories = computeKeyHistories(savedSongs, savedSetlists || []);
         savedSongs = applyKeyHistories(savedSongs, histories);
       }
+
+      // Self-heal orphaned setlist references: re-link items whose songId no
+      // longer resolves but whose stored title matches a current song, and
+      // backfill a missing title so a future id change stays recoverable.
+      // Same reference-preserving contract as applyKeyHistories — unchanged
+      // setlists keep identity, so the sync engine only pushes real changes.
+      // Runs before the initial setSetlists and the startup-sync snapshot.
+      if ((savedSetlists?.length || 0) > 0 && savedSongs.length > 0) {
+        savedSetlists = healSetlistLinks(savedSetlists, savedSongs).setlists;
+      }
+
       setSongs(savedSongs);
       setSetlists(savedSetlists || []);
 
@@ -630,6 +652,18 @@ export default function App() {
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) saveTombstones(tombstones, activeLibrary);
   }, [tombstones, loaded, activeLibrary]);
+
+  // Keep setlist→song references valid whenever the SONG SET changes — most
+  // importantly after a mid-session sync pull replaces/removes songs (a server
+  // pull can re-orphan links that were fine at load). Depends on `songs` only
+  // (not `setlists`) so it re-validates on library changes, not on every setlist
+  // edit; healSetlistLinks is reference-preserving, so once links are clean it
+  // returns the same array and this neither re-renders nor triggers a push.
+  useEffect(() => {
+    if (loaded && !isSwitchingLibraryRef.current) {
+      setSetlists(prev => healSetlistLinks(prev, songs).setlists);
+    }
+  }, [songs, loaded, activeLibrary]);
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) saveTrash(trash, activeLibrary);
   }, [trash, loaded, activeLibrary]);
@@ -1282,8 +1316,25 @@ export default function App() {
     if (isTeamReadOnly) return;
     navigate('editor', { song, arrangementId });
   };
-  const goSetlistBuild = (sl = null) => {
+  const goSetlistBuild = async (sl = null) => {
     if (isTeamReadOnly) return;
+    // Warn before editing a setlist whose date has already passed — editing it
+    // rewrites the record of a service that already happened. Only for existing
+    // setlists (has an id); creating a new one for any date is fine.
+    if (sl?.id && sl?.date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const d = new Date(sl.date + 'T00:00:00');
+      if (!Number.isNaN(d.getTime()) && d < today) {
+        const ok = await confirm({
+          title: 'Edit a past setlist?',
+          description: "This setlist's date has already passed. Editing changes the record of a service that already happened. Continue?",
+          confirmLabel: 'Edit anyway',
+          variant: 'brand',
+        });
+        if (!ok) return;
+      }
+    }
     navigate('setlist-build', { setlist: sl });
   };
   const goSetlistView = (sl) => {
@@ -1616,6 +1667,17 @@ export default function App() {
       historyRef.current.pop();
     }
     goBack();
+    if (removed) {
+      showUndoToast({
+        title: 'Song deleted',
+        description: removed.title || 'Song',
+        onUndo: () => {
+          setSongs(prev => prev.some(s => s.id === id) ? prev : [...prev, removed]);
+          setTrash(prev => prev.filter(e => e.song?.id !== id));
+          setTombstones(prev => ({ ...prev, songs: prev.songs.filter(t => t.id !== id) }));
+        },
+      });
+    }
   };
 
   // ----- Bulk song actions (Library selection toolbar) -----
@@ -1732,6 +1794,18 @@ export default function App() {
     if (guardTeamReadOnly()) return; // adds to songs before navigate()'s gate
     try {
       const parsed = parseSongMd(mdText);
+      // Stable identity across re-imports: if a song with this title already
+      // exists, adopt its id so the import UPDATES it in place (keeping every
+      // setlist reference intact) instead of minting a new id that orphans
+      // past setlists. The editor still opens for review before Save.
+      const existing = matchSongByTitle(songs, parsed.title);
+      if (existing) {
+        const adopted = { ...songFromFlat({ ...parsed, id: existing.id }), id: existing.id, keyHistory: existing.keyHistory };
+        toast({ title: `Updating "${existing.title}"`, description: 'This song already exists — your import updates it and keeps setlist links.' });
+        setNewSongModal(null);
+        navigate('editor', { song: adopted });
+        return;
+      }
       const song = songFromFlat({ ...parsed, id: generateId(), updatedAt: Date.now() });
       setSongs(prev => [...prev, song]);
       setNewSongModal(null);
@@ -1745,14 +1819,22 @@ export default function App() {
     if (!parsedSongs || parsedSongs.length === 0) return;
     if (guardTeamReadOnly()) return;
     setNewSongModal(null);
-    if (parsedSongs.length === 1) {
-      navigate('editor', { song: parsedSongs[0] });
+    // Stable identity across re-imports (batch): if a song with this title
+    // already exists, adopt its id + keyHistory so Save UPDATES it in place and
+    // keeps every setlist reference intact, instead of minting a new id that
+    // orphans past setlists. Same rule as the single-paste import path.
+    const queue = parsedSongs.map(s => {
+      const existing = matchSongByTitle(songs, s.title);
+      return existing ? { ...s, id: existing.id, keyHistory: existing.keyHistory } : s;
+    });
+    if (queue.length === 1) {
+      navigate('editor', { song: queue[0] });
       return;
     }
     // Queue the songs as drafts — each one only persists when the user
     // hits Save in the editor; Skip drops it without writing to the library.
-    setImportQueue({ remaining: parsedSongs, total: parsedSongs.length });
-    navigate('editor', { song: parsedSongs[0] });
+    setImportQueue({ remaining: queue, total: queue.length });
+    navigate('editor', { song: queue[0] });
   };
 
   const handleImportSetlistFile = async (file) => {
@@ -1881,6 +1963,12 @@ export default function App() {
     });
   }, []);
 
+  // Manual trigger for the Settings → Sync "Setlist links" panel. Same heal the
+  // load path runs; useful right after re-importing a missing song.
+  const handleRepairSetlistLinks = useCallback(() => {
+    setSetlists(prev => healSetlistLinks(prev, songs).setlists);
+  }, [songs]);
+
   const handleUpdateSetlist = useCallback((updatedSetlist) => {
     setSetlists(prev => {
       const i = prev.findIndex(s => s.id === updatedSetlist.id);
@@ -1892,6 +1980,7 @@ export default function App() {
   }, []);
 
   const handleDeleteSetlist = (id) => {
+    const removed = setlists.find(s => s.id === id);
     setSetlists(prev => prev.filter(s => s.id !== id));
     setTombstones(prev => ({
       ...prev,
@@ -1906,6 +1995,16 @@ export default function App() {
       historyRef.current.pop();
     }
     goBack();
+    if (removed) {
+      showUndoToast({
+        title: 'Setlist deleted',
+        description: removed.name || 'Setlist',
+        onUndo: () => {
+          setSetlists(prev => prev.some(s => s.id === id) ? prev : [...prev, removed]);
+          setTombstones(prev => ({ ...prev, setlists: prev.setlists.filter(t => t.id !== id) }));
+        },
+      });
+    }
   };
 
   const handleDeleteSetlists = async (ids) => {
@@ -2148,6 +2247,7 @@ export default function App() {
       )}
       {!['onboarding', 'signin', 'recovery'].includes(view) && (
         <DesktopLayout
+          scrollKey={`${view}|${currentSetlist?.id || currentSong?.id || ''}`}
           activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
           onNavigate={goToMainView} 
           isFullscreen={view === 'setlist-performance' || view === 'setlist-play' || view === 'setlist-practice' || (isFullscreen && (view === 'library' || view === 'setlists' || view === 'song-hub'))}
@@ -2190,6 +2290,8 @@ export default function App() {
               songs={songs}
               setlists={setlists}
               onOpenDrawer={openDrawer}
+              onOpenNotifications={user ? () => navigate('notifications') : undefined}
+              unreadCount={user ? mergedNotifications.filter(n => !n.read).length : 0}
               onSelectSong={goChart}
               onSelectSetlist={goSetlistView}
               activeLibrary={activeLibrary}
@@ -2393,8 +2495,10 @@ export default function App() {
               streakLimit={settings?.rosterStreakLimit || 3}
               onPlay={() => goSetlistPerformance(currentSetlist)}
               onPractice={(startIndex) => goSetlistPractice(currentSetlist, startIndex)}
+              onOpenSong={(song) => goChart(song)}
               onDelete={isTeamReadOnly ? null : () => handleDeleteSetlist(currentSetlist.id)}
               canEdit={canEdit}
+              cards={!!settings?.setlistCards}
             />
           )}
           {view === 'setlist-build' && (
@@ -2411,6 +2515,7 @@ export default function App() {
               onUpdateSong={handleUpdateSong}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
               clockFormat={settings?.clockFormat || '12h'}
+              cards={!!settings?.setlistCards}
             />
           )}
           {view === 'setlist-play' && currentSetlist && (
@@ -2520,6 +2625,17 @@ export default function App() {
               }}
             />
           )}
+          {view === "notifications" && (
+            <NotificationsPage
+              notifications={mergedNotifications}
+              onBack={goBack}
+              onMarkRead={handleMarkNotificationRead}
+              onDismiss={handleDismissNotification}
+              onClearAll={handleClearAllNotifications}
+              onUpdateSchedule={updateSchedule}
+              onAction={(action) => handleNotificationAction?.(action)}
+            />
+          )}
           {view === "settings" && settings && (
             <Settings
               settings={settings}
@@ -2583,6 +2699,7 @@ export default function App() {
               team={team}
               setlists={setlists}
               songs={songs}
+              onRepairSetlistLinks={handleRepairSetlistLinks}
               onRemapService={handleRemapService}
               trash={trash}
               onRestoreSong={handleRestoreSong}
@@ -2677,7 +2794,7 @@ export default function App() {
           hasUnreadNotifications={hasUnreadNotifications}
           onOpenSettings={() => { setDrawerOpen(false); goToMainView('settings'); }}
           onOpenPlan={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'plan' }); }}
-          onOpenNotifications={() => { setDrawerOpen(false); setNotifTrayOpen(true); }}
+          onOpenNotifications={() => { setDrawerOpen(false); navigate('notifications'); }}
           onOpenHelp={() => { setDrawerOpen(false); navigate('help'); }}
           onOpenWhatsNew={() => {
             setDrawerOpen(false);

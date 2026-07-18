@@ -118,7 +118,7 @@ export function ConfirmDialog({
           {cancelLabel}
         </Button>
         <Button
-          variant={variant === 'danger' ? 'danger' : 'primary'}
+          variant={variant === 'default' ? 'primary' : variant}
           size="md"
           onClick={handleConfirm}
           loading={busy}

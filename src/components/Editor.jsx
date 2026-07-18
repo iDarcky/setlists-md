@@ -12,6 +12,7 @@ import WriteTab from './editor/WriteTab';
 import ArrangeTabV2 from './editor/ArrangeTabV2';
 import TabsTab from './editor/TabsTab';
 import MetadataPanel from './editor/MetadataPanel';
+import EditorEmptyState from './editor/EditorEmptyState';
 import StructureControl from './editor/StructureControl';
 import ArrangementMenu, { EditArrangementsDialog } from './editor/ArrangementMenu';
 import { Button } from './ui/Button';
@@ -149,12 +150,12 @@ key:
 
 `;
 
-export default function Editor({ song, onSave, onBack, onDirtyChange, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null }) {
+export default function Editor({ song, onSave, onBack, onDirtyChange, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null, onOpenNewSong }) {
   const confirm = useConfirm();
 
-  // Labs: card-based editor header (step 1 — header card). When off, the
-  // original sticky-bar header with the collapsible Song Details panel is used.
-  const cardsHeader = !!chartDefaults?.settings?.songEditorCards;
+  // The card-based editor is the default (graduated out of Labs). The legacy
+  // sticky-bar header path below is retained but unreachable.
+  const cardsHeader = true;
 
   // Working copy of the song we're editing. For a new song, songFromFlat
   // produces a fresh v2 song with one "Main Arrangement". For existing v2
@@ -204,9 +205,16 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   const clearDraft = useCallback(() => {
     try { localStorage.removeItem(draftKey); } catch { /* private mode */ }
   }, [draftKey]);
-  // New songs (card layout) open on Details to fill in metadata first; editing
-  // an existing song opens on Arrange. Legacy has no Details tab → always Arrange.
-  const [activeTab, setActiveTab] = useState(() => (!song && cardsHeader ? 'details' : 'arrange'));
+  // New songs (card layout) open on Arrange behind the New-song mode. Editing an
+  // existing song opens on Arrange. Legacy has no Details tab → always Arrange.
+  const [activeTab, setActiveTab] = useState('arrange');
+  // New-song mode (card layout): a fresh blank song shows a big paste area /
+  // import chooser first. Dismissed on "Start blank", or when pasted content is
+  // applied. No draft to restore → skip it and go straight to editing.
+  const [showNewSong, setShowNewSong] = useState(() => !song && cardsHeader && !draftFound);
+  // The paste text in New-song mode — kept here so the preview pane can render a
+  // live parse of it before the user commits ("Turn into chart").
+  const [newSongDraft, setNewSongDraft] = useState('');
   // Card layout: the raw-markdown editor (WriteTab) opens in a centered dialog
   // instead of a tab — a power-user "Source" escape hatch with paste-import.
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
@@ -257,7 +265,22 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // GLOBAL display settings (a faithful preview — same as the chart's Aa).
   const [aaAnchor, setAaAnchor] = useState(null);
   const closeAa = useCallback(() => setAaAnchor(null), []);
-  const toggleAa = (e) => setAaAnchor(a => (a ? null : e.currentTarget.getBoundingClientRect()));
+  // Read the rect synchronously in the handler — React nulls `currentTarget`
+  // once the handler returns, so reading it inside the state updater crashes.
+  const toggleAa = (e) => { const r = e.currentTarget.getBoundingClientRect(); setAaAnchor(a => (a ? null : r)); };
+  // A SECOND Aa scope — the editing CANVAS (Arrange cards). Per-device, separate
+  // from the chart/preview settings: notation + text sizes only (see AaMenu
+  // chartControls={false}). It restyles how you read the cards while editing,
+  // never how charts render elsewhere.
+  const [canvasAaAnchor, setCanvasAaAnchor] = useState(null);
+  const closeCanvasAa = useCallback(() => setCanvasAaAnchor(null), []);
+  const toggleCanvasAa = (e) => { const r = e.currentTarget.getBoundingClientRect(); setCanvasAaAnchor(a => (a ? null : r)); };
+  const [canvasLyricRaw, setCanvasLyricRaw] = usePersistentView('setlists-md:editor-canvas-lyric', '16');
+  const [canvasChordRaw, setCanvasChordRaw] = usePersistentView('setlists-md:editor-canvas-chord', '12');
+  const [canvasNotationRaw, setCanvasNotationRaw] = usePersistentView('setlists-md:editor-canvas-notation', 'letters');
+  const canvasLyricSize = parseInt(canvasLyricRaw, 10) || 16;
+  const canvasChordSize = parseInt(canvasChordRaw, 10) || 12;
+  const canvasNotation = canvasNotationRaw || 'letters';
   const [editArrangementsOpen, setEditArrangementsOpen] = useState(false);
   const [promptConfig, setPromptConfig] = useState(null);
   const textareaRef = useRef(null);
@@ -481,6 +504,19 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
+  // ⌘/Ctrl+S saves (swallowing the browser's save dialog) when there's
+  // something to save.
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        if (!readOnly && onSave && isDirty && preview) handleSave();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [readOnly, onSave, isDirty, preview, handleSave]);
+
   // Record md changes into the undo stack (skips undo/redo-driven changes).
   useEffect(() => {
     if (md === prevMdRef.current) return;
@@ -537,6 +573,22 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   const currentKey = fmFields.key || '';
   const currentTempo = fmFields.tempo ?? '';
   const currentTime = fmFields.time ?? '';
+  // Title is edited via a LOCAL draft, not read straight back from the parsed
+  // frontmatter — the frontmatter round-trip trims values, so a just-typed
+  // trailing space would vanish before the next character (making multi-word
+  // titles impossible). We only re-adopt the parsed title when it differs from
+  // the draft *after trimming* (a real external change: paste, undo, arrangement
+  // switch), never for our own in-progress trailing space.
+  const [titleDraft, setTitleDraft] = useState(fmFields.title || '');
+  if ((fmFields.title || '') !== (titleDraft || '').trim()) {
+    setTitleDraft(fmFields.title || '');
+  }
+  const setTitle = useCallback((v) => { setTitleDraft(v); updateField('title', v); }, [updateField]);
+  // The Key selector is a *relabel* (it never moves the chords), which is a
+  // surprising foot-gun on an existing song. So lock it while editing one and
+  // steer the user to Transpose (which moves chords + relabels together). A
+  // brand-new song still needs a free Key picker to satisfy the save guardrail.
+  const keyLocked = !!song;
 
   // Key picker options follow the Accidentals setting (sharps → "F#",
   // otherwise flats → "Gb"); 'auto' stores flats (the byte-stable legacy
@@ -663,6 +715,26 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     }
   }, [md, confirm, setBody]);
 
+  // Apply pasted chord-sheet text directly (used by the New-song canvas). Same
+  // conversion as handleImport but from a passed string, and it fills empty
+  // frontmatter fields the source declared without clobbering the identity card.
+  const applyPastedText = useCallback((text) => {
+    if (!text || !text.trim()) return;
+    const { body, meta } = importChartText(text);
+    setBody(body);
+    const fm = parseFrontmatterFields(splitMd(md).frontmatter);
+    const patch = {};
+    for (const k of ['title', 'artist', 'key', 'tempo', 'time', 'capo']) {
+      if (meta[k] && !fm[k]) patch[k] = meta[k];
+    }
+    if (Object.keys(patch).length) {
+      setMd((cur) => replaceFrontmatter(cur, serializeFrontmatterFields({ ...parseFrontmatterFields(splitMd(cur).frontmatter), ...patch })));
+    }
+    setShowNewSong(false);
+    setNewSongDraft('');
+    setActiveTab('arrange');
+  }, [md, setBody]);
+
   // Changing the Key field is a *relabel only* — it records what key the song
   // is written in and never touches the chords the user typed. (A composer who
   // notices the song is actually in D, not C, can fix the label without their
@@ -728,15 +800,29 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         // legacy collapsible panel. (Transpose lives in the header meta row.)
         return (
           <div className="flex-1 min-h-0 overflow-y-auto w-full">
-            <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-4">
+            <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 py-4">
               <MetadataPanel md={md} onChange={setMd} isOpen keyHistory={workingSong.keyHistory} />
             </div>
           </div>
         );
       case 'arrange':
-        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
       default:
-        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} />;
+        // A fresh blank song shows an empty paste canvas in place of the
+        // structure + section cards (the rest of the editor chrome stays).
+        if (showNewSong) {
+          return (
+            <EditorEmptyState
+              value={newSongDraft}
+              onChange={setNewSongDraft}
+              onApply={() => applyPastedText(newSongDraft)}
+              onDismiss={() => setShowNewSong(false)}
+              onImport={onOpenNewSong ? () => onOpenNewSong('import') : undefined}
+              onBrowse={onOpenNewSong ? () => onOpenNewSong('browse') : undefined}
+              metaReady={titleSet && keySet}
+            />
+          );
+        }
+        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} notation={canvasNotation} lyricSize={canvasLyricSize} chordSize={canvasChordSize} />;
     }
   };
 
@@ -760,10 +846,11 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // Key picker. The options come back as 12 majors then 12 minors, so we slice
   // at the boundary and drop a separator between the two groups.
   const keyControlEl = (
-    <Select value={currentKey} onValueChange={changeSongKey}>
+    <Select value={currentKey} onValueChange={changeSongKey} disabled={keyLocked}>
       <SelectTrigger
         aria-label="Key"
-        className={`${META_CTRL_CLS} w-auto gap-1 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
+        title={keyLocked ? 'Key is locked while editing — use Transpose to move the chords and the key together.' : undefined}
+        className={`${META_CTRL_CLS} w-auto gap-1 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'} ${keyLocked ? 'opacity-100 !cursor-default' : ''}`}
       >
         {/* Show only the chosen key in the trigger (e.g. "Gb"), not the
             dual-spelling label, so the pill stays compact. */}
@@ -824,10 +911,11 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // Gold key chip — the song key (doubles as the key dropdown). Distinct from
   // Transpose: this is the *written key*; Transpose *moves* the chords.
   const cardKeyChipEl = (
-    <Select value={currentKey} onValueChange={changeSongKey}>
+    <Select value={currentKey} onValueChange={changeSongKey} disabled={keyLocked}>
       <SelectTrigger
         aria-label="Key"
-        className={`h-9 min-h-9 max-sm:min-h-11 w-auto gap-1 px-2.5 rounded-[10px] !border-0 font-mono font-bold text-[13px] focus:!ring-0 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'}`}
+        title={keyLocked ? 'Key is locked while editing — use Transpose to move the chords and the key together.' : undefined}
+        className={`h-9 min-h-9 max-sm:min-h-11 w-auto gap-1 px-2.5 rounded-[10px] !border-0 font-mono font-bold text-[13px] focus:!ring-0 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'} ${keyLocked ? '!cursor-default' : ''}`}
         style={{ background: keySet ? 'var(--chord)' : 'var(--ds-gray-100)', color: keySet ? '#0a0a0a' : 'var(--ds-gray-500)' }}
       >
         <span className="text-[9px] font-sans font-bold uppercase tracking-[0.12em] opacity-60">Key</span>
@@ -983,10 +1071,26 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     />
   ) : null;
 
+  // Live preview of the New-song paste box: parse the draft on the fly (merging
+  // the identity card's title/key) so the preview pane fills in as you paste,
+  // before you commit with "Turn into chart".
+  const newSongPreview = useMemo(() => {
+    if (!showNewSong || !newSongDraft.trim()) return null;
+    try {
+      const { body, meta } = importChartText(newSongDraft);
+      const fm = { ...parseFrontmatterFields(splitMd(md).frontmatter) };
+      for (const k of ['title', 'artist', 'key', 'tempo', 'time', 'capo']) {
+        if (meta[k] && !fm[k]) fm[k] = meta[k];
+      }
+      return parseSongMd(`---\n${serializeFrontmatterFields(fm)}\n---\n\n${body}`);
+    } catch { return null; }
+  }, [showNewSong, newSongDraft, md]);
+  const previewSong = (showNewSong && newSongPreview) ? newSongPreview : (showNewSong ? null : preview);
+
   // Card layout: a FAITHFUL preview — reads the real global display settings and
   // writes through them (the Aa popover below edits global, same as the chart).
-  const cardPreviewChartEl = preview ? (
-    <ChartView song={preview} isPreview {...chartDefaults} />
+  const cardPreviewChartEl = previewSong ? (
+    <ChartView song={previewSong} isPreview {...chartDefaults} />
   ) : null;
   const gSettings = chartDefaults.settings || {};
   const gUpdate = chartDefaults.onUpdateSettings;
@@ -1022,6 +1126,37 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         else if (which === 'chords') { gUpdate?.('chordFontSize', undefined); gUpdate?.('chartChordFont', undefined); gUpdate?.('chartChordColor', undefined); }
         else { gUpdate?.('chartTheme', undefined); gUpdate?.('notation', undefined); gUpdate?.('nashville', undefined); gUpdate?.('defaultColumns', undefined); }
       }}
+    />
+  ) : null;
+
+  // The CANVAS "Aa" — lives in the editor tab header (next to undo/redo) and
+  // controls how the Arrange cards read while editing (notation + text sizes),
+  // independent of the chart/preview above.
+  const canvasAaTriggerEl = (
+    <button
+      type="button"
+      aria-label="Canvas display options"
+      title="Display (editing canvas)"
+      aria-expanded={!!canvasAaAnchor}
+      onClick={toggleCanvasAa}
+      className="shrink-0 w-8 h-8 grid place-items-center rounded-lg border border-[var(--border-1)] bg-[var(--ds-background-100)] text-[13px] font-bold text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer"
+    >
+      Aa
+    </button>
+  );
+  const canvasAaMenuEl = (cardsHeader && canvasAaAnchor) ? (
+    <AaMenu
+      anchorRect={canvasAaAnchor}
+      onClose={closeCanvasAa}
+      chartControls={false}
+      settings={{}}
+      lyricSize={canvasLyricSize}
+      onLyricSize={(n) => setCanvasLyricRaw(String(Math.max(12, Math.min(28, n))))}
+      chordSize={canvasChordSize}
+      onChordSize={(n) => setCanvasChordRaw(String(Math.max(9, Math.min(24, n))))}
+      notation={canvasNotation}
+      onNotation={(v) => setCanvasNotationRaw(v)}
+      onReset={() => { setCanvasLyricRaw('16'); setCanvasChordRaw('12'); setCanvasNotationRaw('letters'); }}
     />
   ) : null;
 
@@ -1089,14 +1224,12 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
           now — the arrangement moved to row 2 — so it stops truncating. */}
       <div className="flex items-center gap-2">
         <input
-          value={fmFields.title || ''}
-          onChange={e => updateField('title', e.target.value)}
-          placeholder={song ? 'Song title' : 'New song'}
+          value={titleDraft}
+          onChange={e => setTitle(e.target.value)}
+          placeholder={song ? 'Song title' : 'Untitled song'}
           aria-label="Song title"
-          style={{ fieldSizing: 'content' }}
-          className="min-w-[6ch] max-w-[60vw] sm:max-w-[30rem] bg-transparent border-0 outline-none text-heading-18 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
+          className="flex-1 min-w-0 bg-transparent border-0 outline-none text-heading-18 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
         />
-        <div className="flex-1 min-w-0" />
         {/* When collapsed on mobile, surface the key chip so it's still glanceable. */}
         {identityCollapsed && <div className="sm:hidden shrink-0">{cardKeyChipEl}</div>}
         {headerActionsEl}
@@ -1211,6 +1344,9 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         <IconButton variant="ghost" size="sm" aria-label="Redo" title="Redo" disabled={!histState.canRedo} onClick={handleRedo}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" /></svg>
         </IconButton>
+        {/* Display (Aa) — the editing CANVAS's notation + text size. Sits by
+            undo/redo so it's always reachable. The preview has its own Aa. */}
+        {canvasAaTriggerEl}
         {/* Secondary actions folded into a ⋮ so the header stays calm. */}
         <OverflowMenu
           ariaLabel="Editor options"
@@ -1256,7 +1392,13 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
             {aaTriggerEl}
           </div>
           <div className="flex-1 min-h-0 flex flex-col">
-            {cardPreviewChartEl}
+            {cardPreviewChartEl || (
+              <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 p-6 text-[var(--ds-gray-500)]">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
+                <p className="text-copy-13 m-0">Your chart will appear here</p>
+                <p className="text-copy-11 m-0 max-w-[200px]">Paste a song or add a section and the live preview fills in.</p>
+              </div>
+            )}
           </div>
         </aside>
       )}
@@ -1303,7 +1445,12 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
           {issuesOpen && (
             <>
               <button type="button" aria-hidden tabIndex={-1} onClick={() => setIssuesOpen(false)} className="fixed inset-0 z-40 cursor-default bg-transparent border-none" />
-              <div className="absolute bottom-full left-0 mb-2 z-50 w-72 max-h-52 overflow-y-auto rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg p-2.5">
+              {/* Mobile: a full-width panel pinned above the action bar so it can't
+                  run off the screen edge or need scrolling. Desktop: a small
+                  popover anchored to the chip. Grows to fit its (usually short)
+                  list; the 70vh cap only ever engages for an unusually long one. */}
+              <div className="fixed inset-x-3 bottom-[76px] z-50 sm:absolute sm:inset-x-auto sm:bottom-full sm:left-0 sm:mb-2 sm:w-72 max-h-[70vh] overflow-y-auto rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg p-2.5">
+                <div className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] mb-1.5">To review</div>
                 <ul className="m-0 p-0 list-none flex flex-col gap-1.5">
                   {validationIssues.map((it, i) => (
                     <li key={i} className="text-copy-12 text-[var(--ds-gray-1000)] flex items-start gap-1.5">
@@ -1321,8 +1468,23 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
           Tip: add tempo &amp; time so the song shows its feel.
         </span>
       )}
+      {!readOnly && (
+        <span className={`hidden sm:flex items-center gap-1.5 text-label-11 ${isDirty ? 'text-[var(--ds-amber-700,#b45309)]' : 'text-[var(--ds-gray-500)]'}`} aria-live="polite">
+          {isDirty ? (
+            <>
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--ds-amber-700,#b45309)]" />
+              Unsaved changes
+            </>
+          ) : (
+            <>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+              Saved
+            </>
+          )}
+        </span>
+      )}
       <Button variant="ghost" size="md" onClick={handleBack}>{readOnly ? 'Back' : 'Cancel'}</Button>
-      {!readOnly && <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave || !canSave}>Save</Button>}
+      {!readOnly && <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave || !canSave || !isDirty} title={!isDirty ? 'No changes to save' : undefined}>Save</Button>}
     </div>
   );
   // Cards layout: Save/Cancel as a bottom card (mirrors the draft card).
@@ -1481,6 +1643,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
 
       {/* Preview display popover (card layout) — writes GLOBAL display settings. */}
       {cardAaMenuEl}
+      {canvasAaMenuEl}
 
       {/* Version history — restore a previously-saved snapshot of this song. */}
       <Dialog open={historyOpen} onClose={() => setHistoryOpen(false)} size="md" ariaLabel="Version history">

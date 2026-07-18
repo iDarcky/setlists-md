@@ -4,31 +4,38 @@ import ChipInput from '../ui/ChipInput';
 
 // type: 'text' (default) | 'number' | 'time' | 'url' | 'chips'
 // max: maxLength for text/number/time; maxChips for chips.
+// group: labeled section the field belongs to (rendered as a header). `span` is
+// out of 3 columns on desktop so short fields sit three-across.
+const GROUPS = ['Identity', 'Musical', 'Credits & rights', 'Categorize', 'Links & notes'];
 const FIELDS = [
-  { key: 'title', label: 'Title', placeholder: 'Song title', span: 2, max: 80 },
-  { key: 'artist', label: 'Artist', placeholder: 'Artist / band', span: 2, max: 60 },
-  { key: 'originaltitle', label: 'Original title', placeholder: 'For translated songs', span: 2, max: 80 },
-  { key: 'language', label: 'Language', placeholder: 'English', span: 1, max: 30 },
-  { key: 'translator', label: 'Translator', placeholder: 'Name', span: 1, max: 60 },
-  { key: 'capo', label: 'Capo', placeholder: '0', span: 1, type: 'number', max: 2 },
-  { key: 'duration', label: 'Length', placeholder: '3:45', span: 1, type: 'time', max: 5 },
-  { key: 'vocalrange', label: 'Vocal range', placeholder: 'A2–C5', span: 1, max: 10 },
-  { key: 'year', label: 'Release year', placeholder: '1779', span: 1, type: 'number', max: 4 },
-  { key: 'writers', label: 'Writers', placeholder: 'Comma separated', span: 2, max: 100 },
-  { key: 'publishers', label: 'Publishers', placeholder: 'Comma separated', span: 2, max: 100 },
-  { key: 'album', label: 'Album', placeholder: 'Album name', span: 1, max: 60 },
-  { key: 'label', label: 'Label', placeholder: 'Record label', span: 1, max: 60 },
-  { key: 'ccli', label: 'CCLI', placeholder: 'CCLI number', span: 1, type: 'number', max: 9 },
-  { key: 'copyright', label: 'Copyright', placeholder: '© …', span: 1, max: 150 },
-  { key: 'themes', label: 'Themes', placeholder: 'grace, redemption', span: 2, type: 'chips', max: 10, allowSpace: true },
-  { key: 'genres', label: 'Genres', placeholder: 'hymn, worship', span: 2, type: 'chips', max: 5, allowSpace: true },
-  { key: 'scripture', label: 'Bible verses', placeholder: 'Ephesians 2:8 (comma to add)', span: 2, type: 'chips', max: 10, allowSpace: false },
-  { key: 'moment', label: 'Liturgical moment', placeholder: 'Communion (comma to add)', span: 2, type: 'chips', max: 3, allowSpace: false },
-  { key: 'tags', label: 'Tags', placeholder: 'worship, hymn, fast', span: 2, type: 'chips', max: 10, allowSpace: true },
-  { key: 'spotify', label: 'Spotify', placeholder: 'https://…', span: 2, type: 'url', max: 300 },
-  { key: 'youtube', label: 'YouTube', placeholder: 'https://…', span: 2, type: 'url', max: 300 },
-  { key: 'story', label: 'Story behind', placeholder: 'The story behind the song', span: 2, max: 300 },
-  { key: 'notes', label: 'Notes', placeholder: 'Performance notes', span: 2, max: 200 },
+  { key: 'title', label: 'Title', placeholder: 'Song title', group: 'Identity', span: 2, max: 80 },
+  { key: 'artist', label: 'Artist', placeholder: 'Artist / band', group: 'Identity', span: 1, max: 60 },
+  { key: 'originaltitle', label: 'Original title', placeholder: 'For translated songs', group: 'Identity', span: 1, max: 80 },
+  { key: 'language', label: 'Language', placeholder: 'English', group: 'Identity', span: 1, max: 30 },
+  { key: 'translator', label: 'Translator', placeholder: 'Name', group: 'Identity', span: 1, max: 60 },
+
+  { key: 'capo', label: 'Capo', placeholder: '0', group: 'Musical', span: 1, type: 'number', max: 2 },
+  { key: 'duration', label: 'Length', placeholder: '3:45', group: 'Musical', span: 1, type: 'time', max: 5 },
+  { key: 'vocalrange', label: 'Vocal range', placeholder: 'A2–C5', group: 'Musical', span: 1, max: 10 },
+  { key: 'year', label: 'Release year', placeholder: '1779', group: 'Musical', span: 1, type: 'number', max: 4 },
+
+  { key: 'writers', label: 'Writers', placeholder: 'Comma separated', group: 'Credits & rights', span: 2, max: 100 },
+  { key: 'publishers', label: 'Publishers', placeholder: 'Comma separated', group: 'Credits & rights', span: 1, max: 100 },
+  { key: 'album', label: 'Album', placeholder: 'Album name', group: 'Credits & rights', span: 1, max: 60 },
+  { key: 'label', label: 'Label', placeholder: 'Record label', group: 'Credits & rights', span: 1, max: 60 },
+  { key: 'ccli', label: 'CCLI', placeholder: 'CCLI number', group: 'Credits & rights', span: 1, type: 'number', max: 9 },
+  { key: 'copyright', label: 'Copyright', placeholder: '© …', group: 'Credits & rights', span: 2, max: 150 },
+
+  { key: 'themes', label: 'Themes', placeholder: 'grace, redemption', group: 'Categorize', span: 3, type: 'chips', max: 10, allowSpace: true },
+  { key: 'genres', label: 'Genres', placeholder: 'hymn, worship', group: 'Categorize', span: 3, type: 'chips', max: 5, allowSpace: true },
+  { key: 'scripture', label: 'Bible verses', placeholder: 'Ephesians 2:8 (comma to add)', group: 'Categorize', span: 3, type: 'chips', max: 10, allowSpace: false },
+  { key: 'moment', label: 'Liturgical moment', placeholder: 'Communion (comma to add)', group: 'Categorize', span: 3, type: 'chips', max: 3, allowSpace: false },
+  { key: 'tags', label: 'Tags', placeholder: 'worship, hymn, fast', group: 'Categorize', span: 3, type: 'chips', max: 10, allowSpace: true },
+
+  { key: 'spotify', label: 'Spotify', placeholder: 'https://…', group: 'Links & notes', span: 1, type: 'url', max: 300 },
+  { key: 'youtube', label: 'YouTube', placeholder: 'https://…', group: 'Links & notes', span: 1, type: 'url', max: 300 },
+  { key: 'story', label: 'Story behind', placeholder: 'The story behind the song', group: 'Links & notes', span: 3, max: 300 },
+  { key: 'notes', label: 'Notes', placeholder: 'Performance notes', group: 'Links & notes', span: 3, max: 200 },
 ];
 
 const INPUT_CLASS = 'w-full px-2.5 py-1.5 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md text-copy-13 text-[var(--ds-gray-1000)] outline-none font-mono';
@@ -87,28 +94,39 @@ export default function MetadataPanel({ md, onChange, isOpen, keyHistory }) {
   };
 
   // The toggle button now lives on the controls row in Editor.jsx so the
-  // header stays compact. We only render the expanded body here.
+  // header stays compact. We only render the expanded body here — grouped into
+  // labeled sections, each a 3-across grid on desktop (2-across on mobile) so
+  // short fields sit side-by-side instead of stacking into one tall column.
   return (
     <div>
       {isOpen && (
-        <div className="grid grid-cols-2 gap-2 pb-3">
-          {FIELDS.map(f => (
-            <label
-              key={f.key}
-              className="block"
-              style={{ gridColumn: f.span === 2 ? 'span 2' : 'span 1' }}
-            >
-              <span className="text-label-12 font-semibold text-[var(--ds-gray-700)] block mb-0.5">
-                {f.label}
-              </span>
-              {renderInput(f)}
-            </label>
+        <div className="flex flex-col gap-5 pb-3">
+          {GROUPS.map(group => (
+            <section key={group}>
+              <h3 className="text-label-11 font-semibold uppercase tracking-[0.1em] text-[var(--ds-gray-600)] mb-2 pb-1 border-b border-[var(--ds-gray-200)]">
+                {group}
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {FIELDS.filter(f => f.group === group).map(f => (
+                  <label
+                    key={f.key}
+                    className="block"
+                    style={{ gridColumn: `span ${f.span || 1}` }}
+                  >
+                    <span className="text-label-12 font-semibold text-[var(--ds-gray-700)] block mb-0.5">
+                      {f.label}
+                    </span>
+                    {renderInput(f)}
+                  </label>
+                ))}
+              </div>
+            </section>
           ))}
           {keyHistory && Object.keys(keyHistory).length > 0 && (
-            <div className="col-span-2">
-              <span className="text-label-12 font-semibold text-[var(--ds-gray-700)] block mb-1">
+            <section>
+              <h3 className="text-label-11 font-semibold uppercase tracking-[0.1em] text-[var(--ds-gray-600)] mb-2 pb-1 border-b border-[var(--ds-gray-200)]">
                 Most played in
-              </span>
+              </h3>
               <div className="flex flex-wrap gap-1.5">
                 {Object.entries(keyHistory)
                   .sort((a, b) => b[1] - a[1])
@@ -122,7 +140,7 @@ export default function MetadataPanel({ md, onChange, isOpen, keyHistory }) {
                     </span>
                   ))}
               </div>
-            </div>
+            </section>
           )}
         </div>
       )}

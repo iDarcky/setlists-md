@@ -6,14 +6,13 @@ import TabBlock from '../TabBlock';
 import TabGridEditor from './TabGridEditorV2';
 import KeyChangeDialog from './KeyChangeDialog';
 import { TAB_INSTRUMENTS, instrumentForStrings } from './tabInstruments';
-import SectionDrawer from './SectionDrawer';
 import { IconButton } from '../ui/IconButton';
 import { Button } from '../ui/Button';
-import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType, serializeSectionLines } from './arrangeHelpers';
+import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType, serializeSectionLines, lyricsOnly, mergeLyrics } from './arrangeHelpers';
 import { importChartText } from '../../lib/importChords';
 import { loadRecents, saveRecents, pushRecent } from './chordRecents';
 import ChordAutocomplete from './ChordAutocomplete';
-import { useConfirm } from '../ui/useConfirmHook';
+import { showUndoToast } from '../../lib/undoToast';
 
 const SECTION_TYPES = [
   'Intro', 'Verse', 'Pre Chorus', 'Chorus', 'Bridge',
@@ -60,9 +59,12 @@ function formatChord(chord, notation, key) {
 // caret shows where a chord will land.
 const InteractiveLine = memo(function InteractiveLine({
   plainText, chords, secIdx, lineIdx, editingChordIdx,
-  notation, songKey,
+  notation, songKey, lyricSize = 16, chordSize = 12,
   onPlace, onChordTap, onMoveChord,
 }) {
+  // A line with no chords reserves no chord row above it — that empty band was
+  // the main source of vertical white-space on lyrics-only verses.
+  const hasChords = (chords || []).length > 0;
   const downRef = useRef(null);
   const rootRef = useRef(null);
   const dragChordRef = useRef(null);         // origIdx of the chord being dragged
@@ -154,7 +156,8 @@ const InteractiveLine = memo(function InteractiveLine({
         const minW = tok.chord != null ? `${(label || '').length * 8 + 16}px` : undefined;
         return (
           <span key={i} className="inline-flex flex-col justify-end" style={{ minWidth: minW }}>
-            <span className="flex items-end" style={{ height: '1.7em' }}>
+            {hasChords && (
+            <span className="flex items-end" style={{ height: '1.4em' }}>
               {tok.chord != null && (
                 <span
                   role="button"
@@ -162,9 +165,9 @@ const InteractiveLine = memo(function InteractiveLine({
                   onDragStart={(e) => { dragChordRef.current = tok.origIdx; setDraggingChord(tok.origIdx); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; }}
                   onDragEnd={() => { dragChordRef.current = null; setDraggingChord(null); }}
                   onTouchStart={(e) => { e.stopPropagation(); beginChordTouch(tok.origIdx); }}
-                  className="cursor-grab active:cursor-grabbing rounded-[6px] border font-mono font-bold leading-none mb-[3px] touch-none"
+                  className="cursor-grab active:cursor-grabbing rounded-[6px] border font-mono font-bold leading-none mb-[2px] touch-none"
                   style={{
-                    fontSize: 12, padding: '3px 5px', whiteSpace: 'nowrap',
+                    fontSize: chordSize, padding: '3px 5px', whiteSpace: 'nowrap',
                     color: selected ? 'var(--color-brand-text)' : 'var(--chord)',
                     borderColor: selected ? 'var(--color-brand)' : 'var(--border-1)',
                     background: selected ? 'var(--color-brand-soft)' : 'var(--ds-background-100)',
@@ -178,10 +181,11 @@ const InteractiveLine = memo(function InteractiveLine({
                 </span>
               )}
             </span>
+            )}
             <span
               data-tok-start={tok.start}
               className="text-[var(--text-1)] cursor-text"
-              style={{ fontSize: 16, lineHeight: 1.35, whiteSpace: 'pre' }}
+              style={{ fontSize: lyricSize, lineHeight: 1.3, whiteSpace: 'pre' }}
               onPointerDown={onTextDown}
               onPointerMove={onTextMove}
               onClick={(e) => onTextClick(tok, e)}
@@ -210,7 +214,7 @@ const InteractiveLine = memo(function InteractiveLine({
 // escapes the Arrange scroll container's `overflow-auto` clip and sits above
 // the editor's sticky header — otherwise an upward-opening "+ Add" menu got
 // cut off / hidden under the header.
-function PopMenu({ trigger, align = 'right', up = false, children }) {
+function PopMenu({ trigger, align = 'right', up = false, menuClassName = '', children }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState(null);
   const triggerRef = useRef(null);
@@ -275,7 +279,7 @@ function PopMenu({ trigger, align = 'right', up = false, children }) {
             top: coords.top != null ? coords.top : undefined,
             bottom: coords.bottom != null ? coords.bottom : undefined,
           }}
-          className="z-[80] min-w-[180px] max-h-[60vh] overflow-y-auto rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1"
+          className={`z-[80] min-w-[180px] max-h-[60vh] overflow-y-auto rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1 ${menuClassName}`}
         >
           {children}
         </div>,
@@ -292,6 +296,27 @@ function MenuItem({ onClick, children, danger = false }) {
   );
 }
 
+// ─── Section-type menu items (shared) ─────────────────────────────
+// One renderer for every "pick a section type" menu — the type picker, the
+// play-order "+ Add", and the bottom "+ Add section". Each item wears its own
+// section colour so the three menus read the same.
+function SectionTypeMenuItems({ options, current, customSectionTypes, onPick }) {
+  return options.map(t => {
+    const st = sectionStyle(t, null, customSectionTypes);
+    return (
+      <button
+        key={t}
+        type="button"
+        onClick={() => { if (t !== current) onPick(t); }}
+        className="w-full text-left px-3 py-2 text-label-13 font-bold uppercase tracking-wider cursor-pointer bg-transparent border-none hover:bg-[var(--ds-gray-alpha-100)]"
+        style={{ color: st.b }}
+      >
+        {t}
+      </button>
+    );
+  });
+}
+
 // ─── Section type picker ──────────────────────────────────────────
 // Custom dropdown so each type carries its own section color and the number
 // sits snug next to the label (a native <select> can't colour per-option or
@@ -300,10 +325,13 @@ function SectionTypePicker({ value, num, options, customSectionTypes, onChange }
   const cur = sectionStyle(value, null, customSectionTypes);
   // Built on PopMenu so the list portals above everything (was `absolute`, which
   // let it open UNDER the cards below / get clipped by the scroll container) and
-  // auto-flips near the bottom of the screen.
+  // auto-flips near the bottom of the screen. `menuClassName` caps the width to a
+  // narrow column with its own scroll so the long type list never spills off the
+  // bottom of a short window.
   return (
     <PopMenu
       align="left"
+      menuClassName="w-52 max-h-[50vh]"
       trigger={
         <button
           type="button"
@@ -316,20 +344,7 @@ function SectionTypePicker({ value, num, options, customSectionTypes, onChange }
         </button>
       }
     >
-      {options.map(t => {
-        const st = sectionStyle(t, null, customSectionTypes);
-        return (
-          <button
-            key={t}
-            type="button"
-            onClick={() => { if (t !== value) onChange(t); }}
-            className="w-full text-left px-3 py-2 text-label-13 font-bold uppercase tracking-wider cursor-pointer bg-transparent border-none hover:bg-[var(--ds-gray-alpha-100)]"
-            style={{ color: st.b }}
-          >
-            {t}
-          </button>
-        );
-      })}
+      <SectionTypeMenuItems options={options} current={value} customSectionTypes={customSectionTypes} onPick={onChange} />
     </PopMenu>
   );
 }
@@ -355,6 +370,30 @@ function DraftLyricInput({ onCommit, onClose }) {
       placeholder="Type a lyric line, Enter for the next…"
       className="w-full bg-transparent border-b border-dashed border-[var(--ds-gray-400)] text-[var(--text-1)] outline-none py-1.5 px-1"
       style={{ fontSize: 16 }}
+    />
+  );
+}
+
+// ─── Inline per-line comment ──────────────────────────────────────
+// A tiny input to set/edit a line's `{!note}` annotation. Enter/blur commits
+// (empty clears the note); Escape cancels. Seeded with any existing note.
+function InlineNoteInput({ initial, onCommit, onClose }) {
+  const [text, setText] = useState(initial || '');
+  const ref = useRef(null);
+  useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
+  return (
+    <input
+      ref={ref}
+      value={text}
+      onChange={e => setText(e.target.value)}
+      onKeyDown={e => {
+        if (e.key === 'Enter') { e.preventDefault(); onCommit(text); }
+        else if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+      }}
+      onBlur={() => onCommit(text)}
+      placeholder="Add a comment…"
+      className="mt-1 w-full max-w-[24rem] bg-transparent border-b border-dashed border-[var(--ds-gray-400)] text-[var(--text-2)] italic outline-none py-0.5 px-1 text-[0.85em]"
+      style={{ fontSize: 15 }}
     />
   );
 }
@@ -438,14 +477,13 @@ function PlayOrderEditor({ order, availableTypes, customSectionTypes, onChange }
       })}
       <PopMenu
         align="left"
+        menuClassName="w-52 max-h-[50vh]"
         trigger={
           <button type="button" className="inline-flex items-center px-1.5 py-1 rounded-[6px] border border-dashed border-[var(--ds-gray-400)] text-[10px] font-bold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] hover:border-[var(--ds-gray-600)] cursor-pointer bg-transparent">+ Add</button>
         }
       >
         {availableTypes.length === 0 && <div className="px-3 py-2 text-copy-12 text-[var(--ds-gray-500)]">No sections yet</div>}
-        {availableTypes.map(t => (
-          <MenuItem key={t} onClick={() => onChange([...order, t])}>{t}</MenuItem>
-        ))}
+        <SectionTypeMenuItems options={availableTypes} customSectionTypes={customSectionTypes} onPick={(t) => onChange([...order, t])} />
       </PopMenu>
     </div>
   );
@@ -521,31 +559,66 @@ const SectionSourceEditor = memo(function SectionSourceEditor({ initial, onCommi
   );
 });
 
-export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
+// Inline "Edit lyrics" surface — a words-only textarea that swaps into the
+// section card body (same in-place pattern as SectionSourceEditor), so editing
+// the words never leaves the canvas. Chords stay attached (nudged to fit) on
+// commit via mergeLyrics.
+const InlineSectionLyricEditor = memo(function InlineSectionLyricEditor({ initial, onCommit }) {
+  const [text, setText] = useState(initial);
+  return (
+    <div className="mb-1">
+      <textarea
+        autoFocus
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onBlur={() => { if (text !== initial) onCommit(text); }}
+        spellCheck
+        rows={Math.max(3, text.split('\n').length + 1)}
+        placeholder="Just the words — chords stay where they are."
+        className="w-full bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-lg p-3 text-copy-14 leading-relaxed text-[var(--ds-gray-1000)] resize-y outline-none"
+        style={{ caretColor: 'var(--chord)' }}
+      />
+      <p className="text-copy-11 text-[var(--ds-gray-500)] mt-1 mb-0">
+        Editing words keeps your chords attached (nudged to fit). Use “Edit source” for full control. Tap out to apply.
+      </p>
+    </div>
+  );
+});
+
+export default function ArrangeTabV2({ md, onChange, customSectionTypes, notation = 'letters', lyricSize = 16, chordSize = 12 }) {
   const sectionTypes = useMemo(() => {
     const custom = (customSectionTypes || []).map(t => t?.name?.trim()).filter(Boolean);
     return [...SECTION_TYPES, ...custom];
   }, [customSectionTypes]);
 
-  const [drawerTarget, setDrawerTarget] = useState(null);
   const [collapsed, setCollapsed] = useState({});
   // Chord entry target: null, or { secIdx, lineIdx, charPos, chordIdx, initial }.
   // A full-width bottom bar handles entry on every device.
   const [entry, setEntry] = useState(null);
-  // Reading-aid notation for chord labels: 'chords' | 'nashville' | 'solfege'.
-  const [notation, setNotation] = useState('chords');
+  // Reading-aid notation for chord labels comes from the global display setting
+  // ('letters' | 'nashville' | 'solfege'), driven by the editor's Aa menu.
   // Tab tool target: { mode:'new', secIdx, idx } | { mode:'editLib', name, tab } | null
   const [tabEditorTarget, setTabEditorTarget] = useState(null);
   const [draftTarget, setDraftTarget] = useState(null); // { secIdx, idx } open inline lyric draft
   const [keyChangeTarget, setKeyChangeTarget] = useState(null); // { secIdx, idx } key-change dialog
+  const [noteTarget, setNoteTarget] = useState(null); // { secIdx, lineIdx } open per-line comment input
   // Per-section raw "Source" editing: secIdx -> true. A </> toggle flips one
   // section card into a raw-markdown textarea and back.
   const [sourceMode, setSourceMode] = useState({});
+  // Per-section inline "Edit lyrics" (words-only) editing: secIdx -> true. Same
+  // in-place swap as Source, but a plain-words textarea.
+  const [lyricMode, setLyricMode] = useState({});
   // Which empty section (secIdx) has its inline lyric composer open.
   const [lyricComposer, setLyricComposer] = useState(null);
   const toggleSource = useCallback((idx) => {
     setSourceMode(m => ({ ...m, [idx]: !m[idx] }));
+    setLyricMode(m => (m[idx] ? { ...m, [idx]: false } : m)); // one editor at a time
     setCollapsed(c => ({ ...c, [idx]: false })); // source implies expanded
+  }, []);
+  const toggleLyric = useCallback((idx) => {
+    setLyricMode(m => ({ ...m, [idx]: !m[idx] }));
+    setSourceMode(m => (m[idx] ? { ...m, [idx]: false } : m)); // one editor at a time
+    setCollapsed(c => ({ ...c, [idx]: false })); // editing implies expanded
   }, []);
   // Section drag-to-reorder (grip handle only, so the card's inner fields stay
   // interactive). Desktop uses HTML5 drag; touch uses pointer math via native
@@ -553,10 +626,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
   // there can't stop the browser's scroll/text-selection).
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
-  const confirm = useConfirm();
   const sectionRefs = useRef({});
   const scrollRef = useRef(null);      // canvas scroll container (edge autoscroll)
   const autoScrollRef = useRef({ raf: 0, v: 0 });
+  const listEndRef = useRef(null);     // sentinel scrolled into view on add-section
+  const scrollPendingRef = useRef(false);
+  const openComposerPendingRef = useRef(false); // open the new section's lyric composer post-mount
 
   const song = useMemo(() => { try { return parseSongMd(md); } catch { return null; } }, [md]);
 
@@ -730,6 +805,11 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   const addSection = useCallback((base = 'Verse') => {
     if (!song) return;
+    // Defer both the scroll and the composer-open until the new (last) section
+    // has mounted after the md round-trip — opening the composer synchronously
+    // races the re-parse and the fresh textarea blurs itself closed.
+    scrollPendingRef.current = true;
+    openComposerPendingRef.current = true;
     emitSections([...song.sections, { type: nextSectionLabel(base), note: '', lines: [''] }]);
   }, [song, emitSections, nextSectionLabel]);
 
@@ -741,26 +821,17 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     emitSections([...song.sections.slice(0, idx + 1), copy, ...song.sections.slice(idx + 1)]);
   }, [song, emitSections, nextSectionLabel]);
 
-  const removeSection = useCallback(async (idx) => {
+  const removeSection = useCallback((idx) => {
     if (!song) return;
-    const ok = await confirm({
-      title: 'Delete this section?',
-      description: 'This removes the section and everything in it from the song.',
-      confirmLabel: 'Delete',
-      variant: 'danger',
-    });
-    if (!ok) return;
+    const prevSong = song; // snapshot for a full restore on Undo
+    const removed = song.sections[idx];
     emitSections(song.sections.filter((_, i) => i !== idx));
-  }, [song, emitSections, confirm]);
-
-  const moveSection = useCallback((idx, dir) => {
-    if (!song) return;
-    const j = idx + dir;
-    if (j < 0 || j >= song.sections.length) return;
-    const arr = [...song.sections];
-    [arr[idx], arr[j]] = [arr[j], arr[idx]];
-    emitSections(arr);
-  }, [song, emitSections]);
+    showUndoToast({
+      title: 'Section deleted',
+      description: sectionBaseType(removed?.type) || 'Section',
+      onUndo: () => emitSong(prevSong),
+    });
+  }, [song, emitSections, emitSong]);
 
   // Move a section from one index to another (drag-to-reorder commit).
   const reorderSection = useCallback((from, to) => {
@@ -864,6 +935,17 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     emitSong({ ...song, sections: song.sections.map((s, i) => i === idx ? { ...s, note } : s) });
   }, [song, emitSong]);
 
+  // Set/clear a per-line inline comment (`{!note}`). Empty text clears it.
+  const setInlineNote = useCallback((secIdx, lineIdx, text) => {
+    const note = (text || '').trim();
+    applyMutation(prev => prev.map((sec, si) => si !== secIdx ? sec : ({
+      ...sec,
+      lines: sec.lines.map((line, li) => (li !== lineIdx || line.plainText === undefined)
+        ? line
+        : { ...line, inlineNote: note || null }),
+    })));
+  }, [applyMutation]);
+
   // Commit the inline lyric composer for an empty section. Runs the text through
   // the smart chart importer so a pasted chords-over-lyrics sheet converts; a
   // multi-section paste (has `## headers`) expands into real sections in place.
@@ -960,22 +1042,32 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     })));
   }, [applyMutation]);
 
-  // Text is edited a whole section at a time (the bottom-sheet drawer) — robust
-  // on mobile where a per-line inline input gets hidden under the keyboard.
+  // "Edit lyrics" swaps the section card body into an inline words-only textarea
+  // (same in-place pattern as "Edit source"), so editing never leaves the canvas.
   const handleEditText = useCallback((secIdx) => {
     setEntry(null);
-    setDrawerTarget(secIdx);
-  }, []);
+    toggleLyric(secIdx);
+  }, [toggleLyric]);
 
+  // Commit a raw .md block back to a section (from the Source editor) — re-parse
+  // so tab/modulate/tabref blocks are reconstructed as objects (a naive
+  // split('\n') flattened `{tab}` blocks into plain strings and lost the tab).
   const handleDrawerSave = useCallback((sectionIndex, rawText) => {
     if (!song) return;
-    // Re-parse the edited text so tab/modulate/tabref blocks are reconstructed
-    // as objects. A naive rawText.split('\n') flattened `{tab}` blocks into
-    // plain strings, so the tab disappeared on the next parse cycle.
     const lines = parseSectionLines(rawText);
     const sections = song.sections.map((sec, i) => i !== sectionIndex ? sec : ({ ...sec, lines }));
     emitSong({ ...song, sections });
-    setDrawerTarget(null);
+  }, [song, emitSong]);
+
+  // Commit words-only lyric edits — mergeLyrics re-attaches the section's chords
+  // (clamped) and preserves tabs/modulate/inline notes, then re-parse as above.
+  const handleLyricSave = useCallback((sectionIndex, lyricsText) => {
+    if (!song) return;
+    const raw = mergeLyrics(song.sections[sectionIndex]?.lines || [], lyricsText);
+    const lines = parseSectionLines(raw);
+    const sections = song.sections.map((sec, i) => i !== sectionIndex ? sec : ({ ...sec, lines }));
+    emitSong({ ...song, sections });
+    setLyricMode(m => ({ ...m, [sectionIndex]: false }));
   }, [song, emitSong]);
 
   useEffect(() => {
@@ -983,6 +1075,25 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
+
+  // Scroll a freshly added section into view once it has mounted. addSection
+  // sets the flag; this effect (keyed on section count) does the scroll after
+  // the new card renders — mirrors SetlistBuilder's deferred-scroll idiom.
+  const sectionCount = song?.sections?.length ?? 0;
+  useEffect(() => {
+    if (scrollPendingRef.current) {
+      scrollPendingRef.current = false;
+      listEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+    if (openComposerPendingRef.current && sectionCount > 0) {
+      openComposerPendingRef.current = false;
+      const last = sectionCount - 1; // the freshly added (last) section
+      // Defer a frame so the open isn't a synchronous setState in the effect
+      // body (and the new card has painted before its composer focuses).
+      const raf = requestAnimationFrame(() => setLyricComposer(last));
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [sectionCount]);
 
   // Shared add-menu body — used by the bottom "+ Add" and every inline insert
   // point. `idx` is the position to insert at (null = append).
@@ -1022,85 +1133,64 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
 
   return (
     <div className="flex flex-col min-h-0 h-full">
-      {/* Play order — minimal by default. In Auto it just follows the section
-          cards below (no redundant chips); tap Customize to set a hand-made
-          order with repeats, which then shows as compact chips. Notation lives
-          in its own quiet control so this row stays calm on mobile. */}
+      {/* Structure — the song map. In Auto it follows the section cards below
+          (compact jump chips); tap Customize to set a hand-made order with
+          repeats, which then shows as draggable chips. Chord notation lives in
+          the Aa display menu now, so this row stays calm. */}
       {(() => {
         const isCustom = song.structureMode === 'custom';
         const playOrder = isCustom ? (song.structure || []) : [];
         const uniqueTypes = [...new Set(placements.map(p => p.type))];
+        const toggleBtn = isCustom ? (
+          <button type="button" onClick={() => setStructureMode(false)} title="Reset to section order" className="shrink-0 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">Reset</button>
+        ) : (
+          <button type="button" onClick={() => setStructureMode(true)} title="Set a custom structure (repeats / reorder)" className="shrink-0 text-label-11 font-semibold text-[var(--color-brand-text)] hover:opacity-80 bg-transparent border-none cursor-pointer">Customize</button>
+        );
+        const chips = isCustom ? (
+          <PlayOrderEditor
+            order={playOrder}
+            availableTypes={uniqueTypes}
+            customSectionTypes={customSectionTypes}
+            onChange={(next) => onStructureChange(next.join(', '))}
+          />
+        ) : (
+          placements.map((p, i) => {
+            const st = sectionStyle(p.type, null, customSectionTypes);
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold font-mono border border-[var(--border-1)] bg-[var(--ds-background-100)] hover:opacity-80 cursor-pointer"
+                style={{ color: st.b }}
+                title={`Jump to ${p.type}`}
+              >
+                {shortCode(p.type)}
+              </button>
+            );
+          })
+        );
         return (
-          <div className="shrink-0 border-b border-[var(--border-1)]">
-            <div className="flex items-center gap-2 px-3 sm:pr-6 py-1.5">
-              <span className="shrink-0 text-label-11 text-[var(--ds-gray-600)] select-none">Play order</span>
+          <div className="shrink-0 border-b border-[var(--border-1)] px-3 sm:pr-6 py-1.5">
+            {/* Desktop: one line (label · badge · chips · Customize). Mobile:
+                the chips break to their own scrolling row so the label + toggle
+                stay readable instead of crushing together. */}
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              <span className="shrink-0 text-label-10 uppercase tracking-[0.12em] font-semibold text-[var(--ds-gray-500)] select-none">Structure</span>
               <span
                 className={`shrink-0 text-label-10 uppercase tracking-wide font-bold px-1.5 py-0.5 rounded ${isCustom ? 'text-[var(--color-brand-text)] bg-[var(--color-brand-soft)]' : 'text-[var(--ds-gray-500)] bg-[var(--ds-gray-100)]'}`}
                 title={isCustom
-                  ? 'You set the play order (repeats / reorder). Reset to follow your sections.'
+                  ? 'You set the structure (repeats / reorder). Reset to follow your sections.'
                   : 'Follows your sections — reorder them by dragging. Customize to repeat or reorder.'}
               >
                 {isCustom ? 'Custom' : 'Auto'}
               </span>
-              <div className="flex-1" />
-              {isCustom ? (
-                <button type="button" onClick={() => setStructureMode(false)} title="Reset to section order" className="shrink-0 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">Reset</button>
-              ) : (
-                <button type="button" onClick={() => setStructureMode(true)} title="Set a custom play order (repeats / reorder)" className="shrink-0 text-label-11 font-semibold text-[var(--color-brand-text)] hover:opacity-80 bg-transparent border-none cursor-pointer">Customize</button>
-              )}
-              <PopMenu
-                trigger={
-                  <IconButton variant="ghost" size="sm" aria-label="Chord notation" title="Chord notation">
-                    <span className="text-label-11 font-bold">{notation === 'nashville' ? '123' : notation === 'solfege' ? 'Do' : 'A♭'}</span>
-                  </IconButton>
-                }
-              >
-                <div className="px-3 py-2 min-w-[180px]" onClick={e => e.stopPropagation()}>
-                  <div className="text-label-10 uppercase tracking-wider text-[var(--ds-gray-500)] mb-1.5">Chord notation</div>
-                  <div className="flex gap-1">
-                    {[{ id: 'chords', label: 'ABC' }, { id: 'nashville', label: '123' }, { id: 'solfege', label: 'Do' }].map(o => (
-                      <button
-                        key={o.id}
-                        type="button"
-                        onClick={() => setNotation(o.id)}
-                        className={`px-2.5 py-1 rounded-md text-label-11 font-semibold cursor-pointer border ${
-                          notation === o.id ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)] border-[var(--color-brand-border)]' : 'bg-transparent text-[var(--ds-gray-600)] border-[var(--ds-gray-400)] hover:bg-[var(--ds-gray-100)]'
-                        }`}
-                      >
-                        {o.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </PopMenu>
-            </div>
-            <div className="px-3 sm:pr-6 pb-2">
-              {isCustom ? (
-                <PlayOrderEditor
-                  order={playOrder}
-                  availableTypes={uniqueTypes}
-                  customSectionTypes={customSectionTypes}
-                  onChange={(next) => onStructureChange(next.join(', '))}
-                />
-              ) : (
-                <div className="flex flex-wrap gap-1">
-                  {placements.map((p, i) => {
-                    const st = sectionStyle(p.type, null, customSectionTypes);
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                        className="inline-flex items-center px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold font-mono border border-[var(--border-1)] bg-[var(--ds-background-100)] hover:opacity-80 cursor-pointer"
-                        style={{ color: st.b }}
-                        title={`Jump to ${p.type}`}
-                      >
-                        {shortCode(p.type)}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+              {/* Toggle: pinned right on mobile's first row; inline (after chips) on desktop. */}
+              <div className="ml-auto sm:hidden shrink-0">{toggleBtn}</div>
+              <div className="basis-full order-last sm:basis-auto sm:order-none min-w-0 flex items-center gap-1.5 overflow-x-auto sm:pl-1">
+                {chips}
+              </div>
+              <div className="hidden sm:block shrink-0 ml-1">{toggleBtn}</div>
             </div>
           </div>
         );
@@ -1187,10 +1277,11 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                   className="flex-1 bg-transparent border-none text-label-11 italic text-[var(--text-2)] outline-none min-w-0 px-1"
                   style={{ borderLeft: sec.note ? `2px solid ${s.br}` : 'none' }}
                 />
-                {/* Action cluster — desktop only, hover/focus-revealed. On touch
-                    these live in the ⋮ menu instead, so the header stays calm. */}
-                <div className="hidden sm:flex items-center shrink-0 transition-opacity sm:opacity-0 sm:group-hover/sec:opacity-100 sm:focus-within:opacity-100">
-                  <IconButton variant="ghost" size="sm" aria-label="Edit lyrics" title="Edit lyrics" onClick={() => handleEditText(secIdx)}>
+                {/* Action cluster — edit lyrics / edit source. Always visible on
+                    touch (their only home there); hover/focus-revealed on desktop
+                    so the header stays calm. */}
+                <div className="flex items-center shrink-0 transition-opacity sm:opacity-0 sm:group-hover/sec:opacity-100 sm:focus-within:opacity-100">
+                  <IconButton variant={lyricMode[secIdx] ? 'active' : 'ghost'} size="sm" aria-label="Edit lyrics" title="Edit lyrics" onClick={() => handleEditText(secIdx)}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                     </svg>
@@ -1200,16 +1291,13 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                   </IconButton>
                 </div>
                 <PopMenu
+                  menuClassName="w-44"
                   trigger={
                     <IconButton variant="ghost" size="sm" aria-label="Section options" title="Section options">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
                     </IconButton>
                   }
                 >
-                  <MenuItem onClick={() => handleEditText(secIdx)}>Edit lyrics</MenuItem>
-                  {secIdx > 0 && <MenuItem onClick={() => moveSection(secIdx, -1)}>Move up</MenuItem>}
-                  {secIdx < placements.length - 1 && <MenuItem onClick={() => moveSection(secIdx, 1)}>Move down</MenuItem>}
-                  <MenuItem onClick={() => toggleSource(secIdx)}>{sourceMode[secIdx] ? 'Close source' : 'Edit source'}</MenuItem>
                   <MenuItem onClick={() => duplicateSection(secIdx)}>Duplicate section</MenuItem>
                   <MenuItem danger onClick={() => removeSection(secIdx)}>Delete section</MenuItem>
                 </PopMenu>
@@ -1222,8 +1310,33 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                   initial={serializeSectionLines(song.sections[secIdx]?.lines || [])}
                   onCommit={(text) => handleDrawerSave(secIdx, text)}
                 />
+              ) : lyricMode[secIdx] ? (
+                <InlineSectionLyricEditor
+                  key={`lyr-${secIdx}`}
+                  initial={lyricsOnly(song.sections[secIdx]?.lines || [])}
+                  onCommit={(text) => handleLyricSave(secIdx, text)}
+                />
               ) : (
                 <div>
+                  {/* Truly empty section (no lines survive the .md round-trip) —
+                      still offer the composer so a freshly added section (or one
+                      cleared out) can be written into / pasted into. */}
+                  {sec.lines.length === 0 && (
+                    lyricComposer === secIdx ? (
+                      <div className="mb-2">
+                        <InlineLyricComposer
+                          onCommit={(t) => commitLyricComposer(secIdx, t)}
+                          onCancel={() => setLyricComposer(null)}
+                        />
+                      </div>
+                    ) : (
+                      <div className="mb-2">
+                        <button type="button" onClick={() => setLyricComposer(secIdx)} className="text-copy-13 italic text-[var(--ds-gray-500)] bg-transparent border-none cursor-text px-1 py-1">
+                          Tap to add lyrics or paste a chord sheet…
+                        </button>
+                      </div>
+                    )
+                  )}
                   {sec.lines.map((line, lineIdx) => {
                     let el = null;
                     if (typeof line === 'object' && (line.type === 'tab' || line.type === 'tabref')) {
@@ -1276,7 +1389,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                       );
                     } else if (line.plainText !== undefined) {
                       if ((line.plainText || '').trim() === '' && (line.chords?.length > 0)) {
-                        el = <div className="mb-2 last:mb-0"><ChordOnlyLine chords={line.chords} secIdx={secIdx} lineIdx={lineIdx} onEditChord={openEditChord} onAppend={appendChord} onRemoveChord={removeChordAt} /></div>;
+                        el = <div className="mb-1 last:mb-0"><ChordOnlyLine chords={line.chords} secIdx={secIdx} lineIdx={lineIdx} onEditChord={openEditChord} onAppend={appendChord} onRemoveChord={removeChordAt} /></div>;
                       } else if ((line.plainText || '').trim() === '' && (!line.chords || line.chords.length === 0)) {
                         el = lyricComposer === secIdx ? (
                           <div className="mb-2 last:mb-0">
@@ -1293,23 +1406,52 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
                           </div>
                         );
                       } else {
+                        const noteOpen = noteTarget && noteTarget.secIdx === secIdx && noteTarget.lineIdx === lineIdx;
                         el = (
-                          <div className="mb-2 last:mb-0">
-                            <InteractiveLine
-                              plainText={line.plainText}
-                              chords={line.chords}
-                              secIdx={secIdx}
-                              lineIdx={lineIdx}
-                              editingChordIdx={entry && entry.secIdx === secIdx && entry.lineIdx === lineIdx ? entry.chordIdx : null}
-                              armedCharPos={entry && entry.secIdx === secIdx && entry.lineIdx === lineIdx && entry.charPos != null ? entry.charPos : null}
-                              notation={notation}
-                              songKey={song.key}
-                              onPlace={openAddChord}
-                              onChordTap={openEditChord}
-                              onMoveChord={moveChordTo}
-                            />
-                            {line.inlineNote && (
-                              <span className="text-[var(--text-2)] italic text-[0.8em]">{' ---- '}{line.inlineNote}</span>
+                          <div className="group/line relative mb-1 last:mb-0 flex items-start gap-1">
+                            <div className="min-w-0 flex-1">
+                              <InteractiveLine
+                                plainText={line.plainText}
+                                chords={line.chords}
+                                secIdx={secIdx}
+                                lineIdx={lineIdx}
+                                editingChordIdx={entry && entry.secIdx === secIdx && entry.lineIdx === lineIdx ? entry.chordIdx : null}
+                                armedCharPos={entry && entry.secIdx === secIdx && entry.lineIdx === lineIdx && entry.charPos != null ? entry.charPos : null}
+                                notation={notation}
+                                lyricSize={lyricSize}
+                                chordSize={chordSize}
+                                songKey={song.key}
+                                onPlace={openAddChord}
+                                onChordTap={openEditChord}
+                                onMoveChord={moveChordTo}
+                              />
+                              {noteOpen ? (
+                                <InlineNoteInput
+                                  initial={line.inlineNote || ''}
+                                  onCommit={(t) => { setInlineNote(secIdx, lineIdx, t); setNoteTarget(null); }}
+                                  onClose={() => setNoteTarget(null)}
+                                />
+                              ) : line.inlineNote ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setNoteTarget({ secIdx, lineIdx })}
+                                  title="Edit comment"
+                                  className="text-[var(--text-2)] italic text-[0.8em] bg-transparent border-none cursor-text p-0 text-left"
+                                >
+                                  {' ---- '}{line.inlineNote}
+                                </button>
+                              ) : null}
+                            </div>
+                            {!noteOpen && !line.inlineNote && (
+                              <button
+                                type="button"
+                                onClick={() => setNoteTarget({ secIdx, lineIdx })}
+                                aria-label="Add comment"
+                                title="Add a comment to this line"
+                                className="shrink-0 mt-0.5 w-5 h-5 grid place-items-center rounded text-[var(--ds-gray-400)] hover:text-[var(--color-brand)] bg-transparent border-none cursor-pointer opacity-0 group-hover/line:opacity-100 focus:opacity-100 transition-opacity"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                              </button>
                             )}
                           </div>
                         );
@@ -1346,6 +1488,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
         <div className="mt-4 mb-8">
           <PopMenu
             align="left"
+            menuClassName="w-52 max-h-[50vh]"
             trigger={
               <button type="button" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-label-12 font-semibold bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] cursor-pointer">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
@@ -1353,11 +1496,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
               </button>
             }
           >
-            {sectionTypes.map(t => (
-              <MenuItem key={t} onClick={() => addSection(t)}>{t}</MenuItem>
-            ))}
+            <SectionTypeMenuItems options={sectionTypes} customSectionTypes={customSectionTypes} onPick={(t) => addSection(t)} />
           </PopMenu>
         </div>
+        {/* Scroll sentinel — a freshly added section scrolls this into view
+            (deferred via scrollPendingRef, same idiom as the setlist builder). */}
+        <div ref={listEndRef} className="h-px" style={{ scrollMarginBottom: '6rem' }} />
       </div>
 
       {/* Full-width chord entry bar (all devices) */}
@@ -1403,16 +1547,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes }) {
         <KeyChangeDialog
           onConfirm={(steps, addChords) => confirmKeyChange(keyChangeTarget, steps, addChords)}
           onClose={() => setKeyChangeTarget(null)}
-        />
-      )}
-
-      {/* Section drawer (bulk lyric edit) */}
-      {drawerTarget !== null && song.sections[drawerTarget] && (
-        <SectionDrawer
-          section={song.sections[drawerTarget]}
-          sectionIndex={drawerTarget}
-          onSave={handleDrawerSave}
-          onClose={() => setDrawerTarget(null)}
         />
       )}
     </div>

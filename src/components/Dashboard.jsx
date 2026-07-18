@@ -8,6 +8,36 @@ import ProgressChecklist from '../onboarding/ProgressChecklist';
 import { CalendarWidget } from './ui/CalendarWidget';
 import ActivityFeed from './team/ActivityFeed';
 import { useTeam } from '../auth/useTeam';
+import { usePushSubscription } from '../push/usePushSubscription';
+
+// Prompt to turn on push, shown on the dashboard for a signed-in user whose
+// current device has push available but not enabled. Dismissal is per-device
+// (localStorage, not synced) since push itself is per-device.
+function PushPromptCard() {
+  const push = usePushSubscription();
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem('setlists-md:push-prompt-dismissed') === '1'; } catch { return false; }
+  });
+  if (dismissed || !push.supported || push.subscribed || push.denied) return null;
+  const dismiss = () => {
+    try { localStorage.setItem('setlists-md:push-prompt-dismissed', '1'); } catch { /* ignore */ }
+    setDismissed(true);
+  };
+  return (
+    <div className="modes-card p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <div className="flex-1 min-w-0">
+        <p className="text-copy-16 font-semibold text-[var(--modes-text)] m-0">Turn on notifications</p>
+        <p className="text-copy-14 text-[var(--modes-text-muted)] mt-1 m-0">
+          Get a heads-up on this device when you're scheduled, when a service or rehearsal is coming up, or when a set changes.
+        </p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <Button variant="ghost" size="sm" onClick={dismiss}>Not now</Button>
+        <Button variant="brand" size="sm" loading={push.busy} onClick={() => push.enable()}>Turn on</Button>
+      </div>
+    </div>
+  );
+}
 import { useTeamSchedules } from '../hooks/useTeamSchedules';
 import { useTeamAvailability } from '../hooks/useTeamAvailability';
 import DateStatusModal from './schedule/DateStatusModal';
@@ -581,6 +611,7 @@ export default function Dashboard({
             onDismiss={onDismissChecklist}
           />
         )}
+        {user && <PushPromptCard />}
         {!user && onSignIn && (
           <div className="modes-card p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="flex-1">

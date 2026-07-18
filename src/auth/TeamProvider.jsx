@@ -227,7 +227,7 @@ export function TeamProvider({ children }) {
        * the new team becomes the active one.
        * @param {{ name: string, location?: string }} opts
        */
-      createTeam: async ({ name, location, plan: planArg }) => {
+      createTeam: async ({ name, location, plan: planArg, timezone }) => {
         guard();
         // Cap how many Spaces one account can own (see MAX_OWNED_WORKSPACES).
         if (ownedWorkspaceCount >= MAX_OWNED_WORKSPACES) {
@@ -257,6 +257,7 @@ export function TeamProvider({ children }) {
             owner_id: user.id,
             plan: teamPlan,
             max_seats: maxSeats,
+            ...(timezone ? { timezone } : {}),
             ...(BILLING_ENABLED ? { subscription_status: 'unpaid' } : {}),
           })
           .select()

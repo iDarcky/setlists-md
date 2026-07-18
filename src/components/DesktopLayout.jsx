@@ -5,6 +5,7 @@ import { useMediaQuery, useIsTablet } from '../lib/useMediaQuery';
 export default function DesktopLayout({
   children,
   activeView,
+  scrollKey,
   onNavigate,
   isFullscreen = false,
   hasUnreadNotifications,
@@ -39,12 +40,17 @@ export default function DesktopLayout({
   // the floating bar never covers the last rows of content.
   const showBottomSpacer = !hideBottomSpacer && (isMobile || isTablet);
 
-  // Scroll to top whenever the active view changes
+  // Scroll to top whenever the view changes. Keyed on `scrollKey` (the REAL
+  // route + entity id) rather than `activeView`, because activeView collapses
+  // sub-routes onto their nav tab (setlist-view→setlists, design→settings), so
+  // navigating list→viewer wouldn't otherwise reset the scroll. Falls back to
+  // activeView when no scrollKey is supplied.
+  const scrollResetKey = scrollKey ?? activeView;
   useEffect(() => {
     if (mainRef.current) {
       mainRef.current.scrollTop = 0;
     }
-  }, [activeView]);
+  }, [scrollResetKey]);
 
   return (
     <div className="w-full h-[100dvh] flex flex-col overflow-hidden">

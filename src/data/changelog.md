@@ -2,6 +2,60 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.16.0 — Notifications, reliability, and a card-based editor
+*July 2026*
+
+### Added
+- **Setlist cards (Labs)** — an opt-in redesign of the setlist editor and viewer as clean cards: an identity card up top, the set as its own card, and a library (editor) or band + notes card alongside. Turn it on in Settings → Labs.
+- **Per-song tweaks that stay in the set** — open a song inside the setlist editor to change its key, capo, tempo, structure or note just for that setlist, without changing the song everywhere else.
+- **A note for the whole set** — jot one shared note on a setlist (e.g. "capo 2 on the acoustic, confirm keys by Friday").
+- **Who's playing, at a glance** — in a team or church space, the new setlist viewer shows your band and their availability beside the set; everyone can see it, leaders still edit the roster.
+- **Display controls for the editing canvas** — the editor's "Aa" now sets how the cards read while you work (notation, lyric size, chord size), separate from the "Aa" on the live preview.
+- **Comment on a line** — jot a note on any lyric line (e.g. "hold", "soft") right where it belongs.
+- **Undo instead of "Are you sure?"** — deleting a section, tab, song, setlist, or a song/break from a set no longer asks first; it deletes and shows a 5-second Undo with a countdown, so removing things is quick and safe.
+- **Start a song by pasting** — a new blank song opens to a big paste area with a live preview; drop in a chord sheet and turn it into the cards in one step (⌘/Ctrl+Enter). Import and Browse are one tap away.
+- **Name and instrument on a tab** — the tab editor now lets you name the tab and pick the instrument (electric / acoustic / bass) as you build it.
+- **Save with the keyboard** — ⌘/Ctrl+S saves, and a small "Saved / Unsaved changes" marker shows where you stand.
+- **Copy the running order** — copy a setlist as plain text (numbered songs with key, capo, tempo and time signature) to paste into a chat or email.
+- **A heads-up before editing a past setlist** — editing a service that has already happened now asks you to confirm first.
+- **Setlist links health check** — in a team space, Settings → Sync now shows whether every song in your setlists still points at a real song in the library, and offers a one-tap repair.
+- **Notifications in Settings** — a new Settings → Notifications page turns lock-screen push on or off for the device you're on, with clear guidance (and the iPhone "add to Home Screen first" step).
+- **Custom reminders for services & rehearsals** — set your own lead-times in Settings → Notifications (multiple, like a calendar: 1 hour, 1 day, a week — default 24h), split into Services and Rehearsals. If you're on the roster, you get a push at each time you chose.
+- **A nudge to turn on notifications** — the dashboard shows a friendly prompt to enable notifications on a device that doesn't have them yet (dismissable, and only until you turn them on).
+- **Notifications, front and centre** — a bell now sits in the mobile top bar (with an unread count) and opens a full notifications page with All / Unread / Schedule tabs, instead of being tucked inside the menu.
+
+### Improved
+- **The card-based song editor is now the default** — the cleaner editor with a live preview and a Source view is no longer a Labs preview; it's simply the editor now.
+- **Smarter "Recommended next"** — song suggestions now also favour picks that share a theme or tag with your set, and each one tells you why it's there.
+- **Reorder by dragging, on any device** — dragging songs and breaks into a new order works smoothly on touch too, with edge auto-scroll for long sets.
+- **Breaks stand out** — breaks read as distinct coloured slides in both the setlist editor and the setlist view.
+- **One calm Structure row** — the song map sits on a single line (and reflows nicely on a phone), with Customize right beside the chips.
+- **Edit lyrics in place** — "Edit lyrics" swaps the card into a words-only box inline, just like "Edit source", instead of a pop-up sheet.
+- **Adding a section drops you in** — a new section scrolls into view and opens ready for you to type or paste.
+- **New tab, one tap** — "New tab" opens the tab editor straight away.
+- **Song details, grouped** — the Details tab lays fields out in labelled groups, wider and easier to scan.
+- **Tidier tab library** — a single "New tab" button, a friendlier empty state, and chips showing which sections use each tab.
+- **Key is protected while editing** — changing an existing song's key is steered to Transpose (which moves the chords with it), so the label and the chords never drift apart.
+- **Tighter lyrics** — less empty space above lyric lines that have no chords.
+- **A calmer setlist editor** — field labels sit above each control on a shared baseline, date and time line up, rehearsal and tags fold away until you need them, and a divider groups the "when & where" fields apart from the rest.
+- **Pick or add a service** — the Service field is now a dropdown you can also type a new value into.
+- **A clearer setlist view** — the header leads with Play Live and Practice, song rows show key · tempo · time signature (no repeated artist or counts), and the band splits into "Band" and "Add to the band" cards.
+- **Readiness at a glance** — the band card sums up who's confirmed, unsure, out, or hasn't replied yet.
+- **The band opens instantly** — no "loading roster" flicker when you switch to it.
+- **Clear the song search** — a one-tap × empties the library search after you add a song.
+- **Setlists mend themselves** — if a song was re-imported and your setlists lost track of it, the app now re-links those songs automatically, and remembers each song's title so they stay findable next time.
+- **Re-importing a song updates it** — importing a song you already have now updates that song in place and keeps it linked to your setlists, instead of quietly making a second copy.
+- **A quieter team activity feed** — it no longer says someone "edited" a song when the app only re-saved it in the background; only real edits show up now.
+- **Notifications stay on** — once you turn on push on a device, it stays enabled across app updates (no need to re-enable), and the alert now shows a crisp app badge.
+
+### Fixed
+- **Opening a setlist starts at the top** — tapping a setlist after scrolling the list no longer opens the setlist part-way down the page.
+- **Spaces in the title** — you can type multi-word song titles again (a space no longer disappeared as you typed).
+- **Editing words keeps your chords** — deleting a space in "Edit lyrics" no longer knocks the chords out of place.
+- **A rare editor crash** when opening a display menu is fixed.
+- **Team stuff stays in the team** — your band, church members, and team activity no longer show up in your Personal space.
+- **One colour for rehearsals** — rehearsal times use the same blue everywhere (they'd drifted to purple and amber in a few places).
+
 ## 0.15.0 — A hands-on editor, and sync you can trust
 *July 2026*
 

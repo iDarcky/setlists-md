@@ -20,18 +20,13 @@ export default function RecommendedNextPanel({ songs, currentItems, onAddSong })
 
   const isEmpty = !currentItems.some(i => i && i.type !== 'break' && i.songId);
   const heading = isEmpty ? 'Fresh picks' : 'Recommended next';
-  const subheading = isEmpty
-    ? 'Songs your team hasn’t played in a while.'
-    : 'Songs that pair well with your last pick, by key, tempo and freshness.';
 
   return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <p className="text-label-12 font-semibold text-[var(--ds-gray-600)] m-0">{heading}</p>
-        <p className="text-copy-12 text-[var(--ds-gray-600)] m-0 mt-0.5">{subheading}</p>
-      </div>
-
-      <div className="rounded-xl border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] overflow-hidden divide-y divide-[var(--ds-gray-200)]">
+    <div className="flex flex-col gap-1.5 pt-3 mt-1 border-t border-[var(--border-1)]">
+      <p className="text-label-11 font-semibold uppercase tracking-wide text-[var(--ds-gray-600)] m-0 px-2">
+        {heading}
+      </p>
+      <div className="-mx-1">
         {recs.map(rec => (
           <div
             key={rec.song.id}
@@ -39,30 +34,21 @@ export default function RecommendedNextPanel({ songs, currentItems, onAddSong })
             tabIndex={0}
             onClick={() => onAddSong(rec.song, rec.suggestedKey)}
             onKeyDown={(e) => e.key === 'Enter' && onAddSong(rec.song, rec.suggestedKey)}
-            className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-[var(--ds-gray-alpha-100)] transition-colors"
+            className="group flex items-center gap-3 px-2 py-2 rounded-lg cursor-pointer hover:bg-[var(--ds-gray-alpha-100)] transition-colors"
             aria-label={`Add ${rec.song.title} in ${rec.suggestedKey}`}
             title={`Score: ${rec.score.toFixed(2)}`}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-heading-14 m-0 truncate text-[var(--ds-gray-1000)]">
-                {rec.song.title}
-              </p>
-              <p className="text-copy-12 text-[var(--ds-gray-700)] m-0 mt-0.5 truncate">
+              <p className="text-heading-14 m-0 truncate text-[var(--ds-gray-1000)]">{rec.song.title}</p>
+              <p className="text-copy-12 text-[var(--ds-gray-600)] m-0 mt-0.5 truncate">
                 <span className="text-[var(--chord)] font-semibold">{rec.suggestedKey}</span>
-                {rec.arrangement?.tempo && (
-                  <> · {rec.arrangement.tempo} BPM</>
-                )}
-                {rec.song.artist && (
-                  <> · {rec.song.artist}</>
-                )}
+                {rec.arrangement?.tempo && <> · {rec.arrangement.tempo} BPM</>}
+                {rec.song.artist && <> · {rec.song.artist}</>}
               </p>
+              {rec.reason && <p className="text-copy-12 text-[var(--color-brand-text)] m-0 mt-0.5 truncate">{rec.reason}</p>}
             </div>
-            <span
-              aria-hidden="true"
-              className="inline-flex items-center justify-center w-7 h-7 rounded-md text-label-13 font-bold shrink-0"
-              style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand-text)' }}
-            >
-              +
+            <span className="w-7 h-7 rounded-lg border border-[var(--border-1)] bg-[var(--ds-background-100)] grid place-items-center shrink-0 text-[var(--color-brand)] group-hover:border-[var(--color-brand-border)] transition-colors" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
             </span>
           </div>
         ))}

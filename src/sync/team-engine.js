@@ -450,7 +450,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
   // it and retry the write without the key so older databases keep syncing
   // (a server-side stamp trigger backfills the key from content anyway).
   const isMissingKeyColumn = (message) =>
-    /could not find.*(song_key|setlist_key)|((song_key|setlist_key).*(does not exist|schema cache))/i.test(message || '');
+    /could not find.*(song_key|setlist_key|content_hash)|((song_key|setlist_key|content_hash).*(does not exist|schema cache))/i.test(message || '');
 
   // CAS update: matches 0 rows when another member wrote since our pull
   // (returns null) — the caller records a conflict instead of overwriting.
@@ -468,6 +468,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
       const stripped = { ...payload };
       delete stripped.song_key;
       delete stripped.setlist_key;
+      delete stripped.content_hash;
       res = await run(stripped);
     }
     if (res.error) throw new Error(res.error.message);
@@ -485,6 +486,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
     if (ins.error && isMissingKeyColumn(ins.error.message)) {
       withKey = { ...payload };
       delete withKey[keyCol];
+      delete withKey.content_hash;
       ins = await client.from(table).insert(withKey).select('id, updated_at').single();
     }
     if (!ins.error) return ins.data;
@@ -516,10 +518,11 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
   const INSERT_BATCH = 50;
   async function insertSongsBatch(items) {
     const now = new Date().toISOString();
-    const payloads = items.map(({ song, md }) => ({
+    const payloads = items.map(({ song, md, hash }) => ({
       team_id: teamId,
       title: song.title || 'Untitled',
       content: md,
+      content_hash: hash,
       song_key: song.id,
       updated_at: now,
     }));
@@ -586,7 +589,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         }
 
         if (entry?.remoteId) {
-          const payload = { team_id: teamId, title: song.title || 'Untitled', content: md, song_key: song.id, updated_at: new Date().toISOString() };
+          const payload = { team_id: teamId, title: song.title || 'Untitled', content: md, content_hash: hash, song_key: song.id, updated_at: new Date().toISOString() };
           const data = await casUpdate('team_songs', payload, entry);
           if (!data) {
             // CAS miss — the row changed (or vanished) since our pull.
@@ -611,7 +614,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
         try {
           let data = batched?.get(item.song.id);
           if (!data) {
-            const payload = { team_id: teamId, title: item.song.title || 'Untitled', content: item.md, song_key: item.song.id, updated_at: new Date().toISOString() };
+            const payload = { team_id: teamId, title: item.song.title || 'Untitled', content: item.md, content_hash: item.hash, song_key: item.song.id, updated_at: new Date().toISOString() };
             data = await insertWithAdopt('team_songs', 'song_key', 'title', payload);
           }
           nextManifest[item.song.id] = { remoteId: data.id, lastSyncedHash: item.hash, lastSyncedTime: data.updated_at };
@@ -660,7 +663,7 @@ export function createTeamSyncEngine(onStatusChange, teamId, { readOnly = false,
           continue;
         }
 
-        const payload = { team_id: teamId, name: sl.name || 'Untitled Setlist', content: sl, setlist_key: sl.id, updated_at: new Date().toISOString() };
+        const payload = { team_id: teamId, name: sl.name || 'Untitled Setlist', content: sl, content_hash: hash, setlist_key: sl.id, updated_at: new Date().toISOString() };
         if (entry?.remoteId) {
           const data = await casUpdate('team_setlists', payload, entry);
           if (!data) {

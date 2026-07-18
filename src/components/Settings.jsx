@@ -1,11 +1,14 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Account from './Account';
 import { useAuth } from '../auth/useAuth';
+import { usePushSubscription } from '../push/usePushSubscription';
+import { REMINDER_OPTIONS, normalizeReminders } from '../lib/reminderOffsets';
 import { useEntitlement } from '../hooks/useEntitlement';
 import { Input } from './ui/Input';
 import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '../billing/checkout';
 import SyncSettings from './settings/SyncSettings';
 import SyncDoctor, { WorkerHealthRow } from './settings/SyncDoctor';
+import SetlistLinkDoctor from './settings/SetlistLinkDoctor';
 import WhatsNewPanel from './settings/WhatsNewPanel';
 import ChartStylePanel from './settings/ChartStylePanel';
 import SectionsPanel from './settings/SectionsPanel';
@@ -95,6 +98,13 @@ const LabsIcon = () => (
 const ChevronRight = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="9 18 15 12 9 6" />
+  </svg>
+);
+
+const BellIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.7 21a2 2 0 0 1-3.4 0" />
   </svg>
 );
 
@@ -255,6 +265,7 @@ const PANEL_TITLES = {
   'chart-style': 'Chart Style',
   sections: 'Sections',
   sync: 'Cloud Sync',
+  notifications: 'Notifications',
   services: 'Services',
   plan: 'Plan & billing',
   data: 'Data',
@@ -636,9 +647,9 @@ function LabsPanel({ settings, update }) {
       <LabsToggle settings={settings} update={update} flag="mockupPalette"
         label="Neutral palette (preview)"
         description="Preview the Song Hub V2 neutral-dark colours across the whole app, so you can compare them with the current dark theme before we commit." />
-      <LabsToggle settings={settings} update={update} flag="songEditorCards"
-        label="Song editor cards (preview)"
-        description="Try the redesigned, card-based song editor header: title beside the arrangement, a cleaner controls row, and song details in their own tab." />
+      <LabsToggle settings={settings} update={update} flag="setlistCards"
+        label="Setlist cards (preview)"
+        description="Try the redesigned, card-based setlist editor and viewer: an identity card up top, the set as its own card, and a library / roster card alongside." />
     </Section>
   );
 }
@@ -689,7 +700,7 @@ function TabColorControl({ value, fallback, onChange }) {
   );
 }
 
-function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, activeLibrary, team, songs }) {
+function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, activeLibrary, team, songs, setlists = [], onRepairSetlistLinks }) {
   if (activeLibrary !== 'personal') {
     return (
       <>
@@ -704,6 +715,7 @@ function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, a
         <Section title="Diagnostics">
           <WorkerHealthRow />
           <SyncDoctor teamId={activeLibrary} songs={songs} />
+          <SetlistLinkDoctor songs={songs} setlists={setlists} onRepair={onRepairSetlistLinks} />
         </Section>
       </>
     );
@@ -716,6 +728,131 @@ function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, a
       onSyncNow={onSyncNow}
       onRequestSignIn={onRequestSignIn}
     />
+  );
+}
+
+// ─── Notifications panel ─────────────────────────────────────────────────
+// Per-device Web Push opt-in. Push is per-device (each phone/tablet subscribes
+// separately) and requires being signed in. On iOS the app must be installed to
+// the Home Screen first; the browser reports supported=false until then.
+// Google-Calendar-style list of reminder lead-times. Each row is a dropdown;
+// duplicates are disabled in the picker so a person can't add "1 day" twice.
+function ReminderEditor({ label, value, onChange }) {
+  const list = normalizeReminders(value);
+  const used = new Set(list);
+  const addOne = () => {
+    const next = REMINDER_OPTIONS.find(o => !used.has(o.value));
+    if (next) onChange(normalizeReminders([...list, next.value]));
+  };
+  const setAt = (idx, v) => onChange(normalizeReminders(list.map((m, i) => (i === idx ? v : m))));
+  const removeAt = (idx) => onChange(list.filter((_, i) => i !== idx));
+  const canAdd = list.length < REMINDER_OPTIONS.length;
+
+  return (
+    <div className="p-4 flex flex-col gap-2">
+      <span className="text-copy-14 text-[var(--modes-text)] font-medium">{label}</span>
+      {list.length === 0 && (
+        <span className="text-copy-13 text-[var(--modes-text-muted)]">No reminders — you won't be alerted for these.</span>
+      )}
+      {list.map((mins, idx) => (
+        <div key={idx} className="flex items-center gap-2">
+          <select
+            value={mins}
+            onChange={(e) => setAt(idx, Number(e.target.value))}
+            className="flex-1 h-10 px-3 rounded-lg bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] text-copy-14 text-[var(--modes-text)]"
+          >
+            {REMINDER_OPTIONS.map(o => (
+              <option key={o.value} value={o.value} disabled={o.value !== mins && used.has(o.value)}>{o.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => removeAt(idx)}
+            aria-label="Remove reminder"
+            className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center bg-transparent border border-[var(--modes-border)] cursor-pointer text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      ))}
+      {canAdd && (
+        <button onClick={addOne} className="self-start text-copy-13 font-medium text-[var(--color-brand)] bg-transparent border-none cursor-pointer px-0 py-1">
+          + Add a reminder
+        </button>
+      )}
+    </div>
+  );
+}
+
+function NotificationsPanel({ isSignedIn, onRequestSignIn, settings, onUpdate }) {
+  const push = usePushSubscription();
+
+  if (!isSignedIn) {
+    return (
+      <Section title="Notifications" subtitle="Sign in to get schedule reminders on this device.">
+        <Row label="Push notifications" description="Requires an account.">
+          <Button variant="brand" size="sm" onClick={onRequestSignIn}>Sign in</Button>
+        </Row>
+      </Section>
+    );
+  }
+
+  let status = 'Off on this device';
+  let action = null;
+  if (!push.supported) {
+    status = 'Not available here';
+  } else if (push.denied) {
+    status = 'Blocked';
+  } else if (push.subscribed) {
+    status = 'On for this device';
+    action = <Button variant="secondary" size="sm" loading={push.busy} onClick={() => push.disable()}>Turn off</Button>;
+  } else {
+    action = <Button variant="brand" size="sm" loading={push.busy} onClick={() => push.enable()}>Turn on</Button>;
+  }
+
+  const pushSection = (
+    <Section
+      title="Notifications"
+      subtitle="Get a lock-screen alert when you're scheduled, when someone declines, or for a rehearsal reminder. This is per-device — turn it on wherever you want alerts."
+    >
+      <Row label="Push on this device" description={status}>
+        {action}
+      </Row>
+      {push.denied && (
+        <Row label="Blocked in your settings">
+          <span className="text-copy-13 text-[var(--modes-text-muted)]">
+            Notifications are turned off for this app in your browser/phone settings — re-enable them there, then come back.
+          </span>
+        </Row>
+      )}
+      {!push.supported && (
+        <Row label="On iPhone/iPad">
+          <span className="text-copy-13 text-[var(--modes-text-muted)]">
+            Add the app to your Home Screen first (Share → Add to Home Screen), open it from there, then turn this on.
+          </span>
+        </Row>
+      )}
+    </Section>
+  );
+
+  return (
+    <div className="flex flex-col gap-6">
+      {pushSection}
+      <Section
+        title="Reminders"
+        subtitle="When to remind you before a service or rehearsal you're on. Add as many as you like — these apply to every setlist."
+      >
+        <ReminderEditor
+          label="Services"
+          value={settings?.serviceReminders}
+          onChange={(v) => onUpdate?.('serviceReminders', v)}
+        />
+        <ReminderEditor
+          label="Rehearsals"
+          value={settings?.rehearsalReminders}
+          onChange={(v) => onUpdate?.('rehearsalReminders', v)}
+        />
+      </Section>
+    </div>
   );
 }
 
@@ -1124,6 +1261,7 @@ export default function Settings({
   team = null,
   setlists = [],
   songs = [],
+  onRepairSetlistLinks,
   onRemapService,
   trash = [],
   onRestoreSong,
@@ -1135,8 +1273,20 @@ export default function Settings({
   // changes — otherwise switching to a shorter panel keeps the previous
   // scroll offset and lands the user mid-page.
   const desktopScrollRef = useRef(null);
+  const mobileTopRef = useRef(null);
   useEffect(() => {
     if (desktopScrollRef.current) desktopScrollRef.current.scrollTop = 0;
+    // Mobile/tablet: the settings content scrolls inside a parent (<main>), not
+    // a Settings-owned box — reset the nearest scrollable ancestor so drilling
+    // into (or back out of) a panel always lands at the top, not mid-page.
+    let el = mobileTopRef.current?.parentElement;
+    while (el) {
+      if (el.scrollHeight > el.clientHeight && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) {
+        el.scrollTop = 0;
+        break;
+      }
+      el = el.parentElement;
+    }
   }, [panel]);
   // Accepts (key, value) for single-field tweaks or a patch object for
   // multi-field updates done in the same render — without this, two
@@ -1190,8 +1340,12 @@ export default function Settings({
             activeLibrary={activeLibrary}
             team={team}
             songs={songs}
+            setlists={setlists}
+            onRepairSetlistLinks={onRepairSetlistLinks}
           />
         );
+      case 'notifications':
+        return <NotificationsPanel isSignedIn={isSignedIn} onRequestSignIn={onRequestSignIn} settings={settings} onUpdate={update} />;
       case 'services':
         return <ServicesPanel setlists={setlists} onRemapService={onRemapService} />;
       case 'plan':
@@ -1261,6 +1415,7 @@ export default function Settings({
       title: 'Sync & data',
       items: [
         { key: 'sync', label: 'Cloud Sync', icon: CloudIcon, value: syncSummary(syncState) },
+        { key: 'notifications', label: 'Notifications', icon: BellIcon, value: 'Push alerts on this device' },
         { key: 'services', label: 'Services', icon: PlanIcon, value: `${serviceCount} service${serviceCount === 1 ? '' : 's'}`, show: canManageServices },
         { key: 'data', label: 'Data', icon: DataIcon, value: `${songCount} songs · ${setlistCount} setlists` },
       ],
@@ -1361,7 +1516,7 @@ export default function Settings({
 
   // Mobile/tablet: existing full-page hub-and-drilldown layout.
   return (
-    <div data-theme-variant="modes" className="flex flex-col">
+    <div ref={mobileTopRef} data-theme-variant="modes" className="flex flex-col">
       <PageHeader
         title={PANEL_TITLES[panel]}
         onBack={panel === 'hub' ? undefined : () => onChangePanel('hub')}
