@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense } from 'react';
 import SongCard from './SongCard';
+import SongMediaCard from './SongMediaCard';
 import SidePeek from './shell/SidePeek';
 import { Button } from './ui/Button';
 import WorkspacePickerDialog from './ui/WorkspacePickerDialog';
@@ -143,6 +144,54 @@ function SkeletonRows() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// Media-card skeletons (songsLibraryPlus) — mirror the grid so there's no
+// layout shift when the library finishes loading.
+function SkeletonCards() {
+  return (
+    <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="modes-card-strong rounded-2xl p-3 flex flex-col gap-2.5">
+          <div className="flex items-start gap-3">
+            <div className="w-14 h-14 rounded-xl bg-[var(--modes-surface-strong)] animate-pulse shrink-0" />
+            <div className="flex-1 flex flex-col gap-2 pt-1">
+              <div className="h-4 w-3/4 bg-[var(--modes-surface-strong)] rounded animate-pulse" />
+              <div className="h-3 w-1/2 bg-[var(--modes-surface-strong)] rounded animate-pulse" />
+              <div className="h-5 w-24 bg-[var(--modes-surface-strong)] rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="h-4 w-full bg-[var(--modes-surface-strong)] rounded animate-pulse" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Active-filter pills (songsLibraryPlus) — the current facet/tag selections as
+// removable chip-cards, so the active filter set reads as its own row.
+function ActiveFacetChips({ facetSel, selectedTags, onRemoveFacet, onRemoveTag, onClearAll }) {
+  const chips = [];
+  for (const [facetKey, values] of Object.entries(facetSel || {})) {
+    (values || []).forEach(v => chips.push({ id: `${facetKey}:${v}`, label: v, onRemove: () => onRemoveFacet(facetKey, v) }));
+  }
+  (selectedTags || []).forEach(t => chips.push({ id: `tag:${t}`, label: `#${t}`, onRemove: () => onRemoveTag(t) }));
+  if (chips.length === 0) return null;
+  return (
+    <div className="flex items-center gap-2 flex-wrap mb-4">
+      {chips.map(c => (
+        <button
+          key={c.id}
+          onClick={c.onRemove}
+          className="inline-flex items-center gap-1.5 pl-3 pr-2 h-8 rounded-full modes-card-strong text-label-13 text-[var(--modes-text)] hover:border-[var(--color-brand)] transition-colors cursor-pointer"
+        >
+          {c.label}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--modes-text-dim)]"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+        </button>
+      ))}
+      <button onClick={onClearAll} className="text-label-13 text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] underline underline-offset-2 cursor-pointer bg-transparent border-none">Clear all</button>
     </div>
   );
 }
@@ -571,6 +620,9 @@ export default function Library({
   // Row padding follows the density toggle (songsLibraryPlus); comfortable is
   // the pre-plus default.
   const rowPad = (plus && density === 'compact') ? 'py-2' : 'py-3.5';
+  // In the plus card/compact views, once anything is selected a tap toggles
+  // selection instead of opening (multi-select mode).
+  const selectionActive = plus && !readOnly && selected.length > 0;
   // A row tap opens the full Song Hub on every device. Desktop also keeps a
   // dedicated per-row button that opens the side-peek preview.
   const onRowActivate = openFull;
@@ -713,8 +765,17 @@ export default function Library({
 
       {/* Content */}
       <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 py-5">
+        {plus && (activeFacetCount > 0 || selectedTags.length > 0) && (
+          <ActiveFacetChips
+            facetSel={facetSel}
+            selectedTags={selectedTags}
+            onRemoveFacet={toggleFacet}
+            onRemoveTag={toggleTag}
+            onClearAll={clearAllFilters}
+          />
+        )}
         {!loaded ? (
-          <SkeletonRows />
+          plus ? <SkeletonCards /> : <SkeletonRows />
         ) : filtered.length === 0 ? (
           (query || selectedTags.length > 0 || activeFacetCount > 0 || dataQuality.length > 0 || dupOnly) ? (
             <div className="modes-card py-14 text-center flex flex-col items-center gap-3 border-dashed">
@@ -826,6 +887,7 @@ export default function Library({
                 key={song.id}
                 song={song}
                 variant="compact"
+                accent={plus}
                 highlight={deferredQuery}
                 selected={advanced && song.id === previewSongId}
                 onClick={() => onRowActivate(song)}
@@ -833,6 +895,40 @@ export default function Library({
             ))}
             {hasMore && (
               <div ref={sentinelRef} className="py-5 text-center text-copy-12 text-[var(--modes-text-dim)]">
+                Loading more… ({truncated.length} of {filtered.length})
+              </div>
+            )}
+          </div>
+        ) : plus ? (
+          /* Media-card gallery (songsLibraryPlus): card-style group headers +
+             a responsive grid of true media cards. */
+          <div className="flex flex-col gap-8">
+            {sortedKeys.map(groupKey => (
+              <div key={groupKey} className="flex flex-col gap-3">
+                <div className="sticky top-[76px] z-[5] self-start inline-flex items-center gap-2 px-3 py-1.5 rounded-full modes-card-strong">
+                  <h3 className="text-heading-16 font-bold text-[var(--modes-text)] m-0">{groupKey}</h3>
+                  <span className="text-label-12 text-[var(--modes-text-dim)]">{groups[groupKey].length}</span>
+                </div>
+                <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+                  {groups[groupKey].map(song => (
+                    <SongMediaCard
+                      key={song.id}
+                      song={song}
+                      highlight={deferredQuery}
+                      duplicate={duplicateIds.has(song.id)}
+                      settings={chartDefaults?.settings}
+                      selected={selectedSet.has(song.id)}
+                      selectionActive={selectionActive}
+                      onToggleSelect={!readOnly ? (id) => toggleSelect(id) : undefined}
+                      onOpen={onRowActivate}
+                      onEdit={onEditSong || undefined}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {hasMore && (
+              <div ref={sentinelRef} className="py-6 text-center text-copy-12 text-[var(--modes-text-dim)]">
                 Loading more… ({truncated.length} of {filtered.length})
               </div>
             )}
@@ -875,12 +971,13 @@ export default function Library({
         </div>
       )}
 
-      {/* Bulk action bar — desktop + tablet */}
-      {advanced && !readOnly && selected.length > 0 && (
+      {/* Bulk action bar — desktop + tablet, plus phones when songsLibraryPlus
+          multi-select is active (the card gallery lets you select on mobile). */}
+      {!readOnly && selected.length > 0 && (advanced || plus) && (
         <div
           ref={bulkBarRef}
-          className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl"
-          style={isTablet ? { bottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' } : undefined}
+          className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl max-w-[calc(100vw-1rem)] flex-wrap justify-center"
+          style={(!advanced || isTablet) ? { bottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' } : undefined}
         >
           <span className="text-label-14 font-semibold text-[var(--ds-gray-1000)] whitespace-nowrap">{selected.length} selected</span>
           <span className="w-px h-5 bg-[var(--ds-gray-300)]" />

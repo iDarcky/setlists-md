@@ -44,8 +44,25 @@ function DraftBadge() {
 const PlayGlyph = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
 );
+const PracticeGlyph = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" />
+  </svg>
+);
 
-export default function SetlistCard({ setlist, onPlay, onView, selected = false, clockFormat = '12h', variant = 'card', durationLabel = null }) {
+// Status → colour + label for the card header strip (setlistsLibraryPlus).
+function statusMeta(setlist) {
+  if (setlist.rehearsal) return { label: 'Rehearsal', color: 'var(--ds-blue-500)' };
+  if (setlist.status === 'draft') return { label: 'Draft', color: 'var(--ds-amber-500)' };
+  return { label: 'Ready', color: 'var(--ds-green-500)' };
+}
+
+export default function SetlistCard({
+  setlist, onPlay, onView, onPractice, selected = false, clockFormat = '12h',
+  variant = 'card', durationLabel = null,
+  // setlistsLibraryPlus extras (all optional → non-plus callers unaffected):
+  songPreview = null, matchNote = null, bandCount = 0, statusHeader = false, serviceBadge = null,
+}) {
   const songCount = setlist.items?.filter(it => it.type !== 'break').length || 0;
   const displayTags = setlist.tags?.length
     ? setlist.tags
@@ -89,21 +106,26 @@ export default function SetlistCard({ setlist, onPlay, onView, selected = false,
   }
 
   // Default card — compact horizontal layout (mobile + desktop).
+  const status = statusMeta(setlist);
   return (
     <div
       onClick={onView}
       className={cn(
-        'modes-card-strong rounded-2xl p-4 sm:p-5 flex items-center gap-4 w-full cursor-pointer group transition-transform duration-150 active:scale-[0.99]',
+        'modes-card-strong rounded-2xl w-full cursor-pointer group transition-transform duration-150 active:scale-[0.99] relative overflow-hidden',
         selected && 'ring-2 ring-[var(--color-brand)]',
       )}
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
+      {statusHeader && <span className="absolute top-0 left-0 right-0 h-1" style={{ background: status.color }} aria-hidden="true" />}
+      <div className={cn('flex items-center gap-4 p-4 sm:p-5', statusHeader && 'pt-4.5')}>
       <DateBadge dateStr={setlist.date} />
 
       <div className="flex-1 min-w-0 flex flex-col gap-1.5">
         <h3 className="text-heading-18 sm:text-heading-20 font-bold text-[var(--modes-text)] m-0 tracking-tight flex items-center gap-2 min-w-0">
           <span className="truncate">{setlist.name || 'Untitled Setlist'}</span>
-          {setlist.status === 'draft' && <DraftBadge />}
+          {statusHeader
+            ? <span className="shrink-0 text-label-11 font-semibold px-1.5 py-0.5 rounded" style={{ color: status.color, background: `color-mix(in srgb, ${status.color} 16%, transparent)` }}>{status.label}</span>
+            : (setlist.status === 'draft' && <DraftBadge />)}
         </h3>
         <div className="flex items-center gap-x-3 gap-y-1 flex-wrap text-label-13 text-[var(--modes-text-muted)] font-medium min-w-0">
           <span className="truncate">{dateLabel}</span>
@@ -113,7 +135,24 @@ export default function SetlistCard({ setlist, onPlay, onView, selected = false,
               <span className="truncate">{setlist.location}</span>
             </>
           )}
+          {serviceBadge && (
+            <span className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--modes-surface)] text-[var(--modes-text-muted)] border border-[var(--modes-border)] whitespace-nowrap">{serviceBadge}</span>
+          )}
+          {bandCount > 0 && (
+            <span className="inline-flex items-center gap-1 text-label-11 text-[var(--modes-text-dim)]" title={`${bandCount} scheduled`}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /></svg>
+              {bandCount}
+            </span>
+          )}
         </div>
+        {matchNote && (
+          <div className="text-label-12 text-[var(--color-brand)] truncate">Contains: {matchNote}</div>
+        )}
+        {songPreview && songPreview.length > 0 && (
+          <div className="text-label-12 text-[var(--modes-text-dim)] truncate">
+            {songPreview.slice(0, 3).join(' · ')}{songCount > 3 ? ` +${songCount - 3}` : ''}
+          </div>
+        )}
         {displayTags.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
             {displayTags.slice(0, 2).map(tag => (
@@ -124,16 +163,28 @@ export default function SetlistCard({ setlist, onPlay, onView, selected = false,
       </div>
 
       <div className="shrink-0 flex flex-col items-end gap-2">
-        <button
-          onClick={(e) => { e.stopPropagation(); onPlay(); }}
-          className="inline-flex items-center justify-center gap-2 h-9 px-3 sm:px-4 rounded-lg border-none bg-[var(--color-brand)] text-white font-bold text-label-14 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
-        >
-          <PlayGlyph size={16} />
-          <span className="hidden sm:inline">Play Live</span>
-        </button>
+        <div className="flex items-center gap-1.5">
+          {onPractice && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onPractice(); }}
+              aria-label="Practice" title="Practice"
+              className="inline-flex items-center justify-center h-9 w-9 rounded-lg border-none bg-[var(--modes-surface)] text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface-strong)] hover:text-[var(--modes-text)] cursor-pointer transition-colors"
+            >
+              <PracticeGlyph />
+            </button>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onPlay(); }}
+            className="inline-flex items-center justify-center gap-2 h-9 px-3 sm:px-4 rounded-lg border-none bg-[var(--color-brand)] text-white font-bold text-label-14 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+          >
+            <PlayGlyph size={16} />
+            <span className="hidden sm:inline">Play Live</span>
+          </button>
+        </div>
         <span className="text-label-12 text-[var(--modes-text-dim)] font-medium">
           {songCount} Song{songCount !== 1 ? 's' : ''}{durationLabel ? ` • ${durationLabel}` : ''}
         </span>
+      </div>
       </div>
     </div>
   );

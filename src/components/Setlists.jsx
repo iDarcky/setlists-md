@@ -15,6 +15,7 @@ import { usePersistentView } from '../lib/usePersistentView';
 import { setlistStartMs, isSetlistUpcoming } from '../lib/setlistTime';
 import { searchSetlistsPlus, setlistDurationSeconds } from '../lib/libraryPlus';
 import { formatTotalDuration } from '../lib/duration';
+import { normalizeText } from '../lib/search';
 import { useEntitlement } from '../hooks/useEntitlement';
 import { useTeam } from '../auth/useTeam';
 import { useTeamSchedules } from '../hooks/useTeamSchedules';
@@ -208,6 +209,32 @@ export default function Setlists({
   const songMap = useMemo(() => new Map((songs || []).map(s => [s.id, s])), [songs]);
   const durationOf = (sl) => setlistDurationSeconds(sl, songMap);
   const durLabel = (sl) => { if (!plus) return null; const s = durationOf(sl); return s > 0 ? formatTotalDuration(s) : null; };
+  // First few song titles for the card mini-preview.
+  const songPreviewOf = (sl) => (sl.items || []).filter(i => i.songId).slice(0, 3).map(i => i.songTitle || songMap.get(i.songId)?.title || 'Song');
+  // When a setlist matched the query only via a contained song (not its own
+  // name), which song matched — surfaced as a "Contains: X" note on the card.
+  const matchNoteOf = (sl) => {
+    const q = query.trim();
+    if (!plus || !q) return null;
+    if (normalizeText(sl.name).includes(normalizeText(q))) return null;
+    const tokens = normalizeText(q).split(/\s+/).filter(Boolean);
+    for (const it of sl.items || []) {
+      if (!it.songId) continue;
+      const title = it.songTitle || songMap.get(it.songId)?.title || '';
+      const hay = normalizeText(title);
+      if (title && tokens.every(t => hay.includes(t))) return title;
+    }
+    return null;
+  };
+  // Common plus-only props for the (non-compact) setlist cards.
+  const cardPlusProps = (sl) => plus ? {
+    statusHeader: true,
+    serviceBadge: showService ? (sl.service || null) : null,
+    bandCount: showSchedule ? (scheduleStats[sl.id]?.total || 0) : 0,
+    songPreview: songPreviewOf(sl),
+    matchNote: matchNoteOf(sl),
+    onPractice: onPracticeSetlist ? () => onPracticeSetlist(sl, 0) : undefined,
+  } : {};
 
   useEffect(() => {
     const handler = (e) => {
@@ -708,6 +735,26 @@ export default function Setlists({
           </div>
         )}
         {templatesPanel}
+        {plus && !query && statusFilter === 'all' && dateFilter === 'all' && upcoming.length > 0 && (
+          <div
+            role="button"
+            onClick={() => onRowActivate(upcoming[0])}
+            className="modes-card-strong rounded-2xl p-5 mb-6 flex items-center gap-4 cursor-pointer relative overflow-hidden group"
+            style={{ background: 'radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--color-brand) 22%, transparent), transparent 60%)' }}
+          >
+            <div className="min-w-0 flex-1">
+              <div className="text-label-11 uppercase tracking-[0.14em] text-[var(--color-brand)] font-semibold mb-1">Next up</div>
+              <div className="text-heading-22 font-bold text-[var(--modes-text)] truncate">{upcoming[0].name || 'Untitled setlist'}</div>
+              <div className="text-label-13 text-[var(--modes-text-muted)] mt-0.5 truncate">
+                {formatDate(upcoming[0].date)}
+                {songCount(upcoming[0]) > 0 ? ` · ${songCount(upcoming[0])} songs` : ''}
+                {durLabel(upcoming[0]) ? ` · ${durLabel(upcoming[0])}` : ''}
+                {upcoming[0].location ? ` · ${upcoming[0].location}` : ''}
+              </div>
+            </div>
+            <Button variant="brand" size="sm" onClick={(e) => { e.stopPropagation(); onPlaySetlist(upcoming[0]); }} className="shrink-0">Play Live</Button>
+          </div>
+        )}
         {!loaded ? (
           <SkeletonRows />
         ) : filtered.length === 0 ? (
@@ -784,7 +831,7 @@ export default function Setlists({
                 </div>
                 <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
                   {upcoming.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...cardPlusProps(sl)} />
                   ))}
                 </div>
               </section>
@@ -797,7 +844,7 @@ export default function Setlists({
                 </div>
                 <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
                   {past.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...cardPlusProps(sl)} />
                   ))}
                 </div>
               </section>
@@ -813,7 +860,7 @@ export default function Setlists({
                 </div>
                 <div className="flex flex-col gap-4">
                   {group.items.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...cardPlusProps(sl)} />
                   ))}
                 </div>
               </section>
@@ -829,7 +876,7 @@ export default function Setlists({
                 </div>
                 <div className="flex flex-col gap-4">
                   {upcoming.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...cardPlusProps(sl)} />
                   ))}
                 </div>
               </section>
@@ -842,7 +889,7 @@ export default function Setlists({
                 </div>
                 <div className="flex flex-col gap-4">
                   {past.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...cardPlusProps(sl)} />
                   ))}
                 </div>
               </section>

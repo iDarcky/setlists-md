@@ -21,7 +21,16 @@ function formatRelativeTime(ts) {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function SongCard({ song, onClick, variant = 'card', showTags = false, selected = false, highlight }) {
+// Deterministic accent hue from a key root, so the compact one-line cards get a
+// quiet colour cue you can scan down (songsLibraryPlus).
+const KEY_HUE = { C: 8, D: 40, E: 90, F: 150, G: 195, A: 250, B: 300 };
+function keyAccent(key) {
+  const root = String(key || 'C').trim().charAt(0).toUpperCase();
+  const h = KEY_HUE[root] ?? 220;
+  return `hsl(${h} 55% 55%)`;
+}
+
+function SongCard({ song, onClick, variant = 'card', showTags = false, selected = false, highlight, accent = false }) {
   const arr = defaultArr(song);
   const songKey = arr?.key || song?.key || 'C';
   const songTempo = arr?.tempo ?? song?.tempo;
@@ -32,10 +41,10 @@ function SongCard({ song, onClick, variant = 'card', showTags = false, selected 
       <div
         onClick={onClick}
         className={cn(
-          'flex items-center justify-between gap-3 px-4 py-2.5 cursor-pointer transition-colors duration-150 hover:bg-[var(--bg-2)] active:bg-[var(--bg-2)]',
+          'flex items-center justify-between gap-3 px-4 py-2.5 cursor-pointer transition-colors duration-150 hover:bg-[var(--bg-2)] active:bg-[var(--bg-2)] relative',
           selected && 'bg-[var(--ds-teal-100)] hover:bg-[var(--ds-teal-100)]',
         )}
-        style={{ WebkitTapHighlightColor: 'transparent' }}
+        style={{ WebkitTapHighlightColor: 'transparent', ...(accent ? { boxShadow: `inset 3px 0 0 ${keyAccent(songKey)}` } : {}) }}
       >
         <div className="min-w-0 flex-1">
           <span className="block text-copy-15 font-medium text-[var(--text-1)] truncate">
