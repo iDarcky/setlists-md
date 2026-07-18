@@ -49,6 +49,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Notifications stay on** — once you turn on push on a device, it stays enabled across app updates (no need to re-enable), and the alert now shows a crisp app badge.
 
 ### Fixed
+- **Opening a setlist starts at the top** — tapping a setlist after scrolling the list no longer opens the setlist part-way down the page.
 - **Spaces in the title** — you can type multi-word song titles again (a space no longer disappeared as you typed).
 - **Editing words keeps your chords** — deleting a space in "Edit lyrics" no longer knocks the chords out of place.
 - **A rare editor crash** when opening a display menu is fixed.

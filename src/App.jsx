@@ -2247,6 +2247,7 @@ export default function App() {
       )}
       {!['onboarding', 'signin', 'recovery'].includes(view) && (
         <DesktopLayout
+          scrollKey={`${view}|${currentSetlist?.id || currentSong?.id || ''}`}
           activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
           onNavigate={goToMainView} 
           isFullscreen={view === 'setlist-performance' || view === 'setlist-play' || view === 'setlist-practice' || (isFullscreen && (view === 'library' || view === 'setlists' || view === 'song-hub'))}

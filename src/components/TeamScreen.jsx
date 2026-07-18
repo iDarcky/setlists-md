@@ -50,20 +50,30 @@ const LocationIcon = () => (
 
 // ── Create Team form ────────────────────────────────────────────────────────
 
+// Full IANA zone list where the browser supports it; a small fallback otherwise.
+const TIMEZONES = (() => {
+  try { return Intl.supportedValuesOf('timeZone'); }
+  catch { return ['UTC', 'Europe/Bucharest', 'Europe/London', 'Europe/Berlin', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Australia/Sydney']; }
+})();
+const DEVICE_TZ = (() => {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; }
+})();
+
 function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 'team', billingLive = false }) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [plan, setPlan] = useState(defaultPlan === 'church' ? 'church' : 'team');
+  const [timezone, setTimezone] = useState(DEVICE_TZ);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !timezone) return;
     setBusy(true);
     setError(null);
     try {
-      await onCreate({ name: name.trim(), location: location.trim() || null, plan });
+      await onCreate({ name: name.trim(), location: location.trim() || null, plan, timezone });
     } catch (err) {
       setError(err.message || 'Could not create team.');
     } finally {
@@ -119,6 +129,19 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
             />
           </label>
 
+          <label className="flex flex-col gap-1">
+            <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Timezone</span>
+            <select
+              required
+              value={timezone}
+              onChange={e => setTimezone(e.target.value)}
+              className="h-11 px-3 rounded-lg bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] text-copy-14 text-[var(--modes-text)]"
+            >
+              {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>)}
+            </select>
+            <span className="text-label-11 text-[var(--modes-text-dim)] normal-case tracking-normal">Used to send service &amp; rehearsal reminders at the right local time.</span>
+          </label>
+
           {/* Tier picker — sets seats/features (and the price at checkout). */}
           <div className="flex flex-col gap-1.5">
             <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Plan</span>
@@ -156,7 +179,7 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
             </div>
           )}
 
-          <Button type="submit" variant="brand" size="lg" className="w-full" disabled={busy || !name.trim()}>
+          <Button type="submit" variant="brand" size="lg" className="w-full" disabled={busy || !name.trim() || !timezone}>
             {busy ? (billingLive ? 'Starting checkout…' : 'Creating…') : (billingLive ? 'Continue to checkout' : 'Create Space')}
           </Button>
           {onCancel && (
