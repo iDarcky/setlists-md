@@ -2286,6 +2286,8 @@ export default function App() {
               songs={songs}
               setlists={setlists}
               onOpenDrawer={openDrawer}
+              onOpenNotifications={user ? () => setNotifTrayOpen(true) : undefined}
+              unreadCount={user ? mergedNotifications.filter(n => !n.read).length : 0}
               onSelectSong={goChart}
               onSelectSetlist={goSetlistView}
               activeLibrary={activeLibrary}
