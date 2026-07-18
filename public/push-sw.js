@@ -12,8 +12,9 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(data.title || 'setlists.md', {
       body: data.body || '',
       tag: data.tag || undefined, // same tag replaces, so re-pushes don't stack
-      icon: '/icon-192.png',      // full-colour app icon (large, right side)
-      badge: '/badge-96.png',     // monochrome silhouette (small, status bar) — NOT the colour icon
+      // No large `icon` — cleaner, text-forward notification. The small
+      // monochrome badge still identifies the app in the status bar.
+      badge: '/badge-96.png',
       data: { url: data.url || '/' },
     })
   );
