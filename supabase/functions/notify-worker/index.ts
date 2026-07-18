@@ -70,6 +70,67 @@ async function generateMaybeNudges(supa: SupabaseClient): Promise<number> {
   return rows.length;
 }
 
+// Rostered users only: anyone on the setlist's roster who hasn't said "no".
+const ROSTERED = ['available', 'maybe', 'pending'];
+
+// Day-before/day-of reminder generator, shared by service + rehearsal. Fires
+// once per schedule row per type (dedup on metadata.schedule_id), so a member
+// gets at most one service reminder and one rehearsal reminder per setlist.
+async function generateReminders(
+  supa: SupabaseClient,
+  opts: { dateField: 'date' | 'rehearsalDate'; type: string; label: string },
+): Promise<number> {
+  const today = new Date().toISOString().slice(0, 10);
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+
+  const { data: setlists, error: slErr } = await supa
+    .from('team_setlists')
+    .select('id, team_id, name, content')
+    .gte(`content->>${opts.dateField}`, today)
+    .lte(`content->>${opts.dateField}`, tomorrow);
+  if (slErr) throw new Error(slErr.message);
+  if (!setlists?.length) return 0;
+
+  const { data: rostered, error: schErr } = await supa
+    .from('team_schedules')
+    .select('id, team_id, setlist_id, user_id, role')
+    .in('availability', ROSTERED)
+    .in('setlist_id', setlists.map((s) => s.id));
+  if (schErr) throw new Error(schErr.message);
+  if (!rostered?.length) return 0;
+
+  const { data: existing } = await supa
+    .from('team_notifications')
+    .select('metadata')
+    .eq('type', opts.type)
+    .in('metadata->>schedule_id', rostered.map((m) => m.id));
+  const done = new Set((existing || []).map((r) => r.metadata?.schedule_id));
+
+  const rows = rostered
+    .filter((m) => !done.has(m.id))
+    .map((m) => {
+      const sl = setlists.find((s) => s.id === m.setlist_id);
+      const name = sl?.content?.name || sl?.name || 'A service';
+      const d = sl?.content?.[opts.dateField];
+      const when = d === today ? 'today' : 'tomorrow';
+      const time = opts.dateField === 'rehearsalDate' ? sl?.content?.rehearsalTime : sl?.content?.time;
+      const at = time ? ` at ${time}` : '';
+      return {
+        team_id: m.team_id,
+        user_id: m.user_id,
+        type: opts.type,
+        title: opts.dateField === 'rehearsalDate' ? `Rehearsal ${when}` : `Playing ${when}`,
+        body: `${opts.label} for "${name}" is ${when}${at} — you're on the roster.`,
+        metadata: { schedule_id: m.id, setlist_id: m.setlist_id, date: d, role: m.role },
+      };
+    });
+  if (rows.length) {
+    const { error } = await supa.from('team_notifications').insert(rows);
+    if (error) throw new Error(error.message);
+  }
+  return rows.length;
+}
+
 async function pushPending(supa: SupabaseClient, vapid: VapidKeys) {
   const out = { pushed: 0, pruned: 0 };
   const { data: pending, error } = await supa
@@ -132,13 +193,25 @@ Deno.serve(async (_req: Request) => {
     { auth: { persistSession: false } },
   );
 
-  const result: Record<string, unknown> = { nudges: 0, pushed: 0, pruned: 0, pushEnabled: false };
+  const result: Record<string, unknown> = { nudges: 0, serviceReminders: 0, rehearsalReminders: 0, pushed: 0, pruned: 0, pushEnabled: false };
   const errors: string[] = [];
 
   try {
     result.nudges = await generateMaybeNudges(supa);
   } catch (err) {
     errors.push(`nudges: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  try {
+    result.serviceReminders = await generateReminders(supa, { dateField: 'date', type: 'schedule_reminder', label: 'Service' });
+  } catch (err) {
+    errors.push(`service-reminders: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  try {
+    result.rehearsalReminders = await generateReminders(supa, { dateField: 'rehearsalDate', type: 'rehearsal_reminder', label: 'Rehearsal' });
+  } catch (err) {
+    errors.push(`rehearsal-reminders: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   try {

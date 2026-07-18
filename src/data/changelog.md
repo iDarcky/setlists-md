@@ -20,6 +20,8 @@ A running log of what's new in setlists.md. Newest releases first.
 - **A heads-up before editing a past setlist** — editing a service that has already happened now asks you to confirm first.
 - **Setlist links health check** — in a team space, Settings → Sync now shows whether every song in your setlists still points at a real song in the library, and offers a one-tap repair.
 - **Notifications in Settings** — a new Settings → Notifications page turns lock-screen push on or off for the device you're on, with clear guidance (and the iPhone "add to Home Screen first" step).
+- **Service & rehearsal reminders** — if you're on the roster, you get a "Playing tomorrow" / "Rehearsal tomorrow" push the day before (and morning of), so a service never sneaks up on you.
+- **A nudge to turn on notifications** — the dashboard shows a friendly prompt to enable notifications on a device that doesn't have them yet (dismissable, and only until you turn them on).
 
 ### Improved
 - **The card-based song editor is now the default** — the cleaner editor with a live preview and a Source view is no longer a Labs preview; it's simply the editor now.
