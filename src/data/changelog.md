@@ -18,6 +18,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Save with the keyboard** — ⌘/Ctrl+S saves, and a small "Saved / Unsaved changes" marker shows where you stand.
 - **Copy the running order** — copy a setlist as plain text (numbered songs with key, capo, tempo and time signature) to paste into a chat or email.
 - **A heads-up before editing a past setlist** — editing a service that has already happened now asks you to confirm first.
+- **Setlist links health check** — in a team space, Settings → Sync now shows whether every song in your setlists still points at a real song in the library, and offers a one-tap repair.
 
 ### Improved
 - **The card-based song editor is now the default** — the cleaner editor with a live preview and a Source view is no longer a Labs preview; it's simply the editor now.
@@ -38,6 +39,9 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Readiness at a glance** — the band card sums up who's confirmed, unsure, out, or hasn't replied yet.
 - **The band opens instantly** — no "loading roster" flicker when you switch to it.
 - **Clear the song search** — a one-tap × empties the library search after you add a song.
+- **Setlists mend themselves** — if a song was re-imported and your setlists lost track of it, the app now re-links those songs automatically, and remembers each song's title so they stay findable next time.
+- **Re-importing a song updates it** — importing a song you already have now updates that song in place and keeps it linked to your setlists, instead of quietly making a second copy.
+- **A quieter team activity feed** — it no longer says someone "edited" a song when the app only re-saved it in the background; only real edits show up now.
 
 ### Fixed
 - **Spaces in the title** — you can type multi-word song titles again (a space no longer disappeared as you typed).

@@ -120,8 +120,7 @@ team optimistic locking, scheduling & notifications pillar.
   re-import UPDATES in place instead of orphaning; (3) **Settings → Sync →
   "Setlist links"** diagnostic (`SetlistLinkDoctor.jsx`) showing linked /
   re-linkable / missing / untitled with a manual Repair. Tests:
-  `src/__tests__/setlistLinks.test.js`. **Follow-ups:** apply import-adopt to the
-  **batch** import path (`handleImportParsedSongs`) too; consider fuzzy title
+  `src/__tests__/setlistLinks.test.js`. **Follow-ups:** consider fuzzy title
   matching for **renamed** songs (e.g. item "Apă vie (Living Water)" vs song
   "Apă vie" — currently reads as missing); surface the diagnostic for the
   **personal** library as well; a one-time `songTitle` backfill covers old items
@@ -185,7 +184,10 @@ Gap analysis vs. Notion/Obsidian-grade products. ✅ = shipped that day.
   Supabase project and it is production — migrations are applied directly to
   live church data. Create a second project (or use Supabase branching) that
   `beta` deploys against; prod migration becomes a promotion step. Blocked on
-  the free-tier 2-project cap / paid plan choice.
+  the free-tier 2-project cap / paid plan choice (**needs Supabase Pro $25/mo —
+  see `docs/COSTS.md`**). Until then beta + prod share ONE database, so "test on
+  beta" = "test on live data" — safe only while migrations stay additive +
+  backward-compatible.
 - **Backups + restore drill (P1):** verify what the current Supabase plan
   retains, do one actual restore. ✅ Client half shipped: one-click
   whole-library backup .zip (Settings → Data) — every song/arrangement as .md,
