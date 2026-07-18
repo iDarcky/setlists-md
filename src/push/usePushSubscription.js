@@ -8,6 +8,26 @@ import { VAPID_PUBLIC_KEY, vapidKeyBytes } from './vapid';
 // and `disable()` tears both sides down. Degrades to `supported: false` on
 // browsers without push (iOS Safari outside an installed PWA, old WebViews)
 // and when signed out.
+// Subscribe this device's push manager and upsert the row. Shared by the
+// explicit enable() flow and the silent auto-resubscribe below.
+async function subscribeAndSave(reg, user) {
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: vapidKeyBytes(),
+  });
+  const json = sub.toJSON();
+  const { error } = await supabase.from('push_subscriptions').upsert({
+    user_id: user.id,
+    endpoint: sub.endpoint,
+    p256dh: json.keys?.p256dh || '',
+    auth: json.keys?.auth || '',
+    user_agent: navigator.userAgent.slice(0, 200),
+    last_seen_at: new Date().toISOString(),
+  }, { onConflict: 'endpoint' });
+  if (error) throw new Error(error.message);
+  return sub;
+}
+
 export function usePushSubscription() {
   const { user } = useAuth();
   const [state, setState] = useState({ supported: false, subscribed: false, busy: false, denied: false });
@@ -28,8 +48,16 @@ export function usePushSubscription() {
     (async () => {
       try {
         const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
-        if (cancelled) return;
+        let sub = await reg.pushManager.getSubscription();
+        // Stay on by default: if the user already granted permission but this
+        // device has no live subscription (first load after granting, or a
+        // service-worker update dropped it), re-subscribe SILENTLY — permission
+        // is already there, so no prompt. New users still opt in once via
+        // enable(); the browser requires that grant and it can't be defaulted.
+        if (!sub && Notification.permission === 'granted') {
+          try { sub = await subscribeAndSave(reg, user); } catch { /* keep unsubscribed */ }
+          if (cancelled) return;
+        }
         setState({
           supported: true,
           subscribed: !!sub,
@@ -53,20 +81,7 @@ export function usePushSubscription() {
         return false;
       }
       const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: vapidKeyBytes(),
-      });
-      const json = sub.toJSON();
-      const { error } = await supabase.from('push_subscriptions').upsert({
-        user_id: user.id,
-        endpoint: sub.endpoint,
-        p256dh: json.keys?.p256dh || '',
-        auth: json.keys?.auth || '',
-        user_agent: navigator.userAgent.slice(0, 200),
-        last_seen_at: new Date().toISOString(),
-      }, { onConflict: 'endpoint' });
-      if (error) throw new Error(error.message);
+      await subscribeAndSave(reg, user);
       setState((s) => ({ ...s, subscribed: true, busy: false }));
       return true;
     } catch (err) {

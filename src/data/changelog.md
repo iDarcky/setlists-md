@@ -43,6 +43,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Setlists mend themselves** — if a song was re-imported and your setlists lost track of it, the app now re-links those songs automatically, and remembers each song's title so they stay findable next time.
 - **Re-importing a song updates it** — importing a song you already have now updates that song in place and keeps it linked to your setlists, instead of quietly making a second copy.
 - **A quieter team activity feed** — it no longer says someone "edited" a song when the app only re-saved it in the background; only real edits show up now.
+- **Notifications stay on** — once you turn on push on a device, it stays enabled across app updates (no need to re-enable), and the alert now shows a crisp app badge.
 
 ### Fixed
 - **Spaces in the title** — you can type multi-word song titles again (a space no longer disappeared as you typed).
