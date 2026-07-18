@@ -649,6 +649,18 @@ export default function App() {
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) saveTombstones(tombstones, activeLibrary);
   }, [tombstones, loaded, activeLibrary]);
+
+  // Keep setlist→song references valid whenever the SONG SET changes — most
+  // importantly after a mid-session sync pull replaces/removes songs (a server
+  // pull can re-orphan links that were fine at load). Depends on `songs` only
+  // (not `setlists`) so it re-validates on library changes, not on every setlist
+  // edit; healSetlistLinks is reference-preserving, so once links are clean it
+  // returns the same array and this neither re-renders nor triggers a push.
+  useEffect(() => {
+    if (loaded && !isSwitchingLibraryRef.current) {
+      setSetlists(prev => healSetlistLinks(prev, songs).setlists);
+    }
+  }, [songs, loaded, activeLibrary]);
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) saveTrash(trash, activeLibrary);
   }, [trash, loaded, activeLibrary]);
@@ -1804,14 +1816,22 @@ export default function App() {
     if (!parsedSongs || parsedSongs.length === 0) return;
     if (guardTeamReadOnly()) return;
     setNewSongModal(null);
-    if (parsedSongs.length === 1) {
-      navigate('editor', { song: parsedSongs[0] });
+    // Stable identity across re-imports (batch): if a song with this title
+    // already exists, adopt its id + keyHistory so Save UPDATES it in place and
+    // keeps every setlist reference intact, instead of minting a new id that
+    // orphans past setlists. Same rule as the single-paste import path.
+    const queue = parsedSongs.map(s => {
+      const existing = matchSongByTitle(songs, s.title);
+      return existing ? { ...s, id: existing.id, keyHistory: existing.keyHistory } : s;
+    });
+    if (queue.length === 1) {
+      navigate('editor', { song: queue[0] });
       return;
     }
     // Queue the songs as drafts — each one only persists when the user
     // hits Save in the editor; Skip drops it without writing to the library.
-    setImportQueue({ remaining: parsedSongs, total: parsedSongs.length });
-    navigate('editor', { song: parsedSongs[0] });
+    setImportQueue({ remaining: queue, total: queue.length });
+    navigate('editor', { song: queue[0] });
   };
 
   const handleImportSetlistFile = async (file) => {
