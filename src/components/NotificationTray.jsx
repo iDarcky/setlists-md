@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Button } from './ui/Button';
 import { usePushSubscription } from '../push/usePushSubscription';
+import NotificationItems from './NotificationItems';
 
 const CloseIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -13,19 +14,6 @@ const BellIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
     <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-  </svg>
-);
-
-const ArrowIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m9 18 6-6-6-6" />
-  </svg>
-);
-
-const DismissIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
 
@@ -70,19 +58,10 @@ export default function NotificationTray({ open, onClose, notifications = [], on
 
   return (
     <>
-      {/*
-        Mobile: centered modal with dark scrim.
-        Desktop/tablet (sm+): popover anchored near the sidebar, no scrim.
-      */}
+      {/* Transparent click-away layer */}
+      <div className="fixed inset-0 z-[199]" onClick={onClose} />
 
-      {/* Transparent click-away layer (for both mobile and desktop) */}
-      <div
-        className="fixed inset-0 z-[199]"
-        onClick={onClose}
-      />
-
-      {/* The tray panel itself — a dropdown anchored under the header bell
-          (top-right) on every breakpoint. */}
+      {/* Dropdown anchored under the header bell on every breakpoint. */}
       <div
         ref={trayRef}
         className="
@@ -118,106 +97,20 @@ export default function NotificationTray({ open, onClose, notifications = [], on
 
         {/* Notification list */}
         <div className="flex-1 overflow-y-auto">
-          {notifications.length === 0 ? (
-            <div className="px-5 py-10 text-center">
-              <p className="text-copy-14 text-[var(--ds-gray-600)] m-0">No notifications yet.</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-[var(--ds-gray-200)]">
-              {notifications.map(notification => (
-                <div
-                  key={notification.id}
-                  onClick={() => {
-                    if (!notification.read) onMarkRead?.(notification.id);
-                    if (notification.action) onAction?.(notification.action);
-                    // Do not close tray automatically for schedule_request so user can click buttons
-                    if (notification.type !== 'schedule_request') onClose();
-                  }}
-                  className={`w-full text-left px-5 py-4 bg-transparent border-none ${notification.type !== 'schedule_request' && notification.action ? 'cursor-pointer hover:bg-[var(--ds-gray-100)]' : ''} transition-colors flex items-start gap-3 ${
-                    !notification.read ? 'bg-[var(--color-brand-soft)]' : ''
-                  }`}
-                >
-                  {/* Unread dot */}
-                  <div className="pt-1.5 shrink-0">
-                    {!notification.read ? (
-                      <span className="block w-2 h-2 rounded-full bg-[var(--color-brand)]" />
-                    ) : (
-                      <span className="block w-2 h-2 rounded-full bg-transparent" />
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0 flex flex-col">
-                    <p className={`text-copy-14 m-0 ${!notification.read ? 'font-semibold text-[var(--ds-gray-1000)]' : 'text-[var(--ds-gray-900)]'}`}>
-                      {notification.title}
-                    </p>
-                    <p className="text-copy-13 text-[var(--ds-gray-600)] m-0 mt-1 leading-relaxed">
-                      {notification.message}
-                    </p>
-                    
-                    {notification.type === 'schedule_request' && (
-                      <div className="flex gap-2 mt-3 w-full">
-                        <Button
-                          size="sm"
-                          className="flex-1 bg-[var(--color-brand)] text-white hover:bg-[var(--color-brand-hover)] border-none"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onUpdateSchedule) {
-                              onUpdateSchedule(notification.scheduleId, { availability: 'available' });
-                            }
-                            onClose();
-                          }}
-                        >
-                          Accept
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 bg-[var(--bg-1)] border-[var(--border-1)] text-[var(--text-1)] hover:bg-[var(--bg-2)]"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onUpdateSchedule) {
-                              onUpdateSchedule(notification.scheduleId, { availability: 'unavailable' });
-                            }
-                            onClose();
-                          }}
-                        >
-                          Decline
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-
-                  {notification.type !== 'schedule_request' && onDismiss ? (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onDismiss(notification.id); }}
-                      aria-label="Dismiss notification"
-                      className="shrink-0 -mt-1 -mr-1 p-1.5 rounded-lg bg-transparent border-none cursor-pointer text-[var(--ds-gray-500)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] transition-colors"
-                    >
-                      <DismissIcon />
-                    </button>
-                  ) : notification.action && notification.type !== 'schedule_request' && (
-                    <div className="shrink-0 pt-1 text-[var(--ds-gray-500)]">
-                      <ArrowIcon />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+          <NotificationItems
+            notifications={notifications}
+            onMarkRead={onMarkRead}
+            onAction={onAction}
+            onUpdateSchedule={onUpdateSchedule}
+            onDismiss={onDismiss}
+            onAfterAction={onClose}
+          />
         </div>
 
-        {/* Per-device push opt-in — shown until enabled (hidden when the
-            browser doesn't support push, the user is signed out, or
-            permission was hard-denied). */}
+        {/* Per-device push opt-in — shown until enabled. */}
         {push.supported && !push.subscribed && !push.denied && (
           <div className="px-5 py-3 border-t border-[var(--ds-gray-200)] shrink-0">
-            <Button
-              variant="secondary"
-              size="sm"
-              loading={push.busy}
-              onClick={() => push.enable()}
-              className="w-full"
-            >
+            <Button variant="secondary" size="sm" loading={push.busy} onClick={() => push.enable()} className="w-full">
               Enable push notifications on this device
             </Button>
           </div>
@@ -230,11 +123,7 @@ export default function NotificationTray({ open, onClose, notifications = [], on
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  notifications.forEach(n => {
-                    if (!n.read) onMarkRead?.(n.id);
-                  });
-                }}
+                onClick={() => { notifications.forEach(n => { if (!n.read) onMarkRead?.(n.id); }); }}
                 className="flex-1 text-center text-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]"
               >
                 Mark all as read

@@ -28,6 +28,7 @@ import DesktopLayout from './components/DesktopLayout';
 import MobileTopBar from './components/MobileTopBar';
 import MobileDrawer from './components/MobileDrawer';
 import NotificationTray from './components/NotificationTray';
+import NotificationsPage from './components/NotificationsPage';
 import ConflictResolver from './components/ConflictResolver';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useAuth } from './auth/useAuth';
@@ -2286,7 +2287,7 @@ export default function App() {
               songs={songs}
               setlists={setlists}
               onOpenDrawer={openDrawer}
-              onOpenNotifications={user ? () => setNotifTrayOpen(true) : undefined}
+              onOpenNotifications={user ? () => navigate('notifications') : undefined}
               unreadCount={user ? mergedNotifications.filter(n => !n.read).length : 0}
               onSelectSong={goChart}
               onSelectSetlist={goSetlistView}
@@ -2621,6 +2622,17 @@ export default function App() {
               }}
             />
           )}
+          {view === "notifications" && (
+            <NotificationsPage
+              notifications={mergedNotifications}
+              onBack={goBack}
+              onMarkRead={handleMarkNotificationRead}
+              onDismiss={handleDismissNotification}
+              onClearAll={handleClearAllNotifications}
+              onUpdateSchedule={updateSchedule}
+              onAction={(action) => handleNotificationAction?.(action)}
+            />
+          )}
           {view === "settings" && settings && (
             <Settings
               settings={settings}
@@ -2779,7 +2791,7 @@ export default function App() {
           hasUnreadNotifications={hasUnreadNotifications}
           onOpenSettings={() => { setDrawerOpen(false); goToMainView('settings'); }}
           onOpenPlan={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'plan' }); }}
-          onOpenNotifications={() => { setDrawerOpen(false); setNotifTrayOpen(true); }}
+          onOpenNotifications={() => { setDrawerOpen(false); navigate('notifications'); }}
           onOpenHelp={() => { setDrawerOpen(false); navigate('help'); }}
           onOpenWhatsNew={() => {
             setDrawerOpen(false);

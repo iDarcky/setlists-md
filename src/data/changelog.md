@@ -22,6 +22,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Notifications in Settings** — a new Settings → Notifications page turns lock-screen push on or off for the device you're on, with clear guidance (and the iPhone "add to Home Screen first" step).
 - **Service & rehearsal reminders** — if you're on the roster, you get a "Playing tomorrow" / "Rehearsal tomorrow" push the day before (and morning of), so a service never sneaks up on you.
 - **A nudge to turn on notifications** — the dashboard shows a friendly prompt to enable notifications on a device that doesn't have them yet (dismissable, and only until you turn them on).
+- **Notifications, front and centre** — a bell now sits in the mobile top bar (with an unread count) and opens a full notifications page with All / Unread / Schedule tabs, instead of being tucked inside the menu.
 
 ### Improved
 - **The card-based song editor is now the default** — the cleaner editor with a live preview and a Source view is no longer a Labs preview; it's simply the editor now.
