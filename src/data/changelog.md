@@ -2,7 +2,7 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
-## 0.16.0 — A refined editor, and setlists in the card language
+## 0.16.0 — Notifications, reliability, and a card-based editor
 *July 2026*
 
 ### Added
