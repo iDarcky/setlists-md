@@ -11,6 +11,23 @@ const EditGlyph = () => (
     <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
   </svg>
 );
+const SpotifyGlyph = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="#1DB954" aria-label="Spotify"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm4.586 14.424a.622.622 0 0 1-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.87 7.077-.496 9.712 1.115a.623.623 0 0 1 .207.857Zm1.223-2.722a.78.78 0 0 1-1.072.257c-2.687-1.652-6.785-2.131-9.965-1.166a.78.78 0 1 1-.452-1.492c3.632-1.102 8.147-.568 11.232 1.329a.78.78 0 0 1 .257 1.072Zm.105-2.835c-3.223-1.914-8.54-2.09-11.616-1.156a.935.935 0 1 1-.542-1.79c3.532-1.072 9.404-.865 13.115 1.338a.936.936 0 0 1-.957 1.608Z" /></svg>
+);
+const YouTubeGlyph = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="#FF0000" aria-label="YouTube"><path d="M23.5 6.2a3 3 0 0 0-2.11-2.13C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.39.52A3 3 0 0 0 .5 6.2 31.3 31.3 0 0 0 0 12a31.3 31.3 0 0 0 .5 5.8 3 3 0 0 0 2.11 2.13c1.89.52 9.39.52 9.39.52s7.5 0 9.39-.52a3 3 0 0 0 2.11-2.13A31.3 31.3 0 0 0 24 12a31.3 31.3 0 0 0-.5-5.8ZM9.6 15.6V8.4l6.2 3.6-6.2 3.6Z" /></svg>
+);
+function MediaIcons({ song }) {
+  const hasS = !!song?.spotify;
+  const hasY = !!song?.youtube;
+  if (!hasS && !hasY) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 shrink-0 align-middle">
+      {hasS && <SpotifyGlyph />}
+      {hasY && <YouTubeGlyph />}
+    </span>
+  );
+}
 
 function defaultArr(song) {
   if (!Array.isArray(song?.arrangements)) return song;
@@ -79,6 +96,7 @@ function SongCard({
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {has('media') && <MediaIcons song={song} />}
           {arrCount > 1 && (
             <span className="text-label-11 text-[var(--text-2)] px-1.5 py-0.5 rounded border border-[var(--border-1)]">{arrCount}</span>
           )}
@@ -126,6 +144,7 @@ function SongCard({
                 {tag}
               </span>
             ))}
+            {has('media') && <MediaIcons song={song} />}
           </div>
           {hasMap && (
             <div className="mt-1 max-w-full">

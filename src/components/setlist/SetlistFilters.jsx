@@ -22,11 +22,26 @@ function Chip({ active, onClick, children }) {
   );
 }
 
+function Section({ label, count = 0, defaultOpen, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="flex flex-col">
+      <button type="button" onClick={() => setOpen(o => !o)} className="flex items-center justify-between w-full py-1.5 cursor-pointer bg-transparent border-none text-left">
+        <span className="text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)] flex items-center gap-1.5">
+          {label}
+          {count > 0 && <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[var(--color-brand)] text-white text-[10px] font-bold">{count}</span>}
+        </span>
+        <span className="text-[var(--modes-text-dim)]"><ChevronDown open={open} /></span>
+      </button>
+      {open && <div className="pb-1 pt-1">{children}</div>}
+    </div>
+  );
+}
+
 /**
- * Unified Setlists filter popover (Service + Tags) — mirrors the Songs
- * LibraryFilters. Service is church-only (gated by `showService`); tags are a
- * multi-select. Controlled by the parent (Setlists owns the state); this is a
- * self-opening popover that works on mobile and desktop.
+ * Setlists filter popover (Service + Tags, plus Status / When / Group-by when
+ * setlistsLibraryPlus). Collapsible groups + a mobile bottom sheet, matching the
+ * Songs LibraryFilters. Controlled by the parent (Setlists owns the state).
  */
 export default function SetlistFilters({
   showService = false,
@@ -37,7 +52,6 @@ export default function SetlistFilters({
   selectedTags = [],
   onToggleTag,
   onClearTags,
-  // setlistsLibraryPlus: status / date-window / group-by folded into the popover.
   plus = false,
   statusFilter = 'all', onSetStatus,
   dateFilter = 'all', onSetDate,
@@ -82,70 +96,75 @@ export default function SetlistFilters({
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 sm:left-auto sm:right-0 sm:w-[260px] top-full mt-2 rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden flex flex-col max-h-[70vh]">
-          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4">
-            {plus && (
-              <div className="flex flex-col gap-2">
-                <span className="text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)]">Status</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {[['all', 'All'], ['ready', 'Ready'], ['draft', 'Draft']].map(([val, label]) => (
-                    <Chip key={val} active={statusFilter === val} onClick={() => onSetStatus?.(val)}>{label}</Chip>
-                  ))}
-                </div>
-              </div>
-            )}
-            {plus && (
-              <div className="flex flex-col gap-2">
-                <span className="text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)]">When</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {[['all', 'Any time'], ['week', 'This week'], ['month', 'This month']].map(([val, label]) => (
-                    <Chip key={val} active={dateFilter === val} onClick={() => onSetDate?.(val)}>{label}</Chip>
-                  ))}
-                </div>
-              </div>
-            )}
-            {plus && groupOptions.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <span className="text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)]">Group by</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {groupOptions.map(([val, label]) => (
-                    <Chip key={label} active={(groupBy ?? null) === val} onClick={() => onSetGroup?.(val)}>{label}</Chip>
-                  ))}
-                </div>
-              </div>
-            )}
-            {hasService && (
-              <div className="flex flex-col gap-2">
-                <span className="text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)]">Service</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {[['all', 'All'], ...serviceOptions.map(s => [s, s])].map(([val, label]) => (
-                    <Chip key={val} active={serviceFilter === val} onClick={() => onSetService(val)}>{label}</Chip>
-                  ))}
-                </div>
-              </div>
-            )}
+        <>
+          <div className="fixed inset-0 z-40 bg-black/40 sm:hidden" onClick={() => setOpen(false)} />
+          <div className="fixed z-50 left-0 right-0 bottom-0 rounded-t-2xl sm:absolute sm:left-auto sm:right-0 sm:bottom-auto sm:top-full sm:mt-2 sm:w-[260px] sm:rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-xl overflow-hidden flex flex-col max-h-[80vh] sm:max-h-[70vh]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--modes-border)] sm:hidden">
+              <span className="text-copy-15 font-semibold text-[var(--modes-text)]">Filters</span>
+              <button onClick={() => setOpen(false)} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border-none cursor-pointer text-[var(--modes-text-muted)]">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+              </button>
+            </div>
 
-            {allTags.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <span className="text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)]">Tags</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {allTags.map(tag => (
-                    <Chip key={tag} active={selectedTags.includes(tag)} onClick={() => onToggleTag(tag)}>{tag}</Chip>
-                  ))}
-                </div>
-              </div>
+            <div className="flex-1 overflow-y-auto p-3 flex flex-col divide-y divide-[var(--modes-border)]">
+              {plus && (
+                <Section label="Status" count={statusFilter !== 'all' ? 1 : 0} defaultOpen>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[['all', 'All'], ['ready', 'Ready'], ['draft', 'Draft']].map(([val, label]) => (
+                      <Chip key={val} active={statusFilter === val} onClick={() => onSetStatus?.(val)}>{label}</Chip>
+                    ))}
+                  </div>
+                </Section>
+              )}
+              {plus && (
+                <Section label="When" count={dateFilter !== 'all' ? 1 : 0} defaultOpen>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[['all', 'Any time'], ['week', 'This week'], ['month', 'This month']].map(([val, label]) => (
+                      <Chip key={val} active={dateFilter === val} onClick={() => onSetDate?.(val)}>{label}</Chip>
+                    ))}
+                  </div>
+                </Section>
+              )}
+              {plus && groupOptions.length > 0 && (
+                <Section label="Group by" defaultOpen={false}>
+                  <div className="flex flex-wrap gap-1.5">
+                    {groupOptions.map(([val, label]) => (
+                      <Chip key={label} active={(groupBy ?? null) === val} onClick={() => onSetGroup?.(val)}>{label}</Chip>
+                    ))}
+                  </div>
+                </Section>
+              )}
+              {hasService && (
+                <Section label="Service" count={serviceFilter !== 'all' ? 1 : 0} defaultOpen={serviceFilter !== 'all' || serviceOptions.length <= 6}>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[['all', 'All'], ...serviceOptions.map(s => [s, s])].map(([val, label]) => (
+                      <Chip key={val} active={serviceFilter === val} onClick={() => onSetService(val)}>{label}</Chip>
+                    ))}
+                  </div>
+                </Section>
+              )}
+              {allTags.length > 0 && (
+                <Section label="Tags" count={selectedTags.length} defaultOpen={selectedTags.length > 0 || allTags.length <= 8}>
+                  <div className="flex flex-wrap gap-1.5">
+                    {allTags.map(tag => (
+                      <Chip key={tag} active={selectedTags.includes(tag)} onClick={() => onToggleTag(tag)}>{tag}</Chip>
+                    ))}
+                  </div>
+                </Section>
+              )}
+            </div>
+
+            {activeCount > 0 && (
+              <button
+                onClick={() => { onSetService('all'); onClearTags(); if (plus) { onSetStatus?.('all'); onSetDate?.('all'); } }}
+                className="shrink-0 border-t border-[var(--modes-border)] px-4 py-3 text-copy-14 text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] hover:bg-[var(--modes-surface)] transition-colors cursor-pointer bg-transparent text-center"
+                style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+              >
+                Clear all filters
+              </button>
             )}
           </div>
-
-          {activeCount > 0 && (
-            <button
-              onClick={() => { onSetService('all'); onClearTags(); if (plus) { onSetStatus?.('all'); onSetDate?.('all'); } }}
-              className="shrink-0 border-t border-[var(--modes-border)] px-4 py-2.5 text-copy-14 text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] hover:bg-[var(--modes-surface)] transition-colors cursor-pointer bg-transparent text-center"
-            >
-              Clear all filters
-            </button>
-          )}
-        </div>
+        </>
       )}
     </div>
   );

@@ -17,11 +17,13 @@ export function SelectCircle({ active, selected, onToggle, label = 'Select' }) {
       aria-label={label}
       aria-pressed={selected}
       className={cn(
-        'absolute left-4 top-1/2 -translate-y-1/2 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all duration-150',
+        'absolute left-4 top-1/2 -translate-y-1/2 z-10 w-5 h-5 shrink-0 rounded-full border-2 flex items-center justify-center cursor-pointer transition-[opacity,transform,background-color] duration-150',
         selected
           ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white'
           : 'border-[var(--modes-text-dim)] bg-transparent text-transparent',
-        active ? 'opacity-100 scale-100' : 'opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100',
+        // Only visible in selection mode — no hover-reveal (that empty circle
+        // on hover read as a stray oval).
+        active ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-90 pointer-events-none',
       )}
     >
       <Check />

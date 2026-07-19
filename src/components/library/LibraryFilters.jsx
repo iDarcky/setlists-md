@@ -24,11 +24,33 @@ function Chip({ active, onClick, children }) {
   );
 }
 
+// A collapsible filter group (chevron header) — keeps long value lists (e.g. 20
+// years) tucked away until opened. `count` shows active selections.
+function Section({ label, count = 0, defaultOpen, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="flex flex-col">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center justify-between w-full py-1.5 cursor-pointer bg-transparent border-none text-left"
+      >
+        <span className="text-label-11 uppercase tracking-wider text-[var(--text-2)] flex items-center gap-1.5">
+          {label}
+          {count > 0 && <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[var(--color-brand)] text-white text-[10px] font-bold">{count}</span>}
+        </span>
+        <span className="text-[var(--text-2)]"><ChevronDown open={open} /></span>
+      </button>
+      {open && <div className="pb-1 pt-1">{children}</div>}
+    </div>
+  );
+}
+
 /**
- * Unified library filter popover: tag chips (AND) + faceted metadata filters
- * (Key / Tempo / Theme / Language / Year / Scripture / Moment — OR within a
- * facet, AND across facets). State is owned by the parent (Library); this is a
- * controlled, self-opening popover.
+ * Unified library filter popover: data-quality "issues" + faceted metadata +
+ * tags. Groups are collapsible (so a 20-value Year list doesn't dominate), and
+ * on phones the whole thing opens as a bottom sheet instead of a cramped
+ * dropdown. Controlled by the parent (Library owns the state).
  */
 export default function LibraryFilters({
   facetOptions,
@@ -39,7 +61,6 @@ export default function LibraryFilters({
   onToggleTag,
   activeCount = 0,
   onClearAll,
-  // songsLibraryPlus: data-quality "issues" filters folded into the popover.
   issues = null,        // { active: string[], defs }
   onToggleIssue,
 }) {
@@ -71,6 +92,8 @@ export default function LibraryFilters({
   const hasAnything = activeFacets.length > 0 || allTags.length > 0 || !!issues;
   if (!hasAnything) return null;
 
+  const facetCount = (key) => (selected[key] || []).length;
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -89,72 +112,79 @@ export default function LibraryFilters({
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 sm:left-auto sm:right-0 sm:w-[300px] top-full mt-2 rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden flex flex-col max-h-[70vh]">
-          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4">
-            {issues && (
-              <div className="flex flex-col gap-2">
-                <span className="text-label-11 uppercase tracking-wider text-[var(--text-2)]">Issues</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(issues.defs || {}).map(([key, def]) => (
-                    <Chip key={key} active={(issues.active || []).includes(key)} onClick={() => onToggleIssue?.(key)}>
-                      {def.label}
-                    </Chip>
-                  ))}
-                </div>
-              </div>
-            )}
-            {activeFacets.map(facet => (
-              <div key={facet.key} className="flex flex-col gap-2">
-                <span className="text-label-11 uppercase tracking-wider text-[var(--text-2)]">{facet.label}</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {facetOptions[facet.key].map(({ value, count }) => (
-                    <Chip
-                      key={value}
-                      active={(selected[facet.key] || []).includes(value)}
-                      onClick={() => onToggleFacet(facet.key, value)}
-                    >
-                      {value}<span className="opacity-50">{count}</span>
-                    </Chip>
-                  ))}
-                </div>
-              </div>
-            ))}
+        <>
+          {/* Mobile scrim */}
+          <div className="fixed inset-0 z-40 bg-black/40 sm:hidden" onClick={() => setOpen(false)} />
+          <div className="fixed z-50 left-0 right-0 bottom-0 rounded-t-2xl sm:absolute sm:left-auto sm:right-0 sm:bottom-auto sm:top-full sm:mt-2 sm:w-[300px] sm:rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-xl overflow-hidden flex flex-col max-h-[80vh] sm:max-h-[70vh]">
+            {/* Sheet header (mobile) */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--modes-border)] sm:hidden">
+              <span className="text-copy-15 font-semibold text-[var(--text-1)]">Filters</span>
+              <button onClick={() => setOpen(false)} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border-none cursor-pointer text-[var(--text-2)]">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+              </button>
+            </div>
 
-            {allTags.length > 0 && (
-              <div className="flex flex-col gap-2">
-                <span className="text-label-11 uppercase tracking-wider text-[var(--text-2)]">Tags</span>
-                {allTags.length > 8 && (
-                  <input
-                    type="text"
-                    placeholder="Search tags…"
-                    value={tagQuery}
-                    onChange={e => setTagQuery(e.target.value)}
-                    className="w-full h-8 px-3 rounded-lg border border-[var(--border-1)] bg-[var(--bg-2)] text-copy-13 text-[var(--text-1)] placeholder:text-[var(--text-2)] outline-none focus:border-[var(--border-3)] transition-colors"
-                  />
-                )}
-                <div className="flex flex-wrap gap-1.5">
-                  {[...visibleTags.sel, ...visibleTags.unsel].slice(0, 24).map(tag => (
-                    <Chip key={tag} active={selectedTags.includes(tag)} onClick={() => onToggleTag(tag)}>
-                      {tag}
-                    </Chip>
-                  ))}
-                  {visibleTags.total === 0 && (
-                    <span className="text-copy-13 text-[var(--text-2)]">No tags found</span>
+            <div className="flex-1 overflow-y-auto p-3 flex flex-col divide-y divide-[var(--modes-border)]">
+              {issues && (
+                <Section label="Issues" count={(issues.active || []).length} defaultOpen={(issues.active || []).length > 0}>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(issues.defs || {}).map(([key, def]) => (
+                      <Chip key={key} active={(issues.active || []).includes(key)} onClick={() => onToggleIssue?.(key)}>{def.label}</Chip>
+                    ))}
+                  </div>
+                </Section>
+              )}
+              {activeFacets.map(facet => {
+                const opts = facetOptions[facet.key];
+                return (
+                  <Section
+                    key={facet.key}
+                    label={facet.label}
+                    count={facetCount(facet.key)}
+                    defaultOpen={facetCount(facet.key) > 0 || opts.length <= 6}
+                  >
+                    <div className="flex flex-wrap gap-1.5">
+                      {opts.map(({ value, count }) => (
+                        <Chip key={value} active={(selected[facet.key] || []).includes(value)} onClick={() => onToggleFacet(facet.key, value)}>
+                          {value}<span className="opacity-50">{count}</span>
+                        </Chip>
+                      ))}
+                    </div>
+                  </Section>
+                );
+              })}
+              {allTags.length > 0 && (
+                <Section label="Tags" count={selectedTags.length} defaultOpen={selectedTags.length > 0 || allTags.length <= 8}>
+                  {allTags.length > 8 && (
+                    <input
+                      type="text"
+                      placeholder="Search tags…"
+                      value={tagQuery}
+                      onChange={e => setTagQuery(e.target.value)}
+                      className="w-full h-8 px-3 mb-2 rounded-lg border border-[var(--border-1)] bg-[var(--bg-2)] text-copy-13 text-[var(--text-1)] placeholder:text-[var(--text-2)] outline-none focus:border-[var(--border-3)] transition-colors"
+                    />
                   )}
-                </div>
-              </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[...visibleTags.sel, ...visibleTags.unsel].slice(0, 40).map(tag => (
+                      <Chip key={tag} active={selectedTags.includes(tag)} onClick={() => onToggleTag(tag)}>{tag}</Chip>
+                    ))}
+                    {visibleTags.total === 0 && <span className="text-copy-13 text-[var(--text-2)]">No tags found</span>}
+                  </div>
+                </Section>
+              )}
+            </div>
+
+            {activeCount > 0 && (
+              <button
+                onClick={() => { onClearAll(); setTagQuery(''); }}
+                className="shrink-0 border-t border-[var(--border-1)] px-4 py-3 text-copy-14 text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--ds-gray-alpha-100)] transition-colors cursor-pointer bg-transparent text-center"
+                style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+              >
+                Clear all filters
+              </button>
             )}
           </div>
-
-          {activeCount > 0 && (
-            <button
-              onClick={() => { onClearAll(); setTagQuery(''); }}
-              className="shrink-0 border-t border-[var(--border-1)] px-4 py-2.5 text-copy-14 text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--ds-gray-alpha-100)] transition-colors cursor-pointer bg-transparent text-center"
-            >
-              Clear all filters
-            </button>
-          )}
-        </div>
+        </>
       )}
     </div>
   );

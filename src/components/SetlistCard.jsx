@@ -68,6 +68,13 @@ export default function SetlistCard({
   const dateLabel = `${formatDateFriendly(setlist.date)}${timeStr ? ` • ${timeStr}` : ''}`;
   const has = (id) => (fields ? fields.has(id) : true);
 
+  // Rehearsal — surfaced only while it's still upcoming (irrelevant for past sets).
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const rehUpcoming = setlist.rehearsalDate && !isNaN(new Date(setlist.rehearsalDate + 'T00:00:00')) && new Date(setlist.rehearsalDate + 'T00:00:00') >= today;
+  const rehearsalLabel = rehUpcoming
+    ? `Rehearsal ${new Date(setlist.rehearsalDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}${setlist.rehearsalTime ? ` ${formatClockTime(setlist.rehearsalTime, clockFormat)}` : ''}`
+    : null;
+
   const lp = useLongPress(onLongPress);
   const handleClick = (e) => {
     if (lp.consumeClick()) return;
@@ -75,9 +82,11 @@ export default function SetlistCard({
     onView?.(e);
   };
 
-  // Compact one-line row.
+  // Compact one-line row — the date badge carries the date, so the text line is
+  // just service · songs.
   if (variant === 'compact') {
     const metaBits = [
+      has('service') && setlist.service ? setlist.service : null,
       has('songs') ? `${songCount} song${songCount !== 1 ? 's' : ''}` : null,
       has('duration') && durationLabel ? durationLabel : null,
     ].filter(Boolean);
@@ -99,11 +108,8 @@ export default function SetlistCard({
             <span className="block text-copy-15 font-medium text-[var(--text-1)] truncate">{setlist.name || 'Untitled setlist'}</span>
             {setlist.status === 'draft' && <DraftBadge />}
           </span>
-          <span className="block text-label-12 text-[var(--text-2)] truncate">{dateLabel}</span>
+          {metaBits.length > 0 && <span className="block text-label-12 text-[var(--text-2)] truncate">{metaBits.join(' · ')}</span>}
         </div>
-        {metaBits.length > 0 && (
-          <span className="shrink-0 text-label-12 text-[var(--text-2)] tabular-nums">{metaBits.join(' • ')}</span>
-        )}
         {showPlay && !selectActive && (
           <button
             onClick={(e) => { e.stopPropagation(); onPlay(); }}
@@ -117,12 +123,12 @@ export default function SetlistCard({
     );
   }
 
-  // Row variant (setlistsLibraryPlus) — a divided-list row that shares the
-  // SongCard row chrome (hover, colours, spacing, select), with a date badge as
-  // the leading anchor. Browse-first: no transport controls.
+  // Row variant (setlistsLibraryPlus) — a divided-list row sharing the SongCard
+  // row chrome, with a big date badge as the anchor. Browse-first: title →
+  // draft → (service · songs · rehearsal) → tags. No date/location text (the
+  // badge already carries the date).
   if (variant === 'row') {
     const meta = [
-      dateLabel,
       has('service') && setlist.service ? setlist.service : null,
       has('songs') ? `${songCount} song${songCount !== 1 ? 's' : ''}` : null,
       has('duration') && durationLabel ? durationLabel : null,
@@ -132,22 +138,28 @@ export default function SetlistCard({
         onClick={handleClick}
         {...(onLongPress ? lp.bind : {})}
         className={cn(
-          'group relative flex items-center gap-3 px-5 py-4 cursor-pointer transition-[background-color,padding] duration-150 hover:bg-[var(--bg-2)]',
+          'group relative flex items-center gap-4 px-5 py-4 cursor-pointer transition-[background-color,padding] duration-150 hover:bg-[var(--bg-2)]',
           (selected || isSelected) && 'bg-[var(--ds-teal-100)] hover:bg-[var(--ds-teal-100)]',
           selectPad(selectable, selectActive),
         )}
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         {selectable && <SelectCircle active={selectActive} selected={isSelected} onToggle={onToggleSelect} label={`Select ${setlist.name || 'setlist'}`} />}
-        <DateBadge dateStr={setlist.date} size="sm" />
+        <DateBadge dateStr={setlist.date} />
         <div className="flex-1 min-w-0 flex flex-col gap-1">
-          <h3 className="text-heading-16 text-[var(--text-1)] m-0 truncate flex items-center gap-2 min-w-0">
+          <h3 className="text-heading-16 sm:text-heading-18 text-[var(--text-1)] font-bold m-0 truncate flex items-center gap-2 min-w-0">
             <span className="truncate">{setlist.name || 'Untitled Setlist'}</span>
             {setlist.status === 'draft' && <DraftBadge />}
           </h3>
-          <div className="text-label-13 text-[var(--modes-text-muted)] truncate">
-            {meta.join(' · ')}{setlist.location ? ` · ${setlist.location}` : ''}
-          </div>
+          {meta.length > 0 && (
+            <div className="text-label-13 text-[var(--modes-text-muted)] truncate">{meta.join(' · ')}</div>
+          )}
+          {rehearsalLabel && (
+            <div className="inline-flex items-center gap-1 text-label-12 text-[var(--ds-blue-600)]">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+              {rehearsalLabel}
+            </div>
+          )}
           {has('tags') && setlist.tags?.length > 0 && (
             <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
               {setlist.tags.slice(0, 3).map(tag => (

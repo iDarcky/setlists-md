@@ -9,6 +9,7 @@ export const CARD_FIELDS = {
     { id: 'tempo', label: 'Tempo' },
     { id: 'tags', label: 'Tags' },
     { id: 'songMap', label: 'Song map' },
+    { id: 'media', label: 'Spotify / YouTube' },
     { id: 'updated', label: 'Last edited' },
   ],
   setlists: [
@@ -20,8 +21,8 @@ export const CARD_FIELDS = {
 };
 
 export const CARD_DEFAULT = {
-  songs: ['artist', 'key', 'tags', 'songMap'],
-  setlists: ['service', 'tags'],
+  songs: ['artist', 'key', 'tags', 'songMap', 'media'],
+  setlists: ['service', 'songs', 'tags'],
 };
 
 // Visible field ids as a Set, honoring the saved array or the per-kind default.

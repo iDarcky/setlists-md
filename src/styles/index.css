@@ -643,6 +643,30 @@
     display: none;
   }
 
+  /* Subtle app-wide scrollbar — thin, translucent, themed, out of the way.
+     The .no-scrollbar / .hide-scrollbar utilities still win (higher specificity). */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--ds-gray-500) 55%, transparent) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--ds-gray-500) 55%, transparent);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--ds-gray-600) 70%, transparent);
+    background-clip: padding-box;
+  }
+
   .chart-auto-cols {
     @media (orientation: landscape) and (min-width: 768px) {
       grid-template-columns: 1fr 1fr;
