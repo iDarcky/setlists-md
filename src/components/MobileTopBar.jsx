@@ -129,7 +129,7 @@ export default function MobileTopBar({
   return (
     <div
       ref={containerRef}
-      className="sm:hidden"
+      className="sm:hidden backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)]"
       style={{ position: 'sticky', top: 0, zIndex: 40, paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       {/* Search card — hamburger left, workspace avatar right (opens switcher).

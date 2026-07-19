@@ -684,9 +684,10 @@ export default function Setlists({
       {/* Content */}
       <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 py-5">
         {/* Mobile toolbar — the desktop header is hidden on phones, so the
-            view switcher + filters + columns live here. */}
+            view switcher + filters + columns live here. Frosted sticky band to
+            match the Songs library header. */}
         {loaded && setlists.length > 0 && (
-          <div className="sm:hidden flex items-center gap-2 mb-4 flex-wrap">
+          <div className="sm:hidden sticky top-0 z-20 -mx-5 -mt-5 mb-4 px-5 py-3 flex items-center gap-2 flex-wrap backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]">
             {renderSwitcher(true)}
             {filtersEl}
             {columnsEl}
