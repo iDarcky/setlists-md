@@ -4,6 +4,7 @@
 
 export const CARD_FIELDS = {
   songs: [
+    { id: 'art', label: 'Cover art' },
     { id: 'artist', label: 'Artist' },
     { id: 'key', label: 'Key' },
     { id: 'tempo', label: 'Tempo' },
@@ -21,7 +22,7 @@ export const CARD_FIELDS = {
 };
 
 export const CARD_DEFAULT = {
-  songs: ['artist', 'key', 'tags', 'songMap', 'media'],
+  songs: ['art', 'artist', 'key', 'tags', 'songMap'],
   setlists: ['service', 'songs', 'tags'],
 };
 

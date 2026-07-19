@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { useMediaQuery } from '../../lib/useMediaQuery';
 
 const ChevronDown = ({ open }) => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-150 ${open ? 'rotate-180' : ''}`}>
@@ -59,10 +61,11 @@ export default function SetlistFilters({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const isDesktop = useMediaQuery('(min-width: 640px)');
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onDown = (e) => { if (isDesktop && ref.current && !ref.current.contains(e.target)) setOpen(false); };
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
@@ -70,13 +73,73 @@ export default function SetlistFilters({
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
     };
-  }, [open]);
+  }, [open, isDesktop]);
 
   const hasService = showService && serviceOptions.length > 0;
   if (!hasService && allTags.length === 0 && !plus) return null;
 
   const activeCount = (serviceFilter !== 'all' ? 1 : 0) + selectedTags.length
     + (plus && statusFilter !== 'all' ? 1 : 0) + (plus && dateFilter !== 'all' ? 1 : 0);
+
+  const sections = (
+    <>
+      {plus && (
+        <Section label="Status" count={statusFilter !== 'all' ? 1 : 0} defaultOpen>
+          <div className="flex flex-wrap gap-1.5">
+            {[['all', 'All'], ['ready', 'Ready'], ['draft', 'Draft']].map(([val, label]) => (
+              <Chip key={val} active={statusFilter === val} onClick={() => onSetStatus?.(val)}>{label}</Chip>
+            ))}
+          </div>
+        </Section>
+      )}
+      {plus && (
+        <Section label="When" count={dateFilter !== 'all' ? 1 : 0} defaultOpen>
+          <div className="flex flex-wrap gap-1.5">
+            {[['all', 'Any time'], ['week', 'This week'], ['month', 'This month']].map(([val, label]) => (
+              <Chip key={val} active={dateFilter === val} onClick={() => onSetDate?.(val)}>{label}</Chip>
+            ))}
+          </div>
+        </Section>
+      )}
+      {plus && groupOptions.length > 0 && (
+        <Section label="Group by" defaultOpen={false}>
+          <div className="flex flex-wrap gap-1.5">
+            {groupOptions.map(([val, label]) => (
+              <Chip key={label} active={(groupBy ?? null) === val} onClick={() => onSetGroup?.(val)}>{label}</Chip>
+            ))}
+          </div>
+        </Section>
+      )}
+      {hasService && (
+        <Section label="Service" count={serviceFilter !== 'all' ? 1 : 0} defaultOpen={serviceFilter !== 'all' || serviceOptions.length <= 6}>
+          <div className="flex flex-wrap gap-1.5">
+            {[['all', 'All'], ...serviceOptions.map(s => [s, s])].map(([val, label]) => (
+              <Chip key={val} active={serviceFilter === val} onClick={() => onSetService(val)}>{label}</Chip>
+            ))}
+          </div>
+        </Section>
+      )}
+      {allTags.length > 0 && (
+        <Section label="Tags" count={selectedTags.length} defaultOpen={selectedTags.length > 0 || allTags.length <= 8}>
+          <div className="flex flex-wrap gap-1.5">
+            {allTags.map(tag => (
+              <Chip key={tag} active={selectedTags.includes(tag)} onClick={() => onToggleTag(tag)}>{tag}</Chip>
+            ))}
+          </div>
+        </Section>
+      )}
+    </>
+  );
+
+  const clearBtn = activeCount > 0 ? (
+    <button
+      onClick={() => { onSetService('all'); onClearTags(); if (plus) { onSetStatus?.('all'); onSetDate?.('all'); } }}
+      className="shrink-0 border-t border-[var(--modes-border)] px-4 py-3 text-copy-14 text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] hover:bg-[var(--modes-surface)] transition-colors cursor-pointer bg-transparent text-center"
+      style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+    >
+      Clear all filters
+    </button>
+  ) : null;
 
   return (
     <div ref={ref} className="relative">
@@ -95,76 +158,28 @@ export default function SetlistFilters({
         <ChevronDown open={open} />
       </button>
 
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40 bg-black/40 sm:hidden" onClick={() => setOpen(false)} />
-          <div className="fixed z-50 left-0 right-0 bottom-0 rounded-t-2xl sm:absolute sm:left-auto sm:right-0 sm:bottom-auto sm:top-full sm:mt-2 sm:w-[260px] sm:rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-xl overflow-hidden flex flex-col max-h-[80vh] sm:max-h-[70vh]">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--modes-border)] sm:hidden">
+      {open && isDesktop && (
+        <div className="absolute right-0 top-full mt-2 w-[260px] rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-xl overflow-hidden flex flex-col max-h-[70vh] z-50">
+          <div className="flex-1 overflow-y-auto p-3 flex flex-col divide-y divide-[var(--modes-border)]">{sections}</div>
+          {clearBtn}
+        </div>
+      )}
+
+      {open && !isDesktop && createPortal(
+        <div className="sm:hidden">
+          <div className="fixed inset-0 z-[150] bg-black/50" onClick={() => setOpen(false)} />
+          <div className="fixed z-[151] left-0 right-0 bottom-0 rounded-t-2xl border-t border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--modes-border)]">
               <span className="text-copy-15 font-semibold text-[var(--modes-text)]">Filters</span>
               <button onClick={() => setOpen(false)} aria-label="Close" className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border-none cursor-pointer text-[var(--modes-text-muted)]">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
               </button>
             </div>
-
-            <div className="flex-1 overflow-y-auto p-3 flex flex-col divide-y divide-[var(--modes-border)]">
-              {plus && (
-                <Section label="Status" count={statusFilter !== 'all' ? 1 : 0} defaultOpen>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[['all', 'All'], ['ready', 'Ready'], ['draft', 'Draft']].map(([val, label]) => (
-                      <Chip key={val} active={statusFilter === val} onClick={() => onSetStatus?.(val)}>{label}</Chip>
-                    ))}
-                  </div>
-                </Section>
-              )}
-              {plus && (
-                <Section label="When" count={dateFilter !== 'all' ? 1 : 0} defaultOpen>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[['all', 'Any time'], ['week', 'This week'], ['month', 'This month']].map(([val, label]) => (
-                      <Chip key={val} active={dateFilter === val} onClick={() => onSetDate?.(val)}>{label}</Chip>
-                    ))}
-                  </div>
-                </Section>
-              )}
-              {plus && groupOptions.length > 0 && (
-                <Section label="Group by" defaultOpen={false}>
-                  <div className="flex flex-wrap gap-1.5">
-                    {groupOptions.map(([val, label]) => (
-                      <Chip key={label} active={(groupBy ?? null) === val} onClick={() => onSetGroup?.(val)}>{label}</Chip>
-                    ))}
-                  </div>
-                </Section>
-              )}
-              {hasService && (
-                <Section label="Service" count={serviceFilter !== 'all' ? 1 : 0} defaultOpen={serviceFilter !== 'all' || serviceOptions.length <= 6}>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[['all', 'All'], ...serviceOptions.map(s => [s, s])].map(([val, label]) => (
-                      <Chip key={val} active={serviceFilter === val} onClick={() => onSetService(val)}>{label}</Chip>
-                    ))}
-                  </div>
-                </Section>
-              )}
-              {allTags.length > 0 && (
-                <Section label="Tags" count={selectedTags.length} defaultOpen={selectedTags.length > 0 || allTags.length <= 8}>
-                  <div className="flex flex-wrap gap-1.5">
-                    {allTags.map(tag => (
-                      <Chip key={tag} active={selectedTags.includes(tag)} onClick={() => onToggleTag(tag)}>{tag}</Chip>
-                    ))}
-                  </div>
-                </Section>
-              )}
-            </div>
-
-            {activeCount > 0 && (
-              <button
-                onClick={() => { onSetService('all'); onClearTags(); if (plus) { onSetStatus?.('all'); onSetDate?.('all'); } }}
-                className="shrink-0 border-t border-[var(--modes-border)] px-4 py-3 text-copy-14 text-[var(--modes-text-muted)] hover:text-[var(--modes-text)] hover:bg-[var(--modes-surface)] transition-colors cursor-pointer bg-transparent text-center"
-                style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
-              >
-                Clear all filters
-              </button>
-            )}
+            <div className="flex-1 overflow-y-auto p-3 flex flex-col divide-y divide-[var(--modes-border)]">{sections}</div>
+            {clearBtn}
           </div>
-        </>
+        </div>,
+        document.body,
       )}
     </div>
   );
