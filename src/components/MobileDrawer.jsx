@@ -23,13 +23,6 @@ const SettingsIcon = () => (
   </svg>
 );
 
-const BellIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-  </svg>
-);
-
 const HelpIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10" />
@@ -83,10 +76,8 @@ export default function MobileDrawer({
   email,
   plan = 'Free',
   isSignedIn = false,
-  hasUnreadNotifications = false,
   onOpenSettings,
   onOpenPlan,
-  onOpenNotifications,
   onOpenHelp,
   onOpenWhatsNew,
   hasNewChangelog = false,
@@ -182,24 +173,9 @@ export default function MobileDrawer({
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)',
         }}
       >
-        {/* Top bar — bell + close */}
+        {/* Top bar — close only. Notifications live in the search-bar bell now,
+            so the drawer no longer duplicates them. */}
         <div className="px-5 flex items-center justify-end gap-2">
-          {onOpenNotifications && (
-            <button
-              onClick={onOpenNotifications}
-              aria-label={hasUnreadNotifications ? 'Notifications (unread)' : 'Notifications'}
-              className="relative w-9 h-9 rounded-full flex items-center justify-center bg-[var(--drawer-close-bg)] text-[var(--drawer-text-muted)] hover:bg-[var(--drawer-close-bg-hover)] cursor-pointer border-none"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <BellIcon />
-              {hasUnreadNotifications && (
-                <span
-                  aria-hidden="true"
-                  className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[var(--color-brand)]"
-                />
-              )}
-            </button>
-          )}
           <button
             onClick={onClose}
             aria-label="Close menu"
