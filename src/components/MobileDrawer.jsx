@@ -94,6 +94,8 @@ export default function MobileDrawer({
   isSignedIn = false,
   hmMenu = false,
   avatarUrl = null,
+  songCount = 0,
+  setlistCount = 0,
   onOpenAccount,
   onOpenSettings,
   onOpenPlan,
@@ -193,25 +195,29 @@ export default function MobileDrawer({
         }}
       >
         {/* Top bar — close only. Notifications live in the search-bar bell now,
-            so the drawer no longer duplicates them. */}
-        <div className="px-5 flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            aria-label="Close menu"
-            className="w-9 h-9 rounded-full flex items-center justify-center bg-[var(--drawer-close-bg)] text-[var(--drawer-text-muted)] hover:bg-[var(--drawer-close-bg-hover)] cursor-pointer border-none"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            <CloseIcon />
-          </button>
-        </div>
+            so the drawer no longer duplicates them. hmMenu drops the close
+            button entirely (swipe or tap-outside to dismiss). */}
+        {!hmMenu && (
+          <div className="px-5 flex items-center justify-end gap-2">
+            <button
+              onClick={onClose}
+              aria-label="Close menu"
+              className="w-9 h-9 rounded-full flex items-center justify-center bg-[var(--drawer-close-bg)] text-[var(--drawer-text-muted)] hover:bg-[var(--drawer-close-bg-hover)] cursor-pointer border-none"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        )}
 
-        {/* ── hmMenu: Account / Plan / App sections ── */}
+        {/* ── hmMenu: identity up top, app utilities pinned to the bottom ── */}
         {hmMenu && (
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col px-5 pt-4">
             {/* Account card — tappable → Account (edit profile). Guests get the
-                greeting + sign-in CTAs instead. */}
-            <div className="px-5 pt-2">
-              {isSignedIn ? (
+                greeting + sign-in CTAs instead. Plan shows as a chip here so we
+                don't duplicate the Plan tab that already lives in Settings. */}
+            {isSignedIn ? (
+              <>
                 <button
                   onClick={onOpenAccount}
                   className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[var(--drawer-surface)] hover:bg-[var(--drawer-surface-hover)] border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all text-left"
@@ -222,53 +228,78 @@ export default function MobileDrawer({
                     <span className="block text-copy-16 font-semibold text-[var(--drawer-text)] truncate">{displayName}</span>
                     <span className="block text-label-13 text-[var(--drawer-text-muted)] truncate">{displayEmail}</span>
                   </span>
-                  <span className="text-[var(--drawer-text-muted)] shrink-0"><ChevronRight /></span>
+                  <span
+                    onClick={(e) => { if (onOpenPlan) { e.stopPropagation(); onOpenPlan(); } }}
+                    className="shrink-0 text-label-11 font-semibold uppercase tracking-wide px-2 py-1 rounded-md bg-[var(--drawer-surface-hover)] text-[var(--drawer-text-muted)]"
+                  >
+                    {plan}
+                  </span>
                 </button>
-              ) : (
-                <>
-                  <StageGreeting key={openKey} displayName={displayName} tone="drawer" />
-                  <div className="mt-5 flex flex-col gap-2">
-                    <SignInButton onSignIn={onSignIn} />
-                    <CreateAccountButton onCreateAccount={onCreateAccount} />
+                {plan === 'Free' && <div className="mt-3"><UpgradePill onUpgrade={onUpgrade} /></div>}
+                {/* Stat tiles */}
+                <div className="grid grid-cols-2 gap-2.5 mt-3">
+                  <div className="rounded-2xl bg-[var(--drawer-surface)] border border-[var(--drawer-border)] p-4">
+                    <div className="text-heading-24 font-bold text-[var(--drawer-text)] leading-none">{songCount}</div>
+                    <div className="text-label-12 text-[var(--drawer-text-muted)] mt-1">Song{songCount === 1 ? '' : 's'}</div>
                   </div>
-                </>
-              )}
-            </div>
+                  <div className="rounded-2xl bg-[var(--drawer-surface)] border border-[var(--drawer-border)] p-4">
+                    <div className="text-heading-24 font-bold text-[var(--drawer-text)] leading-none">{setlistCount}</div>
+                    <div className="text-label-12 text-[var(--drawer-text-muted)] mt-1">Setlist{setlistCount === 1 ? '' : 's'}</div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <StageGreeting key={openKey} displayName={displayName} tone="drawer" />
+                <div className="mt-5 flex flex-col gap-2">
+                  <SignInButton onSignIn={onSignIn} />
+                  <CreateAccountButton onCreateAccount={onCreateAccount} />
+                  {plan === 'Free' && onUpgrade && <div className="mt-1"><UpgradePill onUpgrade={onUpgrade} /></div>}
+                </div>
+              </>
+            )}
 
-            {/* Plan */}
-            <div className="px-5 mt-4 flex flex-col gap-2">
-              <PlanLabel plan={plan} tone="drawer" onClick={isSignedIn ? onOpenPlan : undefined} />
-              {isSignedIn && plan === 'Free' && <UpgradePill onUpgrade={onUpgrade} />}
-            </div>
-
-            {/* App */}
-            <div className="px-5 mt-7 flex flex-col gap-2">
-              <span className="text-label-11 uppercase tracking-wider text-[var(--drawer-text-muted)] px-1 mb-0.5">App</span>
+            {/* App utilities — pinned to the bottom. */}
+            <div className="mt-auto pt-8 flex flex-col gap-2">
               <Row icon={SettingsIcon} label="Settings" onClick={onOpenSettings} />
               {isSignedIn && activeLibrary && activeLibrary !== 'personal' && onOpenTeam && (
                 <Row icon={TeamDrawerIcon} label="Your Team" onClick={onOpenTeam} />
               )}
-              {onOpenWhatsNew && (
-                <Row icon={SparkleIcon} label="What's new" onClick={onOpenWhatsNew}
-                  accessory={hasNewChangelog ? <span aria-label="New release notes" className="w-2 h-2 rounded-full bg-[var(--color-brand)] shrink-0" /> : null} />
-              )}
-              <Row icon={HelpIcon} label="Help" onClick={onOpenHelp} />
               {!isStandalone && (canInstall || isIOS) && onInstall && (
                 <Row icon={InstallIcon} label={isIOS ? 'Add to Home Screen' : 'Install app'} onClick={onInstall} />
               )}
-            </div>
-
-            {isSignedIn && (
-              <div className="px-5 mt-auto pt-8">
+              {/* What's new + Help — a compact pair, not full rows. */}
+              <div className="flex items-stretch gap-2">
+                {onOpenWhatsNew && (
+                  <button
+                    onClick={onOpenWhatsNew}
+                    className="relative flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[var(--drawer-surface)] hover:bg-[var(--drawer-surface-hover)] border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all text-label-14 text-[var(--drawer-text)]"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <span className="text-[var(--drawer-text-muted)]"><SparkleIcon /></span>
+                    What's new
+                    {hasNewChangelog && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[var(--color-brand)]" />}
+                  </button>
+                )}
+                <button
+                  onClick={onOpenHelp}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[var(--drawer-surface)] hover:bg-[var(--drawer-surface-hover)] border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all text-label-14 text-[var(--drawer-text)]"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <span className="text-[var(--drawer-text-muted)]"><HelpIcon /></span>
+                  Help
+                </button>
+              </div>
+              {isSignedIn && (
                 <button
                   onClick={onSignOut}
-                  className="w-full text-center py-3 rounded-xl text-copy-15 font-medium text-[var(--drawer-text-muted)] hover:text-[var(--drawer-text)] bg-transparent border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all"
+                  className="w-full text-center py-3 mt-1 rounded-xl text-copy-15 font-medium text-[var(--drawer-text-muted)] hover:text-[var(--drawer-text)] bg-transparent border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all"
                   style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
                   Sign out
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
 

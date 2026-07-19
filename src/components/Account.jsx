@@ -162,9 +162,10 @@ export default function Account({
           onSignOut={onSignOut}
           tone="drawer"
         />
-        {/* Profile — avatar + name grouped in one card (Notion-style). */}
+        {/* Profile — avatar + name grouped in one card (Notion-style). Stacks
+            on phones so the name field never gets crushed by the avatar row. */}
         <div
-          className="rounded-xl border p-4 flex items-start gap-4"
+          className="rounded-xl border p-4 flex flex-col sm:flex-row sm:items-start gap-4"
           style={{ background: 'var(--drawer-surface)', borderColor: 'var(--drawer-border)' }}
         >
           {isSignedIn && user && (

@@ -32,6 +32,9 @@ const PlusIcon = ({ open = false }) => (
 const PlayIcon = () => (
   <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 5.5v13a1 1 0 0 0 1.54.84l10-6.5a1 1 0 0 0 0-1.68l-10-6.5A1 1 0 0 0 7 5.5Z" /></svg>
 );
+const CheckAllIcon = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 13l4 4 8-9" /><path d="M12 15l2 2 8-9" /></svg>
+);
 const CalendarIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
 );
@@ -94,7 +97,7 @@ const GLASS = {
  * a pure primary action — a create menu on Home, + on Songs/Setlists, and Play
  * on a setlist. Workspace switching lives in the top bar.
  */
-export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onImportSetlist, onPlay, activeLibrary, scheduleView, onToggleScheduleView }) {
+export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onImportSetlist, onPlay, activeLibrary, scheduleView, onToggleScheduleView, onMarkAllRead }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const fabRef = useRef(null);
 
@@ -143,6 +146,9 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
       : { kind: 'action', label: 'New setlist', onClick: onNewSetlist, icon: <PlusIcon /> };
   } else if (activeView === 'setlist-view' && onPlay) {
     fab = { kind: 'action', label: 'Play live', onClick: onPlay, icon: <PlayIcon /> };
+  } else if (activeView === 'notifications' && onMarkAllRead) {
+    // On the notifications page the FAB marks everything read (clears the badge).
+    fab = { kind: 'action', label: 'Mark all read', onClick: onMarkAllRead, icon: <CheckAllIcon /> };
   } else if (activeView === 'schedule' && onToggleScheduleView) {
     // Flip the schedule between list and calendar; the icon shows the view it
     // switches TO.

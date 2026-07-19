@@ -1282,6 +1282,17 @@ export default function App() {
 
   const hasUnreadNotifications = mergedNotifications.some(n => !n.read);
 
+  // Mark every notification read (the notifications-view FAB action). Local
+  // rows flip in one settings write; team rows go through the hook per id.
+  const handleMarkAllNotificationsRead = () => {
+    const teamUnread = mergedNotifications.filter(n => !n.read && n.id.startsWith('tn-'));
+    teamUnread.forEach(n => markTeamNotifRead(n.id.slice(3)));
+    setSettings(prev => ({
+      ...prev,
+      notifications: (prev.notifications || []).map(n => (n.read ? n : { ...n, read: true })),
+    }));
+  };
+
   // Switch between Personal and a team/church workspace. Always lands on the
   // Dashboard so the user gets a consistent "home" for the workspace they
   // just entered (roadmap: swapping workspaces always goes to dashboard).
@@ -2378,7 +2389,7 @@ export default function App() {
           // builder (its library picker). Fullscreen views don't render the
           // header at all.
           showGlobalSearch={!['home', 'library', 'setlists', 'setlist-build'].includes(view)}
-          hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view'].includes(view)}
+          hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view', 'notifications'].includes(view)}
         >
           {['home', 'library', 'setlists'].includes(view) && (
             <MobileTopBar
@@ -2867,7 +2878,7 @@ export default function App() {
       {/* Mobile glass nav lives at the App root (not inside <main>) so the
           drawer's transform/will-change doesn't capture its fixed positioning
           or break the glass backdrop-filter. */}
-      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule', 'scheduling'].includes(view) && !drawerOpen && (
+      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule', 'scheduling', 'notifications'].includes(view) && !drawerOpen && (
         <BottomNav
           activeView={view}
           onNavigate={goToMainView}
@@ -2877,6 +2888,7 @@ export default function App() {
           onImportSetlist={isTeamReadOnly ? null : pickAndImportSetlist}
           scheduleView={scheduleView}
           onToggleScheduleView={() => setScheduleView(v => (v === 'list' ? 'calendar' : 'list'))}
+          onMarkAllRead={hasUnreadNotifications ? handleMarkAllNotificationsRead : null}
           onPlay={
             view === 'setlist-view' && currentSetlist
               ? () => goSetlistPerformance(currentSetlist)
@@ -2904,6 +2916,8 @@ export default function App() {
           hasUnreadNotifications={hasUnreadNotifications}
           hmMenu={!!settings?.hmMenu}
           avatarUrl={profile?.avatar_url || null}
+          songCount={songs.length}
+          setlistCount={setlists.length}
           onOpenAccount={() => { setDrawerOpen(false); goToMainView('account'); }}
           onOpenSettings={() => { setDrawerOpen(false); goToMainView('settings'); }}
           onOpenPlan={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'plan' }); }}
