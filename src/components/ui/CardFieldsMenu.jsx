@@ -28,11 +28,16 @@ export default function CardFieldsMenu({ kind, saved, onChange, label = 'Card' }
     if (!open) return;
     const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    // Close on scroll — an anchored dropdown detaches from its button once the
+    // page moves, so dismiss it instead of leaving it floating.
+    const onScroll = (e) => { if (!ref.current || !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', onScroll, true);
     return () => {
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onScroll, true);
     };
   }, [open]);
 

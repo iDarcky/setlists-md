@@ -383,8 +383,9 @@ export default function Library({
   const [dataQuality, setDataQuality] = useState([]);   // ['untagged','noTempo']
   const [bulkTagInput, setBulkTagInput] = useState('');
   // Per-device "what shows on cards" selection (Card + Compact views).
+  // Card fields are stored per view ({ card: [...], compact: [...] }) so the
+  // Card and Compact lists can show different details.
   const [cardFieldsSaved, setCardFieldsSaved] = usePersistentJSON('setlists-md:songs-card-fields');
-  const cardFields = useMemo(() => resolveCardFields('songs', cardFieldsSaved), [cardFieldsSaved]);
 
   const fabRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -552,6 +553,14 @@ export default function Library({
   // breakpoint — the horizontal scroller carries them instead.
   const colFloor = (cls) => (plus ? '' : (mobileTable ? '' : cls));
   const rowPad = 'py-3.5';
+  // Per-view card fields (Card vs Compact). Legacy array format applies to both.
+  const cardViewKey = effectiveView === 'compact' ? 'compact' : 'card';
+  const savedCardFields = Array.isArray(cardFieldsSaved) ? cardFieldsSaved : (cardFieldsSaved?.[cardViewKey] ?? null);
+  const cardFields = resolveCardFields('songs', savedCardFields);
+  const setCardFieldsForView = (ids) => setCardFieldsSaved({
+    ...(cardFieldsSaved && !Array.isArray(cardFieldsSaved) ? cardFieldsSaved : {}),
+    [cardViewKey]: ids,
+  });
   // In the plus card/compact views, once anything is selected a tap toggles
   // selection instead of opening (iOS-style multi-select mode).
   const selectionActive = plus && !readOnly && selected.length > 0;
@@ -651,7 +660,7 @@ export default function Library({
             )}
 
             {plus && effectiveView !== 'table' && (
-              <CardFieldsMenu kind="songs" saved={cardFieldsSaved} onChange={setCardFieldsSaved} />
+              <CardFieldsMenu kind="songs" saved={savedCardFields} onChange={setCardFieldsForView} label={effectiveView === 'compact' ? 'Compact' : 'Card'} />
             )}
 
             {/* Import + New song (desktop) */}

@@ -203,8 +203,8 @@ export default function Setlists({
   const [bulkTagInput, setBulkTagInput] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
   const [galleryGroup, setGalleryGroup] = usePersistentView('setlists-md:setlists-groupby'); // null=auto | month | service
+  // Card fields stored per view ({ card, compact }) — see Library.
   const [cardFieldsSaved, setCardFieldsSaved] = usePersistentJSON('setlists-md:setlists-card-fields');
-  const cardFields = useMemo(() => resolveCardFields('setlists', cardFieldsSaved), [cardFieldsSaved]);
   const fabRef = useRef(null);
   const bulkBarRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -429,6 +429,14 @@ export default function Setlists({
     : (vm === 'table' ? 'gallery' : vm);
   const mobileTable = !advanced && effectiveView === 'table';
   const colFloor = (cls) => (mobileTable ? '' : cls);
+  // Per-view card fields (Card vs Compact). Legacy array format applies to both.
+  const cardViewKey = effectiveView === 'compact' ? 'compact' : 'card';
+  const savedCardFields = Array.isArray(cardFieldsSaved) ? cardFieldsSaved : (cardFieldsSaved?.[cardViewKey] ?? null);
+  const cardFields = resolveCardFields('setlists', savedCardFields);
+  const setCardFieldsForView = (ids) => setCardFieldsSaved({
+    ...(cardFieldsSaved && !Array.isArray(cardFieldsSaved) ? cardFieldsSaved : {}),
+    [cardViewKey]: ids,
+  });
   // Plus unifies the card gallery with the Songs list: divided rows (with a date
   // badge) instead of standalone cards. Non-plus keeps the standalone Play cards.
   const galleryVariant = plus ? 'row' : 'card';
@@ -436,8 +444,8 @@ export default function Setlists({
     ? 'modes-card overflow-hidden divide-y divide-[var(--modes-border)]'
     : 'flex flex-col gap-4';
 
-  // Shared view switcher — Table / (Compact, mobile-only) / Cards.
-  const renderSwitcher = (showCompact) => (
+  // Shared view switcher — Table (desktop only) / Compact (mobile only) / Cards.
+  const renderSwitcher = () => (
     <div className="flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
       {advanced && (
         <button onClick={() => setViewMode('table')} aria-label="Table view" title="Table view"
@@ -446,13 +454,11 @@ export default function Setlists({
           <TableViewIcon />
         </button>
       )}
-      {showCompact && (
-        <button onClick={() => setViewMode('compact')} aria-label="Compact list view" title="Compact list"
-          className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
-            vm === 'compact' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></svg>
-        </button>
-      )}
+      <button onClick={() => setViewMode('compact')} aria-label="Compact list view" title="Compact list"
+        className={cn('w-9 h-9 sm:hidden items-center justify-center cursor-pointer border-none transition-colors flex',
+          vm === 'compact' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></svg>
+      </button>
       <button onClick={() => setViewMode('gallery')} aria-label="Card view" title="Card view"
         className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
           effectiveView === 'gallery' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
@@ -496,7 +502,7 @@ export default function Setlists({
   ) : null;
 
   const cardFieldsEl = plus && effectiveView !== 'table' ? (
-    <CardFieldsMenu kind="setlists" saved={cardFieldsSaved} onChange={setCardFieldsSaved} />
+    <CardFieldsMenu kind="setlists" saved={savedCardFields} onChange={setCardFieldsForView} label={effectiveView === 'compact' ? 'Compact' : 'Card'} />
   ) : null;
 
   // A single Templates toggle button (Status/When/Group now live in the filters
@@ -643,20 +649,21 @@ export default function Setlists({
     <div data-theme-variant="modes" className={cn(splitDock ? 'absolute inset-0 flex overflow-hidden' : 'relative min-h-full')}>
       {/* List column — own scroller when a pane is docked beside it. */}
       <div className={splitDock ? 'flex-1 min-w-0 min-h-0 overflow-y-auto' : 'contents'}>
-      {/* Header */}
-      <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)] hidden sm:block">
+      {/* Header — same frosted sticky band + control layout as the Songs
+          library (h1 + search hidden on phones; controls always shown). */}
+      <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]">
         <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 pt-5 sm:pt-7 pb-4 flex flex-wrap items-center gap-3">
-          <h1 className="text-heading-32 font-bold text-[var(--modes-text)] m-0 mr-2">Setlists</h1>
+          <h1 className="text-heading-32 font-bold text-[var(--modes-text)] m-0 mr-2 hidden sm:block">Setlists</h1>
           <SearchBar
-            className="flex-1 min-w-[200px]"
+            className="flex-1 min-w-[200px] hidden sm:flex"
             placeholder="Search setlists & songs…"
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
 
-          {filtersEl}
+          {renderSwitcher()}
 
-          {renderSwitcher(false)}
+          {filtersEl}
 
           {columnsEl}
           {cardFieldsEl}
@@ -683,18 +690,6 @@ export default function Setlists({
 
       {/* Content */}
       <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 py-5">
-        {/* Mobile toolbar — the desktop header is hidden on phones, so the
-            view switcher + filters + columns live here. Frosted sticky band to
-            match the Songs library header. */}
-        {loaded && setlists.length > 0 && (
-          <div className="sm:hidden sticky top-0 z-20 -mx-5 -mt-5 mb-4 px-5 py-3 flex items-center gap-2 flex-wrap backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]">
-            {renderSwitcher(true)}
-            {filtersEl}
-            {columnsEl}
-            {cardFieldsEl}
-            {templatesToggleEl}
-          </div>
-        )}
         {templatesPanel}
         {plus && !query && statusFilter === 'all' && dateFilter === 'all' && upcoming.length > 0 && (() => {
           const next = upcoming[0];

@@ -208,8 +208,9 @@ export default function SetlistOverviewV2({ setlist, songs, setlists = [], onBac
         className="material-header"
         style={{
           ...headerFrostStyle,
-          '--chart-header-bg': 'var(--header-bg-blur)',
-          '--chart-header-border': 'var(--ds-gray-400)',
+          // Same frosted recipe as the Songs/Setlists library headers.
+          '--chart-header-bg': 'color-mix(in srgb, var(--ds-background-100) 80%, transparent)',
+          '--chart-header-border': 'var(--ds-gray-300)',
         }}
       >
         <div className={container}>
