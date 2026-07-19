@@ -5,21 +5,20 @@ import Highlight from './ui/Highlight';
 import { StructureRibbon } from './StructureRibbon';
 import { SelectCircle } from './ui/SelectCircle';
 import { useLongPress } from '../lib/useLongPress';
-import { youtubeThumb } from '../lib/coverArt';
+import { useCoverArt } from '../lib/useCoverArt';
 
-// Leading cover-art thumbnail (like the setlist date badge). YouTube thumbnails
-// are derived synchronously (free); everything else falls back to a gradient
-// tile stamped with the song's key. Spotify art needs a network call, so it's
-// intentionally left out of the list to avoid fanning out requests.
+// Leading cover-art thumbnail (like the setlist date badge). Resolves Spotify
+// album art → YouTube thumbnail → a gradient tile stamped with the song's key.
 const ART_GRADIENT = 'radial-gradient(120% 120% at 20% 10%, #1f5f4f 0%, #0e2c30 55%, #150f1f 100%)';
-function SongArt({ song, songKey, size = 'md' }) {
-  const thumb = youtubeThumb(song?.youtube);
+function SongArt({ song, size = 'md' }) {
+  const { artUrl, markFailed } = useCoverArt(song);
   const box = size === 'sm' ? 'w-10 h-10 rounded-lg' : 'w-14 h-14 rounded-xl';
+  const glyph = size === 'sm' ? 16 : 22;
   return (
-    <span className={cn('shrink-0 overflow-hidden flex items-center justify-center text-white', box)} style={{ background: ART_GRADIENT }}>
-      {thumb
-        ? <img src={thumb} alt="" loading="lazy" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-        : <span className={cn('font-bold opacity-90', size === 'sm' ? 'text-label-14' : 'text-heading-18')}>{songKey}</span>}
+    <span className={cn('shrink-0 overflow-hidden flex items-center justify-center text-white/70', box)} style={{ background: ART_GRADIENT }}>
+      {artUrl
+        ? <img src={artUrl} alt="" loading="lazy" className="w-full h-full object-cover" onError={() => markFailed(artUrl)} />
+        : <svg width={glyph} height={glyph} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>}
     </span>
   );
 }
@@ -103,7 +102,7 @@ function SongCard({
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         {selectable && <SelectCircle active={selectActive} selected={isSelected} onToggle={onToggleSelect} label={`Select ${song.title || 'song'}`} />}
-        {has('art') && <SongArt song={song} songKey={songKey} size="sm" />}
+        {has('art') && <SongArt song={song} size="sm" />}
         <div className="min-w-0 flex-1">
           <span className="block text-copy-15 font-medium text-[var(--text-1)] truncate">
             {highlight ? <Highlight text={song.title} query={highlight} /> : (song.title || 'Untitled')}
@@ -140,7 +139,7 @@ function SongCard({
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         {selectable && <SelectCircle active={selectActive} selected={isSelected} onToggle={onToggleSelect} label={`Select ${song.title || 'song'}`} />}
-        {has('art') && <SongArt song={song} songKey={songKey} />}
+        {has('art') && <SongArt song={song} />}
         <div className="flex flex-col gap-1 min-w-0 flex-1">
           <span className="text-heading-16 text-[var(--text-1)] truncate">
             {highlight ? <Highlight text={song.title} query={highlight} /> : song.title}
