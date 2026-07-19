@@ -7,15 +7,17 @@ import { SelectCircle } from './ui/SelectCircle';
 import { useLongPress } from '../lib/useLongPress';
 import { useCoverArt } from '../lib/useCoverArt';
 
-// Leading cover-art thumbnail (like the setlist date badge). Resolves Spotify
-// album art → YouTube thumbnail → a gradient tile stamped with the song's key.
-const ART_GRADIENT = 'radial-gradient(120% 120% at 20% 10%, #1f5f4f 0%, #0e2c30 55%, #150f1f 100%)';
+// Leading cover-art thumbnail (matches the setlist date badge — same brand
+// gradient). Resolves Spotify album art → YouTube thumbnail → a music-note tile.
 function SongArt({ song, size = 'md' }) {
   const { artUrl, markFailed } = useCoverArt(song);
   const box = size === 'sm' ? 'w-10 h-10 rounded-lg' : 'w-14 h-14 rounded-xl';
   const glyph = size === 'sm' ? 16 : 22;
   return (
-    <span className={cn('shrink-0 overflow-hidden flex items-center justify-center text-white/70', box)} style={{ background: ART_GRADIENT }}>
+    <span className={cn(
+      'shrink-0 overflow-hidden flex items-center justify-center text-white/80 bg-gradient-to-br from-[var(--color-brand)] to-[var(--color-brand-vetiver)]',
+      box,
+    )}>
       {artUrl
         ? <img src={artUrl} alt="" loading="lazy" className="w-full h-full object-cover" onError={() => markFailed(artUrl)} />
         : <svg width={glyph} height={glyph} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>}
@@ -141,30 +143,46 @@ function SongCard({
         {selectable && <SelectCircle active={selectActive} selected={isSelected} onToggle={onToggleSelect} label={`Select ${song.title || 'song'}`} />}
         {has('art') && <SongArt song={song} />}
         <div className="flex flex-col gap-1 min-w-0 flex-1">
+          {/* Title — spans the full width of the card. */}
           <span className="text-heading-16 text-[var(--text-1)] truncate">
             {highlight ? <Highlight text={song.title} query={highlight} /> : song.title}
           </span>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {has('artist') && song.artist && (
-              <span className="text-copy-14 text-[var(--color-brand)] truncate">
-                {highlight ? <Highlight text={song.artist} query={highlight} /> : song.artist}
-              </span>
-            )}
-            {arrCount > 1 && (
-              <span className="text-label-11 text-[var(--text-2)] px-2 py-0.5 rounded-md border border-[var(--border-1)] bg-[var(--bg-1)]">
-                {arrCount} arrangements
-              </span>
-            )}
-            {has('tags') && song.tags?.length > 0 && song.tags.map(tag => (
-              <span
-                key={tag}
-                className="text-label-11 text-[var(--text-2)] px-2 py-0.5 rounded-md border border-[var(--border-1)] bg-[var(--bg-1)]"
-              >
-                {tag}
-              </span>
-            ))}
-            {has('media') && <MediaIcons song={song} />}
-          </div>
+          {(has('artist') && song.artist) || arrCount > 1 || (has('tags') && song.tags?.length > 0) || has('media') ? (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {has('artist') && song.artist && (
+                <span className="text-copy-14 text-[var(--color-brand)] truncate">
+                  {highlight ? <Highlight text={song.artist} query={highlight} /> : song.artist}
+                </span>
+              )}
+              {arrCount > 1 && (
+                <span className="text-label-11 text-[var(--text-2)] px-2 py-0.5 rounded-md border border-[var(--border-1)] bg-[var(--bg-1)]">
+                  {arrCount} arrangements
+                </span>
+              )}
+              {has('tags') && song.tags?.length > 0 && song.tags.map(tag => (
+                <span key={tag} className="text-label-11 text-[var(--text-2)] px-2 py-0.5 rounded-md border border-[var(--border-1)] bg-[var(--bg-1)]">{tag}</span>
+              ))}
+              {has('media') && <MediaIcons song={song} />}
+            </div>
+          ) : null}
+          {/* Stats row — key · tempo · last edited on their own line. */}
+          {(has('key') || has('tempo') || has('updated')) && (
+            <div className="flex items-center gap-1.5 text-label-12-mono text-[var(--text-2)]">
+              {has('key') && <span className="text-[var(--chord)] font-semibold">{songKey}</span>}
+              {has('tempo') && (
+                <>
+                  {has('key') && <span className="text-[12px] opacity-50">•</span>}
+                  <span>{songTempo ? `${songTempo} BPM` : 'No Tempo'}</span>
+                </>
+              )}
+              {has('updated') && song.updatedAt && (
+                <>
+                  {(has('key') || has('tempo')) && <span className="text-[12px] opacity-50">•</span>}
+                  <span className="text-label-12">{formatRelativeTime(song.updatedAt)}</span>
+                </>
+              )}
+            </div>
+          )}
           {hasMap && (
             <div className="mt-1 max-w-full">
               <StructureRibbon
@@ -180,29 +198,15 @@ function SongCard({
             </div>
           )}
         </div>
-        {/* Quick edit — revealed on hover, hidden in select mode. */}
+        {/* Quick edit — absolute so it never constrains the title width. */}
         {onEdit && !selectActive && (
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
             aria-label="Edit song" title="Edit"
-            className="ml-3 shrink-0 w-8 h-8 rounded-lg flex items-center justify-center border-none bg-transparent text-[var(--text-2)] opacity-0 group-hover:opacity-100 hover:bg-[var(--modes-surface-strong)] hover:text-[var(--text-1)] transition-all cursor-pointer"
+            className="absolute top-1/2 -translate-y-1/2 right-3 w-8 h-8 rounded-lg flex items-center justify-center border-none bg-[var(--bg-2)] text-[var(--text-2)] opacity-0 group-hover:opacity-100 hover:bg-[var(--modes-surface-strong)] hover:text-[var(--text-1)] transition-all cursor-pointer"
           >
             <EditGlyph />
           </button>
-        )}
-        {(has('key') || has('tempo') || has('updated')) && (
-          <div className="flex flex-col items-end gap-1 ml-4 shrink-0">
-            {(has('key') || has('tempo')) && (
-              <div className="flex items-center gap-1.5">
-                {has('key') && <span className="text-label-12-mono text-[var(--chord)] font-semibold">{songKey}</span>}
-                {has('key') && has('tempo') && <span className="text-[var(--text-2)] text-[12px] opacity-60">•</span>}
-                {has('tempo') && <span className="text-label-12-mono text-[var(--text-2)]">{songTempo ? `${songTempo} BPM` : 'No Tempo'}</span>}
-              </div>
-            )}
-            {has('updated') && song.updatedAt && (
-              <span className="text-label-12 text-[var(--text-2)]">{formatRelativeTime(song.updatedAt)}</span>
-            )}
-          </div>
         )}
       </div>
     );
