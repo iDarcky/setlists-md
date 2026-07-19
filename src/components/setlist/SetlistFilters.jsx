@@ -15,8 +15,8 @@ function Chip({ active, onClick, children }) {
       onClick={onClick}
       className={`inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-label-12 border cursor-pointer transition-colors focus:outline-none ${
         active
-          ? 'border-transparent text-white bg-[var(--color-brand)]'
-          : 'border-transparent text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]'
+          ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--modes-surface)]'
+          : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-transparent hover:bg-[var(--modes-surface)]'
       }`}
     >
       {children}
@@ -170,7 +170,9 @@ export default function SetlistFilters({
       )}
 
       {open && !isDesktop && createPortal(
-        <div className="sm:hidden">
+        // See LibraryFilters — re-declare the modes variant inside the portal so
+        // --modes-* tokens resolve (else borders become white currentColor).
+        <div className="sm:hidden" data-theme-variant="modes">
           <div className="fixed inset-0 z-[150] bg-black/50" onClick={() => setOpen(false)} />
           <div className="fixed z-[151] left-0 right-0 bottom-0 rounded-t-2xl border-t border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--modes-border)]">
