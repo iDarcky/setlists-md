@@ -16,6 +16,22 @@ const CloseIcon = () => (
   </svg>
 );
 
+const ChevronRight = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="9 18 15 12 9 6" />
+  </svg>
+);
+
+// Account avatar — profile image or initials on the brand gradient.
+function DrawerAvatar({ url, name }) {
+  const initial = (name || 'G').trim().charAt(0).toUpperCase();
+  return (
+    <span className="w-11 h-11 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white bg-gradient-to-br from-[var(--color-brand)] to-[var(--color-brand-vetiver)]">
+      {url ? <img src={url} alt="" className="w-full h-full object-cover" /> : <span className="text-copy-16 font-bold">{initial}</span>}
+    </span>
+  );
+}
+
 const SettingsIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3" />
@@ -76,6 +92,9 @@ export default function MobileDrawer({
   email,
   plan = 'Free',
   isSignedIn = false,
+  hmMenu = false,
+  avatarUrl = null,
+  onOpenAccount,
   onOpenSettings,
   onOpenPlan,
   onOpenHelp,
@@ -186,6 +205,75 @@ export default function MobileDrawer({
           </button>
         </div>
 
+        {/* ── hmMenu: Account / Plan / App sections ── */}
+        {hmMenu && (
+          <div className="flex-1 flex flex-col">
+            {/* Account card — tappable → Account (edit profile). Guests get the
+                greeting + sign-in CTAs instead. */}
+            <div className="px-5 pt-2">
+              {isSignedIn ? (
+                <button
+                  onClick={onOpenAccount}
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[var(--drawer-surface)] hover:bg-[var(--drawer-surface-hover)] border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all text-left"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <DrawerAvatar url={avatarUrl} name={displayName} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-copy-16 font-semibold text-[var(--drawer-text)] truncate">{displayName}</span>
+                    <span className="block text-label-13 text-[var(--drawer-text-muted)] truncate">{displayEmail}</span>
+                  </span>
+                  <span className="text-[var(--drawer-text-muted)] shrink-0"><ChevronRight /></span>
+                </button>
+              ) : (
+                <>
+                  <StageGreeting key={openKey} displayName={displayName} tone="drawer" />
+                  <div className="mt-5 flex flex-col gap-2">
+                    <SignInButton onSignIn={onSignIn} />
+                    <CreateAccountButton onCreateAccount={onCreateAccount} />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Plan */}
+            <div className="px-5 mt-4 flex flex-col gap-2">
+              <PlanLabel plan={plan} tone="drawer" onClick={isSignedIn ? onOpenPlan : undefined} />
+              {isSignedIn && plan === 'Free' && <UpgradePill onUpgrade={onUpgrade} />}
+            </div>
+
+            {/* App */}
+            <div className="px-5 mt-7 flex flex-col gap-2">
+              <span className="text-label-11 uppercase tracking-wider text-[var(--drawer-text-muted)] px-1 mb-0.5">App</span>
+              <Row icon={SettingsIcon} label="Settings" onClick={onOpenSettings} />
+              {isSignedIn && activeLibrary && activeLibrary !== 'personal' && onOpenTeam && (
+                <Row icon={TeamDrawerIcon} label="Your Team" onClick={onOpenTeam} />
+              )}
+              {onOpenWhatsNew && (
+                <Row icon={SparkleIcon} label="What's new" onClick={onOpenWhatsNew}
+                  accessory={hasNewChangelog ? <span aria-label="New release notes" className="w-2 h-2 rounded-full bg-[var(--color-brand)] shrink-0" /> : null} />
+              )}
+              <Row icon={HelpIcon} label="Help" onClick={onOpenHelp} />
+              {!isStandalone && (canInstall || isIOS) && onInstall && (
+                <Row icon={InstallIcon} label={isIOS ? 'Add to Home Screen' : 'Install app'} onClick={onInstall} />
+              )}
+            </div>
+
+            {isSignedIn && (
+              <div className="px-5 mt-auto pt-8">
+                <button
+                  onClick={onSignOut}
+                  className="w-full text-center py-3 rounded-xl text-copy-15 font-medium text-[var(--drawer-text-muted)] hover:text-[var(--drawer-text)] bg-transparent border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Classic drawer ── */}
+        {!hmMenu && (<>
         {/* Greeting */}
         <div className="px-5 pt-4 pb-6">
           <StageGreeting key={openKey} displayName={displayName} tone="drawer" />
@@ -267,6 +355,7 @@ export default function MobileDrawer({
             />
           )}
         </div>
+        </>)}
 
         {/* Footer — always shows the app wordmark so the drawer reads
             as a product surface, not an account profile. */}

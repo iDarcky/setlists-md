@@ -74,6 +74,7 @@ export default function MobileTopBar({
   // result type (avoids duplicating the cross-search that already lives on the
   // Dashboard). Driven by the *LibraryPlus Labs flags in App.
   searchScope = 'all',
+  hmMenu = false,
 }) {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
@@ -190,9 +191,11 @@ export default function MobileTopBar({
         </div>
 
         {/* Switcher menu — sibling of the card so the card's overflow-hidden
-            doesn't clip it. */}
+            doesn't clip it. hmMenu: full-width sheet that scrolls after 3
+            spaces, with New Space pinned below the scroll region. */}
         {wsOpen && (
-          <div ref={menuRef} role="menu" className="absolute right-3 top-full mt-1 w-[260px] max-w-[80vw] rounded-2xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-xl z-50 overflow-hidden py-1">
+          <div ref={menuRef} role="menu" className={`absolute top-full mt-1 rounded-2xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-xl z-50 overflow-hidden flex flex-col ${hmMenu ? 'left-3 right-3' : 'right-3 w-[260px] max-w-[80vw] py-1'}`}>
+            <div className={hmMenu ? 'overflow-y-auto max-h-[210px] py-1' : ''}>
             {workspaces.map(w => {
               const active = w.id === activeWorkspace?.id;
               return (
@@ -218,6 +221,7 @@ export default function MobileTopBar({
                 </button>
               );
             })}
+            </div>
             {onNewWorkspace && (
               <>
                 <div className="my-1 border-t border-[var(--ds-gray-200)]" />

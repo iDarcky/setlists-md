@@ -155,6 +155,7 @@ const PORTABLE_PREF_KEYS = [
   'rehearsalReminders',
   'songsLibraryPlus',
   'setlistsLibraryPlus',
+  'hmMenu',
 ];
 
 function extractPortablePrefs(s) {
@@ -2404,6 +2405,7 @@ export default function App() {
                 : view === 'setlists' && settings?.setlistsLibraryPlus ? 'setlists'
                 : 'all'
               }
+              hmMenu={!!settings?.hmMenu}
             />
           )}
           {view === 'home' && (
@@ -2900,6 +2902,9 @@ export default function App() {
           plan={plan}
           isSignedIn={isSignedIn}
           hasUnreadNotifications={hasUnreadNotifications}
+          hmMenu={!!settings?.hmMenu}
+          avatarUrl={profile?.avatar_url || null}
+          onOpenAccount={() => { setDrawerOpen(false); goToMainView('account'); }}
           onOpenSettings={() => { setDrawerOpen(false); goToMainView('settings'); }}
           onOpenPlan={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'plan' }); }}
           onOpenNotifications={() => { setDrawerOpen(false); navigate('notifications'); }}

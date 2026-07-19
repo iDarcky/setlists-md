@@ -656,6 +656,9 @@ function LabsPanel({ settings, update }) {
       <LabsToggle settings={settings} update={update} flag="setlistsLibraryPlus"
         label="Setlists library +"
         description="Extra Setlists-list power: search by a contained song, total-duration column, draft & date quick filters, duplicate / save-as-template, bulk tagging, and a past-setlist badge. Removes the table view on phones." />
+      <LabsToggle settings={settings} update={update} flag="hmMenu"
+        label="Hamburger menu (preview)"
+        description="Restructures the mobile menu into Account / Plan / App sections with a tappable account card, and gives the Space switcher a full-width sheet that scrolls after 3 spaces with New Space pinned to the bottom." />
     </Section>
   );
 }
