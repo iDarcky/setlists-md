@@ -231,6 +231,9 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Field char limits (Themes/Genres/Verses/Moment/Tags) — P3 · _Q: cap which, or leave free?_
 
 ### Song editor
+- 🔴🔴 **New Song flow — full rethink** — the create-a-song entry flow needs to be
+  redesigned from scratch (how you start, what's asked for, the first surface you
+  land on). **P0 — blocker.** _Q: guided steps vs. blank editor vs. import-first?_
 - ✅ **Preview ignores key/transpose** — relabel-only Key + explicit Transpose; preview honours it (shipped).
 - ✅ **New-song guardrails** — Title + Key start empty + mandatory; soft-remind bpm/time (shipped).
 - ✅ **Double "structure" concept** — one official control shared by Arrange + Advanced (shipped).
@@ -292,9 +295,17 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Shared-viewer: tap a song to open it; "Open app" returns to the setlist; onboarding; refresh the older share UI — P3–P4.
 
 ### Setlist editor
+- 🔴 **Title field: border + mandatory warning + bigger** — give the setlist title
+  its own bordered input with a "required" warning when empty, and size it up so it
+  aligns visually with the Draft/Ready toggle beside it — **P1**.
 - 🟡 **Migrate to the card design** — the setlist **editor** should match the song
   editor's card layout (identity/edit/preview cards, calmer header, mobile collapse).
   Pair with the overview redesign above — P1.
+- **Time → dropdown picker** — replace the free-text end-time (and start-time)
+  entry with a proper time dropdown/picker — **P2**.
+- **Unify the destructive labels** — rehearsal, tag, note, and end-time each have
+  their own "remove/clear" affordance; collapse them into **one shared label**,
+  styled **red**, so clearing any optional field reads consistently — **P3**.
 - **Clear song-search after selecting** a song (+ an "x") so adding several is quick — P2.
 - **Location → Google Maps (easy tier)** — P2. Places Autocomplete on the
   Location field (type a venue → real suggestions; store the name + optional
@@ -343,12 +354,24 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Collect more member info (phone, leader-only, GDPR-sensitive) — P3 · _Q: which fields?_
 
 ### Settings · Help · Nav
+- 🟡 **Big Settings rework (mobile + desktop)** — the whole Settings surface needs
+  a structural redesign, not just tweaks: rethink the panel taxonomy, fold the
+  standalone **Account** page fully into Settings (entry points now unified — the
+  drawer account card and the Account route both land on Settings → Account), and
+  restore/relocate the helper texts that were stripped for now — P1. _Supersedes
+  the "add/reorg settings" + "mobile settings rework" line below; keep those as
+  sub-tasks._
 - Settings: add/reorg settings — P2; **mobile settings rework** — P2.
 - Help: context-specific "?" per screen — P2; surface feedback prominently (MultiTracks north star) — P2.
 - **Hamburger panel** — keep-vs-replace decision, then rework — P2 · _Q: keep?_; motivational quotes keep/drop — P3.
 - FAB: more actions; nav→prev/next pill morph + motion — P3.
 
 ### Notifications
+- 🟡 **Notifications UX rework (mobile + desktop)** — the notifications surface
+  needs a proper redesign on both form factors. The in-page "Clear all" is buried
+  (you scroll to reach it); the mobile FAB now offers **Mark all read / Clear all**
+  as a stopgap, but the whole tray/page layout, grouping, and empty/overflow states
+  want a rethink — P2.
 - Big rework shipped (dismiss/clear-all, server-authoritative decline alerts, cross-device read state).
 - ✅ **Web Push + worker shipped (2026-07-02)** — `notify-worker` edge function on a
   minutely pg_cron: sends real lock-screen push (RFC 8291/8292, WebCrypto impl

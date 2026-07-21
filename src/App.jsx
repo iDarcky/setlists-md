@@ -2889,6 +2889,7 @@ export default function App() {
           scheduleView={scheduleView}
           onToggleScheduleView={() => setScheduleView(v => (v === 'list' ? 'calendar' : 'list'))}
           onMarkAllRead={hasUnreadNotifications ? handleMarkAllNotificationsRead : null}
+          onClearAllNotifications={view === 'notifications' && mergedNotifications.some(n => n.type !== 'schedule_request') ? handleClearAllNotifications : null}
           onPlay={
             view === 'setlist-view' && currentSetlist
               ? () => goSetlistPerformance(currentSetlist)
@@ -2916,9 +2917,7 @@ export default function App() {
           hasUnreadNotifications={hasUnreadNotifications}
           hmMenu={!!settings?.hmMenu}
           avatarUrl={profile?.avatar_url || null}
-          songCount={songs.length}
-          setlistCount={setlists.length}
-          onOpenAccount={() => { setDrawerOpen(false); goToMainView('account'); }}
+          onOpenAccount={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'account' }); }}
           onOpenSettings={() => { setDrawerOpen(false); goToMainView('settings'); }}
           onOpenPlan={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'plan' }); }}
           onOpenNotifications={() => { setDrawerOpen(false); navigate('notifications'); }}

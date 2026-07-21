@@ -35,6 +35,12 @@ const PlayIcon = () => (
 const CheckAllIcon = () => (
   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 13l4 4 8-9" /><path d="M12 15l2 2 8-9" /></svg>
 );
+const CheckMenuIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 13l4 4 8-9" /><path d="M12 15l2 2 8-9" /></svg>
+);
+const TrashMenuIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+);
 const CalendarIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
 );
@@ -97,7 +103,7 @@ const GLASS = {
  * a pure primary action — a create menu on Home, + on Songs/Setlists, and Play
  * on a setlist. Workspace switching lives in the top bar.
  */
-export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onImportSetlist, onPlay, activeLibrary, scheduleView, onToggleScheduleView, onMarkAllRead }) {
+export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onImportSetlist, onPlay, activeLibrary, scheduleView, onToggleScheduleView, onMarkAllRead, onClearAllNotifications }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const fabRef = useRef(null);
 
@@ -146,9 +152,15 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
       : { kind: 'action', label: 'New setlist', onClick: onNewSetlist, icon: <PlusIcon /> };
   } else if (activeView === 'setlist-view' && onPlay) {
     fab = { kind: 'action', label: 'Play live', onClick: onPlay, icon: <PlayIcon /> };
-  } else if (activeView === 'notifications' && onMarkAllRead) {
-    // On the notifications page the FAB marks everything read (clears the badge).
-    fab = { kind: 'action', label: 'Mark all read', onClick: onMarkAllRead, icon: <CheckAllIcon /> };
+  } else if (activeView === 'notifications' && (onMarkAllRead || onClearAllNotifications)) {
+    // On the notifications page the FAB opens a small menu: mark everything read
+    // (clears the badge) or clear the whole list — no more scrolling to the
+    // in-page "Clear all".
+    fab = (onMarkAllRead && onClearAllNotifications)
+      ? { kind: 'menu', menu: 'notifications', label: 'Notifications', icon: <CheckAllIcon /> }
+      : onMarkAllRead
+        ? { kind: 'action', label: 'Mark all read', onClick: onMarkAllRead, icon: <CheckAllIcon /> }
+        : { kind: 'action', label: 'Clear all', onClick: onClearAllNotifications, icon: <TrashMenuIcon /> };
   } else if (activeView === 'schedule' && onToggleScheduleView) {
     // Flip the schedule between list and calendar; the icon shows the view it
     // switches TO.
@@ -221,6 +233,17 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
               {fab.menu === 'setlist' && onImportSetlist && (
                 <button onClick={() => { setMenuOpen(false); onImportSetlist(); }} className="w-full flex items-center gap-3 px-4 py-3.5 bg-transparent border-none text-left text-copy-15 text-[var(--ds-gray-1000)] cursor-pointer active:bg-white/10">
                   <ImportMenuIcon /> Import Setlist
+                </button>
+              )}
+              {fab.menu === 'notifications' && onMarkAllRead && (
+                <button onClick={() => { setMenuOpen(false); onMarkAllRead(); }} className="w-full flex items-center gap-3 px-4 py-3.5 bg-transparent border-none text-left text-copy-15 text-[var(--ds-gray-1000)] cursor-pointer active:bg-white/10">
+                  <CheckMenuIcon /> Mark all read
+                </button>
+              )}
+              {fab.menu === 'notifications' && onMarkAllRead && onClearAllNotifications && <div className="h-px bg-white/10" />}
+              {fab.menu === 'notifications' && onClearAllNotifications && (
+                <button onClick={() => { setMenuOpen(false); onClearAllNotifications(); }} className="w-full flex items-center gap-3 px-4 py-3.5 bg-transparent border-none text-left text-copy-15 text-[var(--color-red-700,#e5484d)] cursor-pointer active:bg-white/10">
+                  <TrashMenuIcon /> Clear all
                 </button>
               )}
             </div>

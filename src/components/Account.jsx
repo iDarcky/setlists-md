@@ -180,9 +180,6 @@ export default function Account({
           )}
           <div className="flex-1 min-w-0 flex flex-col gap-1">
             <span className="text-copy-14 font-medium" style={{ color: 'var(--drawer-text)' }}>Your name</span>
-            <span className="text-copy-13" style={{ color: 'var(--drawer-text-muted)' }}>
-              Up to {NAME_MAX} characters. Used in the greeting{isSignedIn && user ? ', and your photo shows in the header and switcher' : ''}.
-            </span>
             <div className="flex items-center gap-2 mt-2">
               <input
                 type="text"
@@ -220,12 +217,7 @@ export default function Account({
             className="rounded-xl border p-4 flex flex-col gap-4"
             style={{ background: 'var(--drawer-surface)', borderColor: 'var(--drawer-border)' }}
           >
-            <div className="flex flex-col">
-              <span className="text-copy-14 font-medium" style={{ color: 'var(--drawer-text)' }}>Security</span>
-              <span className="text-copy-13" style={{ color: 'var(--drawer-text-muted)' }}>
-                Set a password to sign in without a magic link.
-              </span>
-            </div>
+            <span className="text-copy-14 font-medium" style={{ color: 'var(--drawer-text)' }}>Security</span>
             <div className="flex items-center gap-2">
               <input
                 type="password"
@@ -269,14 +261,9 @@ export default function Account({
             className="rounded-xl border p-4 flex flex-col gap-3"
             style={{ background: 'var(--drawer-surface)', borderColor: 'var(--drawer-border)' }}
           >
-            <div className="flex flex-col">
-              <span className="text-copy-14 font-medium" style={{ color: 'var(--drawer-text)' }}>
-                Your Instruments
-              </span>
-              <span className="text-copy-13" style={{ color: 'var(--drawer-text-muted)' }}>
-                What you play on {team.name}. Worship leaders use this to pick the right people for each setlist.
-              </span>
-            </div>
+            <span className="text-copy-14 font-medium" style={{ color: 'var(--drawer-text)' }}>
+              Your Instruments
+            </span>
             <div className="flex flex-wrap gap-2">
               {SUGGESTED_INSTRUMENTS.map(name => {
                 const active = myInstruments.includes(name);

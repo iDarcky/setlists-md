@@ -94,8 +94,6 @@ export default function MobileDrawer({
   isSignedIn = false,
   hmMenu = false,
   avatarUrl = null,
-  songCount = 0,
-  setlistCount = 0,
   onOpenAccount,
   onOpenSettings,
   onOpenPlan,
@@ -236,17 +234,6 @@ export default function MobileDrawer({
                   </span>
                 </button>
                 {plan === 'Free' && <div className="mt-3"><UpgradePill onUpgrade={onUpgrade} /></div>}
-                {/* Stat tiles */}
-                <div className="grid grid-cols-2 gap-2.5 mt-3">
-                  <div className="rounded-2xl bg-[var(--drawer-surface)] border border-[var(--drawer-border)] p-4">
-                    <div className="text-heading-24 font-bold text-[var(--drawer-text)] leading-none">{songCount}</div>
-                    <div className="text-label-12 text-[var(--drawer-text-muted)] mt-1">Song{songCount === 1 ? '' : 's'}</div>
-                  </div>
-                  <div className="rounded-2xl bg-[var(--drawer-surface)] border border-[var(--drawer-border)] p-4">
-                    <div className="text-heading-24 font-bold text-[var(--drawer-text)] leading-none">{setlistCount}</div>
-                    <div className="text-label-12 text-[var(--drawer-text-muted)] mt-1">Setlist{setlistCount === 1 ? '' : 's'}</div>
-                  </div>
-                </div>
               </>
             ) : (
               <>
