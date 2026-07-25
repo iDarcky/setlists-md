@@ -75,6 +75,7 @@ export default function MobileTopBar({
   // Dashboard). Driven by the *LibraryPlus Labs flags in App.
   searchScope = 'all',
   hmMenu = false,
+  accountPanel = false,
 }) {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
@@ -137,14 +138,18 @@ export default function MobileTopBar({
           Creating items is the job of the morphing FAB in the glass bottom bar. */}
       <div className="px-3 pt-3 pb-3 relative">
         <div className="flex items-stretch h-14 rounded-xl bg-[var(--ds-gray-100)] overflow-hidden">
-          <button
-            onClick={onOpenDrawer}
-            aria-label="Open menu"
-            className="shrink-0 w-12 flex items-center justify-center bg-transparent text-[var(--text-1)] cursor-pointer active:bg-[var(--ds-gray-200)] transition-colors border-none"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            <HamburgerIcon />
-          </button>
+          {/* accountPanel drops the hamburger entirely — the avatar on the right
+              becomes the single menu entry (iOS 26 style). */}
+          {!accountPanel && (
+            <button
+              onClick={onOpenDrawer}
+              aria-label="Open menu"
+              className="shrink-0 w-12 flex items-center justify-center bg-transparent text-[var(--text-1)] cursor-pointer active:bg-[var(--ds-gray-200)] transition-colors border-none"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <HamburgerIcon />
+            </button>
+          )}
           <div className="relative flex-1 min-w-0 flex items-center">
             <input
               ref={inputRef}
@@ -172,20 +177,22 @@ export default function MobileTopBar({
               )}
             </button>
           )}
-          {/* Workspace avatar — inside the field, on the right */}
+          {/* Workspace avatar — inside the field, on the right. With
+              accountPanel it opens the merged Account panel (Spaces live in
+              there now), so no chevron and no separate switcher sheet. */}
           <div className="shrink-0 flex items-center pr-2.5 pl-0.5">
             <span className="w-px h-7 bg-[var(--ds-gray-300)] mr-2" aria-hidden="true" />
             <button
               ref={avatarBtnRef}
-              onClick={() => setWsOpen(o => !o)}
-              aria-haspopup="menu"
-              aria-expanded={wsOpen}
-              aria-label="Switch Space"
+              onClick={() => (accountPanel ? onOpenDrawer?.() : setWsOpen(o => !o))}
+              aria-haspopup={accountPanel ? 'dialog' : 'menu'}
+              aria-expanded={accountPanel ? undefined : wsOpen}
+              aria-label={accountPanel ? 'Account and Spaces' : 'Switch Space'}
               className="flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0 active:opacity-80"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <WorkspaceBadge workspace={activeWorkspace} size={32} />
-              <ChevronIcon open={wsOpen} />
+              {!accountPanel && <ChevronIcon open={wsOpen} />}
             </button>
           </div>
         </div>
@@ -193,7 +200,7 @@ export default function MobileTopBar({
         {/* Switcher menu — sibling of the card so the card's overflow-hidden
             doesn't clip it. hmMenu: full-width sheet that scrolls after 3
             spaces, with New Space pinned below the scroll region. */}
-        {wsOpen && (
+        {wsOpen && !accountPanel && (
           <div ref={menuRef} role="menu" className={`absolute top-full mt-1 rounded-2xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-xl z-50 overflow-hidden flex flex-col ${hmMenu ? 'left-3 right-3' : 'right-3 w-[260px] max-w-[80vw] py-1'}`}>
             <div className={hmMenu ? 'overflow-y-auto max-h-[210px] py-1' : ''}>
             {workspaces.map(w => {

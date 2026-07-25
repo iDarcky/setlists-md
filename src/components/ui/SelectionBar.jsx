@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '../../lib/utils';
 import { GLASS } from '../../lib/glass';
 
@@ -25,12 +26,36 @@ const MoreIcon = () => (
  */
 export function SelectionBar({ count, onClear, barRef, liftAboveNav = false, more = [], children }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState(null);
   const moreRef = useRef(null);
+  const menuRef = useRef(null);
   const items = (more || []).filter(Boolean);
+
+  // The menu is portaled to <body>. It has to be: the bar clips to its own
+  // rounded shape (`overflow-hidden`, so actions can't spill past the radius),
+  // and the menu opens *upwards* — inside the bar it was clipped away entirely
+  // and the ••• button looked dead.
+  useLayoutEffect(() => {
+    if (!moreOpen || !moreRef.current) return;
+    const update = () => {
+      const r = moreRef.current?.getBoundingClientRect();
+      if (r) setMenuPos({ bottom: window.innerHeight - r.top + 8, right: window.innerWidth - r.right });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => { window.removeEventListener('resize', update); window.removeEventListener('scroll', update, true); };
+  }, [moreOpen]);
 
   useEffect(() => {
     if (!moreOpen) return;
-    const onDown = (e) => { if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false); };
+    const onDown = (e) => {
+      // Portaled menu isn't a DOM child of the button, so check both roots —
+      // otherwise mousedown closes the menu and unmounts the item before its
+      // click can fire.
+      if (moreRef.current?.contains(e.target) || menuRef.current?.contains(e.target)) return;
+      setMoreOpen(false);
+    };
     const onKey = (e) => { if (e.key === 'Escape') setMoreOpen(false); };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
@@ -63,10 +88,11 @@ export function SelectionBar({ count, onClear, barRef, liftAboveNav = false, mor
             >
               <MoreIcon />
             </button>
-            {moreOpen && (
+            {moreOpen && menuPos && createPortal(
               <div
-                className="absolute bottom-full right-0 mb-2 w-[210px] rounded-2xl border border-white/10 overflow-hidden py-1"
-                style={GLASS}
+                ref={menuRef}
+                className="fixed z-[170] w-[210px] rounded-2xl border border-white/10 overflow-hidden py-1"
+                style={{ ...GLASS, bottom: menuPos.bottom, right: menuPos.right }}
                 role="menu"
               >
                 {items.map(it => (
@@ -82,7 +108,8 @@ export function SelectionBar({ count, onClear, barRef, liftAboveNav = false, mor
                     {it.label}
                   </button>
                 ))}
-              </div>
+              </div>,
+              document.body,
             )}
           </div>
         )}

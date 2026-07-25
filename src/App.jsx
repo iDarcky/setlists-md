@@ -156,6 +156,7 @@ const PORTABLE_PREF_KEYS = [
   'songsLibraryPlus',
   'setlistsLibraryPlus',
   'hmMenu',
+  'accountPanel',
 ];
 
 function extractPortablePrefs(s) {
@@ -1301,6 +1302,12 @@ export default function App() {
     goToMainView('home');
   };
 
+  // Workspace list shared by the mobile top bar and the account panel.
+  const workspaces = [
+    { id: 'personal', name: 'Personal Space', avatarUrl: profile?.avatar_url || null },
+    ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null, status: t.subscription_status })),
+  ];
+
   const goLibrary = () => goToMainView('library');
   const goSetlists = () => goToMainView('setlists');
 
@@ -2403,10 +2410,7 @@ export default function App() {
               onSelectSong={goChart}
               onSelectSetlist={goSetlistView}
               activeLibrary={activeLibrary}
-              workspaces={[
-                { id: 'personal', name: 'Personal Space', avatarUrl: profile?.avatar_url || null },
-                ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null, status: t.subscription_status })),
-              ]}
+              workspaces={workspaces}
               setActiveLibrary={switchWorkspace}
               onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
               newWorkspaceLocked={newWorkspaceLocked}
@@ -2417,6 +2421,7 @@ export default function App() {
                 : 'all'
               }
               hmMenu={!!settings?.hmMenu}
+              accountPanel={!!settings?.accountPanel}
             />
           )}
           {view === 'home' && (
@@ -2916,6 +2921,10 @@ export default function App() {
           isSignedIn={isSignedIn}
           hasUnreadNotifications={hasUnreadNotifications}
           hmMenu={!!settings?.hmMenu}
+          accountPanel={!!settings?.accountPanel}
+          workspaces={workspaces}
+          setActiveLibrary={switchWorkspace}
+          onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
           avatarUrl={profile?.avatar_url || null}
           onOpenAccount={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'account' }); }}
           onOpenSettings={() => { setDrawerOpen(false); goToMainView('settings'); }}

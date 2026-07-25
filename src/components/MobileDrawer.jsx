@@ -8,6 +8,7 @@ import {
   CreateAccountButton,
 } from './account/AccountPanel';
 import BrandWordmark from './ui/BrandWordmark';
+import { workspaceStatusLabel } from '../billing/checkout';
 
 const CloseIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -23,11 +24,16 @@ const ChevronRight = () => (
 );
 
 // Account avatar — profile image or initials on the brand gradient.
-function DrawerAvatar({ url, name }) {
+function DrawerAvatar({ url, name, size = 44 }) {
   const initial = (name || 'G').trim().charAt(0).toUpperCase();
   return (
-    <span className="w-11 h-11 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white bg-gradient-to-br from-[var(--color-brand)] to-[var(--color-brand-vetiver)]">
-      {url ? <img src={url} alt="" className="w-full h-full object-cover" /> : <span className="text-copy-16 font-bold">{initial}</span>}
+    <span
+      className="rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white bg-gradient-to-br from-[var(--color-brand)] to-[var(--color-brand-vetiver)]"
+      style={{ width: size, height: size }}
+    >
+      {url
+        ? <img src={url} alt="" className="w-full h-full object-cover" />
+        : <span className="font-bold" style={{ fontSize: Math.round(size * 0.4) }}>{initial}</span>}
     </span>
   );
 }
@@ -70,6 +76,84 @@ const TeamDrawerIcon = () => (
   </svg>
 );
 
+// ── accountPanel (Labs) ───────────────────────────────────────────────────
+// Apple's Account sheet vocabulary: a plain title + round close, an identity
+// row that pushes into a detail screen, and grouped inset lists (related rows
+// share one rounded container, separators inset past the leading element).
+// Spaces are Spotify's horizontal rail so the panel's height doesn't grow with
+// the number of Spaces.
+
+function Group({ children, className = '' }) {
+  return (
+    <div className={`rounded-2xl bg-[var(--drawer-surface)] border border-[var(--drawer-border)] overflow-hidden ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+function GroupLabel({ children }) {
+  return (
+    <div className="text-label-11 uppercase tracking-[0.13em] text-[var(--drawer-text-dim)] mb-2 ml-1.5">
+      {children}
+    </div>
+  );
+}
+
+// A row inside a Group. `inset` pulls the hairline past a 29px leading badge.
+function GroupRow({ children, onClick, first = false, inset = false }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-3.5 py-3 bg-transparent cursor-pointer text-left active:bg-[var(--drawer-surface-hover)] transition-colors border-none ${
+        first ? '' : `border-t border-[var(--drawer-border)] ${inset ? 'ml-[52px] pl-0 w-[calc(100%-52px)]' : ''}`
+      }`}
+      style={{ WebkitTapHighlightColor: 'transparent' }}
+    >
+      {children}
+    </button>
+  );
+}
+
+const PanelChevron = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--drawer-text-dim)] shrink-0">
+    <path d="m9 6 6 6-6 6" />
+  </svg>
+);
+
+// Space tile in the rail. `warn` shows a red pip (billing trouble) — the full
+// "Past due" wording can't fit under a 50px tile, so it lives in Settings.
+function SpaceTile({ workspace, active, warn, onClick }) {
+  const initial = (workspace?.name || 'S').trim().charAt(0).toUpperCase();
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      aria-label={workspace?.name}
+      className="w-[62px] shrink-0 flex flex-col items-center gap-1.5 bg-transparent border-none p-0 cursor-pointer"
+      style={{ WebkitTapHighlightColor: 'transparent' }}
+    >
+      <span
+        className="relative w-[50px] h-[50px] min-h-0 rounded-[15px] overflow-hidden flex items-center justify-center text-white transition-all duration-200"
+        style={{
+          background: workspace?.avatarUrl ? undefined : 'linear-gradient(135deg, var(--color-brand), var(--color-brand-vetiver))',
+          boxShadow: active ? '0 0 0 2.5px var(--color-brand), 0 6px 16px rgba(0,0,0,0.4)' : undefined,
+          transform: active ? 'scale(1.04)' : 'scale(1)',
+        }}
+      >
+        {workspace?.avatarUrl
+          ? <img src={workspace.avatarUrl} alt="" className="w-full h-full object-cover" />
+          : <span className="text-copy-16 font-bold">{initial}</span>}
+        {warn && <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[var(--ds-red-700,#e5484d)] border-2 border-[var(--drawer-bg,#0b0910)]" />}
+      </span>
+      {/* "Personal Space" → "Personal": the word Space is redundant under a
+          rail already labelled SPACES, and it truncates to "Persona…". */}
+      <span className={`text-label-11 max-w-full truncate ${active ? 'text-[var(--drawer-text)] font-semibold' : 'text-[var(--drawer-text-dim)]'}`}>
+        {(workspace?.name || '').replace(/\s+Space$/i, '')}
+      </span>
+    </button>
+  );
+}
+
 function Row({ icon: Icon, label, onClick, accessory }) {
   return (
     <button
@@ -93,7 +177,11 @@ export default function MobileDrawer({
   plan = 'Free',
   isSignedIn = false,
   hmMenu = false,
+  accountPanel = false,
   avatarUrl = null,
+  workspaces = [],
+  setActiveLibrary,
+  onNewWorkspace,
   onOpenAccount,
   onOpenSettings,
   onOpenPlan,
@@ -138,27 +226,28 @@ export default function MobileDrawer({
     setDragX(0);
     setDragging(true);
   };
+  // accountPanel opens from the avatar in the top-RIGHT, so the panel slides in
+  // from that side and swipes right to dismiss. The classic drawer is left-side.
+  const fromRight = accountPanel;
+
   const onTouchMove = (e) => {
     if (!dragging) return;
     const dx = e.touches[0].clientX - startXRef.current;
-    // Only allow dragging left (closing)
-    if (dx < 0) setDragX(dx);
+    // Only allow dragging toward the edge the panel came from (closing).
+    if (fromRight ? dx > 0 : dx < 0) setDragX(dx);
   };
   const onTouchEnd = () => {
     if (!dragging) return;
     setDragging(false);
     const width = panelRef.current?.offsetWidth || 320;
-    if (dragX < -width * 0.35) {
-      onClose?.();
-    } else {
-      setDragX(0);
-    }
+    const past = fromRight ? dragX > width * 0.35 : dragX < -width * 0.35;
+    if (past) onClose?.(); else setDragX(0);
   };
 
   // Drawer visual shifts with dragX while being dragged
   const translateX = open
     ? (dragging ? `${dragX}px` : '0px')
-    : '-100%';
+    : (fromRight ? '100%' : '-100%');
 
   const displayName = userName?.trim() || 'Guest';
   const displayEmail = email || 'guest@setlists.md';
@@ -184,7 +273,7 @@ export default function MobileDrawer({
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        className="drawer-panel fixed top-0 left-0 bottom-0 z-[210] sm:hidden w-[85vw] max-w-[360px] flex flex-col overflow-y-auto overscroll-contain"
+        className={`drawer-panel fixed top-0 bottom-0 z-[210] sm:hidden w-[85vw] max-w-[360px] flex flex-col overflow-y-auto overscroll-contain ${fromRight ? 'right-0' : 'left-0'}`}
         style={{
           transform: `translateX(${translateX})`,
           transition: dragging ? 'none' : 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1)',
@@ -192,10 +281,120 @@ export default function MobileDrawer({
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)',
         }}
       >
+        {/* ── accountPanel (Labs): the merged Account + Spaces panel ── */}
+        {accountPanel && (
+          <div className="px-4 flex flex-col">
+            {/* Sheet header — title left, round close right (Apple). */}
+            <div className="flex items-center justify-between mb-3.5 px-1">
+              <h2 className="text-heading-16 font-semibold text-[var(--drawer-text)] m-0">Account</h2>
+              <button
+                onClick={onClose}
+                aria-label="Close"
+                className="w-8 h-8 min-h-0 rounded-full flex items-center justify-center bg-[var(--drawer-surface-hover)] text-[var(--drawer-text-muted)] cursor-pointer border-none active:scale-95 transition-transform"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            {/* Identity — pushes into Settings → Account. Guests get CTAs. */}
+            {isSignedIn ? (
+              <Group className="mb-3.5">
+                <GroupRow first onClick={onOpenAccount}>
+                  <DrawerAvatar url={avatarUrl} name={displayName} size={40} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-copy-15 font-semibold text-[var(--drawer-text)] truncate">{displayName}</span>
+                    <span className="block text-label-12 text-[var(--drawer-text-muted)] truncate">Profile, plan, and settings</span>
+                  </span>
+                  <PanelChevron />
+                </GroupRow>
+              </Group>
+            ) : (
+              <div className="mb-3.5 flex flex-col gap-2">
+                <SignInButton onSignIn={onSignIn} />
+                <CreateAccountButton onCreateAccount={onCreateAccount} />
+              </div>
+            )}
+
+            {/* Spaces — a rail, so the panel height doesn't grow with count. */}
+            {workspaces.length > 0 && (
+              <>
+                <GroupLabel>Spaces</GroupLabel>
+                <Group className="mb-3.5">
+                  <div className="flex gap-2.5 px-3 py-3 overflow-x-auto no-scrollbar">
+                    {workspaces.map(w => (
+                      <SpaceTile
+                        key={w.id}
+                        workspace={w}
+                        active={w.id === activeLibrary}
+                        warn={!!workspaceStatusLabel(w.status)}
+                        onClick={() => { onClose?.(); setActiveLibrary?.(w.id); }}
+                      />
+                    ))}
+                    {onNewWorkspace && (
+                      <button
+                        onClick={() => { onClose?.(); onNewWorkspace(); }}
+                        aria-label="New Space"
+                        className="w-[62px] shrink-0 flex flex-col items-center gap-1.5 bg-transparent border-none p-0 cursor-pointer"
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
+                      >
+                        <span className="w-[50px] h-[50px] min-h-0 rounded-[15px] flex items-center justify-center border border-dashed border-[var(--drawer-border)] text-[var(--drawer-text-dim)]">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                        </span>
+                        <span className="text-label-11 text-[var(--drawer-text-dim)]">New</span>
+                      </button>
+                    )}
+                  </div>
+                </Group>
+              </>
+            )}
+
+            {/* App */}
+            <Group className="mb-3.5">
+              {isSignedIn && activeLibrary && activeLibrary !== 'personal' && onOpenTeam && (
+                <GroupRow first onClick={onOpenTeam}>
+                  <span className="flex-1 text-copy-15 font-medium text-[var(--drawer-text)]">Your Team</span>
+                  <PanelChevron />
+                </GroupRow>
+              )}
+              <GroupRow first={!(isSignedIn && activeLibrary && activeLibrary !== 'personal' && onOpenTeam)} onClick={onOpenSettings}>
+                <span className="flex-1 text-copy-15 font-medium text-[var(--drawer-text)]">Settings</span>
+                <PanelChevron />
+              </GroupRow>
+              {!isStandalone && (canInstall || isIOS) && onInstall && (
+                <GroupRow onClick={onInstall}>
+                  <span className="flex-1 text-copy-15 font-medium text-[var(--drawer-text)]">{isIOS ? 'Add to Home Screen' : 'Install app'}</span>
+                  <PanelChevron />
+                </GroupRow>
+              )}
+              {onOpenWhatsNew && (
+                <GroupRow onClick={onOpenWhatsNew}>
+                  <span className="flex-1 text-copy-15 font-medium text-[var(--drawer-text)]">What's new</span>
+                  {hasNewChangelog && <span className="w-2 h-2 rounded-full bg-[var(--color-brand)] shrink-0" />}
+                </GroupRow>
+              )}
+              <GroupRow onClick={onOpenHelp}>
+                <span className="flex-1 text-copy-15 font-medium text-[var(--drawer-text)]">Get help or send feedback</span>
+                <PanelChevron />
+              </GroupRow>
+            </Group>
+
+            {plan === 'Free' && onUpgrade && <div className="mb-3.5"><UpgradePill onUpgrade={onUpgrade} /></div>}
+
+            {isSignedIn && (
+              <Group>
+                <GroupRow first onClick={onSignOut}>
+                  <span className="flex-1 text-copy-15 font-medium text-[var(--drawer-text-muted)]">Sign out</span>
+                </GroupRow>
+              </Group>
+            )}
+          </div>
+        )}
+
         {/* Top bar — close only. Notifications live in the search-bar bell now,
             so the drawer no longer duplicates them. hmMenu drops the close
             button entirely (swipe or tap-outside to dismiss). */}
-        {!hmMenu && (
+        {!hmMenu && !accountPanel && (
           <div className="px-5 flex items-center justify-end gap-2">
             <button
               onClick={onClose}
@@ -209,7 +408,7 @@ export default function MobileDrawer({
         )}
 
         {/* ── hmMenu: identity up top, app utilities pinned to the bottom ── */}
-        {hmMenu && (
+        {hmMenu && !accountPanel && (
           <div className="flex-1 flex flex-col px-5 pt-4">
             {/* Account card — tappable → Account (edit profile). Guests get the
                 greeting + sign-in CTAs instead. Plan shows as a chip here so we
@@ -291,7 +490,7 @@ export default function MobileDrawer({
         )}
 
         {/* ── Classic drawer ── */}
-        {!hmMenu && (<>
+        {!hmMenu && !accountPanel && (<>
         {/* Greeting */}
         <div className="px-5 pt-4 pb-6">
           <StageGreeting key={openKey} displayName={displayName} tone="drawer" />
@@ -383,6 +582,9 @@ export default function MobileDrawer({
             accent="var(--color-brand-mist)"
             className="mx-auto text-[var(--drawer-text)] opacity-90"
           />
+          {accountPanel && (
+            <div className="mt-1.5 text-label-11 text-[var(--drawer-text-dim)]">v{__APP_VERSION__}</div>
+          )}
         </div>
       </aside>
     </>
