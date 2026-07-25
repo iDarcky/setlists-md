@@ -11,6 +11,8 @@ import LibraryFilters from './library/LibraryFilters';
 import { orderedVisibleColumns } from '../lib/tableColumns';
 import ColumnsMenu from './ui/ColumnsMenu';
 import CardFieldsMenu from './ui/CardFieldsMenu';
+import { SelectionBar } from './ui/SelectionBar';
+import { selectionActionClass, selectionDangerClass } from '../lib/glass';
 import { resolveCardFields } from '../lib/cardFields';
 import { useIsDesktop, useIsTablet } from '../lib/useMediaQuery';
 import { usePersistentView, usePersistentJSON } from '../lib/usePersistentView';
@@ -890,17 +892,15 @@ export default function Library({
       {/* Bulk action bar — desktop + tablet, plus phones when songsLibraryPlus
           multi-select is active (the card gallery lets you select on mobile). */}
       {!readOnly && selected.length > 0 && (advanced || plus) && (
-        <div
-          ref={bulkBarRef}
-          className="fixed left-1/2 -translate-x-1/2 bottom-6 z-[160] flex items-center gap-2 pl-4 pr-2 py-2 rounded-full bg-[var(--ds-background-200)] border border-[var(--ds-gray-300)] shadow-2xl max-w-[calc(100vw-1rem)] flex-wrap justify-center"
-          style={(!advanced || isTablet) ? { bottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' } : undefined}
+        <SelectionBar
+          barRef={bulkBarRef}
+          count={selected.length}
+          onClear={clearSelection}
+          liftAboveNav={!advanced || isTablet}
         >
-          <span className="text-label-14 font-semibold text-[var(--ds-gray-1000)] whitespace-nowrap">{selected.length} selected</span>
-          <span className="w-px h-5 bg-[var(--ds-gray-300)]" />
-
           {onAddSongsToSetlist && (
-            <div className="relative">
-              <button onClick={() => setBulkMenu(bulkMenu === 'setlist' ? null : 'setlist')} className="h-8 px-3 rounded-full text-label-14 font-medium cursor-pointer border-none bg-transparent text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-200)] transition-colors">Add to Setlist…</button>
+            <div className="relative shrink-0">
+              <button onClick={() => setBulkMenu(bulkMenu === 'setlist' ? null : 'setlist')} className={selectionActionClass}>Add to Setlist…</button>
               {bulkMenu === 'setlist' && (
                 <div className="absolute bottom-full mb-2 left-0 w-[240px] max-h-[280px] overflow-y-auto rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg py-1">
                   {setlists.length === 0 ? (
@@ -914,8 +914,8 @@ export default function Library({
           )}
 
           {plus && onTagSongs && (
-            <div className="relative">
-              <button onClick={() => setBulkMenu(bulkMenu === 'tags' ? null : 'tags')} className="h-8 px-3 rounded-full text-label-14 font-medium cursor-pointer border-none bg-transparent text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-200)] transition-colors">Tags…</button>
+            <div className="relative shrink-0">
+              <button onClick={() => setBulkMenu(bulkMenu === 'tags' ? null : 'tags')} className={selectionActionClass}>Tags…</button>
               {bulkMenu === 'tags' && (
                 <div className="absolute bottom-full mb-2 left-0 w-[260px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg p-3 flex flex-col gap-2">
                   <form
@@ -948,21 +948,17 @@ export default function Library({
           )}
 
           {canMoveCopy && onCopySongs && (
-            <button onClick={() => setBulkPicker('copy')} className="h-8 px-3 rounded-full text-label-14 font-medium cursor-pointer border-none bg-transparent text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-200)] transition-colors">Copy to…</button>
+            <button onClick={() => setBulkPicker('copy')} className={selectionActionClass}>Copy to…</button>
           )}
 
           {canMoveCopy && onMoveSongs && (
-            <button onClick={() => setBulkPicker('move')} className="h-8 px-3 rounded-full text-label-14 font-medium cursor-pointer border-none bg-transparent text-[var(--ds-gray-900)] hover:bg-[var(--ds-gray-200)] transition-colors">Move to…</button>
+            <button onClick={() => setBulkPicker('move')} className={selectionActionClass}>Move to…</button>
           )}
 
           {onDeleteSongs && (
-            <button onClick={() => runBulk(onDeleteSongs)} className="h-8 px-3 rounded-full text-label-14 font-medium cursor-pointer border-none bg-transparent text-[var(--ds-red-700)] hover:bg-[var(--ds-red-100)] transition-colors">Delete</button>
+            <button onClick={() => runBulk(onDeleteSongs)} className={selectionDangerClass}>Delete</button>
           )}
-
-          <button onClick={clearSelection} aria-label="Clear selection" className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer border-none bg-transparent text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] transition-colors">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-          </button>
-        </div>
+        </SelectionBar>
       )}
 
       {/* Right-side overlay peek — desktop + tablet portrait (landscape docks) */}

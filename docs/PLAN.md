@@ -7,7 +7,8 @@
 >
 > _Last updated: 2026-06-28 · Current version: `0.14.0-beta.3` (on `beta`)._
 >
-> **Priority:** `P0` drop-everything · `P1` high · `P2` medium · `P3` nice-to-have.
+> **Priority:** `P-1` above everything (currently: the New Song flow) · `P0`
+> drop-everything · `P1` high · `P2` medium · `P3` nice-to-have.
 > `Q:` = open decision needed.
 
 ---
@@ -231,9 +232,12 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Field char limits (Themes/Genres/Verses/Moment/Tags) — P3 · _Q: cap which, or leave free?_
 
 ### Song editor
-- 🔴🔴 **New Song flow — full rethink** — the create-a-song entry flow needs to be
-  redesigned from scratch (how you start, what's asked for, the first surface you
-  land on). **P0 — blocker.** _Q: guided steps vs. blank editor vs. import-first?_
+- 🔴🔴🔴 **New Song flow — full rethink. `P-1` — ABOVE EVERYTHING.** The current
+  create-a-song flow is the worst surface in the app ("right now it sucks"). It
+  needs redesigning from scratch: how you start, what's asked for and when, and
+  what you land on. This outranks every other item in this document — nothing on
+  the polish backlog ships before it. _Q: guided steps vs. blank editor vs.
+  import-first?_
 - ✅ **Preview ignores key/transpose** — relabel-only Key + explicit Transpose; preview honours it (shipped).
 - ✅ **New-song guardrails** — Title + Key start empty + mandatory; soft-remind bpm/time (shipped).
 - ✅ **Double "structure" concept** — one official control shared by Arrange + Advanced (shipped).
@@ -277,6 +281,13 @@ Open, actionable items. Cross-cutting concerns at the end.
   light/dark + the chip "codes" style). (Requested 2026-06.) — P2.
 
 ### Song library
+- 🟡 **Unify Cards / Compact into one reworked list view** — three view modes
+  (Cards / Compact / Table) is one too many: Cards and Compact are the same row
+  with different padding, so the switcher asks the user to make a choice that
+  doesn't earn itself. Collapse them into a single well-designed list view
+  (density becomes a property of the view, not a separate mode) and rethink what
+  that row actually shows. Applies to **both** Songs and Setlists, and folds into
+  the per-view `cardFields` work — P1.
 - **Doubled mobile search** — the top-bar global cross-search also shows on Songs/Setlists where it duplicates each page; scope it to the page there, keep global on Dashboard (+ the desktop ⌘K) — P2.
 - **Setlist search by contained song** — searching in the Setlists tab should also return setlists that *contain* the matched song (match song titles inside each setlist's items), not just setlist name/metadata — P2.
 - Drag-to-**reorder** table columns (show/hide shipped in 0.14.0) — P3.
