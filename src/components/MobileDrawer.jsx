@@ -23,16 +23,11 @@ const ChevronRight = () => (
 );
 
 // Account avatar — profile image or initials on the brand gradient.
-function DrawerAvatar({ url, name, size = 44 }) {
+function DrawerAvatar({ url, name }) {
   const initial = (name || 'G').trim().charAt(0).toUpperCase();
   return (
-    <span
-      className="rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white bg-gradient-to-br from-[var(--color-brand)] to-[var(--color-brand-vetiver)]"
-      style={{ width: size, height: size }}
-    >
-      {url
-        ? <img src={url} alt="" className="w-full h-full object-cover" />
-        : <span className="font-bold" style={{ fontSize: Math.round(size * 0.42) }}>{initial}</span>}
+    <span className="w-11 h-11 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white bg-gradient-to-br from-[var(--color-brand)] to-[var(--color-brand-vetiver)]">
+      {url ? <img src={url} alt="" className="w-full h-full object-cover" /> : <span className="text-copy-16 font-bold">{initial}</span>}
     </span>
   );
 }
@@ -75,93 +70,6 @@ const TeamDrawerIcon = () => (
   </svg>
 );
 
-const PlayCircleIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="9.5" />
-    <path d="M10 8.5v7l5.5-3.5z" fill="currentColor" stroke="none" />
-  </svg>
-);
-
-const SignOutIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 17l5-5-5-5" /><path d="M19 12H9" />
-    <path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3" />
-  </svg>
-);
-
-// hmMenu row: label on the left, icon on the right (the drawer's house style —
-// icons trail the label rather than leading it, so the labels form one column).
-function HmRow({ label, onClick, icon: Icon, dot = false, tone = 'default' }) {
-  return (
-    <button
-      onClick={onClick}
-      className="relative w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-[var(--drawer-surface)] hover:bg-[var(--drawer-surface-hover)] border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all duration-150 text-left"
-      style={{ WebkitTapHighlightColor: 'transparent' }}
-    >
-      <span
-        className="flex-1 text-copy-15 font-medium"
-        style={{ color: tone === 'muted' ? 'var(--drawer-text-muted)' : 'var(--drawer-text)' }}
-      >
-        {label}
-      </span>
-      {dot && <span className="w-2 h-2 rounded-full bg-[var(--color-brand)] shrink-0" />}
-      {Icon && <span className="text-[var(--drawer-text-dim)] shrink-0"><Icon /></span>}
-    </button>
-  );
-}
-
-// Theme picker — four tiles previewing the actual page background. Sits in the
-// drawer's open middle as its one moment of personality.
-const THEME_TILES = [
-  { id: 'default', label: 'System', bg: 'linear-gradient(135deg, #F6F4EF 0% 50%, #0a0807 50% 100%)' },
-  { id: 'light', label: 'Light', bg: '#F6F4EF' },
-  { id: 'dark', label: 'Dark', bg: '#0a0807' },
-  { id: 'midnight', label: 'Midnight', bg: '#14161e' },
-];
-
-function ThemeSwatches({ value = 'default', onChange }) {
-  const active = value || 'default';
-  return (
-    <div>
-      <div className="text-label-11 uppercase tracking-[0.15em] mb-2.5 text-[var(--drawer-text-dim)]">
-        Theme
-      </div>
-      <div className="flex items-start gap-3">
-        {THEME_TILES.map(t => {
-          const on = t.id === active;
-          return (
-            <button
-              key={t.id}
-              onClick={() => onChange?.(t.id)}
-              aria-label={`${t.label} theme`}
-              aria-pressed={on}
-              className="flex-1 flex flex-col items-center gap-1.5 bg-transparent border-none p-0 cursor-pointer"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <span
-                className="w-full rounded-xl transition-all duration-200"
-                style={{
-                  aspectRatio: '1 / 1',
-                  background: t.bg,
-                  border: on ? '2px solid var(--color-brand)' : '1px solid var(--drawer-border)',
-                  transform: on ? 'scale(1.06)' : 'scale(1)',
-                  boxShadow: on ? '0 6px 18px rgba(0,0,0,0.35)' : 'none',
-                }}
-              />
-              <span
-                className="text-label-11"
-                style={{ color: on ? 'var(--drawer-text)' : 'var(--drawer-text-dim)' }}
-              >
-                {t.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function Row({ icon: Icon, label, onClick, accessory }) {
   return (
     <button
@@ -186,8 +94,6 @@ export default function MobileDrawer({
   isSignedIn = false,
   hmMenu = false,
   avatarUrl = null,
-  theme = 'default',
-  onThemeChange,
   onOpenAccount,
   onOpenSettings,
   onOpenPlan,
@@ -302,76 +208,83 @@ export default function MobileDrawer({
           </div>
         )}
 
-        {/* ── hmMenu: editorial hero (greeting → identity → CTAs), one moment
-            of personality in the middle, utilities pinned to the bottom. ── */}
+        {/* ── hmMenu: identity up top, app utilities pinned to the bottom ── */}
         {hmMenu && (
           <div className="flex-1 flex flex-col px-5 pt-4">
-            {/* Hero — the serif greeting is the drawer's signature; everyone
-                gets it, signed in or not. */}
-            <StageGreeting key={openKey} displayName={displayName} tone="drawer" />
-
-            {/* Identity — label/value pairs rather than a card, so Account and
-                Plan read as one quiet column under the greeting. */}
-            <div className="mt-7 flex flex-col gap-5">
-              {isSignedIn && (
+            {/* Account card — tappable → Account (edit profile). Guests get the
+                greeting + sign-in CTAs instead. Plan shows as a chip here so we
+                don't duplicate the Plan tab that already lives in Settings. */}
+            {isSignedIn ? (
+              <>
                 <button
                   onClick={onOpenAccount}
-                  className="w-full bg-transparent border-none p-0 cursor-pointer text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[var(--drawer-surface)] hover:bg-[var(--drawer-surface-hover)] border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all text-left"
                   style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
-                  <div className="text-label-11 uppercase tracking-[0.15em] text-[var(--drawer-text-dim)]">
-                    Your Account
-                  </div>
-                  <div className="mt-1.5 flex items-center gap-2.5">
-                    <DrawerAvatar url={avatarUrl} name={displayName} size={28} />
-                    <span className="flex-1 min-w-0 text-copy-16 truncate text-[var(--drawer-text)]">
-                      {displayEmail}
-                    </span>
-                    <span className="text-[var(--drawer-text-dim)] shrink-0"><ChevronRight /></span>
-                  </div>
+                  <DrawerAvatar url={avatarUrl} name={displayName} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-copy-16 font-semibold text-[var(--drawer-text)] truncate">{displayName}</span>
+                    <span className="block text-label-13 text-[var(--drawer-text-muted)] truncate">{displayEmail}</span>
+                  </span>
+                  <span
+                    onClick={(e) => { if (onOpenPlan) { e.stopPropagation(); onOpenPlan(); } }}
+                    className="shrink-0 text-label-11 font-semibold uppercase tracking-wide px-2 py-1 rounded-md bg-[var(--drawer-surface-hover)] text-[var(--drawer-text-muted)]"
+                  >
+                    {plan}
+                  </span>
                 </button>
-              )}
-              <PlanLabel plan={plan} tone="drawer" onClick={isSignedIn ? onOpenPlan : undefined} />
-            </div>
-
-            {/* CTAs — how to get started, then the upgrade path (or sign-in). */}
-            <div className="mt-6 flex flex-col gap-2.5">
-              {onOpenHelp && (
-                <HmRow label="How to get started" onClick={onOpenHelp} icon={PlayCircleIcon} />
-              )}
-              {isSignedIn ? (
-                plan === 'Free' && <UpgradePill onUpgrade={onUpgrade} />
-              ) : (
-                <>
+                {plan === 'Free' && <div className="mt-3"><UpgradePill onUpgrade={onUpgrade} /></div>}
+              </>
+            ) : (
+              <>
+                <StageGreeting key={openKey} displayName={displayName} tone="drawer" />
+                <div className="mt-5 flex flex-col gap-2">
                   <SignInButton onSignIn={onSignIn} />
                   <CreateAccountButton onCreateAccount={onCreateAccount} />
-                  {plan === 'Free' && onUpgrade && <UpgradePill onUpgrade={onUpgrade} />}
-                </>
-              )}
-            </div>
-
-            {/* Personality — theme tiles fill the drawer's open middle. */}
-            {onThemeChange && (
-              <div className="mt-auto pt-10">
-                <ThemeSwatches value={theme} onChange={onThemeChange} />
-              </div>
+                  {plan === 'Free' && onUpgrade && <div className="mt-1"><UpgradePill onUpgrade={onUpgrade} /></div>}
+                </div>
+              </>
             )}
 
-            {/* App utilities — pinned to the bottom, labels left / icons right. */}
-            <div className={`${onThemeChange ? 'pt-8' : 'mt-auto pt-10'} flex flex-col gap-2`}>
-              <HmRow label="Settings" onClick={onOpenSettings} icon={SettingsIcon} />
+            {/* App utilities — pinned to the bottom. */}
+            <div className="mt-auto pt-8 flex flex-col gap-2">
+              <Row icon={SettingsIcon} label="Settings" onClick={onOpenSettings} />
               {isSignedIn && activeLibrary && activeLibrary !== 'personal' && onOpenTeam && (
-                <HmRow label="Your Team" onClick={onOpenTeam} icon={TeamDrawerIcon} />
+                <Row icon={TeamDrawerIcon} label="Your Team" onClick={onOpenTeam} />
               )}
               {!isStandalone && (canInstall || isIOS) && onInstall && (
-                <HmRow label={isIOS ? 'Add to Home Screen' : 'Install app'} onClick={onInstall} icon={InstallIcon} />
+                <Row icon={InstallIcon} label={isIOS ? 'Add to Home Screen' : 'Install app'} onClick={onInstall} />
               )}
-              {onOpenWhatsNew && (
-                <HmRow label="What's new" onClick={onOpenWhatsNew} icon={SparkleIcon} dot={hasNewChangelog} />
-              )}
-              <HmRow label="Get help or send feedback" onClick={onOpenHelp} icon={HelpIcon} />
+              {/* What's new + Help — a compact pair, not full rows. */}
+              <div className="flex items-stretch gap-2">
+                {onOpenWhatsNew && (
+                  <button
+                    onClick={onOpenWhatsNew}
+                    className="relative flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[var(--drawer-surface)] hover:bg-[var(--drawer-surface-hover)] border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all text-label-14 text-[var(--drawer-text)]"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <span className="text-[var(--drawer-text-muted)]"><SparkleIcon /></span>
+                    What's new
+                    {hasNewChangelog && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[var(--color-brand)]" />}
+                  </button>
+                )}
+                <button
+                  onClick={onOpenHelp}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[var(--drawer-surface)] hover:bg-[var(--drawer-surface-hover)] border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all text-label-14 text-[var(--drawer-text)]"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <span className="text-[var(--drawer-text-muted)]"><HelpIcon /></span>
+                  Help
+                </button>
+              </div>
               {isSignedIn && (
-                <HmRow label="Sign out" onClick={onSignOut} icon={SignOutIcon} tone="muted" />
+                <button
+                  onClick={onSignOut}
+                  className="w-full text-center py-3 mt-1 rounded-xl text-copy-15 font-medium text-[var(--drawer-text-muted)] hover:text-[var(--drawer-text)] bg-transparent border border-[var(--drawer-border)] cursor-pointer active:scale-[0.98] transition-all"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  Sign out
+                </button>
               )}
             </div>
           </div>
@@ -470,11 +383,6 @@ export default function MobileDrawer({
             accent="var(--color-brand-mist)"
             className="mx-auto text-[var(--drawer-text)] opacity-90"
           />
-          {hmMenu && (
-            <div className="mt-2 text-label-11 text-[var(--drawer-text-dim)]">
-              v{__APP_VERSION__}
-            </div>
-          )}
         </div>
       </aside>
     </>

@@ -2917,8 +2917,6 @@ export default function App() {
           hasUnreadNotifications={hasUnreadNotifications}
           hmMenu={!!settings?.hmMenu}
           avatarUrl={profile?.avatar_url || null}
-          theme={settings?.theme || 'default'}
-          onThemeChange={(t) => setSettings(prev => ({ ...prev, theme: t }))}
           onOpenAccount={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'account' }); }}
           onOpenSettings={() => { setDrawerOpen(false); goToMainView('settings'); }}
           onOpenPlan={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'plan' }); }}
