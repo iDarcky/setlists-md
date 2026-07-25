@@ -14,7 +14,7 @@ import { useResizablePane } from '../lib/useResizablePane';
 import { usePersistentView, usePersistentJSON } from '../lib/usePersistentView';
 import CardFieldsMenu from './ui/CardFieldsMenu';
 import { SelectionBar } from './ui/SelectionBar';
-import { selectionActionClass, selectionDangerClass } from '../lib/glass';
+import { selectionActionClass } from '../lib/glass';
 import { resolveCardFields } from '../lib/cardFields';
 import { setlistStartMs, isSetlistUpcoming } from '../lib/setlistTime';
 import { searchSetlistsPlus, setlistDurationSeconds } from '../lib/libraryPlus';
@@ -197,6 +197,7 @@ export default function Setlists({
   const [sortMode, setSortMode] = useState('date');   // 'name' | 'date' | 'songs' | 'duration'
   const [sortAsc, setSortAsc] = useState(false);
   const [selected, setSelected] = useState([]);
+  const [selectMode, setSelectMode] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
   // setlistsLibraryPlus state.
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'draft' | 'ready'
@@ -507,6 +508,23 @@ export default function Setlists({
     <CardFieldsMenu kind="setlists" saved={savedCardFields} onChange={setCardFieldsForView} label={effectiveView === 'compact' ? 'Compact' : 'Card'} />
   ) : null;
 
+  // Select — the only way into multi-select on a mouse (long-press is touch-only,
+  // and the Cards/Compact views have no checkbox column like Table does).
+  const selectToggleEl = plus && !readOnly && effectiveView !== 'table' ? (
+    <button
+      onClick={() => { if (selectMode) clearSelection(); setSelectMode(m => !m); }}
+      aria-pressed={selectMode}
+      className={cn(
+        'h-9 px-3 rounded-lg text-label-13 font-medium cursor-pointer border transition-colors',
+        selectMode
+          ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white'
+          : 'bg-transparent border-[var(--modes-border)] text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]',
+      )}
+    >
+      {selectMode ? 'Done' : 'Select'}
+    </button>
+  ) : null;
+
   // A single Templates toggle button (Status/When/Group now live in the filters
   // popover). Only shown when templates exist.
   const templatesToggleEl = plus && templates.length > 0 ? (
@@ -558,7 +576,7 @@ export default function Setlists({
   };
   const clearSelection = () => setSelected([]);
   // iOS-style card selection (plus) + shared card props.
-  const selectionActive = plus && !readOnly && selected.length > 0;
+  const selectionActive = plus && !readOnly && (selectMode || selected.length > 0);
   const enterSelect = (id) => setSelected(prev => prev.includes(id) ? prev : [...prev, id]);
   const setlistCardPlus = (sl) => (plus ? {
     fields: cardFields,
@@ -669,6 +687,7 @@ export default function Setlists({
 
           {columnsEl}
           {cardFieldsEl}
+          {selectToggleEl}
 
           {!readOnly && (
             <div className="hidden lg:flex items-center gap-2 shrink-0">
@@ -956,6 +975,15 @@ export default function Setlists({
           count={selected.length}
           onClear={clearSelection}
           liftAboveNav={!advanced || isTablet}
+          more={[
+            plus && onDuplicateSetlist && selected.length === 1 && {
+              label: 'Duplicate', onClick: () => { onDuplicateSetlist(selected[0]); clearSelection(); },
+            },
+            plus && onSaveAsTemplate && selected.length === 1 && {
+              label: 'Save as template', onClick: () => { onSaveAsTemplate(selected[0]); clearSelection(); },
+            },
+            onDeleteSetlist && { label: 'Delete', danger: true, onClick: bulkDelete },
+          ]}
         >
           {plus && onTagSetlists && (
             <div className="relative shrink-0">
@@ -986,17 +1014,6 @@ export default function Setlists({
             </div>
           )}
 
-          {plus && onDuplicateSetlist && selected.length === 1 && (
-            <button onClick={() => { onDuplicateSetlist(selected[0]); clearSelection(); }} className={selectionActionClass}>Duplicate</button>
-          )}
-
-          {plus && onSaveAsTemplate && selected.length === 1 && (
-            <button onClick={() => { onSaveAsTemplate(selected[0]); clearSelection(); }} className={selectionActionClass}>Save as template</button>
-          )}
-
-          {onDeleteSetlist && (
-            <button onClick={bulkDelete} className={selectionDangerClass}>Delete</button>
-          )}
         </SelectionBar>
       )}
 

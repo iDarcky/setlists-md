@@ -198,12 +198,15 @@ function SongCard({
             </div>
           )}
         </div>
-        {/* Quick edit — absolute so it never constrains the title width. */}
+        {/* Quick edit — pointer devices only. On touch it sat under the right
+            edge of the row and turned an ordinary tap into an accidental edit;
+            phones/tablets edit from the song hub instead. Hover-reveal is gone:
+            the button is always visible on a mouse, just quiet until hovered. */}
         {onEdit && !selectActive && (
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
             aria-label="Edit song" title="Edit"
-            className="absolute top-1/2 -translate-y-1/2 right-3 w-8 h-8 rounded-lg flex items-center justify-center border-none bg-[var(--bg-2)] text-[var(--text-2)] opacity-0 group-hover:opacity-100 hover:bg-[var(--modes-surface-strong)] hover:text-[var(--text-1)] transition-all cursor-pointer"
+            className="hidden [@media(hover:hover)_and_(pointer:fine)]:flex absolute top-1/2 -translate-y-1/2 right-3 w-8 h-8 min-h-0 rounded-lg items-center justify-center border-none bg-[var(--bg-2)] text-[var(--text-2)] opacity-60 hover:opacity-100 hover:bg-[var(--modes-surface-strong)] hover:text-[var(--text-1)] transition-all cursor-pointer"
           >
             <EditGlyph />
           </button>

@@ -699,10 +699,18 @@
   }
 }
 
-/* Responsive: phone — larger touch targets */
-@media (max-width: 639px) {
-  button {
-    min-height: 44px;
+/* Responsive: phone — larger touch targets.
+   MUST stay inside `@layer base`. Unlayered CSS beats *every* layered rule
+   regardless of specificity, so when this lived outside a layer it overrode
+   Tailwind utilities: a `w-[22px] h-[22px] min-h-0` button still measured
+   22x44 on phones (the select circle rendered as a grey capsule). Inside the
+   base layer, utilities can opt out where a square/round control needs to
+   stay square. */
+@layer base {
+  @media (max-width: 639px) {
+    button {
+      min-height: 44px;
+    }
   }
 }
 @utility text-heading-72 { font-size: 80px; line-height: 88px; letter-spacing: -0.05em; font-weight: 600; }

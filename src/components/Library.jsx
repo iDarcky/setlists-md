@@ -12,7 +12,7 @@ import { orderedVisibleColumns } from '../lib/tableColumns';
 import ColumnsMenu from './ui/ColumnsMenu';
 import CardFieldsMenu from './ui/CardFieldsMenu';
 import { SelectionBar } from './ui/SelectionBar';
-import { selectionActionClass, selectionDangerClass } from '../lib/glass';
+import { selectionActionClass } from '../lib/glass';
 import { resolveCardFields } from '../lib/cardFields';
 import { useIsDesktop, useIsTablet } from '../lib/useMediaQuery';
 import { usePersistentView, usePersistentJSON } from '../lib/usePersistentView';
@@ -379,6 +379,7 @@ export default function Library({
   const [facetSel, setFacetSel] = useState({}); // { facetKey: string[] }
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [selected, setSelected] = useState([]);
+  const [selectMode, setSelectMode] = useState(false);
   const [bulkMenu, setBulkMenu] = useState(null); // 'setlist' | 'tags' | null
   const [bulkPicker, setBulkPicker] = useState(null); // 'copy' | 'move' | null — workspace modal
   // songsLibraryPlus state — data-quality "issues" filters (in the Filters popover).
@@ -533,7 +534,7 @@ export default function Library({
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
   const toggleSelectAll = () => setSelected(allSelected ? [] : visibleIds);
-  const clearSelection = () => { setSelected([]); setBulkMenu(null); };
+  const clearSelection = () => { setSelected([]); setBulkMenu(null); setSelectMode(false); };
 
   const otherWorkspaces = workspaces.filter(w => w.id !== activeLibrary);
   const canMoveCopy = otherWorkspaces.length > 0;
@@ -565,7 +566,7 @@ export default function Library({
   });
   // In the plus card/compact views, once anything is selected a tap toggles
   // selection instead of opening (iOS-style multi-select mode).
-  const selectionActive = plus && !readOnly && selected.length > 0;
+  const selectionActive = plus && !readOnly && (selectMode || selected.length > 0);
   const enterSelect = (id) => setSelected(prev => prev.includes(id) ? prev : [...prev, id]);
   // Shared plus-card props for the gallery + compact SongCards.
   const songCardPlus = (song) => (plus ? {
@@ -663,6 +664,23 @@ export default function Library({
 
             {plus && effectiveView !== 'table' && (
               <CardFieldsMenu kind="songs" saved={savedCardFields} onChange={setCardFieldsForView} label={effectiveView === 'compact' ? 'Compact' : 'Card'} />
+            )}
+
+            {/* Select — the only way into multi-select on a mouse (long-press is
+                touch-only, and Table view's checkboxes don't exist in Cards). */}
+            {plus && !readOnly && effectiveView !== 'table' && (
+              <button
+                onClick={() => { if (selectMode) clearSelection(); setSelectMode(m => !m); }}
+                aria-pressed={selectMode}
+                className={cn(
+                  'h-9 px-3 rounded-lg text-label-13 font-medium cursor-pointer border transition-colors',
+                  selectMode
+                    ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white'
+                    : 'bg-transparent border-[var(--modes-border)] text-[var(--modes-text-muted)] hover:text-[var(--modes-text)]',
+                )}
+              >
+                {selectMode ? 'Done' : 'Select'}
+              </button>
             )}
 
             {/* Import + New song (desktop) */}
@@ -897,10 +915,15 @@ export default function Library({
           count={selected.length}
           onClear={clearSelection}
           liftAboveNav={!advanced || isTablet}
+          more={[
+            canMoveCopy && onCopySongs && { label: 'Copy to…', onClick: () => setBulkPicker('copy') },
+            canMoveCopy && onMoveSongs && { label: 'Move to…', onClick: () => setBulkPicker('move') },
+            onDeleteSongs && { label: 'Delete', danger: true, onClick: () => runBulk(onDeleteSongs) },
+          ]}
         >
           {onAddSongsToSetlist && (
             <div className="relative shrink-0">
-              <button onClick={() => setBulkMenu(bulkMenu === 'setlist' ? null : 'setlist')} className={selectionActionClass}>Add to Setlist…</button>
+              <button onClick={() => setBulkMenu(bulkMenu === 'setlist' ? null : 'setlist')} className={selectionActionClass}>Add to…</button>
               {bulkMenu === 'setlist' && (
                 <div className="absolute bottom-full mb-2 left-0 w-[240px] max-h-[280px] overflow-y-auto rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg py-1">
                   {setlists.length === 0 ? (
@@ -947,17 +970,6 @@ export default function Library({
             </div>
           )}
 
-          {canMoveCopy && onCopySongs && (
-            <button onClick={() => setBulkPicker('copy')} className={selectionActionClass}>Copy to…</button>
-          )}
-
-          {canMoveCopy && onMoveSongs && (
-            <button onClick={() => setBulkPicker('move')} className={selectionActionClass}>Move to…</button>
-          )}
-
-          {onDeleteSongs && (
-            <button onClick={() => runBulk(onDeleteSongs)} className={selectionDangerClass}>Delete</button>
-          )}
         </SelectionBar>
       )}
 

@@ -9,5 +9,7 @@ export function cn(...inputs) {
 // only in selection mode (no hover-reveal, so the row doesn't shift on hover).
 export function selectPad(selectable, active) {
   if (!selectable || !active) return '';
-  return 'pl-9';
+  // The circle sits at left-4 (16px) and is 22px wide, so it ends at 38px.
+  // pl-9 (36px) put the row's content *under* it — pl-12 leaves a real gap.
+  return 'pl-12';
 }
