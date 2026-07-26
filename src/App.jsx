@@ -2379,7 +2379,8 @@ export default function App() {
           notifications={mergedNotifications} 
           onMarkRead={handleMarkNotificationRead} 
           onNotificationAction={handleNotificationAction} 
-          drawerOpen={drawerOpen} 
+          drawerOpen={drawerOpen}
+          drawerPresentation={settings?.accountPanel ? 'sheet' : 'drawer'} 
           displayName={displayName}
           plan={plan}
           avatarUrl={profile?.avatar_url}

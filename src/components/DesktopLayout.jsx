@@ -13,6 +13,7 @@ export default function DesktopLayout({
   onMarkRead,
   onNotificationAction,
   drawerOpen = false,
+  drawerPresentation = 'drawer',
   displayName,
   plan,
   avatarUrl,
@@ -95,15 +96,21 @@ export default function DesktopLayout({
         flex column tracks iOS Safari's dynamic viewport so the layout never
         extends under the address bar.
 
-        When the mobile drawer is open, the main content scales down and
-        shifts right — mimicking an iOS-style push drawer.
+        When the mobile drawer is open, the main content transforms to match
+        how the drawer is presented:
+        - 'drawer' — scales down and shifts right (iOS push drawer).
+        - 'sheet'  — recedes straight back, no horizontal shift (iOS card
+          modal). Pushing sideways for a sheet that rises from the bottom
+          reads as the wrong gesture entirely.
       */}
       <main
         ref={mainRef}
         className="flex-1 min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] bg-[var(--ds-background-100)] relative w-full transition-transform duration-300 ease-out"
         style={{
-          transform: applyDrawerTransform ? 'translateX(72%) scale(0.92)' : undefined,
-          transformOrigin: 'left center',
+          transform: applyDrawerTransform
+            ? (drawerPresentation === 'sheet' ? 'translateY(10px) scale(0.93)' : 'translateX(72%) scale(0.92)')
+            : undefined,
+          transformOrigin: drawerPresentation === 'sheet' ? 'top center' : 'left center',
           willChange: applyDrawerTransform ? 'transform' : undefined,
           borderRadius: applyDrawerTransform ? '24px' : undefined,
           boxShadow: applyDrawerTransform ? '0 30px 60px rgba(0,0,0,0.45)' : undefined,
