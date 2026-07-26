@@ -21,7 +21,7 @@ import SetlistSongPicker from './setlist/SetlistSongPicker';
 import RecommendedNextPanel from './setlist/RecommendedNextPanel';
 import { useDragReorder } from '../lib/useDragReorder';
 
-export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h', cards = false }) {
+export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h', cards = true }) {
   const confirm = useConfirm();
   const [name, setName] = useState(setlist?.name || '');
   // New setlists default to the upcoming Sunday at 10:00 — the most common

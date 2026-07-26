@@ -512,7 +512,7 @@ export default function Setlists({
   // and the Cards/Compact views have no checkbox column like Table does).
   const selectToggleEl = plus && !readOnly && effectiveView !== 'table' ? (
     <button
-      onClick={() => { if (selectMode) clearSelection(); setSelectMode(m => !m); }}
+      onClick={() => (selectMode ? clearSelection() : setSelectMode(true))}
       aria-pressed={selectMode}
       className={cn(
         'h-9 px-3 rounded-lg text-label-13 font-medium cursor-pointer border transition-colors',
@@ -574,7 +574,7 @@ export default function Setlists({
     const allIn = ids.every(id => selectedSet.has(id));
     setSelected(prev => allIn ? prev.filter(id => !ids.includes(id)) : [...new Set([...prev, ...ids])]);
   };
-  const clearSelection = () => setSelected([]);
+  const clearSelection = () => { setSelected([]); setBulkMenu(null); setSelectMode(false); };
   // iOS-style card selection (plus) + shared card props.
   const selectionActive = plus && !readOnly && (selectMode || selected.length > 0);
   const enterSelect = (id) => setSelected(prev => prev.includes(id) ? prev : [...prev, id]);

@@ -320,6 +320,11 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Shared-viewer: tap a song to open it; "Open app" returns to the setlist; onboarding; refresh the older share UI — P3–P4.
 
 ### Setlist editor
+- **Delete the pre-cards setlist editor/viewer path** — the card design graduated
+  from Labs (2026-07) and is now the default; `cards={false}` on `SetlistOverview`
+  / `SetlistBuilder` is an unused escape hatch keeping `SetlistOverviewV2` and the
+  legacy builder layout alive. Remove both once the cards version has had a real
+  run — P2.
 - 🔴 **Title field: border + mandatory warning + bigger** — give the setlist title
   its own bordered input with a "required" warning when empty, and size it up so it
   aligns visually with the Draft/Ready toggle beside it — **P1**.

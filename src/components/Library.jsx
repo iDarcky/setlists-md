@@ -670,7 +670,7 @@ export default function Library({
                 touch-only, and Table view's checkboxes don't exist in Cards). */}
             {plus && !readOnly && effectiveView !== 'table' && (
               <button
-                onClick={() => { if (selectMode) clearSelection(); setSelectMode(m => !m); }}
+                onClick={() => (selectMode ? clearSelection() : setSelectMode(true))}
                 aria-pressed={selectMode}
                 className={cn(
                   'h-9 px-3 rounded-lg text-label-13 font-medium cursor-pointer border transition-colors',
