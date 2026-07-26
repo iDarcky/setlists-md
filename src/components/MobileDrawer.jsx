@@ -222,32 +222,42 @@ export default function MobileDrawer({
   }, [open, onClose]);
 
   const onTouchStart = (e) => {
-    startXRef.current = e.touches[0].clientX;
+    const t = e.touches[0];
+    startXRef.current = accountPanel ? t.clientY : t.clientX;
     setDragX(0);
     setDragging(true);
   };
-  // accountPanel opens from the avatar in the top-RIGHT, so the panel slides in
-  // from that side and swipes right to dismiss. The classic drawer is left-side.
-  const fromRight = accountPanel;
+  // accountPanel is an iOS-style bottom sheet (drags down to dismiss); the
+  // classic drawer slides in from the left (drags left). `dragX` carries
+  // whichever axis is active.
+  const asSheet = accountPanel;
 
   const onTouchMove = (e) => {
     if (!dragging) return;
-    const dx = e.touches[0].clientX - startXRef.current;
+    const t = e.touches[0];
+    const d = (asSheet ? t.clientY : t.clientX) - startXRef.current;
     // Only allow dragging toward the edge the panel came from (closing).
-    if (fromRight ? dx > 0 : dx < 0) setDragX(dx);
+    if (asSheet ? d > 0 : d < 0) setDragX(d);
   };
   const onTouchEnd = () => {
     if (!dragging) return;
     setDragging(false);
-    const width = panelRef.current?.offsetWidth || 320;
-    const past = fromRight ? dragX > width * 0.35 : dragX < -width * 0.35;
+    // Sheets dismiss on a shorter throw than a side drawer — it's a flick down,
+    // not a full swipe across.
+    const past = asSheet
+      ? dragX > (panelRef.current?.offsetHeight || 480) * 0.25
+      : dragX < -(panelRef.current?.offsetWidth || 320) * 0.35;
     if (past) onClose?.(); else setDragX(0);
   };
 
-  // Drawer visual shifts with dragX while being dragged
-  const translateX = open
-    ? (dragging ? `${dragX}px` : '0px')
-    : (fromRight ? '100%' : '-100%');
+  const offset = open ? (dragging ? `${dragX}px` : '0px') : '100%';
+  const transform = asSheet
+    ? `translateY(${offset})`
+    : `translateX(${open ? (dragging ? `${dragX}px` : '0px') : '-100%'})`;
+
+  // The sheet scrolls its own content, so a drag-anywhere handler would fight
+  // the scroll. Only the grabber/header area drags.
+  const dragBind = { onTouchStart, onTouchMove, onTouchEnd };
 
   const displayName = userName?.trim() || 'Guest';
   const displayEmail = email || 'guest@setlists.md';
@@ -270,31 +280,38 @@ export default function MobileDrawer({
         role="dialog"
         aria-modal="true"
         aria-label="Menu"
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        className={`drawer-panel fixed top-0 bottom-0 z-[210] sm:hidden w-[85vw] max-w-[360px] flex flex-col overflow-y-auto overscroll-contain ${fromRight ? 'right-0' : 'left-0'}`}
+        {...(asSheet ? {} : dragBind)}
+        className={
+          asSheet
+            ? 'drawer-panel fixed left-0 right-0 bottom-0 z-[210] sm:hidden w-full max-h-[88vh] flex flex-col overflow-y-auto overscroll-contain rounded-t-[22px]'
+            : 'drawer-panel fixed top-0 bottom-0 left-0 z-[210] sm:hidden w-[85vw] max-w-[360px] flex flex-col overflow-y-auto overscroll-contain'
+        }
         style={{
-          transform: `translateX(${translateX})`,
+          transform,
           transition: dragging ? 'none' : 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1)',
-          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 24px)',
+          paddingTop: asSheet ? 0 : 'calc(env(safe-area-inset-top, 0px) + 24px)',
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)',
+          boxShadow: asSheet ? '0 -12px 40px rgba(0,0,0,0.45)' : undefined,
         }}
       >
         {/* ── accountPanel (Labs): the merged Account + Spaces panel ── */}
         {accountPanel && (
           <div className="px-4 flex flex-col">
-            {/* Sheet header — title left, round close right (Apple). */}
-            <div className="flex items-center justify-between mb-3.5 px-1">
-              <h2 className="text-heading-16 font-semibold text-[var(--drawer-text)] m-0">Account</h2>
-              <button
-                onClick={onClose}
-                aria-label="Close"
-                className="w-8 h-8 min-h-0 rounded-full flex items-center justify-center bg-[var(--drawer-surface-hover)] text-[var(--drawer-text-muted)] cursor-pointer border-none active:scale-95 transition-transform"
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                <CloseIcon />
-              </button>
+            {/* Grabber + header. Both carry the drag handlers — the sheet body
+                scrolls, so dragging from anywhere would fight the scroll. */}
+            <div {...dragBind} className="-mx-4 px-4 pt-2.5 pb-3.5 sticky top-0 z-10">
+              <div className="w-9 h-1 rounded-full bg-[var(--drawer-text-dim)] opacity-50 mx-auto mb-3" aria-hidden="true" />
+              <div className="flex items-center justify-between px-1">
+                <h2 className="text-heading-16 font-semibold text-[var(--drawer-text)] m-0">Account</h2>
+                <button
+                  onClick={onClose}
+                  aria-label="Close"
+                  className="w-8 h-8 min-h-0 rounded-full flex items-center justify-center bg-[var(--drawer-surface-hover)] text-[var(--drawer-text-muted)] cursor-pointer border-none active:scale-95 transition-transform"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <CloseIcon />
+                </button>
+              </div>
             </div>
 
             {/* Identity — pushes into Settings → Account. Guests get CTAs. */}
