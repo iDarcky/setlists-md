@@ -2,6 +2,37 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.17.0 — Libraries you can filter, select, and shape
+*July 2026*
+
+### Added
+- **Songs library + (Labs)** — extra columns (CCLI, year, length, arrangements, themes), a "used in setlists" count, group-by, data-quality quick filters and bulk tagging. Turn it on in Settings → Labs.
+- **Setlists library + (Labs)** — find a setlist by a song inside it, see total length, filter by draft or date, and duplicate or save a setlist as a template.
+- **All your filters in one place** — key, tempo, theme, language, year, scripture, moment and tags now live in a single Filters button on both libraries, as a full-height sheet on phones.
+- **Choose what your cards show** — pick which details appear on song and setlist cards, set separately for the Card and Compact views, and remembered per device.
+- **Select several at once** — press and hold on a phone, or use the new Select button on any device, then tag, add to a setlist, duplicate or delete the lot. Less-used actions sit under "…".
+- **Cover art on song cards** — album art from a linked Spotify or YouTube track, with a brand-coloured placeholder when there's none.
+- **Next up** — the soonest upcoming service gets its own card at the top of the Setlists list.
+- **A notifications page of its own** — reachable from the bottom bar, with one button to mark everything read or clear the lot.
+- **Hamburger menu (Labs)** — a restructured mobile menu with a tappable account card and a full-width Space switcher.
+- **Account panel (Labs)** — drops the hamburger entirely: your avatar opens a single sheet that slides up from the bottom, with your Spaces and the menu together.
+
+### Improved
+- **Setlist cards are now the default** — the card-based setlist editor and viewer have graduated from Labs; they're simply the setlist screens now.
+- **Your account lives in Settings** — one place to edit your profile instead of two.
+- **Songs and setlists look like siblings** — both lists now share one card design, one header layout, and the same frosted bar as you scroll.
+- **Quick edit is mouse-only** — the pencil at the right of a song row no longer turns an ordinary tap into an accidental edit on a phone.
+- **Quieter syncing** — "Synced" no longer interrupts you for background syncs; you'll only see it when you tap Sync now, which now also tells you when everything was already up to date.
+- **A tidier scrollbar** throughout the app.
+
+### Fixed
+- **The selection circle is round again on phones** — it was stretching into a tall grey capsule and sitting on top of the row's content.
+- **The bulk action bar no longer turns into a black circle** floating over the list once several actions are showing.
+- **The "…" menu in that bar opens** — it was being clipped away behind the bar's own rounded edge.
+- **Done now leaves selection mode** instead of immediately switching it back on.
+- **Filter sheets no longer show a stray white outline** on phones.
+- **Cover art picks up Spotify links**, not only YouTube ones.
+
 ## 0.16.0 — Notifications, reliability, and a card-based editor
 *July 2026*
 
