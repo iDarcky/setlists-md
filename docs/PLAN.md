@@ -64,6 +64,20 @@ team optimistic locking, scheduling & notifications pillar.
 
 ## 2. Known issues, correctness & ops
 
+- 🔴 **Repeating "Synced" toast = the library is re-uploading every cycle** (reported
+  2026-07-26). The toast itself is now silenced for automatic syncs (realtime echo,
+  tab focus, reconnect) and only reports on a user-initiated "Sync now" — but that is
+  a **symptom fix**. If `uploaded > 0` on back-to-back syncs with no edits, something
+  is re-dirtying the library each pass: the canonical hash of a song/setlist keeps
+  differing from the manifest baseline. Root-cause with **SyncDoctor** (Settings →
+  Sync inside the Space) — it re-runs the engine's hash arithmetic per item and names
+  the drifting field — then diff `songToMd(local)` against the stored server `content`
+  for one offending song. Suspects: a field serialized locally but absent from older
+  server content, a client-side normalisation applied *after* adopt, or a lost
+  manifest write. Note the engine's `createAmplificationGuard` already blocks an item
+  pushed too often in a short window, so a loop that never trips it is running below
+  that threshold — P1.
+
 - ✅ **Supabase migrations — all applied (verified 2026-06-24 against the live DB,
   project `biltbdumdwugpepaawku`).** `team_activity_skip_noop`, `team_scale_indexes`,
   `team_notifications`, `team_notes` are all in the migration history (applied

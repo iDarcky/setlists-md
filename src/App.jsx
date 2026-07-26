@@ -460,7 +460,12 @@ export default function App() {
     }, { readOnly: isTeamReadOnly, onConflicts: enqueueConflicts });
   }, [activeLibrary, isTeamReadOnly, enqueueConflicts]);
 
-  const triggerSync = useCallback(async () => {
+  // `silent` is the default because most syncs are automatic (realtime echo,
+  // tab focus, reconnect). A success toast for background work the user didn't
+  // ask for is noise at best — and if the library ever re-uploads in a loop it
+  // reads as one "Synced" panel that never goes away. Failures always toast;
+  // only user-initiated syncs ("Sync now") report success.
+  const triggerSync = useCallback(async ({ silent = true } = {}) => {
     if (isSwitchingLibraryRef.current) return;
     const state = await getSyncState(activeLibrary);
     const providerId = activeLibrary !== 'personal' ? `supabase-team:${activeLibrary}` : state?.activeProvider;
@@ -480,11 +485,14 @@ export default function App() {
         description: `${first.kind}${where}: ${first.message}${more}`,
         variant: 'error',
       });
-    } else if (result.uploaded && (result.uploaded.songs > 0 || result.uploaded.setlists > 0)) {
+    } else if (!silent) {
       const parts = [];
-      if (result.uploaded.songs) parts.push(`${result.uploaded.songs} song${result.uploaded.songs === 1 ? '' : 's'}`);
-      if (result.uploaded.setlists) parts.push(`${result.uploaded.setlists} setlist${result.uploaded.setlists === 1 ? '' : 's'}`);
-      toast({ title: 'Synced', description: `Uploaded ${parts.join(', ')}.` });
+      if (result.uploaded?.songs) parts.push(`${result.uploaded.songs} song${result.uploaded.songs === 1 ? '' : 's'}`);
+      if (result.uploaded?.setlists) parts.push(`${result.uploaded.setlists} setlist${result.uploaded.setlists === 1 ? '' : 's'}`);
+      toast({
+        title: 'Synced',
+        description: parts.length ? `Uploaded ${parts.join(', ')}.` : 'Everything is up to date.',
+      });
     }
   }, [songs, setlists, tombstones, activeLibrary, adoptSyncResult]);
 
@@ -2385,7 +2393,7 @@ export default function App() {
           newWorkspaceLocked={newWorkspaceLocked}
           supportContact={SUPPORT_CONTACT}
           syncState={syncState}
-          onSyncNow={triggerSync}
+          onSyncNow={() => triggerSync({ silent: false })}
           isOnline={isOnline}
           songs={songs}
           setlists={setlists}
@@ -2810,7 +2818,7 @@ export default function App() {
               setlistCount={setlists.length}
               syncState={syncState}
               onSyncStateChange={setSyncState}
-              onSyncNow={triggerSync}
+              onSyncNow={() => triggerSync({ silent: false })}
               onRequestSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
               onUpgrade={() => navigate('upgrade')}
               onShowLegal={(doc) => navigate(`legal-${doc}`)}
