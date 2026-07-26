@@ -74,7 +74,7 @@ const GoogleDriveCallback = lazy(() => import('./components/auth/GoogleDriveCall
 const PracticeFinale = lazy(() => import('./components/PracticeFinale'));
 const LiveFinale = lazy(() => import('./components/LiveFinale'));
 const LydianShowcase = lazy(() => import('./components/LydianShowcase'));
-const NewSongModal = lazy(() => import('./components/NewSongModal'));
+const AddSongModal = lazy(() => import('./components/AddSongModal'));
 const HelpPage = lazy(() => import('./components/HelpPage'));
 const AuthScreen = lazy(() => import('./components/auth/AuthScreen'));
 const AuthCallback = lazy(() => import('./components/auth/AuthCallback'));
@@ -232,6 +232,7 @@ export default function App() {
   // Arrangement to open in the editor (the one the user was viewing). Reset
   // whenever we enter the editor unless an explicit id is passed.
   const [editArrangementId, setEditArrangementId] = useState(null);
+  const [editNewTitle, setEditNewTitle] = useState('');
   const [currentSetlist, setCurrentSetlist] = useState(null);
   const [settings, setSettings] = useState(null);
   useChartTheme(settings);
@@ -888,7 +889,7 @@ export default function App() {
 
   // Navigation with history stack. Not memoised — captures current state
   // through snapshot() on each call, which is what we want for back/forward.
-  const navigate = (nextView, { song, setlist, replace, arrangementId } = {}) => {
+  const navigate = (nextView, { song, setlist, replace, arrangementId, newTitle } = {}) => {
     // Central gate for read-only team members (audit D-1): every editor entry
     // point funnels through here, so members can't reach the editor and lose
     // work to the server-authoritative sync (RLS already blocks their writes).
@@ -896,7 +897,11 @@ export default function App() {
     if (!replace) pushHistory(snapshot());
     if (song !== undefined) setCurrentSong(song);
     if (setlist !== undefined) setCurrentSetlist(setlist);
-    if (nextView === 'editor') setEditArrangementId(arrangementId ?? null);
+    if (nextView === 'editor') {
+      setEditArrangementId(arrangementId ?? null);
+      // Seed title for a brand-new song, carried from the Add-a-song search box.
+      setEditNewTitle(newTitle || '');
+    }
     setView(nextView);
     // Entering Settings fresh always lands on the hub.
     if (nextView === 'settings') setSettingsPanel('hub');
@@ -1340,9 +1345,9 @@ export default function App() {
   // Persist a table's visible columns (Songs / Setlists) — synced via prefs.
   const setTableColumns = (table, ids) =>
     setSettings(prev => ({ ...prev, tableColumns: { ...(prev?.tableColumns || {}), [table]: ids } }));
-  const goEditor = (song = null, arrangementId = null) => {
+  const goEditor = (song = null, arrangementId = null, newTitle = '') => {
     if (isTeamReadOnly) return;
-    navigate('editor', { song, arrangementId });
+    navigate('editor', { song, arrangementId, newTitle });
   };
   const goSetlistBuild = async (sl = null) => {
     if (isTeamReadOnly) return;
@@ -1842,31 +1847,6 @@ export default function App() {
     for (const id of ids) await handleCopySongToLibrary(id, target);
   };
 
-  const handleSmartImport = (mdText) => {
-    if (guardTeamReadOnly()) return; // adds to songs before navigate()'s gate
-    try {
-      const parsed = parseSongMd(mdText);
-      // Stable identity across re-imports: if a song with this title already
-      // exists, adopt its id so the import UPDATES it in place (keeping every
-      // setlist reference intact) instead of minting a new id that orphans
-      // past setlists. The editor still opens for review before Save.
-      const existing = matchSongByTitle(songs, parsed.title);
-      if (existing) {
-        const adopted = { ...songFromFlat({ ...parsed, id: existing.id }), id: existing.id, keyHistory: existing.keyHistory };
-        toast({ title: `Updating "${existing.title}"`, description: 'This song already exists — your import updates it and keeps setlist links.' });
-        setNewSongModal(null);
-        navigate('editor', { song: adopted });
-        return;
-      }
-      const song = songFromFlat({ ...parsed, id: generateId(), updatedAt: Date.now() });
-      setSongs(prev => [...prev, song]);
-      setNewSongModal(null);
-      navigate('editor', { song });
-    } catch {
-      toast({ title: 'Import failed', description: 'Could not parse converted chord sheet.', variant: 'error' });
-    }
-  };
-
   const handleImportParsedSongs = (parsedSongs) => {
     if (!parsedSongs || parsedSongs.length === 0) return;
     if (guardTeamReadOnly()) return;
@@ -1892,6 +1872,28 @@ export default function App() {
   const handleImportSetlistFile = async (file) => {
     setNewSongModal(null);
     await handleImportSetlist(file);
+  };
+
+  // A catalog song is the one import path whose chart is already known-good —
+  // we shipped it. So it skips the editor: saved straight to the library and
+  // opened in the hub, with an Undo toast instead of a review step.
+  const handleAddCatalogSong = (mdText, entry) => {
+    if (guardTeamReadOnly()) return;
+    let song;
+    try {
+      const parsed = parseSongMd(mdText);
+      song = songFromFlat({ ...parsed, id: generateId(), updatedAt: Date.now() });
+    } catch {
+      toast({ title: 'Could not add song', description: 'That chart failed to parse.', variant: 'error' });
+      return;
+    }
+    setSongs(prev => [...prev, song]);
+    setNewSongModal(null);
+    toast({
+      title: `Added "${song.title}"`,
+      description: entry?.license === 'public-domain' ? 'Public domain — yours to edit and transpose.' : undefined,
+    });
+    goChart(song);
   };
 
   const openNewSongModal = (initialTab = 'import') => {
@@ -2582,9 +2584,10 @@ export default function App() {
           )}
           {view === 'editor' && (
             <Editor
-              key={currentSong?.id || 'new'}
+              key={currentSong?.id || `new:${editNewTitle}`}
               song={currentSong}
               initialArrangementId={editArrangementId}
+              newTitle={editNewTitle}
               onSave={isTeamReadOnly ? null : handleSaveSong}
               onBack={importQueue ? handleSkipQueueSong : goBack}
               onDirtyChange={markEditorDirty}
@@ -2980,13 +2983,15 @@ export default function App() {
       )}
       {newSongModal && (
         <Suspense fallback={null}>
-          <NewSongModal
+          <AddSongModal
             initialTab={newSongModal.initialTab}
+            songs={songs}
             onClose={() => setNewSongModal(null)}
-            onStartBlank={() => { setNewSongModal(null); goEditor(); }}
+            onStartBlank={(title) => { setNewSongModal(null); goEditor(null, null, title); }}
+            onOpenSong={(s) => { setNewSongModal(null); goChart(s); }}
             onImportSongs={handleImportParsedSongs}
             onImportSetlistFile={handleImportSetlistFile}
-            onSmartImport={handleSmartImport}
+            onAddCatalogSong={handleAddCatalogSong}
           />
         </Suspense>
       )}

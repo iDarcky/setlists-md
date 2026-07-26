@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import ChartView from './ChartView';
 import AaMenu from './AaMenu';
-import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields, EXTRA_META_KEYS } from '../parser';
+import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields, sanitizeFrontmatterValue, EXTRA_META_KEYS } from '../parser';
 import { keyOptions, transposeChord, transposeKey, keyPrefersSharps } from '../music';
 import { isChordToken } from '../importer';
 import { addArrangement, deleteArrangement, renameArrangement, setDefaultArrangement, withArrangement, getArrangement, songFromFlat } from '../arrangements';
@@ -140,8 +140,8 @@ function TimeSignatureControl({ value, onChange, bare = false }) {
 
 // New songs start with title + key blank on purpose — both are required
 // before the song can be saved, so we don't silently default the key to C.
-const DEFAULT_MD = `---
-title:
+const blankMd = (title = '') => `---
+title: ${sanitizeFrontmatterValue(title)}
 artist:
 key:
 ---
@@ -149,8 +149,9 @@ key:
 ## Verse 1
 
 `;
+const DEFAULT_MD = blankMd();
 
-export default function Editor({ song, onSave, onBack, onDirtyChange, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null, onOpenNewSong }) {
+export default function Editor({ song, onSave, onBack, onDirtyChange, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null, onOpenNewSong, newTitle = '' }) {
   const confirm = useConfirm();
 
   // The card-based editor is the default (graduated out of Labs). The legacy
@@ -163,7 +164,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   const [workingSong, setWorkingSong] = useState(() => {
     if (song && Array.isArray(song.arrangements)) return song;
     if (song) return songFromFlat(song);
-    return songFromFlat({ id: generateId(), title: '', artist: '', key: 'C', tempo: null, time: '', sections: [] });
+    return songFromFlat({ id: generateId(), title: newTitle || '', artist: '', key: 'C', tempo: null, time: '', sections: [] });
   });
 
   const [activeArrangementId, setActiveArrangementId] = useState(() => {
@@ -177,7 +178,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
 
   const initialMd = useMemo(() => {
     const arr = getArrangement(workingSong, activeArrangementId);
-    return song ? songToMd(workingSong, arr) : DEFAULT_MD;
+    return song ? songToMd(workingSong, arr) : blankMd(newTitle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [md, setMd] = useState(initialMd);
