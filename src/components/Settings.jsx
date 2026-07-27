@@ -656,6 +656,9 @@ function LabsPanel({ settings, update }) {
       <LabsToggle settings={settings} update={update} flag="hmMenu"
         label="Hamburger menu (preview)"
         description="Restructures the mobile menu into Account / Plan / App sections with a tappable account card, and gives the Space switcher a full-width sheet that scrolls after 3 spaces with New Space pinned to the bottom." />
+      <LabsToggle settings={settings} update={update} flag="addSongModal"
+        label="Add a song (one surface)"
+        description="Replaces the tabbed New song modal with a single surface: a search box over the public-domain catalog, with Import and Blank underneath. Your own songs rank above the catalog, the whole sheet accepts dropped files, and picking a catalog song saves it and opens the hub instead of the editor." />
       <LabsToggle settings={settings} update={update} flag="accountPanel"
         label="Account panel (iOS 26 style)"
         description="Drops the hamburger — your avatar becomes the only menu. Tapping it opens one panel that merges the Space switcher with the menu: an Account sheet header, an identity row, your Spaces as a horizontal rail of tiles, then grouped app rows. Supersedes the hamburger-menu preview when both are on." />

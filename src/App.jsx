@@ -74,7 +74,11 @@ const GoogleDriveCallback = lazy(() => import('./components/auth/GoogleDriveCall
 const PracticeFinale = lazy(() => import('./components/PracticeFinale'));
 const LiveFinale = lazy(() => import('./components/LiveFinale'));
 const LydianShowcase = lazy(() => import('./components/LydianShowcase'));
+// Add-a-song surface. The reworked single-surface modal is behind the
+// `addSongModal` Labs flag; the tabbed Import|Browse modal stays the default
+// until it graduates. Both are lazy — only the one in use is fetched.
 const AddSongModal = lazy(() => import('./components/AddSongModal'));
+const NewSongModal = lazy(() => import('./components/NewSongModal'));
 const HelpPage = lazy(() => import('./components/HelpPage'));
 const AuthScreen = lazy(() => import('./components/auth/AuthScreen'));
 const AuthCallback = lazy(() => import('./components/auth/AuthCallback'));
@@ -156,6 +160,7 @@ const PORTABLE_PREF_KEYS = [
   'setlistsLibraryPlus',
   'hmMenu',
   'accountPanel',
+  'addSongModal',
 ];
 
 function extractPortablePrefs(s) {
@@ -1847,6 +1852,34 @@ export default function App() {
     for (const id of ids) await handleCopySongToLibrary(id, target);
   };
 
+  // Legacy add-a-song modal only (Labs `addSongModal` off): a Browse pick opens
+  // the editor for review rather than saving straight to the library. The new
+  // modal routes catalog picks through handleAddCatalogSong instead.
+  const handleSmartImport = (mdText) => {
+    if (guardTeamReadOnly()) return; // adds to songs before navigate()'s gate
+    try {
+      const parsed = parseSongMd(mdText);
+      // Stable identity across re-imports: if a song with this title already
+      // exists, adopt its id so the import UPDATES it in place (keeping every
+      // setlist reference intact) instead of minting a new id that orphans
+      // past setlists. The editor still opens for review before Save.
+      const existing = matchSongByTitle(songs, parsed.title);
+      if (existing) {
+        const adopted = { ...songFromFlat({ ...parsed, id: existing.id }), id: existing.id, keyHistory: existing.keyHistory };
+        toast({ title: `Updating "${existing.title}"`, description: 'This song already exists — your import updates it and keeps setlist links.' });
+        setNewSongModal(null);
+        navigate('editor', { song: adopted });
+        return;
+      }
+      const song = songFromFlat({ ...parsed, id: generateId(), updatedAt: Date.now() });
+      setSongs(prev => [...prev, song]);
+      setNewSongModal(null);
+      navigate('editor', { song });
+    } catch {
+      toast({ title: 'Import failed', description: 'Could not parse converted chord sheet.', variant: 'error' });
+    }
+  };
+
   const handleImportParsedSongs = (parsedSongs) => {
     if (!parsedSongs || parsedSongs.length === 0) return;
     if (guardTeamReadOnly()) return;
@@ -2983,16 +3016,27 @@ export default function App() {
       )}
       {newSongModal && (
         <Suspense fallback={null}>
-          <AddSongModal
-            initialTab={newSongModal.initialTab}
-            songs={songs}
-            onClose={() => setNewSongModal(null)}
-            onStartBlank={(title) => { setNewSongModal(null); goEditor(null, null, title); }}
-            onOpenSong={(s) => { setNewSongModal(null); goChart(s); }}
-            onImportSongs={handleImportParsedSongs}
-            onImportSetlistFile={handleImportSetlistFile}
-            onAddCatalogSong={handleAddCatalogSong}
-          />
+          {settings?.addSongModal ? (
+            <AddSongModal
+              initialTab={newSongModal.initialTab}
+              songs={songs}
+              onClose={() => setNewSongModal(null)}
+              onStartBlank={(title) => { setNewSongModal(null); goEditor(null, null, title); }}
+              onOpenSong={(s) => { setNewSongModal(null); goChart(s); }}
+              onImportSongs={handleImportParsedSongs}
+              onImportSetlistFile={handleImportSetlistFile}
+              onAddCatalogSong={handleAddCatalogSong}
+            />
+          ) : (
+            <NewSongModal
+              initialTab={newSongModal.initialTab}
+              onClose={() => setNewSongModal(null)}
+              onStartBlank={() => { setNewSongModal(null); goEditor(); }}
+              onImportSongs={handleImportParsedSongs}
+              onImportSetlistFile={handleImportSetlistFile}
+              onSmartImport={handleSmartImport}
+            />
+          )}
         </Suspense>
       )}
 
