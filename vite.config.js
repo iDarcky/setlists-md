@@ -53,6 +53,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,woff2}'],
+        // pdf.js is ~400KB of lazy chunk that only a PDF import ever needs.
+        // Precaching it would charge every install for a feature most users
+        // never reach; it loads on demand and the HTTP cache keeps it after.
+        globIgnores: ['**/pdf-*.js', '**/pdf.worker*'],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
         // Web Push handlers (push + notificationclick) live in a plain script

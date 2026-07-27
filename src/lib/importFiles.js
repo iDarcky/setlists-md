@@ -6,9 +6,10 @@ import JSZip from 'jszip';
 import { parseSongMd, generateId } from '../parser';
 import { songFromFlat } from '../arrangements';
 import { smartImport } from '../importer';
+import { pdfToChart, isPdfFile } from '../import/pdfChart';
 
 const CHORDPRO_EXTS = ['.cho', '.chopro', '.chord', '.crd', '.pro', '.onsong'];
-export const IMPORT_ACCEPT = ['.md', '.zip', '.xml', '.txt', ...CHORDPRO_EXTS].join(',');
+export const IMPORT_ACCEPT = ['.md', '.zip', '.xml', '.txt', '.pdf', ...CHORDPRO_EXTS].join(',');
 
 function ext(file) {
   const m = (file.name || '').toLowerCase().match(/\.[^.]+$/);
@@ -93,7 +94,8 @@ export async function parseImportFiles(fileList) {
   if (files.length === 0) return empty;
 
   const zips = files.filter(isZip);
-  const plain = files.filter(f => !isZip(f));
+  const pdfs = files.filter(f => !isZip(f) && isPdfFile(f));
+  const plain = files.filter(f => !isZip(f) && !isPdfFile(f));
 
   // A zip full of songs imports alongside any loose files; a real setlist
   // bundle short-circuits, since it creates a setlist rather than songs.
@@ -106,8 +108,24 @@ export async function parseImportFiles(fileList) {
     failed.push(...res.failed);
   }
 
-  if (plain.length === 0 && songs.length === 0) {
-    return { ...empty, error: 'Pick .md, ChordPro, OpenSong .xml, or .zip files.' };
+  if (plain.length === 0 && pdfs.length === 0 && songs.length === 0) {
+    return { ...empty, error: 'Pick .md, ChordPro, OpenSong .xml, .pdf, or .zip files.' };
+  }
+
+  // PDFs are the only import that isn't instant (pdf.js loads lazily, then each
+  // page is parsed), so they're handled before the cheap text files.
+  const warnings = [];
+  for (const f of pdfs) {
+    try {
+      const { md, warnings: w } = await pdfToChart(await f.arrayBuffer());
+      const flat = parseSongMd(md);
+      songs.push(songFromFlat({ ...flat, id: generateId(), updatedAt: Date.now() }));
+      warnings.push(...w);
+    } catch (err) {
+      failed.push(err?.message === 'no-text-layer'
+        ? `${f.name} (scanned image — no text to read)`
+        : f.name);
+    }
   }
 
   for (const f of plain) {
@@ -127,5 +145,6 @@ export async function parseImportFiles(fileList) {
         : 'No valid song files were found.',
     };
   }
-  return { songs, setlistFile: null, failed, error: failed.length ? `Skipped: ${failed.join(', ')}.` : '' };
+  const notes = [failed.length ? `Skipped: ${failed.join(', ')}.` : '', ...warnings].filter(Boolean);
+  return { songs, setlistFile: null, failed, error: notes.join(' ') };
 }
