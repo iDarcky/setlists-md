@@ -140,7 +140,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
 
   // Reset key whenever the current item changes
   const [prevItemKey, setPrevItemKey] = useState(null);
-  const itemKey = `${idx} ${cur?.song?.id ?? ''}`;
+  const itemKey = `${idx}\0${cur?.song?.id ?? ''}`;
   if (itemKey !== prevItemKey) {
     setPrevItemKey(itemKey);
     if (cur && !cur.isBreak && !cur.isMissing) {

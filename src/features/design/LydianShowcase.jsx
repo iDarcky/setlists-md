@@ -1,20 +1,20 @@
 import React from 'react';
 import { Button } from '@/ui/Button';
-  import { Button2 } from '@/ui/Button2';
 import { Input } from '@/ui/Input';
 import { Badge } from '@/ui/Badge';
 import { Switch } from '@/ui/Switch';
 import { Select, SelectGroup, SelectValue, SelectTrigger, SelectContent, SelectItem } from '@/ui/Select';
 import { Card } from '@/ui/Card';
 import { Separator } from '@/ui/Separator';
-import PageHeader from './PageHeaderLegacy';
+import PageHeader from '@/ui/PageHeader';
 
 export default function LydianShowcase({ onBack }) {
   return (
     <div className="min-h-screen bg-[var(--ds-background-200)] pb-8">
-      <PageHeader title="Lydian Design System">
-        <Button variant="secondary" size="sm" onClick={onBack}>Back to Settings</Button>
-      </PageHeader>
+      <PageHeader
+        title="Lydian Design System"
+        actions={<Button variant="secondary" size="sm" onClick={onBack}>Back to Settings</Button>}
+      />
 
       <div className="max-w-4xl mx-auto px-6 py-10 flex flex-col gap-16">
         
@@ -149,31 +149,41 @@ export default function LydianShowcase({ onBack }) {
         {/* Geist Button 2 Showcase */}
         <section className="flex flex-col gap-6">
           <div className="flex flex-col gap-1">
-            <h2 className="text-label-14 text-[var(--text-2)] uppercase tracking-widest font-bold">Button 2 (Geist Port)</h2>
-            <p className="text-copy-14 text-[var(--text-1)]">Modernized port supporting ghost, shadow, auto-width, and drip effects.</p>
+            <h2 className="text-label-14 text-[var(--text-2)] uppercase tracking-widest font-bold">Button</h2>
+            <p className="text-copy-14 text-[var(--text-1)]">
+              The app&rsquo;s only button. Every variant and size below is what
+              ships — see <code>src/ui/README.md</code> for when to reach for which.
+            </p>
           </div>
           <Card className="flex flex-col gap-8">
             <div className="flex flex-col gap-4">
-              <h4 className="text-label-12-mono text-[var(--text-2)]">Variants & States</h4>
+              <h4 className="text-label-12-mono text-[var(--text-2)]">Variants</h4>
               <div className="flex flex-wrap gap-4 items-center">
-                <Button2 type="default">Default</Button2>
-                <Button2 type="primary">Primary</Button2>
-                <Button2 type="success">Success</Button2>
-                <Button2 type="warning">Warning</Button2>
-                <Button2 type="error">Error</Button2>
-                <Button2 type="abort">Abort</Button2>
+                <Button variant="brand">Brand</Button>
+                <Button variant="primary">Primary</Button>
+                <Button variant="secondary">Secondary</Button>
+                <Button variant="ghost">Ghost</Button>
+                <Button variant="warning">Warning</Button>
+                <Button variant="error">Error</Button>
+                <Button variant="danger">Danger</Button>
               </div>
             </div>
             <Separator />
             <div className="flex flex-col gap-4">
-              <h4 className="text-label-12-mono text-[var(--text-2)]">Geist Features</h4>
+              <h4 className="text-label-12-mono text-[var(--text-2)]">Sizes</h4>
               <div className="flex flex-wrap gap-4 items-center">
-                <Button2 type="success" ghost>Ghost Success</Button2>
-                <Button2 type="error" ghost>Ghost Error</Button2>
-                <Button2 shadow type="primary">Shadow</Button2>
-                <Button2 auto type="secondary">Auto Width</Button2>
-                <Button2 loading type="primary">Loading State</Button2>
-                <Button2 disabled type="primary">Disabled</Button2>
+                <Button variant="brand" size="xs">Extra small</Button>
+                <Button variant="brand" size="sm">Small</Button>
+                <Button variant="brand" size="md">Medium</Button>
+                <Button variant="brand" size="lg">Large</Button>
+              </div>
+            </div>
+            <Separator />
+            <div className="flex flex-col gap-4">
+              <h4 className="text-label-12-mono text-[var(--text-2)]">States</h4>
+              <div className="flex flex-wrap gap-4 items-center">
+                <Button variant="brand" loading>Loading</Button>
+                <Button variant="brand" disabled>Disabled</Button>
               </div>
             </div>
           </Card>

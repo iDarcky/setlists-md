@@ -34,14 +34,21 @@ programming. If you only do one thing in August, do Stream A.
 
 ## 1. Right now
 
-**In flight:** component architecture — the app regrouped by feature, boundaries
-enforced by lint. See §3.1.
+**Just landed:** the component-architecture foundation — feature folders,
+enforced boundaries, and the design-system canon (§3.1, all ✅).
 
 **The next three, in order:**
 
-1. **Design system pass** (§3.1) — one Button, one PageHeader, one sheet. Mostly deletion.
-2. **Test harness** (§3.2) — `@testing-library/react`, then tests land with every pass after.
-3. **Start Stream A** (§2) — the domain split gates email, which gates OAuth. It has a queue.
+1. **Test harness** (§3.2) — `@testing-library/react`. Do this *before* the App
+   split, so the riskiest refactor in the codebase has something catching it.
+2. **Split `App.jsx`** (§3.1) — 3,168 lines, eight concerns, and a router
+   adopted while the route table is being written anyway.
+3. **Start Stream A** (§2) — the domain split gates email, which gates OAuth.
+   It has a queue, so August is already late.
+
+**Two design calls waiting on you** (§7, #8–9) before the design system is fully
+closed: which bottom sheet is the app's, and whether `ScreenHeader` folds into
+`PageHeader`.
 
 ---
 
@@ -129,10 +136,13 @@ repeatedly, once per surface.
       `src/share`, `src/billing`, `src/notes` folded into `lib/`/`hooks/`.
       Rule: `src/<x>/` is the engine, `features/<x>/` is its UI.
 - [x] ✅ **`chart → editor` back-edge closed** — `tabInstruments` moved to `data/`.
-- [ ] 🔴 **Design system pass (COMPONENTS §0.5).** 57 primitives, no canon: two
-      `Button`s, two `PageHeader`s, four header primitives, six overlay
-      primitives. Pick one of each, delete the rest, write the rule. **Mostly
-      deletion, and every surface pass below re-decides these until it's done.**
+- [x] ✅ **Design system pass (COMPONENTS §0.5).** `src/ui/README.md` is now the
+      canon — which primitive for which job, plus the no-siblings rule. Deleted
+      `Button2` and `PageHeaderLegacy` (showcase-only), six dead primitives, and
+      three unused npm deps. **Two consolidations left open on purpose** because
+      they're design calls, not dedupes: which bottom sheet is the app's
+      (`BottomSheet` 6 importers vs `MobileSheet` 1), and absorbing
+      `ScreenHeader` into `PageHeader`. Both are in §7.
 - [ ] 🔴 **Split `App.jsx` (COMPONENTS §1.1).** 3,168 lines owning eight
       concerns: routing, a hand-rolled history stack, song CRUD, setlist CRUD,
       import, sync orchestration, notification merge, preference sync. Every
@@ -238,9 +248,8 @@ Each doubles the work of the pass that touches it.
 - [ ] **Product analytics** (Plausible / self-hosted PostHog) — you're about to
       choose which surfaces to redesign with no usage data. Decide before the
       September soft-launch so the beta produces evidence. ❓ needs an account decision.
-- [ ] Fix the raw NUL byte in `features/performance/PerformanceView.jsx`
-      (offset 7966, a template-literal key separator). It works, but it makes
-      the file binary to grep and diff. One character.
+- [x] ✅ Raw NUL byte in `features/performance/PerformanceView.jsx` replaced
+      with `\0`. The file is no longer binary to grep and diff.
 
 ---
 
@@ -489,6 +498,8 @@ Everything marked ❓ above, collected. These block or reshape real work.
 | 5 | Hamburger panel — keep or replace? | Settings/Nav pass |
 | 6 | Member suggestions — per-field or whole-arrangement? Who approves? | Post-beta epic |
 | 7 | Team: which extra member fields (GDPR-sensitive)? | Team pass |
+| 8 | **Which bottom sheet is the app's** — `BottomSheet` (plain titled, 6 uses) or `MobileSheet` (drawer aesthetic, 1)? | Finishing the design system |
+| 9 | Absorb `ScreenHeader` into `PageHeader`? Visual change on 2 screens. | Settings / setlist-editor pass |
 
 ---
 

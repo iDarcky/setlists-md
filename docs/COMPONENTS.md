@@ -154,26 +154,44 @@ that discipline is held everywhere and is why the app is demoable offline.
 #### 0.5 — Design system (`ui/`)
 **Job.** The shared vocabulary every surface is built from.
 
-**Owns.** `ui/*` (57 files, 4,327 lines) · `styles/index.css` ·
-`lib/glass.js` · `lib/headerFrost.js` · `lib/utils.js` · `LydianShowcase.jsx`
+**Owns.** `ui/*` (51 files) · `ui/README.md` (the canon) · `styles/index.css` ·
+`lib/glass.js` · `lib/headerFrost.js` · `lib/utils.js` ·
+`features/design/LydianShowcase.jsx`
 
-**Status.** 🔴 **Structural problem, and it is the reason to do this component
-first.** 57 primitives with no enforced canon:
+**Status.** 🟡 **Pass done 2026-07-27** — canon written, duplicates resolved,
+dead code gone. Two consolidations deliberately left open because they're design
+calls, not dedupes (below).
 
-- **`Button.jsx` and `Button2.jsx` both exist.** `Button2` is used by exactly one
-  file (`LydianShowcase`, the design showcase) — so the "new" button lives only
-  in the showcase while the app uses the old one.
-- **Two `PageHeader`s**: `features/design/PageHeaderLegacy.jsx` (1 importer, legacy) and
-  `ui/PageHeader.jsx` (9 importers, canonical).
-- `ScreenHeader` · `StageHeader` · `PageHeader` · `PageHeader` — four header
-  primitives, and no written rule for which surface takes which.
-- `BottomSheet` · `MobileSheet` · `SideSheet` · `SidePeek` · `Dialog` ·
-  `PromptDialog` — six overlay primitives.
+**Done in the pass.**
+- **`src/ui/README.md` is the canon** — which primitive for which job, plus five
+  rules (no siblings, no raw `<button>`, no native `alert/confirm/prompt`, no
+  `window.open`, imports through `@/ui`). New primitives must be added to it in
+  the same commit.
+- **`Button2` deleted.** It was used only by the showcase, so the "new" button
+  lived only in the demo while 65 files used the old one. Canonical `Button`
+  already covers every variant it had except `success` — add that to `Button`
+  if a surface needs it, don't fork.
+- **`PageHeaderLegacy` deleted** (1 importer, the showcase) — `ui/PageHeader`
+  is canonical with 9.
+- **Six dead primitives deleted**: `Checkbox`, `Logo`, `SearchIcon`,
+  `SideSheet`, `Tooltip`, `ViewModePicker`. Zero importers each. (Note
+  `viewModes.js` stays — `ChartView` still uses `VIEW_MODES`; only the picker
+  was orphaned, by the ⋮-menu change.)
+- **Three unused npm deps removed** — `@radix-ui/react-tooltip`,
+  `@radix-ui/react-checkbox` (only the deleted files used them) and
+  `@radix-ui/react-label` (used by nothing at all).
+- **Showcase now documents the real `Button`** — variants, sizes, states.
 
-**Debt.** Pick one of each, delete or absorb the rest, and write the one-line
-rule for when to use what. Every content-surface pass below re-litigates these
-choices until this is settled — which is why this is the cheapest component to
-fix and the most expensive to defer.
+**Debt — two open decisions, both recorded in `ui/README.md`.**
+- ⚠️ **Two bottom sheets.** `MobileSheet`'s own comment says it exists so every
+  sheet shares one set of mechanics "instead of each screen re-deriving them and
+  drifting apart" — yet `BottomSheet` has 6 importers to its 1. They aren't
+  accidental twins: one is a plain titled sheet, the other the drawer aesthetic.
+  **Which is the app's sheet is a design call.** Decide, migrate, delete the other.
+- ⚠️ **`ScreenHeader` should be absorbed into `PageHeader`** — `PageHeader` can
+  already do everything it does and has 9 importers to its 2. It's a visual
+  change on two screens (`RecoveryScreen`, `SetlistBuilder`), so it wants eyes,
+  not a blind swap. Do it in the Settings or setlist-editor pass.
 
 ---
 
