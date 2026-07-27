@@ -752,11 +752,13 @@ directly:
 
 ## Current Focus & Roadmap
 
-**Planning lives in `docs/PLAN.md`** — the single source of truth for the launch
-plan, polish backlog, known issues, and the longer-horizon roadmap (it replaces
-the old `docs/ROADMAP.md` + `docs/BACKLOG.md`). Keep this file (`CLAUDE.md`) for
-dev/agent memory only: stack, architecture, schema, the finish/release
-workflows, and gotchas.
+**Planning lives in `docs/PLAN.md`** — the single **sequenced** roadmap: what to
+do, in what order, and why. It separates the two streams that were previously
+tangled (**A** ship-the-beta ops vs **B** build-the-product engineering), carries
+the component-pass order, and collects every open decision in one table (§7).
+The per-area detail is §6, explicitly *not* sequenced — read a section when you
+start that component's pass. Keep this file (`CLAUDE.md`) for dev/agent memory
+only: stack, architecture, schema, the finish/release workflows, and gotchas.
 
 **`docs/COMPONENTS.md` is the definitive component map** — the app decomposed
 into 25 named components, each with its owner files, state, status and debt,

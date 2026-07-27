@@ -1,6 +1,6 @@
 # Native Packaging & App Store Feasibility — June 2026
 
-Companion to `docs/AUDIT-2026-06.md`. Assesses what it takes to ship Setlists.md beyond the
+Companion to `docs/archive/AUDIT-2026-06.md` (archived). Assesses what it takes to ship Setlists.md beyond the
 web PWA: Apple App Store, Google Play, and Windows. Store-policy facts below were verified
 against June-2026 sources (linked inline) — several are in active legal flux, so re-verify
 before committing to a billing architecture.
