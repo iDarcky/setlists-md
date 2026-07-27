@@ -70,7 +70,7 @@ describe('cleanPastedText', () => {
 describe('cleanPastedText → importChartText', () => {
   it('leaves an NBSP chord row working — \\s already matched it', () => {
     // Worth pinning: NBSP between chords was never the bug, because JS \s
-    // matches  . Cleaning normalises it anyway, and must not regress it.
+    // matches U+00A0. Cleaning normalises it anyway, and must not regress it.
     const dirty = `G${NBSP}${NBSP}${NBSP}${NBSP}${NBSP}${NBSP}${NBSP}C\nAmazing grace how sweet`;
     const cleanBody = importChartText(cleanPastedText(dirty)).body;
     expect(cleanBody).toContain('[G]');
@@ -130,5 +130,25 @@ describe('rejoinSplitWords', () => {
   it('is safe on empty input', () => {
     expect(rejoinSplitWords('').text).toBe('');
     expect(rejoinSplitWords(null).joins).toEqual([]);
+  });
+});
+
+describe('rejoinSplitWords — harder cases', () => {
+  it('joins a word split into three fragments', () => {
+    // Needs two passes: "mul"+"țu" only becomes visible as "mulțu"+"mesc"
+    // once the first join exists.
+    const src = 'Îți mulțumesc mereu\naltceva\nÎți mul țu mesc mereu';
+    expect(rejoinSplitWords(src).text).toContain('Îți mulțumesc mereu\naltceva\nÎți mulțumesc mereu');
+  });
+
+  it('uses vocabulary the caller supplies when the song cannot prove it', () => {
+    // "mulțumesc" appears nowhere intact here, so the song alone can't help.
+    const src = 'Îți mul țumesc';
+    expect(rejoinSplitWords(src).text).toBe(src);
+    expect(rejoinSplitWords(src, ['mulțumesc']).text).toBe('Îți mulțumesc');
+  });
+
+  it('still refuses joins nothing vouches for', () => {
+    expect(rejoinSplitWords('cuv ant nou', ['altceva']).text).toBe('cuv ant nou');
   });
 });

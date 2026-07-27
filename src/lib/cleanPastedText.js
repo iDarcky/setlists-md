@@ -108,39 +108,62 @@ export function cleanPastedText(text, { rejoinHyphens = true } = {}) {
  * @param {string} text
  * @returns {{ text: string, joins: Array<{ from: string, to: string }> }}
  */
-export function rejoinSplitWords(text) {
+export function rejoinSplitWords(text, extraVocabulary = null) {
   const src = String(text ?? '');
   if (!src.trim()) return { text: src, joins: [] };
 
+  // The song's own words, plus any vocabulary the caller can vouch for (the
+  // user's existing library — worship lyrics repeat across songs far more than
+  // ordinary prose, so a library of 30 songs is a surprisingly good dictionary).
   const known = new Set(
     (src.match(/\p{L}[\p{L}\p{M}'-]*/gu) || []).map(w => w.toLowerCase()),
   );
+  if (extraVocabulary) for (const w of extraVocabulary) known.add(String(w).toLowerCase());
 
   // Walk word/whitespace tokens rather than running a regex with two capture
   // groups: a global replace consumes the first fragment of the NEXT candidate
   // pair, so "Îți mul țumesc" would test "ți mul" and never "mul țumesc".
+  //
+  // Longest merge first, up to MAX_FRAGMENTS: a word split three ways ("mul țu
+  // mesc") can't be recovered pairwise, because neither "mulțu" nor "țumesc" is
+  // a word — only all three together are.
+  const MAX_FRAGMENTS = 4;
   const parts = src.split(/(\s+)/);
   const joins = [];
   const out = [];
   const core = (t) => t.replace(/^[^\p{L}]+|[^\p{L}\p{M}]+$/gu, '');
 
   for (let i = 0; i < parts.length; i++) {
-    const a = parts[i];
-    const gap = parts[i + 1];
-    const b = parts[i + 2];
-    // Exactly one space between two lowercase-starting word tokens. Multiple
-    // spaces are chord-chart alignment; a capital marks a genuine new word.
-    if (gap === ' ' && a && b) {
-      const ca = core(a);
-      const cb = core(b);
-      if (ca && cb && /^\p{Ll}/u.test(ca) && /^\p{Ll}/u.test(cb) && known.has((ca + cb).toLowerCase())) {
-        joins.push({ from: `${ca} ${cb}`, to: ca + cb });
-        out.push(a + b);
-        i += 2; // consumed the gap and the second fragment
-        continue;
+    const token = parts[i];
+    if (!token || /^\s+$/.test(token)) { out.push(token); continue; }
+
+    let taken = 0;
+    for (let k = MAX_FRAGMENTS; k >= 2 && taken === 0; k--) {
+      const raws = [token];
+      const frags = [core(token)];
+      let ok = true;
+      for (let j = 1; j < k; j++) {
+        // Exactly one space between fragments. Multiple spaces are chord-chart
+        // alignment, never a split word.
+        const gap = parts[i + 2 * j - 1];
+        const word = parts[i + 2 * j];
+        if (gap !== ' ' || !word) { ok = false; break; }
+        raws.push(word);
+        frags.push(core(word));
       }
+      if (!ok) continue;
+      // Every fragment must start lowercase — a capital marks a real new word.
+      if (!frags.every(f => f && /^\p{Ll}/u.test(f))) continue;
+      if (!known.has(frags.join('').toLowerCase())) continue;
+
+      joins.push({ from: frags.join(' '), to: frags.join('') });
+      out.push(raws.join(''));
+      taken = k;
     }
-    out.push(a);
+
+    if (taken > 0) i += 2 * (taken - 1); // skip the gaps and fragments consumed
+    else out.push(token);
   }
+
   return { text: out.join(''), joins };
 }

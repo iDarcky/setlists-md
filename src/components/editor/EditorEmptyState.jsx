@@ -29,12 +29,7 @@ export default function EditorEmptyState({
   if (reviewing && hasText) {
     return (
       <div className="flex-1 min-h-0 flex flex-col px-3 sm:px-4 pt-3 pb-4">
-        <PasteReview
-          text={value}
-          onApply={onApply}
-          onEditText={() => setReviewing(false)}
-          onCancel={() => setReviewing(false)}
-        />
+        <PasteReview text={value} onApply={onApply} onEditText={() => setReviewing(false)} />
       </div>
     );
   }
@@ -43,13 +38,17 @@ export default function EditorEmptyState({
     <div className="flex-1 min-h-0 flex flex-col px-3 sm:px-4 pt-3 pb-4 gap-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-copy-13 text-[var(--ds-gray-600)] m-0">
-          Paste the song here — or start by adding a section.
+          {hasText
+            ? 'Check what we read out of it before it becomes a chart.'
+            : 'Paste the song here — or start by adding a section.'}
         </p>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Button variant="secondary" size="sm" onClick={onAddSection ?? onDismiss}>
-            + Add section
-          </Button>
-        </div>
+        {!hasText && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button variant="secondary" size="sm" onClick={onAddSection ?? onDismiss}>
+              + Add section
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* The empty space: a full-height paste area. */}

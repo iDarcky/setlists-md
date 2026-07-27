@@ -3,6 +3,7 @@ import { Button } from '../ui/Button';
 import PopMenu from '../ui/PopMenu';
 import { inferSections } from '../../lib/detectSections';
 import { rejoinSplitWords } from '../../lib/cleanPastedText';
+import { useLibraryVocabulary } from '../../lib/useLibraryVocabulary';
 import { sectionStyle } from '../../music';
 
 // Review a pasted song before it becomes a chart.
@@ -38,11 +39,14 @@ function numberTypes(blocks) {
 // Strip any trailing number the inference added, so the chip menu compares types.
 const baseType = (t) => String(t || '').replace(/\s*\d+$/, '').trim();
 
-export default function PasteReview({ text, onApply, onEditText, onCancel }) {
+export default function PasteReview({ text, onApply, onEditText }) {
   // Words the source split with a real space ("mul țumesc"). Only joins the
   // song itself vouches for are offered, and it stays the user's call.
   const [joined, setJoined] = useState(false);
-  const repair = useMemo(() => rejoinSplitWords(text), [text]);
+  // The user's own library is the dictionary: worship vocabulary repeats across
+  // songs, so what they've already imported vouches for the next paste.
+  const vocabulary = useLibraryVocabulary();
+  const repair = useMemo(() => rejoinSplitWords(text, vocabulary), [text, vocabulary]);
   const working = joined ? repair.text : text;
 
   const initial = useMemo(() => inferSections(working).map(s => ({
@@ -82,9 +86,8 @@ export default function PasteReview({ text, onApply, onEditText, onCancel }) {
       <div className="flex-1 min-h-0 grid place-items-center p-6 text-center">
         <div>
           <p className="text-copy-14 text-[var(--ds-gray-700)] m-0">Nothing left to import.</p>
-          <div className="mt-3 flex items-center justify-center gap-2">
-            <Button variant="secondary" size="sm" onClick={onEditText}>Back to the text</Button>
-            <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
+          <div className="mt-3 flex items-center justify-center">
+            <Button variant="secondary" size="sm" onClick={onEditText}>Back to text</Button>
           </div>
         </div>
       </div>
@@ -92,26 +95,26 @@ export default function PasteReview({ text, onApply, onEditText, onCancel }) {
   }
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col gap-3">
-      <div className="shrink-0 flex items-center gap-2 flex-wrap">
-        <p className="text-copy-13 text-[var(--ds-gray-700)] m-0 flex-1 min-w-0">
-          <span className="font-semibold">{numbered.length} sections</span>
-          <span className="text-[var(--ds-gray-600)]"> — {summary}</span>
+    <div className="flex-1 min-h-0 flex flex-col">
+      {/* One header: what we read, and how sure we are. */}
+      <div className="shrink-0 pb-2.5">
+        <p className="text-copy-14 text-[var(--ds-gray-1000)] m-0 font-semibold">
+          {numbered.length} {numbered.length === 1 ? 'section' : 'sections'}
         </p>
-        <Button variant="ghost" size="sm" onClick={onEditText}>Edit the text</Button>
+        <p className="text-copy-12 text-[var(--ds-gray-600)] m-0 mt-0.5">
+          {summary}
+        </p>
+        <p className="text-label-11 text-[var(--ds-gray-500)] m-0 mt-1.5">
+          A solid label repeats in the song. A dashed one is a guess — tap it to change.
+        </p>
       </div>
 
-      <p className="shrink-0 text-label-11 text-[var(--ds-gray-500)] m-0">
-        Solid labels repeat in the song, so we're confident. Dashed ones are a
-        guess — tap any of them to change it.
-      </p>
-
       {repair.joins.length > 0 && (
-        <div className="shrink-0 flex items-center gap-2 rounded-lg border border-[var(--ds-amber-400)] bg-[var(--ds-amber-100)] px-3 py-2">
+        <div className="shrink-0 mb-2.5 flex items-center gap-2 rounded-lg border border-[var(--ds-amber-400)] bg-[var(--ds-amber-100)] px-3 py-2">
           <span className="text-copy-12 text-[var(--ds-amber-1000)] flex-1 min-w-0">
             {joined
-              ? `Joined ${repair.joins.length} split ${repair.joins.length === 1 ? 'word' : 'words'} — e.g. “${repair.joins[0].from}” → “${repair.joins[0].to}”.`
-              : `${repair.joins.length} ${repair.joins.length === 1 ? 'word looks' : 'words look'} split by a stray space — e.g. “${repair.joins[0].from}” → “${repair.joins[0].to}”.`}
+              ? `Joined ${repair.joins.length} split ${repair.joins.length === 1 ? 'word' : 'words'}.`
+              : `${repair.joins.length} ${repair.joins.length === 1 ? 'word looks' : 'words look'} split by a stray space — “${repair.joins[0].from}” → “${repair.joins[0].to}”.`}
           </span>
           <Button variant="secondary" size="sm" onClick={() => setJoined(v => !v)}>
             {joined ? 'Undo' : 'Fix spacing'}
@@ -119,7 +122,8 @@ export default function PasteReview({ text, onApply, onEditText, onCancel }) {
         </div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 pr-0.5">
+      {/* The song. Every line in full — this is the thing being checked. */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2.5">
         {numbered.map((b, i) => {
           const st = sectionStyle(b.type, null, []);
           return (
@@ -179,7 +183,7 @@ export default function PasteReview({ text, onApply, onEditText, onCancel }) {
                   </button>
                 </span>
               </div>
-              <pre className="m-0 px-3 py-2 text-copy-13 font-mono whitespace-pre-wrap break-words text-[var(--ds-gray-1000)]">
+              <pre className="m-0 px-3 py-2.5 text-copy-13 font-mono leading-relaxed whitespace-pre-wrap break-words text-[var(--ds-gray-1000)]">
                 {b.lines.join('\n')}
               </pre>
             </div>
@@ -187,10 +191,10 @@ export default function PasteReview({ text, onApply, onEditText, onCancel }) {
         })}
       </div>
 
-      <div className="shrink-0 flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
-        <span className="ml-auto" />
-        <Button variant="brand" size="sm" onClick={apply}>Turn into chart</Button>
+      {/* One footer: both ways out, side by side. */}
+      <div className="shrink-0 flex items-center justify-end gap-2 pt-3">
+        <Button variant="secondary" size="md" onClick={onEditText}>Back to text</Button>
+        <Button variant="brand" size="md" onClick={apply}>Turn into chart</Button>
       </div>
     </div>
   );
