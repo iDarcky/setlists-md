@@ -31,6 +31,9 @@ import NotificationTray from '@/features/notifications/NotificationTray';
 import NotificationsPage from '@/features/notifications/NotificationsPage';
 import ConflictResolver from '@/features/sync/ConflictResolver';
 import ErrorBoundary from '@/app/ErrorBoundary';
+import { usePreferenceSync } from '@/app/usePreferenceSync';
+import { useNotificationFeed } from '@/app/useNotificationFeed';
+import { useAppearance } from '@/app/useAppearance';
 import { useAuth } from '@/auth/useAuth';
 import { useTeam } from '@/auth/useTeam';
 import { exportSetlistZip, importSetlistZip, exportLibraryZip, slugify } from './setlist-io';
@@ -92,99 +95,12 @@ const AccountWall = lazy(() => import('@/features/settings/AccountWall'));
 const FounderNote = lazy(() => import('@/features/onboarding/FounderNote'));
 const IOSInstallHint = lazy(() => import('@/features/onboarding/IOSInstallHint'));
 
-// Subset of local settings that gets mirrored to the user's cloud profile
-// (profiles.preferences). Device-local flags like onboardingComplete,
-// helpPageSeen, and the notification inbox are intentionally excluded.
-const PORTABLE_PREF_KEYS = [
-  'theme',
-  'defaultColumns',
-  'defaultFontSize',
-  'chordFontSize',
-  'nashville',
-  'notation',
-  'showChords',
-  'showDiagrams',
-  'pedalNext',
-  'pedalPrev',
-  'showInlineNotes',
-  'inlineNoteStyle',
-  'displayRole',
-  'duplicateSections',
-  'chartLayout',
-  'chartTheme',
-  'chartBg',
-  'chartText',
-  'chartChordColor',
-  'chartLyricColor',
-  'chartChordFont',
-  'chartLyricFont',
-  'sectionColors',
-  'sectionLabels',
-  'customSectionTypes',
-  'customChartThemes',
-  'accentColor',
-  'stageMode',
-  'lyricLineHeight',
-  'sectionSpacing',
-  'firstDayOfWeek',
-  'clockFormat',
-  'userName',
-  'lastChangelogVersion',
-  'performanceRail',
-  'navStyle',
-  'displayMode',
-  'autoHideHeader',
-  'ribbonStyle',
-  'structurePosition',
-  'mockupPalette',
-  'keepAwake',
-  'lockOrientation',
-  'accidentals',
-  'dashboardWidgetOrder',
-  'dashboardHidden',
-  'landingView',
-  'language',
-  'confirmBeforeDelete',
-  'defaultSpaceId',
-  'tabSubdivision',
-  'tabSize',
-  'tabStringColor',
-  'tabNumberColor',
-  'tabBg',
-  'rosterOverscheduleWarning',
-  'rosterStreakLimit',
-  'tableColumns',
-  'serviceReminders',
-  'rehearsalReminders',
-  'songsLibraryPlus',
-  'setlistsLibraryPlus',
-  'hmMenu',
-  'accountPanel',
-  'addSongModal',
-  'pasteIntoChart',
-];
-
-function extractPortablePrefs(s) {
-  const out = {};
-  if (!s) return out;
-  for (const k of PORTABLE_PREF_KEYS) {
-    if (s[k] !== undefined) out[k] = s[k];
-  }
-  return out;
-}
-
 // Which view to open on launch, from the user's "Default landing page" setting.
 const LANDING_VIEWS = ['home', 'library', 'setlists'];
 function resolveLandingView(v) {
   return LANDING_VIEWS.includes(v) ? v : 'home';
 }
 
-function prefsEqual(a, b) {
-  for (const k of PORTABLE_PREF_KEYS) {
-    if ((a?.[k] ?? null) !== (b?.[k] ?? null)) return false;
-  }
-  return true;
-}
 
 // Team libraries sync directly against the Supabase tables
 // (server-authoritative team engine); the file-manifest engine remains for
@@ -321,8 +237,6 @@ export default function App() {
   const syncEngineRef = useRef(null);
   const historyRef = useRef([]);
   const quotaWarnedRef = useRef(false);
-  const prefsHydratedForUserRef = useRef(null);
-  const prefsPushTimerRef = useRef(null);
   const isSwitchingLibraryRef = useRef(false);
   // Tracks which user we've already applied the "home Space" default for, so we
   // do it once per sign-in and never override a later manual switch.
@@ -705,62 +619,8 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
-  // Surface the result of a Stripe Checkout / billing-portal redirect, then
-  // strip the `?billing=` param. The workspace's subscription_status is written
-  // by the stripe-webhook function; TeamProvider re-fetches on this fresh load,
-  // so the new status is already reflected.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const billing = params.get('billing');
-    if (!billing) return;
-    if (billing === 'success') {
-      toast({ title: 'Subscription active', description: 'Your Space is all set.' });
-    } else if (billing === 'cancel') {
-      toast({ title: 'Checkout canceled', description: 'No changes were made.' });
-    }
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }, []);
-
-  // Hydrate local settings from the user's cloud preferences on sign-in —
-  // once per user id. Cloud is treated as source of truth for the portable
-  // subset; device-local fields stay untouched.
-  useEffect(() => {
-    if (!loaded || !settings || !user?.id || !profile) return;
-    if (prefsHydratedForUserRef.current === user.id) return;
-    prefsHydratedForUserRef.current = user.id;
-    const cloud = profile.preferences;
-    if (cloud && typeof cloud === 'object' && Object.keys(cloud).length > 0) {
-      setSettings(prev => ({ ...prev, ...cloud }));
-    }
-  }, [loaded, user?.id, profile, settings]);
-
-  // Forget hydration marker on sign-out so a later sign-in re-hydrates.
-  useEffect(() => {
-    if (!user?.id) prefsHydratedForUserRef.current = null;
-  }, [user?.id]);
-
-  // Snapshot of all portable prefs — used as a single stable dep so the push
-  // effect fires whenever *any* of the 30 keys changes, not just the 15 that
-  // were previously listed in the deps array.
-  const portablePrefsSnapshot = settings ? JSON.stringify(extractPortablePrefs(settings)) : null;
-
-  // Push portable preference changes to the cloud (debounced, only after
-  // hydration so we don't clobber server state with local defaults).
-  useEffect(() => {
-    if (!loaded || !settings || !user?.id) return;
-    if (prefsHydratedForUserRef.current !== user.id) return;
-    const portable = extractPortablePrefs(settings);
-    if (prefsEqual(portable, profile?.preferences || {})) return;
-    clearTimeout(prefsPushTimerRef.current);
-    prefsPushTimerRef.current = setTimeout(() => {
-      updateProfile({ preferences: portable }).catch(err => {
-        console.warn('[prefs] cloud sync failed:', err?.message || err);
-      });
-    }, 800);
-    return () => clearTimeout(prefsPushTimerRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, user?.id, portablePrefsSnapshot]);
+  // Account-level preference sync (hydrate once per user, then debounced push).
+  usePreferenceSync({ loaded, settings, setSettings, user, profile, updateProfile });
 
   // Sync on tab focus
   useEffect(() => {
@@ -807,59 +667,8 @@ export default function App() {
     };
   }, [loaded, songs, setlists, tombstones]);
 
-  // Apply theme to document — 'default' follows system preference.
-  // Also keeps the active <meta name="theme-color"> in sync so Android's system
-  // bars (status bar + navigation pill) tint to match the current theme.
-  useEffect(() => {
-    if (!settings) return;
-    const theme = settings.theme;
-
-    const setThemeColor = (mode) => {
-      const color = mode === 'light' ? '#f6f4ef' : mode === 'midnight' ? '#14161e' : '#0a0807';
-      // Remove the media-scoped tags so the single active tag wins everywhere.
-      document.querySelectorAll('meta[name="theme-color"][media]').forEach(m => m.remove());
-      let tag = document.querySelector('meta[name="theme-color"]:not([media])');
-      if (!tag) {
-        tag = document.createElement('meta');
-        tag.setAttribute('name', 'theme-color');
-        document.head.appendChild(tag);
-      }
-      tag.setAttribute('content', color);
-    };
-
-    if (theme === 'default') {
-      const mq = window.matchMedia('(prefers-color-scheme: light)');
-      const apply = () => {
-        const mode = mq.matches ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', mode);
-        setThemeColor(mode);
-      };
-      apply();
-      mq.addEventListener('change', apply);
-      return () => mq.removeEventListener('change', apply);
-    }
-    document.documentElement.setAttribute('data-theme', theme);
-    setThemeColor(theme);
-  }, [settings?.theme]);
-
-  // Labs: preview the Song Hub V2 neutral palette app-wide (overrides the dark
-  // theme tokens — see [data-palette="neutral"] in styles/index.css).
-  useEffect(() => {
-    const el = document.documentElement;
-    if (settings?.mockupPalette) el.setAttribute('data-palette', 'neutral');
-    else el.removeAttribute('data-palette');
-  }, [settings?.mockupPalette]);
-
-  // Settings → General → "Lock orientation". Best-effort: the Screen Orientation
-  // lock API only resolves in full screen / an installed PWA on most engines and
-  // throws on iOS Safari — swallow failures so it's a no-op where unsupported.
-  useEffect(() => {
-    if (!settings?.lockOrientation) return undefined;
-    const o = typeof screen !== 'undefined' ? screen.orientation : null;
-    if (!o?.lock) return undefined;
-    o.lock(o.type).catch(() => {});
-    return () => { try { o.unlock?.(); } catch { /* unsupported */ } };
-  }, [settings?.lockOrientation]);
+  // Document-level appearance: theme, Labs palette, orientation lock.
+  useAppearance(settings);
 
   // Snapshot of every state field that participates in back/forward.
   // Centralised so navigate / goToMainView / goSettingsPanel / openModal all
@@ -1144,173 +953,19 @@ export default function App() {
 
   const toggleFullscreen = useCallback(() => setIsFullscreen(f => !f), []);
 
-  // Notification system
-  const handleMarkNotificationRead = useCallback((notifId) => {
-    if (typeof notifId === 'string' && notifId.startsWith('tn-')) {
-      markTeamNotifRead(notifId.slice(3));
-      return;
-    }
-    setSettings(prev => ({
-      ...prev,
-      notifications: (prev.notifications || []).map(n =>
-        n.id === notifId ? { ...n, read: true } : n
-      ),
-    }));
-  }, [markTeamNotifRead]);
-
-  const handleNotificationAction = () => {
-    // Actions are usually strings like "view_setlist_123" or similar
-    // Actually the action might not have been implemented in previous iterations.
-    // If we have an actionable notification, we can handle it here if it's not handled internally by the tray
-  };
-
-  // Dismiss a single notification: drop it from the stored list and remember
-  // its id so derived (virtual) notifications stay dismissed too. The dismissed
-  // set is device-local (not a PORTABLE_PREF_KEY) like `notifications` itself.
-  const handleDismissNotification = useCallback((notifId) => {
-    if (typeof notifId === 'string' && notifId.startsWith('tn-')) {
-      dismissTeamNotif(notifId.slice(3));
-      return;
-    }
-    setSettings(prev => ({
-      ...prev,
-      notifications: (prev.notifications || []).filter(n => n.id !== notifId),
-      dismissedNotifications: [...new Set([...(prev.dismissedNotifications || []), notifId])],
-    }));
-  }, [dismissTeamNotif]);
-
-  // --- Compute Virtual Notifications ---
-  // Pending schedules for the current user → "you've been scheduled" prompts.
-  const pendingSchedules = schedules?.filter(s => s.user_id === user?.id && s.availability === 'pending') || [];
-  const virtualNotifications = pendingSchedules.map(s => {
-    const setlist = setlists.find(sl => matchesSetlistId(sl, s.setlist_id)) || { name: 'a setlist' };
-    return {
-      id: `schedule-${s.id}`,
-      type: 'schedule_request',
-      title: 'You have been scheduled!',
-      message: `You are scheduled for "${setlist.name}"${s.role ? ` as ${s.role}` : ''}.`,
-      read: false,
-      scheduleId: s.id,
-      setlistId: s.setlist_id,
-    };
+  // Notification feed — virtual schedule prompts + server rows + local rows.
+  const {
+    notifications: mergedNotifications,
+    hasUnread: hasUnreadNotifications,
+    markRead: handleMarkNotificationRead,
+    dismiss: handleDismissNotification,
+    clearAll: handleClearAllNotifications,
+    markAllRead: handleMarkAllNotificationsRead,
+    onAction: handleNotificationAction,
+  } = useNotificationFeed({
+    schedules, setlists, members, teamNotifications, user, settings, setSettings,
+    matchesSetlistId, markTeamNotifRead, dismissTeamNotif, dismissAllTeamNotifs,
   });
-
-  // Admins get notified when a member declines an UPCOMING setlist. Derived
-  // client-side (no schema change): any 'unavailable' schedule for a future
-  // setlist we can resolve locally. Dismissible; stays dismissed via the set.
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const memberDisplayName = (uid) => {
-    const m = (members || []).find(mm => mm.user_id === uid);
-    return m?.profile?.display_name || m?.profile?.email || 'A member';
-  };
-  // Decline alerts are now server-authoritative: the DB trigger fans a row out
-  // to every roster manager (see 20260616_team_notifications.sql), so they land
-  // even if this client never loaded that setlist, and read/dismiss persists
-  // across devices. We enrich the generic server copy with locally-resolvable
-  // names where possible, falling back to the row's stored body.
-  const resolveSetlistName = (setlistId) =>
-    setlists.find(sl => matchesSetlistId(sl, setlistId))?.name;
-
-  // Nudge: a "maybe" on a setlist coming up within ~2 weeks → ask the user to
-  // commit. Reuses the schedule_request Accept/Decline UI (Accept→available,
-  // Decline→unavailable), so resolving it clears the maybe.
-  const MAYBE_NUDGE_DAYS = 14;
-  const maybeNudges = (schedules || [])
-    .filter(s => s.user_id === user?.id && s.availability === 'maybe')
-    .map(s => ({ s, setlist: setlists.find(sl => matchesSetlistId(sl, s.setlist_id)) }))
-    .filter(({ setlist }) => {
-      if (!setlist?.date) return false;
-      const days = (new Date(`${setlist.date}T00:00:00`) - new Date(`${todayStr}T00:00:00`)) / 86400000;
-      return days >= 0 && days <= MAYBE_NUDGE_DAYS;
-    })
-    .map(({ s, setlist }) => ({
-      id: `maybe-${s.id}`,
-      type: 'schedule_request',
-      title: 'Still a maybe?',
-      message: `"${setlist.name}" is coming up — confirm whether you can make it.`,
-      read: false,
-      scheduleId: s.id,
-      setlistId: s.setlist_id,
-    }));
-
-  // Server schedule rows (schedule_request from the roster trigger,
-  // schedule_maybe_nudge from the notify-worker) exist to reach LOCK SCREENS
-  // via web push and to carry cross-device read state. In the tray, the
-  // interactive virtual prompt above is the better rendering of the same fact
-  // — so a server row is suppressed while a live prompt covers its schedule,
-  // and once the schedule is resolved (stale request/nudge).
-  const scheduleById = new Map((schedules || []).map(s => [s.id, s]));
-  const virtualScheduleIds = new Set([
-    ...pendingSchedules.map(s => s.id),
-    ...maybeNudges.map(n => n.scheduleId),
-  ]);
-  const serverNotifications = (teamNotifications || [])
-    .filter(n => {
-      const sid = n.metadata?.schedule_id;
-      if (!sid) return true;
-      if (virtualScheduleIds.has(sid)) return false; // interactive prompt shown instead
-      const sch = scheduleById.get(sid);
-      if (n.type === 'schedule_request') return !(sch && sch.availability !== 'pending');
-      if (n.type === 'schedule_maybe_nudge') return !(sch && sch.availability !== 'maybe');
-      return true;
-    })
-    .map(n => {
-      const meta = n.metadata || {};
-      let message = n.body;
-      if (n.type === 'schedule_decline') {
-        const who = meta.declined_by ? memberDisplayName(meta.declined_by) : 'A team member';
-        const name = resolveSetlistName(meta.setlist_id);
-        message = name
-          ? `${who} can't make "${name}"${meta.role ? ` (${meta.role})` : ''}.`
-          : `${who} can't make a service${meta.role ? ` (${meta.role})` : ''}.`;
-      }
-      return {
-        id: `tn-${n.id}`,
-        type: n.type === 'schedule_request' || n.type === 'schedule_maybe_nudge' ? 'server_schedule_info' : n.type,
-        title: n.title || 'Notification',
-        message,
-        read: !!n.read_at,
-        scheduleId: meta.schedule_id,
-        setlistId: meta.setlist_id,
-      };
-    });
-
-  const dismissedNotifs = settings?.dismissedNotifications || [];
-  const mergedNotifications = [
-    ...virtualNotifications,
-    ...maybeNudges,
-    ...serverNotifications,
-    ...(settings?.notifications || []),
-  ].filter(n => !dismissedNotifs.includes(n.id));
-
-  // Clear all dismissible notifications (schedule_request prompts stay — they
-  // still need an Accept/Decline).
-  const handleClearAllNotifications = () => {
-    const ids = mergedNotifications.filter(n => n.type !== 'schedule_request').map(n => n.id);
-    // Server-backed rows clear via the hook (persists across devices); the rest
-    // go onto the device-local dismissed set.
-    dismissAllTeamNotifs();
-    const localIds = ids.filter(id => !id.startsWith('tn-'));
-    if (localIds.length === 0) return;
-    setSettings(prev => ({
-      ...prev,
-      notifications: (prev.notifications || []).filter(n => !localIds.includes(n.id)),
-      dismissedNotifications: [...new Set([...(prev.dismissedNotifications || []), ...localIds])],
-    }));
-  };
-
-  const hasUnreadNotifications = mergedNotifications.some(n => !n.read);
-
-  // Mark every notification read (the notifications-view FAB action). Local
-  // rows flip in one settings write; team rows go through the hook per id.
-  const handleMarkAllNotificationsRead = () => {
-    const teamUnread = mergedNotifications.filter(n => !n.read && n.id.startsWith('tn-'));
-    teamUnread.forEach(n => markTeamNotifRead(n.id.slice(3)));
-    setSettings(prev => ({
-      ...prev,
-      notifications: (prev.notifications || []).map(n => (n.read ? n : { ...n, read: true })),
-    }));
-  };
 
   // Switch between Personal and a team/church workspace. Always lands on the
   // Dashboard so the user gets a consistent "home" for the workspace they

@@ -39,9 +39,9 @@ enforced boundaries, and the design-system canon (§3.1, all ✅).
 
 **The next three, in order:**
 
-1. **Split `App.jsx`** (§3.1) — 3,168 lines, eight concerns, and a router
-   adopted while the route table is being written anyway. The harness is now in
-   place to catch what it breaks.
+1. **Adopt a router** (§3.1) — this is now the blocker for the rest of the
+   App.jsx split, not a nice-to-have. Deleting the hand-rolled history stack is
+   what makes navigation, song CRUD and the route table separable at all.
 2. **Setlist-builder tests** (§3.2) — the other surface where a bug silently
    destroys user work.
 3. **Start Stream A** (§2) — the domain split gates email, which gates OAuth.
@@ -144,11 +144,15 @@ repeatedly, once per surface.
       they're design calls, not dedupes: which bottom sheet is the app's
       (`BottomSheet` 6 importers vs `MobileSheet` 1), and absorbing
       `ScreenHeader` into `PageHeader`. Both are in §7.
-- [ ] 🔴 **Split `App.jsx` (COMPONENTS §1.1).** 3,168 lines owning eight
-      concerns: routing, a hand-rolled history stack, song CRUD, setlist CRUD,
-      import, sync orchestration, notification merge, preference sync. Every
-      component's boundary is defined by what App hands it. Target module layout
-      is in COMPONENTS §1.1.
+- [~] 🟡 **Split `App.jsx` (COMPONENTS §1.1) — started, 3,168 → 2,823.**
+      Extracted the three concerns that were genuinely independent:
+      `app/usePreferenceSync.js`, `app/useNotificationFeed.js`,
+      `app/useAppearance.js`.
+      **Stopped deliberately.** The remaining concerns share App's state rather
+      than sitting beside it — navigation alone touches 11 state fields, so a
+      hook would take ~22 parameters and be *worse* than the monolith. They
+      need the router and a library context first, not more prop-drilling.
+      See COMPONENTS §1.1.
 - [ ] **Adopt a router — during the App split, not after.** Views are `useState`
       + a manual `historyRef` + `popstate` handler with unsaved-guards inlined.
       Costs today: no deep links (you can't send someone a link to a song or

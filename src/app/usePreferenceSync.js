@@ -1,0 +1,145 @@
+import { useEffect, useRef } from 'react';
+
+// Subset of local settings that gets mirrored to the user's cloud profile
+// (profiles.preferences). Device-local flags like onboardingComplete,
+// helpPageSeen, and the notification inbox are intentionally excluded.
+//
+// Adding a new portable preference? Add its key here or it won't follow the
+// user across devices.
+export const PORTABLE_PREF_KEYS = [
+  'theme',
+  'defaultColumns',
+  'defaultFontSize',
+  'chordFontSize',
+  'nashville',
+  'notation',
+  'showChords',
+  'showDiagrams',
+  'pedalNext',
+  'pedalPrev',
+  'showInlineNotes',
+  'inlineNoteStyle',
+  'displayRole',
+  'duplicateSections',
+  'chartLayout',
+  'chartTheme',
+  'chartBg',
+  'chartText',
+  'chartChordColor',
+  'chartLyricColor',
+  'chartChordFont',
+  'chartLyricFont',
+  'sectionColors',
+  'sectionLabels',
+  'customSectionTypes',
+  'customChartThemes',
+  'accentColor',
+  'stageMode',
+  'lyricLineHeight',
+  'sectionSpacing',
+  'firstDayOfWeek',
+  'clockFormat',
+  'userName',
+  'lastChangelogVersion',
+  'performanceRail',
+  'navStyle',
+  'displayMode',
+  'autoHideHeader',
+  'ribbonStyle',
+  'structurePosition',
+  'mockupPalette',
+  'keepAwake',
+  'lockOrientation',
+  'accidentals',
+  'dashboardWidgetOrder',
+  'dashboardHidden',
+  'landingView',
+  'language',
+  'confirmBeforeDelete',
+  'defaultSpaceId',
+  'tabSubdivision',
+  'tabSize',
+  'tabStringColor',
+  'tabNumberColor',
+  'tabBg',
+  'rosterOverscheduleWarning',
+  'rosterStreakLimit',
+  'tableColumns',
+  'serviceReminders',
+  'rehearsalReminders',
+  'songsLibraryPlus',
+  'setlistsLibraryPlus',
+  'hmMenu',
+  'accountPanel',
+  'addSongModal',
+  'pasteIntoChart',
+];
+
+export function extractPortablePrefs(s) {
+  const out = {};
+  if (!s) return out;
+  for (const k of PORTABLE_PREF_KEYS) {
+    if (s[k] !== undefined) out[k] = s[k];
+  }
+  return out;
+}
+
+export function prefsEqual(a, b) {
+  for (const k of PORTABLE_PREF_KEYS) {
+    if ((a?.[k] ?? null) !== (b?.[k] ?? null)) return false;
+  }
+  return true;
+}
+
+/**
+ * Account-level preference sync.
+ *
+ * Hydrates the portable subset of settings from the cloud once per signed-in
+ * user (cloud wins), then pushes local changes back, debounced.
+ *
+ * The once-per-user-id guard is load-bearing: re-running hydration on every
+ * profile change would clobber a local edit the user made a moment ago with
+ * the older cloud value.
+ */
+export function usePreferenceSync({ loaded, settings, setSettings, user, profile, updateProfile }) {
+  const hydratedForUserRef = useRef(null);
+  const pushTimerRef = useRef(null);
+
+  // Hydrate once per user id. Cloud is source of truth for the portable
+  // subset; device-local fields stay untouched.
+  useEffect(() => {
+    if (!loaded || !settings || !user?.id || !profile) return;
+    if (hydratedForUserRef.current === user.id) return;
+    hydratedForUserRef.current = user.id;
+    const cloud = profile.preferences;
+    if (cloud && typeof cloud === 'object' && Object.keys(cloud).length > 0) {
+      setSettings(prev => ({ ...prev, ...cloud }));
+    }
+  }, [loaded, user?.id, profile, settings, setSettings]);
+
+  // Forget the hydration marker on sign-out so a later sign-in re-hydrates.
+  useEffect(() => {
+    if (!user?.id) hydratedForUserRef.current = null;
+  }, [user?.id]);
+
+  // A single stable dep covering all portable keys, so the push fires whenever
+  // *any* of them changes rather than only the handful once listed by name.
+  const portablePrefsSnapshot = settings ? JSON.stringify(extractPortablePrefs(settings)) : null;
+
+  // Push portable changes to the cloud, debounced, and only after hydration —
+  // otherwise local defaults would overwrite real server state on first load.
+  useEffect(() => {
+    if (!loaded || !settings || !user?.id) return;
+    if (hydratedForUserRef.current !== user.id) return;
+    const portable = extractPortablePrefs(settings);
+    if (prefsEqual(portable, profile?.preferences || {})) return;
+    clearTimeout(pushTimerRef.current);
+    pushTimerRef.current = setTimeout(() => {
+      updateProfile({ preferences: portable }).catch(err => {
+        console.warn('[prefs] cloud sync failed:', err?.message || err);
+      });
+    }, 800);
+    return () => clearTimeout(pushTimerRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, user?.id, portablePrefsSnapshot]);
+}

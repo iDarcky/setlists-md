@@ -200,7 +200,8 @@ calls, not dedupes (below).
 #### 1.1 — App shell: routing, data & orchestration 🔴
 **Job.** Currently: everything that isn't a leaf surface.
 
-**Owns.** `App.jsx` — **3,168 lines**, the single largest file in the repo.
+**Owns.** `App.jsx` — **2,823 lines** (was 3,168), plus the extracted
+`app/usePreferenceSync.js`, `app/useNotificationFeed.js`, `app/useAppearance.js`.
 
 **State.** `view` · navigation history stack · songs · setlists · tombstones ·
 trash · settings · sync state · conflicts · modals · notification merge ·
@@ -240,6 +241,23 @@ src/app/
 ```
 
 `App.jsx` becomes composition plus the route table — a few hundred lines.
+
+**Progress (2026-07-27).** The three concerns that were genuinely *independent*
+of App's state are out: preference sync, the notification feed, and
+document-level appearance. −345 lines, no behaviour change.
+
+**Then it stops, on purpose.** The remaining five don't sit beside App's state,
+they share it. `navigate`/`goBack` alone read and write eleven state fields
+(`view`, `currentSong`, `currentSetlist`, `settingsPanel`, `accountWallTrigger`,
+`showFounderNote`, `showIOSHint`, `showWakeLockExplainer`, `isFullscreen`,
+`sessionStats`, `sessionSource`); the song/setlist CRUD handlers write eight
+setters. Extracting those as hooks means ~20-parameter signatures — the same
+coupling, now spread across files, which is harder to read than the monolith.
+
+**So the order is: router first.** A real router deletes the hand-rolled
+`historyRef` + `popstate` stack outright, which is what makes the other pieces
+separable. Extracting the history stack into a hook *first* would just relocate
+the code that the router is going to delete.
 
 **Debt beyond the split.**
 - **`ErrorBoundary` covers only 5 of ~30 routes** (the auth flows, share view,
