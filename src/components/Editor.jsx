@@ -25,6 +25,7 @@ import { Dialog } from './ui/Dialog';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue, SelectSeparator } from './ui/Select';
 import { toast } from './ui/use-toast';
 import { showUndoToast } from '../lib/undoToast';
+import { applyPasteAtSection, isEmptyChart } from '../lib/pasteScope';
 import { useConfirm } from './ui/useConfirmHook';
 import { headerFrostStyle } from '../lib/headerFrost';
 import { useResizablePane } from '../lib/useResizablePane';
@@ -221,6 +222,11 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // The paste text in New-song mode — kept here so the preview pane can render a
   // live parse of it before the user commits ("Turn into chart").
   const [newSongDraft, setNewSongDraft] = useState('');
+  // Text pasted into the new-song box but not yet turned into a chart. Saving
+  // while this is set used to persist the details and drop the lyrics on the
+  // floor — the worst outcome in the flow, because it looks like it worked.
+  // Declared here (not beside canSave) so handleSave can close over it.
+  const pendingPaste = showNewSong && newSongDraft.trim().length > 0;
   // Card layout: the raw-markdown editor (WriteTab) opens in a centered dialog
   // instead of a tab — a power-user "Source" escape hatch with paste-import.
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
@@ -336,6 +342,16 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
 
   const handleSave = useCallback(async () => {
     if (!preview) return;
+    // Never save past unconverted paste text. The button already becomes "Turn
+    // into chart", but ⌘S and any other caller reach this directly.
+    if (pendingPaste) {
+      toast({
+        title: 'Turn it into a chart first',
+        description: "Your pasted lyrics aren't part of the song yet — converting keeps them.",
+        variant: 'error',
+      });
+      return;
+    }
     // Guardrail: a song must have a title and a key before it can be saved.
     // Read straight from the frontmatter so a blank key isn't masked by the
     // parser's 'C' default.
@@ -388,7 +404,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
       title: 'Song saved',
       description: preview.title || 'Untitled',
     });
-  }, [preview, onSave, md, workingSong, activeArrangementId, clearDraft]);
+  }, [preview, onSave, md, workingSong, activeArrangementId, clearDraft, pendingPaste]);
 
   // Switch the textarea content to a different arrangement. Saves the
   // current edits into workingSong first so the user doesn't lose them.
@@ -730,10 +746,17 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // Apply pasted chord-sheet text directly (used by the New-song canvas). Same
   // conversion as handleImport but from a passed string, and it fills empty
   // frontmatter fields the source declared without clobbering the identity card.
-  const applyPastedText = useCallback((text) => {
+  const applyPastedText = useCallback((text, sectionIndex = null) => {
     if (!text || !text.trim()) return;
     const { body, meta } = importChartText(text);
-    setBody(body);
+    // A paste fills the section it landed in; one that carries its own headers
+    // expands into siblings there. Pasted onto the background — or into a song
+    // with nothing in it yet — it becomes the whole chart.
+    const current = splitMd(md).body;
+    const scoped = (sectionIndex == null || isEmptyChart(current))
+      ? body
+      : applyPasteAtSection(current, body, sectionIndex);
+    setBody(scoped);
     const fm = parseFrontmatterFields(splitMd(md).frontmatter);
     const patch = {};
     for (const k of ['title', 'artist', 'key', 'tempo', 'time', 'capo']) {
@@ -750,8 +773,8 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // Canvas paste (Labs `pasteIntoChart`). The md-history effect coalesces edits
   // made within 400ms, so the body write and the frontmatter patch land as ONE
   // undo entry — a single Undo puts the canvas back exactly as it was.
-  const handleCanvasPasteChart = useCallback((text) => {
-    applyPastedText(text);
+  const handleCanvasPasteChart = useCallback((text, sectionIndex) => {
+    applyPastedText(text, sectionIndex);
     showUndoToast({ title: 'Chord sheet pasted', onUndo: handleUndo });
   }, [applyPastedText, handleUndo]);
 
@@ -1515,7 +1538,16 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         </span>
       )}
       <Button variant="ghost" size="md" onClick={handleBack}>{readOnly ? 'Back' : 'Cancel'}</Button>
-      {!readOnly && <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave || !canSave || !isDirty} title={!isDirty ? 'No changes to save' : undefined}>Save</Button>}
+      {!readOnly && (pendingPaste ? (
+        // Unconverted paste text is sitting in the box. Saving now would write
+        // the details and silently drop the lyrics, so the primary button turns
+        // into the action that actually has to happen first.
+        <Button variant="brand" size="md" onClick={() => applyPastedText(newSongDraft)} title="Turn the pasted text into a chart before saving">
+          Turn into chart
+        </Button>
+      ) : (
+        <Button variant="brand" size="md" onClick={handleSave} disabled={!preview || !onSave || !canSave || !isDirty} title={!isDirty ? 'No changes to save' : undefined}>Save</Button>
+      ))}
     </div>
   );
   // Cards layout: Save/Cancel as a bottom card (mirrors the draft card).

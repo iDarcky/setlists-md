@@ -1128,22 +1128,29 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
   );
 
   // ── Paste-into-the-chart (Labs: pasteIntoChart) ──────────────────────────
-  // A pasted chord sheet is caught by the canvas itself, so there is no
-  // separate paste box and no "turn into chart" step: the chart IS the surface,
-  // and pasting fills it. A paste aimed at a real field (the lyric composer, a
-  // chord input) is left alone — except on a still-empty song, where filling it
-  // is unambiguously what the paste is for.
+  // One rule: a paste fills the section it lands in, and expands into siblings
+  // if the pasted text carries its own headers. A brand-new song is a single
+  // empty section, so a whole-song paste into it becomes the whole song —
+  // there is no separate "new song mode" doing that.
+  //
+  // A paste dropped on the canvas background (not on any section) replaces the
+  // chart, which is what aiming at nothing in particular means.
   const handleCanvasPaste = useCallback((e) => {
     if (!onPasteChart) return;
     const text = e.clipboardData?.getData('text/plain') || '';
     // Single-line pastes are word-level edits, not charts.
     if (!text.trim() || !text.includes('\n')) return;
+
     const el = e.target;
-    const inField = el?.closest?.('input, textarea, [contenteditable="true"]');
     const songIsEmpty = placements.every(p => (p.lines || []).every(l => !String(l.plainText ?? '').trim()));
-    if (inField && !songIsEmpty) return;
+    // Typing surfaces keep their own paste behaviour, except on an empty song
+    // where filling it is unambiguously the point.
+    if (el?.closest?.('input, textarea, [contenteditable="true"]') && !songIsEmpty) return;
+
+    const card = el?.closest?.('[data-drag-idx]');
+    const idx = card ? Number(card.getAttribute('data-drag-idx')) : NaN;
     e.preventDefault();
-    onPasteChart(text);
+    onPasteChart(text, Number.isInteger(idx) ? idx : null);
   }, [onPasteChart, placements]);
 
   if (!song) {

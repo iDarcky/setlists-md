@@ -8,6 +8,8 @@
 // the source declared them (ChordPro directives); the caller decides whether to
 // apply them to the song's frontmatter.
 
+import { cleanPastedText } from './cleanPastedText';
+
 const SECTION_WORDS = /^(intro|verses?|pre[\s-]?chorus|chorus|bridge|instrumental|interlude|tag|vamp|outro|ending|refrain|solo|breakdown|hook|coda|turnaround|chant)\b/i;
 
 // A single chord token: root, optional accidental, quality, extensions, slash.
@@ -66,7 +68,9 @@ const DIRECTIVE = /^\{(\w+)(?::\s*(.*))?\}$/;
 export function importChartText(text) {
   const meta = {};
   if (!text) return { body: '', meta };
-  const src = text.replace(/\r\n?/g, '\n').split('\n');
+  // Strip the layout-only characters a web page drags along before anything
+  // tries to read chords: a zero-width space inside "G" makes it a lyric.
+  const src = cleanPastedText(text).split('\n');
   const out = [];
   let inTab = false;
 
