@@ -1081,7 +1081,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
 
   // A subtle "+" between lines that opens the add menu, inserting at `idx`.
   const renderInsertPoint = (secIdx, idx) => (
-    <div key={`ins-${idx}`} className="group/ins relative h-4 flex items-center">
+    <div key={`ins-${idx}`} className="group/ins relative h-1.5 flex items-center">
       {/* A big target wearing a small mark. The whole strip is clickable, but
           all that shows at rest is a faint hairline with a "+" at the left —
           a row of circular buttons down the card was louder than the lyrics. */}
@@ -1093,7 +1093,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
             type="button"
             aria-label="Add a line, chord, key change or tab here"
             title="Add a line, chord, key change or tab here"
-            className="relative z-[1] h-6 sm:h-5 w-full flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-[var(--ds-gray-600)] sm:text-[var(--ds-gray-500)] hover:text-[var(--color-brand)] text-left"
+            className="absolute inset-x-0 -top-1.5 -bottom-1.5 z-[1] flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-[var(--ds-gray-600)] sm:text-[var(--ds-gray-500)] hover:text-[var(--color-brand)] text-left"
           >
             {/* Touch has no hover: the mark stays legible there and only fades
                 back on devices that can actually reveal it. */}
@@ -1194,6 +1194,46 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
       })()}
 
       <div className="flex-1 min-h-0 flex">
+      {/* Play-order rail — xl and up only. Sits on the LEFT: it is the song
+          map, and a map belongs before the thing it describes. */}
+      {placements.length > 0 && (
+        <aside className="hidden xl:flex w-60 shrink-0 flex-col border-r border-[var(--border-1)] overflow-y-auto px-3 py-3">
+          <div className="flex items-center gap-2 mb-2">
+            <span
+              className="text-label-10 uppercase tracking-[0.12em] font-semibold text-[var(--ds-gray-500)] select-none"
+              title="The order the song is played. Drag to reorder, + to play a section again, × to drop it. Click a row to jump to it."
+            >
+              Play order
+            </span>
+            {song.structureMode === 'custom' && (
+              <button
+                type="button"
+                onClick={() => setStructureMode(false)}
+                title="Go back to following the sections"
+                className="ml-auto shrink-0 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+          <PlayOrderEditor
+            vertical
+            order={song.structureMode === 'custom' ? (song.structure || []) : placements.map(p => p.type)}
+            availableTypes={[...new Set(placements.map(p => p.type))]}
+            customSectionTypes={customSectionTypes}
+            onJump={(name) => {
+              const idx = placements.findIndex(p => p.type === name);
+              if (idx >= 0) sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            onChange={(next) => onStructureChange(next.join(', '))}
+          />
+          <p className="mt-2 text-label-11 text-[var(--ds-gray-500)] leading-snug">
+            {song.structureMode === 'custom'
+              ? 'Your order. Reset to follow the sections again.'
+              : 'Following the sections. Drag or + to make it yours.'}
+          </p>
+        </aside>
+      )}
       <div
         ref={scrollRef}
         className="flex-1 min-w-0 overflow-auto px-3 sm:pr-6 pt-3 pb-8"
@@ -1219,7 +1259,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
               onDragEnter={() => { if (dragIdx != null) setDragOverIdx(secIdx); }}
               onDragOver={(e) => { if (dragIdx != null) e.preventDefault(); }}
               onDrop={(e) => { e.preventDefault(); endDrag(); }}
-              className={`group/sec relative mb-2 rounded-xl border border-[var(--border-1)] bg-[var(--ds-background-100)] px-3 pt-2 pb-3 transition-opacity ${isDragging ? 'opacity-40' : ''}`}
+              className={`group/sec relative mb-1 rounded-xl border border-[var(--border-1)] bg-[var(--ds-background-100)] px-3 pt-2 pb-3 transition-opacity ${isDragging ? 'opacity-40' : ''}`}
               ref={el => { sectionRefs.current[secIdx] = el; }}
             >
               {/* Drop insertion line — sits in the gap above/below the target. */}
@@ -1502,47 +1542,6 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
         <div ref={listEndRef} className="h-px" style={{ scrollMarginBottom: '6rem' }} />
       </div>
 
-      {/* Play-order rail — xl and up only. Fills the space a wide monitor
-          leaves beside the sections, and gives the order room to be a readable
-          vertical list instead of a strip of initials. */}
-      {placements.length > 0 && (
-        <aside className="hidden xl:flex w-60 shrink-0 flex-col border-l border-[var(--border-1)] overflow-y-auto px-3 py-3">
-          <div className="flex items-center gap-2 mb-2">
-            <span
-              className="text-label-10 uppercase tracking-[0.12em] font-semibold text-[var(--ds-gray-500)] select-none"
-              title="The order the song is played. Drag to reorder, + to play a section again, × to drop it. Click a row to jump to it."
-            >
-              Play order
-            </span>
-            {song.structureMode === 'custom' && (
-              <button
-                type="button"
-                onClick={() => setStructureMode(false)}
-                title="Go back to following the sections"
-                className="ml-auto shrink-0 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer"
-              >
-                Reset
-              </button>
-            )}
-          </div>
-          <PlayOrderEditor
-            vertical
-            order={song.structureMode === 'custom' ? (song.structure || []) : placements.map(p => p.type)}
-            availableTypes={[...new Set(placements.map(p => p.type))]}
-            customSectionTypes={customSectionTypes}
-            onJump={(name) => {
-              const idx = placements.findIndex(p => p.type === name);
-              if (idx >= 0) sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
-            onChange={(next) => onStructureChange(next.join(', '))}
-          />
-          <p className="mt-2 text-label-11 text-[var(--ds-gray-500)] leading-snug">
-            {song.structureMode === 'custom'
-              ? 'Your order. Reset to follow the sections again.'
-              : 'Following the sections. Drag or + to make it yours.'}
-          </p>
-        </aside>
-      )}
       </div>
 
       {/* Full-width chord entry bar (all devices) */}

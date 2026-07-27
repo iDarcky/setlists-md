@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react';
 import { Button } from '../ui/Button';
 import PopMenu from '../ui/PopMenu';
 import { inferSections } from '../../lib/detectSections';
-import { rejoinSplitWords } from '../../lib/cleanPastedText';
-import { useLibraryVocabulary } from '../../lib/useLibraryVocabulary';
 import { sectionStyle } from '../../music';
 
 // Review a pasted song before it becomes a chart.
@@ -40,20 +38,11 @@ function numberTypes(blocks) {
 const baseType = (t) => String(t || '').replace(/\s*\d+$/, '').trim();
 
 export default function PasteReview({ text, onApply, onEditText }) {
-  // Words the source split with a real space ("mul țumesc"). Only joins the
-  // song itself vouches for are offered, and it stays the user's call.
-  const [joined, setJoined] = useState(false);
-  // The user's own library is the dictionary: worship vocabulary repeats across
-  // songs, so what they've already imported vouches for the next paste.
-  const vocabulary = useLibraryVocabulary();
-  const repair = useMemo(() => rejoinSplitWords(text, vocabulary), [text, vocabulary]);
-  const working = joined ? repair.text : text;
-
-  const initial = useMemo(() => inferSections(working).map(s => ({
+  const initial = useMemo(() => inferSections(text).map(s => ({
     lines: s.lines,
     type: baseType(s.type),
     confident: s.confident,
-  })), [working]);
+  })), [text]);
 
   const [blocks, setBlocks] = useState(initial);
   // Re-derive when the source text changes (toggling "Fix spacing"), but keep
@@ -109,19 +98,6 @@ export default function PasteReview({ text, onApply, onEditText }) {
         </p>
       </div>
 
-      {repair.joins.length > 0 && (
-        <div className="shrink-0 mb-2.5 flex items-center gap-2 rounded-lg border border-[var(--ds-amber-400)] bg-[var(--ds-amber-100)] px-3 py-2">
-          <span className="text-copy-12 text-[var(--ds-amber-1000)] flex-1 min-w-0">
-            {joined
-              ? `Joined ${repair.joins.length} split ${repair.joins.length === 1 ? 'word' : 'words'}.`
-              : `${repair.joins.length} ${repair.joins.length === 1 ? 'word looks' : 'words look'} split by a stray space — “${repair.joins[0].from}” → “${repair.joins[0].to}”.`}
-          </span>
-          <Button variant="secondary" size="sm" onClick={() => setJoined(v => !v)}>
-            {joined ? 'Undo' : 'Fix spacing'}
-          </Button>
-        </div>
-      )}
-
       {/* The song. Every line in full — this is the thing being checked. */}
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2.5">
         {numbered.map((b, i) => {
@@ -129,7 +105,7 @@ export default function PasteReview({ text, onApply, onEditText }) {
           return (
             <div
               key={i}
-              className="rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden"
+              className="shrink-0 rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)]"
             >
               <div className="flex items-center gap-2 px-2.5 py-1.5 border-b border-[var(--ds-gray-200)]">
                 <PopMenu
