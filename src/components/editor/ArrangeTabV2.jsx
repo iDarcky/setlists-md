@@ -585,7 +585,7 @@ const InlineSectionLyricEditor = memo(function InlineSectionLyricEditor({ initia
   );
 });
 
-export default function ArrangeTabV2({ md, onChange, customSectionTypes, notation = 'letters', lyricSize = 16, chordSize = 12 }) {
+export default function ArrangeTabV2({ md, onChange, customSectionTypes, notation = 'letters', lyricSize = 16, chordSize = 12, onPasteChart, pasteHint = false }) {
   const sectionTypes = useMemo(() => {
     const custom = (customSectionTypes || []).map(t => t?.name?.trim()).filter(Boolean);
     return [...SECTION_TYPES, ...custom];
@@ -1127,12 +1127,37 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
     </div>
   );
 
+  // ── Paste-into-the-chart (Labs: pasteIntoChart) ──────────────────────────
+  // A pasted chord sheet is caught by the canvas itself, so there is no
+  // separate paste box and no "turn into chart" step: the chart IS the surface,
+  // and pasting fills it. A paste aimed at a real field (the lyric composer, a
+  // chord input) is left alone — except on a still-empty song, where filling it
+  // is unambiguously what the paste is for.
+  const handleCanvasPaste = useCallback((e) => {
+    if (!onPasteChart) return;
+    const text = e.clipboardData?.getData('text/plain') || '';
+    // Single-line pastes are word-level edits, not charts.
+    if (!text.trim() || !text.includes('\n')) return;
+    const el = e.target;
+    const inField = el?.closest?.('input, textarea, [contenteditable="true"]');
+    const songIsEmpty = placements.every(p => (p.lines || []).every(l => !String(l.plainText ?? '').trim()));
+    if (inField && !songIsEmpty) return;
+    e.preventDefault();
+    onPasteChart(text);
+  }, [onPasteChart, placements]);
+
   if (!song) {
     return <div className="flex items-center justify-center h-40 text-[var(--ds-gray-600)]">Start typing in the Advanced tab to use Arrange mode</div>;
   }
 
   return (
-    <div className="flex flex-col min-h-0 h-full">
+    <div className="flex flex-col min-h-0 h-full" onPaste={handleCanvasPaste}>
+      {pasteHint && (
+        <div className="shrink-0 mx-3 mt-2 mb-1 rounded-xl border border-dashed border-[var(--ds-gray-400)] px-3.5 py-2.5 text-copy-13 text-[var(--ds-gray-600)]">
+          Paste a chord sheet anywhere on this page and it becomes the chart —
+          or start typing, and tap above a line to place a chord.
+        </div>
+      )}
       {/* Structure — the song map. In Auto it follows the section cards below
           (compact jump chips); tap Customize to set a hand-made order with
           repeats, which then shows as draggable chips. Chord notation lives in

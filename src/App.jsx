@@ -161,6 +161,7 @@ const PORTABLE_PREF_KEYS = [
   'hmMenu',
   'accountPanel',
   'addSongModal',
+  'pasteIntoChart',
 ];
 
 function extractPortablePrefs(s) {

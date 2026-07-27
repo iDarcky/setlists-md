@@ -24,6 +24,7 @@ import PromptDialog from './ui/PromptDialog';
 import { Dialog } from './ui/Dialog';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue, SelectSeparator } from './ui/Select';
 import { toast } from './ui/use-toast';
+import { showUndoToast } from '../lib/undoToast';
 import { useConfirm } from './ui/useConfirmHook';
 import { headerFrostStyle } from '../lib/headerFrost';
 import { useResizablePane } from '../lib/useResizablePane';
@@ -212,7 +213,11 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // New-song mode (card layout): a fresh blank song shows a big paste area /
   // import chooser first. Dismissed on "Start blank", or when pasted content is
   // applied. No draft to restore → skip it and go straight to editing.
-  const [showNewSong, setShowNewSong] = useState(() => !song && cardsHeader && !draftFound);
+  // Labs `pasteIntoChart`: there is no separate paste box at all. A blank song
+  // opens straight onto the chart canvas, which accepts a pasted chord sheet
+  // itself — one surface for writing and for pasting, with no convert step.
+  const pasteIntoChart = chartDefaults.settings?.pasteIntoChart === true;
+  const [showNewSong, setShowNewSong] = useState(() => !song && cardsHeader && !draftFound && !pasteIntoChart);
   // The paste text in New-song mode — kept here so the preview pane can render a
   // live parse of it before the user commits ("Turn into chart").
   const [newSongDraft, setNewSongDraft] = useState('');
@@ -312,6 +317,12 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     }, 300);
     return () => clearTimeout(timer);
   }, [md]);
+
+  // Is there anything in the song yet? Drives the paste hint on a blank song.
+  // section.lines[] holds strings OR tab/modulate objects, so type-check first.
+  const songHasContent = useMemo(() => (preview?.sections || []).some(
+    s => (s.lines || []).some(l => (typeof l === 'string' ? l.trim().length > 0 : true)),
+  ), [preview]);
 
   // Debounced draft autosave. Only writes while dirty; cleared explicitly on
   // save/discard so we never wipe a recoverable draft on the first render.
@@ -736,6 +747,14 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     setActiveTab('arrange');
   }, [md, setBody]);
 
+  // Canvas paste (Labs `pasteIntoChart`). The md-history effect coalesces edits
+  // made within 400ms, so the body write and the frontmatter patch land as ONE
+  // undo entry — a single Undo puts the canvas back exactly as it was.
+  const handleCanvasPasteChart = useCallback((text) => {
+    applyPastedText(text);
+    showUndoToast({ title: 'Chord sheet pasted', onUndo: handleUndo });
+  }, [applyPastedText, handleUndo]);
+
   // Changing the Key field is a *relabel only* — it records what key the song
   // is written in and never touches the chords the user typed. (A composer who
   // notices the song is actually in D, not C, can fix the label without their
@@ -823,7 +842,18 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
             />
           );
         }
-        return <ArrangeTabV2 md={md} onChange={setMd} customSectionTypes={customSectionTypes} notation={canvasNotation} lyricSize={canvasLyricSize} chordSize={canvasChordSize} />;
+        return (
+          <ArrangeTabV2
+            md={md}
+            onChange={setMd}
+            customSectionTypes={customSectionTypes}
+            notation={canvasNotation}
+            lyricSize={canvasLyricSize}
+            chordSize={canvasChordSize}
+            onPasteChart={pasteIntoChart ? handleCanvasPasteChart : undefined}
+            pasteHint={pasteIntoChart && !song && !songHasContent}
+          />
+        );
     }
   };
 
