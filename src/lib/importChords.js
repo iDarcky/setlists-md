@@ -9,6 +9,7 @@
 // apply them to the song's frontmatter.
 
 import { cleanPastedText } from './cleanPastedText';
+import { ensureSections } from './detectSections';
 
 const SECTION_WORDS = /^(intro|verses?|pre[\s-]?chorus|chorus|bridge|instrumental|interlude|tag|vamp|outro|ending|refrain|solo|breakdown|hook|coda|turnaround|chant)\b/i;
 
@@ -124,5 +125,8 @@ export function importChartText(text) {
   }
 
   const body = out.join('\n').replace(/^\n+/, '').replace(/\n{3,}/g, '\n\n').trim() + '\n';
-  return { body, meta };
+  // A body with lyrics but no "## " heading parses to ZERO sections — every
+  // line before the first heading is dropped — so an unlabelled paste used to
+  // vanish entirely on save. Nothing leaves here without a section.
+  return { body: ensureSections(body), meta };
 }
