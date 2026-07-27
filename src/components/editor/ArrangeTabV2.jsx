@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo, Fragment } from 'react';
 import { createPortal } from 'react-dom';
-import { parseSongMd, songToMd, placementToLine, parseTabBlock, parseSectionLines } from '../../parser';
+import { parseSongMd, songToMd, placementToLine, parseTabBlock, parseSectionLines, splitMd, parseFrontmatterFields, serializeFrontmatterFields } from '../../parser';
 import { sectionStyle, getNashvilleNumber, getSolfege } from '../../music';
 import TabBlock from '../TabBlock';
 import TabGridEditor from './TabGridEditorV2';
@@ -654,7 +654,24 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
     }));
   }, [song]);
 
-  const emitSong = useCallback((updatedSong) => onChange(songToMd(updatedSong)), [onChange]);
+  // This canvas owns the BODY and the play order — nothing else. Round-tripping
+  // through songToMd used to rewrite the whole frontmatter, and parseSongMd
+  // defaults a blank title to "Untitled" and a blank key to "C" — so merely
+  // reordering the play order or adding a section stamped those defaults onto a
+  // song the user hadn't named yet. Keep the frontmatter the user left, and take
+  // only structure/structureMode from the regenerated copy.
+  const emitSong = useCallback((updatedSong) => {
+    const generated = songToMd(updatedSong);
+    const { body } = splitMd(generated);
+    const genFm = parseFrontmatterFields(splitMd(generated).frontmatter);
+    const curFm = parseFrontmatterFields(splitMd(md).frontmatter);
+    const fm = serializeFrontmatterFields({
+      ...curFm,
+      structure: genFm.structure,
+      structuremode: genFm.structuremode,
+    });
+    onChange(fm ? `---\n${fm}\n---\n${body}` : body);
+  }, [md, onChange]);
 
   const applyMutation = useCallback((mutator) => {
     if (!song) return;
@@ -1115,12 +1132,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
 
   // A subtle "+" between lines that opens the add menu, inserting at `idx`.
   const renderInsertPoint = (secIdx, idx) => (
-    <div key={`ins-${idx}`} className="group/ins relative h-2 flex items-center justify-center">
+    <div key={`ins-${idx}`} className="group/ins relative h-5 flex items-center justify-center">
       <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-transparent group-hover/ins:bg-[var(--ds-gray-300)]" />
       <PopMenu
         align="left"
         trigger={
-          <button type="button" aria-label="Insert here" className="relative z-[1] w-5 h-5 rounded-full flex items-center justify-center bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] text-[var(--ds-gray-600)] opacity-0 group-hover/ins:opacity-100 hover:text-[var(--color-brand)] hover:border-[var(--color-brand-border)] cursor-pointer text-[13px] leading-none transition-opacity">+</button>
+          <button type="button" aria-label="Add a line, chord, key change or tab here" title="Add a line, chord, key change or tab here" className="relative z-[1] w-7 h-7 rounded-full flex items-center justify-center bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] text-[var(--ds-gray-600)] opacity-45 group-hover/ins:opacity-100 hover:text-[var(--color-brand)] hover:border-[var(--color-brand-border)] hover:bg-[var(--ds-gray-100)] cursor-pointer text-[15px] leading-none transition-opacity">+</button>
         }
       >
         {renderAddItems(secIdx, idx)}
@@ -1465,7 +1482,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
                                 onClick={() => setNoteTarget({ secIdx, lineIdx })}
                                 aria-label="Add comment"
                                 title="Add a comment to this line"
-                                className="shrink-0 mt-0.5 w-5 h-5 grid place-items-center rounded text-[var(--ds-gray-400)] hover:text-[var(--color-brand)] bg-transparent border-none cursor-pointer opacity-0 group-hover/line:opacity-100 focus:opacity-100 transition-opacity"
+                                className="shrink-0 mt-0.5 w-7 h-7 grid place-items-center rounded-md text-[var(--ds-gray-500)] hover:text-[var(--color-brand)] hover:bg-[var(--ds-gray-100)] bg-transparent border-none cursor-pointer opacity-45 group-hover/line:opacity-100 focus:opacity-100 transition-opacity"
                               >
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
                               </button>

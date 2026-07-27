@@ -24,7 +24,7 @@ export default function EditorEmptyState({
     <div className="flex-1 min-h-0 flex flex-col px-3 sm:px-4 pt-3 pb-4 gap-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-copy-13 text-[var(--ds-gray-600)] m-0">
-          Paste a chord sheet below — or build the song section by section.
+          Paste the song here — or start by adding a section.
         </p>
         <div className="flex items-center gap-1.5 shrink-0">
           <Button variant="secondary" size="sm" onClick={onAddSection ?? onDismiss}>
@@ -39,7 +39,7 @@ export default function EditorEmptyState({
           value={value || ''}
           onChange={e => onChange(e.target.value)}
           onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && hasText) { e.preventDefault(); onApply(); } }}
-          placeholder={'Paste your song here…\n\n[Verse 1]\nG        D          Em       C\nAmazing grace, how sweet the sound'}
+          placeholder={'Paste the song here…'}
           spellCheck={false}
           className="flex-1 min-h-[220px] w-full bg-transparent p-4 text-copy-14 leading-relaxed text-[var(--ds-gray-1000)] resize-none outline-none font-mono whitespace-pre-wrap break-words"
         />

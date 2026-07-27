@@ -113,14 +113,22 @@ export default function MetadataPanel({ md, onChange, isOpen, keyHistory }) {
                     className="block"
                     style={{ gridColumn: `span ${f.span || 1}` }}
                   >
-                    <span className="text-label-12 font-semibold text-[var(--ds-gray-700)] block">
+                    {/* The hint lives on hover, not under every label: 24 of
+                        them stacked turned this panel into a wall of text. */}
+                    <span
+                      className="text-label-12 font-semibold text-[var(--ds-gray-700)] block mb-0.5"
+                      title={f.hint || undefined}
+                    >
                       {f.label}
+                      {f.hint && (
+                        <span
+                          className="ml-1 text-[var(--ds-gray-500)] cursor-help select-none"
+                          aria-hidden="true"
+                        >
+                          ⓘ
+                        </span>
+                      )}
                     </span>
-                    {f.hint && (
-                      <span className="text-label-11 text-[var(--ds-gray-500)] block mb-1 leading-snug">
-                        {f.hint}
-                      </span>
-                    )}
                     {renderInput(f)}
                   </label>
                 ))}
