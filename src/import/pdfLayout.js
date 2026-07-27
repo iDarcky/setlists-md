@@ -139,31 +139,50 @@ export function joinFragments(items) {
 export function mergeChordRow(chordLine, lyricLine) {
   const frags = lyricLine.items;
   const chords = chordLine.items.filter(i => i.str.trim());
-  const used = new Set();
-  let out = '';
+  if (frags.length === 0) return chords.map(c => `[${c.str.trim()}]`).join('');
+
+  // Rebuild the line, recording where each fragment starts in the finished
+  // string so a chord's x can be turned into a character offset.
+  let text = '';
+  const spans = [];
   for (let f = 0; f < frags.length; f++) {
-    // A whitespace run can start within X_TOL of a chord and would then swallow
-    // it, putting the chord before the space instead of on the word it belongs
-    // to. Only real text anchors a chord.
-    const anchors = frags[f].str.trim().length > 0;
-    // The inferred space belongs BEFORE the chord — the chord sits on the word
-    // that follows it, not on the gap.
-    out += gapSpace(frags[f - 1], frags[f]);
-    if (anchors) {
-      chords.forEach((ch, c) => {
-        if (used.has(c)) return;
-        const atFragment = Math.abs(ch.x - frags[f].x) <= X_TOL;
-        const beforeFirst = f === 0 && ch.x < frags[0].x - X_TOL;
-        if (atFragment || beforeFirst) {
-          out += `[${ch.str.trim()}]`;
-          used.add(c);
-        }
-      });
-    }
-    out += frags[f].str;
+    text += gapSpace(frags[f - 1], frags[f]);
+    spans.push({ item: frags[f], start: text.length });
+    text += frags[f].str;
   }
-  // A chord past the last fragment belongs at the end of the line.
-  chords.forEach((ch, c) => { if (!used.has(c)) out += `[${ch.str.trim()}]`; });
+
+  // Where does this chord belong, as a character offset?
+  const offsetFor = (ch) => {
+    // 1. Aligned with a fragment's left edge. This is the exact case: chart
+    //    generators split the lyric run at every chord, so the boundary IS the
+    //    answer — no estimation. Whitespace runs can't anchor, or the chord
+    //    lands before the space instead of on its word.
+    for (const s of spans) {
+      if (s.item.str.trim() && Math.abs(ch.x - s.item.x) <= X_TOL) return s.start;
+    }
+    if (ch.x <= spans[0].item.x) return 0;
+    // 2. Otherwise the lyric is one unsplit run (a Word export, a monospace
+    //    chart) and the offset has to be estimated from average character
+    //    width within whichever fragment the chord sits over.
+    for (const s of spans) {
+      const { item } = s;
+      const end = item.x + (item.w || 0);
+      if (ch.x < end && item.str.length > 0) {
+        const perChar = (item.w || 0) / item.str.length;
+        if (!perChar) return s.start;
+        const idx = Math.max(0, Math.min(item.str.length, Math.round((ch.x - item.x) / perChar)));
+        return s.start + idx;
+      }
+    }
+    return text.length; // past the end of the line
+  };
+
+  // Splice from the back so earlier offsets stay valid.
+  const marks = chords
+    .map(ch => ({ at: offsetFor(ch), chord: ch.str.trim(), x: ch.x }))
+    .sort((a, b) => b.at - a.at || b.x - a.x);
+  let out = text;
+  for (const m of marks) out = `${out.slice(0, m.at)}[${m.chord}]${out.slice(m.at)}`;
   return out.trim();
 }
 
@@ -217,10 +236,19 @@ export function buildChartFromItems(rawItems) {
           continue;
         }
         if (!meta.key && /^[A-G](#|b)?m?$/.test(line.text) && line.size >= 14) { meta.key = line.text; continue; }
+        // "Muzica de X · Versuri de Y" names the composer and the lyricist —
+        // NOT the performing artist, which these charts simply don't state.
+        // Both go to `writers`; `artist` is left empty rather than guessed,
+        // because a wrong artist is worse than a missing one (it's what the
+        // library groups and sorts by).
         const credits = line.text.match(/Muzica de\s*(.+?)\s*[·|]\s*Versuri de\s*(.+)$/i);
         if (credits) {
-          meta.artist = credits[1].trim();
-          meta.writers = `${credits[1].trim()}, ${credits[2].trim()}`;
+          const composer = credits[1].trim();
+          const lyricist = credits[2].trim();
+          meta.writers = composer === lyricist ? composer : `${composer}, ${lyricist}`;
+        } else {
+          const music = line.text.match(/^(?:Muzica|Muzică)\s+(?:și|si)\s+versuri\s+de\s*(.+)$/i);
+          if (music) meta.writers = music[1].trim();
         }
         continue; // remaining header chrome (repeated title, logos, …)
       }

@@ -169,7 +169,8 @@ describe('buildChartFromItems', () => {
     const { meta } = buildChartFromItems(chart);
     expect(meta.title).toBe('La Crucea Ta mă-ntorc');
     expect(meta.key).toBe('D');
-    expect(meta.artist).toBe('Oni Rodilă');
+    // "Muzica de" is the composer, not the performing artist — see credits below.
+    expect(meta.artist).toBeUndefined();
     expect(meta.writers).toBe('Oni Rodilă, Alina M. Paneșiu');
     expect(meta.year).toBe('2017');
     expect(meta.structure).toEqual(['Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Bridge', 'Chorus']);
@@ -207,5 +208,58 @@ describe('buildChartFromItems', () => {
     const { md, warnings } = buildChartFromItems(plain);
     expect(warnings.join(' ')).toMatch(/chord font/i);
     expect(md).toContain('## Verse 1'); // still a parseable song
+  });
+});
+
+describe('mergeChordRow — generators that do NOT split the lyric', () => {
+  // A Word/monospace export puts the whole lyric in one run and positions the
+  // chords above it. There is no fragment boundary to land on, so the offset is
+  // estimated from average character width.
+  it('estimates the offset inside a single unsplit run', () => {
+    const lyric = { items: [item('Amazing grace how sweet the sound', 100, 500, 198, 13, LYR)] };
+    // 198pt / 33 chars = 6pt per char. "grace" starts at char 8 → x = 148.
+    const chords = { items: [item('C', 148, 515, 6, 10, CH)] };
+    expect(mergeChordRow(chords, lyric)).toBe('Amazing [C]grace how sweet the sound');
+  });
+
+  it('keeps several estimated chords in order', () => {
+    const lyric = { items: [item('Amazing grace how sweet the sound', 100, 500, 198, 13, LYR)] };
+    const chords = {
+      items: [item('G', 100, 515, 6, 10, CH), item('C', 148, 515, 6, 10, CH), item('D', 208, 515, 6, 10, CH)],
+    };
+    expect(mergeChordRow(chords, lyric)).toBe('[G]Amazing [C]grace how [D]sweet the sound');
+  });
+
+  it('puts a chord past the end of the lyric at the end of the line', () => {
+    const lyric = { items: [item('Amen', 100, 500, 24, 13, LYR)] };
+    const chords = { items: [item('G', 400, 515, 6, 10, CH)] };
+    expect(mergeChordRow(chords, lyric)).toBe('Amen[G]');
+  });
+
+  it('still prefers an exact boundary when the generator provides one', () => {
+    // Both a boundary AND an overlapping fragment exist; the boundary wins.
+    const chords = { items: [item('Bm7', 107.4, 697.9, 18, 10, CH)] };
+    const lyric = {
+      items: [item('La crucea T', 39, 682.2, 68.4, 13, LYR), item('a mă-ntorc', 107.4, 682.2, 62, 13, LYR)],
+    };
+    expect(mergeChordRow(chords, lyric)).toBe('La crucea T[Bm7]a mă-ntorc');
+  });
+});
+
+describe('credits', () => {
+  it('reads composer and lyricist as writers, not as the artist', () => {
+    const chart = [
+      item('Cântarea', 39, 783, 200, 26, HDR),
+      item('Muzica de', 39, 746, 41, 9, LYR),
+      item(' ', 80, 746, 3.3, 0, LYR),
+      item('Oni Rodilă', 82.5, 746, 45, 9, HDR),
+      item(' · Versuri de ', 127.5, 746, 48, 9, LYR),
+      item('Alina M. Paneșiu', 178.1, 746, 71.5, 9, HDR),
+      item('STROFA 1', 39, 712, 50, 9, HDR),
+      item('O linie de versuri', 39, 690, 100, 13, LYR),
+    ];
+    const { meta } = buildChartFromItems(chart);
+    expect(meta.writers).toBe('Oni Rodilă, Alina M. Paneșiu');
+    expect(meta.artist).toBeUndefined();
   });
 });

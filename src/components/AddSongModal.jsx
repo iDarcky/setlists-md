@@ -5,6 +5,7 @@ import Highlight from './ui/Highlight';
 import { searchSongs } from '../lib/search';
 import { searchCatalog, fetchFeatured, fetchCatalogSong, CATALOG_IS_REMOTE } from '../lib/catalog';
 import { parseImportFiles, IMPORT_ACCEPT } from '../lib/importFiles';
+import MobileSheet, { SheetGroup, SheetGroupLabel, SheetRow, SheetChevron } from './ui/MobileSheet';
 
 // Add a song. One surface: a search field over the public-domain catalog, with
 // Import and Blank as doors underneath. Typing replaces the doors with results;
@@ -126,6 +127,44 @@ function ResultRow({ title, subtitle, songKey, query, action, onClick, disabled,
 function SectionLabel({ children }) {
   return (
     <div className="text-label-11 uppercase tracking-wider text-[var(--ds-gray-500)] px-2.5 pt-1 pb-1.5">
+      {children}
+    </div>
+  );
+}
+
+// Mobile result row. Same information as ResultRow, but drawn in the sheet's
+// palette and shaped as a grouped-list row so it matches the account panel.
+function SheetResultRow({ title, subtitle, songKey, query, action, onClick, disabled, busy, first }) {
+  return (
+    <SheetRow first={first} onClick={onClick} disabled={disabled || busy}>
+      <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-[var(--drawer-surface-hover)] text-[var(--drawer-text-muted)]">
+        <NoteIcon />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-copy-15 font-semibold text-[var(--drawer-text)] truncate">
+          <Highlight text={title} query={query} />
+        </span>
+        {subtitle && <span className="block text-label-12 text-[var(--drawer-text-muted)] truncate">{subtitle}</span>}
+      </span>
+      {songKey && (
+        <span className="shrink-0 text-label-11 font-mono px-1.5 py-0.5 rounded border border-[var(--drawer-border)] text-[var(--chord)]">
+          {songKey}
+        </span>
+      )}
+      <span className="shrink-0 text-label-11 font-semibold text-[var(--drawer-text-dim)]">
+        {busy ? 'Adding…' : action}
+      </span>
+    </SheetRow>
+  );
+}
+
+// A one-line status inside a sheet group (searching / offline / no matches).
+function SheetNote({ children, tone }) {
+  return (
+    <div
+      className="px-3.5 py-3.5 text-copy-13"
+      style={{ color: tone === 'error' ? 'var(--ds-red-1000)' : 'var(--drawer-text-muted)' }}
+    >
       {children}
     </div>
   );
@@ -290,17 +329,189 @@ export default function AddSongModal({
     handleFiles(e.dataTransfer.files);
   };
 
-  const sheetClass = isMobile
-    ? 'w-full rounded-t-2xl rounded-b-none max-h-[92vh] mt-auto'
-    : 'w-full max-w-[680px] rounded-2xl max-h-[86vh]';
-  const overlayAlign = isMobile ? 'items-end' : 'items-center justify-center';
+  const sheetClass = 'w-full max-w-[680px] rounded-2xl max-h-[86vh]';
 
   const showEmptyResults = hasQuery && !searching && !searchFailed
     && results.length === 0 && libraryHits.length === 0;
 
+  const fileInputEl = (
+    <input
+      ref={fileRef}
+      type="file"
+      accept={IMPORT_ACCEPT}
+      multiple
+      onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }}
+      className="hidden"
+    />
+  );
+
+  // ── Mobile: the app's standard bottom sheet, same shell as the account panel.
+  if (isMobile) {
+    return (
+      <MobileSheet
+        open
+        onClose={onClose}
+        title="Add a song"
+        headerExtra={(
+          <div className="mt-3 flex items-center gap-2.5 rounded-xl bg-[var(--drawer-surface)] border border-[var(--drawer-border)] px-3.5 py-2.5 focus-within:border-[var(--drawer-text-dim)] transition-colors">
+            <span className="text-[var(--drawer-text-dim)] shrink-0"><SearchIcon /></span>
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search public-domain songs…"
+              className="flex-1 min-w-0 bg-transparent border-0 outline-none text-copy-15 text-[var(--drawer-text)] placeholder:text-[var(--drawer-text-dim)]"
+              aria-label="Search songs to add"
+            />
+            {hasQuery && (
+              <button
+                type="button"
+                onClick={() => { setQuery(''); inputRef.current?.focus(); }}
+                aria-label="Clear search"
+                className="shrink-0 w-6 h-6 min-h-0 rounded-full flex items-center justify-center bg-[var(--drawer-surface-hover)] text-[var(--drawer-text-muted)] border-none cursor-pointer"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        )}
+      >
+        <div className="flex flex-col gap-5 pt-1 pb-2">
+          {hasQuery ? (
+            <>
+              {libraryHits.length > 0 && (
+                <div>
+                  <SheetGroupLabel>In your library</SheetGroupLabel>
+                  <SheetGroup>
+                    {libraryHits.map((s, i) => (
+                      <SheetResultRow
+                        key={s.id}
+                        first={i === 0}
+                        title={s.title}
+                        subtitle={s.artist || 'Your library'}
+                        query={trimmed}
+                        action="Open"
+                        onClick={() => onOpenSong?.(s)}
+                      />
+                    ))}
+                  </SheetGroup>
+                </div>
+              )}
+
+              <div>
+                <SheetGroupLabel>Public domain</SheetGroupLabel>
+                <SheetGroup>
+                  {catalogOffline && (
+                    <SheetNote>Searching the catalog needs a connection. Import and blank songs still work offline.</SheetNote>
+                  )}
+                  {!catalogOffline && searching && <SheetNote>Searching…</SheetNote>}
+                  {!catalogOffline && searchFailed && (
+                    <SheetNote tone="error">Couldn't reach the catalog. Check your connection and try again.</SheetNote>
+                  )}
+                  {!catalogOffline && !searching && !searchFailed && results.map((entry, i) => (
+                    <SheetResultRow
+                      key={entry.id}
+                      first={i === 0}
+                      title={entry.title}
+                      subtitle={[entry.author, entry.year, entry.language === 'ro' ? 'Română' : null]
+                        .filter(Boolean).join(' · ')}
+                      songKey={entry.key}
+                      query={trimmed}
+                      action="Add"
+                      busy={addingSlug === entry.slug}
+                      disabled={addingSlug != null}
+                      onClick={() => handleAdd(entry)}
+                    />
+                  ))}
+                  {!catalogOffline && !searching && !searchFailed && results.length === 0 && (
+                    <SheetNote>Nothing in the catalog matches “{trimmed}”.</SheetNote>
+                  )}
+                </SheetGroup>
+              </div>
+
+              {showEmptyResults && (
+                <SheetGroup>
+                  <SheetRow first onClick={openPicker}>
+                    <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-[var(--drawer-surface-hover)] text-[var(--drawer-text-muted)]"><ImportIcon /></span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-copy-15 font-semibold text-[var(--drawer-text)]">Import a file</span>
+                      <span className="block text-label-12 text-[var(--drawer-text-muted)] truncate">ChordPro, OpenSong, PDF, .md or .zip</span>
+                    </span>
+                    <SheetChevron />
+                  </SheetRow>
+                  <SheetRow onClick={() => onStartBlank(trimmed)}>
+                    <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-[var(--drawer-surface-hover)] text-[var(--drawer-text-muted)]"><BlankIcon /></span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-copy-15 font-semibold text-[var(--drawer-text)] truncate">Write “{trimmed}”</span>
+                      <span className="block text-label-12 text-[var(--drawer-text-muted)]">Start this song from scratch</span>
+                    </span>
+                    <SheetChevron />
+                  </SheetRow>
+                </SheetGroup>
+              )}
+            </>
+          ) : (
+            <>
+              <SheetGroup>
+                <SheetRow first onClick={openPicker}>
+                  <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-[var(--drawer-surface-hover)] text-[var(--drawer-text-muted)]"><ImportIcon /></span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-copy-15 font-semibold text-[var(--drawer-text)]">Import a file</span>
+                    <span className="block text-label-12 text-[var(--drawer-text-muted)] truncate">ChordPro, OpenSong, PDF, .md or .zip</span>
+                  </span>
+                  <SheetChevron />
+                </SheetRow>
+                <SheetRow onClick={() => onStartBlank('')}>
+                  <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-[var(--drawer-surface-hover)] text-[var(--drawer-text-muted)]"><BlankIcon /></span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-copy-15 font-semibold text-[var(--drawer-text)]">Blank song</span>
+                    <span className="block text-label-12 text-[var(--drawer-text-muted)]">Write it, or paste a chord sheet</span>
+                  </span>
+                  <SheetChevron />
+                </SheetRow>
+              </SheetGroup>
+
+              {featured.length > 0 && !catalogOffline && (
+                <div>
+                  <SheetGroupLabel>Start here</SheetGroupLabel>
+                  <SheetGroup>
+                    {featured.map((entry, i) => (
+                      <SheetResultRow
+                        key={entry.id}
+                        first={i === 0}
+                        title={entry.title}
+                        subtitle={[entry.author, entry.year].filter(Boolean).join(' · ') || 'Public domain'}
+                        songKey={entry.key}
+                        action="Add"
+                        busy={addingSlug === entry.slug}
+                        disabled={addingSlug != null}
+                        onClick={() => handleAdd(entry)}
+                      />
+                    ))}
+                  </SheetGroup>
+                </div>
+              )}
+
+              <p className="text-label-11 text-[var(--drawer-text-dim)] m-0 leading-relaxed px-1">
+                Importing? You're responsible for having a licence to copy the content
+                (CCLI, SongSelect, PraiseCharts, or your own material).
+              </p>
+            </>
+          )}
+
+          {importError && <p className="text-copy-13 m-0 px-1" style={{ color: 'var(--ds-red-1000)' }}>{importError}</p>}
+          {importing && <p className="text-copy-13 m-0 px-1 text-[var(--drawer-text-muted)]">Reading files…</p>}
+        </div>
+        {fileInputEl}
+      </MobileSheet>
+    );
+  }
+
   return (
     <div
-      className={`fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex ${overlayAlign} ${isMobile ? '' : 'p-4'}`}
+      className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={onClose}
       onDragEnter={onDragEnter}
       onDragLeave={onDragLeave}
@@ -312,12 +523,6 @@ export default function AddSongModal({
         className={`relative bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] flex flex-col ${sheetClass}`}
         style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}
       >
-        {isMobile && (
-          <div className="flex justify-center pt-2 pb-1">
-            <div className="h-1 w-10 rounded-full bg-[var(--ds-gray-400)]" />
-          </div>
-        )}
-
         <div className="flex items-start gap-2 px-5 pt-4 pb-3">
           <div className="flex-1">
             <div className="text-heading-16 text-[var(--ds-gray-1000)]">Add a song</div>
@@ -421,7 +626,7 @@ export default function AddSongModal({
                 <Door
                   icon={<ImportIcon />}
                   title="Import a file"
-                  desc={isMobile ? 'ChordPro, OpenSong, .md or .zip' : 'Drop one anywhere, or choose a file'}
+                  desc="Drop one anywhere, or choose a file"
                   onClick={openPicker}
                 />
                 <Door
@@ -467,26 +672,19 @@ export default function AddSongModal({
 
         {/* Desktop drag target covers the whole sheet — people aim badly, and a
             200px dashed rectangle punishes them for it. */}
-        {dragOver && !isMobile && (
+        {dragOver && (
           <div
             className="absolute inset-0 z-10 rounded-2xl flex flex-col items-center justify-center pointer-events-none"
             style={{ background: 'var(--color-brand-soft)', border: '2px dashed var(--color-brand)' }}
           >
             <div className="text-heading-16 text-[var(--ds-gray-1000)]">Drop to import</div>
             <div className="text-copy-13 text-[var(--ds-gray-700)] mt-1">
-              ChordPro, OpenSong .xml, .md, or a .zip bundle
+              ChordPro, OpenSong .xml, PDF, .md, or a .zip bundle
             </div>
           </div>
         )}
 
-        <input
-          ref={fileRef}
-          type="file"
-          accept={IMPORT_ACCEPT}
-          multiple
-          onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }}
-          className="hidden"
-        />
+        {fileInputEl}
       </div>
     </div>
   );
