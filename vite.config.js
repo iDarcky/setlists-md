@@ -16,6 +16,37 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  test: {
+    // Lives here rather than in a vitest.config.js so the '@/' alias below is
+    // inherited — a second config would drift the moment one is edited.
+    //
+    // Two projects, split by file extension so nobody has to configure
+    // anything: `.test.js` is pure logic and runs in node, `.test.jsx` renders
+    // components and gets jsdom. Booting jsdom for all 41 logic suites cost
+    // ~12s of an otherwise 3s run, and a slow suite is a suite people stop
+    // running.
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'logic',
+          environment: 'node',
+          include: ['src/**/*.test.js'],
+          restoreMocks: true,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'ui',
+          environment: 'jsdom',
+          include: ['src/**/*.test.jsx'],
+          setupFiles: ['./vitest.setup.js'],
+          restoreMocks: true,
+        },
+      },
+    ],
+  },
   resolve: {
     // `@/` is the src root. Files are grouped by feature (src/features/*), so
     // relative imports would otherwise climb three or four levels to reach a

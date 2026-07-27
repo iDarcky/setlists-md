@@ -39,10 +39,11 @@ enforced boundaries, and the design-system canon (§3.1, all ✅).
 
 **The next three, in order:**
 
-1. **Test harness** (§3.2) — `@testing-library/react`. Do this *before* the App
-   split, so the riskiest refactor in the codebase has something catching it.
-2. **Split `App.jsx`** (§3.1) — 3,168 lines, eight concerns, and a router
-   adopted while the route table is being written anyway.
+1. **Split `App.jsx`** (§3.1) — 3,168 lines, eight concerns, and a router
+   adopted while the route table is being written anyway. The harness is now in
+   place to catch what it breaks.
+2. **Setlist-builder tests** (§3.2) — the other surface where a bug silently
+   destroys user work.
 3. **Start Stream A** (§2) — the domain split gates email, which gates OAuth.
    It has a queue, so August is already late.
 
@@ -165,9 +166,19 @@ that coverage is genuinely good — which is what makes the hole sharp: **the fo
 data-loss bugs of the last cycle were all in the editor UI, all found by you in
 production, and none were catchable by the existing suite.**
 
-- [ ] Add `@testing-library/react` + `jsdom` to vitest.
-- [ ] First tests on the two surfaces where a bug destroys user work silently:
-      **song editor** and **setlist builder**.
+- [x] ✅ **Harness in place.** `@testing-library/react` + jsdom + `fake-indexeddb`,
+      split into two vitest projects so the logic suites stay in node
+      (`.test.js` = logic/node, `.test.jsx` = render/jsdom). Booting jsdom for
+      everything cost ~12s of an otherwise 3s run, and a slow suite is one
+      people stop running. Setup notes and the jsdom `env()`-in-`calc()`
+      workaround are in `vitest.setup.js`.
+- [x] ✅ **First render tests: the editor save path**
+      (`src/__tests__/editor-save.test.jsx`) — content survives a save, parser
+      defaults don't overwrite real metadata, and an unchanged song can't be
+      saved. Both content assertions were **mutation-checked**: breaking the
+      save path in the two ways that shipped in 0.17.0-beta.2 turns them red.
+- [ ] Next: **setlist builder** — the other surface where a bug destroys work
+      silently.
 - [ ] Then: every component pass ends with tests for that component. The
       component map doubles as the coverage plan.
 
