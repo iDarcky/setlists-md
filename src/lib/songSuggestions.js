@@ -1,4 +1,4 @@
-import { semitonesBetween } from '../music';
+import { semitonesBetween } from '@/music';
 
 // Root note of a key, ignoring quality (e.g. "Am" -> "A", "Bbm7" -> "Bb").
 function rootOf(key) {

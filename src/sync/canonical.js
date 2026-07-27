@@ -14,7 +14,7 @@
 // Two builds that serialize differently but *mean* the same thing now produce
 // the SAME hash — so no phantom re-upload, regardless of version skew.
 
-import { parseSongMd } from '../parser';
+import { parseSongMd } from '@/parser';
 
 // Bumped when the change-detection hash algorithm changes. Manifests written by
 // an older algorithm carry a lower version; the first sync after an upgrade

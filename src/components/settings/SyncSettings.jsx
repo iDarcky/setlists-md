@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Button } from '../ui/Button';
-import { toast } from '../ui/use-toast';
-import { useAuth } from '../../auth/useAuth';
+import { Button } from '@/ui/Button';
+import { toast } from '@/ui/use-toast';
+import { useAuth } from '@/auth/useAuth';
 import {
   connectProvider,
   disconnectProvider,
   getAvailableProviders,
-} from '../../sync/provider';
+} from '@/sync/provider';
 
 function isStandaloneMode() {
   return (

@@ -1,25 +1,25 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { generateId } from '../parser';
-import { semitonesBetween } from '../music';
-import { resolveSongView, getArrangement } from '../arrangements';
-import { mostPlayedKey } from '../keyHistory';
-import { Button } from './ui/Button';
-import { IconButton } from './ui/IconButton';
-import { toast } from './ui/use-toast';
-import { showUndoToast } from '../lib/undoToast';
-import { useConfirm } from './ui/useConfirmHook';
-import ScreenHeader from './ui/ScreenHeader';
-import { SegmentedControl } from './ui/SegmentedControl';
-import { nextSundayDateStr } from '../lib/dateFormat';
+import { generateId } from '@/parser';
+import { semitonesBetween } from '@/music';
+import { resolveSongView, getArrangement } from '@/arrangements';
+import { mostPlayedKey } from '@/keyHistory';
+import { Button } from '@/ui/Button';
+import { IconButton } from '@/ui/IconButton';
+import { toast } from '@/ui/use-toast';
+import { showUndoToast } from '@/lib/undoToast';
+import { useConfirm } from '@/ui/useConfirmHook';
+import ScreenHeader from '@/ui/ScreenHeader';
+import { SegmentedControl } from '@/ui/SegmentedControl';
+import { nextSundayDateStr } from '@/lib/dateFormat';
 
 const UNDO_STACK_LIMIT = 50;
-import SetlistMetaForm from './setlist/SetlistMetaForm';
-import SetlistItemRow from './setlist/SetlistItemRow';
-import SetlistCardRow from './setlist/SetlistCardRow';
-import SetlistIdentityCard from './setlist/SetlistIdentityCard';
-import SetlistSongPicker from './setlist/SetlistSongPicker';
-import RecommendedNextPanel from './setlist/RecommendedNextPanel';
-import { useDragReorder } from '../lib/useDragReorder';
+import SetlistMetaForm from '@/components/setlist/SetlistMetaForm';
+import SetlistItemRow from '@/components/setlist/SetlistItemRow';
+import SetlistCardRow from '@/components/setlist/SetlistCardRow';
+import SetlistIdentityCard from '@/components/setlist/SetlistIdentityCard';
+import SetlistSongPicker from '@/components/setlist/SetlistSongPicker';
+import RecommendedNextPanel from '@/components/setlist/RecommendedNextPanel';
+import { useDragReorder } from '@/lib/useDragReorder';
 
 export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelete, knownServices = [], onDirtyChange, onUpdateSong, firstDayOfWeek = 'sunday', clockFormat = '12h', cards = true }) {
   const confirm = useConfirm();

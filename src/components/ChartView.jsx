@@ -1,27 +1,27 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { transposeChord, transposeKey, keysInQualityOf, semitonesBetween, normalizeSectionName } from '../music';
-import { resolveSongView } from '../arrangements';
+import { transposeChord, transposeKey, keysInQualityOf, semitonesBetween, normalizeSectionName } from '@/music';
+import { resolveSongView } from '@/arrangements';
 import SectionBlock from './SectionBlock';
 import SongMap from './SongMap';
 import SongDetails from './SongDetails';
 import ChordDiagram from './ChordDiagram';
-import { Button } from './ui/Button';
-import { IconButton } from './ui/IconButton';
-import { Card } from './ui/Card';
-import { Dialog } from './ui/Dialog';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
-import { cn } from '../lib/utils';
-import { useIsTablet, useIsLandscape } from '../lib/useMediaQuery';
+import { Button } from '@/ui/Button';
+import { IconButton } from '@/ui/IconButton';
+import { Card } from '@/ui/Card';
+import { Dialog } from '@/ui/Dialog';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/ui/Select';
+import { cn } from '@/lib/utils';
+import { useIsTablet, useIsLandscape } from '@/lib/useMediaQuery';
 import { StructureRibbon } from './StructureRibbon';
-import FloatingStructure from './ui/FloatingStructure';
-import { VIEW_MODES } from './ui/viewModes';
+import FloatingStructure from '@/ui/FloatingStructure';
+import { VIEW_MODES } from '@/ui/viewModes';
 import AaMenu from './AaMenu';
-import { useActiveSection } from '../hooks/useActiveSection';
-import { useStageHeaderCollapse } from '../hooks/useStageHeaderCollapse';
-import StageHeader from './ui/StageHeader';
-import { exportSongPdf } from '../pdf/exportSongPdf';
-import { OverflowMenu } from './ui/OverflowMenu';
-import { SheetField } from './ui/BottomSheet';
+import { useActiveSection } from '@/hooks/useActiveSection';
+import { useStageHeaderCollapse } from '@/hooks/useStageHeaderCollapse';
+import StageHeader from '@/ui/StageHeader';
+import { exportSongPdf } from '@/pdf/exportSongPdf';
+import { OverflowMenu } from '@/ui/OverflowMenu';
+import { SheetField } from '@/ui/BottomSheet';
 import {
   CHART_THEMES,
   CHART_FONTS,
@@ -30,10 +30,10 @@ import {
   DEFAULT_CHART_THEME_ID,
   DEFAULT_CHORD_FONT_ID,
   DEFAULT_LYRIC_FONT_ID,
-} from '../data/chartThemes';
-import { resolveChartDisplay, resolveColumns, FONT_SIZES } from '../lib/chartDisplay';
-import { STAGE_MODES } from '../data/stageModes';
-import { TAB_INSTRUMENTS } from './editor/tabInstruments';
+} from '@/data/chartThemes';
+import { resolveChartDisplay, resolveColumns, FONT_SIZES } from '@/lib/chartDisplay';
+import { STAGE_MODES } from '@/data/stageModes';
+import { TAB_INSTRUMENTS } from '@/components/editor/tabInstruments';
 
 // Tokens written by useChartTheme (App.jsx) live on :root and decide the
 // chart's bg/text/chord colours plus the chord and lyric font stacks.

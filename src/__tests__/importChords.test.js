@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { importChartText, isChordToken } from '../lib/importChords';
+import { importChartText, isChordToken } from '@/lib/importChords';
 
 describe('isChordToken', () => {
   it('accepts common chords', () => {

@@ -1,21 +1,21 @@
 import { useMemo, useState, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { transposeKey } from '../music';
-import { resolveSongView } from '../arrangements';
-import { durationToSeconds, formatTotalDuration } from '../lib/duration';
+import { transposeKey } from '@/music';
+import { resolveSongView } from '@/arrangements';
+import { durationToSeconds, formatTotalDuration } from '@/lib/duration';
 import { StructureRibbon } from './StructureRibbon';
-import { Chip } from './ui/Chip';
-import { IconButton } from './ui/IconButton';
-import { Button } from './ui/Button';
+import { Chip } from '@/ui/Chip';
+import { IconButton } from '@/ui/IconButton';
+import { Button } from '@/ui/Button';
 import ExportSetlistDialog from './ExportSetlistDialog';
 import ShareSetlistDialog from './ShareSetlistDialog';
-import RosterPanel from './setlist/RosterPanel';
-import { useTeam } from '../auth/useTeam';
-import { useAuth } from '../auth/useAuth';
-import { SHARE_ENABLED } from '../share/setlistShare';
-import { formatClockTime } from '../lib/dateFormat';
-import { useConfirm } from './ui/useConfirmHook';
-import { toast } from './ui/use-toast';
+import RosterPanel from '@/components/setlist/RosterPanel';
+import { useTeam } from '@/auth/useTeam';
+import { useAuth } from '@/auth/useAuth';
+import { SHARE_ENABLED } from '@/share/setlistShare';
+import { formatClockTime } from '@/lib/dateFormat';
+import { useConfirm } from '@/ui/useConfirmHook';
+import { toast } from '@/ui/use-toast';
 
 /**
  * Card-language setlist viewer (Labs `setlistCards`). Read-only: a pinned

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { Button } from '../ui/Button';
-import { Chip } from '../ui/Chip';
-import { formatClockTime } from '../../lib/dateFormat';
+import { Button } from '@/ui/Button';
+import { Chip } from '@/ui/Chip';
+import { formatClockTime } from '@/lib/dateFormat';
 
 function toLocalDateStr(date) {
   const y = date.getFullYear();

@@ -1,11 +1,11 @@
 import React from 'react';
-import { Card } from './ui/Card';
-import { cn, selectPad } from '../lib/utils';
-import Highlight from './ui/Highlight';
+import { Card } from '@/ui/Card';
+import { cn, selectPad } from '@/lib/utils';
+import Highlight from '@/ui/Highlight';
 import { StructureRibbon } from './StructureRibbon';
-import { SelectCircle } from './ui/SelectCircle';
-import { useLongPress } from '../lib/useLongPress';
-import { useCoverArt } from '../lib/useCoverArt';
+import { SelectCircle } from '@/ui/SelectCircle';
+import { useLongPress } from '@/lib/useLongPress';
+import { useCoverArt } from '@/lib/useCoverArt';
 
 // Leading cover-art thumbnail (matches the setlist date badge — same brand
 // gradient). Resolves Spotify album art → YouTube thumbnail → a music-note tile.

@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Button } from '../../components/ui/Button';
-import BrandWordmark from '../../components/ui/BrandWordmark';
-import { transposeChord, transposeKey, ALL_KEYS, semitonesBetween } from '../../music';
-import ChordLine from '../ChordLine';
+import { Button } from '@/ui/Button';
+import BrandWordmark from '@/ui/BrandWordmark';
+import { transposeChord, transposeKey, ALL_KEYS, semitonesBetween } from '@/music';
+import ChordLine from '@/onboarding/ChordLine';
 
 const BASE_KEY = 'G';
 const BASE_LINES = [

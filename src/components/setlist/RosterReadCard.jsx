@@ -1,7 +1,7 @@
-import { useTeam } from '../../auth/useTeam';
-import { useTeamSchedules } from '../../hooks/useTeamSchedules';
-import { useTeamAvailability } from '../../hooks/useTeamAvailability';
-import { useTeamSetlistMap } from '../../hooks/useTeamSetlistMap';
+import { useTeam } from '@/auth/useTeam';
+import { useTeamSchedules } from '@/hooks/useTeamSchedules';
+import { useTeamAvailability } from '@/hooks/useTeamAvailability';
+import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 
 // Sort priority: available → unknown → maybe → unavailable.
 const AVAIL_RANK = { available: 0, maybe: 2, unavailable: 3 };

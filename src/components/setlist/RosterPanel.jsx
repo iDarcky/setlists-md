@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
-import { useTeam } from '../../auth/useTeam';
-import { useTeamSchedules } from '../../hooks/useTeamSchedules';
-import { useTeamAvailability } from '../../hooks/useTeamAvailability';
-import { useTeamSetlistMap } from '../../hooks/useTeamSetlistMap';
-import { normalizeText } from '../../lib/search';
-import { Button } from '../ui/Button';
-import { IconButton } from '../ui/IconButton';
-import { toast } from '../ui/use-toast';
-import { useConfirm } from '../ui/useConfirmHook';
+import { useTeam } from '@/auth/useTeam';
+import { useTeamSchedules } from '@/hooks/useTeamSchedules';
+import { useTeamAvailability } from '@/hooks/useTeamAvailability';
+import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
+import { normalizeText } from '@/lib/search';
+import { Button } from '@/ui/Button';
+import { IconButton } from '@/ui/IconButton';
+import { toast } from '@/ui/use-toast';
+import { useConfirm } from '@/ui/useConfirmHook';
 
 // Instrument is the team_schedules.role column; vocal part is a separate
 // column so a person can have both (e.g. Electric Guitar + Backing).

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Button } from '../ui/Button';
-import PopMenu from '../ui/PopMenu';
-import { inferSections } from '../../lib/detectSections';
-import { sectionStyle } from '../../music';
+import { Button } from '@/ui/Button';
+import PopMenu from '@/ui/PopMenu';
+import { inferSections } from '@/lib/detectSections';
+import { sectionStyle } from '@/music';
 
 // Review a pasted song before it becomes a chart.
 //

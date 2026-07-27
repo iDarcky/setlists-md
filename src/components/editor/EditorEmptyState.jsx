@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button } from '../ui/Button';
+import { Button } from '@/ui/Button';
 import PasteReview from './PasteReview';
 
 // New-song canvas: one big area to paste a chord sheet into.

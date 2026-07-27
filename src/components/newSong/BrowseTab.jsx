@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Input } from '../ui/Input';
-import { DEMO_SONGS_MD } from '../../data/demos';
-import { parseSongMd } from '../../parser';
+import { Input } from '@/ui/Input';
+import { DEMO_SONGS_MD } from '@/data/demos';
+import { parseSongMd } from '@/parser';
 
 // Browse a built-in collection of public-domain songs. For now this is our
 // three bundled songs; selecting one creates a new song from its chart.

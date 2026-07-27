@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Dialog } from '../ui/Dialog';
-import { Button } from '../ui/Button';
-import { IconButton } from '../ui/IconButton';
-import { Input } from '../ui/Input';
-import { useConfirm } from '../ui/useConfirmHook';
+import { Dialog } from '@/ui/Dialog';
+import { Button } from '@/ui/Button';
+import { IconButton } from '@/ui/IconButton';
+import { Input } from '@/ui/Input';
+import { useConfirm } from '@/ui/useConfirmHook';
 
 const ChevronDown = ({ className = '' }) => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>

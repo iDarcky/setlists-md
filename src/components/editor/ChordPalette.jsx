@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { getDiatonicChords } from '../../music';
-import { IconButton } from '../ui/IconButton';
+import { getDiatonicChords } from '@/music';
+import { IconButton } from '@/ui/IconButton';
 import ChordPicker from './ChordPicker';
  
 export default function ChordPalette({ activeChord, onSelect, onClear, songKey, recentChords = [], selectedChord = null, onRemoveSelected = null }) {

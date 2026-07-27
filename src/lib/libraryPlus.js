@@ -4,9 +4,9 @@
 // Nothing here changes stored data shapes: everything is derived from the
 // existing song/setlist/arrangement fields, so the flags are safe to toggle.
 
-import { durationToSeconds } from './duration.js';
-import { splitMulti } from './songFacets.js';
-import { searchSetlists, normalizeText } from './search.js';
+import { durationToSeconds } from './duration';
+import { splitMulti } from './songFacets';
+import { searchSetlists, normalizeText } from './search';
 
 // --- Arrangement accessors (mirror the ones in Library/songFacets) -----------
 export function defaultArrangement(song) {

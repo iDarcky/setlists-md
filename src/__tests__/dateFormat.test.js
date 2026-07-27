@@ -4,7 +4,7 @@ import {
   nextSundayDateStr,
   weekdayLabels,
   firstDayOffset,
-} from '../lib/dateFormat';
+} from '@/lib/dateFormat';
 
 describe('formatClockTime', () => {
   it('returns empty string for falsy input', () => {

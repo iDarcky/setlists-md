@@ -1,5 +1,5 @@
-import { transposeChord, sectionStyle, sectionLabel } from '../music';
-import { parseLine } from '../parser';
+import { transposeChord, sectionStyle, sectionLabel } from '@/music';
+import { parseLine } from '@/parser';
 
 // Distinct, consecutive chords used in a section (transposed), so the map can
 // show each section's harmonic shape at a glance without the full lyrics.

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { cleanPastedText } from '../lib/cleanPastedText';
-import { importChartText } from '../lib/importChords';
+import { cleanPastedText } from '@/lib/cleanPastedText';
+import { importChartText } from '@/lib/importChords';
 
 // The characters this module exists to remove are invisible, so they're written
 // as escapes here — a literal ZWSP in a test file is unreviewable.

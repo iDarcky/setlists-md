@@ -2,8 +2,8 @@ import React, { useEffect, useMemo } from 'react';
 import privacyRaw from '../data/privacy.md?raw';
 import termsRaw from '../data/terms.md?raw';
 import copyrightRaw from '../data/copyright.md?raw';
-import { Button } from './ui/Button';
-import PageHeader from './ui/PageHeader';
+import { Button } from '@/ui/Button';
+import PageHeader from '@/ui/PageHeader';
 
 const SOURCES = { privacy: privacyRaw, terms: termsRaw, copyright: copyrightRaw };
 const TITLES = {

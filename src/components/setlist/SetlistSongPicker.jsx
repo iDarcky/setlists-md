@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Input } from '../ui/Input';
-import { getArrangement } from '../../arrangements';
-import { searchSongs } from '../../lib/search';
+import { Input } from '@/ui/Input';
+import { getArrangement } from '@/arrangements';
+import { searchSongs } from '@/lib/search';
 
 /**
  * Song library picker — search and click to add songs.

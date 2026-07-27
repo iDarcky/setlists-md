@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import PageHeader from './ui/PageHeader';
-import { useTeam } from '../auth/useTeam';
-import { useAuth } from '../auth/useAuth';
-import { useTeamSchedules } from '../hooks/useTeamSchedules';
-import { useTeamAvailability } from '../hooks/useTeamAvailability';
-import { useTeamSetlistMap } from '../hooks/useTeamSetlistMap';
-import { toast } from './ui/use-toast';
+import PageHeader from '@/ui/PageHeader';
+import { useTeam } from '@/auth/useTeam';
+import { useAuth } from '@/auth/useAuth';
+import { useTeamSchedules } from '@/hooks/useTeamSchedules';
+import { useTeamAvailability } from '@/hooks/useTeamAvailability';
+import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
+import { toast } from '@/ui/use-toast';
 
 // Standard instruments offered when a member hasn't declared their own. Mirrors
 // RosterPanel's list (team_schedules.role holds the assigned instrument).

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Button } from '../ui/Button';
+import { Button } from '@/ui/Button';
 
 const ROOTS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 const SUFFIXES = [

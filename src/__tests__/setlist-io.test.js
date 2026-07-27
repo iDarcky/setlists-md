@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { slugify } from '../setlist-io';
+import { slugify } from '@/setlist-io';
 
 describe('slugify', () => {
   it('lowercases ASCII titles', () => {

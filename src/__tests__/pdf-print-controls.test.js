@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPrintControls } from '../pdf/pdfDocument';
+import { buildPrintControls } from '@/pdf/pdfDocument';
 
 describe('buildPrintControls (CSP-safe print controls)', () => {
   it('emits an external script + a JSON config block, never an inline script', () => {

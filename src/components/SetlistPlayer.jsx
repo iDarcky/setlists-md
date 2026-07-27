@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { transposeKey, sectionStyle } from '../music';
-import { resolveSongView } from '../arrangements';
-import { IconButton } from './ui/IconButton';
-import NoteContent from './ui/NoteContent';
+import { transposeKey, sectionStyle } from '@/music';
+import { resolveSongView } from '@/arrangements';
+import { IconButton } from '@/ui/IconButton';
+import NoteContent from '@/ui/NoteContent';
 import ChartView from './ChartView';
-import { useWakeLock } from '../hooks/useWakeLock';
+import { useWakeLock } from '@/hooks/useWakeLock';
 
 export default function SetlistPlayer({ setlist, songs, onBack, onFinish, defaultColumns, defaultFontSize, showInlineNotes, inlineNoteStyle, displayRole, duplicateSections }) {
   useWakeLock(true);

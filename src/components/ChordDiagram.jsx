@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { SVGuitarChord } from 'svguitar';
-import { CHORD_SHAPES } from '../data/chordShapes';
+import { CHORD_SHAPES } from '@/data/chordShapes';
 
 export default function ChordDiagram({ chord, size = 80 }) {
   const containerRef = useRef(null);

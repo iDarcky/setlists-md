@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../auth/supabase';
-import { useTeam } from '../auth/useTeam';
-import { useAuth } from '../auth/useAuth';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
-import UpgradeGate from './ui/UpgradeGate';
-import PageHeader from './ui/PageHeader';
-import ActivityFeed from './team/ActivityFeed';
-import AvatarUploader from './ui/AvatarUploader';
-import { useConfirm } from './ui/useConfirmHook';
-import { BILLING_ENABLED, startTeamCheckout } from '../billing/checkout';
+import { supabase } from '@/auth/supabase';
+import { useTeam } from '@/auth/useTeam';
+import { useAuth } from '@/auth/useAuth';
+import { Button } from '@/ui/Button';
+import { Input } from '@/ui/Input';
+import UpgradeGate from '@/ui/UpgradeGate';
+import PageHeader from '@/ui/PageHeader';
+import ActivityFeed from '@/components/team/ActivityFeed';
+import AvatarUploader from '@/ui/AvatarUploader';
+import { useConfirm } from '@/ui/useConfirmHook';
+import { BILLING_ENABLED, startTeamCheckout } from '@/billing/checkout';
 
 const TeamIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

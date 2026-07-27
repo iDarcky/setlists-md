@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import SongCard from './SongCard';
-import { Button } from './ui/Button';
-import { IconButton } from './ui/IconButton';
-import { SearchBar } from './ui/SearchBar';
-import BottomSheet from './ui/BottomSheet';
-import ProgressChecklist from '../onboarding/ProgressChecklist';
-import { CalendarWidget } from './ui/CalendarWidget';
-import ActivityFeed from './team/ActivityFeed';
-import { useTeam } from '../auth/useTeam';
-import { usePushSubscription } from '../push/usePushSubscription';
+import { Button } from '@/ui/Button';
+import { IconButton } from '@/ui/IconButton';
+import { SearchBar } from '@/ui/SearchBar';
+import BottomSheet from '@/ui/BottomSheet';
+import ProgressChecklist from '@/onboarding/ProgressChecklist';
+import { CalendarWidget } from '@/ui/CalendarWidget';
+import ActivityFeed from '@/components/team/ActivityFeed';
+import { useTeam } from '@/auth/useTeam';
+import { usePushSubscription } from '@/push/usePushSubscription';
 
 // Prompt to turn on push, shown on the dashboard for a signed-in user whose
 // current device has push available but not enabled. Dismissal is per-device
@@ -38,13 +38,13 @@ function PushPromptCard() {
     </div>
   );
 }
-import { useTeamSchedules } from '../hooks/useTeamSchedules';
-import { useTeamAvailability } from '../hooks/useTeamAvailability';
-import DateStatusModal from './schedule/DateStatusModal';
-import { useTeamSetlistMap } from '../hooks/useTeamSetlistMap';
-import { useAuth } from '../auth/useAuth';
-import { formatClockTime } from '../lib/dateFormat';
-import { setlistStartMs, isSetlistUpcoming } from '../lib/setlistTime';
+import { useTeamSchedules } from '@/hooks/useTeamSchedules';
+import { useTeamAvailability } from '@/hooks/useTeamAvailability';
+import DateStatusModal from '@/components/schedule/DateStatusModal';
+import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
+import { useAuth } from '@/auth/useAuth';
+import { formatClockTime } from '@/lib/dateFormat';
+import { setlistStartMs, isSetlistUpcoming } from '@/lib/setlistTime';
 
 // Order + metadata for the reorderable dashboard widgets. `requires` gates a
 // widget by context (auth / team); the customize sheet hides ineligible ones.

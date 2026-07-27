@@ -1,4 +1,4 @@
-import { STAGE_MODE_MAP } from '../data/stageModes';
+import { STAGE_MODE_MAP } from '@/data/stageModes';
 
 // Named lyric-size buckets (legacy 'S'/'M'/'L' values stored in settings).
 export const FONT_SIZES = { S: 14, M: 18, L: 22 };

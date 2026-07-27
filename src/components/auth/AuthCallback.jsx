@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../auth/supabase';
+import { supabase } from '@/auth/supabase';
 
 /**
  * Handles the OAuth / magic-link redirect.

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button } from './ui/Button';
+import { Button } from '@/ui/Button';
 
 // Song metadata for the hub's Details tab. Read-only by default; when `onSave`
 // is provided an inline **Edit** mode swaps the grid for a form and writes the

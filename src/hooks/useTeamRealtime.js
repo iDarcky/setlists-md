@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { supabase } from '../auth/supabase';
+import { supabase } from '@/auth/supabase';
 
 /**
  * Subscribes to Supabase Realtime changes on the team library tables

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { formatClockTime } from '../../lib/dateFormat';
+import { formatClockTime } from '@/lib/dateFormat';
 
 const STATUS_OPTIONS = [
   {

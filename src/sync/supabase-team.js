@@ -1,4 +1,4 @@
-import { supabase } from '../auth/supabase';
+import { supabase } from '@/auth/supabase';
 import { SONGS_FOLDER, SETLISTS_FOLDER } from './constants';
 
 export function createSupabaseTeamProvider(teamId, { readOnly = false } = {}) {

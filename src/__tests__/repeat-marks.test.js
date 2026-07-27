@@ -1,7 +1,7 @@
 import { it, expect } from 'vitest';
-import { inferSections } from '../lib/detectSections';
-import { importChartText } from '../lib/importChords';
-import { parseSongMd, parseFrontmatterFields, serializeFrontmatterFields, splitMd } from '../parser';
+import { inferSections } from '@/lib/detectSections';
+import { importChartText } from '@/lib/importChords';
+import { parseSongMd, parseFrontmatterFields, serializeFrontmatterFields, splitMd } from '@/parser';
 
 it('repeat mark → play order, end to end', () => {
   const pasted = 'Cât de departe eram de Tine\nUn munte ce nu-l puteam urca\n\n//: Aleluia! Isus m-a eliberat! ://';

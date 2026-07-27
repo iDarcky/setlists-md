@@ -10,7 +10,7 @@
 // the billing controls, and any direct call degrades to a friendly error
 // because the function returns `billing_not_configured`.
 
-import { callEdgeFunction } from '../sync/edge';
+import { callEdgeFunction } from '@/sync/edge';
 
 export const BILLING_ENABLED =
   String(import.meta.env.VITE_STRIPE_ENABLED || '').toLowerCase() === 'true';

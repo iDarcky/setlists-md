@@ -1,4 +1,4 @@
-import { sectionStyle } from '../../music';
+import { sectionStyle } from '@/music';
 import StructureEditor from './StructureEditor';
 
 // "Verse 1" -> "V1", "Pre Chorus 2" -> "PC2", "Chorus" -> "C".

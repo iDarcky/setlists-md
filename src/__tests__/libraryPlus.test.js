@@ -6,7 +6,7 @@ import {
   setlistDurationSeconds,
   searchSetlistsPlus,
   songColumnValue,
-} from '../lib/libraryPlus';
+} from '@/lib/libraryPlus';
 
 const songs = [
   { id: 's1', title: 'Amazing Grace', artist: 'Newton', arrangements: [{ id: 'a', key: 'G', tempo: 72, duration: '3:00' }], defaultArrangementId: 'a', tags: ['hymn'] },

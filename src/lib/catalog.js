@@ -9,8 +9,8 @@
 // Everything here is async and abort-aware on purpose — swapping the body of
 // `searchCatalog`/`fetchCatalogSong` for a Supabase call must not require the
 // callers to change.
-import { DEMO_SONGS_MD } from '../data/demos';
-import { parseSongMd } from '../parser';
+import { DEMO_SONGS_MD } from '@/data/demos';
+import { parseSongMd } from '@/parser';
 import { searchSongs } from './search';
 
 // Flip to true when the server-side catalog exists. While false the UI treats

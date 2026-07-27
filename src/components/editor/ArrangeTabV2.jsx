@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo, Fragment } from 'react';
-import PopMenu, { MenuItem } from '../ui/PopMenu';
-import { parseSongMd, songToMd, placementToLine, parseTabBlock, parseSectionLines, splitMd, parseFrontmatterFields, serializeFrontmatterFields } from '../../parser';
-import { sectionStyle, getNashvilleNumber, getSolfege } from '../../music';
-import TabBlock from '../TabBlock';
+import PopMenu, { MenuItem } from '@/ui/PopMenu';
+import { parseSongMd, songToMd, placementToLine, parseTabBlock, parseSectionLines, splitMd, parseFrontmatterFields, serializeFrontmatterFields } from '@/parser';
+import { sectionStyle, getNashvilleNumber, getSolfege } from '@/music';
+import TabBlock from '@/components/TabBlock';
 import TabGridEditor from './TabGridEditorV2';
 import KeyChangeDialog from './KeyChangeDialog';
 import { TAB_INSTRUMENTS, instrumentForStrings } from './tabInstruments';
-import { IconButton } from '../ui/IconButton';
-import { Button } from '../ui/Button';
+import { IconButton } from '@/ui/IconButton';
+import { Button } from '@/ui/Button';
 import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType, serializeSectionLines, lyricsOnly, mergeLyrics } from './arrangeHelpers';
-import { importChartText } from '../../lib/importChords';
+import { importChartText } from '@/lib/importChords';
 import { loadRecents, saveRecents, pushRecent } from './chordRecents';
 import ChordAutocomplete from './ChordAutocomplete';
-import { showUndoToast } from '../../lib/undoToast';
+import { showUndoToast } from '@/lib/undoToast';
 
 const SECTION_TYPES = [
   'Intro', 'Verse', 'Pre Chorus', 'Chorus', 'Bridge',

@@ -1,4 +1,4 @@
-import { inferStructureMode, structureFollowsSections } from './music.js';
+import { inferStructureMode, structureFollowsSections } from './music';
 
 // Parse a .md song file into a structured object
 export function parseSongMd(text) {

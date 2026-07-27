@@ -1,7 +1,7 @@
 // Shared line helpers for the Arrange editors. Extracted so the V2 editor can
 // reuse the proven caret-mapping + placement parsing without duplicating it.
 
-import { lineToPlacement, placementToLine, extractInlineNotes, serializeTabBlock } from '../../parser';
+import { lineToPlacement, placementToLine, extractInlineNotes, serializeTabBlock } from '@/parser';
 
 // Serialize one section line (string lyric, tab, tabref, or modulate) back to
 // its raw .md form. Shared by the inline lyric editor and the Arrange

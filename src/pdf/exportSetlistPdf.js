@@ -14,8 +14,8 @@
 // if either file's print styles change meaningfully.
 
 
-import { transposeKey } from '../music';
-import { resolveSongView } from '../arrangements';
+import { transposeKey } from '@/music';
+import { resolveSongView } from '@/arrangements';
 import {
   escapeHtml,
   buildSongBody,

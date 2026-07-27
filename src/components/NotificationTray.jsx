@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { Button } from './ui/Button';
-import { usePushSubscription } from '../push/usePushSubscription';
+import { Button } from '@/ui/Button';
+import { usePushSubscription } from '@/push/usePushSubscription';
 import NotificationItems from './NotificationItems';
 
 const CloseIcon = () => (

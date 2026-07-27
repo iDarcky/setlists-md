@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { SegmentedControl } from './ui/SegmentedControl';
-import PageHeader from './ui/PageHeader';
-import RecurringPicker from './schedule/RecurringPicker';
-import ScheduleListView from './schedule/ScheduleListView';
-import ScheduleCalendarView from './schedule/ScheduleCalendarView';
-import RosterPanel from './setlist/RosterPanel';
-import DateStatusModal from './schedule/DateStatusModal';
-import { useTeam } from '../auth/useTeam';
-import { useAuth } from '../auth/useAuth';
-import { useTeamAvailability } from '../hooks/useTeamAvailability';
+import { SegmentedControl } from '@/ui/SegmentedControl';
+import PageHeader from '@/ui/PageHeader';
+import RecurringPicker from '@/components/schedule/RecurringPicker';
+import ScheduleListView from '@/components/schedule/ScheduleListView';
+import ScheduleCalendarView from '@/components/schedule/ScheduleCalendarView';
+import RosterPanel from '@/components/setlist/RosterPanel';
+import DateStatusModal from '@/components/schedule/DateStatusModal';
+import { useTeam } from '@/auth/useTeam';
+import { useAuth } from '@/auth/useAuth';
+import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 
 function toLocalDateStr(date) {
   const y = date.getFullYear();

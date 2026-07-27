@@ -6,11 +6,11 @@ import {
   UpgradePill,
   SignInButton,
   CreateAccountButton,
-} from './account/AccountPanel';
-import { useAuth } from '../auth/useAuth';
-import { useTeam } from '../auth/useTeam';
-import { clearAll } from '../storage';
-import AvatarUploader from './ui/AvatarUploader';
+} from '@/components/account/AccountPanel';
+import { useAuth } from '@/auth/useAuth';
+import { useTeam } from '@/auth/useTeam';
+import { clearAll } from '@/storage';
+import AvatarUploader from '@/ui/AvatarUploader';
 
 const NAME_MAX = 15;
 

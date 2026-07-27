@@ -6,7 +6,7 @@ import {
   defaultVisibleColumns,
   orderedVisibleColumns,
   reorderColumns,
-} from '../lib/tableColumns';
+} from '@/lib/tableColumns';
 
 describe('availableColumns', () => {
   it('drops entitlement-gated columns when the context flag is off', () => {

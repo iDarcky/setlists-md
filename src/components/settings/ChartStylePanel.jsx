@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/Select';
-import { useConfirm } from '../ui/useConfirmHook';
-import UpgradeGate from '../ui/UpgradeGate';
+import { Button } from '@/ui/Button';
+import { Input } from '@/ui/Input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/ui/Select';
+import { useConfirm } from '@/ui/useConfirmHook';
+import UpgradeGate from '@/ui/UpgradeGate';
 import {
   CHART_THEMES,
   CHART_FONTS,
@@ -15,7 +15,7 @@ import {
   DEFAULT_LYRIC_FONT_ID,
   FREE_CHART_THEME_IDS,
   chartTheme,
-} from '../../data/chartThemes';
+} from '@/data/chartThemes';
 
 // Cap on how many user-defined themes can exist. Keeps the picker grid
 // readable and the synced preferences payload bounded.

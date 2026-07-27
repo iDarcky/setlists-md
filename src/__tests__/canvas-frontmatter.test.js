@@ -5,7 +5,7 @@ import {
   parseSongMd,
   parseFrontmatterFields,
   serializeFrontmatterFields,
-} from '../parser';
+} from '@/parser';
 
 // The chart canvas (ArrangeTabV2) owns the body and the play order, nothing
 // else. It used to emit songToMd(song) wholesale — and because parseSongMd

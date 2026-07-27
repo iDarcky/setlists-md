@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields } from '../../parser';
-import ChipInput from '../ui/ChipInput';
+import { splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields } from '@/parser';
+import ChipInput from '@/ui/ChipInput';
 
 // type: 'text' (default) | 'number' | 'time' | 'url' | 'chips'
 // max: maxLength for text/number/time; maxChips for chips.

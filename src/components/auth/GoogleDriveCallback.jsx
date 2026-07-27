@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { exchangeGoogleAuthCode } from '../../sync/google-drive';
-import { setActiveProvider } from '../../sync/tokens';
-import { Button } from '../ui/Button';
+import { exchangeGoogleAuthCode } from '@/sync/google-drive';
+import { setActiveProvider } from '@/sync/tokens';
+import { Button } from '@/ui/Button';
 
 // Handles the redirect from Google's consent screen at /auth/google-drive.
 // Calls the cloud-token-exchange Edge Function to swap the auth code for

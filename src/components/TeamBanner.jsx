@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '../lib/utils';
+import { cn } from '@/lib/utils';
 
 /**
  * A strip bar shown at the top of the screen when viewing a team workspace.

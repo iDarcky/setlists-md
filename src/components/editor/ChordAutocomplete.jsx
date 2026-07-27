@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { getDiatonicChords } from '../../music';
+import { getDiatonicChords } from '@/music';
 import { isChordToken } from './chordRecents';
 
 const ROOTS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];

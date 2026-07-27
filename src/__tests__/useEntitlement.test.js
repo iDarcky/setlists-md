@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkEntitlement, PLAN_RANK, FEATURE_GATES } from '../hooks/useEntitlement';
+import { checkEntitlement, PLAN_RANK, FEATURE_GATES } from '@/hooks/useEntitlement';
 
 describe('checkEntitlement', () => {
   it('free plan can access ungated features', () => {

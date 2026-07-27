@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { IconButton } from './ui/IconButton';
+import { IconButton } from '@/ui/IconButton';
 
 export default function ExportSetlistDialog({ onClose, onExportZip, onExportPdfOverview, onExportPdfFull }) {
   useEffect(() => {

@@ -16,6 +16,16 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  resolve: {
+    // `@/` is the src root. Files are grouped by feature (src/features/*), so
+    // relative imports would otherwise climb three or four levels to reach a
+    // shared module — and every file move would rewrite them again. Anything
+    // outside a file's own folder is imported through the alias; only
+    // same-folder siblings stay relative.
+    alias: {
+      '@': resolve(__dirname, 'src'),
+    },
+  },
   build: {
     rollupOptions: {
       output: {

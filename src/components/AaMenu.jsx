@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useEntitlement } from '../hooks/useEntitlement';
+import { useEntitlement } from '@/hooks/useEntitlement';
 import {
   CHART_THEMES,
   CHART_FONTS,
@@ -10,7 +10,7 @@ import {
   DEFAULT_CHORD_FONT_ID,
   DEFAULT_LYRIC_FONT_ID,
   FREE_CHART_THEME_IDS,
-} from '../data/chartThemes';
+} from '@/data/chartThemes';
 
 // The chart's single "Aa" display popover. Three tabs — Lyrics / Chords / Page —
 // fold the old Display + Layout sheets into one anchored menu. Lyrics and Chords

@@ -6,8 +6,8 @@ import {
   incrementForSetlistDiff,
   mostPlayedKey,
   totalPlays,
-} from '../keyHistory';
-import { songFromFlat } from '../arrangements';
+} from '@/keyHistory';
+import { songFromFlat } from '@/arrangements';
 
 const today = new Date('2026-05-10T10:00:00Z');
 

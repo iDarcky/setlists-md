@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { exportSetlistZip, importSetlistZip } from '../setlist-io';
+import { exportSetlistZip, importSetlistZip } from '@/setlist-io';
 
 // JSZip in Node.js doesn't accept the global Blob type; convert to ArrayBuffer.
 async function blobToBuffer(blob) {

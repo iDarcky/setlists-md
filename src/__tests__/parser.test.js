@@ -13,7 +13,7 @@ import {
   parseFrontmatterFields,
   serializeFrontmatterFields,
   generateId,
-} from '../parser';
+} from '@/parser';
 
 const SAMPLE = `---
 title: Amazing Grace
@@ -266,7 +266,7 @@ describe('named tab library + references', () => {
   });
 
   it('survives the v2 arrangement round-trip (editor save path)', async () => {
-    const { songFromFlat, resolveSongView } = await import('../arrangements.js');
+    const { songFromFlat, resolveSongView } = await import('@/arrangements');
     const flat = parseSongMd(md);
     const v2 = songFromFlat(flat);                 // Editor working song
     expect(v2.arrangements[0].tabLibrary).toHaveLength(1);

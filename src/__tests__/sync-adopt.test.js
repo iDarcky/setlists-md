@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { reconcileAdopt, applyPulled } from '../sync/adopt';
+import { reconcileAdopt, applyPulled } from '@/sync/adopt';
 
 const s = (id, v = 0) => ({ id, title: `Song ${id}`, v });
 

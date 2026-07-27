@@ -1,17 +1,17 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { resolveSongView } from '../arrangements';
-import { transposeKey, semitonesBetween, keysInQualityOf } from '../music';
+import { resolveSongView } from '@/arrangements';
+import { transposeKey, semitonesBetween, keysInQualityOf } from '@/music';
 import ChartView from './ChartView';
 import SongDetails from './SongDetails';
 import FullscreenChartViewer from './FullscreenChartViewer';
 import { StructureRibbon } from './StructureRibbon';
 import SongPlayerBar from './SongPlayerBar';
-import { OverflowMenu } from './ui/OverflowMenu';
-import { Select, SelectTrigger, SelectContent, SelectItem } from './ui/Select';
-import { exportSongPdf } from '../pdf/exportSongPdf';
-import { useWakeLock } from '../hooks/useWakeLock';
-import { youtubeThumb, youtubeId, spotifyArt } from '../lib/coverArt';
-import { cn } from '../lib/utils';
+import { OverflowMenu } from '@/ui/OverflowMenu';
+import { Select, SelectTrigger, SelectContent, SelectItem } from '@/ui/Select';
+import { exportSongPdf } from '@/pdf/exportSongPdf';
+import { useWakeLock } from '@/hooks/useWakeLock';
+import { youtubeThumb, youtubeId, spotifyArt } from '@/lib/coverArt';
+import { cn } from '@/lib/utils';
 
 // ── Song Hub ─────────────────────────────────────────────────────────────────
 // The library's song-open target: a "hub card" (art · title + gold key dropdown

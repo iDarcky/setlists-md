@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { recommendNextSongs } from '../../recommendations';
+import { recommendNextSongs } from '@/recommendations';
 
 /**
  * Right-rail panel below the song picker that suggests the next song to add.

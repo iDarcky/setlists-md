@@ -1,7 +1,7 @@
-import { supabase as defaultClient } from '../auth/supabase';
+import { supabase as defaultClient } from '@/auth/supabase';
 import { getSyncState, updateSyncManifest, updateSetlistManifest, setPendingPush, setHashVersion } from './tokens';
-import { parseSongMd, songToMd } from '../parser';
-import { songFromFlat, withArrangement } from '../arrangements';
+import { parseSongMd, songToMd } from '@/parser';
+import { songFromFlat, withArrangement } from '@/arrangements';
 import { SYNC_DEBOUNCE_MS } from './constants';
 import { withRetry } from './retry';
 import { canonicalSongHash, canonicalSetlistHash, HASH_VERSION } from './canonical';

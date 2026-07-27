@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveChartDisplay, resolveColumns, FONT_SIZES } from '../lib/chartDisplay';
+import { resolveChartDisplay, resolveColumns, FONT_SIZES } from '@/lib/chartDisplay';
 
 // ─── resolveChartDisplay ──────────────────────────────────────────────────────
 

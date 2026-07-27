@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Button } from '../ui/Button';
-import { analyzeSetlistLinks } from '../../setlist/setlistLinks';
+import { Button } from '@/ui/Button';
+import { analyzeSetlistLinks } from '@/setlist/setlistLinks';
 
 // Setlist-link diagnostic. A setlist item references a song by a snapshotted
 // `songId`; if that song was later re-imported (new id) the item orphans. The

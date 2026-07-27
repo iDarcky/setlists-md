@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { durationToSeconds, formatTotalDuration } from '../lib/duration';
+import { durationToSeconds, formatTotalDuration } from '@/lib/duration';
 
 describe('durationToSeconds', () => {
   it('returns 0 for null / undefined / empty', () => {

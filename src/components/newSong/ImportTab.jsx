@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import { Button } from '../ui/Button';
-import { parseSongMd, generateId } from '../../parser';
-import { songFromFlat } from '../../arrangements';
-import { smartImport } from '../../importer';
+import { Button } from '@/ui/Button';
+import { parseSongMd, generateId } from '@/parser';
+import { songFromFlat } from '@/arrangements';
+import { smartImport } from '@/importer';
 
 const CHORDPRO_EXTS = ['.cho', '.chopro', '.chord', '.crd', '.pro', '.onsong'];
 const ACCEPT = ['.md', '.zip', '.xml', '.txt', ...CHORDPRO_EXTS].join(',');

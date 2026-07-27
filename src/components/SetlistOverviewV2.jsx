@@ -1,20 +1,20 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
-import { transposeKey } from '../music';
-import { resolveSongView } from '../arrangements';
-import { durationToSeconds, formatTotalDuration } from '../lib/duration';
+import { transposeKey } from '@/music';
+import { resolveSongView } from '@/arrangements';
+import { durationToSeconds, formatTotalDuration } from '@/lib/duration';
 import { StructureRibbon } from './StructureRibbon';
-import { Chip } from './ui/Chip';
-import { IconButton } from './ui/IconButton';
-import { Button } from './ui/Button';
+import { Chip } from '@/ui/Chip';
+import { IconButton } from '@/ui/IconButton';
+import { Button } from '@/ui/Button';
 import ExportSetlistDialog from './ExportSetlistDialog';
-import { useTeam } from '../auth/useTeam';
-import { useAuth } from '../auth/useAuth';
-import { SHARE_ENABLED } from '../share/setlistShare';
+import { useTeam } from '@/auth/useTeam';
+import { useAuth } from '@/auth/useAuth';
+import { SHARE_ENABLED } from '@/share/setlistShare';
 import ShareSetlistDialog from './ShareSetlistDialog';
-import RosterPanel from './setlist/RosterPanel';
-import { headerFrostStyle } from '../lib/headerFrost';
-import { formatClockTime } from '../lib/dateFormat';
-import { useIsTablet, useIsDesktop } from '../lib/useMediaQuery';
+import RosterPanel from '@/components/setlist/RosterPanel';
+import { headerFrostStyle } from '@/lib/headerFrost';
+import { formatClockTime } from '@/lib/dateFormat';
+import { useIsTablet, useIsDesktop } from '@/lib/useMediaQuery';
 
 // ── Small inline icon helpers (kept local; the meta row uses tiny glyphs) ──
 const ICONS = {

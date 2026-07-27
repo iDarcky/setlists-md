@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { notateChord, sectionStyle, sectionLabel } from '../music';
-import { parseLine } from '../parser';
+import { notateChord, sectionStyle, sectionLabel } from '@/music';
+import { parseLine } from '@/parser';
 import TabBlock from './TabBlock';
 
 const NOTE_SEPARATORS = {

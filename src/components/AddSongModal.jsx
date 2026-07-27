@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Button } from './ui/Button';
-import { IconButton } from './ui/IconButton';
-import Highlight from './ui/Highlight';
-import { searchSongs } from '../lib/search';
-import { searchCatalog, fetchFeatured, fetchCatalogSong, CATALOG_IS_REMOTE } from '../lib/catalog';
-import { parseImportFiles, IMPORT_ACCEPT } from '../lib/importFiles';
-import MobileSheet, { SheetGroup, SheetGroupLabel, SheetRow, SheetChevron } from './ui/MobileSheet';
+import { Button } from '@/ui/Button';
+import { IconButton } from '@/ui/IconButton';
+import Highlight from '@/ui/Highlight';
+import { searchSongs } from '@/lib/search';
+import { searchCatalog, fetchFeatured, fetchCatalogSong, CATALOG_IS_REMOTE } from '@/lib/catalog';
+import { parseImportFiles, IMPORT_ACCEPT } from '@/lib/importFiles';
+import MobileSheet, { SheetGroup, SheetGroupLabel, SheetRow, SheetChevron } from '@/ui/MobileSheet';
 
 // Add a song. One surface: a search field over the public-domain catalog, with
 // Import and Blank as doors underneath. Typing replaces the doors with results;

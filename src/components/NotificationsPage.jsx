@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import PageHeader from './ui/PageHeader';
-import { Button } from './ui/Button';
-import { usePushSubscription } from '../push/usePushSubscription';
+import PageHeader from '@/ui/PageHeader';
+import { Button } from '@/ui/Button';
+import { usePushSubscription } from '@/push/usePushSubscription';
 import NotificationItems from './NotificationItems';
 
 const SCHEDULE_TYPES = new Set([

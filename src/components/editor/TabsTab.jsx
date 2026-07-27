@@ -1,10 +1,10 @@
 import { useMemo, useState, useCallback } from 'react';
-import { parseSongMd, songToMd, parseTabBlock } from '../../parser';
-import { sectionStyle } from '../../music';
-import TabBlock from '../TabBlock';
-import { Button } from '../ui/Button';
-import { IconButton } from '../ui/IconButton';
-import { showUndoToast } from '../../lib/undoToast';
+import { parseSongMd, songToMd, parseTabBlock } from '@/parser';
+import { sectionStyle } from '@/music';
+import TabBlock from '@/components/TabBlock';
+import { Button } from '@/ui/Button';
+import { IconButton } from '@/ui/IconButton';
+import { showUndoToast } from '@/lib/undoToast';
 import TabGridEditor from './TabGridEditorV2';
 import { TAB_INSTRUMENTS, instrumentForStrings } from './tabInstruments';
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../auth/supabase';
-import { useAuth } from '../auth/useAuth';
+import { supabase } from '@/auth/supabase';
+import { useAuth } from '@/auth/useAuth';
 
 export function useTeamSchedules(teamId) {
   const { user } = useAuth();

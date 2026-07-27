@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import PageHeader from './ui/PageHeader';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
-import { supabase } from '../auth/supabase';
-import { useAuth } from '../auth/useAuth';
+import PageHeader from '@/ui/PageHeader';
+import { Button } from '@/ui/Button';
+import { Input } from '@/ui/Input';
+import { supabase } from '@/auth/supabase';
+import { useAuth } from '@/auth/useAuth';
 
 const CHECK = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">

@@ -1,9 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { Button } from './ui/Button';
-import { IconButton } from './ui/IconButton';
-import { Tabs } from './ui/Tabs';
-import ImportTab from './newSong/ImportTab';
-import BrowseTab from './newSong/BrowseTab';
+import { Button } from '@/ui/Button';
+import { IconButton } from '@/ui/IconButton';
+import { Tabs } from '@/ui/Tabs';
+import ImportTab from '@/components/newSong/ImportTab';
+import BrowseTab from '@/components/newSong/BrowseTab';
 
 // Pasting a chord sheet now happens inside the editor's New-song mode (a big
 // paste area), so the modal leads with Import + Browse and offers a blank song

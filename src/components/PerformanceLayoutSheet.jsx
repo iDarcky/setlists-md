@@ -1,11 +1,11 @@
-import BottomSheet, { SheetField } from './ui/BottomSheet';
-import { SegmentedControl } from './ui/SegmentedControl';
-import { Button } from './ui/Button';
-import { IconButton } from './ui/IconButton';
+import BottomSheet, { SheetField } from '@/ui/BottomSheet';
+import { SegmentedControl } from '@/ui/SegmentedControl';
+import { Button } from '@/ui/Button';
+import { IconButton } from '@/ui/IconButton';
 import ChartStyleControls from './ChartStyleControls';
-import { TAB_INSTRUMENTS } from './editor/tabInstruments';
-import { STAGE_MODES } from '../data/stageModes';
-import { cn } from '../lib/utils';
+import { TAB_INSTRUMENTS } from '@/components/editor/tabInstruments';
+import { STAGE_MODES } from '@/data/stageModes';
+import { cn } from '@/lib/utils';
 
 // Shared display-options sheet for PracticeView and PerformanceView.
 //

@@ -1,5 +1,5 @@
-import { transposeKey } from '../music';
-import BottomSheet from './ui/BottomSheet';
+import { transposeKey } from '@/music';
+import BottomSheet from '@/ui/BottomSheet';
 
 // The setlist song list, shared by the landscape rail and the mobile/portrait
 // bottom sheet so both stay in sync. `resolved` is the same enriched item array

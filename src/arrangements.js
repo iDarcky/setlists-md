@@ -7,8 +7,8 @@
 // shape so most consumers (ChartView, PerformanceView, PDF exporters) keep
 // working unchanged when their callers wrap the song with this helper.
 
-import { generateId, EXTRA_META_FIELDS } from './parser.js';
-import { inferStructureMode } from './music.js';
+import { generateId, EXTRA_META_FIELDS } from './parser';
+import { inferStructureMode } from './music';
 
 const EXTRA_KEYS = EXTRA_META_FIELDS.map(([k]) => k);
 

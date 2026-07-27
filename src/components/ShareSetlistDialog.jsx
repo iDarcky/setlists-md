@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
-import { Button } from './ui/Button';
-import { createSetlistShare, revokeSetlistShare } from '../share/setlistShare';
+import { Button } from '@/ui/Button';
+import { createSetlistShare, revokeSetlistShare } from '@/share/setlistShare';
 
 const EXPIRY_OPTIONS = [
   { days: 1, label: '24 hours' },

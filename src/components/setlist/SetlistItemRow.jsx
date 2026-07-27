@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { transposeKey, keysInQualityOf, semitonesBetween } from '../../music';
-import { IconButton } from '../ui/IconButton';
-import { Input } from '../ui/Input';
+import { transposeKey, keysInQualityOf, semitonesBetween } from '@/music';
+import { IconButton } from '@/ui/IconButton';
+import { Input } from '@/ui/Input';
 
 /**
  * A single row in the setlist builder — either a song item or a break.

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import ScreenHeader from '../ui/ScreenHeader';
-import { useAuth } from '../../auth/useAuth';
+import { Button } from '@/ui/Button';
+import { Input } from '@/ui/Input';
+import ScreenHeader from '@/ui/ScreenHeader';
+import { useAuth } from '@/auth/useAuth';
 
 const EyeIcon = ({ off = false }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

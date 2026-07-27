@@ -4,7 +4,7 @@ import {
   splitSections,
   hasSectionHeaders,
   isEmptyChart,
-} from '../lib/pasteScope';
+} from '@/lib/pasteScope';
 
 const CHART = `## Verse 1
 [G]Amazing grace how sweet

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import './animations.css';
-import LiveHello from './screens/LiveHello';
-import InstrumentQuiz from './screens/InstrumentQuiz';
-import UseCaseQuiz from './screens/UseCaseQuiz';
-import PersonalizedSetup from './screens/PersonalizedSetup';
+import LiveHello from '@/onboarding/screens/LiveHello';
+import InstrumentQuiz from '@/onboarding/screens/InstrumentQuiz';
+import UseCaseQuiz from '@/onboarding/screens/UseCaseQuiz';
+import PersonalizedSetup from '@/onboarding/screens/PersonalizedSetup';
 
 // Maps the multi-select instrument quiz answer → a sensible single-value
 // `displayRole` setting that ChartView already consumes.

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { Button } from '../ui/Button';
-import { IconButton } from '../ui/IconButton';
+import { Button } from '@/ui/Button';
+import { IconButton } from '@/ui/IconButton';
 
 /* ─── Find / Replace bar ───
  * Presentational find/replace toolbar shared by the Advanced (WriteTab) editor

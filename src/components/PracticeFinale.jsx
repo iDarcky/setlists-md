@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Button } from './ui/Button';
-import NoteContent from './ui/NoteContent';
-import { headerFrostStyle } from '../lib/headerFrost';
+import { Button } from '@/ui/Button';
+import NoteContent from '@/ui/NoteContent';
+import { headerFrostStyle } from '@/lib/headerFrost';
 
 // Wake-lock is intentionally NOT acquired here — the finale lives off-stage.
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Button } from '../ui/Button';
-import { weekdayLabels, firstDayOffset } from '../../lib/dateFormat';
+import { Button } from '@/ui/Button';
+import { weekdayLabels, firstDayOffset } from '@/lib/dateFormat';
 
 function toLocalDateStr(date) {
   const y = date.getFullYear();

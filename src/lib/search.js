@@ -17,7 +17,7 @@
 // stable between renders unless the underlying data actually changes).
 
 import Fuse from 'fuse.js';
-import { EXTRA_META_KEYS } from '../parser.js';
+import { EXTRA_META_KEYS } from '@/parser';
 
 // Standalone letters that NFD does NOT decompose (they aren't a base letter +
 // combining diacritic), so we transliterate them explicitly. Covers German,

@@ -5,7 +5,7 @@
 // the link reads it (until it expires) via the public `share-view` route. The
 // snapshot keeps the owner's private library out of the public read path.
 
-import { supabase } from '../auth/supabase';
+import { supabase } from '@/auth/supabase';
 
 // Sharing needs a backend — degrade gracefully when Supabase isn't configured.
 export const SHARE_ENABLED = !!supabase;

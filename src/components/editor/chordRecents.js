@@ -5,7 +5,7 @@
 // against the importer's chord regex so non-chords (e.g. "[Intro]", "[Verse]")
 // can never leak into suggestions.
 
-import { isChordToken } from '../../importer';
+import { isChordToken } from '@/importer';
 
 export { isChordToken };
 

@@ -17,7 +17,7 @@ import {
   keyCompatibilityScore,
   tempoProximityScore,
   keyPrefersSharps,
-} from '../music';
+} from '@/music';
 
 describe('transposeChord', () => {
   it('returns the input when semitones is 0', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeText, searchSongs, searchSetlists, highlightSegments } from '../lib/search';
+import { normalizeText, searchSongs, searchSetlists, highlightSegments } from '@/lib/search';
 
 // Minimal v2-shaped song. Extended metadata keys are stored lowercase
 // (see EXTRA_META_FIELDS in parser.js): originaltitle, writers, album, …

@@ -6,7 +6,7 @@ import {
   DEFAULT_CHART_THEME_ID,
   DEFAULT_CHORD_FONT_ID,
   DEFAULT_LYRIC_FONT_ID,
-} from '../data/chartThemes';
+} from '@/data/chartThemes';
 
 // Google Fonts links are reused across mounts via this set, so picking
 // the same font twice doesn't double-inject a <link>.

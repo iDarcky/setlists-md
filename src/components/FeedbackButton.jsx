@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Button } from './ui/Button';
-import { supabase } from '../auth/supabase';
-import { useAuth } from '../auth/useAuth';
+import { Button } from '@/ui/Button';
+import { supabase } from '@/auth/supabase';
+import { useAuth } from '@/auth/useAuth';
 
 const BugIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

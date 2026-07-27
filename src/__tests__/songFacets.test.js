@@ -5,7 +5,7 @@ import {
   buildFacetOptions,
   matchesFacets,
   countActiveFacets,
-} from '../lib/songFacets';
+} from '@/lib/songFacets';
 
 // v2-shaped song with a default arrangement + song-level extended metadata.
 function song(id, { key = 'C', tempo = null, ...meta } = {}) {

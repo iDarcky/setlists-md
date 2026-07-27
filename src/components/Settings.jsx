@@ -1,26 +1,26 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Account from './Account';
-import { useAuth } from '../auth/useAuth';
-import { usePushSubscription } from '../push/usePushSubscription';
-import { REMINDER_OPTIONS, normalizeReminders } from '../lib/reminderOffsets';
-import { useEntitlement } from '../hooks/useEntitlement';
-import { Input } from './ui/Input';
-import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '../billing/checkout';
-import SyncSettings from './settings/SyncSettings';
-import SyncDoctor, { WorkerHealthRow } from './settings/SyncDoctor';
-import SetlistLinkDoctor from './settings/SetlistLinkDoctor';
-import WhatsNewPanel from './settings/WhatsNewPanel';
-import ChartStylePanel from './settings/ChartStylePanel';
-import SectionsPanel from './settings/SectionsPanel';
-import { CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '../data/chartThemes';
+import { useAuth } from '@/auth/useAuth';
+import { usePushSubscription } from '@/push/usePushSubscription';
+import { REMINDER_OPTIONS, normalizeReminders } from '@/lib/reminderOffsets';
+import { useEntitlement } from '@/hooks/useEntitlement';
+import { Input } from '@/ui/Input';
+import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '@/billing/checkout';
+import SyncSettings from '@/components/settings/SyncSettings';
+import SyncDoctor, { WorkerHealthRow } from '@/components/settings/SyncDoctor';
+import SetlistLinkDoctor from '@/components/settings/SetlistLinkDoctor';
+import WhatsNewPanel from '@/components/settings/WhatsNewPanel';
+import ChartStylePanel from '@/components/settings/ChartStylePanel';
+import SectionsPanel from '@/components/settings/SectionsPanel';
+import { CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '@/data/chartThemes';
 import { HexColorPicker } from 'react-colorful';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
-import PageHeader from './ui/PageHeader';
-import BrandWordmark from './ui/BrandWordmark';
-import { Button } from './ui/Button';
-import { useConfirm } from './ui/useConfirmHook';
-import { Dialog } from './ui/Dialog';
-import { useIsDesktop } from '../lib/useMediaQuery';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/ui/Select';
+import PageHeader from '@/ui/PageHeader';
+import BrandWordmark from '@/ui/BrandWordmark';
+import { Button } from '@/ui/Button';
+import { useConfirm } from '@/ui/useConfirmHook';
+import { Dialog } from '@/ui/Dialog';
+import { useIsDesktop } from '@/lib/useMediaQuery';
 
 // ─── Icons ───────────────────────────────────────────────────────────────
 

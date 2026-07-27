@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { youtubeId } from '../lib/coverArt';
-import { ensureYouTubeApi } from '../lib/embedPlayers';
-import { headerFrostStyle } from '../lib/headerFrost';
+import { youtubeId } from '@/lib/coverArt';
+import { ensureYouTubeApi } from '@/lib/embedPlayers';
+import { headerFrostStyle } from '@/lib/headerFrost';
 
 // ── Backing-track transport bar ────────────────────────────────────────────
 // The bottom bar from docs/mockups/song-hub-v2.html. Plays the song's YouTube

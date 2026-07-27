@@ -6,8 +6,8 @@ import {
   mergeChordRow,
   sectionNameFrom,
   orderTokenToSection,
-} from '../import/pdfLayout';
-import { parseSongMd } from '../parser';
+} from '@/import/pdfLayout';
+import { parseSongMd } from '@/parser';
 
 // Coordinates below are lifted from a real two-column Romanian chart
 // ("La Crucea Ta mă-ntorc"), so these tests exercise the exact geometry that

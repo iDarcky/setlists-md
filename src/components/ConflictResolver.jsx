@@ -1,5 +1,5 @@
-import { Dialog } from './ui/Dialog';
-import { Button } from './ui/Button';
+import { Dialog } from '@/ui/Dialog';
+import { Button } from '@/ui/Button';
 
 // Short human-readable summary of a song/setlist version, used to help the
 // user tell the two sides of a conflict apart at a glance.

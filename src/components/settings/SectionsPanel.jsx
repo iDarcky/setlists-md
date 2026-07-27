@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { useConfirm } from '../ui/useConfirmHook';
-import UpgradeGate from '../ui/UpgradeGate';
-import { SECTION_TYPE_KEYS, sectionStyle } from '../../music';
+import { Button } from '@/ui/Button';
+import { Input } from '@/ui/Input';
+import { useConfirm } from '@/ui/useConfirmHook';
+import UpgradeGate from '@/ui/UpgradeGate';
+import { SECTION_TYPE_KEYS, sectionStyle } from '@/music';
 
 // Settings → Sections. Gated to paid plans. Lets the user rename any
 // built-in section type (Verse → Strofa, Chorus → Refren), override its

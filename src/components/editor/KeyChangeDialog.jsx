@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button } from '../ui/Button';
-import { IconButton } from '../ui/IconButton';
+import { Button } from '@/ui/Button';
+import { IconButton } from '@/ui/IconButton';
 
 // Pick how many semitones the key shifts. When showAddChords is set, the caller
 // can also drop a chord line right after to write the new key's chords.

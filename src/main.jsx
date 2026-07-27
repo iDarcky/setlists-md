@@ -5,11 +5,11 @@ import '@fontsource/jetbrains-mono/500.css';
 import '@fontsource/jetbrains-mono/600.css';
 import '@fontsource/jetbrains-mono/700.css';
 import App from './App';
-import { AuthProvider } from './auth/AuthProvider';
-import { TeamProvider } from './auth/TeamProvider';
-import { ConfirmProvider } from './components/ui/useConfirm';
+import { AuthProvider } from '@/auth/AuthProvider';
+import { TeamProvider } from '@/auth/TeamProvider';
+import { ConfirmProvider } from '@/ui/useConfirm';
 import { initSentry } from './sentry';
-import './styles/index.css';
+import '@/styles/index.css';
 
 // Fire-and-forget — Sentry no-ops if VITE_SENTRY_DSN isn't set.
 initSentry();

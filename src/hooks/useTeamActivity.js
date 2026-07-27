@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '../auth/supabase';
+import { supabase } from '@/auth/supabase';
 
 // Recent team activity (last ~90 days, capped). Rows are written server-side by
 // the log_team_activity trigger; this hook just reads + listens for new ones.

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { cyrb53, canonicalSongHash, canonicalSetlistHash, stableStringify } from '../sync/canonical';
-import { parseSongMd, songToMd } from '../parser';
-import { songFromFlat } from '../arrangements';
+import { cyrb53, canonicalSongHash, canonicalSetlistHash, stableStringify } from '@/sync/canonical';
+import { parseSongMd, songToMd } from '@/parser';
+import { songFromFlat } from '@/arrangements';
 
 // A corpus of real-world-ish songs covering the features that have historically
 // caused serialization drift: custom frontmatter, repeated structure, tabs,

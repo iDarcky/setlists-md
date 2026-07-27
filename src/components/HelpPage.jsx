@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { Button } from './ui/Button';
-import PageHeader from './ui/PageHeader';
+import { Button } from '@/ui/Button';
+import PageHeader from '@/ui/PageHeader';
 import FeedbackButton from './FeedbackButton';
 
 // ─── Building blocks ─────────────────────────────────────────────────────

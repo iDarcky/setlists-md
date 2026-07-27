@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../auth/supabase';
-import { useAuth } from '../auth/useAuth';
+import { supabase } from '@/auth/supabase';
+import { useAuth } from '@/auth/useAuth';
 
 // Convert a Date or YYYY-MM-DD string to YYYY-MM-DD using LOCAL components.
 // `Date#toISOString()` shifts to UTC, which silently writes to the previous

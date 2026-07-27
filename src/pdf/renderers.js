@@ -4,8 +4,8 @@
 // data and return a string of HTML that the document shell (pdfDocument.js)
 // stitches into a full printable page.
 
-import { transposeChord, transposeKey, normalizeSectionName } from '../music';
-import { parseLine, serializeTabBlock } from '../parser';
+import { transposeChord, transposeKey, normalizeSectionName } from '@/music';
+import { parseLine, serializeTabBlock } from '@/parser';
 
 // Print-friendly section accent colors (CMYK-safe approximations of the Geist
 // palette used in-app — we can't rely on CSS vars in the popup window).

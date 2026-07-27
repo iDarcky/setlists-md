@@ -7,8 +7,8 @@
 // the *resolved* performance key (arrangement.key + item.transpose), so a
 // song with multiple arrangements still gets a single, comparable history.
 
-import { transposeKey } from './music.js';
-import { getArrangement } from './arrangements.js';
+import { transposeKey } from './music';
+import { getArrangement } from './arrangements';
 
 export function resolvedKeyForItem(item, song) {
   if (!item || !song) return null;

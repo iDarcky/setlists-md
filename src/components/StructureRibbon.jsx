@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
-import { sectionStyle, sectionLabel, compactLabel } from '../music';
-import { cn } from '../lib/utils';
+import { sectionStyle, sectionLabel, compactLabel } from '@/music';
+import { cn } from '@/lib/utils';
 
 export function StructureRibbon({
   structure,

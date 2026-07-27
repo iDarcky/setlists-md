@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { get as idbGet, set as idbSet } from 'idb-keyval';
-import { supabase } from '../auth/supabase';
+import { supabase } from '@/auth/supabase';
 
 // Per-user PRIVATE notes ("My note") for a team workspace. Cloud-backed via the
 // team_notes table, cached in IndexedDB so notes are readable/writable offline

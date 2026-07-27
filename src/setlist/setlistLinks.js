@@ -23,7 +23,7 @@
 // unchanged setlist/item MUST keep its identity or we reintroduce whole-library
 // rewrites on launch (same contract as `applyKeyHistories`).
 
-import { normalizeText } from '../lib/search';
+import { normalizeText } from '@/lib/search';
 
 // Build normalizedTitle → song. When two songs share a normalized title the
 // index records `ambiguous: true` for that title so we never silently re-link

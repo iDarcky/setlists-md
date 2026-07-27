@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Button } from '../ui/Button';
-import { supabase } from '../../auth/supabase';
-import { getSyncState } from '../../sync/tokens';
-import { canonicalSongHash, stableStringify } from '../../sync/canonical';
-import { parseSongMd, songToMd } from '../../parser';
+import { Button } from '@/ui/Button';
+import { supabase } from '@/auth/supabase';
+import { getSyncState } from '@/sync/tokens';
+import { canonicalSongHash, stableStringify } from '@/sync/canonical';
+import { parseSongMd, songToMd } from '@/parser';
 
 // Sync doctor — on-device diagnostic for a team library. For every song it
 // compares three fingerprints: the LOCAL copy (canonical hash of its

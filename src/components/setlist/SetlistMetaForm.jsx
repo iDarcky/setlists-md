@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Input } from '../ui/Input';
-import { Button } from '../ui/Button';
-import { DatePicker } from '../ui/DatePicker';
-import { TimePicker } from '../ui/TimePicker';
-import { useEntitlement } from '../../hooks/useEntitlement';
+import { Input } from '@/ui/Input';
+import { Button } from '@/ui/Button';
+import { DatePicker } from '@/ui/DatePicker';
+import { TimePicker } from '@/ui/TimePicker';
+import { useEntitlement } from '@/hooks/useEntitlement';
 
 const MAX_TAGS = 3;
 

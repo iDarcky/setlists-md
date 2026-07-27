@@ -9,8 +9,8 @@
 // in the desktop preview pane). A dedicated window guarantees the output is
 // just the song, regardless of where it was triggered from.
 
-import { transposeChord, transposeKey, sectionStyle, normalizeSectionName } from '../music';
-import { parseLine, serializeTabBlock } from '../parser';
+import { transposeChord, transposeKey, sectionStyle, normalizeSectionName } from '@/music';
+import { parseLine, serializeTabBlock } from '@/parser';
 import { openPrintWindow, readInitialPrefs, buildPrintControls } from './pdfDocument';
 
 // Print-friendly section accent colors (CMYK-safe approximations of the Geist

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { inferSections, ensureSections, splitBlocks, stripRepeatMarks } from '../lib/detectSections';
-import { importChartText } from '../lib/importChords';
-import { parseSongMd } from '../parser';
+import { inferSections, ensureSections, splitBlocks, stripRepeatMarks } from '@/lib/detectSections';
+import { importChartText } from '@/lib/importChords';
+import { parseSongMd } from '@/parser';
 
 // A real shape: copied off a lyrics site, no section labels at all.
 const WEBSITE = `La crucea Ta mă-ntorc

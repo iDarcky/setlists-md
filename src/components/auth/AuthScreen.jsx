@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import PageHeader from '../ui/PageHeader';
-import BrandWordmark from '../ui/BrandWordmark';
-import { useAuth } from '../../auth/useAuth';
+import { Button } from '@/ui/Button';
+import { Input } from '@/ui/Input';
+import PageHeader from '@/ui/PageHeader';
+import BrandWordmark from '@/ui/BrandWordmark';
+import { useAuth } from '@/auth/useAuth';
 
 const LAST_EMAIL_KEY = 'setlists-md:last-email';
 const RESEND_COOLDOWN_MS = 30_000;

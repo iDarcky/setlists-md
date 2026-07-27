@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button } from '../ui/Button';
+import { Button } from '@/ui/Button';
 
 const SparkleIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">

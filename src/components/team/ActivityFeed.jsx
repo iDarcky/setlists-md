@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useTeamActivity } from '../../hooks/useTeamActivity';
+import { useTeamActivity } from '@/hooks/useTeamActivity';
 
 function relativeTime(iso) {
   const then = new Date(iso).getTime();

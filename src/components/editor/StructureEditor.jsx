@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import BottomSheet from '../ui/BottomSheet';
-import { Button } from '../ui/Button';
+import BottomSheet from '@/ui/BottomSheet';
+import { Button } from '@/ui/Button';
 
 // Compact label for a section name. "Verse 1" -> "V1", "Pre Chorus 2"
 // -> "PC2", "Chorus" -> "C". Keep trailing numbers but strip the words.

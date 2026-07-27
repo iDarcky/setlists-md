@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button } from '../ui/Button';
-import { toast } from '../ui/use-toast';
+import { Button } from '@/ui/Button';
+import { toast } from '@/ui/use-toast';
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'Sunday' },

@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ChordAutocomplete from './ChordAutocomplete';
 import KeyChangeDialog from './KeyChangeDialog';
 import TabGridEditor from './TabGridEditorV2';
-import { parseTabBlock, parseSongMd, serializeTabDef } from '../../parser';
-import { sectionStyle } from '../../music';
+import { parseTabBlock, parseSongMd, serializeTabDef } from '@/parser';
+import { sectionStyle } from '@/music';
 
 function nextTabName(library = []) {
   const used = new Set(library.map(t => t.name));
@@ -32,8 +32,8 @@ function tabObjectFromAscii(ascii) {
   tab.time = time;
   return tab;
 }
-import { Button } from '../ui/Button';
-import { IconButton } from '../ui/IconButton';
+import { Button } from '@/ui/Button';
+import { IconButton } from '@/ui/IconButton';
 import FindReplaceBar from './FindReplaceBar';
 
 const SECTION_TYPES = [

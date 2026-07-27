@@ -1,5 +1,5 @@
-import { toast } from '../components/ui/use-toast';
-import UndoToastContent from '../components/ui/UndoToastContent';
+import { toast } from '@/ui/use-toast';
+import UndoToastContent from '@/ui/UndoToastContent';
 
 // Show a compact "deleted — Undo" toast with a 5s countdown ring. The caller has
 // ALREADY removed the thing optimistically; Undo puts it back via `onUndo`. The

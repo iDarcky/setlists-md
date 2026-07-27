@@ -1,28 +1,28 @@
 import React, { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense } from 'react';
 import SongCard from './SongCard';
-import SidePeek from './shell/SidePeek';
-import { Button } from './ui/Button';
-import WorkspacePickerDialog from './ui/WorkspacePickerDialog';
-import { SearchBar } from './ui/SearchBar';
-import { cn } from '../lib/utils';
-import { searchSongs, normalizeText } from '../lib/search';
-import { buildFacetOptions, matchesFacets, countActiveFacets } from '../lib/songFacets';
-import LibraryFilters from './library/LibraryFilters';
-import { orderedVisibleColumns } from '../lib/tableColumns';
-import ColumnsMenu from './ui/ColumnsMenu';
-import CardFieldsMenu from './ui/CardFieldsMenu';
-import { SelectionBar } from './ui/SelectionBar';
-import { selectionActionClass } from '../lib/glass';
-import { resolveCardFields } from '../lib/cardFields';
-import { useIsDesktop, useIsTablet } from '../lib/useMediaQuery';
-import { usePersistentView, usePersistentJSON } from '../lib/usePersistentView';
+import SidePeek from '@/app/SidePeek';
+import { Button } from '@/ui/Button';
+import WorkspacePickerDialog from '@/ui/WorkspacePickerDialog';
+import { SearchBar } from '@/ui/SearchBar';
+import { cn } from '@/lib/utils';
+import { searchSongs, normalizeText } from '@/lib/search';
+import { buildFacetOptions, matchesFacets, countActiveFacets } from '@/lib/songFacets';
+import LibraryFilters from '@/components/library/LibraryFilters';
+import { orderedVisibleColumns } from '@/lib/tableColumns';
+import ColumnsMenu from '@/ui/ColumnsMenu';
+import CardFieldsMenu from '@/ui/CardFieldsMenu';
+import { SelectionBar } from '@/ui/SelectionBar';
+import { selectionActionClass } from '@/lib/glass';
+import { resolveCardFields } from '@/lib/cardFields';
+import { useIsDesktop, useIsTablet } from '@/lib/useMediaQuery';
+import { usePersistentView, usePersistentJSON } from '@/lib/usePersistentView';
 import {
   buildSongUsage,
   DATA_QUALITY,
   matchesDataQuality,
   songColumnValue,
-} from '../lib/libraryPlus';
-import { splitMulti } from '../lib/songFacets';
+} from '@/lib/libraryPlus';
+import { splitMulti } from '@/lib/songFacets';
 
 const ChartView = lazy(() => import('./ChartView'));
 

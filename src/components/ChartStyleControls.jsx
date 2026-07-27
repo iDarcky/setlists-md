@@ -1,8 +1,8 @@
 import React from 'react';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from './ui/Select';
-import { Button } from './ui/Button';
-import { SheetField } from './ui/BottomSheet';
-import { useEntitlement } from '../hooks/useEntitlement';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/ui/Select';
+import { Button } from '@/ui/Button';
+import { SheetField } from '@/ui/BottomSheet';
+import { useEntitlement } from '@/hooks/useEntitlement';
 import {
   CHART_THEMES,
   CHART_FONTS,
@@ -12,7 +12,7 @@ import {
   DEFAULT_CHORD_FONT_ID,
   DEFAULT_LYRIC_FONT_ID,
   FREE_CHART_THEME_IDS,
-} from '../data/chartThemes';
+} from '@/data/chartThemes';
 
 // Chart-style controls — theme picker + chord/lyric font dropdowns +
 // an "Advanced settings" CTA that hands off to the Settings → Chart
