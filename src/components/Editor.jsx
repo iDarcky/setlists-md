@@ -153,7 +153,7 @@ key:
 `;
 const DEFAULT_MD = blankMd();
 
-export default function Editor({ song, onSave, onBack, onDirtyChange, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null, onOpenNewSong, newTitle = '' }) {
+export default function Editor({ song, onSave, onBack, onDirtyChange, importProgress, customSectionTypes, readOnly = false, chartDefaults = {}, initialArrangementId = null, newTitle = '' }) {
   const confirm = useConfirm();
 
   // The card-based editor is the default (graduated out of Labs). The legacy
@@ -859,8 +859,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
               onChange={setNewSongDraft}
               onApply={() => applyPastedText(newSongDraft)}
               onDismiss={() => setShowNewSong(false)}
-              onImport={onOpenNewSong ? () => onOpenNewSong('import') : undefined}
-              onBrowse={onOpenNewSong ? () => onOpenNewSong('browse') : undefined}
+              onAddSection={() => { setNewSongDraft(''); setShowNewSong(false); }}
               metaReady={titleSet && keySet}
             />
           );
@@ -882,7 +881,10 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
 
   // Arrangement picker. In the legacy header it rides with the key/tempo/time on
   // one wrapping row; in the card header it sits beside the title.
-  const arrangementMenuEl = (
+  // A song being added for the first time has exactly one arrangement, so the
+  // picker is pure noise on the busiest screen a new user will ever see.
+  const showArrangements = !!song;
+  const arrangementMenuEl = !showArrangements ? null : (
     <ArrangementMenu
       arrangements={workingSong.arrangements}
       activeId={activeArrangementId}
