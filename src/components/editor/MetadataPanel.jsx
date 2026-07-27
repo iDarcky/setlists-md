@@ -8,34 +8,34 @@ import ChipInput from '../ui/ChipInput';
 // out of 3 columns on desktop so short fields sit three-across.
 const GROUPS = ['Identity', 'Musical', 'Credits & rights', 'Categorize', 'Links & notes'];
 const FIELDS = [
-  { key: 'title', label: 'Title', placeholder: 'Song title', group: 'Identity', span: 2, max: 80 },
-  { key: 'artist', label: 'Artist', placeholder: 'Artist / band', group: 'Identity', span: 1, max: 60 },
-  { key: 'originaltitle', label: 'Original title', placeholder: 'For translated songs', group: 'Identity', span: 1, max: 80 },
-  { key: 'language', label: 'Language', placeholder: 'English', group: 'Identity', span: 1, max: 30 },
-  { key: 'translator', label: 'Translator', placeholder: 'Name', group: 'Identity', span: 1, max: 60 },
+  { key: 'title', label: 'Title', placeholder: 'Song title', group: 'Identity', span: 2, max: 80, hint: 'Required before saving.' },
+  { key: 'artist', label: 'Artist', placeholder: 'Artist / band', group: 'Identity', span: 1, max: 60, hint: 'Groups and sorts the library.' },
+  { key: 'originaltitle', label: 'Original title', placeholder: 'For translated songs', group: 'Identity', span: 1, max: 80, hint: 'Searchable, so “Amazing Grace” finds the Romanian version.' },
+  { key: 'language', label: 'Language', placeholder: 'English', group: 'Identity', span: 1, max: 30, hint: 'Filter the library by language.' },
+  { key: 'translator', label: 'Translator', placeholder: 'Name', group: 'Identity', span: 1, max: 60, hint: 'Credited on the chart; searchable.' },
 
-  { key: 'capo', label: 'Capo', placeholder: '0', group: 'Musical', span: 1, type: 'number', max: 2 },
-  { key: 'duration', label: 'Length', placeholder: '3:45', group: 'Musical', span: 1, type: 'time', max: 5 },
-  { key: 'vocalrange', label: 'Vocal range', placeholder: 'A2–C5', group: 'Musical', span: 1, max: 10 },
-  { key: 'year', label: 'Release year', placeholder: '1779', group: 'Musical', span: 1, type: 'number', max: 4 },
+  { key: 'capo', label: 'Capo', placeholder: '0', group: 'Musical', span: 1, type: 'number', max: 2, hint: 'Shows capo shapes for guitarists alongside the real chords.' },
+  { key: 'duration', label: 'Length', placeholder: '3:45', group: 'Musical', span: 1, type: 'time', max: 5, hint: 'Adds up to a setlist’s total running time.' },
+  { key: 'vocalrange', label: 'Vocal range', placeholder: 'A2–C5', group: 'Musical', span: 1, max: 10, hint: 'Helps pick a key that suits whoever is singing.' },
+  { key: 'year', label: 'Release year', placeholder: '1779', group: 'Musical', span: 1, type: 'number', max: 4, hint: 'Filter the library by year.' },
 
-  { key: 'writers', label: 'Writers', placeholder: 'Comma separated', group: 'Credits & rights', span: 2, max: 100 },
-  { key: 'publishers', label: 'Publishers', placeholder: 'Comma separated', group: 'Credits & rights', span: 1, max: 100 },
-  { key: 'album', label: 'Album', placeholder: 'Album name', group: 'Credits & rights', span: 1, max: 60 },
-  { key: 'label', label: 'Label', placeholder: 'Record label', group: 'Credits & rights', span: 1, max: 60 },
-  { key: 'ccli', label: 'CCLI', placeholder: 'CCLI number', group: 'Credits & rights', span: 1, type: 'number', max: 9 },
-  { key: 'copyright', label: 'Copyright', placeholder: '© …', group: 'Credits & rights', span: 2, max: 150 },
+  { key: 'writers', label: 'Writers', placeholder: 'Comma separated', group: 'Credits & rights', span: 2, max: 100, hint: 'Composer and lyricist. Searchable, and printed on charts.' },
+  { key: 'publishers', label: 'Publishers', placeholder: 'Comma separated', group: 'Credits & rights', span: 1, max: 100, hint: 'For your CCLI reporting.' },
+  { key: 'album', label: 'Album', placeholder: 'Album name', group: 'Credits & rights', span: 1, max: 60, hint: 'Searchable.' },
+  { key: 'label', label: 'Label', placeholder: 'Record label', group: 'Credits & rights', span: 1, max: 60, hint: 'Searchable.' },
+  { key: 'ccli', label: 'CCLI', placeholder: 'CCLI number', group: 'Credits & rights', span: 1, type: 'number', max: 9, hint: 'Printed on the chart and used for reporting.' },
+  { key: 'copyright', label: 'Copyright', placeholder: '© …', group: 'Credits & rights', span: 2, max: 150, hint: 'Printed at the foot of the chart.' },
 
-  { key: 'themes', label: 'Themes', placeholder: 'grace, redemption', group: 'Categorize', span: 3, type: 'chips', max: 10, allowSpace: true },
-  { key: 'genres', label: 'Genres', placeholder: 'hymn, worship', group: 'Categorize', span: 3, type: 'chips', max: 5, allowSpace: true },
-  { key: 'scripture', label: 'Bible verses', placeholder: 'Ephesians 2:8 (comma to add)', group: 'Categorize', span: 3, type: 'chips', max: 10, allowSpace: false },
-  { key: 'moment', label: 'Liturgical moment', placeholder: 'Communion (comma to add)', group: 'Categorize', span: 3, type: 'chips', max: 3, allowSpace: false },
-  { key: 'tags', label: 'Tags', placeholder: 'worship, hymn, fast', group: 'Categorize', span: 3, type: 'chips', max: 10, allowSpace: true },
+  { key: 'themes', label: 'Themes', placeholder: 'grace, redemption', group: 'Categorize', span: 3, type: 'chips', max: 10, allowSpace: true, hint: 'Filter the library when planning — “grace”, “hope”.' },
+  { key: 'genres', label: 'Genres', placeholder: 'hymn, worship', group: 'Categorize', span: 3, type: 'chips', max: 5, allowSpace: true, hint: 'Filter the library by style.' },
+  { key: 'scripture', label: 'Bible verses', placeholder: 'Ephesians 2:8 (comma to add)', group: 'Categorize', span: 3, type: 'chips', max: 10, allowSpace: false, hint: 'Filter by verse when building a service around a reading.' },
+  { key: 'moment', label: 'Liturgical moment', placeholder: 'Communion (comma to add)', group: 'Categorize', span: 3, type: 'chips', max: 3, allowSpace: false, hint: 'Communion, offering, opening — filter when planning a service.' },
+  { key: 'tags', label: 'Tags', placeholder: 'worship, hymn, fast', group: 'Categorize', span: 3, type: 'chips', max: 10, allowSpace: true, hint: 'Your own labels. Filter and bulk-tag by them.' },
 
-  { key: 'spotify', label: 'Spotify', placeholder: 'https://…', group: 'Links & notes', span: 1, type: 'url', max: 300 },
-  { key: 'youtube', label: 'YouTube', placeholder: 'https://…', group: 'Links & notes', span: 1, type: 'url', max: 300 },
-  { key: 'story', label: 'Story behind', placeholder: 'The story behind the song', group: 'Links & notes', span: 3, max: 300 },
-  { key: 'notes', label: 'Notes', placeholder: 'Performance notes', group: 'Links & notes', span: 3, max: 200 },
+  { key: 'spotify', label: 'Spotify', placeholder: 'https://…', group: 'Links & notes', span: 1, type: 'url', max: 300, hint: 'Fetches the cover art shown in the song hub.' },
+  { key: 'youtube', label: 'YouTube', placeholder: 'https://…', group: 'Links & notes', span: 1, type: 'url', max: 300, hint: 'Adds a backing-track player to the song hub.' },
+  { key: 'story', label: 'Story behind', placeholder: 'The story behind the song', group: 'Links & notes', span: 3, max: 300, hint: 'Shown on the song’s Details tab.' },
+  { key: 'notes', label: 'Notes', placeholder: 'Performance notes', group: 'Links & notes', span: 3, max: 200, hint: 'Shown to the band on the chart and in live view.' },
 ];
 
 const INPUT_CLASS = 'w-full px-2.5 py-1.5 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md text-copy-13 text-[var(--ds-gray-1000)] outline-none font-mono';
@@ -113,9 +113,14 @@ export default function MetadataPanel({ md, onChange, isOpen, keyHistory }) {
                     className="block"
                     style={{ gridColumn: `span ${f.span || 1}` }}
                   >
-                    <span className="text-label-12 font-semibold text-[var(--ds-gray-700)] block mb-0.5">
+                    <span className="text-label-12 font-semibold text-[var(--ds-gray-700)] block">
                       {f.label}
                     </span>
+                    {f.hint && (
+                      <span className="text-label-11 text-[var(--ds-gray-500)] block mb-1 leading-snug">
+                        {f.hint}
+                      </span>
+                    )}
                     {renderInput(f)}
                   </label>
                 ))}
