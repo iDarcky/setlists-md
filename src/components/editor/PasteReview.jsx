@@ -42,6 +42,7 @@ export default function PasteReview({ text, onApply, onEditText }) {
     lines: s.lines,
     type: baseType(s.type),
     confident: s.confident,
+    repeat: s.repeat || 1,
   })), [text]);
 
   const [blocks, setBlocks] = useState(initial);
@@ -67,7 +68,13 @@ export default function PasteReview({ text, onApply, onEditText }) {
 
   const apply = () => {
     const body = numbered.map(b => `## ${b.label}\n${b.lines.join('\n')}`).join('\n\n');
-    onApply(`${body}\n`);
+    // A repeat mark means one section played N times — so it belongs in the
+    // play order, not in duplicated lyrics. Only send an order when something
+    // actually repeats; otherwise the order stays derived from the sections.
+    const structure = numbered.some(b => b.repeat > 1)
+      ? numbered.flatMap(b => Array.from({ length: b.repeat }, () => b.label))
+      : null;
+    onApply(`${body}\n`, { structure });
   };
 
   if (blocks.length === 0) {
@@ -95,6 +102,7 @@ export default function PasteReview({ text, onApply, onEditText }) {
         </p>
         <p className="text-label-11 text-[var(--ds-gray-500)] m-0 mt-1.5">
           A solid label repeats in the song. A dashed one is a guess — tap it to change.
+          {numbered.some(b => b.repeat > 1) && ' A ×2 badge is a repeat mark we read out of the text.'}
         </p>
       </div>
 
@@ -137,6 +145,15 @@ export default function PasteReview({ text, onApply, onEditText }) {
                     </button>
                   ))}
                 </PopMenu>
+
+                {b.repeat > 1 && (
+                  <span
+                    className="shrink-0 text-label-11 font-mono font-bold px-1.5 py-0.5 rounded border border-[var(--color-brand-border)] text-[var(--color-brand-text)]"
+                    title={`The source marked this to be sung ${b.repeat} times — it'll appear ${b.repeat} times in the play order.`}
+                  >
+                    ×{b.repeat}
+                  </span>
+                )}
 
                 <span className="ml-auto flex items-center gap-1">
                   {i > 0 && (

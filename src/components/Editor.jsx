@@ -738,7 +738,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // Apply pasted chord-sheet text directly (used by the New-song canvas). Same
   // conversion as handleImport but from a passed string, and it fills empty
   // frontmatter fields the source declared without clobbering the identity card.
-  const applyPastedText = useCallback((text, sectionIndex = null) => {
+  const applyPastedText = useCallback((text, sectionIndex = null, opts = null) => {
     if (!text || !text.trim()) return;
     const { body, meta } = importChartText(text);
     // A paste fills the section it landed in; one that carries its own headers
@@ -753,6 +753,12 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     const patch = {};
     for (const k of ['title', 'artist', 'key', 'tempo', 'time', 'capo']) {
       if (meta[k] && !fm[k]) patch[k] = meta[k];
+    }
+    // Repeat marks (//: … ://) come back as a play order: one section listed
+    // as many times as the source said to sing it.
+    if (opts?.structure?.length) {
+      patch.structure = opts.structure.join(', ');
+      patch.structuremode = 'custom';
     }
     if (Object.keys(patch).length) {
       setMd((cur) => replaceFrontmatter(cur, serializeFrontmatterFields({ ...parseFrontmatterFields(splitMd(cur).frontmatter), ...patch })));
@@ -849,7 +855,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
             <EditorEmptyState
               value={newSongDraft}
               onChange={setNewSongDraft}
-              onApply={(labelled) => applyPastedText(labelled ?? newSongDraft)}
+              onApply={(labelled, opts) => applyPastedText(labelled ?? newSongDraft, null, opts)}
               onDismiss={() => setShowNewSong(false)}
               onAddSection={() => { setNewSongDraft(''); setBody('## Verse 1\n'); setShowNewSong(false); }}
               metaReady={titleSet && keySet}

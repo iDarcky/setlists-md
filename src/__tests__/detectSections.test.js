@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { inferSections, ensureSections, splitBlocks } from '../lib/detectSections';
+import { inferSections, ensureSections, splitBlocks, stripRepeatMarks } from '../lib/detectSections';
 import { importChartText } from '../lib/importChords';
 import { parseSongMd } from '../parser';
 
@@ -93,5 +93,65 @@ describe('the data loss this prevents', () => {
     // must never reach the editor without at least one header.
     const md = '---\ntitle: T\nkey: C\n---\n\nLoose lyric with no heading\n';
     expect(parseSongMd(md).sections).toEqual([]);
+  });
+});
+
+describe('repeat marks', () => {
+  it('reads //: … :// as sung twice', () => {
+    const { lines, repeat } = stripRepeatMarks(['//: Aleluia! Isus m-a eliberat! ://']);
+    expect(lines).toEqual(['Aleluia! Isus m-a eliberat!']);
+    expect(repeat).toBe(2);
+  });
+
+  it('reads a count after the closing mark', () => {
+    expect(stripRepeatMarks(['//: Slavă Ție ://3']).repeat).toBe(3);
+    expect(stripRepeatMarks(['|: Slavă Ție :| x4']).repeat).toBe(4);
+    expect(stripRepeatMarks(['|: Slavă Ție :|(2x)']).repeat).toBe(2);
+  });
+
+  it('handles marks spanning several lines', () => {
+    const { lines, repeat } = stripRepeatMarks(['//: Prima linie', 'a doua linie ://']);
+    expect(lines).toEqual(['Prima linie', 'a doua linie']);
+    expect(repeat).toBe(2);
+  });
+
+  it('accepts the |: :| and unicode forms', () => {
+    expect(stripRepeatMarks(['|: Vino :|']).repeat).toBe(2);
+    expect(stripRepeatMarks(['𝄆 Vino 𝄇']).lines).toEqual(['Vino']);
+  });
+
+  it('treats an unclosed opening mark as a repeat', () => {
+    expect(stripRepeatMarks(['//: Vino Doamne']).repeat).toBe(2);
+  });
+
+  it('leaves unmarked lyrics completely alone', () => {
+    const lines = ['La crucea Ta mă-ntorc', 'Din zile în care n-am luptat'];
+    expect(stripRepeatMarks(lines)).toEqual({ lines, repeat: 1 });
+  });
+
+  it('does not mistake a chord slash or a ratio for a mark', () => {
+    expect(stripRepeatMarks(['[A/C#]Vino la mine']).repeat).toBe(1);
+    expect(stripRepeatMarks(['Timp 4/4']).repeat).toBe(1);
+  });
+
+  it('caps a silly count', () => {
+    expect(stripRepeatMarks(['//: x ://99']).repeat).toBe(9);
+  });
+
+  it('surfaces the repeat through inferSections', () => {
+    const src = 'La crucea Ta\n\n//: Aleluia! ://';
+    const out = inferSections(src);
+    expect(out[0].repeat).toBe(1);
+    expect(out[1].repeat).toBe(2);
+    expect(out[1].lines).toEqual(['Aleluia!']);
+  });
+});
+
+describe('ensureSections and repeat marks', () => {
+  it('keeps the marks visible when there is nowhere to record the repeat', () => {
+    // This path only adds headings — it has no frontmatter to write a play
+    // order into, so stripping "//:" would lose the instruction entirely.
+    const out = ensureSections('La crucea Ta\n\n//: Aleluia! ://');
+    expect(out).toContain('//: Aleluia! ://');
   });
 });

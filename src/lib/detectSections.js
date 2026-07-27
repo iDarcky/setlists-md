@@ -65,10 +65,13 @@ export function inferSections(text) {
 
   let verseNo = 0;
   return blocks.map((lines, i) => {
+    const { lines: clean, repeat } = stripRepeatMarks(lines);
+    // `rawLines` keeps the marks for callers with nowhere to record a repeat —
+    // stripping "//:" without storing "×2" would quietly lose the instruction.
     const isChorus = repeated.has(prints[i]) && prints[i] !== '';
-    if (isChorus) return { lines, type: 'Chorus', confident: true };
+    if (isChorus) return { lines: clean, rawLines: lines, type: 'Chorus', confident: true, repeat };
     verseNo += 1;
-    return { lines, type: `Verse ${verseNo}`, confident: false };
+    return { lines: clean, rawLines: lines, type: `Verse ${verseNo}`, confident: false, repeat };
   });
 }
 
@@ -87,5 +90,62 @@ export function ensureSections(body) {
 
   const sections = inferSections(text);
   if (sections.length === 0) return text;
-  return `${sections.map(s => `## ${s.type}\n${s.lines.join('\n')}`).join('\n\n')}\n`;
+  // Raw lines here: this path only adds headings, and has no frontmatter to
+  // write a play order into. The review screen is where a repeat mark becomes
+  // structure; anywhere else the mark stays visible rather than vanishing.
+  return `${sections.map(s => `## ${s.type}\n${(s.rawLines || s.lines).join('\n')}`).join('\n\n')}\n`;
+}
+
+// ─── Repeat marks ────────────────────────────────────────────────────────
+//
+// Romanian and German songbooks bracket a repeated passage with the ASCII form
+// of the repeat barlines 𝄆 𝄇:
+//
+//   //: Aleluia! Isus m-a eliberat! ://      → sing it twice
+//   |: Slavă Ție :|3                         → three times
+//
+// Imported literally they're just punctuation stuck to the lyrics. Read
+// properly they're structure: one section, played N times — which is how the
+// play order already works.
+
+const OPEN_MARK = /^\s*(?:\/\/:|\|:|\[:|𝄆)\s*/;
+// A closing mark, optionally followed by a count: "://3", ":| x2", ":|(4x)".
+const CLOSE_MARK = /\s*(?::\/\/|:\||:\]|𝄇)\s*(?:[x×(]?\s*(\d+)\s*[x×)]?)?\s*$/;
+
+/**
+ * Pull repeat marks off a block of lines.
+ * @param {string[]} lines
+ * @returns {{ lines: string[], repeat: number }} `repeat` is 1 when unmarked.
+ */
+export function stripRepeatMarks(lines) {
+  const src = (lines || []).map(l => String(l ?? ''));
+  if (src.length === 0) return { lines: src, repeat: 1 };
+
+  let repeat = 1;
+  let sawOpen = false;
+  const out = src.map(line => line);
+
+  // Opening mark: on the first non-empty line.
+  const firstIdx = out.findIndex(l => l.trim() !== '');
+  if (firstIdx >= 0 && OPEN_MARK.test(out[firstIdx])) {
+    out[firstIdx] = out[firstIdx].replace(OPEN_MARK, '');
+    sawOpen = true;
+  }
+
+  // Closing mark: on the last non-empty line, which may be the same line.
+  let lastIdx = -1;
+  for (let i = out.length - 1; i >= 0; i--) if (out[i].trim() !== '') { lastIdx = i; break; }
+  if (lastIdx >= 0) {
+    const m = out[lastIdx].match(CLOSE_MARK);
+    if (m) {
+      out[lastIdx] = out[lastIdx].replace(CLOSE_MARK, '');
+      repeat = m[1] ? Math.max(2, Math.min(9, parseInt(m[1], 10))) : 2;
+    } else if (sawOpen) {
+      // An opening mark with no closing one still means "repeat this".
+      repeat = 2;
+    }
+  }
+
+  // A mark on its own line leaves an empty line behind; drop those.
+  return { lines: out.filter((l, i) => l.trim() !== '' || src[i].trim() !== ''), repeat };
 }
