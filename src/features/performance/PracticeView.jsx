@@ -24,7 +24,7 @@ import { STAGE_MODE_MAP } from '@/data/stageModes';
 import { resolveChartDisplay, resolveColumns } from '@/lib/chartDisplay';
 import { useStageHeaderCollapse } from '@/hooks/useStageHeaderCollapse';
 import { useActiveSection } from '@/hooks/useActiveSection';
-import { usePrivateNotes } from '@/notes/usePrivateNotes';
+import { usePrivateNotes } from '@/hooks/usePrivateNotes';
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
 

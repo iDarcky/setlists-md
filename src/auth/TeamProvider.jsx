@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { supabase } from './supabase';
 import { useAuth } from './useAuth';
 import { TeamContext } from './TeamContext';
-import { BILLING_ENABLED, MAX_OWNED_WORKSPACES } from '@/billing/checkout';
+import { BILLING_ENABLED, MAX_OWNED_WORKSPACES } from '@/lib/billingCheckout';
 
 /**
  * Provides team state to the component tree. Only fetches from Supabase when

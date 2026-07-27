@@ -9,7 +9,7 @@ import PageHeader from '@/ui/PageHeader';
 import ActivityFeed from './ActivityFeed';
 import AvatarUploader from '@/ui/AvatarUploader';
 import { useConfirm } from '@/ui/useConfirmHook';
-import { BILLING_ENABLED, startTeamCheckout } from '@/billing/checkout';
+import { BILLING_ENABLED, startTeamCheckout } from '@/lib/billingCheckout';
 
 const TeamIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

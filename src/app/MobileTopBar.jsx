@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import SongCard from '@/features/library/SongCard';
-import { workspaceStatusLabel } from '@/billing/checkout';
+import { workspaceStatusLabel } from '@/lib/billingCheckout';
 import { searchSongs, searchSetlists } from '@/lib/search';
 import Highlight from '@/ui/Highlight';
 

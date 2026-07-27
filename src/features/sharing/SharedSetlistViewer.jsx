@@ -1,5 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
-import { fetchSharedSetlist } from '@/share/setlistShare';
+import { fetchSharedSetlist } from '@/lib/setlistShare';
 import { Button } from '@/ui/Button';
 
 const SetlistOverview = lazy(() => import('@/features/setlist-viewer/SetlistOverview'));

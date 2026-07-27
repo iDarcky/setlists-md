@@ -16,7 +16,7 @@ import PerformanceLayoutSheet from './PerformanceLayoutSheet';
 import PerformanceSetlistSheet, { SetlistList } from './PerformanceSetlistSheet';
 import NotesStack from '@/ui/NotesStack';
 import { OverflowMenu } from '@/ui/OverflowMenu';
-import { usePrivateNotes } from '@/notes/usePrivateNotes';
+import { usePrivateNotes } from '@/hooks/usePrivateNotes';
 import { suggestNextSongs } from '@/lib/songSuggestions';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { useStageHeaderCollapse } from '@/hooks/useStageHeaderCollapse';

@@ -3,7 +3,7 @@ import NotificationTray from '@/features/notifications/NotificationTray';
 import SongCard from '@/features/library/SongCard';
 import Highlight from '@/ui/Highlight';
 import { cn } from '@/lib/utils';
-import { workspaceStatusLabel } from '@/billing/checkout';
+import { workspaceStatusLabel } from '@/lib/billingCheckout';
 import { searchSongs, searchSetlists } from '@/lib/search';
 
 // Don't hijack "/" while the user is typing in a field.

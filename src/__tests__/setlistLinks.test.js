@@ -5,7 +5,7 @@ import {
   classifyItem,
   analyzeSetlistLinks,
   healSetlistLinks,
-} from '@/setlist/setlistLinks';
+} from '@/lib/setlistLinks';
 import { songFromFlat } from '@/arrangements';
 
 function song({ id, title, key = 'G' }) {

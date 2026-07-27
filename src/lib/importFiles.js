@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 import { parseSongMd, generateId } from '@/parser';
 import { songFromFlat } from '@/arrangements';
 import { smartImport } from '@/importer';
-import { pdfToChart, isPdfFile } from '@/import/pdfChart';
+import { pdfToChart, isPdfFile } from './pdfChart';
 
 const CHORDPRO_EXTS = ['.cho', '.chopro', '.chord', '.crd', '.pro', '.onsong'];
 export const IMPORT_ACCEPT = ['.md', '.zip', '.xml', '.txt', '.pdf', ...CHORDPRO_EXTS].join(',');

@@ -7,10 +7,10 @@ import WorkspacePickerDialog from "@/ui/WorkspacePickerDialog";
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { parseSongMd, songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate, clearAll } from './storage';
-import { shareTokenFromUrl } from '@/share/setlistShare';
+import { shareTokenFromUrl } from '@/lib/setlistShare';
 import { withArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
-import { healSetlistLinks, matchSongByTitle } from '@/setlist/setlistLinks';
+import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
 import { DEMO_SONGS_MD } from '@/data/demos';
 import { createSyncEngine } from '@/sync/engine';
 import { createTeamSyncEngine } from '@/sync/team-engine';
@@ -42,7 +42,7 @@ import { useChartTheme } from '@/hooks/useChartTheme';
 import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamNotifications } from '@/hooks/useTeamNotifications';
 import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
-import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/billing/checkout';
+import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/lib/billingCheckout';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 

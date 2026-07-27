@@ -9,7 +9,7 @@ import { Button } from '@/ui/Button';
 import ExportSetlistDialog from '@/features/sharing/ExportSetlistDialog';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
-import { SHARE_ENABLED } from '@/share/setlistShare';
+import { SHARE_ENABLED } from '@/lib/setlistShare';
 import ShareSetlistDialog from '@/features/sharing/ShareSetlistDialog';
 import RosterPanel from '@/features/setlist-editor/RosterPanel';
 import { headerFrostStyle } from '@/lib/headerFrost';

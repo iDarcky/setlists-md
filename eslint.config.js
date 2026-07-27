@@ -32,6 +32,40 @@ export default defineConfig([
       // unused. Ignore them for both vars and (destructured) args, matching the
       // long-standing varsIgnorePattern convention.
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^[A-Z_]' }],
+
+      // Keep the feature-folder layout from decaying. The old src/components/
+      // was a flat dump of 63 files beside half-populated subfolders precisely
+      // because the convention lived in a doc and nothing enforced it.
+      //
+      //   - reaching UP out of your own folder ('../') must go through '@/',
+      //     so moving a file never rewrites unrelated imports;
+      //   - '@/components/...' is gone for good — code belongs to a feature
+      //     (src/features/<x>), the design system (src/ui), or the shell
+      //     (src/app).
+      //
+      // Same-folder siblings ('./x') stay relative and are unaffected.
+      'no-restricted-imports': ['error', {
+        patterns: [
+          {
+            group: ['../*'],
+            message:
+              "Reach out of your own folder with the '@/' alias, not '../'. " +
+              "Same-folder siblings ('./x') are fine. See CLAUDE.md § Project Structure.",
+          },
+          {
+            group: ['@/components/*', '@/components'],
+            message:
+              'src/components/ no longer exists. Use @/features/<feature>/, @/ui/ or @/app/. ' +
+              'See docs/COMPONENTS.md for which component owns what.',
+          },
+        ],
+      }],
     },
+  },
+  {
+    // The webpush interop test deliberately imports the edge function's real
+    // implementation, which lives outside src/ and so has no '@/' path.
+    files: ['src/__tests__/webpush-crypto.test.js'],
+    rules: { 'no-restricted-imports': 'off' },
   },
 ])

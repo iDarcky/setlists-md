@@ -8,7 +8,7 @@ import {
   CreateAccountButton,
 } from '@/features/settings/AccountPanel';
 import BrandWordmark from '@/ui/BrandWordmark';
-import { workspaceStatusLabel } from '@/billing/checkout';
+import { workspaceStatusLabel } from '@/lib/billingCheckout';
 
 const CloseIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

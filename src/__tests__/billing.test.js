@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { workspaceStatusLabel, billingError } from '@/billing/checkout';
+import { workspaceStatusLabel, billingError } from '@/lib/billingCheckout';
 
 describe('workspaceStatusLabel', () => {
   it('returns null for healthy states (active, trialing)', () => {

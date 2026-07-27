@@ -12,7 +12,7 @@ import ShareSetlistDialog from '@/features/sharing/ShareSetlistDialog';
 import RosterPanel from '@/features/setlist-editor/RosterPanel';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
-import { SHARE_ENABLED } from '@/share/setlistShare';
+import { SHARE_ENABLED } from '@/lib/setlistShare';
 import { formatClockTime } from '@/lib/dateFormat';
 import { useConfirm } from '@/ui/useConfirmHook';
 import { toast } from '@/ui/use-toast';

@@ -5,7 +5,7 @@ import { usePushSubscription } from '@/push/usePushSubscription';
 import { REMINDER_OPTIONS, normalizeReminders } from '@/lib/reminderOffsets';
 import { useEntitlement } from '@/hooks/useEntitlement';
 import { Input } from '@/ui/Input';
-import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '@/billing/checkout';
+import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '@/lib/billingCheckout';
 import SyncSettings from './SyncSettings';
 import SyncDoctor, { WorkerHealthRow } from './SyncDoctor';
 import SetlistLinkDoctor from './SetlistLinkDoctor';

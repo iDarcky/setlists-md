@@ -251,6 +251,21 @@ supabase/
 └── functions/            # Edge functions: notify-worker, stripe-*, cover-art
 ```
 
+**Two rules, both enforced by ESLint (`no-restricted-imports`):**
+
+1. **Never `../`.** Anything outside a file's own folder goes through `@/`;
+   same-folder siblings stay `./x`. A file move then never rewrites an
+   unrelated import.
+2. **No `@/components/*`.** That tree is gone. Code belongs to a feature
+   (`@/features/<x>`), the design system (`@/ui`), or the shell (`@/app`).
+
+**Where a shared module goes.** Used by one feature → live in that feature's
+folder. Used by several → `lib/` (pure logic) or `hooks/` (React hooks). Only
+`auth/`, `sync/`, `pdf/`, `push/`, `data/`, `contexts/` keep their own
+top-level folders — they're subsystems, not helpers. `auth/` and `sync/` each
+have a matching `features/` folder: **`src/<x>/` is the engine, `features/<x>/`
+is its UI** (`sync/team-engine.js` vs `features/sync/SyncStatus.jsx`).
+
 ## Architecture
 
 - **No router** — App.jsx manages views via `view` state (`library`, `song-hub`, `editor`, `setlist-build`, `setlist-play`, `setlist-performance`, `signin`, `recovery`, `auth-callback`, …). The `song-hub` route replaced the old `chart` route entirely.

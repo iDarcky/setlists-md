@@ -6,7 +6,7 @@ import {
   mergeChordRow,
   sectionNameFrom,
   orderTokenToSection,
-} from '@/import/pdfLayout';
+} from '@/lib/pdfLayout';
 import { parseSongMd } from '@/parser';
 
 // Coordinates below are lifted from a real two-column Romanian chart
