@@ -731,6 +731,13 @@ the old `docs/ROADMAP.md` + `docs/BACKLOG.md`). Keep this file (`CLAUDE.md`) for
 dev/agent memory only: stack, architecture, schema, the finish/release
 workflows, and gotchas.
 
+**`docs/COMPONENTS.md` is the definitive component map** — the app decomposed
+into 25 named components, each with its owner files, state, status and debt,
+plus the dependency order to work them in and a per-component definition of
+done. Work proceeds **component by component** against that list. Three docs,
+three jobs: `CLAUDE.md` = how it works · `PLAN.md` = what's next ·
+`COMPONENTS.md` = what the pieces are.
+
 TypeScript migration is deferred and done incrementally per touched file, not as
 a phase.
 

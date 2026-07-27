@@ -5,6 +5,12 @@
 > (stack, architecture, schema, finish/release workflows, gotchas) — it points
 > here for planning.
 >
+> **See also `docs/COMPONENTS.md`** — the definitive component map (25 components,
+> owner files, status, debt, dependency order, per-component definition of done).
+> This file says *what's next*; that one says *what the pieces are*. Work now
+> proceeds component by component against it. Its §4 lists the production-grade
+> gaps found in the 2026-07-27 audit that aren't already tracked here.
+>
 > _Last updated: 2026-07-27 · Current version: `0.17.0-beta.2` (on `beta`)._
 >
 > **Priority:** `P-1` above everything (currently: the New Song flow) · `P0`
