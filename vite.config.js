@@ -66,7 +66,14 @@ export default defineConfig({
         // pdf.js is ~400KB of lazy chunk that only a PDF import ever needs.
         // Precaching it would charge every install for a feature most users
         // never reach; it loads on demand and the HTTP cache keeps it after.
-        globIgnores: ['**/pdf-*.js', '**/pdf.worker*'],
+        //
+        // svguitar (+ svg.js, ~162KB) is the same deal: chord fingering
+        // diagrams are off by default and only reachable from the Performance
+        // layout sheet. Trade-off worth knowing — a user who has NEVER shown
+        // diagrams and is offline when they first enable them gets empty boxes
+        // until they reconnect (ChordDiagram fails soft). Once shown anywhere,
+        // the HTTP cache keeps it for offline use.
+        globIgnores: ['**/pdf-*.js', '**/pdf.worker*', '**/svguitar*'],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
         // Web Push handlers (push + notificationclick) live in a plain script

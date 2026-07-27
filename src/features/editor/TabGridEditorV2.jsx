@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
-import { stringsForCount, TAB_INSTRUMENTS } from './tabInstruments';
+import { stringsForCount, TAB_INSTRUMENTS } from '@/data/tabInstruments';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/ui/Select';
 
 const DEFAULT_STRINGS = ['e', 'B', 'G', 'D', 'A', 'E'];

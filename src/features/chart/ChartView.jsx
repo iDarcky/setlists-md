@@ -33,7 +33,7 @@ import {
 } from '@/data/chartThemes';
 import { resolveChartDisplay, resolveColumns, FONT_SIZES } from '@/lib/chartDisplay';
 import { STAGE_MODES } from '@/data/stageModes';
-import { TAB_INSTRUMENTS } from '@/features/editor/tabInstruments';
+import { TAB_INSTRUMENTS } from '@/data/tabInstruments';
 
 // Tokens written by useChartTheme (App.jsx) live on :root and decide the
 // chart's bg/text/chord colours plus the chord and lyric font stacks.

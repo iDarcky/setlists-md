@@ -3,7 +3,7 @@ import { SegmentedControl } from '@/ui/SegmentedControl';
 import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 import ChartStyleControls from '@/features/chart/ChartStyleControls';
-import { TAB_INSTRUMENTS } from '@/features/editor/tabInstruments';
+import { TAB_INSTRUMENTS } from '@/data/tabInstruments';
 import { STAGE_MODES } from '@/data/stageModes';
 import { cn } from '@/lib/utils';
 

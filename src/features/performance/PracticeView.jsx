@@ -3,7 +3,7 @@ import { transposeKey, transposeChord, keysInQualityOf, semitonesBetween } from 
 import { resolveSongView } from '@/arrangements';
 import SectionBlock from '@/features/chart/SectionBlock';
 import SongMap from '@/features/chart/SongMap';
-import { TAB_INSTRUMENTS } from '@/features/editor/tabInstruments';
+import { TAB_INSTRUMENTS } from '@/data/tabInstruments';
 import ChordDiagram from '@/features/chart/ChordDiagram';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import FloatingStructure from '@/ui/FloatingStructure';

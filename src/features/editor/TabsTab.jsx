@@ -6,7 +6,7 @@ import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 import { showUndoToast } from '@/lib/undoToast';
 import TabGridEditor from './TabGridEditorV2';
-import { TAB_INSTRUMENTS, instrumentForStrings } from './tabInstruments';
+import { TAB_INSTRUMENTS, instrumentForStrings } from '@/data/tabInstruments';
 
 function tabObjectFromEditor(saved) {
   const lines = saved.split('\n');

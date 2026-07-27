@@ -5,7 +5,7 @@ import { sectionStyle, getNashvilleNumber, getSolfege } from '@/music';
 import TabBlock from '@/features/chart/TabBlock';
 import TabGridEditor from './TabGridEditorV2';
 import KeyChangeDialog from './KeyChangeDialog';
-import { TAB_INSTRUMENTS, instrumentForStrings } from './tabInstruments';
+import { TAB_INSTRUMENTS, instrumentForStrings } from '@/data/tabInstruments';
 import { IconButton } from '@/ui/IconButton';
 import { Button } from '@/ui/Button';
 import { caretOffsetFromPoint, parsePlacementLine, sectionBaseType, serializeSectionLines, lyricsOnly, mergeLyrics } from './arrangeHelpers';
