@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import NotificationTray from '@/components/NotificationTray';
+import NotificationTray from '@/features/notifications/NotificationTray';
 import { cn } from '@/lib/utils';
 
 const HomeIcon = () => (

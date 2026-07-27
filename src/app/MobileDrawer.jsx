@@ -6,7 +6,7 @@ import {
   UpgradePill,
   SignInButton,
   CreateAccountButton,
-} from '@/components/account/AccountPanel';
+} from '@/features/settings/AccountPanel';
 import BrandWordmark from '@/ui/BrandWordmark';
 import { workspaceStatusLabel } from '@/billing/checkout';
 

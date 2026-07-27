@@ -17,19 +17,19 @@ import { createTeamSyncEngine } from '@/sync/team-engine';
 import { getSyncState, setActiveProvider } from '@/sync/tokens';
 import { reconcileAdopt, applyPulled } from '@/sync/adopt';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
-import OnboardingFlow from '@/onboarding/OnboardingFlow';
-import Dashboard from '@/components/Dashboard';
-import Library from '@/components/Library';
-import Settings from '@/components/Settings';
-import Account from '@/components/Account';
-import Setlists from '@/components/Setlists';
+import OnboardingFlow from '@/features/onboarding/OnboardingFlow';
+import Dashboard from '@/features/dashboard/Dashboard';
+import Library from '@/features/library/Library';
+import Settings from '@/features/settings/Settings';
+import Account from '@/features/settings/Account';
+import Setlists from '@/features/setlists/Setlists';
 import BottomNav from '@/app/BottomNav';
 import DesktopLayout from '@/app/DesktopLayout';
 import MobileTopBar from '@/app/MobileTopBar';
 import MobileDrawer from '@/app/MobileDrawer';
-import NotificationTray from '@/components/NotificationTray';
-import NotificationsPage from '@/components/NotificationsPage';
-import ConflictResolver from '@/components/ConflictResolver';
+import NotificationTray from '@/features/notifications/NotificationTray';
+import NotificationsPage from '@/features/notifications/NotificationsPage';
+import ConflictResolver from '@/features/sync/ConflictResolver';
 import ErrorBoundary from '@/app/ErrorBoundary';
 import { useAuth } from '@/auth/useAuth';
 import { useTeam } from '@/auth/useTeam';
@@ -60,37 +60,37 @@ async function maybeWarnQuota(warnedRef) {
 }
 
 // Lazy-loaded: heavy secondary views not needed on initial render
-const ChartView = lazy(() => import('@/components/ChartView'));
-const SongHub = lazy(() => import('@/components/SongHub'));
-const Editor = lazy(() => import('@/components/Editor'));
-const SetlistBuilder = lazy(() => import('@/components/SetlistBuilder'));
-const SetlistPlayer = lazy(() => import('@/components/SetlistPlayer'));
-const SetlistOverview = lazy(() => import('@/components/SetlistOverview'));
-const SharedSetlistViewer = lazy(() => import('@/components/SharedSetlistViewer'));
-const PerformanceView = lazy(() => import('@/components/PerformanceView'));
-const PracticeView = lazy(() => import('@/components/PracticeView'));
-const LegalPage = lazy(() => import('@/components/LegalPage'));
-const GoogleDriveCallback = lazy(() => import('@/components/auth/GoogleDriveCallback'));
-const PracticeFinale = lazy(() => import('@/components/PracticeFinale'));
-const LiveFinale = lazy(() => import('@/components/LiveFinale'));
+const ChartView = lazy(() => import('@/features/chart/ChartView'));
+const SongHub = lazy(() => import('@/features/song/SongHub'));
+const Editor = lazy(() => import('@/features/editor/Editor'));
+const SetlistBuilder = lazy(() => import('@/features/setlist-editor/SetlistBuilder'));
+const SetlistPlayer = lazy(() => import('@/features/performance/SetlistPlayer'));
+const SetlistOverview = lazy(() => import('@/features/setlist-viewer/SetlistOverview'));
+const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
+const PerformanceView = lazy(() => import('@/features/performance/PerformanceView'));
+const PracticeView = lazy(() => import('@/features/performance/PracticeView'));
+const LegalPage = lazy(() => import('@/features/legal/LegalPage'));
+const GoogleDriveCallback = lazy(() => import('@/features/auth/GoogleDriveCallback'));
+const PracticeFinale = lazy(() => import('@/features/performance/PracticeFinale'));
+const LiveFinale = lazy(() => import('@/features/performance/LiveFinale'));
 const LydianShowcase = lazy(() => import('@/features/design/LydianShowcase'));
 // Add-a-song surface. The reworked single-surface modal is behind the
 // `addSongModal` Labs flag; the tabbed Import|Browse modal stays the default
 // until it graduates. Both are lazy — only the one in use is fetched.
-const AddSongModal = lazy(() => import('@/components/AddSongModal'));
-const NewSongModal = lazy(() => import('@/components/NewSongModal'));
-const HelpPage = lazy(() => import('@/components/HelpPage'));
-const AuthScreen = lazy(() => import('@/components/auth/AuthScreen'));
-const AuthCallback = lazy(() => import('@/components/auth/AuthCallback'));
-const RecoveryScreen = lazy(() => import('@/components/auth/RecoveryScreen'));
-const PricingScreen = lazy(() => import('@/components/PricingScreen'));
-const TeamScreen = lazy(() => import('@/components/TeamScreen'));
-const Schedule = lazy(() => import('@/components/Schedule'));
-const SchedulingGrid = lazy(() => import('@/components/SchedulingGrid'));
-const WakeLockExplainer = lazy(() => import('@/components/WakeLockExplainer'));
-const AccountWall = lazy(() => import('@/components/AccountWall'));
-const FounderNote = lazy(() => import('@/components/FounderNote'));
-const IOSInstallHint = lazy(() => import('@/components/IOSInstallHint'));
+const AddSongModal = lazy(() => import('@/features/import/AddSongModal'));
+const NewSongModal = lazy(() => import('@/features/import/NewSongModal'));
+const HelpPage = lazy(() => import('@/features/legal/HelpPage'));
+const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
+const AuthCallback = lazy(() => import('@/features/auth/AuthCallback'));
+const RecoveryScreen = lazy(() => import('@/features/auth/RecoveryScreen'));
+const PricingScreen = lazy(() => import('@/features/billing/PricingScreen'));
+const TeamScreen = lazy(() => import('@/features/team/TeamScreen'));
+const Schedule = lazy(() => import('@/features/scheduling/Schedule'));
+const SchedulingGrid = lazy(() => import('@/features/scheduling/SchedulingGrid'));
+const WakeLockExplainer = lazy(() => import('@/features/performance/WakeLockExplainer'));
+const AccountWall = lazy(() => import('@/features/settings/AccountWall'));
+const FounderNote = lazy(() => import('@/features/onboarding/FounderNote'));
+const IOSInstallHint = lazy(() => import('@/features/onboarding/IOSInstallHint'));
 
 // Subset of local settings that gets mirrored to the user's cloud profile
 // (profiles.preferences). Device-local flags like onboardingComplete,

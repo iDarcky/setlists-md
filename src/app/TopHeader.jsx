@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import NotificationTray from '@/components/NotificationTray';
-import SongCard from '@/components/SongCard';
+import NotificationTray from '@/features/notifications/NotificationTray';
+import SongCard from '@/features/library/SongCard';
 import Highlight from '@/ui/Highlight';
 import { cn } from '@/lib/utils';
 import { workspaceStatusLabel } from '@/billing/checkout';
