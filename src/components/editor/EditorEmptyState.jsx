@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { Button } from '../ui/Button';
+import PasteReview from './PasteReview';
 
 // New-song canvas: one big area to paste a chord sheet into.
 //
@@ -19,6 +21,23 @@ export default function EditorEmptyState({
   metaReady = true,
 }) {
   const hasText = (value || '').trim().length > 0;
+  // Two steps, not one: paste, then check what we read out of it. The review is
+  // where "this song starts on the chorus" gets fixed — by correcting the one
+  // chip that's wrong, rather than being asked up front.
+  const [reviewing, setReviewing] = useState(false);
+
+  if (reviewing && hasText) {
+    return (
+      <div className="flex-1 min-h-0 flex flex-col px-3 sm:px-4 pt-3 pb-4">
+        <PasteReview
+          text={value}
+          onApply={onApply}
+          onEditText={() => setReviewing(false)}
+          onCancel={() => setReviewing(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 min-h-0 flex flex-col px-3 sm:px-4 pt-3 pb-4 gap-3">
@@ -38,7 +57,7 @@ export default function EditorEmptyState({
         <textarea
           value={value || ''}
           onChange={e => onChange(e.target.value)}
-          onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && hasText) { e.preventDefault(); onApply(); } }}
+          onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && hasText) { e.preventDefault(); setReviewing(true); } }}
           placeholder={'Paste the song here…'}
           spellCheck={false}
           className="flex-1 min-h-[220px] w-full bg-transparent p-4 text-copy-14 leading-relaxed text-[var(--ds-gray-1000)] resize-none outline-none font-mono whitespace-pre-wrap break-words"
@@ -52,8 +71,8 @@ export default function EditorEmptyState({
           {/* Converting is NOT gated on title/key any more. The paste usually
               contains both, and blocking it was how lyrics got lost: people
               typed the details, hit Save, and the text here was discarded. */}
-          <Button variant="brand" size="sm" disabled={!hasText} onClick={onApply} title="⌘/Ctrl + Enter">
-            Turn into chart
+          <Button variant="brand" size="sm" disabled={!hasText} onClick={() => setReviewing(true)} title="⌘/Ctrl + Enter">
+            Review sections
           </Button>
         </div>
       </div>

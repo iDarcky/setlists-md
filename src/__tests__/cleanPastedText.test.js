@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cleanPastedText } from '../lib/cleanPastedText';
+import { cleanPastedText, rejoinSplitWords } from '../lib/cleanPastedText';
 import { importChartText } from '../lib/importChords';
 
 // The characters this module exists to remove are invisible, so they're written
@@ -93,5 +93,42 @@ describe('cleanPastedText → importChartText', () => {
     const body = importChartText(cleanPastedText(dirty)).body;
     expect(body).toContain('La crucea Ta mă-ntorc');
     expect(body).toContain('Din zile în care n-am luptat');
+  });
+});
+
+describe('rejoinSplitWords', () => {
+  it('joins a split word when the intact form appears elsewhere', () => {
+    // The chorus repeats, so "mulțumesc" is present intact — that's the proof.
+    const src = 'Îți mulțumesc mereu\nalt vers aici\nÎți mul țumesc mereu';
+    const { text, joins } = rejoinSplitWords(src);
+    expect(text).toContain('Îți mulțumesc mereu\nalt vers aici\nÎți mulțumesc mereu');
+    expect(joins).toEqual([{ from: 'mul țumesc', to: 'mulțumesc' }]);
+  });
+
+  it('refuses to join two real words', () => {
+    // "la" and "crucea" are both words in the text; "lacrucea" is not.
+    const src = 'la crucea Ta\nla crucea Ta';
+    expect(rejoinSplitWords(src).text).toBe(src);
+  });
+
+  it('leaves a split it cannot prove', () => {
+    // Nothing else in the text vouches for "cuvant", so it stays as pasted.
+    const src = 'cuv ant nou';
+    expect(rejoinSplitWords(src).text).toBe(src);
+  });
+
+  it('never joins across a capital', () => {
+    const src = 'vino Doamne\nvinoDoamne';
+    expect(rejoinSplitWords(src).text).toBe(src);
+  });
+
+  it('leaves chord-chart alignment alone', () => {
+    const src = 'G       C\nAmazing grace';
+    expect(rejoinSplitWords(src).text).toBe(src);
+  });
+
+  it('is safe on empty input', () => {
+    expect(rejoinSplitWords('').text).toBe('');
+    expect(rejoinSplitWords(null).joins).toEqual([]);
   });
 });

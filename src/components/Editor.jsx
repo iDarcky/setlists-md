@@ -849,7 +849,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
             <EditorEmptyState
               value={newSongDraft}
               onChange={setNewSongDraft}
-              onApply={() => applyPastedText(newSongDraft)}
+              onApply={(labelled) => applyPastedText(labelled ?? newSongDraft)}
               onDismiss={() => setShowNewSong(false)}
               onAddSection={() => { setNewSongDraft(''); setBody('## Verse 1\n'); setShowNewSong(false); }}
               metaReady={titleSet && keySet}

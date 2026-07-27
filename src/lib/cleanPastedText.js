@@ -90,3 +90,54 @@ export function cleanPastedText(text, { rejoinHyphens = true } = {}) {
   }
   return collapsed.join('\n').replace(/^\n+/, '').replace(/\n+$/, '\n');
 }
+
+/**
+ * Rejoin words a source split with a real space ("mul țumesc" → "mulțumesc").
+ *
+ * There's no dictionary here, so guessing would corrupt lyrics. But a song is
+ * its own dictionary: choruses repeat, and words recur. If joining two
+ * fragments produces a token that appears INTACT elsewhere in the same text,
+ * that's evidence rather than a guess — so only those joins are made.
+ *
+ * Deliberately conservative. It fixes the splits it can prove and leaves the
+ * rest alone; a stray space is a nuisance, a welded lyric is a corruption.
+ *
+ * @param {string} text
+ * @returns {{ text: string, joins: Array<{ from: string, to: string }> }}
+ */
+export function rejoinSplitWords(text) {
+  const src = String(text ?? '');
+  if (!src.trim()) return { text: src, joins: [] };
+
+  const known = new Set(
+    (src.match(/\p{L}[\p{L}\p{M}'-]*/gu) || []).map(w => w.toLowerCase()),
+  );
+
+  // Walk word/whitespace tokens rather than running a regex with two capture
+  // groups: a global replace consumes the first fragment of the NEXT candidate
+  // pair, so "Îți mul țumesc" would test "ți mul" and never "mul țumesc".
+  const parts = src.split(/(\s+)/);
+  const joins = [];
+  const out = [];
+  const core = (t) => t.replace(/^[^\p{L}]+|[^\p{L}\p{M}]+$/gu, '');
+
+  for (let i = 0; i < parts.length; i++) {
+    const a = parts[i];
+    const gap = parts[i + 1];
+    const b = parts[i + 2];
+    // Exactly one space between two lowercase-starting word tokens. Multiple
+    // spaces are chord-chart alignment; a capital marks a genuine new word.
+    if (gap === ' ' && a && b) {
+      const ca = core(a);
+      const cb = core(b);
+      if (ca && cb && /^\p{Ll}/u.test(ca) && /^\p{Ll}/u.test(cb) && known.has((ca + cb).toLowerCase())) {
+        joins.push({ from: `${ca} ${cb}`, to: ca + cb });
+        out.push(a + b);
+        i += 2; // consumed the gap and the second fragment
+        continue;
+      }
+    }
+    out.push(a);
+  }
+  return { text: out.join(''), joins };
+}

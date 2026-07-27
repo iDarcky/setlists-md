@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo, Fragment } from 'react';
-import { createPortal } from 'react-dom';
+import PopMenu, { MenuItem } from '../ui/PopMenu';
 import { parseSongMd, songToMd, placementToLine, parseTabBlock, parseSectionLines, splitMd, parseFrontmatterFields, serializeFrontmatterFields } from '../../parser';
 import { sectionStyle, getNashvilleNumber, getSolfege } from '../../music';
 import TabBlock from '../TabBlock';
@@ -214,87 +214,6 @@ const InteractiveLine = memo(function InteractiveLine({
 // escapes the Arrange scroll container's `overflow-auto` clip and sits above
 // the editor's sticky header — otherwise an upward-opening "+ Add" menu got
 // cut off / hidden under the header.
-function PopMenu({ trigger, align = 'right', up = false, menuClassName = '', children }) {
-  const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState(null);
-  const triggerRef = useRef(null);
-  const menuRef = useRef(null);
-
-  // Measure the trigger and open. Coords are computed at toggle time (not in an
-  // effect) so the fixed-positioned portal lands without a cascading render.
-  const toggle = useCallback(() => {
-    setOpen((wasOpen) => {
-      if (wasOpen) return false;
-      const el = triggerRef.current;
-      if (el) {
-        const r = el.getBoundingClientRect();
-        // Auto-flip upward when there isn't room below (near the bottom of the
-        // screen the menu would otherwise spill off / get clipped — the exact
-        // problem with "+ Add section" and the type picker on a phone).
-        const spaceBelow = window.innerHeight - r.bottom;
-        const openUp = up || (spaceBelow < 280 && r.top > spaceBelow);
-        setCoords({
-          left: align === 'right' ? null : r.left,
-          right: align === 'right' ? window.innerWidth - r.right : null,
-          top: openUp ? null : r.bottom + 4,
-          bottom: openUp ? window.innerHeight - r.top + 4 : null,
-        });
-      }
-      return true;
-    });
-  }, [align, up]);
-
-  useEffect(() => {
-    if (!open) return;
-    const inside = (t) => triggerRef.current?.contains(t) || menuRef.current?.contains(t);
-    const onPointer = (e) => { if (!inside(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
-    // Close when an ancestor scrolls (the menu is fixed, so it would detach).
-    // Ignore scrolling inside the menu's own overflow.
-    const onScroll = (e) => { if (!menuRef.current?.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', onPointer);
-    document.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', onScroll);
-    return () => {
-      document.removeEventListener('mousedown', onPointer);
-      document.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', onScroll);
-    };
-  }, [open]);
-
-  return (
-    <div ref={triggerRef} className="relative inline-block">
-      <span onClick={toggle}>{trigger}</span>
-      {open && coords && createPortal(
-        <div
-          ref={menuRef}
-          role="menu"
-          onClick={() => setOpen(false)}
-          style={{
-            position: 'fixed',
-            left: coords.left != null ? coords.left : undefined,
-            right: coords.right != null ? coords.right : undefined,
-            top: coords.top != null ? coords.top : undefined,
-            bottom: coords.bottom != null ? coords.bottom : undefined,
-          }}
-          className={`z-[80] min-w-[180px] max-h-[60vh] overflow-y-auto rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1 ${menuClassName}`}
-        >
-          {children}
-        </div>,
-        document.body,
-      )}
-    </div>
-  );
-}
-function MenuItem({ onClick, children, danger = false }) {
-  return (
-    <button type="button" onClick={onClick} className={`w-full text-left px-3 py-2.5 text-copy-13 cursor-pointer bg-transparent border-none hover:bg-[var(--ds-gray-alpha-100)] ${danger ? 'text-[var(--ds-red-700)] font-semibold' : 'text-[var(--ds-gray-1000)]'}`}>
-      {children}
-    </button>
-  );
-}
 
 // ─── Section-type menu items (shared) ─────────────────────────────
 // One renderer for every "pick a section type" menu — the type picker, the
@@ -1132,12 +1051,23 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
 
   // A subtle "+" between lines that opens the add menu, inserting at `idx`.
   const renderInsertPoint = (secIdx, idx) => (
-    <div key={`ins-${idx}`} className="group/ins relative h-5 flex items-center justify-center">
-      <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-transparent group-hover/ins:bg-[var(--ds-gray-300)]" />
+    <div key={`ins-${idx}`} className="group/ins relative h-5 flex items-center">
+      {/* A big target wearing a small mark. The whole strip is clickable, but
+          all that shows at rest is a faint hairline with a "+" at the left —
+          a row of circular buttons down the card was louder than the lyrics. */}
+      <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-[var(--ds-gray-200)] opacity-0 group-hover/ins:opacity-100 transition-opacity" />
       <PopMenu
         align="left"
         trigger={
-          <button type="button" aria-label="Add a line, chord, key change or tab here" title="Add a line, chord, key change or tab here" className="relative z-[1] w-7 h-7 rounded-full flex items-center justify-center bg-[var(--ds-background-200)] border border-[var(--ds-gray-400)] text-[var(--ds-gray-600)] opacity-45 group-hover/ins:opacity-100 hover:text-[var(--color-brand)] hover:border-[var(--color-brand-border)] hover:bg-[var(--ds-gray-100)] cursor-pointer text-[15px] leading-none transition-opacity">+</button>
+          <button
+            type="button"
+            aria-label="Add a line, chord, key change or tab here"
+            title="Add a line, chord, key change or tab here"
+            className="relative z-[1] h-5 w-full flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-[var(--ds-gray-500)] hover:text-[var(--color-brand)] text-left"
+          >
+            <span className="text-[13px] leading-none opacity-40 group-hover/ins:opacity-100 transition-opacity">+</span>
+            <span className="text-label-11 opacity-0 group-hover/ins:opacity-100 transition-opacity">Add</span>
+          </button>
         }
       >
         {renderAddItems(secIdx, idx)}
