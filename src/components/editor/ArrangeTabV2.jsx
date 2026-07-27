@@ -403,7 +403,7 @@ function InlineNoteInput({ initial, onCommit, onClose }) {
 // × to remove, "+ Add" to append (repeats welcome). Replaces the old modal.
 // Desktop uses HTML5 drag; touch uses native non-passive listeners (React's are
 // passive, so text selection would kick in otherwise).
-function PlayOrderEditor({ order, availableTypes, customSectionTypes, onChange }) {
+function PlayOrderEditor({ order, availableTypes, customSectionTypes, onChange, onJump }) {
   const [dragIdx, setDragIdx] = useState(null);
   const [overIdx, setOverIdx] = useState(null);
   const commit = useCallback(() => {
@@ -458,7 +458,8 @@ function PlayOrderEditor({ order, availableTypes, customSectionTypes, onChange }
             onDrop={(e) => { e.preventDefault(); commit(); }}
             onDragEnd={commit}
             onTouchStart={() => beginTouch(i)}
-            title={`${name} — drag to reorder`}
+            onClick={() => onJump?.(name)}
+            title={`${name} — tap to jump, drag to reorder`}
             className={`inline-flex items-center gap-1 pl-1 pr-0.5 py-0.5 rounded-[6px] border text-[10px] font-bold font-mono cursor-grab active:cursor-grabbing touch-none select-none bg-[var(--ds-background-100)] ${isOver ? 'border-[var(--color-brand)]' : 'border-[var(--border-1)]'} ${isDrag ? 'opacity-40' : ''}`}
             style={{ color: st.b, WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
           >
@@ -1171,36 +1172,29 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
           the Aa display menu now, so this row stays calm. */}
       {(() => {
         const isCustom = song.structureMode === 'custom';
-        const playOrder = isCustom ? (song.structure || []) : [];
+        // The play order is ALWAYS the thing on screen. It used to exist only
+        // after you found a "Customize" link — so a chorus sung three times was
+        // invisible until then, even though the play order is the actual model
+        // (one section, referenced three times). While it matches the sections
+        // it's simply derived from them; the first edit makes it yours, because
+        // onStructureChange already flips structureMode to custom.
+        const playOrder = isCustom ? (song.structure || []) : placements.map(p => p.type);
         const uniqueTypes = [...new Set(placements.map(p => p.type))];
+        const jumpTo = (name) => {
+          const idx = placements.findIndex(p => p.type === name);
+          if (idx >= 0) sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
         const toggleBtn = isCustom ? (
-          <button type="button" onClick={() => setStructureMode(false)} title="Reset to section order" className="shrink-0 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">Reset</button>
-        ) : (
-          <button type="button" onClick={() => setStructureMode(true)} title="Set a custom structure (repeats / reorder)" className="shrink-0 text-label-11 font-semibold text-[var(--color-brand-text)] hover:opacity-80 bg-transparent border-none cursor-pointer">Customize</button>
-        );
-        const chips = isCustom ? (
+          <button type="button" onClick={() => setStructureMode(false)} title="Go back to following the sections below" className="shrink-0 text-label-11 font-semibold text-[var(--ds-gray-600)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">Reset</button>
+        ) : null;
+        const chips = (
           <PlayOrderEditor
             order={playOrder}
             availableTypes={uniqueTypes}
             customSectionTypes={customSectionTypes}
+            onJump={jumpTo}
             onChange={(next) => onStructureChange(next.join(', '))}
           />
-        ) : (
-          placements.map((p, i) => {
-            const st = sectionStyle(p.type, null, customSectionTypes);
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => sectionRefs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold font-mono border border-[var(--border-1)] bg-[var(--ds-background-100)] hover:opacity-80 cursor-pointer"
-                style={{ color: st.b }}
-                title={`Jump to ${p.type}`}
-              >
-                {shortCode(p.type)}
-              </button>
-            );
-          })
         );
         return (
           <div className="shrink-0 border-b border-[var(--border-1)] px-3 sm:pr-6 py-1.5">
@@ -1208,14 +1202,11 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
                 the chips break to their own scrolling row so the label + toggle
                 stay readable instead of crushing together. */}
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-              <span className="shrink-0 text-label-10 uppercase tracking-[0.12em] font-semibold text-[var(--ds-gray-500)] select-none">Structure</span>
               <span
-                className={`shrink-0 text-label-10 uppercase tracking-wide font-bold px-1.5 py-0.5 rounded ${isCustom ? 'text-[var(--color-brand-text)] bg-[var(--color-brand-soft)]' : 'text-[var(--ds-gray-500)] bg-[var(--ds-gray-100)]'}`}
-                title={isCustom
-                  ? 'You set the structure (repeats / reorder). Reset to follow your sections.'
-                  : 'Follows your sections — reorder them by dragging. Customize to repeat or reorder.'}
+                className="shrink-0 text-label-10 uppercase tracking-[0.12em] font-semibold text-[var(--ds-gray-500)] select-none"
+                title="The order the song is played. Drag to reorder, + to repeat a section, × to drop one. Tap a chip to jump to it."
               >
-                {isCustom ? 'Custom' : 'Auto'}
+                Play order
               </span>
               {/* Toggle: pinned right on mobile's first row; inline (after chips) on desktop. */}
               <div className="ml-auto sm:hidden shrink-0">{toggleBtn}</div>
