@@ -36,6 +36,13 @@ Each entry carries:
 
 ## 2. The map
 
+> **The map is the directory layout.** Since 2026-07-27 each content component
+> is a folder: `src/features/<name>/`. Foundations keep their own top-level
+> folders (`sync/`, `auth/`, `lib/`, …), the design system is `src/ui/`, and the
+> shell is `src/app/`. Paths below are relative to `src/`; a bare filename means
+> it sits in that component's own folder. Imports use the `@/` alias — see
+> `CLAUDE.md` § Project Structure.
+
 ### Layer 0 — Foundations
 *No UI. Everything above depends on these, so their debt is paid many times
 over. Settle these before the surfaces that sit on them.*
@@ -102,7 +109,7 @@ history all present and tested (`storage.test.js`, `storage-persistence.test.js`
 **Owns.** `sync/*` (16 files, 3,086 lines) — two engines: the file-manifest
 engine (`engine.js`, personal BYOC) and the server-authoritative team engine
 (`team-engine.js`, 844 lines) · `sync/adopt.js` · `sync/lock.js` ·
-`sync/merge.js` · `settings/SyncDoctor.jsx` · `SyncStatus.jsx` ·
+`sync/merge.js` · `features/settings/SyncDoctor.jsx` · `SyncStatus.jsx` ·
 `ConflictResolver.jsx`
 
 **State.** The sync manifests (baselines/hashes) in IndexedDB.
@@ -128,7 +135,7 @@ adoption, a two-device convergence suite. It has earned its complexity.
 **Job.** Who the user is, which workspace they are in, and what they are allowed
 to do.
 
-**Owns.** `auth/*` + `components/auth/*` (11 files) · `contexts/WorkspaceContext.jsx` ·
+**Owns.** `auth/*` + `features/auth/*` (11 files) · `contexts/WorkspaceContext.jsx` ·
 `hooks/useEntitlement.js` · `billing/checkout.js`
 
 **State.** Session, profile, active team, active library, plan.
@@ -147,7 +154,7 @@ that discipline is held everywhere and is why the app is demoable offline.
 #### 0.5 — Design system (`ui/`)
 **Job.** The shared vocabulary every surface is built from.
 
-**Owns.** `components/ui/*` (57 files, 4,327 lines) · `styles/index.css` ·
+**Owns.** `ui/*` (57 files, 4,327 lines) · `styles/index.css` ·
 `lib/glass.js` · `lib/headerFrost.js` · `lib/utils.js` · `LydianShowcase.jsx`
 
 **Status.** 🔴 **Structural problem, and it is the reason to do this component
@@ -156,8 +163,8 @@ first.** 57 primitives with no enforced canon:
 - **`Button.jsx` and `Button2.jsx` both exist.** `Button2` is used by exactly one
   file (`LydianShowcase`, the design showcase) — so the "new" button lives only
   in the showcase while the app uses the old one.
-- **Two `PageHeader`s**: `components/PageHeader.jsx` (1 importer, legacy) and
-  `components/ui/PageHeader.jsx` (9 importers, canonical).
+- **Two `PageHeader`s**: `features/design/PageHeaderLegacy.jsx` (1 importer, legacy) and
+  `ui/PageHeader.jsx` (9 importers, canonical).
 - `ScreenHeader` · `StageHeader` · `PageHeader` · `PageHeader` — four header
   primitives, and no written rule for which surface takes which.
 - `BottomSheet` · `MobileSheet` · `SideSheet` · `SidePeek` · `Dialog` ·
@@ -232,7 +239,7 @@ bar/bottom nav/drawer.
 
 **Owns.** `DesktopLayout.jsx` · `Sidebar.jsx` · `TopHeader.jsx` (510) ·
 `MobileTopBar.jsx` (326) · `BottomNav.jsx` · `MobileDrawer.jsx` (609) ·
-`shell/SidePeek.jsx` · `PageHeader` variants
+`app/SidePeek.jsx` · `PageHeader` variants
 
 **Status.** 🟡 Works, well-specified in `CLAUDE.md`'s mobile layout section.
 
@@ -263,7 +270,7 @@ First in line for the card-design sweep (PLAN §3 cross-cutting).
 #### 2.2 — Song library 🟡
 **Job.** Find a song among hundreds.
 
-**Owns.** `Library.jsx` (1,015) · `SongCard.jsx` · `library/LibraryFilters.jsx` ·
+**Owns.** `Library.jsx` (1,015) · `SongCard.jsx` · `LibraryFilters.jsx` ·
 `lib/songFacets.js` · `lib/tableColumns.js` · `lib/search.js` · `lib/cardFields.js` ·
 `lib/usePersistentView.js` · `ui/ColumnsMenu.jsx` · `ui/Highlight.jsx` ·
 `ui/SelectionBar.jsx` · `lib/libraryPlus.js`
@@ -325,9 +332,9 @@ drive it.
 #### 2.5 — Song editor 🔴
 **Job.** Write and arrange a chart.
 
-**Owns.** `Editor.jsx` (1,789) · `editor/*` (18 files, 4,566 lines) — of which
-`ArrangeTabV2.jsx` alone is 1,594 · `editor/arrangeHelpers.js` ·
-`editor/chordRecents.js` · `editor/tabInstruments.js`
+**Owns.** `Editor.jsx` (1,789) · `features/editor/*` (18 files, 4,566 lines) — of which
+`ArrangeTabV2.jsx` alone is 1,594 · `arrangeHelpers.js` ·
+`chordRecents.js` · `tabInstruments.js`
 
 **State.** The `md` string + session undo/redo history.
 
@@ -351,9 +358,9 @@ user in the last cycle alone).
 blank.
 
 **Owns.** `AddSongModal.jsx` (691, Labs) · `NewSongModal.jsx` (legacy) ·
-`newSong/BrowseTab.jsx` · `newSong/ImportTab.jsx` · `importer.js` (635) ·
+`BrowseTab.jsx` · `ImportTab.jsx` · `importer.js` (635) ·
 `import/pdfChart.js` · `import/pdfLayout.js` · `lib/importFiles.js` ·
-`lib/catalog.js` · `lib/pasteScope.js` · `editor/PasteReview.jsx`
+`lib/catalog.js` · `lib/pasteScope.js` · `features/editor/PasteReview.jsx`
 
 **Status.** 🟡 `P-1` in PLAN. Two modals live simultaneously behind a flag.
 
@@ -396,8 +403,8 @@ consolidation.
 #### 2.8 — Setlist library 🟡
 **Job.** Find and organise setlists.
 
-**Owns.** `Setlists.jsx` (1,053) · `SetlistCard.jsx` · `setlist/SetlistFilters.jsx` ·
-`setlist/SetlistCardRow.jsx` · `lib/setlistTime.js` · `lib/duration.js`
+**Owns.** `Setlists.jsx` (1,053) · `SetlistCard.jsx` · `SetlistFilters.jsx` ·
+`SetlistCardRow.jsx` · `lib/setlistTime.js` · `lib/duration.js`
 
 **Debt.** Same three-view-mode collapse as 2.2. Setlist search should match
 *contained songs*, not just setlist metadata.
@@ -407,9 +414,9 @@ consolidation.
 #### 2.9 — Setlist editor 🟡
 **Job.** Build a setlist — pick songs, order them, set per-song key/notes.
 
-**Owns.** `SetlistBuilder.jsx` (637) · `setlist/*` (9 files, 2,315 lines) —
+**Owns.** `SetlistBuilder.jsx` (637) · `features/setlist-editor/*` —
 `SetlistItemRow` · `SetlistIdentityCard` · `SetlistMetaForm` · `SetlistSongPicker` ·
-`RecommendedNextPanel` · `setlist/setlistLinks.js`
+`RecommendedNextPanel` · `setlist/setlistLinks.js` (shared lib)
 
 **Status.** 🟡 P1 in PLAN — the next big redesign after the song editor.
 
@@ -453,7 +460,7 @@ polish.
 ### Layer 3 — Account, team & ops
 
 #### 3.1 — Onboarding 🟡
-**Owns.** `onboarding/*` (7 files, 980 lines) · `Welcome.jsx` · `FounderNote.jsx` ·
+**Owns.** `features/onboarding/*` (7 files, 980 lines) · `Welcome.jsx` · `FounderNote.jsx` ·
 `IOSInstallHint.jsx` · `hooks/useInstallPrompt.js` · `ProgressChecklist.jsx`
 
 **Debt.** The bulk-import decision (2.6) lands here — _Q: a step in the welcome
@@ -462,8 +469,8 @@ flow, or found later in Settings?_ Public-domain starter pack (~20 PD hymns).
 ---
 
 #### 3.2 — Settings & account 🔴
-**Owns.** `Settings.jsx` (1,565) · `Account.jsx` (457) · `settings/*` (6 files) ·
-`account/AccountPanel.jsx` · `AccountWall.jsx`
+**Owns.** `Settings.jsx` (1,565) · `Account.jsx` (457) · `features/settings/*` ·
+`AccountPanel.jsx` · `AccountWall.jsx`
 
 **Status.** 🔴 P1 in PLAN — "the whole Settings surface needs a structural
 redesign, not just tweaks". A 1,565-line file with panel taxonomy problems.
@@ -474,7 +481,7 @@ Mobile settings rework. **8 Labs flags** live here — see §4.
 ---
 
 #### 3.3 — Team & workspace 🟡
-**Owns.** `TeamScreen.jsx` (1,081) · `TeamBanner.jsx` · `team/ActivityFeed.jsx` ·
+**Owns.** `TeamScreen.jsx` (1,081) · `TeamBanner.jsx` · `ActivityFeed.jsx` ·
 `auth/TeamProvider.jsx` (503) · `ui/WorkspacePickerDialog.jsx` ·
 `ui/AvatarUploader.jsx`
 
@@ -485,8 +492,8 @@ Needs a real demo-pass before the paid tier is sold.
 ---
 
 #### 3.4 — Scheduling 🟡
-**Owns.** `Schedule.jsx` · `SchedulingGrid.jsx` (427) · `schedule/*` (4 files) ·
-`setlist/RosterPanel.jsx` (654) · `setlist/RosterReadCard.jsx` ·
+**Owns.** `Schedule.jsx` · `SchedulingGrid.jsx` (427) · `features/scheduling/*` ·
+`features/setlist-editor/RosterPanel.jsx` (654) · `features/setlist-editor/RosterReadCard.jsx` ·
 `hooks/useTeamSchedules.js` · `hooks/useTeamAvailability.js` ·
 `hooks/useTeamSetlistMap.js` · `lib/reminderOffsets.js`
 
@@ -540,9 +547,15 @@ decision repeatedly.
 **Phase A — make the passes cheap** (nothing user-visible; everything after is
 faster and safer):
 
+0. ✅ **Feature-folder restructure** (2026-07-27) — `src/components/` (63 flat
+   files beside 11 half-populated subfolders) became `src/features/*`, one
+   folder per component, plus the `@/` alias so a future move doesn't rewrite
+   unrelated imports. Pure moves; build clean, 619 tests pass.
 1. **0.5 Design system** — pick one Button, one PageHeader, one sheet primitive;
    delete the rest; write the usage rule. *Every* surface pass below re-decides
-   these otherwise.
+   these otherwise. (The restructure already isolated the showcase-only
+   primitives in `features/design/`, so what's left is a real decision, not
+   archaeology.)
 2. **1.1 App shell split** — extract the eight concerns. Component boundaries
    below are defined by what `App.jsx` hands down, so they can't be settled
    before this is.
@@ -627,7 +640,7 @@ that never graduate become permanent double-maintenance. Set a graduation date
 per flag; delete the loser path the day it graduates.
 
 **7. Dead and duplicate paths.** `Button2` (used only by the showcase),
-`components/PageHeader` (1 importer vs 9 for the canonical one),
+`features/design/PageHeaderLegacy` (1 importer vs 9 for the canonical one),
 `SetlistOverviewV2` + the legacy builder layout behind an unused `cards={false}`,
 the legacy editor shell, the legacy `NewSongModal`. Each doubles the surface area
 of the pass that touches it. Delete on sight during each component's pass.

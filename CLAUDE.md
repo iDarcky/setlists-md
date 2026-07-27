@@ -161,82 +161,94 @@ protection. The PR is the only door.
 
 ## Project Structure
 
+**The app is grouped by feature.** `src/features/<feature>/` owns everything for
+one surface; `src/ui/` is the shared design system; `src/app/` is the shell
+chrome. There is no `src/components/` — it was a flat dump of 63 files beside
+half-populated subfolders, and it's gone. The folders map 1:1 onto the component
+map in **`docs/COMPONENTS.md`**, which is the authoritative per-component
+reference (job, owner files, state, status, debt).
+
+**Imports use the `@/` alias** (= `src/`, configured in `vite.config.js` +
+`jsconfig.json`). Anything outside a file's own folder goes through `@/`; only
+same-folder siblings stay relative. Don't reintroduce `../../` chains — they're
+what made the old layout expensive to change.
+
 ```
 src/
 ├── main.jsx              # Entry point
-├── App.jsx               # Root component, view routing, data management,
-│                         #   preference cloud-sync, auth-URL cleanup
+├── App.jsx               # Root: view routing, data management, sync orchestration,
+│                         #   notification merge, preference cloud-sync, auth-URL cleanup.
+│                         #   3.1k lines — the split is COMPONENTS.md §1.1.
+├── parser.js             # .md parser/serializer: parseSongMd, songToMd, parseLine,
+│                         #   generateId, parseTabBlock, serializeTabBlock, parseTabPositions
 ├── music.js              # Transpose engine (transposeChord, transposeKey, sectionStyle)
-├── parser.js             # .md song format parser/serializer
-│                         #   exports: parseSongMd, songToMd, parseLine, generateId,
-│                         #            parseTabBlock, serializeTabBlock, parseTabPositions
-├── storage.js            # IndexedDB layer (loadSongs, saveSongs, loadSetlists, saveSetlists, clearAll,
-│                         #   loadVersions/pushVersion — per-song saved-markdown version history)
-├── styles/index.css      # Global styles, CSS variables, fonts
-├── auth/
+├── arrangements.js       # v2 multi-arrangement schema
+├── storage.js            # IndexedDB layer (loadSongs/saveSongs, loadSetlists/saveSetlists,
+│                         #   clearAll, loadVersions/pushVersion)
+├── importer.js           # smartImport() — ChordPro/OpenSong/UG/text detection
+│
+├── app/                  # Shell chrome (COMPONENTS.md §1.2)
+│   ├── DesktopLayout.jsx · Sidebar.jsx · TopHeader.jsx
+│   ├── MobileTopBar.jsx · BottomNav.jsx · MobileDrawer.jsx
+│   └── SidePeek.jsx · ErrorBoundary.jsx
+│
+├── ui/                   # Design system — 57 primitives (COMPONENTS.md §0.5)
+│   ├── Button.jsx · Card.jsx · Tabs.jsx · Dialog.jsx · Input.jsx …
+│   └── (see COMPONENTS.md §0.5 for the duplicate-primitive debt)
+│
+├── features/
+│   ├── library/          # Library.jsx, SongCard, LibraryFilters
+│   ├── song/             # SongHub (song-open target), SongDetails, SongPlayerBar,
+│   │                     #   FullscreenChartViewer (WIP)
+│   ├── chart/            # ChartView (reader), SectionBlock, TabBlock, ChordDiagram,
+│   │                     #   StructureRibbon, SongMap, AaMenu, ChartStyleControls
+│   ├── editor/           # Editor.jsx shell + ArrangeTabV2 (canvas), WriteTab, TabsTab,
+│   │                     #   MetadataPanel, PreviewPanel, ChordPicker, TabGridEditorV2,
+│   │                     #   PasteReview, StructureControl …
+│   ├── import/           # AddSongModal (Labs) · NewSongModal (legacy) · BrowseTab · ImportTab
+│   ├── dashboard/        # Dashboard.jsx
+│   ├── setlists/         # Setlists.jsx (library), SetlistCard, SetlistFilters, SetlistCardRow
+│   ├── setlist-editor/   # SetlistBuilder + SetlistItemRow, SetlistIdentityCard,
+│   │                     #   SetlistMetaForm, SetlistSongPicker, RecommendedNextPanel,
+│   │                     #   RosterPanel, RosterReadCard
+│   ├── setlist-viewer/   # SetlistOverview (2 render sites!), SetlistOverviewV2 (legacy),
+│   │                     #   SetlistViewerCards
+│   ├── performance/      # SetlistPlayer, PerformanceView, PracticeView, LiveFinale,
+│   │                     #   PracticeFinale, PerformanceLayoutSheet/SetlistSheet, WakeLockExplainer
+│   ├── sharing/          # ShareSetlistDialog, SharedSetlistViewer, ExportSetlistDialog
+│   ├── settings/         # Settings.jsx, Account.jsx, AccountWall, AccountPanel,
+│   │                     #   SyncSettings, SyncDoctor, ChartStylePanel, WhatsNewPanel …
+│   ├── team/             # TeamScreen, TeamBanner, ActivityFeed
+│   ├── scheduling/       # Schedule, SchedulingGrid, ScheduleCalendarView/ListView,
+│   │                     #   DateStatusModal, RecurringPicker
+│   ├── notifications/    # NotificationTray, NotificationsPage, NotificationItems
+│   ├── billing/          # PricingScreen
+│   ├── legal/            # LegalPage, HelpPage, FeedbackButton
+│   ├── onboarding/       # OnboardingFlow + screens/, ProgressChecklist, ChordLine,
+│   │                     #   FounderNote, IOSInstallHint
+│   ├── auth/             # AuthScreen, AuthCallback, RecoveryScreen, GoogleDriveCallback
+│   ├── sync/             # SyncStatus, ConflictResolver (the sync engine's UI)
+│   └── design/           # LydianShowcase + the primitives only it uses (Button2,
+│                         #   PageHeaderLegacy) — showcase only, not app code
+│
+├── auth/                 # Providers, not screens
 │   ├── supabase.js       # Supabase client (null when env vars missing)
-│   ├── AuthContext.js    # React context for the auth value bag
-│   ├── useAuth.js        # Hook: { user, profile, signIn*, signUp*, resetPassword,
-│   │                     #         updatePassword, resendVerification, updateProfile, signOut }
-│   └── AuthProvider.jsx  # Session bootstrap, profile fetch w/ preferences fallback
+│   ├── AuthContext.js · useAuth.js · AuthProvider.jsx
+│   └── TeamContext.js · useTeam.js · TeamProvider.jsx
+├── sync/                 # Two engines + adopt/lock/merge/providers (COMPONENTS.md §0.3)
+├── lib/ · hooks/ · contexts/   # Shared logic, hooks, workspace context
+├── pdf/ · import/ · share/ · setlist/ · notes/ · push/ · billing/
 ├── data/
 │   ├── demos.js          # 3 demo songs loaded on first run
-│   └── chordShapes.js    # ~50 worship chord fingering shapes for svguitar
-└── components/
-    ├── SectionBlock.jsx      # Renders a single section block (chords above lyrics, tab blocks)
-    ├── TabBlock.jsx          # SVG guitar tab renderer (fret numbers, string lines, bar lines, techniques)
-    ├── ChordDiagram.jsx      # svguitar wrapper — renders chord fingering diagrams
-    ├── StructureRibbon.jsx   # Section flow bar + MetaPill component
-    ├── SongHub.jsx           # Song-open target: media "hub card" (art · title + gold key · meta · ⋯ · Edit · Campfire) over a "reader card" whose tab header (Chart/Lyrics/Details, brand pills) carries the chart-only Aa + full-screen controls; backing-track player is a card pinned to the bottom
-    ├── FullscreenChartViewer.jsx # WIP distraction-free fullscreen reader (opened from the chart/lyrics full-screen button) wrapping an embedded ChartView
-    ├── SongDetails.jsx       # Hub "Details" tab: grouped read view + inline edit form with a card-bottom Save/Cancel bar
-    ├── SongPlayerBar.jsx     # YouTube backing-track transport (own play/scrub controls; hidden IFrame-API player); `compact` variant for the mobile media card
-    ├── ChartView.jsx         # Chord chart reader (transpose, 1/2-col, sizes). `embedded` mode + controlled props let SongHub drive it; the Aa popover + centered "Advanced" Dialog render here
-    ├── AaMenu.jsx            # Single chart display popover (Page/Lyrics/Chords tabs; per-element size·font·colour; per-tab Reset)
-    ├── Editor.jsx            # Editor shell. Legacy: Arrange / Advanced / Tabs + split-screen preview.
-    │                         #   Cards (Labs `songEditorCards`): identity card (collapsible on mobile;
-    │                         #   Key chip vs Transpose) + left editor card (Arrange/Tabs/Details tabs,
-    │                         #   undo·redo + ⋮ overflow → Source dialog / Version history) + live preview
-    │                         #   card (own Aa → global display). Session md-history undo/redo; pre-save
-    │                         #   validation chip; version history via storage loadVersions/pushVersion.
-    ├── Library.jsx           # Song library with search + setlists tab
-    ├── SetlistBuilder.jsx    # Build setlists: pick songs, reorder, per-song transpose & notes
-    ├── SetlistPlayer.jsx     # Live mode: progress bar, song strip, prev/next navigation
-    ├── SetlistOverview.jsx   # Read-only setlist overview with song list and duration
-    ├── PerformanceView.jsx   # Fullscreen live view (sidebar hidden on desktop/tablet)
-    ├── Account.jsx           # Account page — edits display name (local + profile), sign-in/out
-    ├── Welcome.jsx           # Onboarding welcome with optional "Already have an account?" link
-    ├── auth/
-    │   ├── AuthScreen.jsx    # Sign-in/up form (magic link + password), loading states,
-    │   │                     #   password reveal, last-email prefill, friendly errors
-    │   ├── AuthCallback.jsx  # Handles OAuth /auth/callback (PKCE exchange)
-    │   └── RecoveryScreen.jsx# Set-new-password screen for type=recovery links
-    ├── account/
-    │   └── AccountPanel.jsx  # Shared account bits: StageGreeting, PlanLabel, SignInButton,
-    │                         #   CreateAccountButton, StatCards
-    ├── editor/
-    │   ├── ArrangeTabV2.jsx  # Visual chord-chart canvas (primary editing surface; shared by legacy +
-    │   │                     #   cards editors). Drag-to-reorder sections (grip handle; HTML5 + native
-    │   │                     #   touch, collapse-on-drag + edge autoscroll + insertion line); drag a
-    │   │                     #   chord chip to move it; inline lyric composer w/ smart chord-sheet paste
-    │   │                     #   on empty sections; Play order row (Auto/Custom, chips always visible;
-    │   │                     #   PlayOrderEditor = inline drag/×/+ chips, no modal). SectionTypePicker +
-    │   │                     #   menus built on the portaled PopMenu (flip up near screen bottom).
-    │   ├── WriteTab.jsx      # Advanced raw-markdown editor: toolbar (chord/section/cue/note/key-change/tab), find/replace, paste-import
-    │   ├── TabsTab.jsx       # Per-song reusable tab library (instrument picker, create/edit/delete)
-    │   ├── MetadataPanel.jsx # Song Details form (title, artist, capo, CCLI, tags, …); the legacy collapsible panel + the card-header "Details" tab
-    │   ├── PreviewPanel.jsx  # Live preview of parsed song (used in split-screen)
-    │   ├── ChordPicker.jsx   # Popup: root (A-G), accidental (#/b), suffix, slash chord
-    │   └── TabGridEditor.jsx # Interactive tab grid: duration picker, auto-advance, technique buttons
-    └── ui/
-        ├── Button.jsx        # Standard Geist buttons implementation
-        ├── Card.jsx          # Geist 16px radius cards
-        ├── Tabs.jsx          # Underline style tabs
-        └── ...               # Avatar, Badge, Input, SegmentedControl, etc.
+│   ├── chordShapes.js    # ~50 worship chord fingering shapes for svguitar
+│   └── chartThemes.js · stageModes.js
+├── styles/index.css      # Global styles, CSS variables, fonts
+└── __tests__/            # 40 suites, 619 tests — all pure logic (no render tests yet)
 
 supabase/
-└── migrations/           # SQL applied manually (or via supabase db push).
-                          # See "Supabase Schema" below.
+├── migrations/           # SQL applied manually (or via supabase db push).
+│                         #   See "Supabase Schema" below.
+└── functions/            # Edge functions: notify-worker, stripe-*, cover-art
 ```
 
 ## Architecture
