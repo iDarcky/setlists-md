@@ -4,17 +4,20 @@
 // layout, not for meaning: zero-width spaces from a CMS, soft hyphens from
 // justified text, non-breaking spaces from an HTML table, and words broken
 // across a line wrap. Left alone they show up as "random spaces in the middle of
-// a word", and they also break chord detection — `isChordToken('G ')` is
+// a word", and they also break chord detection — `isChordToken('G ')` is
 // false, so a whole chord row can silently become lyrics.
 
-// Invisible characters that carry no text meaning at all.
-const ZERO_WIDTH = /[​‌‍⁠﻿]/g;
+// Invisible characters that carry no text meaning at all (ZWSP, ZWNJ, ZWJ,
+// word-joiner, BOM). Alternation rather than a character class: ZWNJ and ZWJ
+// sitting adjacent inside a class reads as a joined emoji sequence to eslint's
+// no-misleading-character-class rule.
+const ZERO_WIDTH = /\u200B|\u200C|\u200D|\u2060|\uFEFF/g;
 // Soft hyphen: a *hint* that a word may break here. Copied text keeps it even
 // though the break is gone.
-const SOFT_HYPHEN = /­/g;
+const SOFT_HYPHEN = /\u00AD/g;
 // Spaces that aren't the ASCII space: NBSP, the whole en-quad..hair-space run,
 // narrow NBSP, and the ideographic space.
-const ODD_SPACE = /[   -   　]/g;
+const ODD_SPACE = /[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g;
 // Windows-1252 smart punctuation, normalised so chord and lyric matching sees
 // plain ASCII (a curly apostrophe in "n-am" is fine, but a prime in "D'" is not).
 const SMART_QUOTES = [
