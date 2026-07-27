@@ -5,7 +5,7 @@
 > (stack, architecture, schema, finish/release workflows, gotchas) — it points
 > here for planning.
 >
-> _Last updated: 2026-06-28 · Current version: `0.14.0-beta.3` (on `beta`)._
+> _Last updated: 2026-07-27 · Current version: `0.17.0-beta.1` (on `beta`)._
 >
 > **Priority:** `P-1` above everything (currently: the New Song flow) · `P0`
 > drop-everything · `P1` high · `P2` medium · `P3` nice-to-have.
@@ -246,12 +246,86 @@ Open, actionable items. Cross-cutting concerns at the end.
 - Field char limits (Themes/Genres/Verses/Moment/Tags) — P3 · _Q: cap which, or leave free?_
 
 ### Song editor
-- 🔴🔴🔴 **New Song flow — full rethink. `P-1` — ABOVE EVERYTHING.** The current
-  create-a-song flow is the worst surface in the app ("right now it sucks"). It
-  needs redesigning from scratch: how you start, what's asked for and when, and
-  what you land on. This outranks every other item in this document — nothing on
-  the polish backlog ships before it. _Q: guided steps vs. blank editor vs.
-  import-first?_
+
+#### New Song flow — `P-1` (in progress, on `claude/new-song-flow-rework-psvk2h`)
+
+The rethink happened. Both halves ship behind Labs flags and are **off by
+default**; graduating them is the remaining `P-1` work.
+
+**The model we settled on.** A paste fills the section it lands in, and expands
+into siblings when the pasted text carries its own headings. A new song is one
+empty box, so a whole-song paste becomes the whole song *because of what the
+content says* — not because of a "new song mode". That dissolved the
+blank-vs-paste split we kept trying to design around, and it came out of the
+user's own framing ("for a new song it should paste the new song, for a section
+it should be for that specific section").
+
+Section types are inferred by **repetition, not position** — a block of lyrics
+that comes back is the chorus whatever order it arrives in, which answers "some
+songs start with the chorus". Everything else is a verse, and every label is a
+tap-to-change chip: solid where repetition backs it, dashed where it's a guess.
+
+**Shipped (Labs `addSongModal`)**
+- ✅ One Add-a-song surface: search over the catalog, Import + Blank underneath.
+  Whole-sheet drop target on desktop; mobile goes straight to the OS picker.
+- ✅ Mobile sheet shares the account panel's mechanics via `ui/MobileSheet`
+  (same surface, corners, entrance curve, drag-to-dismiss, safe-area).
+- ✅ Catalog picks skip the editor — saved and opened in the hub.
+
+**Shipped (Labs `pasteIntoChart`)**
+- ✅ Paste scoped to its section (`lib/pasteScope`).
+- ✅ **Paste review** (`editor/PasteReview`) — block chips, Join up / Drop,
+  section summary, one footer with both exits.
+- ✅ Repeat marks `//: … ://` (and `|: :|`, `://3`, `𝄆 𝄇`) become **play order**,
+  not punctuation: one section listed N times.
+- ✅ Empty state is a paste box with `+ Add section` above; no arrangements, no
+  import/browse/blank bar re-asking a question already answered.
+
+**Shipped (not flagged — fixes and polish)**
+- ✅ **PDF import** — `src/import/pdfChart.js` + `pdfLayout.js`. Chords found by
+  FONT, not regex; chord offsets exact where the generator splits the lyric run,
+  estimated from average character width where it doesn't. Two-column gutter
+  detection, Romanian section vocabulary (STROFA/REFREN/PRE-REFREN/PUNTE), play
+  order strip, title/key/writers/year. pdf.js lazy + excluded from precache.
+- ✅ **Four data-loss bugs**, all found by the user:
+  1. Save with unconverted paste text persisted the details and dropped the
+     lyrics. The primary button now *becomes* "Turn into chart".
+  2. An unlabelled paste vanished entirely — `parseSongMd` drops every line
+     before the first `## `, so a headerless body parsed to zero sections.
+     `ensureSections` guarantees at least one heading.
+  3. "+ Add section" wiped a pasted song. The button now only exists when the
+     box is empty, so the trap can't be reached.
+  4. The chart canvas rewrote the whole frontmatter on every edit, stamping the
+     parser's `Untitled`/`C` defaults onto an unnamed song. It now owns the body
+     and play order only.
+- ✅ **Play order always visible** (was behind a "Customize" link) and a
+  **vertical left rail from `xl`**, filling the dead space a wide monitor leaves
+  beside the sections. Real names, drag, `+` to repeat, `×` to drop.
+- ✅ Paste cleanup (`lib/cleanPastedText`) — zero-width chars, soft hyphens,
+  exotic spaces, hyphenated line-wraps.
+- ✅ Detail fields say what they *do*, on hover.
+- ✅ Key "needs a key" marker is the border's own colour (was a ring stacked
+  outside a border — uneven at the corners).
+
+**Left to do**
+- 🔴 **Graduate the two Labs flags** — `addSongModal`, `pasteIntoChart`. Needs a
+  real week of use first. `P-1`.
+- 🔴 **PDF import only works with `addSongModal` ON.** The legacy modal has its
+  own file handler that predates `lib/importFiles` and doesn't list `.pdf`.
+  Either wire it or accept the flag as the path. `P-1`.
+- 🟡 **Play order in the narrow strip still uses `shortCode`** (`V1`, `PC`) — the
+  rail fixed the labels, the `< xl` strip didn't. `P1`.
+- 🟡 **Validate the `xl` breakpoint** for the rail with real screens. `P2`.
+- 🟡 **Split-word repair was removed on purpose.** "ur ca" → "urca" can't be told
+  from two real words, because "ca" IS a Romanian word; the evidence test said
+  yes to both. Recoverable from git if a specific source justifies it. `P2`.
+- 🟡 **Repetition finds no chorus** when a source writes it out only once —
+  every block comes back a verse and the chips do the work. Fine, but worth
+  watching whether that's the common case. `P2`.
+- ⬜ Romanian **section labels** (STROFA/REFREN as display names over the
+  canonical types), tied to app language. `P2` — user: "a bit down the line".
+- ⬜ **Flag a song you need** from the setlist builder, for songs not yet in the
+  library. `P2` — user's idea, independent of this work.
 - ✅ **Preview ignores key/transpose** — relabel-only Key + explicit Transpose; preview honours it (shipped).
 - ✅ **New-song guardrails** — Title + Key start empty + mandatory; soft-remind bpm/time (shipped).
 - ✅ **Double "structure" concept** — one official control shared by Arrange + Advanced (shipped).
@@ -603,10 +677,56 @@ icons" library organization; mic **Key Finder**.
 device master/slave (OnCue), menubar customization, **Voice Control / TalkThrough AI**.
 
 ### Interop & import
-- **PCO (Planning Center) bridge**, **OnSong `.onsong` archive import**, **SongSelect `.usr`**,
-  **PDF-to-Markdown** best-effort engine, a **Migration Hub** onboarding screen.
+
+- 🔴 **Bulk import — the migration path. `P1`, and the next thing after the flags
+  graduate.** A church moving off Planning Center has ~200 PDFs. Today the
+  importer takes multiple files but has no folder drop and no batch review, so
+  200 songs means 200 trips through the editor — a 40-minute chore people
+  abandon halfway, leaving a half-migrated library, which is worse than not
+  starting. Needs: folder/`webkitdirectory` drop, a review table (title · key ·
+  detected format · warnings · checkbox), and a decision on where it lives —
+  _Q: a step in the welcome flow, or found later in Settings?_
+- ✅ **PDF-to-Markdown engine** — shipped, see §3 Song editor. Verified against a
+  real two-column Romanian chart. Scanned PDFs correctly report "no text to
+  read" rather than importing an empty song.
+- **Photo / scanned-chart import** — a vision model behind an edge function
+  (`supabase/functions/chart-ocr`), gated on the existing but unused
+  `smart-import` entitlement (`sync` tier). Tesseract was considered and
+  rejected: it misreads exactly the characters that matter (`Bb` → `B6`). `P2`.
+- ✅ **OnSong `.onsong` archive import** — the zip is inspected now, so an archive
+  of ChordPro no longer gets mistaken for a setlist bundle.
+- **PCO (Planning Center) bridge** (OAuth + API client — its own project),
+  **SongSelect `.usr`**, a **Migration Hub** onboarding screen with per-app export
+  instructions ("OnSong → Settings → Export → ChordPro archive").
+- **Multi-song PDFs** (a whole songbook in one file) — detected and explained
+  today, not split. Splitting is a feature in its own right. `P3`.
 - **Export as ChordPro** (`.cho`) for interoperability.
 - **i18n** — hooks + tier-1 languages (es, pt, ko, fr); RO/HU religious-use legal alignment.
+
+### Public-domain catalog (Browse)
+
+Design settled in this cycle; nothing built beyond the bundled demo songs behind
+`lib/catalog.js`, which is already async and abort-aware so the real thing drops
+in without touching callers.
+
+- **Server-backed, never cached.** A Postgres table + search RPC, not a static
+  index: the user's call ("it should work only when online, we might have a lot
+  of songs in different languages"), and it's also the only shape that scales
+  past a few languages. `unaccent` + `pg_trgm` are available on the project but
+  not yet enabled — both are needed for Romanian diacritic-insensitive search.
+  Add an explicit `NetworkOnly` Workbox rule rather than merely omitting the
+  endpoint, so a future catch-all can't start serving stale songs.
+- **Adds are copies, with provenance.** Full copy plus `source` +
+  `catalogVersion`, so "a corrected version exists" can be offered later. The
+  chart is the user's to edit; the credits are a record.
+- **Seven new frontmatter fields**: `source`, `license`, `sourceurl`,
+  `firstline`, `work`, `meter`, `tunename`. Additive, so MINOR not MAJOR.
+- **Content is the hard half, and it has legal teeth.** A Romanian *translation*
+  carries its own copyright even when the hymn is centuries old; most evangelical
+  hymnal translations are 20th century. Safe corpus to start: **colinde**
+  (traditional, anonymous, and December is a real deadline).
+- **"Popular this week" isn't real** — curated `featured` first; measured only
+  once there's traffic. Missed searches are the more valuable metric.
 
 ### Native & integrations (v3.5+)
 - **Capacitor** iOS/Android wrap, native OAuth (Apple/Google), native Bluetooth pedals, safe-area audit, store deployment.
@@ -629,6 +749,16 @@ toggles, margins/spacing toggles, section-per-page, reset-to-defaults, jsPDF fal
 
 ## 5. Recently shipped (context)
 
+- **New Song flow rework** (unreleased, on `claude/new-song-flow-rework-psvk2h`) —
+  the `P-1` rethink. One Add-a-song surface (Labs `addSongModal`) sharing the account
+  panel's sheet on mobile; **paste review** with repetition-inferred section chips
+  (Labs `pasteIntoChart`); **PDF import** (font-based chord detection, two-column
+  gutter split, Romanian section vocabulary, play-order strip); paste scoped to the
+  section it lands in; repeat marks `//: … ://` read as play order; play order always
+  visible and given a left rail from `xl`. Four data-loss bugs fixed — save dropping
+  pasted lyrics, an unlabelled paste vanishing through `parseSongMd`, "+ Add section"
+  wiping a paste, and the canvas stamping `Untitled`/`C` onto unnamed songs. See §3
+  Song editor for what's left.
 - **0.15.0-beta — A hands-on song editor** (on `claude/song-editor-cards-header-oyd2w9`) —
   **Song editor cards (Labs `songEditorCards`)**: identity/editor/preview cards, Aa-in-preview
   (writes global display), Source dialog for raw markdown, ⋮-overflow header declutter, mobile
