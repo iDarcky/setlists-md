@@ -2,10 +2,15 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
-## 0.17.0 — Libraries you can filter, select, and shape
+## 0.17.0 — A new way to add songs, and libraries you can shape
 *July 2026*
 
 ### Added
+- **Add a song, all on one screen (Labs)** — search, import and blank song together instead of behind tabs. Drop a file anywhere on it; on a phone Import opens your files straight away. Turn it on in Settings → Labs.
+- **Import a chord chart from a PDF** — drop one in and the chords, lyrics, sections, key, writers and play order come across. Romanian charts are understood too: STROFĂ, REFREN, PRE-REFREN and PUNTE become verses, choruses and bridges. Scanned or photographed PDFs say so rather than importing an empty song.
+- **Check a pasted song before it becomes a chart (Labs)** — paste anything and see the sections we found, each with a label you can tap to change. Blocks that repeat are marked as the chorus; join two blocks together or drop the ones that were website clutter.
+- **Repeat marks are understood** — `//: … ://` and `|: … :|` come off the lyrics and turn into the play order, so a chorus written once but sung twice is played twice. Counts like `://3` work as well.
+- **Play order beside your chart on a wide screen** — a list down the left with real section names: drag to reorder, ＋ to play a section again, × to drop it, click to jump there.
 - **Songs library + (Labs)** — extra columns (CCLI, year, length, arrangements, themes), a "used in setlists" count, group-by, data-quality quick filters and bulk tagging. Turn it on in Settings → Labs.
 - **Setlists library + (Labs)** — find a setlist by a song inside it, see total length, filter by draft or date, and duplicate or save a setlist as a template.
 - **All your filters in one place** — key, tempo, theme, language, year, scripture, moment and tags now live in a single Filters button on both libraries, as a full-height sheet on phones.
@@ -18,6 +23,11 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Account panel (Labs)** — drops the hamburger entirely: your avatar opens a single sheet that slides up from the bottom, with your Spaces and the menu together.
 
 ### Improved
+- **A new song starts with somewhere to paste** — one big box, with Add section above it, instead of a bar asking again whether you wanted to import or browse.
+- **Pasting from a website is tidied up on the way in** — invisible characters, odd spaces and words broken across a line wrap no longer end up in your lyrics.
+- **Song details say what they're for** — hover any field to see what it actually changes: Capo shows capo shapes, Length adds up to a setlist's running time, YouTube adds a backing track.
+- **The play order is always on screen**, instead of appearing only once you found a Customize link.
+- **The ＋ between lines is easier to hit** and stays visible on a tablet, where there's no hover to reveal it. Sections sit closer together, so the space belongs to your chords rather than to gaps.
 - **Setlist cards are now the default** — the card-based setlist editor and viewer have graduated from Labs; they're simply the setlist screens now.
 - **Your account lives in Settings** — one place to edit your profile instead of two.
 - **Songs and setlists look like siblings** — both lists now share one card design, one header layout, and the same frosted bar as you scroll.
@@ -26,6 +36,12 @@ A running log of what's new in setlists.md. Newest releases first.
 - **A tidier scrollbar** throughout the app.
 
 ### Fixed
+- **Saving no longer loses a pasted song.** Hitting Save with text still waiting in the paste box used to keep the details and quietly throw the lyrics away.
+- **A pasted song with no Verse or Chorus labels no longer disappears** when you turn it into a chart.
+- **Add section no longer wipes a song you just pasted** — it now only appears when the box is empty.
+- **Editing the play order no longer fills in "Untitled" and a key of C** on a song you hadn't named yet.
+- **The + button no longer opens a file dialog** the moment you tap it.
+- **The amber outline on an unset key is even on all sides** — it was doubling up at the corners.
 - **The selection circle is round again on phones** — it was stretching into a tall grey capsule and sitting on top of the row's content.
 - **The bulk action bar no longer turns into a black circle** floating over the list once several actions are showing.
 - **The "…" menu in that bar opens** — it was being clipped away behind the bar's own rounded edge.

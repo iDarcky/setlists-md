@@ -5,7 +5,7 @@
 > (stack, architecture, schema, finish/release workflows, gotchas) — it points
 > here for planning.
 >
-> _Last updated: 2026-07-27 · Current version: `0.17.0-beta.1` (on `beta`)._
+> _Last updated: 2026-07-27 · Current version: `0.17.0-beta.2` (on `beta`)._
 >
 > **Priority:** `P-1` above everything (currently: the New Song flow) · `P0`
 > drop-everything · `P1` high · `P2` medium · `P3` nice-to-have.
@@ -247,7 +247,7 @@ Open, actionable items. Cross-cutting concerns at the end.
 
 ### Song editor
 
-#### New Song flow — `P-1` (in progress, on `claude/new-song-flow-rework-psvk2h`)
+#### New Song flow — `P-1` (shipped to `beta` in `0.17.0-beta.2`; flags still off)
 
 The rethink happened. Both halves ship behind Labs flags and are **off by
 default**; graduating them is the remaining `P-1` work.
@@ -749,7 +749,7 @@ toggles, margins/spacing toggles, section-per-page, reset-to-defaults, jsPDF fal
 
 ## 5. Recently shipped (context)
 
-- **New Song flow rework** (unreleased, on `claude/new-song-flow-rework-psvk2h`) —
+- **New Song flow rework** (`0.17.0-beta.2`) —
   the `P-1` rethink. One Add-a-song surface (Labs `addSongModal`) sharing the account
   panel's sheet on mobile; **paste review** with repetition-inferred section chips
   (Labs `pasteIntoChart`); **PDF import** (font-based chord detection, two-column
