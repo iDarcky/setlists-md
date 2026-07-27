@@ -148,8 +148,6 @@ artist:
 key:
 ---
 
-## Verse 1
-
 `;
 const DEFAULT_MD = blankMd();
 
@@ -218,7 +216,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // opens straight onto the chart canvas, which accepts a pasted chord sheet
   // itself — one surface for writing and for pasting, with no convert step.
   const pasteIntoChart = chartDefaults.settings?.pasteIntoChart === true;
-  const [showNewSong, setShowNewSong] = useState(() => !song && cardsHeader && !draftFound && !pasteIntoChart);
+  const [showNewSong, setShowNewSong] = useState(() => !song && cardsHeader && !draftFound);
   // The paste text in New-song mode — kept here so the preview pane can render a
   // live parse of it before the user commits ("Turn into chart").
   const [newSongDraft, setNewSongDraft] = useState('');
@@ -323,12 +321,6 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
     }, 300);
     return () => clearTimeout(timer);
   }, [md]);
-
-  // Is there anything in the song yet? Drives the paste hint on a blank song.
-  // section.lines[] holds strings OR tab/modulate objects, so type-check first.
-  const songHasContent = useMemo(() => (preview?.sections || []).some(
-    s => (s.lines || []).some(l => (typeof l === 'string' ? l.trim().length > 0 : true)),
-  ), [preview]);
 
   // Debounced draft autosave. Only writes while dirty; cleared explicitly on
   // save/discard so we never wipe a recoverable draft on the first render.
@@ -859,7 +851,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
               onChange={setNewSongDraft}
               onApply={() => applyPastedText(newSongDraft)}
               onDismiss={() => setShowNewSong(false)}
-              onAddSection={() => { setNewSongDraft(''); setShowNewSong(false); }}
+              onAddSection={() => { setNewSongDraft(''); setBody('## Verse 1\n'); setShowNewSong(false); }}
               metaReady={titleSet && keySet}
             />
           );
@@ -873,7 +865,6 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
             lyricSize={canvasLyricSize}
             chordSize={canvasChordSize}
             onPasteChart={pasteIntoChart ? handleCanvasPasteChart : undefined}
-            pasteHint={pasteIntoChart && !song && !songHasContent}
           />
         );
     }
@@ -906,7 +897,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
       <SelectTrigger
         aria-label="Key"
         title={keyLocked ? 'Key is locked while editing — use Transpose to move the chords and the key together.' : undefined}
-        className={`${META_CTRL_CLS} w-auto gap-1 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'} ${keyLocked ? 'opacity-100 !cursor-default' : ''}`}
+        className={`${META_CTRL_CLS} w-auto gap-1 ${keySet ? '' : '!border-[var(--ds-amber-500,#d97706)]'} ${keyLocked ? 'opacity-100 !cursor-default' : ''}`}
       >
         {/* Show only the chosen key in the trigger (e.g. "Gb"), not the
             dual-spelling label, so the pill stays compact. */}
@@ -971,7 +962,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
       <SelectTrigger
         aria-label="Key"
         title={keyLocked ? 'Key is locked while editing — use Transpose to move the chords and the key together.' : undefined}
-        className={`h-9 min-h-9 max-sm:min-h-11 w-auto gap-1 px-2.5 rounded-[10px] !border-0 font-mono font-bold text-[13px] focus:!ring-0 ${keySet ? '' : 'ring-1 ring-[var(--ds-amber-500,#d97706)]'} ${keyLocked ? '!cursor-default' : ''}`}
+        className={`h-9 min-h-9 max-sm:min-h-11 w-auto gap-1 px-2.5 rounded-[10px] font-mono font-bold text-[13px] focus:!ring-0 ${keySet ? '!border-0' : '!border !border-[var(--ds-amber-500,#d97706)]'} ${keyLocked ? '!cursor-default' : ''}`}
         style={{ background: keySet ? 'var(--chord)' : 'var(--ds-gray-100)', color: keySet ? '#0a0a0a' : 'var(--ds-gray-500)' }}
       >
         <span className="text-[9px] font-sans font-bold uppercase tracking-[0.12em] opacity-60">Key</span>

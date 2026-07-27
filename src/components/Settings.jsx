@@ -658,7 +658,7 @@ function LabsPanel({ settings, update }) {
         description="Restructures the mobile menu into Account / Plan / App sections with a tappable account card, and gives the Space switcher a full-width sheet that scrolls after 3 spaces with New Space pinned to the bottom." />
       <LabsToggle settings={settings} update={update} flag="pasteIntoChart"
         label="Paste into the chart (prototype)"
-        description="Drops the separate paste box. A blank song opens straight on the chart, and pasting a chord sheet anywhere on the page fills it in — one surface for writing and pasting, no 'turn into chart' step. Undo restores what you had." />
+        description="Makes a paste land where you aim it: paste into a section and it fills that section, paste one that has its own headings and it expands into several. A new song still opens on the big paste box." />
       <LabsToggle settings={settings} update={update} flag="addSongModal"
         label="Add a song (one surface)"
         description="Replaces the tabbed New song modal with a single surface: a search box over the public-domain catalog, with Import and Blank underneath. Your own songs rank above the catalog, the whole sheet accepts dropped files, and picking a catalog song saves it and opens the hub instead of the editor." />

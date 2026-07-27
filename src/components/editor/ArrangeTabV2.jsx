@@ -586,7 +586,7 @@ const InlineSectionLyricEditor = memo(function InlineSectionLyricEditor({ initia
   );
 });
 
-export default function ArrangeTabV2({ md, onChange, customSectionTypes, notation = 'letters', lyricSize = 16, chordSize = 12, onPasteChart, pasteHint = false }) {
+export default function ArrangeTabV2({ md, onChange, customSectionTypes, notation = 'letters', lyricSize = 16, chordSize = 12, onPasteChart }) {
   const sectionTypes = useMemo(() => {
     const custom = (customSectionTypes || []).map(t => t?.name?.trim()).filter(Boolean);
     return [...SECTION_TYPES, ...custom];
@@ -1160,17 +1160,11 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
 
   return (
     <div className="flex flex-col min-h-0 h-full" onPaste={handleCanvasPaste}>
-      {pasteHint && (
-        <div className="shrink-0 mx-3 mt-2 mb-1 rounded-xl border border-dashed border-[var(--ds-gray-400)] px-3.5 py-2.5 text-copy-13 text-[var(--ds-gray-600)]">
-          Paste a chord sheet anywhere on this page and it becomes the chart —
-          or start typing, and tap above a line to place a chord.
-        </div>
-      )}
       {/* Structure — the song map. In Auto it follows the section cards below
           (compact jump chips); tap Customize to set a hand-made order with
           repeats, which then shows as draggable chips. Chord notation lives in
           the Aa display menu now, so this row stays calm. */}
-      {(() => {
+      {placements.length > 0 && (() => {
         const isCustom = song.structureMode === 'custom';
         // The play order is ALWAYS the thing on screen. It used to exist only
         // after you found a "Customize" link — so a chorus sung three times was
