@@ -139,7 +139,7 @@ export default function AddSongModal({
   onAddCatalogSong,
   onOpenSong,
   songs = [],
-  initialTab,
+  autoOpenPicker = false,
 }) {
   const isMobile = useIsMobile();
   const isOnline = useIsOnline();
@@ -187,14 +187,15 @@ export default function AddSongModal({
     fileRef.current?.click();
   }, []);
 
-  // Entry points that asked for import specifically (the editor's empty state)
-  // go straight to the picker rather than making the user click Import again.
+  // Only an entry point that asked for import BY NAME (the editor's empty-state
+  // Import button) goes straight to the picker. Opening the modal from a +
+  // button must never pop a file dialog the user didn't ask for.
   useEffect(() => {
-    if (initialTab === 'import' && !pickerOpened.current) {
+    if (autoOpenPicker && !pickerOpened.current) {
       pickerOpened.current = true;
       openPicker();
     }
-  }, [initialTab, openPicker]);
+  }, [autoOpenPicker, openPicker]);
 
   // Idle list. Curated, not measured — see the catalog plan.
   useEffect(() => {

@@ -1929,7 +1929,10 @@ export default function App() {
     goChart(song);
   };
 
-  const openNewSongModal = (initialTab = 'import') => {
+  // No default: opening the modal from a + button must not presume the user
+  // wants a file. Only an explicit 'import' request (the editor's empty-state
+  // Import button) pops the OS picker on open.
+  const openNewSongModal = (initialTab) => {
     setNewSongModal({ initialTab });
   };
 
@@ -3018,7 +3021,7 @@ export default function App() {
         <Suspense fallback={null}>
           {settings?.addSongModal ? (
             <AddSongModal
-              initialTab={newSongModal.initialTab}
+              autoOpenPicker={newSongModal.initialTab === 'import'}
               songs={songs}
               onClose={() => setNewSongModal(null)}
               onStartBlank={(title) => { setNewSongModal(null); goEditor(null, null, title); }}
