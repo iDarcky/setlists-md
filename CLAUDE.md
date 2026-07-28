@@ -760,6 +760,10 @@ The per-area detail is §6, explicitly *not* sequenced — read a section when y
 start that component's pass. Keep this file (`CLAUDE.md`) for dev/agent memory
 only: stack, architecture, schema, the finish/release workflows, and gotchas.
 
+**Starting a fresh session?** If `docs/NEXT-SESSION.md` exists, read it first —
+it's the short-lived handoff for whatever pass is in flight, and it links
+everything else in the right order.
+
 **`docs/COMPONENTS.md` is the definitive component map** — the app decomposed
 into 25 named components, each with its owner files, state, status and debt,
 plus the dependency order to work them in and a per-component definition of
