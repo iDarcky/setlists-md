@@ -2,24 +2,30 @@ import { sectionIdentity, headingText, resolveSectionColors } from '@/lib/sectio
 import SectionBlock from '@/features/chart/SectionBlock';
 
 /**
- * One section, wrapped in the user's chosen section style.
+ * One section — elements 3, 4 and 5.
  *
- * The chart body itself is `SectionBlock` — unchanged, and still the only place
- * that knows about chords, tabs, modulate markers and word-grouping. This owns
- * the frame around it, and the heading that is half the "where am I" mechanic
- * (the structure ribbon is the other half; both read from `sectionIdentity`).
+ * The chart body is `SectionBlock`, unchanged: it is still the only place that
+ * knows about chords, tabs, modulate markers and word-grouping. This owns the
+ * frame, the sticky heading, and the cue that rides on it.
+ *
+ * The heading is half the "where am I" mechanic; the structure ribbon is the
+ * other half. Both read their colour and code from `sectionIdentity`, so the
+ * highlighted chip and the heading it points at are the same object.
  */
 export default function ReaderSection({
-  section, index, style = 'bar', transpose, modOffset, config, settings,
-  repeatOf = -1, onJumpToFirst, tabColors, keepWhole = true, stickyTop = 0,
+  section, index, config, settings, transpose, modOffset,
+  repeatOf = -1, onJumpToFirst, tabColors,
 }) {
   const id = sectionIdentity(section.type, settings);
+  const style = config.sectionStyle;
   const colour = style === 'mono' ? 'var(--chart-subtle, var(--ds-gray-700))' : id.color;
   const heavy = id.heavy;
 
-  const loudNote = /^!/.test(String(section.note || '').trim());
-  const asReference = repeatOf >= 0 && config.duplicateSections === 'ref';
-  const condensed = repeatOf >= 0 && config.duplicateSections === 'condensed';
+  // Their team writes "!!! sing up an octave !!!" because the .md format has
+  // no emphasis. A leading ! is that convention, made real.
+  const loud = /^!/.test(String(section.note || '').trim());
+  const asReference = repeatOf >= 0 && config.repeats === 'ref';
+  const condensed = repeatOf >= 0 && config.repeats === 'condensed';
 
   const frame = {
     bar: { borderLeft: `${heavy ? 5 : 3}px solid ${colour}`, paddingLeft: '0.75rem' },
@@ -34,73 +40,35 @@ export default function ReaderSection({
     },
   }[style] || {};
 
-  // Sticky: the heading pins under the ribbon and stays until the next section
-  // pushes it out, so the section name is on screen even mid-scroll. This is
-  // the single strongest defence against losing your place.
-  const heading = (
-    <div
-      // NOT flex: the cue starts on the section's own line and wraps from
-      // there, like a sentence continuing. Flex would force it onto a row of
-      // its own the moment it got long.
-      className="mb-1.5"
-      style={config.stickyHeadings ? {
-        position: 'sticky',
-        top: stickyTop,
-        zIndex: 5,
-        // Opaque, or the lyrics scroll visibly through the pinned heading.
-        background: 'var(--chart-bg, var(--ds-background-100))',
-        paddingTop: '0.2rem',
-        paddingBottom: '0.2rem',
-        marginLeft: '-0.25rem',
-        paddingLeft: '0.25rem',
-      } : undefined}
+  const label = (
+    <span
+      className={config.heading === 'code'
+        ? 'font-bold uppercase tracking-wider font-mono'
+        : 'font-semibold tracking-wide first-letter:text-[1.15em]'}
+      style={{ color: colour, fontSize: heavy ? '0.86rem' : '0.76rem' }}
     >
-      {/* Full names read as words, not shouting — capitalised with a slightly
-          larger initial. Codes stay uppercase, since "c2" is not a word. */}
-      <span
-        className={config.headingStyle === 'code'
-          ? 'font-bold uppercase tracking-wider font-mono'
-          : 'font-semibold tracking-wide first-letter:text-[1.15em]'}
-        style={{ color: colour, fontSize: heavy ? '0.86rem' : '0.76rem' }}
-      >
-        {headingText(id, config.headingStyle)}
-      </span>
-      {section.note && config.notePosition !== 'peek' && (
-        <span
-          className="text-label-11 ml-2"
-          style={{
-            // Your `!!!` convention, promoted to a real emphasis level.
-            color: loudNote ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--ds-gray-700))',
-            fontStyle: loudNote ? 'normal' : 'italic',
-            fontWeight: loudNote ? 600 : 400,
-          }}
-        >
-          {section.note}
-        </span>
-      )}
-    </div>
+      {headingText(id, config.heading)}
+    </span>
   );
+
+  const outer = {
+    ...frame,
+    breakInside: 'avoid',
+    scrollMarginTop: '0.5rem',
+    // A chorus gets more air above it than a verse, so the page has a shape
+    // you can read without reading the words.
+    marginBottom: heavy ? '1.6rem' : '1rem',
+  };
 
   if (asReference) {
     return (
-      <div
-        id={`section-${index}`}
-        data-section-index={index}
-        style={{ ...frame, breakInside: keepWhole ? 'avoid' : 'auto', marginBottom: heavy ? '1.5rem' : '1.1rem' }}
-      >
+      <div id={`section-${index}`} data-section-index={index} style={outer}>
         <button
           type="button"
           onClick={onJumpToFirst}
           className="flex items-center gap-2 w-full text-left bg-transparent border-none p-0 cursor-pointer"
         >
-          <span
-            className={config.headingStyle === 'code'
-              ? 'font-bold uppercase tracking-wider font-mono text-label-11'
-              : 'font-semibold tracking-wide text-label-11 first-letter:text-[1.15em]'}
-            style={{ color: colour }}
-          >
-            {headingText(id, config.headingStyle)}
-          </span>
+          {label}
           <span className="text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">— as before</span>
         </button>
       </div>
@@ -108,21 +76,40 @@ export default function ReaderSection({
   }
 
   return (
-    <div
-      id={`section-${index}`}
-      data-section-index={index}
-      style={{
-        ...frame,
-        // 'section' keeps a chorus whole across the gutter; 'balanced' lets
-        // the columns even out and split it.
-        breakInside: keepWhole ? 'avoid' : 'auto',
-        scrollMarginTop: stickyTop,
-        // A chorus gets more air above it than a verse, so the page has a
-        // shape you can read without reading the words.
-        marginBottom: heavy ? '1.6rem' : '1rem',
-      }}
-    >
-      {heading}
+    <div id={`section-${index}`} data-section-index={index} style={outer}>
+      {/* Element 3 + 4. NOT flex: the cue starts on the section's own line and
+          wraps from there like a sentence continuing, rather than being forced
+          onto a row of its own the moment it gets long. */}
+      <div
+        className="mb-1.5"
+        style={config.sticky ? {
+          position: 'sticky',
+          top: 0,
+          zIndex: 5,
+          // Opaque, or lyrics scroll visibly through the pinned heading.
+          background: 'var(--chart-bg, var(--ds-background-100))',
+          paddingTop: '0.2rem',
+          paddingBottom: '0.2rem',
+          marginLeft: '-0.25rem',
+          paddingLeft: '0.25rem',
+        } : undefined}
+      >
+        {label}
+        {section.note && config.notes && (
+          <span
+            className="text-label-11 ml-2"
+            style={{
+              color: loud ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--ds-gray-700))',
+              fontStyle: loud ? 'normal' : 'italic',
+              fontWeight: loud ? 600 : 400,
+            }}
+          >
+            {section.note}
+          </span>
+        )}
+      </div>
+
+      {/* Elements 5 + 6 */}
       <SectionBlock
         section={section}
         transpose={transpose}
@@ -135,12 +122,11 @@ export default function ReaderSection({
         showChords={config.display.showChords}
         showLyrics
         showTabs
-        tabInstrument={config.tabInstrument || 'all'}
+        tabInstrument="all"
         chordEmphasis={settings?.stageMode === 'bassist' ? 'root' : 'full'}
-        // The heading above already renders the section name and cue, so
-        // SectionBlock must not render its own or they double up.
+        // The sticky heading above already renders the name and cue.
         hideHeading
-        inlineNotes={config.notePosition !== 'peek' && settings?.showInlineNotes !== false}
+        inlineNotes={config.notes}
         notePlacement={config.notePlacement}
         noteStyle={settings?.inlineNoteStyle || 'dashes'}
         sectionColors={resolveSectionColors(settings)}

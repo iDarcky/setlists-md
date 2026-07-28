@@ -74,7 +74,6 @@ export default function SharedSetlistViewer({ token, onExit, settings }) {
             setlist={setlist}
             songs={songs || []}
             settings={settings}
-            preset="live"
             onBack={() => setPlaying(false)}
             onFinish={() => setPlaying(false)}
           />

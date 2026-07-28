@@ -286,9 +286,12 @@ export const DEFAULT_SETTINGS = {
   // Labs: the one unified reader (Live/Rehearsal/Practice as saved bundles of
   // its settings) in place of the four forked reading surfaces.
   unifiedReader: false,
-  // Per-preset reader overrides: { live: {...}, rehearsal: {...}, practice: {...} }.
-  // Empty means "whatever the preset means" — see lib/readerConfig.js.
-  readerConfig: {},
+  // Reader display (Labs `unifiedReader`) — see lib/readerConfig.js.
+  readerHeader: 'std',
+  readerHeading: 'name',
+  readerSectionStyle: 'bar',
+  readerSticky: 'on',
+  readerNotes: 'on',
   firstDayOfWeek: 'sunday',
   clockFormat: '12h',
   helpPageSeen: false,

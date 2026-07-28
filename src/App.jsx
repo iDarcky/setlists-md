@@ -46,7 +46,6 @@ import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamNotifications } from '@/hooks/useTeamNotifications';
 import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
 import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/lib/billingCheckout';
-import { usePersistentView } from '@/lib/usePersistentView';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 
@@ -121,10 +120,6 @@ export default function App() {
   const canEdit = !team || isAdmin || isEditor;
   const isTeamAdmin = isAdmin;
   const confirm = useConfirm();
-  // Which reader preset was last used. Per-device on purpose — the knobs the
-  // preset holds sync (`readerConfig`), but "what I'm doing right now" is a
-  // property of this device, not of the account.
-  const [readerPreset, setReaderPreset] = usePersistentView('setlists-md:reader-preset', 'live');
   // Workspace move/copy picker: null, or { action: 'move'|'copy', songId }.
   const [moveCopyDialog, setMoveCopyDialog] = useState(null);
   // Native + iOS install affordance.
@@ -2334,8 +2329,6 @@ export default function App() {
               songs={songs}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
-              preset={view === 'setlist-practice' ? 'practice' : readerPreset}
-              onPresetChange={setReaderPreset}
               onBack={goBack}
               onFinish={(stats) => (view === 'setlist-practice'
                 ? goPracticeFinale(currentSetlist, stats)

@@ -73,9 +73,11 @@ export const PORTABLE_PREF_KEYS = [
   'accountPanel',
   'pasteIntoChart',
   'unifiedReader',
-  // The per-preset reader overrides follow the user across devices; which
-  // preset they last opened does NOT (that's per-device, in localStorage).
-  'readerConfig',
+  'readerHeader',
+  'readerHeading',
+  'readerSectionStyle',
+  'readerSticky',
+  'readerNotes',
 ];
 
 export function extractPortablePrefs(s) {

@@ -1,142 +1,69 @@
 import { describe, it, expect } from 'vitest';
-import {
-  resolveReaderConfig,
-  setReaderKnob,
-  resetReaderPreset,
-  isReaderPreset,
-  READER_PRESET_IDS,
-  READER_KNOBS,
-} from '@/lib/readerConfig';
+import { resolveReaderConfig, readerSettingKey, READER_KNOBS } from '@/lib/readerConfig';
 
-const wide = { wide: true, setlist: true };
+const wide = { wide: true };
+const narrow = { wide: false };
 
-describe('reader presets', () => {
-  it('exposes exactly the three presets', () => {
-    expect(READER_PRESET_IDS).toEqual(['live', 'rehearsal', 'practice']);
+describe('defaults', () => {
+  it('resolves a usable config from nothing', () => {
+    const c = resolveReaderConfig(undefined, wide);
+    expect(c.header).toBe('std');
+    expect(c.ribbon).toBe('top');
+    expect(c.sectionStyle).toBe('bar');
+    expect(c.sticky).toBe(true);
+    expect(c.notes).toBe(true);
   });
 
-  it('falls back to live for an unknown preset', () => {
-    expect(resolveReaderConfig({}, 'nonsense', wide).preset).toBe('live');
-    expect(isReaderPreset('nonsense')).toBe(false);
-  });
-
-  it('gives each preset a distinct character', () => {
-    const live = resolveReaderConfig({}, 'live', wide);
-    const reh = resolveReaderConfig({}, 'rehearsal', wide);
-    const prac = resolveReaderConfig({}, 'practice', wide);
-
-    // Live is the locked-down one.
-    expect(live.allowEdit).toBe(false);
-    expect(live.confirmExit).toBe(true);
-    expect(live.headerDensity).toBe('min');
-
-    // Rehearsal unlocks editing but has no practice tools.
-    expect(reh.allowEdit).toBe(true);
-    expect(reh.showTools).toBe(false);
-
-    // Practice is the only one with the tools bar.
-    expect(prac.showTools).toBe(true);
+  it('falls back to the default for a value this build does not understand', () => {
+    const c = resolveReaderConfig({ readerSectionStyle: 'hologram' }, wide);
+    expect(c.sectionStyle).toBe('bar');
   });
 });
 
-describe('user overrides', () => {
-  it('lets a saved knob beat the preset default', () => {
-    const settings = { readerConfig: { live: { sectionStyle: 'mono' } } };
-    expect(resolveReaderConfig(settings, 'live', wide).sectionStyle).toBe('mono');
+describe('settings drive it', () => {
+  it.each(Object.keys(READER_KNOBS))('reads every documented value for %s', (knob) => {
+    for (const value of READER_KNOBS[knob]) {
+      const c = resolveReaderConfig({ [readerSettingKey(knob)]: value }, wide);
+      // sticky/notes resolve to booleans; the rest pass through.
+      const got = typeof c[knob] === 'boolean' ? (c[knob] ? 'on' : 'off') : c[knob];
+      expect(got).toBe(value);
+    }
   });
 
-  it('scopes overrides to one preset', () => {
-    const settings = { readerConfig: { live: { sectionStyle: 'mono' } } };
-    expect(resolveReaderConfig(settings, 'rehearsal', wide).sectionStyle).toBe('block');
-  });
-
-  it('ignores a value this build does not understand', () => {
-    const settings = { readerConfig: { live: { sectionStyle: 'hologram' } } };
-    // Falls back to the preset default rather than rendering nothing.
-    expect(resolveReaderConfig(settings, 'live', wide).sectionStyle).toBe('bar');
-  });
-
-  it('writes a knob without touching other presets', () => {
-    const settings = { readerConfig: { rehearsal: { columnFlow: 'balanced' } } };
-    const next = setReaderKnob(settings, 'live', 'sectionStyle', 'card');
-    expect(next.live.sectionStyle).toBe('card');
-    expect(next.rehearsal.columnFlow).toBe('balanced');
-    // original untouched
-    expect(settings.readerConfig.live).toBeUndefined();
-  });
-
-  it('resets one preset back to its meaning', () => {
-    const settings = { readerConfig: { live: { sectionStyle: 'card' }, practice: { columnFlow: 'balanced' } } };
-    const next = resetReaderPreset(settings, 'live');
-    expect(next.live).toBeUndefined();
-    expect(next.practice.columnFlow).toBe('balanced');
+  it('reuses the existing app-wide keys rather than duplicating them', () => {
+    expect(readerSettingKey('ribbon')).toBe('structurePosition');
+    expect(readerSettingKey('repeats')).toBe('duplicateSections');
   });
 });
 
-describe('context overrides are physical, not preferences', () => {
-  it('places a note by the room available, never in a separate column', () => {
-    // A note always belongs to its own line. Wide gets a dotted leader out to
-    // the right edge; narrow puts it ABOVE the line so it is read before the
-    // line is sung rather than discovered after.
-    expect(resolveReaderConfig({}, 'live', wide).notePlacement).toBe('leader');
-    expect(resolveReaderConfig({}, 'live', { wide: false, setlist: true }).notePlacement).toBe('above');
+describe('context overrides are physical facts, not preferences', () => {
+  it('places a note by the room available', () => {
+    // A note belongs to its line either way; only the treatment changes.
+    expect(resolveReaderConfig({}, wide).notePlacement).toBe('leader');
+    expect(resolveReaderConfig({}, narrow).notePlacement).toBe('above');
   });
 
-  it('stops placing notes in the chart when they are set to peek', () => {
-    const settings = { readerConfig: { live: { notePosition: 'peek' } } };
-    expect(resolveReaderConfig(settings, 'live', wide).notePosition).toBe('peek');
-  });
-
-  it('moves a vertical ribbon to the top on a narrow screen', () => {
-    const settings = { readerConfig: { live: { structurePosition: 'left' } } };
-    expect(resolveReaderConfig(settings, 'live', { wide: false }).structurePosition).toBe('top');
-    expect(resolveReaderConfig(settings, 'live', wide).structurePosition).toBe('left');
+  it('moves a side ribbon to the top when there is no room for a rail', () => {
+    const s = { structurePosition: 'left' };
+    expect(resolveReaderConfig(s, narrow).ribbon).toBe('top');
+    expect(resolveReaderConfig(s, wide).ribbon).toBe('left');
   });
 
   it('forces one column on a narrow screen', () => {
-    const settings = { defaultColumns: 2 };
-    expect(resolveReaderConfig(settings, 'live', { wide: false }).columns).toBe(1);
-    expect(resolveReaderConfig(settings, 'live', wide).columns).toBe(2);
+    expect(resolveReaderConfig({ defaultColumns: 2 }, narrow).columns).toBe(1);
+    expect(resolveReaderConfig({ defaultColumns: 2 }, wide).columns).toBe(2);
   });
 
-  it('hands chrome to the hub when embedded', () => {
-    const settings = { readerConfig: { rehearsal: { headerDensity: 'full', exitStyle: 'pull' } } };
-    const c = resolveReaderConfig(settings, 'rehearsal', { wide: true, embedded: true });
-    expect(c.headerDensity).toBe('min');
-    expect(c.exitStyle).toBe('x');
-    expect(c.showTools).toBe(false);
-    expect(c.paged).toBe(false);
-  });
-
-  it('never leaves a device with no way out', () => {
-    const settings = { readerConfig: { live: { exitStyle: 'pull' } } };
-    // A pointer device cannot perform the gesture, so the button must return.
-    expect(resolveReaderConfig(settings, 'live', { wide: true, touch: false }).exitStyle).toBe('x');
-    // On touch, the user's choice stands.
-    expect(resolveReaderConfig(settings, 'live', { wide: true, touch: true }).exitStyle).toBe('pull');
-  });
-
-  it('only pages for a setlist', () => {
-    expect(resolveReaderConfig({}, 'live', { wide: true, setlist: true }).paged).toBe(true);
-    expect(resolveReaderConfig({}, 'live', { wide: true, setlist: false }).paged).toBe(false);
-  });
-});
-
-describe('every knob value round-trips', () => {
-  it.each(Object.keys(READER_KNOBS))('accepts every documented value for %s', (knob) => {
-    for (const value of READER_KNOBS[knob]) {
-      const settings = { readerConfig: setReaderKnob({}, 'live', knob, value) };
-      const cfg = resolveReaderConfig(settings, 'live', wide);
-      // The context layer may legitimately rewrite a value; on a wide setlist
-      // screen with no embedding, nothing should be rewritten.
-      expect(cfg[knob]).toBe(value);
-    }
+  it('drops the chrome entirely inside the Song Hub', () => {
+    // The hub owns identity, back-navigation and the tabs.
+    const c = resolveReaderConfig({ readerHeader: 'full' }, { wide: true, embedded: true });
+    expect(c.header).toBe('none');
   });
 });
 
 describe('display still flows through chartDisplay', () => {
   it('keeps stage-mode notation and type sizes', () => {
-    const c = resolveReaderConfig({ notation: 'nashville', defaultFontSize: 'L' }, 'live', wide);
+    const c = resolveReaderConfig({ notation: 'nashville', defaultFontSize: 'L' }, wide);
     expect(c.display.notation).toBe('nashville');
     expect(c.display.lyricFontSize).toBe(22);
   });

@@ -1,189 +1,97 @@
 import { resolveChartDisplay, resolveColumns } from '@/lib/chartDisplay';
 
 /**
- * The reader is ONE surface. "Live", "Rehearsal" and "Practice" are saved
- * bundles of its display settings — not separate screens.
+ * The reader's settings, resolved.
  *
- * Layering, outermost wins:
- *   1. PRESET_BASE[preset]        — what the preset means
- *   2. settings.readerConfig[preset] — the user's edits to that preset
- *   3. context                    — embedded / narrow-screen adjustments that
- *                                   are physical facts, not preferences
+ * Deliberately flat and small. An earlier cut of this carried three presets,
+ * seven knobs and a per-preset override map before the element-by-element
+ * design walk had settled anything — which buried the decisions we HAD made
+ * under scaffolding we hadn't. Presets can come back once the elements are
+ * finished; they are not needed to read a chart.
  *
- * `stageMode` (Leader / Vocalist / Bass …) is orthogonal: it says what you
- * play, this says what you're doing. They compose — stage mode still resolves
- * type sizes and notation through `resolveChartDisplay`.
+ * Everything here maps to one of elements 1–6:
+ *   1 top bar · 2 structure ribbon · 3 section heading
+ *   4 band cue · 5 inline notes · 6 chords
  */
 
-export const READER_PRESETS = [
-  { id: 'live', label: 'Live', blurb: 'Read and play. Locked down, exit always reachable.' },
-  { id: 'rehearsal', label: 'Rehearsal', blurb: 'Same viewer, unlocked. Quick edit and structure.' },
-  { id: 'practice', label: 'Practice', blurb: 'Chart plus metronome, count-in, loop and slow-down.' },
-];
-
-export const READER_PRESET_IDS = READER_PRESETS.map(p => p.id);
-export const DEFAULT_PRESET = 'live';
-
-/** Every knob the customize panel exposes, with its allowed values. */
 export const READER_KNOBS = {
-  headerDensity: ['min', 'std', 'full'],
-  structurePosition: ['top', 'bottom', 'left', 'right', 'off'],
-  sectionStyle: ['bar', 'block', 'card', 'mono'],
-  columnFlow: ['section', 'balanced'],
-  headingStyle: ['name', 'code'],
-  notePosition: ['inline', 'peek'],
-  duplicateSections: ['full', 'condensed', 'ref'],
-  exitStyle: ['both', 'x', 'pull'],
+  header: ['min', 'std', 'full'],          // 1
+  ribbon: ['top', 'bottom', 'left', 'right', 'off'],  // 2
+  heading: ['name', 'code'],               // 3
+  sectionStyle: ['bar', 'block', 'card', 'mono'],     // 3
+  sticky: ['on', 'off'],                   // 3
+  repeats: ['full', 'ref', 'condensed'],   // 3
+  notes: ['on', 'off'],                    // 4 + 5
 };
 
-const PRESET_BASE = {
-  live: {
-    headerDensity: 'min',
-    structurePosition: 'top',
-    sectionStyle: 'bar',
-    columnFlow: 'section',
-    headingStyle: 'name',
-    stickyHeadings: true,
-    notePosition: 'inline',
-    duplicateSections: 'ref',
-    exitStyle: 'both',
-    allowEdit: false,
-    showTools: false,
-    confirmExit: true,
-  },
-  rehearsal: {
-    headerDensity: 'std',
-    structurePosition: 'left',
-    sectionStyle: 'block',
-    columnFlow: 'section',
-    headingStyle: 'name',
-    stickyHeadings: true,
-    notePosition: 'inline',
-    duplicateSections: 'full',
-    exitStyle: 'x',
-    allowEdit: true,
-    showTools: false,
-    confirmExit: false,
-  },
-  practice: {
-    headerDensity: 'std',
-    structurePosition: 'top',
-    sectionStyle: 'bar',
-    columnFlow: 'section',
-    headingStyle: 'name',
-    stickyHeadings: true,
-    notePosition: 'inline',
-    duplicateSections: 'full',
-    exitStyle: 'x',
-    allowEdit: true,
-    showTools: true,
-    confirmExit: false,
-  },
+const DEFAULTS = {
+  header: 'std',
+  ribbon: 'top',
+  heading: 'name',
+  sectionStyle: 'bar',
+  sticky: 'on',
+  repeats: 'ref',
+  notes: 'on',
 };
 
-export function isReaderPreset(id) {
-  return READER_PRESET_IDS.includes(id);
+// Stored under these settings keys. `structurePosition` and
+// `duplicateSections` are existing app-wide settings, reused rather than
+// duplicated so the controls that already exist keep working.
+const KEY = {
+  header: 'readerHeader',
+  ribbon: 'structurePosition',
+  heading: 'readerHeading',
+  sectionStyle: 'readerSectionStyle',
+  sticky: 'readerSticky',
+  repeats: 'duplicateSections',
+  notes: 'readerNotes',
+};
+
+export function readerSettingKey(knob) {
+  return KEY[knob];
 }
 
-/** Clamp a stored knob value to something this build understands. */
-function pick(knob, value, fallback) {
+function pick(knob, value) {
   const allowed = READER_KNOBS[knob];
-  if (allowed && allowed.includes(value)) return value;
-  return fallback;
+  return allowed.includes(value) ? value : DEFAULTS[knob];
 }
 
 /**
- * Resolve the full reader configuration.
- *
- * @param settings  the app settings object
- * @param presetId  'live' | 'rehearsal' | 'practice'
- * @param ctx.embedded  true inside the Song Hub — the hub owns the chrome
- * @param ctx.wide      true when the viewport can carry two columns / a rail
- * @param ctx.setlist   true when reading a setlist (enables paging)
- * @param ctx.touch     whether the device can do the pull gesture at all
+ * @param settings   the app settings object
+ * @param ctx.wide   viewport can carry two columns / a side rail
+ * @param ctx.embedded  inside the Song Hub — the hub owns the chrome
  */
-export function resolveReaderConfig(settings, presetId, ctx = {}) {
-  const preset = isReaderPreset(presetId) ? presetId : DEFAULT_PRESET;
-  const base = PRESET_BASE[preset];
-  const saved = settings?.readerConfig?.[preset] || {};
-  const { embedded = false, wide = false, setlist = false, touch = true } = ctx;
-
-  const display = resolveChartDisplay(settings);
-
-  // The app-wide ribbon position (Settings → Labs) is the default for every
-  // preset; a per-preset override beats it. Without this fallback the global
-  // control looks broken — it writes a key the reader never reads.
-  const globalRibbon = pick('structurePosition', settings?.structurePosition, base.structurePosition);
+export function resolveReaderConfig(settings, ctx = {}) {
+  const { wide = false, embedded = false } = ctx;
 
   const cfg = {
-    preset,
-    headerDensity: pick('headerDensity', saved.headerDensity, base.headerDensity),
-    structurePosition: pick('structurePosition', saved.structurePosition, globalRibbon),
-    sectionStyle: pick('sectionStyle', saved.sectionStyle, base.sectionStyle),
-    columnFlow: pick('columnFlow', saved.columnFlow, base.columnFlow),
-    headingStyle: pick('headingStyle', saved.headingStyle, base.headingStyle),
-    stickyHeadings: saved.stickyHeadings ?? base.stickyHeadings,
-    notePosition: pick('notePosition', saved.notePosition, base.notePosition),
-    duplicateSections: pick('duplicateSections', saved.duplicateSections, base.duplicateSections),
-    exitStyle: pick('exitStyle', saved.exitStyle, base.exitStyle),
-    allowEdit: saved.allowEdit ?? base.allowEdit,
-    showTools: saved.showTools ?? base.showTools,
-    confirmExit: saved.confirmExit ?? base.confirmExit,
+    header: pick('header', settings?.[KEY.header]),
+    ribbon: pick('ribbon', settings?.[KEY.ribbon]),
+    heading: pick('heading', settings?.[KEY.heading]),
+    sectionStyle: pick('sectionStyle', settings?.[KEY.sectionStyle]),
+    sticky: pick('sticky', settings?.[KEY.sticky]) === 'on',
+    repeats: pick('repeats', settings?.[KEY.repeats]),
+    notes: pick('notes', settings?.[KEY.notes]) === 'on',
     columns: resolveColumns(settings?.defaultColumns, wide),
-    display,
-    // Songs are paged; sections inside a song still scroll. A five-verse hymn
-    // does not fit a phone screen at readable type.
-    paged: setlist && !embedded,
+    display: resolveChartDisplay(settings),
     embedded,
   };
 
-  // --- context overrides: physical facts, not preferences ---
+  // --- physical facts, not preferences ---
 
-  if (embedded) {
-    // The hub owns identity, back-navigation and the tab bar.
-    cfg.headerDensity = 'min';
-    cfg.exitStyle = 'x';
-    cfg.showTools = false;
-    cfg.confirmExit = false;
-  }
+  // The hub owns identity and back-navigation, so the reader shows no chrome.
+  if (embedded) cfg.header = 'none';
 
-  // There must always be a way out. Pull-only on a device that cannot pull is
-  // no exit at all — the precise failure this whole pass exists to remove — so
-  // the button comes back regardless of what the preset asked for.
-  if (cfg.exitStyle === 'pull' && !touch) cfg.exitStyle = 'x';
-
-  // A note stays attached to its own line either way; only the treatment
-  // changes with the room available. Wide gets a dotted leader out to the
-  // right edge (the printed-chart look, without a separate column); narrow
-  // puts the note ABOVE its line, so it is read before the line is sung
-  // rather than discovered after.
-  cfg.notePlacement = cfg.notePosition === 'peek' ? 'inline' : (wide ? 'leader' : 'above');
+  // A note belongs to its line either way; only the treatment changes with the
+  // room. Wide: out to the right edge on a dotted leader, like a printed
+  // chart. Narrow: above its line, so it is read before the line is sung.
+  cfg.notePlacement = wide ? 'leader' : 'above';
 
   if (!wide) {
     // A vertical rail has nowhere to live on a phone.
-    if (cfg.structurePosition === 'left' || cfg.structurePosition === 'right') {
-      cfg.structurePosition = 'top';
-    }
+    if (cfg.ribbon === 'left' || cfg.ribbon === 'right') cfg.ribbon = 'top';
     cfg.columns = 1;
   }
 
   return cfg;
-}
-
-/** Immutably write one knob for one preset, ready to hand to `update()`. */
-export function setReaderKnob(settings, presetId, knob, value) {
-  const preset = isReaderPreset(presetId) ? presetId : DEFAULT_PRESET;
-  const prev = settings?.readerConfig || {};
-  return {
-    ...prev,
-    [preset]: { ...(prev[preset] || {}), [knob]: value },
-  };
-}
-
-/** Drop a preset's overrides so it falls back to what the preset means. */
-export function resetReaderPreset(settings, presetId) {
-  const preset = isReaderPreset(presetId) ? presetId : DEFAULT_PRESET;
-  const next = { ...(settings?.readerConfig || {}) };
-  delete next[preset];
-  return next;
 }

@@ -374,7 +374,6 @@ export default function SongHub({
                 song={song}
                 settings={settings}
                 onUpdateSettings={onUpdateSettings}
-                preset="rehearsal"
                 selectedKey={selectedKey}
                 onSelectKey={setSelectedKey}
               />

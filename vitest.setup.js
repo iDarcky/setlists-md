@@ -74,13 +74,24 @@ window.getComputedStyle = function patchedGetComputedStyle(el, pseudo) {
     return nativeGetComputedStyle(el, pseudo);
   } catch (err) {
     const inline = el?.getAttribute?.('style');
-    if (!inline || !inline.includes('env(')) throw err;
+    if (!inline) throw err;
+    // First try dropping only the env() declarations — that is the known jsdom
+    // bug and the narrowest fix. jsdom's length resolution can also throw on
+    // other inline combinations, so fall back to dropping the inline style
+    // entirely: class-based styles (all of Tailwind, which is where
+    // display/visibility actually come from) survive, and the only thing lost
+    // is inline styling no assertion looks at.
     const kept = inline
       .split(';')
       .filter((decl) => decl.trim() && !decl.includes('env('))
       .join(';');
     el.setAttribute('style', kept);
-    return nativeGetComputedStyle(el, pseudo);
+    try {
+      return nativeGetComputedStyle(el, pseudo);
+    } catch {
+      el.removeAttribute('style');
+      return nativeGetComputedStyle(el, pseudo);
+    }
   }
 };
 

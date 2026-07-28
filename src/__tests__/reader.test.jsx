@@ -1,33 +1,23 @@
-// The reader, mounted.
+// The reader, mounted — elements 1–6 only.
 //
-// The point of this pass is that Live, Rehearsal and Practice stop being three
-// files and become three configurations of one component. That claim is only
-// worth anything if the three configurations actually render differently — and
-// if the one thing that was broken on stage (no way out once the header
-// collapsed) is now structurally impossible.
-//
-// These mount the real component against a real parsed song. They deliberately
-// cover the three presets rather than the 1,080 knob combinations: the presets
-// are the product, the panel is the escape hatch.
+// Scope is deliberate. An earlier cut carried presets, paging, a tools bar and
+// a note column before the element-by-element design had settled any of them,
+// which buried the decisions that HAD been made. These tests cover exactly the
+// six elements that are designed, so the next one has a clean floor to build on.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import Reader from '@/features/reader/Reader';
 import { songFromFlat } from '@/arrangements';
 
-// jsdom has no matchMedia; the reader uses it to decide whether there is room
-// for two columns, a side ribbon, and how notes attach to their lines.
+// jsdom has no matchMedia; the reader uses it for the wide/narrow split.
 function mockWidth(wide) {
   window.matchMedia = vi.fn().mockImplementation(query => ({
-    matches: wide,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
+    matches: wide, media: query, addEventListener: () => {}, removeEventListener: () => {},
   }));
 }
-
 beforeEach(() => { mockWidth(true); });
 
-function makeSong() {
+function makeSong(over = {}) {
   return songFromFlat({
     id: 'song-1',
     title: 'Amazing Grace',
@@ -41,200 +31,158 @@ function makeSong() {
       { type: 'Chorus', note: 'Full band', lines: ['[C]Praise the [G]Lord{!lift}'] },
       { type: 'Verse 2', lines: ["T'was [G]grace that [G7]taught my [C]heart"] },
     ],
+    ...over,
   });
 }
+const renderReader = (props = {}) =>
+  render(<Reader song={makeSong()} settings={{}} onExit={() => {}} {...props} />);
 
-const renderReader = (props = {}) => render(
-  <Reader song={makeSong()} settings={{}} onExit={() => {}} setlist {...props} />
-);
-
-describe('the exit is always reachable', () => {
-  // The defect this pass exists to kill: the ✕ lived in a header row that
-  // collapsed on scroll, so mid-service there was no visible way out.
-  it('renders an exit control in every preset', () => {
-    for (const preset of ['live', 'rehearsal', 'practice']) {
-      const { unmount } = renderReader({ preset });
-      expect(screen.getAllByRole('button', { name: 'Exit' }).length).toBeGreaterThan(0);
-      unmount();
-    }
+describe('element 1 — top bar', () => {
+  it('is one row: menu, title, key, tempo/time, exit', () => {
+    renderReader();
+    expect(screen.getByRole('button', { name: 'Display options' })).toBeTruthy();
+    expect(screen.getByText('Amazing Grace')).toBeTruthy();
+    // 'G' is also a chord in the chart, so assert the two facts that are
+    // unique to the bar. The key control itself is covered by the transpose test.
+    expect(screen.getByText('♩90')).toBeTruthy();
+    expect(screen.getByText('3/4')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Exit' })).toBeTruthy();
   });
 
-  it('calls onExit when it is used', async () => {
+  it('always offers a way out', () => {
     const onExit = vi.fn();
-    renderReader({ preset: 'live', onExit });
-    screen.getAllByRole('button', { name: 'Exit' })[0].click();
+    renderReader({ onExit });
+    fireEvent.click(screen.getByRole('button', { name: 'Exit' }));
     expect(onExit).toHaveBeenCalled();
   });
 
-  it('restores the ✕ when the user picks pull-only on a device that cannot pull', () => {
-    // Pull-only on a desktop would leave no exit at all — which is exactly the
-    // failure this pass exists to remove, reintroduced via a setting.
-    mockWidth(false);   // matchMedia false ⇒ (pointer: coarse) false ⇒ no touch
-    renderReader({ preset: 'live', settings: { readerConfig: { live: { exitStyle: 'pull' } } } });
-    expect(screen.getAllByRole('button', { name: 'Exit' }).length).toBeGreaterThan(0);
+  it('hands the chrome to the hub when embedded', () => {
+    renderReader({ embedded: true });
+    expect(screen.queryByRole('button', { name: 'Display options' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Exit' })).toBeNull();
+  });
+
+  it('header density has three distinct states', () => {
+    let r = render(<Reader song={makeSong()} settings={{ readerHeader: 'min' }} onExit={() => {}} />);
+    expect(screen.queryByText('Amazing Grace')).toBeNull();
+    r.unmount();
+
+    r = render(<Reader song={makeSong()} settings={{ readerHeader: 'std' }} onExit={() => {}} />);
+    expect(screen.getByText('Amazing Grace')).toBeTruthy();
+    expect(screen.queryByText('John Newton')).toBeNull();   // std ≠ full
+    r.unmount();
+
+    render(<Reader song={makeSong()} settings={{ readerHeader: 'full' }} onExit={() => {}} />);
+    expect(screen.getByText('John Newton')).toBeTruthy();
   });
 });
 
-describe('presets render differently', () => {
-  it('hides the title in Live and shows it in Rehearsal', () => {
-    const { unmount } = renderReader({ preset: 'live' });
-    expect(screen.queryByText(/Amazing Grace/)).toBeNull();
-    unmount();
-
-    renderReader({ preset: 'rehearsal' });
-    expect(screen.getByText(/Amazing Grace/)).toBeTruthy();
-  });
-
-  it('only shows the customize entry point once, and only outside the hub', () => {
-    const { unmount } = renderReader({ preset: 'live' });
-    expect(screen.getAllByRole('button', { name: 'Customize' })).toHaveLength(1);
-    unmount();
-
-    // Embedded in the Song Hub, the hub owns the chrome.
-    renderReader({ preset: 'live', embedded: true });
-    expect(screen.queryByRole('button', { name: 'Customize' })).toBeNull();
-  });
-});
-
-describe('the song still renders', () => {
-  it('follows the structure, repeats included', () => {
-    renderReader({ preset: 'rehearsal' });
-    // Structure plays Chorus twice; with duplicateSections 'full' both render.
-    expect(document.querySelectorAll('[data-section-index]')).toHaveLength(4);
-  });
-
-  it('renders chords above the lyrics', () => {
-    renderReader({ preset: 'rehearsal' });
-    expect(screen.getAllByText('G').length).toBeGreaterThan(0);
-    // The lyric is split into per-word spans (so a line only wraps at a space),
-    // so the word matches its own span and its parent.
-    expect(screen.getAllByText(/mazing/).length).toBeGreaterThan(0);
-  });
-
-  it('transposes when a different key is selected', () => {
-    renderReader({ preset: 'rehearsal', selectedKey: 'A' });
-    // G → A is +2; the chart should carry A where the source said G.
-    expect(screen.getAllByText('A').length).toBeGreaterThan(0);
-  });
-});
-
-// These exist because the first cut shipped six knobs that rendered nothing.
-// A setting that silently does nothing is worse than a missing setting: the
-// user changes it, sees no difference, and stops trusting the panel.
-describe('every knob actually changes the render', () => {
-  const withKnob = (knob, value, preset = 'rehearsal') =>
-    renderReader({ preset, settings: { readerConfig: { [preset]: { [knob]: value } } } });
-
-  it('headerDensity has three distinct states', () => {
-    const title = () => screen.queryByText('Amazing Grace');
-    const meta = () => screen.queryByText(/sections$/);
-
-    let r = withKnob('headerDensity', 'min');
-    expect(title()).toBeNull();
-    r.unmount();
-
-    r = withKnob('headerDensity', 'std');
-    expect(title()).toBeTruthy();
-    expect(meta()).toBeNull();   // std must NOT equal full
-    r.unmount();
-
-    withKnob('headerDensity', 'full');
-    expect(title()).toBeTruthy();
-    expect(meta()).toBeTruthy();
-  });
-
-  it('columnFlow switches whether a section may split across the gutter', () => {
-    let r = withKnob('columnFlow', 'section');
-    let s = document.querySelector('[data-section-index]');
-    expect(s.style.breakInside).toBe('avoid');
-    r.unmount();
-
-    withKnob('columnFlow', 'balanced');
-    s = document.querySelector('[data-section-index]');
-    expect(s.style.breakInside).toBe('auto');
-  });
-
-  it('notePosition peek gives a button instead of silently dropping notes', () => {
-    const r = withKnob('notePosition', 'inline');
-    expect(screen.queryByRole('button', { name: 'Notes' })).toBeNull();
-    r.unmount();
-
-    withKnob('notePosition', 'peek');
-    expect(screen.getByRole('button', { name: 'Notes' })).toBeTruthy();
-  });
-
-  it('sectionStyle changes the frame', () => {
-    const frameOf = () => document.querySelector('[data-section-index]').style;
-    let r = withKnob('sectionStyle', 'bar');
-    expect(frameOf().borderLeft).toBeTruthy();
-    r.unmount();
-
-    r = withKnob('sectionStyle', 'card');
-    expect(frameOf().background).toBeTruthy();
-    expect(frameOf().borderRadius).toBeTruthy();
-    r.unmount();
-
-    withKnob('sectionStyle', 'block');
-    expect(frameOf().borderRadius).toBeTruthy();
-  });
-
-  it('exitStyle x drops the pull gesture but keeps the button', () => {
-    withKnob('exitStyle', 'x');
-    expect(screen.getAllByRole('button', { name: 'Exit' }).length).toBeGreaterThan(0);
-  });
-
-  it('structurePosition off actually removes the ribbon', () => {
-    const r = withKnob('structurePosition', 'top');
+describe('element 2 — structure ribbon', () => {
+  it('renders and can be hidden', () => {
+    const r = renderReader();
     const before = document.querySelectorAll('[data-section-index]').length;
-    expect(before).toBeGreaterThan(0);
+    expect(before).toBe(4);   // structure plays Chorus twice
     r.unmount();
 
-    withKnob('structurePosition', 'off');
-    // Sections still render; only the ribbon goes.
+    render(<Reader song={makeSong()} settings={{ structurePosition: 'off' }} onExit={() => {}} />);
     expect(document.querySelectorAll('[data-section-index]').length).toBe(before);
   });
 });
 
-describe('chart display settings reach SectionBlock', () => {
-  it('sets both font-size vars — chords size off the var, not inherited size', () => {
-    renderReader({ preset: 'live', settings: { defaultFontSize: 'L', chordFontSize: 13 } });
-    const body = document.querySelector('[data-section-index]').parentElement;
-    expect(body.style.getPropertyValue('--chart-font-size-lyric')).toBe('22px');
-    expect(body.style.getPropertyValue('--chart-font-size-chord')).toBe('13px');
+describe('element 3 — section heading', () => {
+  it('pins when sticky and does not when it is off', () => {
+    let r = render(<Reader song={makeSong()} settings={{ readerSticky: 'on' }} onExit={() => {}} />);
+    let head = document.querySelector('[data-section-index] > div');
+    expect(head.style.position).toBe('sticky');
+    r.unmount();
+
+    render(<Reader song={makeSong()} settings={{ readerSticky: 'off' }} onExit={() => {}} />);
+    head = document.querySelector('[data-section-index] > div');
+    expect(head.style.position).toBe('');
   });
 
-  it('honours the app-wide ribbon position when the preset has no override', () => {
-    // Settings → Labs writes `structurePosition`; without a fallback the
-    // reader read only its own key and the global control looked broken.
-    renderReader({ preset: 'live', settings: { structurePosition: 'off' } });
-    expect(document.querySelectorAll('[data-section-index]').length).toBeGreaterThan(0);
+  it('switches between the name and the ribbon code', () => {
+    const r = render(<Reader song={makeSong()} settings={{ readerHeading: 'name' }} onExit={() => {}} />);
+    expect(screen.getAllByText('Verse 1').length).toBeGreaterThan(0);
+    r.unmount();
+
+    render(<Reader song={makeSong()} settings={{ readerHeading: 'code' }} onExit={() => {}} />);
+    expect(screen.getAllByText('V1').length).toBeGreaterThan(0);
+  });
+
+  it('changes the frame with the section style', () => {
+    const frame = () => document.querySelector('[data-section-index]').style;
+    let r = render(<Reader song={makeSong()} settings={{ readerSectionStyle: 'bar' }} onExit={() => {}} />);
+    expect(frame().borderLeft).toBeTruthy();
+    r.unmount();
+
+    render(<Reader song={makeSong()} settings={{ readerSectionStyle: 'card' }} onExit={() => {}} />);
+    expect(frame().borderRadius).toBeTruthy();
+  });
+
+  it('renders a repeat as a reference, and in full when asked', () => {
+    let r = render(<Reader song={makeSong()} settings={{ duplicateSections: 'ref' }} onExit={() => {}} />);
+    expect(screen.getAllByText('— as before').length).toBe(1);
+    r.unmount();
+
+    render(<Reader song={makeSong()} settings={{ duplicateSections: 'full' }} onExit={() => {}} />);
+    expect(screen.queryByText('— as before')).toBeNull();
   });
 });
 
-describe('notes', () => {
-  it('shows the section cue on the heading line, not in a separate column', () => {
-    renderReader({ preset: 'live' });
+describe('element 4 — band cue', () => {
+  it('shows on the heading line and can be turned off', () => {
+    const r = renderReader();
     expect(screen.getAllByText('Start soft').length).toBeGreaterThan(0);
-    // There is no note column any more — a note belongs to its line.
-    expect(screen.queryByRole('complementary', { name: 'Notes and cues' })).toBeNull();
+    r.unmount();
+
+    render(<Reader song={makeSong()} settings={{ readerNotes: 'off' }} onExit={() => {}} />);
+    expect(screen.queryByText('Start soft')).toBeNull();
   });
 
-  it('keeps the cue visible on a narrow screen too', () => {
-    mockWidth(false);
-    renderReader({ preset: 'live' });
-    expect(screen.getAllByText('Start soft').length).toBeGreaterThan(0);
-  });
-
-  it('renders a loud cue differently from an ordinary one', () => {
+  it('renders a loud cue differently', () => {
     // Their team writes "!!! sing up an octave !!!" because the format has no
-    // emphasis. A leading ! now means loud.
+    // emphasis. A leading ! is that convention, made real.
     const song = songFromFlat({
       id: 's', title: 'T', key: 'G',
       sections: [{ type: 'Verse 1', note: '!Sing up an octave', lines: ['[G]a'] }],
     });
-    render(<Reader song={song} settings={{}} onExit={() => {}} preset="live" />);
+    render(<Reader song={song} settings={{}} onExit={() => {}} />);
     const el = screen.getAllByText('!Sing up an octave')[0];
     expect(el.style.fontStyle).toBe('normal');
     expect(el.style.fontWeight).toBe('600');
+  });
+});
+
+describe('elements 5–6 — notes and chords', () => {
+  it('renders chords above the lyrics', () => {
+    renderReader();
+    expect(screen.getAllByText('G').length).toBeGreaterThan(0);
+    // Lyrics split into per-word spans so a line only wraps at a space.
+    expect(screen.getAllByText(/mazing/).length).toBeGreaterThan(0);
+  });
+
+  it('transposes on a key change', () => {
+    renderReader({ selectedKey: 'A' });
+    expect(screen.getAllByText('A').length).toBeGreaterThan(0);
+  });
+
+  it('sets both font-size vars — chords size off the var, not inherited size', () => {
+    render(<Reader song={makeSong()} settings={{ defaultFontSize: 'L', chordFontSize: 13 }} onExit={() => {}} />);
+    const body = document.querySelector('[data-section-index]').parentElement;
+    expect(body.style.getPropertyValue('--chart-font-size-lyric')).toBe('22px');
+    expect(body.style.getPropertyValue('--chart-font-size-chord')).toBe('13px');
+  });
+});
+
+describe('the display menu', () => {
+  it('opens under the bar rather than covering the chart', () => {
+    renderReader();
+    expect(screen.queryByRole('button', { name: 'Close display menu' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    expect(screen.getByRole('button', { name: 'Close display menu' })).toBeTruthy();
+    // The chart is still mounted and visible underneath — the whole point.
+    expect(document.querySelectorAll('[data-section-index]').length).toBe(4);
   });
 });
