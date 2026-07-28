@@ -10,7 +10,7 @@ import { useActiveSection } from '@/hooks/useActiveSection';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import { IconButton } from '@/ui/IconButton';
 import ReaderSection from './ReaderSection';
-import ReaderMenu from './ReaderMenu';
+import AaMenu from '@/features/chart/AaMenu';
 
 const MenuIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -50,7 +50,9 @@ export default function Reader({
   footer,
 }) {
   const scrollRef = useRef(null);
-  const [menuOpen, setMenuOpen] = useState(false);
+  // The Aa popover, anchored to the ☰ button — the same menu the Song Hub uses,
+  // with a Visual tab added for the element-level options.
+  const [aaAnchor, setAaAnchor] = useState(null);
   const wide = useMediaQuery('(min-width: 768px)');
 
   // Callers should pass a resolved arrangement view; accept a raw v2 song too,
@@ -114,23 +116,49 @@ export default function Reader({
   return (
     <div
       className="h-full flex flex-col overflow-hidden"
-      style={{ background: 'var(--chart-bg, var(--ds-background-100))', color: 'var(--chart-text, var(--ds-gray-1000))' }}
+      style={{
+        background: 'var(--chart-bg, var(--ds-background-100))',
+        color: 'var(--chart-text, var(--ds-gray-1000))',
+        // Re-map the app's foreground tokens onto the chart theme's, the way
+        // StageHeader does. Without this, anything inside the chart that reads
+        // --bg-1 / --border-1 / --text-* (the structure ribbon, most notably)
+        // renders in the APP theme — so a white chart under a dark app got
+        // dark pills on white paper.
+        '--bg-1': 'var(--chart-bg, var(--ds-background-100))',
+        '--bg-2': 'var(--chart-bg, var(--ds-background-200))',
+        '--border-1': 'var(--chart-rule, var(--ds-gray-300))',
+        '--border-3': 'var(--chart-subtle, var(--ds-gray-600))',
+        '--text-1': 'var(--chart-text, var(--ds-gray-1000))',
+        '--text-2': 'var(--chart-subtle, var(--ds-gray-700))',
+        '--ds-gray-1000': 'var(--chart-text, var(--ds-gray-1000))',
+        '--ds-gray-700': 'var(--chart-subtle, var(--ds-gray-700))',
+      }}
     >
       {/* ── Element 1 — top bar ─────────────────────────────────────────── */}
       {showChrome && (
         <div className="shrink-0 flex flex-col border-b" style={rule}>
           <div className="flex items-center gap-2 px-3 py-1.5">
-            <IconButton size="sm" aria-label="Display options" onClick={() => setMenuOpen(o => !o)}>
+            <IconButton
+              size="sm"
+              aria-label="Display options"
+              onClick={(e) => {
+                // Read the rect synchronously: React nulls currentTarget once
+                // the handler returns, so a lazy state updater would see null.
+                const rect = e.currentTarget.getBoundingClientRect();
+                setAaAnchor(a => (a ? null : rect));
+              }}
+            >
               <MenuIcon />
             </IconButton>
 
             {showTitle && (
-              <span className="min-w-0 flex-1 truncate text-label-13 font-semibold">{song.title}</span>
+              <span className="min-w-0 truncate text-label-13 font-semibold shrink">{song.title}</span>
             )}
 
-            {/* The key is the only live control up here, so it does NOT sit
-                beside the exit — tempo and time are inert and buffer it. */}
-            <span className="ml-auto shrink-0 flex items-center gap-2 text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
+            {/* Key, tempo and time sit WITH the title, not out by the exit —
+                the key is the only live control here and a mis-tap next to ✕
+                either transposes mid-song or leaves the service. */}
+            <span className="shrink-0 flex items-center gap-2 text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
               {onSelectKey ? (
                 <Select value={displayKey} onValueChange={onSelectKey}>
                   <SelectTrigger
@@ -152,6 +180,8 @@ export default function Reader({
               {song.time && <span className="tabular-nums">{song.time}</span>}
             </span>
 
+            <span className="flex-1" />
+
             {onExit && (
               <IconButton size="sm" aria-label="Exit" onClick={onExit}>
                 <CloseIcon />
@@ -169,18 +199,6 @@ export default function Reader({
         </div>
       )}
 
-      {/* The menu sits UNDER the bar and pushes the chart down rather than
-          covering it — you can see every change as you make it. */}
-      {showChrome && (
-        <ReaderMenu
-          open={menuOpen}
-          onClose={() => setMenuOpen(false)}
-          config={config}
-          settings={settings}
-          onUpdateSettings={onUpdateSettings}
-        />
-      )}
-
       {/* ── Element 2 — structure ribbon ────────────────────────────────── */}
       {config.ribbon === 'top' && ribbonNode && (
         <div className="shrink-0 px-3 py-1.5 border-b overflow-hidden" style={rule}>{ribbonNode}</div>
@@ -194,7 +212,7 @@ export default function Reader({
         {/* ── Elements 3–6 — the song ──────────────────────────────────── */}
         <div
           ref={scrollRef}
-          className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-3.5 py-3"
+          className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden"
           style={{
             fontSize: config.display.lyricFontSize,
             // SectionBlock sizes chords off these vars, not inherited size.
@@ -205,6 +223,7 @@ export default function Reader({
               : null),
           }}
         >
+          <div className="mx-auto w-full max-w-[68rem] px-4 sm:px-8 py-3">
           {ordered.map((section, idx) => (
             <ReaderSection
               key={`${section.id || section.type}-${idx}`}
@@ -219,6 +238,7 @@ export default function Reader({
               tabColors={tabColors}
             />
           ))}
+          </div>
         </div>
 
         {config.ribbon === 'right' && ribbonNode && (
@@ -232,6 +252,24 @@ export default function Reader({
 
       {footer && (
         <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-t" style={rule}>{footer}</div>
+      )}
+
+      {aaAnchor && (
+        <AaMenu
+          visualEdit
+          anchorRect={aaAnchor}
+          onClose={() => setAaAnchor(null)}
+          settings={settings}
+          onUpdateSettings={onUpdateSettings}
+          lyricSize={config.display.lyricFontSize}
+          onLyricSize={(v) => onUpdateSettings?.('defaultFontSize', v)}
+          chordSize={config.display.chordFontSize}
+          onChordSize={(v) => onUpdateSettings?.('chordFontSize', v)}
+          columns={settings?.defaultColumns ?? 'auto'}
+          onColumns={(v) => onUpdateSettings?.('defaultColumns', v)}
+          notation={config.display.notation}
+          onNotation={(v) => onUpdateSettings?.('notation', v)}
+        />
       )}
     </div>
   );

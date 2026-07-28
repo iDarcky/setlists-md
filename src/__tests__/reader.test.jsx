@@ -9,6 +9,13 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import Reader from '@/features/reader/Reader';
 import { songFromFlat } from '@/arrangements';
 
+// The Aa popover gates Pro chart styling behind useEntitlement -> useTeam,
+// which needs a provider the app supplies at its root but a unit render does not.
+vi.mock('@/hooks/useEntitlement', () => ({
+  useEntitlement: () => ({ allowed: true, requiredPlan: 'free', currentPlan: 'free' }),
+  checkEntitlement: () => true,
+}));
+
 // jsdom has no matchMedia; the reader uses it for the wide/narrow split.
 function mockWidth(wide) {
   window.matchMedia = vi.fn().mockImplementation(query => ({
@@ -169,20 +176,29 @@ describe('elements 5–6 — notes and chords', () => {
 
   it('sets both font-size vars — chords size off the var, not inherited size', () => {
     render(<Reader song={makeSong()} settings={{ defaultFontSize: 'L', chordFontSize: 13 }} onExit={() => {}} />);
-    const body = document.querySelector('[data-section-index]').parentElement;
-    expect(body.style.getPropertyValue('--chart-font-size-lyric')).toBe('22px');
-    expect(body.style.getPropertyValue('--chart-font-size-chord')).toBe('13px');
+    // The vars live on the scroll container, above the max-width wrapper.
+    const scroller = document.querySelector('.overflow-y-auto');
+    expect(scroller.style.getPropertyValue('--chart-font-size-lyric')).toBe('22px');
+    expect(scroller.style.getPropertyValue('--chart-font-size-chord')).toBe('13px');
   });
 });
 
 describe('the display menu', () => {
-  it('opens under the bar rather than covering the chart', () => {
+  it('opens the shared Aa popover, with the chart still visible behind it', () => {
     renderReader();
-    expect(screen.queryByRole('button', { name: 'Close display menu' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Display options' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    expect(screen.getByRole('button', { name: 'Close display menu' })).toBeTruthy();
-    // The chart is still mounted and visible underneath — the whole point.
+    expect(screen.getByRole('dialog', { name: 'Display options' })).toBeTruthy();
+    // A popover, not a full sheet — the chart it changes stays on screen.
     expect(document.querySelectorAll('[data-section-index]').length).toBe(4);
+  });
+
+  it('carries the Visual tab for the element-level options', () => {
+    renderReader();
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Visual' }));
+    expect(screen.getByRole('button', { name: 'Boxes' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Letters' })).toBeTruthy();
   });
 });

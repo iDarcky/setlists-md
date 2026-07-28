@@ -84,6 +84,18 @@ function Swatches({ activeValue, onPick }) {
   );
 }
 
+function Pick({ active, onClick, children }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={active}
+      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${
+        active
+          ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+          : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}>
+      {children}
+    </button>
+  );
+}
+
 function ProHint({ children }) {
   return <p className="text-copy-13 text-[var(--text-2)] m-0">{children}</p>;
 }
@@ -96,6 +108,10 @@ export default function AaMenu({
   // When false, hide chart-only controls (theme, columns, fonts, colours,
   // advanced) — used by the editing-canvas Aa, which only needs notation + sizes.
   chartControls = true,
+  // Adds a "Visual" tab holding the reader's element-level options (structure
+  // ribbon placement + style, section heading). Opt-in so the Song Hub's Aa is
+  // unchanged; the new reader turns it on.
+  visualEdit = false,
 }) {
   const [tab, setTab] = useState('page');
   const { allowed: styleAllowed } = useEntitlement('chart-style');
@@ -146,6 +162,7 @@ export default function AaMenu({
           {tabBtn('page', 'Page')}
           {tabBtn('lyrics', 'Lyrics')}
           {tabBtn('chords', 'Chords')}
+          {visualEdit && tabBtn('visual', 'Visual')}
         </div>
 
         <div className="p-3.5 overflow-y-auto">
@@ -182,6 +199,54 @@ export default function AaMenu({
                 {/* TODO: chord fingering-diagrams display — pulled for now,
                     revisit (tracked in docs/PLAN.md). */}
               </>)}
+            </>
+          )}
+
+          {tab === 'visual' && (
+            <>
+              <Label>Structure — where</Label>
+              <div className="flex gap-1.5 flex-wrap">
+                {[['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['off', 'Hidden']].map(o => (
+                  <Pick key={o[0]} active={(settings?.structurePosition || 'top') === o[0]}
+                    onClick={() => onUpdateSettings?.('structurePosition', o[0])}>{o[1]}</Pick>
+                ))}
+              </div>
+
+              <Label>Structure — style</Label>
+              <div className="flex gap-1.5 flex-wrap">
+                {[['codes', 'Boxes'], ['chips', 'Chips'], ['numbered', 'Inline'], ['dots', 'Dots'], ['dotlabel', 'Dots+label']].map(o => (
+                  <Pick key={o[0]} active={(settings?.ribbonStyle || 'codes') === o[0]}
+                    onClick={() => onUpdateSettings?.('ribbonStyle', o[0])}>{o[1]}</Pick>
+                ))}
+              </div>
+
+              <Label>Section heading</Label>
+              <div className="flex gap-1.5 flex-wrap">
+                {[['name', 'Full name'], ['code', 'Letters']].map(o => (
+                  <Pick key={o[0]} active={(settings?.readerHeading || 'name') === o[0]}
+                    onClick={() => onUpdateSettings?.('readerHeading', o[0])}>{o[1]}</Pick>
+                ))}
+                {[['on', 'Pinned'], ['off', 'Not pinned']].map(o => (
+                  <Pick key={o[0]} active={(settings?.readerSticky || 'on') === o[0]}
+                    onClick={() => onUpdateSettings?.('readerSticky', o[0])}>{o[1]}</Pick>
+                ))}
+              </div>
+
+              <Label>Section style</Label>
+              <div className="flex gap-1.5 flex-wrap">
+                {[['bar', 'Bar'], ['block', 'Block'], ['card', 'Card'], ['mono', 'Grey']].map(o => (
+                  <Pick key={o[0]} active={(settings?.readerSectionStyle || 'bar') === o[0]}
+                    onClick={() => onUpdateSettings?.('readerSectionStyle', o[0])}>{o[1]}</Pick>
+                ))}
+              </div>
+
+              <Label>Repeated sections</Label>
+              <div className="flex gap-1.5 flex-wrap">
+                {[['full', 'In full'], ['ref', 'As before'], ['condensed', 'Condensed']].map(o => (
+                  <Pick key={o[0]} active={(settings?.duplicateSections || 'ref') === o[0]}
+                    onClick={() => onUpdateSettings?.('duplicateSections', o[0])}>{o[1]}</Pick>
+                ))}
+              </div>
             </>
           )}
 

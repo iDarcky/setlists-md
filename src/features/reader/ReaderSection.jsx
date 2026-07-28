@@ -23,7 +23,12 @@ export default function ReaderSection({
 
   // Their team writes "!!! sing up an octave !!!" because the .md format has
   // no emphasis. A leading ! is that convention, made real.
-  const loud = /^!/.test(String(section.note || '').trim());
+  const rawCue = String(section.note || '');
+  const loud = /^!/.test(rawCue.trim());
+  // Element 4 is a cue, not an essay. Long enough for a real instruction,
+  // short enough that it can never push the song off the screen.
+  const CUE_MAX = 240;
+  const cue = rawCue.length > CUE_MAX ? `${rawCue.slice(0, CUE_MAX).trimEnd()}…` : rawCue;
   const asReference = repeatOf >= 0 && config.repeats === 'ref';
   const condensed = repeatOf >= 0 && config.repeats === 'condensed';
 
@@ -95,7 +100,7 @@ export default function ReaderSection({
         } : undefined}
       >
         {label}
-        {section.note && config.notes && (
+        {cue && config.notes && (
           <span
             className="text-label-11 ml-2"
             style={{
@@ -104,7 +109,7 @@ export default function ReaderSection({
               fontWeight: loud ? 600 : 400,
             }}
           >
-            {section.note}
+            {cue}
           </span>
         )}
       </div>

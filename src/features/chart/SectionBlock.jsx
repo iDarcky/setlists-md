@@ -175,6 +175,10 @@ export default function SectionBlock({
     const pairs = showLyrics ? parsedPairs : parsedPairs.map(p => ({ ...p, text: '' }));
     const hasLyrics = pairs.some(p => p.text.trim());
 
+    // A chord only needs clearance when ANOTHER chord follows it immediately —
+    // otherwise the trailing space just shoves the lyrics apart for nothing.
+    // A long chord with no neighbour is allowed to overhang the words after it,
+    // because there is nothing on the chord row to collide with.
     const renderChord = (rawChord, padded) => {
       let chord = notateChord(rawChord, { key: songKey, notation: notationMode, transpose: effectiveTranspose, accidentals });
       // Bass "root emphasis": collapse each chord to the note a bassist plays —
@@ -187,6 +191,9 @@ export default function SectionBlock({
             paddingBottom: hasLyrics ? 3 : 0,
             fontFamily: 'var(--chart-font-chord, var(--font-mono))',
             fontSize: 'var(--chart-font-size-chord, 0.95em)',
+            // `padded === false` means nothing follows on the chord row, so the
+            // chord contributes no width and simply overhangs.
+            ...(padded === false ? { display: 'block', width: 0, overflow: 'visible' } : null),
           }}
         >
           {chord}{padded ? '\u2003' : ''}
@@ -208,14 +215,28 @@ export default function SectionBlock({
         {inlineNotes && inlineNote && notePlacement === 'above' && noteAbove(inlineNote)}
         <div className="flex flex-wrap items-end">
           {hasLyrics
-            ? groupChordWords(pairs).map((w, wi) => (
+            ? (() => {
+                const words = groupChordWords(pairs);
+                // Flatten to decide, per chord, whether another chord follows
+                // right after it. Only then does it need trailing clearance.
+                const flat = [];
+                words.forEach((w, wi) => {
+                  if (w.space) { flat.push({ wi, si: -1, chord: null }); return; }
+                  w.segments.forEach((seg, si) => flat.push({ wi, si, chord: seg.chord }));
+                });
+                const nextChordAdjacent = (wi, si) => {
+                  const at = flat.findIndex(f => f.wi === wi && f.si === si);
+                  const next = flat.slice(at + 1).find(f => f.si !== -1);
+                  return !!(next && next.chord);
+                };
+                return words.map((w, wi) => (
                 w.space ? (
                   <span key={wi} style={{ whiteSpace: 'pre' }}>{w.space}</span>
                 ) : (
                   <span key={wi} className="inline-flex items-end" style={{ whiteSpace: 'nowrap' }}>
                     {w.segments.map((seg, si) => (
                       <span key={si} className="inline-flex flex-col justify-end">
-                        {seg.chord && renderChord(seg.chord, true)}
+                        {seg.chord && renderChord(seg.chord, nextChordAdjacent(wi, si))}
                         <span
                           className="whitespace-pre"
                           style={{
@@ -229,7 +250,7 @@ export default function SectionBlock({
                     ))}
                   </span>
                 )
-              ))
+              )); })()
             : pairs.map((p, i) => (
                 <span key={i} className="inline-flex flex-col justify-end">
                   {p.chord && renderChord(p.chord, true)}
