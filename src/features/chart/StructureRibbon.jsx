@@ -155,8 +155,18 @@ export function StructureRibbon({
               {i > 0 && <span className="text-[var(--ds-gray-500)] mx-1 text-[11px]">·</span>}
               <Tag
                 {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index) } : {})}
-                className={cn('bg-transparent border-none p-0 font-bold text-[11px] font-mono', active && 'underline underline-offset-4', onSelect && 'cursor-pointer hover:opacity-80')}
-                style={{ color: s.b, opacity: active || activeIndex == null ? 1 : 0.7 }}
+                className={cn(
+                  'bg-transparent border-none p-0 font-bold text-[11px] font-mono',
+                  active && !activeFill && 'underline underline-offset-4',
+                  activeFill && active && 'px-1.5 py-0.5 rounded-[5px]',
+                  onSelect && 'cursor-pointer hover:opacity-80',
+                )}
+                style={{
+                  ...(activeFill && active
+                    ? { background: s.b, color: 'var(--bg-1)' }
+                    : { color: s.b }),
+                  opacity: active || activeIndex == null ? 1 : 0.7,
+                }}
               >
                 {compactLabel(run.name)}
                 {run.count > 1 && <span className="opacity-70">×{run.count}</span>}
@@ -187,11 +197,11 @@ export function StructureRibbon({
               active && "ring-2 ring-offset-1 ring-offset-transparent"
             )}
             style={{
-              borderColor: s.br,
-              background: s.bg,
-              color: s.d,
+              ...(activeFill && active
+                ? { background: s.b, borderColor: s.b, color: 'var(--bg-1)' }
+                : { borderColor: s.br, background: s.bg, color: s.d }),
               opacity: active || activeIndex == null ? 1 : 0.72,
-              ...(active ? { boxShadow: `0 0 0 2px ${s.br}` } : {}),
+              ...(active && !activeFill ? { boxShadow: `0 0 0 2px ${s.br}` } : {}),
             }}
           >
             {labelOf(run.name)}

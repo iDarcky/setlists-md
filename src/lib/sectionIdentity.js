@@ -33,9 +33,7 @@ export function sectionIdentity(type, settings) {
  * plainly while "C2" ties tightest to the ribbon.
  */
 export function headingText(identity, style = 'name') {
-  if (style === 'code') return identity.code;
-  if (style === 'both') return `${identity.code}  ${identity.name}`;
-  return identity.name;
+  return style === 'code' ? identity.code : identity.name;
 }
 
-export const HEADING_STYLES = ['name', 'code', 'both'];
+export const HEADING_STYLES = ['name', 'code'];

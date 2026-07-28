@@ -51,9 +51,13 @@ export default function ReaderSection({
         paddingLeft: '0.25rem',
       } : undefined}
     >
+      {/* Full names read as words, not shouting — capitalised with a slightly
+          larger initial. Codes stay uppercase, since "c2" is not a word. */}
       <span
-        className="font-bold uppercase tracking-wider"
-        style={{ color: colour, fontSize: heavy ? '0.8rem' : '0.7rem' }}
+        className={config.headingStyle === 'code'
+          ? 'font-bold uppercase tracking-wider font-mono'
+          : 'font-semibold tracking-wide first-letter:text-[1.15em]'}
+        style={{ color: colour, fontSize: heavy ? '0.86rem' : '0.76rem' }}
       >
         {headingText(id, config.headingStyle)}
       </span>
@@ -77,7 +81,12 @@ export default function ReaderSection({
           onClick={onJumpToFirst}
           className="flex items-center gap-2 w-full text-left bg-transparent border-none p-0 cursor-pointer"
         >
-          <span className="font-bold uppercase tracking-wider text-label-11" style={{ color: colour }}>
+          <span
+            className={config.headingStyle === 'code'
+              ? 'font-bold uppercase tracking-wider font-mono text-label-11'
+              : 'font-semibold tracking-wide text-label-11 first-letter:text-[1.15em]'}
+            style={{ color: colour }}
+          >
             {headingText(id, config.headingStyle)}
           </span>
           <span className="text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">— as before</span>

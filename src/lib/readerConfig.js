@@ -30,7 +30,7 @@ export const READER_KNOBS = {
   structurePosition: ['top', 'bottom', 'left', 'right', 'off'],
   sectionStyle: ['bar', 'block', 'card', 'mono'],
   columnFlow: ['section', 'balanced'],
-  headingStyle: ['name', 'code', 'both'],
+  headingStyle: ['name', 'code'],
   notePosition: ['margin', 'inline', 'peek'],
   duplicateSections: ['full', 'condensed', 'ref'],
   exitStyle: ['both', 'x', 'pull'],

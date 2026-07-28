@@ -24,7 +24,7 @@ const GROUPS = [
   },
   {
     label: 'Section heading', knob: 'headingStyle',
-    options: [['name', 'Chorus'], ['code', 'C2'], ['both', 'C2  Chorus']],
+    options: [['name', 'Chorus'], ['code', 'C2']],
   },
   {
     label: 'Notes', knob: 'notePosition',

@@ -72,6 +72,11 @@ export function useChartTheme(settings) {
     // and the hairline flips with the background's lightness.
     root.style.setProperty('--chart-header-bg', bg);
     root.style.setProperty('--chart-header-border', isLightColor(bg) ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)');
+    // Every rule *inside* the chart — section frames, column rules, the note
+    // margin — needs to track the chart theme too, for the same reason. A
+    // slightly stronger hairline than the header's, since these sit on the
+    // chart body rather than under a bar.
+    root.style.setProperty('--chart-rule', isLightColor(bg) ? 'rgba(0,0,0,0.14)' : 'rgba(255,255,255,0.14)');
     root.style.setProperty('--chart-font-chord', chartFontStack(chordFontId, DEFAULT_CHORD_FONT_ID));
     root.style.setProperty('--chart-font-lyric', chartFontStack(lyricFontId, DEFAULT_LYRIC_FONT_ID));
 
