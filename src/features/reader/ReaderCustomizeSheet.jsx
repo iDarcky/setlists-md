@@ -1,6 +1,30 @@
 import BottomSheet, { SheetField } from '@/ui/BottomSheet';
 import { Button } from '@/ui/Button';
 import { READER_PRESETS, READER_KNOBS } from '@/lib/readerConfig';
+import { CHART_THEMES } from '@/data/chartThemes';
+
+const NOTATIONS = [
+  { id: 'letters', label: 'Letters' },
+  { id: 'nashville', label: 'Nashville' },
+  { id: 'solfege', label: 'Do-Re-Mi' },
+];
+
+// Size stepper. The Aa popover used to own these; there is now one display
+// panel, not two — a second button that also opens display settings is the
+// clutter this pass removed from the header.
+function Stepper({ label, value, min, max, onChange }) {
+  return (
+    <div className="inline-flex items-center gap-1">
+      <Button size="sm" variant="secondary" aria-label={`Decrease ${label}`}
+        disabled={value <= min} onClick={() => onChange(value - 1)}>−</Button>
+      <span className="text-label-13 font-mono font-semibold tabular-nums min-w-[3rem] text-center">
+        {value}<span className="text-label-10 text-[var(--ds-gray-700)] ml-0.5">px</span>
+      </span>
+      <Button size="sm" variant="secondary" aria-label={`Increase ${label}`}
+        disabled={value >= max} onClick={() => onChange(value + 1)}>+</Button>
+    </div>
+  );
+}
 
 // Every knob the reader exposes, with human labels. The deal with this panel:
 // *everything* is customizable and *none* of it lives in the header — the
@@ -47,7 +71,9 @@ const toStored = v => VALUE_ALIAS[v] || v;
 
 export default function ReaderCustomizeSheet({
   open, onClose, config, preset, onPresetChange, onKnobChange, onReset, narrow,
+  settings, onUpdateSettings,
 }) {
+  const set = (k, v) => onUpdateSettings?.(k, v);
   return (
     <BottomSheet open={open} onClose={onClose} title="Customize">
       <div className="flex flex-col gap-1">
@@ -70,6 +96,34 @@ export default function ReaderCustomizeSheet({
           {READER_PRESETS.find(p => p.id === preset)?.blurb}
           {' '}Changes below are saved to this preset only.
         </p>
+
+        {/* Text — the old Aa popover's daily-use controls, in the one panel. */}
+        <SheetField label="Lyric size">
+          <Stepper label="lyric size" value={config.display.lyricFontSize} min={10} max={40}
+            onChange={v => set('defaultFontSize', v)} />
+        </SheetField>
+        <SheetField label="Chord size">
+          <Stepper label="chord size" value={config.display.chordFontSize} min={8} max={40}
+            onChange={v => set('chordFontSize', v)} />
+        </SheetField>
+        <SheetField label="Chord names">
+          <div className="flex gap-1.5 flex-wrap">
+            {NOTATIONS.map(n => (
+              <Button key={n.id} size="sm"
+                variant={config.display.notation === n.id ? 'brand' : 'secondary'}
+                onClick={() => set('notation', n.id)}>{n.label}</Button>
+            ))}
+          </div>
+        </SheetField>
+        <SheetField label="Theme">
+          <div className="flex gap-1.5 flex-wrap">
+            {CHART_THEMES.map(t => (
+              <Button key={t.id} size="sm"
+                variant={(settings?.chartTheme || 'sunday-light') === t.id ? 'brand' : 'secondary'}
+                onClick={() => set('chartTheme', t.id)}>{t.name}</Button>
+            ))}
+          </div>
+        </SheetField>
 
         {GROUPS.map(g => {
           const allowed = READER_KNOBS[g.knob];

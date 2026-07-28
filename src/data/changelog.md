@@ -21,8 +21,13 @@ A running log of what's new in setlists.md. Newest releases first.
 - **A notifications page of its own** — reachable from the bottom bar, with one button to mark everything read or clear the lot.
 - **Hamburger menu (Labs)** — a restructured mobile menu with a tappable account card and a full-width Space switcher.
 - **Account panel (Labs)** — drops the hamburger entirely: your avatar opens a single sheet that slides up from the bottom, with your Spaces and the menu together.
+- **One reader (Labs)** — the four separate reading screens become a single viewer, with Live, Rehearsal and Practice as saved bundles of its settings. One button opens everything: header size, where the structure ribbon sits, section style, columns, where notes go, how repeats render, chord and lyric size, chord names, theme and how you exit. Turn it on in Settings → Labs.
+- **Two new chart themes** — Hymnal and Hymnal Night: warm paper, antique gold chords, and muted section colours. They're the first themes to carry their own section palette, so the whole chart changes together instead of just the background.
 
 ### Improved
+- **The section you're in stays on screen** — in the new reader, the section heading pins to the top as you scroll and the structure ribbon highlights the same section, so a glance tells you where you are without reading a word.
+- **Repeated sections can collapse to a line** — a chorus sung three times is written once, with a tappable "as before" for each repeat. A chorus after a key change always stays in full, because the chords have changed.
+- **Notes sit with the line they belong to** — on a wide screen they run out to the right edge on a dotted leader, like a printed chart; on a phone they sit just above the line, so you read the instruction before you sing it. A note starting with `!` shows as a warning.
 - **A new song starts with somewhere to paste** — one big box, with Add section above it, instead of a bar asking again whether you wanted to import or browse.
 - **Pasting from a website is tidied up on the way in** — invisible characters, odd spaces and words broken across a line wrap no longer end up in your lyrics.
 - **Song details say what they're for** — hover any field to see what it actually changes: Capo shows capo shapes, Length adds up to a setlist's running time, YouTube adds a backing track.

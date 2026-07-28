@@ -344,6 +344,8 @@ export default function Reader({
         config={config}
         preset={preset}
         narrow={!wide}
+        settings={settings}
+        onUpdateSettings={onUpdateSettings}
         onPresetChange={(p) => { onPresetChange?.(p); }}
         onKnobChange={setKnob}
         onReset={reset}
