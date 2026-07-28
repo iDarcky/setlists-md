@@ -605,18 +605,19 @@ export default function Library({
               onChange={e => setQuery(e.target.value)}
             />
 
-            {/* View switcher — Table (desktop only) / Cards. */}
+            {/* View switcher — Table / Cards, desktop and tablet only. On a
+                phone there is only one view, so a switcher would be a control
+                with nothing to switch between. */}
+            {advanced && (
             <div className="flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
-              {advanced && (
-                <button
-                  onClick={() => setViewMode('table')}
-                  aria-label="Table view" title="Table view"
-                  className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
-                    effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
-                >
-                  <TableViewIcon />
-                </button>
-              )}
+              <button
+                onClick={() => setViewMode('table')}
+                aria-label="Table view" title="Table view"
+                className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
+                  effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
+              >
+                <TableViewIcon />
+              </button>
               <button
                 onClick={() => setViewMode('gallery')}
                 aria-label="Card view" title="Card view"
@@ -626,6 +627,7 @@ export default function Library({
                 <GalleryViewIcon />
               </button>
             </div>
+            )}
 
             {/* Unified filters — tags (AND) + faceted metadata (OR per facet) +
                 (songsLibraryPlus) data-quality "issues" folded into the popover. */}

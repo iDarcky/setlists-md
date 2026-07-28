@@ -445,23 +445,22 @@ export default function Setlists({
     ? 'modes-card overflow-hidden divide-y divide-[var(--modes-border)]'
     : 'flex flex-col gap-4';
 
-  // Shared view switcher — Table (desktop only) / Compact (mobile only) / Cards.
-  const renderSwitcher = () => (
+  // Shared view switcher — Table / Cards, desktop and tablet only. On a phone
+  // there is only one view, so the switcher would have nothing to switch.
+  const renderSwitcher = () => (!advanced ? null : (
     <div className="flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
-      {advanced && (
-        <button onClick={() => setViewMode('table')} aria-label="Table view" title="Table view"
-          className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
-            effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
-          <TableViewIcon />
-        </button>
-      )}
+      <button onClick={() => setViewMode('table')} aria-label="Table view" title="Table view"
+        className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
+          effectiveView === 'table' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
+        <TableViewIcon />
+      </button>
       <button onClick={() => setViewMode('gallery')} aria-label="Card view" title="Card view"
         className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
           effectiveView === 'gallery' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
         <GalleryViewIcon />
       </button>
     </div>
-  );
+  ));
 
   // Shared filters popover — reused in the desktop header + the mobile toolbar.
   // When plus, Status / When / Group-by live inside it too (calmer header).

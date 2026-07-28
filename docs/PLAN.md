@@ -79,10 +79,13 @@ Ordered by what hurts most if it goes wrong in front of real churches.
       you and total to the user. **Cheapest safety win available.**
 - [ ] **Wrap every route in `ErrorBoundary`.** Currently 5 of ~30. A crash in
       Editor or PerformanceView white-screens the whole app mid-service.
-- [ ] 🔴 **Staging environment.** There is ONE Supabase project and it is
-      production. Migrations are applied to live church data; "test on beta" =
-      "test on live data". Needs Supabase Pro (~$25/mo, see `COSTS.md`) or
-      branching. **This is a money decision, not an engineering one — make it in August.**
+- [ ] ⏭️ **Staging environment — DEFERRED (2026-07-27): no budget.** There is
+      ONE Supabase project and it is production, so "test on beta" = "test on
+      live church data". Needs Supabase Pro (~$25/mo). Deferred deliberately,
+      not forgotten. **While deferred, the mitigation is a rule, not a tool:
+      every migration must be additive and backward-compatible — no dropped
+      columns, no renames, no destructive backfills** — because there is no
+      second copy to get it wrong on. Revisit when there's revenue.
 - [ ] **Backups + one real restore drill.** Client half shipped (Settings → Data
       one-click library .zip). Server half unverified: confirm what the plan
       retains, then actually restore something.
@@ -107,6 +110,48 @@ Ordered by what hurts most if it goes wrong in front of real churches.
 - [ ] **Dashboard global search returns nothing (desktop/tablet).** The home
       top-bar / ⌘K search yields no results where the same query works elsewhere.
       Likely a wiring gap between the dashboard input and `lib/search.js`.
+
+### 2.3b 🟡 Settings restructure (pre-beta)
+
+Settings grew by accretion: four groups (Account / Display / Sync & data /
+About) holding fifteen panels, with related things far apart and some
+preferences reachable from nowhere at all.
+
+**Regroup around what the user is trying to do, not where the code lives:**
+
+| Group | Panels |
+| :--- | :--- |
+| **You** | Account · Plan & billing · Notifications |
+| **Reading** | Chart defaults · Chart style (Pro) · Sections (Pro) · **Stage & pedals** (new) |
+| **App** | Appearance (theme, accent, language) · General (landing page, week start, clock) · **Shortcuts & devices** (new) |
+| **Workspace** | Cloud sync · Services · Team defaults (incl. the promoted overschedule warning) |
+| **Data** | Backup / export · Trash · Storage usage |
+| **About** | What's New · Labs · About · Help · Legal |
+
+**Missing settings — found by auditing every stored preference against the UI
+that can change it.** 21 preferences have no panel in Settings; most are fine
+because another surface owns them (the Aa menu owns chart colours and fonts,
+`ColumnsMenu` owns `tableColumns`, the dashboard owns its widget order). These
+are the genuinely broken ones:
+
+- 🔴 **Bluetooth pedal keys (`pedalNext` / `pedalPrev`) — worse than missing.**
+  They have defaults in `storage.js` (`ArrowRight` / `ArrowLeft`), they sync to
+  the cloud, there is **no UI to change them, and no code reads them.**
+  `PerformanceView`, `PracticeView` and `SetlistPlayer` each hardcode
+  Arrow/PageUp/PageDown. So a pedal that sends Space, Enter or anything else
+  simply doesn't work and the user cannot fix it. Needs both a settings panel
+  (press-a-key-to-bind) *and* the three keydown handlers to honour it.
+- 🔴 **`chartBg` / `chartText` are read by nothing at all** — dead preferences
+  that still sync. Either wire them into the chart theme or delete the keys.
+- ⬜ **Settings search** — fifteen panels is past the point where scanning works.
+- ⬜ **Reset to defaults** — per panel, and one global.
+- ⬜ **Confirm-before-delete** exists as a key (`confirmBeforeDelete`); make sure
+  it has a visible home in the new grouping.
+- ⬜ **Metronome defaults** (volume, count-in) — needed once Practice ships.
+- ⬜ **Default arrangement / default key behaviour** on opening a song.
+- ⬜ **Storage usage + "make offline available"** — a PWA should say how much
+  room it's using and let the user free it.
+- ⬜ **Text size / reduced motion** accessibility toggles.
 
 ### 2.4 🟡 Should ship before beta (won't hard-block)
 
@@ -238,7 +283,25 @@ paste and import flows you're actively developing are not the ones users get.
 - [ ] **Set a graduation date per flag. Delete the losing path the day it graduates.**
 - [x] ✅ `addSongModal` graduated (its legacy modal is deleted), which also fixed
       PDF import for everyone.
-- [ ] 🔴 `pasteIntoChart` — still a flag, still off. **Next flag decision.**
+
+**Verdict per remaining flag (decided with the owner, 2026-07-27):**
+
+| Flag | Verdict | Why / when |
+| :--- | :--- | :--- |
+| `rosterOverscheduleWarning` | **Promote to Settings** | It's a real preference, not an experiment. Move it into the Team/Scheduling group. |
+| `structurePosition` + `ribbonStyle` (floating ribbon) | **Hold — decide in the chart rework** | Where the ribbon lives is part of the reading-view design, so it can't be settled before that pass. |
+| `mockupPalette` (neutral palette) | **Hold — tied to the colour rework** | Belongs with the accent-colour work below, not decided alone. |
+| `songsLibraryPlus` / `setlistsLibraryPlus` | **Hold — needs thought** | Folds into the reworked single list view. |
+| `hmMenu` (hamburger) | **Hold** | The keep-or-replace decision is still open. |
+| `accountPanel` (iOS-style) | **Hold — not yet** | Revisit in the Settings rework. |
+| `pasteIntoChart` | **Undecided** | Use it for a week, then graduate or kill. |
+
+**Related, deferred but recorded — the accent colour doesn't actually apply.**
+`accentColor` is a setting, but a lot of the app's green is hardcoded rather
+than reading the token (e.g. the bars in the setlist overview). Choosing an
+accent colour therefore only half-works. Fixing it means auditing every literal
+green against `--color-brand`. Not urgent, but it makes the setting feel broken,
+so it should land with the colour/palette rework.
 
 ### 3.6 Dead paths to delete on sight
 
