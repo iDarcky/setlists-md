@@ -136,11 +136,16 @@ export default function AaMenu({
   const chordFontId = settings?.chartChordFont || DEFAULT_CHORD_FONT_ID;
   const visibleThemes = styleAllowed ? CHART_THEMES : CHART_THEMES.filter(t => FREE_CHART_THEME_IDS.has(t.id));
 
-  // Position: below the anchor, right-aligned to it, clamped into the viewport.
+  // Position: below the anchor, clamped into the viewport. It aligns to
+  // whichever edge of the anchor keeps it on screen — right-aligned for a
+  // trigger on the right (the Song Hub's Aa), left-aligned for one on the left
+  // (the reader's ☰, which otherwise pushed the panel off the screen edge).
   const winW = typeof window !== 'undefined' ? window.innerWidth : 1024;
   const winH = typeof window !== 'undefined' ? window.innerHeight : 768;
   const W = Math.min(304, winW - 16);
-  const right = anchorRect ? Math.max(8, winW - (anchorRect.right ?? winW)) : 8;
+  const anchorsLeft = anchorRect ? (anchorRect.left ?? 0) < winW / 2 : false;
+  const left = anchorsLeft ? Math.min(Math.max(8, anchorRect.left ?? 8), winW - W - 8) : null;
+  const right = anchorsLeft ? null : (anchorRect ? Math.max(8, winW - (anchorRect.right ?? winW)) : 8);
   const top = anchorRect ? Math.min(anchorRect.bottom + 6, winH - 80) : 60;
 
   const tabBtn = (id, label) => (
@@ -156,7 +161,7 @@ export default function AaMenu({
         className="fixed inset-0 z-[119] bg-transparent border-none cursor-default" />
       <div role="dialog" aria-label="Display options"
         className="fixed z-[120] rounded-2xl border border-[var(--border-2)] bg-[var(--ds-background-100)] shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden"
-        style={{ top, right, width: W, maxHeight: '74vh', display: 'flex', flexDirection: 'column', animation: 'pop-in 120ms ease-out' }}>
+        style={{ top, ...(left != null ? { left } : { right }), width: W, maxHeight: '74vh', display: 'flex', flexDirection: 'column', animation: 'pop-in 120ms ease-out' }}>
         {/* Tabs */}
         <div className="flex gap-1 p-1.5 bg-[var(--bg-1)] border-b border-[var(--border-1)]">
           {tabBtn('page', 'Page')}
@@ -238,6 +243,24 @@ export default function AaMenu({
                   <Pick key={o[0]} active={(settings?.readerSectionStyle || 'bar') === o[0]}
                     onClick={() => onUpdateSettings?.('readerSectionStyle', o[0])}>{o[1]}</Pick>
                 ))}
+              </div>
+
+              <Label>Line spacing</Label>
+              <div className="flex items-center gap-4">
+                <Stepper
+                  value={Math.round((settings?.lyricLineHeight ?? 1.35) * 100)}
+                  min={100} max={240} label="line height"
+                  onChange={(v) => onUpdateSettings?.('lyricLineHeight', Math.round(v) / 100)}
+                />
+              </div>
+
+              <Label>Gap between sections</Label>
+              <div className="flex items-center gap-4">
+                <Stepper
+                  value={settings?.sectionSpacing ?? 24}
+                  min={8} max={64} label="section gap"
+                  onChange={(v) => onUpdateSettings?.('sectionSpacing', v)}
+                />
               </div>
 
               <Label>Repeated sections</Label>

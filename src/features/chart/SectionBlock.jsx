@@ -121,13 +121,34 @@ export default function SectionBlock({
       if (line.type === 'tab') return showTabs && tabMatches(line.instrument) ? <TabBlock key={idx} data={line} scale={tabScale} colors={tabColors} /> : null;
       if (line.type === 'tabref') return showTabs && line.tab && tabMatches(line.tab.instrument) ? <TabBlock key={idx} data={line.tab} scale={tabScale} colors={tabColors} /> : null;
       if (line.type === 'modulate') {
+        // Element 8. Was a full-width brand pill between two rules — the
+        // loudest thing on the page for an event that lasts one bar. Now a
+        // compact inline chip that names the key you are ARRIVING IN, because
+        // that is what a player needs ("we're in Bb now"), not the interval.
+        const arriveAt = songKey
+          ? notateChord(songKey, {
+              key: songKey,
+              notation: notationMode === 'nashville' ? 'letters' : notationMode,
+              transpose: transpose + lineOffsets[idx],
+              accidentals,
+            })
+          : null;
         return (
-          <div key={idx} className="my-4 flex items-center gap-4">
-            <div className="h-[1px] flex-1 bg-[var(--color-brand-border)]" />
-            <span className="text-label-10 font-black uppercase tracking-[0.2em] px-3 py-1 bg-[var(--color-brand)] text-white rounded-full shadow-sm">
-              Key Change: {line.semitones > 0 ? '+' : ''}{line.semitones}
+          <div key={idx} className="my-2 flex items-center gap-2">
+            <span
+              className="inline-flex items-baseline gap-1 text-label-11 font-bold px-2 py-0.5 rounded-md"
+              style={{
+                color: 'var(--chord)',
+                border: '1px solid var(--chord)',
+                background: 'color-mix(in srgb, var(--chord) 12%, transparent)',
+              }}
+            >
+              <span aria-hidden="true">↗</span>
+              {arriveAt || `${line.semitones > 0 ? '+' : ''}${line.semitones}`}
             </span>
-            <div className="h-[1px] flex-1 bg-[var(--color-brand-border)]" />
+            <span className="text-label-10 uppercase tracking-wider" style={{ color: 'var(--chart-subtle, var(--text-2))' }}>
+              key change
+            </span>
           </div>
         );
       }
@@ -175,10 +196,13 @@ export default function SectionBlock({
     const pairs = showLyrics ? parsedPairs : parsedPairs.map(p => ({ ...p, text: '' }));
     const hasLyrics = pairs.some(p => p.text.trim());
 
-    // A chord only needs clearance when ANOTHER chord follows it immediately —
-    // otherwise the trailing space just shoves the lyrics apart for nothing.
-    // A long chord with no neighbour is allowed to overhang the words after it,
-    // because there is nothing on the chord row to collide with.
+    // Chord spacing, which is a balance of two failures:
+    //   - a fixed trailing space on EVERY chord shoves lyrics apart whenever
+    //     one chord is long (Asus7maj3) and nothing follows it
+    //   - no spacing at all lets neighbouring chords collide
+    // So: a chord keeps a real gap whenever ANY chord follows it later on the
+    // line, and only overhangs (contributing no width) when it is the last
+    // chord there — where nothing on the chord row can collide with it.
     const renderChord = (rawChord, padded) => {
       let chord = notateChord(rawChord, { key: songKey, notation: notationMode, transpose: effectiveTranspose, accidentals });
       // Bass "root emphasis": collapse each chord to the note a bassist plays —
@@ -191,12 +215,14 @@ export default function SectionBlock({
             paddingBottom: hasLyrics ? 3 : 0,
             fontFamily: 'var(--chart-font-chord, var(--font-mono))',
             fontSize: 'var(--chart-font-size-chord, 0.95em)',
-            // `padded === false` means nothing follows on the chord row, so the
-            // chord contributes no width and simply overhangs.
-            ...(padded === false ? { display: 'block', width: 0, overflow: 'visible' } : null),
+            // `padded === false` means this is the last chord on the line, so
+            // it contributes no width and simply overhangs the words after it.
+            ...(padded
+              ? { marginRight: '0.6em' }
+              : { display: 'block', width: 0, overflow: 'visible' }),
           }}
         >
-          {chord}{padded ? '\u2003' : ''}
+          {chord}
         </span>
       );
     };
@@ -224,10 +250,12 @@ export default function SectionBlock({
                   if (w.space) { flat.push({ wi, si: -1, chord: null }); return; }
                   w.segments.forEach((seg, si) => flat.push({ wi, si, chord: seg.chord }));
                 });
-                const nextChordAdjacent = (wi, si) => {
+                // Any chord later on this line — not merely the next segment.
+                // Checking only the neighbour let a chord two segments away
+                // overlap the one overhanging into its space.
+                const chordFollows = (wi, si) => {
                   const at = flat.findIndex(f => f.wi === wi && f.si === si);
-                  const next = flat.slice(at + 1).find(f => f.si !== -1);
-                  return !!(next && next.chord);
+                  return flat.slice(at + 1).some(f => f.chord);
                 };
                 return words.map((w, wi) => (
                 w.space ? (
@@ -236,7 +264,7 @@ export default function SectionBlock({
                   <span key={wi} className="inline-flex items-end" style={{ whiteSpace: 'nowrap' }}>
                     {w.segments.map((seg, si) => (
                       <span key={si} className="inline-flex flex-col justify-end">
-                        {seg.chord && renderChord(seg.chord, nextChordAdjacent(wi, si))}
+                        {seg.chord && renderChord(seg.chord, chordFollows(wi, si))}
                         <span
                           className="whitespace-pre"
                           style={{

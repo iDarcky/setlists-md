@@ -69,7 +69,10 @@ export function resolveReaderConfig(settings, ctx = {}) {
     ribbon: pick('ribbon', settings?.[KEY.ribbon]),
     heading: pick('heading', settings?.[KEY.heading]),
     sectionStyle: pick('sectionStyle', settings?.[KEY.sectionStyle]),
-    sticky: pick('sticky', settings?.[KEY.sticky]) === 'on',
+    // Pinned headings earn their space on a phone, where you thumb-scroll
+    // through a section at a time. On a desktop the whole section is usually
+    // on screen already, so pinning is just a bar that never goes away.
+    sticky: !wide && pick('sticky', settings?.[KEY.sticky]) === 'on',
     repeats: pick('repeats', settings?.[KEY.repeats]),
     notes: pick('notes', settings?.[KEY.notes]) === 'on',
     columns: resolveColumns(settings?.defaultColumns, wide),

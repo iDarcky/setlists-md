@@ -128,7 +128,6 @@ export default function ReaderSection({
         showLyrics
         showTabs
         tabInstrument="all"
-        chordEmphasis={settings?.stageMode === 'bassist' ? 'root' : 'full'}
         // The sticky heading above already renders the name and cue.
         hideHeading
         inlineNotes={config.notes}

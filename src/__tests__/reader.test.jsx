@@ -97,15 +97,20 @@ describe('element 2 — structure ribbon', () => {
 });
 
 describe('element 3 — section heading', () => {
-  it('pins when sticky and does not when it is off', () => {
+  it('pins on a phone when asked, and never on a desktop', () => {
+    mockWidth(false);
     let r = render(<Reader song={makeSong()} settings={{ readerSticky: 'on' }} onExit={() => {}} />);
-    let head = document.querySelector('[data-section-index] > div');
-    expect(head.style.position).toBe('sticky');
+    expect(document.querySelector('[data-section-index] > div').style.position).toBe('sticky');
     r.unmount();
 
-    render(<Reader song={makeSong()} settings={{ readerSticky: 'off' }} onExit={() => {}} />);
-    head = document.querySelector('[data-section-index] > div');
-    expect(head.style.position).toBe('');
+    r = render(<Reader song={makeSong()} settings={{ readerSticky: 'off' }} onExit={() => {}} />);
+    expect(document.querySelector('[data-section-index] > div').style.position).toBe('');
+    r.unmount();
+
+    // Desktop: pinning is off regardless of the setting.
+    mockWidth(true);
+    render(<Reader song={makeSong()} settings={{ readerSticky: 'on' }} onExit={() => {}} />);
+    expect(document.querySelector('[data-section-index] > div').style.position).toBe('');
   });
 
   it('switches between the name and the ribbon code', () => {

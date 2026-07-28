@@ -10,7 +10,7 @@ describe('defaults', () => {
     expect(c.header).toBe('std');
     expect(c.ribbon).toBe('top');
     expect(c.sectionStyle).toBe('bar');
-    expect(c.sticky).toBe(true);
+    expect(c.sticky).toBe(false);   // wide: pinning is a phone affordance
     expect(c.notes).toBe(true);
   });
 
@@ -23,7 +23,9 @@ describe('defaults', () => {
 describe('settings drive it', () => {
   it.each(Object.keys(READER_KNOBS))('reads every documented value for %s', (knob) => {
     for (const value of READER_KNOBS[knob]) {
-      const c = resolveReaderConfig({ [readerSettingKey(knob)]: value }, wide);
+      // `sticky` only applies on a narrow screen, so read it there.
+      const ctx = knob === 'sticky' ? narrow : wide;
+      const c = resolveReaderConfig({ [readerSettingKey(knob)]: value }, ctx);
       // sticky/notes resolve to booleans; the rest pass through.
       const got = typeof c[knob] === 'boolean' ? (c[knob] ? 'on' : 'off') : c[knob];
       expect(got).toBe(value);
@@ -41,6 +43,14 @@ describe('context overrides are physical facts, not preferences', () => {
     // A note belongs to its line either way; only the treatment changes.
     expect(resolveReaderConfig({}, wide).notePlacement).toBe('leader');
     expect(resolveReaderConfig({}, narrow).notePlacement).toBe('above');
+  });
+
+  it('only pins headings on a narrow screen', () => {
+    // On a desktop the whole section is usually on screen already, so a pinned
+    // heading is just a bar that never goes away.
+    const on = { readerSticky: 'on' };
+    expect(resolveReaderConfig(on, narrow).sticky).toBe(true);
+    expect(resolveReaderConfig(on, wide).sticky).toBe(false);
   });
 
   it('moves a side ribbon to the top when there is no room for a rail', () => {

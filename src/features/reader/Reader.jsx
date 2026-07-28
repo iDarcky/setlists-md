@@ -116,14 +116,18 @@ export default function Reader({
   return (
     <div
       className="h-full flex flex-col overflow-hidden"
-      style={{
+      style={embedded ? undefined : {
+        // A performance surface owns the screen, so it wears the CHART theme
+        // and re-maps the app's foreground tokens onto it — the way
+        // StageHeader does. Without the re-map, anything reading --bg-1 /
+        // --border-1 / --text-* (the structure ribbon, most notably) renders in
+        // the APP theme, which put dark pills on white paper.
+        //
+        // Embedded in the Song Hub it deliberately does NOT: the hub is a
+        // browsing surface inside the app, and a white chart card sitting in a
+        // dark app reads as broken rather than as a stage.
         background: 'var(--chart-bg, var(--ds-background-100))',
         color: 'var(--chart-text, var(--ds-gray-1000))',
-        // Re-map the app's foreground tokens onto the chart theme's, the way
-        // StageHeader does. Without this, anything inside the chart that reads
-        // --bg-1 / --border-1 / --text-* (the structure ribbon, most notably)
-        // renders in the APP theme — so a white chart under a dark app got
-        // dark pills on white paper.
         '--bg-1': 'var(--chart-bg, var(--ds-background-100))',
         '--bg-2': 'var(--chart-bg, var(--ds-background-200))',
         '--border-1': 'var(--chart-rule, var(--ds-gray-300))',
@@ -137,7 +141,7 @@ export default function Reader({
       {/* ── Element 1 — top bar ─────────────────────────────────────────── */}
       {showChrome && (
         <div className="shrink-0 flex flex-col border-b" style={rule}>
-          <div className="flex items-center gap-2 px-3 py-1.5">
+          <div className="wide-container flex items-center gap-2 py-1.5">
             <IconButton
               size="sm"
               aria-label="Display options"
@@ -152,7 +156,9 @@ export default function Reader({
             </IconButton>
 
             {showTitle && (
-              <span className="min-w-0 truncate text-label-13 font-semibold shrink">{song.title}</span>
+              <span className="truncate text-label-13 font-semibold shrink min-w-[4rem] max-w-[45%]">
+                {song.title}
+              </span>
             )}
 
             {/* Key, tempo and time sit WITH the title, not out by the exit —
@@ -190,7 +196,7 @@ export default function Reader({
           </div>
 
           {showMeta && (
-            <div className="flex items-center gap-3 px-3 pb-1.5 text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
+            <div className="wide-container flex items-center gap-3 pb-1.5 text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
               {song.artist && <span>{song.artist}</span>}
               {song.capo ? <span>Capo {song.capo}</span> : null}
               <span>{ordered.length} sections</span>
@@ -201,7 +207,9 @@ export default function Reader({
 
       {/* ── Element 2 — structure ribbon ────────────────────────────────── */}
       {config.ribbon === 'top' && ribbonNode && (
-        <div className="shrink-0 px-3 py-1.5 border-b overflow-hidden" style={rule}>{ribbonNode}</div>
+        <div className="shrink-0 border-b overflow-hidden" style={rule}>
+          <div className="wide-container py-1.5">{ribbonNode}</div>
+        </div>
       )}
 
       <div className="flex-1 min-h-0 flex">
@@ -218,12 +226,14 @@ export default function Reader({
             // SectionBlock sizes chords off these vars, not inherited size.
             ['--chart-font-size-lyric']: `${config.display.lyricFontSize}px`,
             ['--chart-font-size-chord']: `${config.display.chordFontSize}px`,
+            ['--chart-line-height-lyric']: settings?.lyricLineHeight ?? 1.35,
+            ['--chart-section-gap']: `${settings?.sectionSpacing ?? 24}px`,
             ...(config.columns === 2
               ? { columnCount: 2, columnGap: '1.75rem', columnRule: '1px solid var(--chart-rule, var(--ds-gray-300))' }
               : null),
           }}
         >
-          <div className="mx-auto w-full max-w-[68rem] px-4 sm:px-8 py-3">
+          <div className="wide-container py-3">
           {ordered.map((section, idx) => (
             <ReaderSection
               key={`${section.id || section.type}-${idx}`}
@@ -247,11 +257,15 @@ export default function Reader({
       </div>
 
       {config.ribbon === 'bottom' && ribbonNode && (
-        <div className="shrink-0 px-3 py-1.5 border-t overflow-hidden" style={rule}>{ribbonNode}</div>
+        <div className="shrink-0 border-t overflow-hidden" style={rule}>
+          <div className="wide-container py-1.5">{ribbonNode}</div>
+        </div>
       )}
 
       {footer && (
-        <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-t" style={rule}>{footer}</div>
+        <div className="shrink-0 border-t" style={rule}>
+          <div className="wide-container flex items-center gap-2 py-1.5">{footer}</div>
+        </div>
       )}
 
       {aaAnchor && (
