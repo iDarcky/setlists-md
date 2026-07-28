@@ -1,5 +1,24 @@
 import { sectionStyle, sectionLabel, compactLabel } from '@/music';
 import { sectionWeight } from '@/lib/songFlow';
+import { CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '@/data/chartThemes';
+
+/**
+ * Section colours, resolved theme-first.
+ *
+ * A chart theme may ship its own `sections` palette so it reads as a complete
+ * look rather than a background swap — the built-in SECTION_COLORS were picked
+ * with no particular ground in mind, so a vivid pink chorus on warm paper never
+ * belonged to the same design. A theme that omits `sections` keeps them.
+ *
+ * The user's own overrides always win over the theme's.
+ */
+export function resolveSectionColors(settings) {
+  const theme = CHART_THEME_MAP[settings?.chartTheme || DEFAULT_CHART_THEME_ID];
+  const custom = settings?.customChartThemes?.find?.(t => t.id === settings?.chartTheme);
+  const themeSections = custom?.sections || theme?.sections;
+  if (!themeSections) return settings?.sectionColors;
+  return { ...themeSections, ...(settings?.sectionColors || {}) };
+}
 
 /**
  * One section, one identity — used by BOTH the structure ribbon and the
@@ -14,7 +33,7 @@ import { sectionWeight } from '@/lib/songFlow';
  * @returns {{code:string,name:string,color:string,fill:string,border:string,heavy:boolean}}
  */
 export function sectionIdentity(type, settings) {
-  const s = sectionStyle(type, settings?.sectionColors, settings?.customSectionTypes);
+  const s = sectionStyle(type, resolveSectionColors(settings), settings?.customSectionTypes);
   return {
     code: compactLabel(type),                            // "C2"
     name: sectionLabel(type, settings?.sectionLabels),   // "Chorus 2"

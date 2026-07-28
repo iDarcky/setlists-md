@@ -3,6 +3,7 @@ import { semitonesBetween, keysInQualityOf } from '@/music';
 import { resolveSongView } from '@/arrangements';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/ui/Select';
 import { buildSongFlow } from '@/lib/songFlow';
+import { resolveSectionColors } from '@/lib/sectionIdentity';
 import { resolveReaderConfig, setReaderKnob, resetReaderPreset } from '@/lib/readerConfig';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useActiveSection } from '@/hooks/useActiveSection';
@@ -145,7 +146,9 @@ export default function Reader({
       // its own chip, so ribbon position still maps to song position.
       collapse
       activeFill
-      sectionColors={settings?.sectionColors}
+      // Same resolved palette the headings use, or the ribbon chip and the
+      // section it points at drift apart again.
+      sectionColors={resolveSectionColors(settings)}
       sectionLabels={settings?.sectionLabels}
       customSectionTypes={settings?.customSectionTypes}
     />
@@ -226,6 +229,10 @@ export default function Reader({
           {header}
 
           <span className="ml-auto shrink-0 flex items-center gap-2 text-label-11 tabular-nums text-[var(--chart-subtle,var(--ds-gray-700))]">
+            {/* Order matters: the key is the only control here that changes
+                what you see, and it must NOT sit next to the exit. Tempo and
+                time signature are inert, so they make the buffer between a
+                mis-tap and leaving the service. */}
             {/* Transpose is one tap, in every preset — someone may need to move
                 a key mid-service. In Live the change is deliberately session-
                 only: nothing here writes back to the stored song. */}
@@ -233,7 +240,7 @@ export default function Reader({
               <Select value={displayKey} onValueChange={onSelectKey}>
                 <SelectTrigger
                   aria-label="Key (transpose)"
-                  className="h-6 w-auto min-w-0 gap-0.5 border-none bg-transparent px-1.5 text-label-12 font-bold text-[var(--color-brand)] focus:ring-0"
+                  className="h-6 w-auto min-w-0 gap-0.5 border-none bg-transparent px-1.5 text-label-12 font-bold text-[var(--chord)] focus:ring-0"
                 >
                   {displayKey}
                 </SelectTrigger>
@@ -244,10 +251,10 @@ export default function Reader({
                 </SelectContent>
               </Select>
             ) : (
-              <span className="font-bold text-[var(--color-brand)] text-label-12">{displayKey}</span>
+              <span className="font-bold text-[var(--chord)] text-label-12">{displayKey}</span>
             )}
-            {song.tempo && <span>♩{song.tempo}</span>}
-            {song.time && <span>{song.time}</span>}
+            {song.tempo && <span className="tabular-nums">♩{song.tempo}</span>}
+            {song.time && <span className="tabular-nums">{song.time}</span>}
           </span>
 
           {config.notePosition === 'peek' && (

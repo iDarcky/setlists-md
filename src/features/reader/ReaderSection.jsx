@@ -1,4 +1,4 @@
-import { sectionIdentity, headingText } from '@/lib/sectionIdentity';
+import { sectionIdentity, headingText, resolveSectionColors } from '@/lib/sectionIdentity';
 import SectionBlock from '@/features/chart/SectionBlock';
 
 /**
@@ -130,7 +130,7 @@ export default function ReaderSection({
         hideHeading
         inlineNotes={config.notePosition === 'inline' && settings?.showInlineNotes !== false}
         noteStyle={settings?.inlineNoteStyle || 'dashes'}
-        sectionColors={settings?.sectionColors}
+        sectionColors={resolveSectionColors(settings)}
         sectionLabels={settings?.sectionLabels}
         customSectionTypes={settings?.customSectionTypes}
         tabScale={settings?.tabSize || 1}

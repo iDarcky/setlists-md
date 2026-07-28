@@ -84,6 +84,42 @@ export const CHART_THEMES = [
     chord: '#f0a3b8',
     subtle: '#7d6480',
   },
+  // The first themes to carry their own `sections` palette. Every other theme
+  // falls back to the vivid built-in SECTION_COLORS, which were picked
+  // independently of any background — so switching theme changed the paper but
+  // not the ink you navigate by. These two are complete looks.
+  {
+    id: 'hymnal',
+    name: 'Hymnal',
+    description: 'Warm paper, antique gold chords, muted section colours.',
+    free: true,
+    bg: '#fbfaf8',
+    text: '#1a1815',
+    chord: '#9a7b32',
+    subtle: '#8b8378',
+    sections: {
+      Intro: '#5a7a96', Verse: '#4a7c59', 'Pre Chorus': '#a8823c',
+      Chorus: '#a8543c', Bridge: '#4a6b8a', Instrumental: '#a8823c',
+      Ending: '#96473f', Tag: '#7a5c8f', Interlude: '#7a5c8f',
+      Vamp: '#a8823c', Outro: '#96473f', Refrain: '#7a5c8f',
+    },
+  },
+  {
+    id: 'hymnal-night',
+    name: 'Hymnal Night',
+    description: 'The Hymnal palette after dark — warm ink on near-black.',
+    free: true,
+    bg: '#0e0d0c',
+    text: '#ede8e1',
+    chord: '#d6ac55',
+    subtle: '#8a8278',
+    sections: {
+      Intro: '#8fb4ce', Verse: '#7fb88c', 'Pre Chorus': '#d6b476',
+      Chorus: '#d68e76', Bridge: '#84a9c9', Instrumental: '#d6b476',
+      Ending: '#d6857c', Tag: '#b394c4', Interlude: '#b394c4',
+      Vamp: '#d6b476', Outro: '#d6857c', Refrain: '#b394c4',
+    },
+  },
 ];
 
 export const CHART_THEME_MAP = Object.fromEntries(CHART_THEMES.map(t => [t.id, t]));
