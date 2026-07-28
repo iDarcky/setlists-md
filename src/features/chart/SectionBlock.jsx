@@ -56,6 +56,11 @@ export default function SectionBlock({
   // The reader renders its own (sticky) heading above this block, so it asks
   // for the body only. Default false keeps every existing caller unchanged.
   hideHeading = false,
+  // Where a {!note} goes relative to its lyric line:
+  //   'inline' — trailing the line, separated by dashes (default, unchanged)
+  //   'above'  — on its own line ABOVE, so it is read before the line is sung
+  //   'leader' — pushed to the right edge, joined by a dotted leader
+  notePlacement = 'inline',
 }) {
   // Reader notation: prefer the explicit `notation` prop; fall back to the
   // legacy boolean `nns` (Nashville on/off) for callers not yet migrated.
@@ -79,6 +84,37 @@ export default function SectionBlock({
   // Strip trailing colon from section type and apply user label overrides
   // (e.g. Verse → Strofa, preserving trailing numbers).
   const displayLabel = sectionLabel(section.type, sectionLabels);
+
+  // A note above its line reads as an instruction you act on before singing;
+  // a leader-dotted one sits at the right edge like the margin notes on a
+  // printed chart, without costing a separate column.
+  const noteAbove = (text) => (
+    <div
+      className="italic text-[0.8em] leading-snug"
+      style={{ color: text.trim().startsWith('!') ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--text-2))',
+               fontStyle: text.trim().startsWith('!') ? 'normal' : 'italic',
+               fontWeight: text.trim().startsWith('!') ? 600 : 400 }}
+    >
+      {text}
+    </div>
+  );
+  const noteLeader = (text) => (
+    <span className="flex-1 inline-flex items-baseline gap-1.5 min-w-0 pl-2">
+      <span
+        aria-hidden="true"
+        className="flex-1 self-end mb-[0.35em]"
+        style={{ borderBottom: '1px dotted var(--chart-rule, var(--border-1))', minWidth: '1.5rem' }}
+      />
+      <span
+        className="text-[0.78em] shrink-0 leading-snug"
+        style={{ color: text.trim().startsWith('!') ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--text-2))',
+                 fontStyle: text.trim().startsWith('!') ? 'normal' : 'italic',
+                 fontWeight: text.trim().startsWith('!') ? 600 : 400 }}
+      >
+        {text}
+      </span>
+    </span>
+  );
 
   const renderLine = (line, idx) => {
     if (typeof line !== 'string') {
@@ -110,24 +146,25 @@ export default function SectionBlock({
     if (!cleanLine.includes('[') || !showChords) {
       if (!showLyrics) return null;
       const displayLine = !showChords ? cleanLine.replace(/\[.*?\]/g, '') : cleanLine;
+      const showNote = inlineNotes && inlineNote;
       return (
-        <div
-          key={idx}
-          className="min-h-[1.3em] whitespace-pre-wrap opacity-90"
-          style={{
-            color: 'var(--chart-text, var(--text-1))',
-            lineHeight: 'var(--chart-line-height-lyric, 1.35)',
-          }}
-        >
-          {displayLine}
-          {inlineNotes && inlineNote && (
-            <span
-              className="italic text-[0.8em]"
-              style={{ color: 'var(--chart-subtle, var(--text-2))' }}
-            >
-              {NOTE_SEPARATORS[noteStyle] || NOTE_SEPARATORS.dashes}{inlineNote}
-            </span>
-          )}
+        <div key={idx}>
+          {showNote && notePlacement === 'above' && noteAbove(inlineNote)}
+          <div
+            className={notePlacement === 'leader' ? 'min-h-[1.3em] flex items-baseline opacity-90' : 'min-h-[1.3em] whitespace-pre-wrap opacity-90'}
+            style={{
+              color: 'var(--chart-text, var(--text-1))',
+              lineHeight: 'var(--chart-line-height-lyric, 1.35)',
+            }}
+          >
+            <span className="whitespace-pre-wrap">{displayLine}</span>
+            {showNote && notePlacement === 'inline' && (
+              <span className="italic text-[0.8em]" style={{ color: 'var(--chart-subtle, var(--text-2))' }}>
+                {NOTE_SEPARATORS[noteStyle] || NOTE_SEPARATORS.dashes}{inlineNote}
+              </span>
+            )}
+            {showNote && notePlacement === 'leader' && noteLeader(inlineNote)}
+          </div>
         </div>
       );
     }
@@ -168,6 +205,7 @@ export default function SectionBlock({
           lineHeight: 1,
         }}
       >
+        {inlineNotes && inlineNote && notePlacement === 'above' && noteAbove(inlineNote)}
         <div className="flex flex-wrap items-end">
           {hasLyrics
             ? groupChordWords(pairs).map((w, wi) => (
@@ -197,7 +235,7 @@ export default function SectionBlock({
                   {p.chord && renderChord(p.chord, true)}
                 </span>
               ))}
-          {inlineNotes && inlineNote && (
+          {inlineNotes && inlineNote && notePlacement === 'inline' && (
             <span
               className="italic text-[0.8em] self-end"
               style={{ color: 'var(--chart-subtle, var(--text-2))' }}
@@ -205,6 +243,7 @@ export default function SectionBlock({
               {NOTE_SEPARATORS[noteStyle] || NOTE_SEPARATORS.dashes}{inlineNote}
             </span>
           )}
+          {inlineNotes && inlineNote && notePlacement === 'leader' && noteLeader(inlineNote)}
         </div>
       </div>
     );

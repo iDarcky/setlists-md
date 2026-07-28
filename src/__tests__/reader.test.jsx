@@ -10,12 +10,12 @@
 // cover the three presets rather than the 1,080 knob combinations: the presets
 // are the product, the panel is the escape hatch.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import Reader from '@/features/reader/Reader';
 import { songFromFlat } from '@/arrangements';
 
 // jsdom has no matchMedia; the reader uses it to decide whether there is room
-// for two columns, a side ribbon and the note margin.
+// for two columns, a side ribbon, and how notes attach to their lines.
 function mockWidth(wide) {
   window.matchMedia = vi.fn().mockImplementation(query => ({
     matches: wide,
@@ -155,13 +155,11 @@ describe('every knob actually changes the render', () => {
   });
 
   it('notePosition peek gives a button instead of silently dropping notes', () => {
-    let r = withKnob('notePosition', 'margin');
+    const r = withKnob('notePosition', 'inline');
     expect(screen.queryByRole('button', { name: 'Notes' })).toBeNull();
-    expect(screen.getByRole('complementary', { name: 'Notes and cues' })).toBeTruthy();
     r.unmount();
 
     withKnob('notePosition', 'peek');
-    expect(screen.queryByRole('complementary', { name: 'Notes and cues' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Notes' })).toBeTruthy();
   });
 
@@ -214,24 +212,29 @@ describe('chart display settings reach SectionBlock', () => {
 });
 
 describe('notes', () => {
-  it('collects cues into the margin when there is room', () => {
+  it('shows the section cue on the heading line, not in a separate column', () => {
     renderReader({ preset: 'live' });
-    const notes = screen.getByRole('complementary', { name: 'Notes and cues' });
-    expect(within(notes).getByText('Start soft')).toBeTruthy();
-  });
-
-  it('drops the margin on a narrow screen — it would leave nothing for lyrics', () => {
-    mockWidth(false);
-    renderReader({ preset: 'live' });
+    expect(screen.getAllByText('Start soft').length).toBeGreaterThan(0);
+    // There is no note column any more — a note belongs to its line.
     expect(screen.queryByRole('complementary', { name: 'Notes and cues' })).toBeNull();
   });
 
-  it('numbers a repeated section so the ambiguity is visible', () => {
-    // Chorus plays twice and both carry the same stored cue — the .md format
-    // has nowhere to put a different one. Numbering at least surfaces it.
-    renderReader({ preset: 'rehearsal' });
-    const notes = screen.getByRole('complementary', { name: 'Notes and cues' });
-    expect(within(notes).getByText('Chorus (1)')).toBeTruthy();
-    expect(within(notes).getByText('Chorus (2)')).toBeTruthy();
+  it('keeps the cue visible on a narrow screen too', () => {
+    mockWidth(false);
+    renderReader({ preset: 'live' });
+    expect(screen.getAllByText('Start soft').length).toBeGreaterThan(0);
+  });
+
+  it('renders a loud cue differently from an ordinary one', () => {
+    // Their team writes "!!! sing up an octave !!!" because the format has no
+    // emphasis. A leading ! now means loud.
+    const song = songFromFlat({
+      id: 's', title: 'T', key: 'G',
+      sections: [{ type: 'Verse 1', note: '!Sing up an octave', lines: ['[G]a'] }],
+    });
+    render(<Reader song={song} settings={{}} onExit={() => {}} preset="live" />);
+    const el = screen.getAllByText('!Sing up an octave')[0];
+    expect(el.style.fontStyle).toBe('normal');
+    expect(el.style.fontWeight).toBe('600');
   });
 });

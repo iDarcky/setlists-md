@@ -6,7 +6,14 @@ import { useState, useEffect } from 'react';
 // header/ribbon sits (top, or floated to a side/bottom), and the final sections
 // still light up at the end of the song. `resetKey` re-binds on song/layout
 // changes so the element list is fresh.
-export function useActiveSection(scrollRef, resetKey) {
+// `lineFraction` is where down the viewport the "you are here" line sits.
+// 0.28 is the historic default. The reader passes ~0 because its section
+// headings are STICKY: a heading pins at the very top and stays until the next
+// one pushes it out, so the pinned heading and the highlighted ribbon chip must
+// answer "which section am I in?" identically. With the line at 28% they
+// disagree whenever several short sections share the screen — the heading says
+// Chorus while the ribbon still says Verse 2.
+export function useActiveSection(scrollRef, resetKey, lineFraction = 0.28) {
   const [active, setActive] = useState(0);
 
   useEffect(() => {
@@ -20,7 +27,7 @@ export function useActiveSection(scrollRef, resetKey) {
     const compute = () => {
       raf = 0;
       const rootTop = root.getBoundingClientRect().top;
-      const line = root.clientHeight * 0.28;
+      const line = root.clientHeight * lineFraction;
       // The active section is the last one whose top has scrolled above the
       // reading line. Sections are stacked, so once one is below it the rest are.
       let current = 0;
@@ -43,7 +50,7 @@ export function useActiveSection(scrollRef, resetKey) {
       window.removeEventListener('resize', schedule);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [scrollRef, resetKey]);
+  }, [scrollRef, resetKey, lineFraction]);
 
   return active;
 }

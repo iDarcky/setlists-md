@@ -74,12 +74,17 @@ describe('user overrides', () => {
 });
 
 describe('context overrides are physical, not preferences', () => {
-  it('drops the note margin on a narrow screen', () => {
-    const settings = { readerConfig: { live: { notePosition: 'margin' } } };
-    const narrow = resolveReaderConfig(settings, 'live', { wide: false, setlist: true });
-    expect(narrow.notePosition).toBe('inline');
-    // …but keeps it when there is room.
-    expect(resolveReaderConfig(settings, 'live', wide).notePosition).toBe('margin');
+  it('places a note by the room available, never in a separate column', () => {
+    // A note always belongs to its own line. Wide gets a dotted leader out to
+    // the right edge; narrow puts it ABOVE the line so it is read before the
+    // line is sung rather than discovered after.
+    expect(resolveReaderConfig({}, 'live', wide).notePlacement).toBe('leader');
+    expect(resolveReaderConfig({}, 'live', { wide: false, setlist: true }).notePlacement).toBe('above');
+  });
+
+  it('stops placing notes in the chart when they are set to peek', () => {
+    const settings = { readerConfig: { live: { notePosition: 'peek' } } };
+    expect(resolveReaderConfig(settings, 'live', wide).notePosition).toBe('peek');
   });
 
   it('moves a vertical ribbon to the top on a narrow screen', () => {

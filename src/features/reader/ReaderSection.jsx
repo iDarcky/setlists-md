@@ -17,6 +17,7 @@ export default function ReaderSection({
   const colour = style === 'mono' ? 'var(--chart-subtle, var(--ds-gray-700))' : id.color;
   const heavy = id.heavy;
 
+  const loudNote = /^!/.test(String(section.note || '').trim());
   const asReference = repeatOf >= 0 && config.duplicateSections === 'ref';
   const condensed = repeatOf >= 0 && config.duplicateSections === 'condensed';
 
@@ -38,7 +39,10 @@ export default function ReaderSection({
   // the single strongest defence against losing your place.
   const heading = (
     <div
-      className="flex items-baseline gap-2 mb-1.5"
+      // NOT flex: the cue starts on the section's own line and wraps from
+      // there, like a sentence continuing. Flex would force it onto a row of
+      // its own the moment it got long.
+      className="mb-1.5"
       style={config.stickyHeadings ? {
         position: 'sticky',
         top: stickyTop,
@@ -61,8 +65,16 @@ export default function ReaderSection({
       >
         {headingText(id, config.headingStyle)}
       </span>
-      {section.note && config.notePosition === 'inline' && (
-        <span className="text-label-11 italic text-[var(--chart-subtle,var(--ds-gray-700))]">
+      {section.note && config.notePosition !== 'peek' && (
+        <span
+          className="text-label-11 ml-2"
+          style={{
+            // Your `!!!` convention, promoted to a real emphasis level.
+            color: loudNote ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--ds-gray-700))',
+            fontStyle: loudNote ? 'normal' : 'italic',
+            fontWeight: loudNote ? 600 : 400,
+          }}
+        >
           {section.note}
         </span>
       )}
@@ -128,7 +140,8 @@ export default function ReaderSection({
         // The heading above already renders the section name and cue, so
         // SectionBlock must not render its own or they double up.
         hideHeading
-        inlineNotes={config.notePosition === 'inline' && settings?.showInlineNotes !== false}
+        inlineNotes={config.notePosition !== 'peek' && settings?.showInlineNotes !== false}
+        notePlacement={config.notePlacement}
         noteStyle={settings?.inlineNoteStyle || 'dashes'}
         sectionColors={resolveSectionColors(settings)}
         sectionLabels={settings?.sectionLabels}

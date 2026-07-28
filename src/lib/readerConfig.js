@@ -31,7 +31,7 @@ export const READER_KNOBS = {
   sectionStyle: ['bar', 'block', 'card', 'mono'],
   columnFlow: ['section', 'balanced'],
   headingStyle: ['name', 'code'],
-  notePosition: ['margin', 'inline', 'peek'],
+  notePosition: ['inline', 'peek'],
   duplicateSections: ['full', 'condensed', 'ref'],
   exitStyle: ['both', 'x', 'pull'],
 };
@@ -44,7 +44,7 @@ const PRESET_BASE = {
     columnFlow: 'section',
     headingStyle: 'name',
     stickyHeadings: true,
-    notePosition: 'margin',
+    notePosition: 'inline',
     duplicateSections: 'ref',
     exitStyle: 'both',
     allowEdit: false,
@@ -58,7 +58,7 @@ const PRESET_BASE = {
     columnFlow: 'section',
     headingStyle: 'name',
     stickyHeadings: true,
-    notePosition: 'margin',
+    notePosition: 'inline',
     duplicateSections: 'full',
     exitStyle: 'x',
     allowEdit: true,
@@ -152,10 +152,14 @@ export function resolveReaderConfig(settings, presetId, ctx = {}) {
   // the button comes back regardless of what the preset asked for.
   if (cfg.exitStyle === 'pull' && !touch) cfg.exitStyle = 'x';
 
+  // A note stays attached to its own line either way; only the treatment
+  // changes with the room available. Wide gets a dotted leader out to the
+  // right edge (the printed-chart look, without a separate column); narrow
+  // puts the note ABOVE its line, so it is read before the line is sung
+  // rather than discovered after.
+  cfg.notePlacement = cfg.notePosition === 'peek' ? 'inline' : (wide ? 'leader' : 'above');
+
   if (!wide) {
-    // A right note margin costs ~25% of the width — on a phone that leaves
-    // nothing for lyrics, so notes fall back to markers in the line.
-    if (cfg.notePosition === 'margin') cfg.notePosition = 'inline';
     // A vertical rail has nowhere to live on a phone.
     if (cfg.structurePosition === 'left' || cfg.structurePosition === 'right') {
       cfg.structurePosition = 'top';

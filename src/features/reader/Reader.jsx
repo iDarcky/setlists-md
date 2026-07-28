@@ -76,7 +76,15 @@ export default function Reader({
   );
 
   const { ordered, offsets, repeats } = useMemo(() => buildSongFlow(song), [song]);
-  const activeSection = useActiveSection(scrollRef, `${song?.id || ''}:${config.columns}`);
+  // With sticky headings the active section is, by definition, whichever
+  // heading is currently pinned — so the reading line sits at the pin, not a
+  // third of the way down. Without this the ribbon highlights one section while
+  // the pinned heading names another.
+  const activeSection = useActiveSection(
+    scrollRef,
+    `${song?.id || ''}:${config.columns}:${config.stickyHeadings}`,
+    config.stickyHeadings ? 0.02 : 0.28,
+  );
 
   const transpose = (!selectedKey || !song?.key) ? 0 : semitonesBetween(song.key, selectedKey);
 
@@ -294,16 +302,6 @@ export default function Reader({
         )}
 
         {chart}
-
-        {config.notePosition === 'margin' && (
-          <ReaderNotes
-            ordered={ordered}
-            settings={settings}
-            songNotes={song.notes}
-            activeSection={activeSection}
-            onSelect={jumpTo}
-          />
-        )}
 
         {config.structurePosition === 'right' && ribbonNode && (
           <div className="shrink-0 w-14 overflow-y-auto border-l px-1.5 py-2" style={{ borderColor: 'var(--chart-rule, var(--ds-gray-300))' }}>
