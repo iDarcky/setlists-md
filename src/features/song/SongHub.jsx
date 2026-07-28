@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { resolveSongView } from '@/arrangements';
 import { transposeKey, semitonesBetween, keysInQualityOf } from '@/music';
 import ChartView from '@/features/chart/ChartView';
+import Reader from '@/features/reader/Reader';
 import SongDetails from './SongDetails';
 import FullscreenChartViewer from './FullscreenChartViewer';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
@@ -363,6 +364,19 @@ export default function SongHub({
               <SongDetails
                 song={song}
                 onSave={onUpdateSong ? (patch) => onUpdateSong({ ...songInput, ...patch, updatedAt: Date.now() }) : null}
+              />
+            ) : settings?.unifiedReader ? (
+              // Labs `unifiedReader`: the hub keeps its chrome (identity, tabs,
+              // player bar) and swaps only the reader inside it — otherwise the
+              // app would be back to two chart renderers.
+              <Reader
+                embedded
+                song={song}
+                settings={settings}
+                onUpdateSettings={onUpdateSettings}
+                preset="rehearsal"
+                selectedKey={selectedKey}
+                onSelectKey={setSelectedKey}
               />
             ) : (
               <ChartView

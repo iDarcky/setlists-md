@@ -281,8 +281,14 @@ export const DEFAULT_SETTINGS = {
   // Accidental spelling for chords/keys: 'auto' (follow the key), 'sharps', 'flats'.
   accidentals: 'auto',
   // Where the structure (section flow) ribbon sits in reading views:
-  // 'top' (default, in the header), 'bottom', 'left', or 'right'.
+  // 'top' (default, in the header), 'bottom', 'left', 'right', or 'off'.
   structurePosition: 'top',
+  // Labs: the one unified reader (Live/Rehearsal/Practice as saved bundles of
+  // its settings) in place of the four forked reading surfaces.
+  unifiedReader: false,
+  // Per-preset reader overrides: { live: {...}, rehearsal: {...}, practice: {...} }.
+  // Empty means "whatever the preset means" — see lib/readerConfig.js.
+  readerConfig: {},
   firstDayOfWeek: 'sunday',
   clockFormat: '12h',
   helpPageSeen: false,

@@ -4,11 +4,12 @@ import { Button } from '@/ui/Button';
 
 const SetlistOverview = lazy(() => import('@/features/setlist-viewer/SetlistOverview'));
 const SetlistPlayer = lazy(() => import('@/features/performance/SetlistPlayer'));
+const SetlistReader = lazy(() => import('@/features/reader/SetlistReader'));
 
 // Public, read-only viewer for a shared setlist link (`/?setlist=<token>`).
 // Renders without auth or the user's local library — everything comes from the
 // frozen snapshot stored under the token. Expired/missing links show a notice.
-export default function SharedSetlistViewer({ token, onExit }) {
+export default function SharedSetlistViewer({ token, onExit, settings }) {
   const [state, setState] = useState({ status: 'loading', data: null });
   const [playing, setPlaying] = useState(false);
 
@@ -63,14 +64,21 @@ export default function SharedSetlistViewer({ token, onExit }) {
   // Play Live: a public, read-only live player over the frozen snapshot. No
   // practice mode, no app shell — just the live chart navigation.
   if (playing) {
+    // A shared link has no account, so there is nothing to write settings back
+    // to — the reader runs read-only on the Live preset.
+    const Player = settings?.unifiedReader ? SetlistReader : SetlistPlayer;
     return (
       <Suspense fallback={<div className="min-h-[100dvh] bg-[var(--ds-background-100)]" />}>
-        <SetlistPlayer
-          setlist={setlist}
-          songs={songs || []}
-          onBack={() => setPlaying(false)}
-          onFinish={() => setPlaying(false)}
-        />
+        <div className="h-[100dvh]">
+          <Player
+            setlist={setlist}
+            songs={songs || []}
+            settings={settings}
+            preset="live"
+            onBack={() => setPlaying(false)}
+            onFinish={() => setPlaying(false)}
+          />
+        </div>
       </Suspense>
     );
   }

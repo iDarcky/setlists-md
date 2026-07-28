@@ -46,6 +46,7 @@ import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamNotifications } from '@/hooks/useTeamNotifications';
 import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
 import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/lib/billingCheckout';
+import { usePersistentView } from '@/lib/usePersistentView';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 
@@ -72,6 +73,8 @@ const SetlistOverview = lazy(() => import('@/features/setlist-viewer/SetlistOver
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const PerformanceView = lazy(() => import('@/features/performance/PerformanceView'));
 const PracticeView = lazy(() => import('@/features/performance/PracticeView'));
+// Labs `unifiedReader`: one viewer in place of SetlistPlayer/Performance/Practice.
+const SetlistReader = lazy(() => import('@/features/reader/SetlistReader'));
 const LegalPage = lazy(() => import('@/features/legal/LegalPage'));
 const GoogleDriveCallback = lazy(() => import('@/features/auth/GoogleDriveCallback'));
 const PracticeFinale = lazy(() => import('@/features/performance/PracticeFinale'));
@@ -118,6 +121,10 @@ export default function App() {
   const canEdit = !team || isAdmin || isEditor;
   const isTeamAdmin = isAdmin;
   const confirm = useConfirm();
+  // Which reader preset was last used. Per-device on purpose — the knobs the
+  // preset holds sync (`readerConfig`), but "what I'm doing right now" is a
+  // property of this device, not of the account.
+  const [readerPreset, setReaderPreset] = usePersistentView('setlists-md:reader-preset', 'live');
   // Workspace move/copy picker: null, or { action: 'move'|'copy', songId }.
   const [moveCopyDialog, setMoveCopyDialog] = useState(null);
   // Native + iOS install affordance.
@@ -1874,6 +1881,7 @@ export default function App() {
         <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
           <SharedSetlistViewer
             token={shareToken}
+            settings={settings}
             onExit={() => {
               window.history.replaceState({}, document.title, '/');
               goToMainView('home');
@@ -2315,7 +2323,26 @@ export default function App() {
               clockFormat={settings?.clockFormat || '12h'}
             />
           )}
-          {view === 'setlist-play' && currentSetlist && (
+          {/* Labs `unifiedReader`: one viewer serves setlist-play, -performance
+              and -practice. The route only decides which preset it opens on;
+              the preset is switchable from inside. Flag off → the four original
+              surfaces render untouched. */}
+          {settings?.unifiedReader && currentSetlist
+            && (view === 'setlist-play' || view === 'setlist-performance' || view === 'setlist-practice') && (
+            <SetlistReader
+              setlist={currentSetlist}
+              songs={songs}
+              settings={settings}
+              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              preset={view === 'setlist-practice' ? 'practice' : readerPreset}
+              onPresetChange={setReaderPreset}
+              onBack={goBack}
+              onFinish={(stats) => (view === 'setlist-practice'
+                ? goPracticeFinale(currentSetlist, stats)
+                : goLiveFinale(currentSetlist, stats, view === 'setlist-play' ? 'play' : 'performance'))}
+            />
+          )}
+          {!settings?.unifiedReader && view === 'setlist-play' && currentSetlist && (
             <SetlistPlayer
               setlist={currentSetlist}
             songs={songs}
@@ -2329,7 +2356,7 @@ export default function App() {
               duplicateSections={settings?.duplicateSections || 'full'}
             />
           )}
-          {view === 'setlist-performance' && currentSetlist && (
+          {!settings?.unifiedReader && view === 'setlist-performance' && currentSetlist && (
             <PerformanceView
               setlist={currentSetlist}
             songs={songs}
@@ -2348,7 +2375,7 @@ export default function App() {
               ))}
             />
           )}
-          {view === 'setlist-practice' && currentSetlist && (
+          {!settings?.unifiedReader && view === 'setlist-practice' && currentSetlist && (
             <PracticeView
               setlist={currentSetlist}
             songs={songs}

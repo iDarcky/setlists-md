@@ -72,6 +72,10 @@ export const PORTABLE_PREF_KEYS = [
   'hmMenu',
   'accountPanel',
   'pasteIntoChart',
+  'unifiedReader',
+  // The per-preset reader overrides follow the user across devices; which
+  // preset they last opened does NOT (that's per-device, in localStorage).
+  'readerConfig',
 ];
 
 export function extractPortablePrefs(s) {
@@ -85,7 +89,17 @@ export function extractPortablePrefs(s) {
 
 export function prefsEqual(a, b) {
   for (const k of PORTABLE_PREF_KEYS) {
-    if ((a?.[k] ?? null) !== (b?.[k] ?? null)) return false;
+    const av = a?.[k] ?? null;
+    const bv = b?.[k] ?? null;
+    if (av === bv) continue;
+    // Several portable keys hold objects/arrays (sectionColors, tableColumns,
+    // readerConfig…). Reference equality never holds for those, so without a
+    // value comparison this short-circuit could never fire for them and every
+    // load pushed a redundant write.
+    if (av && bv && typeof av === 'object' && typeof bv === 'object') {
+      if (JSON.stringify(av) === JSON.stringify(bv)) continue;
+    }
+    return false;
   }
   return true;
 }

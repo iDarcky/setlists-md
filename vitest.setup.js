@@ -88,6 +88,12 @@ window.getComputedStyle = function patchedGetComputedStyle(el, pseudo) {
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = vi.fn();
 }
+// jsdom implements scrollTo on window but not on elements. The structure
+// ribbon scrolls the active section chip into view on mount, so without this
+// every test that renders a reading surface throws before its first assertion.
+if (!Element.prototype.scrollTo) {
+  Element.prototype.scrollTo = vi.fn();
+}
 if (!Element.prototype.hasPointerCapture) {
   Element.prototype.hasPointerCapture = () => false;
   Element.prototype.setPointerCapture = () => {};
