@@ -28,6 +28,9 @@ export function StructureRibbon({
   // 'horizontal' (default) or 'vertical' — the side floating rail stacks the
   // items in a column.
   orientation = 'horizontal',
+  // Fill the active chip solid in its section colour rather than ringing a
+  // neutral pill. Opt-in so the existing chart keeps its current look.
+  activeFill = false,
 }) {
   // Collapse consecutive duplicates: "C1, C1, C1" → one entry "C1 ×3".
   const runs = [];
@@ -118,13 +121,17 @@ export function StructureRibbon({
                 active && 'ring-2 ring-offset-1 ring-offset-transparent',
               )}
               style={{
-                // Mockup: neutral pill (border + fill), only the code text is
-                // section-coloured.
-                color: s.b,
-                borderColor: 'var(--border-1)',
-                background: 'var(--bg-1)',
+                // Neutral pill (border + fill); only the code text is
+                // section-coloured. With `activeFill`, the current chip fills
+                // solid in the section's colour instead — so the ribbon chip
+                // and the section heading it points at read as the same
+                // object, which is what makes the ribbon a position indicator
+                // rather than a menu.
+                ...(activeFill && active
+                  ? { color: 'var(--bg-1)', background: s.b, borderColor: s.b }
+                  : { color: s.b, borderColor: 'var(--border-1)', background: 'var(--bg-1)' }),
                 opacity: active || activeIndex == null ? 1 : 0.7,
-                ...(active ? { boxShadow: `0 0 0 2px ${s.b}` } : {}),
+                ...(active && !activeFill ? { boxShadow: `0 0 0 2px ${s.b}` } : {}),
               }}
             >
               {compactLabel(run.name)}

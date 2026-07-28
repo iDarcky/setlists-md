@@ -141,7 +141,10 @@ export default function Reader({
       onSelect={jumpTo}
       style={settings?.ribbonStyle || 'codes'}
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
-      collapse={!ribbonSide}
+      // Consecutive duplicates merge to ×N; a chorus separated by a verse stays
+      // its own chip, so ribbon position still maps to song position.
+      collapse
+      activeFill
       sectionColors={settings?.sectionColors}
       sectionLabels={settings?.sectionLabels}
       customSectionTypes={settings?.customSectionTypes}
@@ -177,6 +180,7 @@ export default function Reader({
           onJumpToFirst={() => jumpTo(repeats[idx])}
           tabColors={tabColors}
           keepWhole={config.columnFlow === 'section'}
+          stickyTop={0}
         />
       ))}
     </div>

@@ -23,6 +23,10 @@ const GROUPS = [
     options: [['section', 'Keep sections whole'], ['balanced', 'Balanced']],
   },
   {
+    label: 'Section heading', knob: 'headingStyle',
+    options: [['name', 'Chorus'], ['code', 'C2'], ['both', 'C2  Chorus']],
+  },
+  {
     label: 'Notes', knob: 'notePosition',
     options: [['margin', 'Right margin'], ['inline', 'In the chart'], ['peek', 'Peek only']],
   },

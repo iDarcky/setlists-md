@@ -53,6 +53,9 @@ export default function SectionBlock({
   showChords = true, showLyrics = true, showTabs = true, inlineNotes = true, noteStyle = 'dashes',
   sectionColors, sectionLabels, customSectionTypes, tabScale = 1, tabColors, tabInstrument = 'all', chordEmphasis = 'full',
   condensed = false, onJumpToFirst,
+  // The reader renders its own (sticky) heading above this block, so it asks
+  // for the body only. Default false keeps every existing caller unchanged.
+  hideHeading = false,
 }) {
   // Reader notation: prefer the explicit `notation` prop; fall back to the
   // legacy boolean `nns` (Nashville on/off) for callers not yet migrated.
@@ -245,22 +248,24 @@ export default function SectionBlock({
         lineHeight: 'var(--chart-line-height-lyric, 1.35)',
       }}
     >
-      <div className="flex items-center gap-4 mb-2">
-        <div className="flex flex-col">
-          <span className="text-label-14 font-black uppercase tracking-[0.15em]" style={{ color: s.b }}>
-            {displayLabel}:
-          </span>
-          {section.note && (
-            <span
-              className="text-label-11 italic mt-1 px-1 ml-0.5 border-l-2"
-              style={{ borderColor: s.br, color: 'var(--chart-subtle, var(--text-2))' }}
-            >
-              {section.note}
+      {!hideHeading && (
+        <div className="flex items-center gap-4 mb-2">
+          <div className="flex flex-col">
+            <span className="text-label-14 font-black uppercase tracking-[0.15em]" style={{ color: s.b }}>
+              {displayLabel}:
             </span>
-          )}
+            {section.note && (
+              <span
+                className="text-label-11 italic mt-1 px-1 ml-0.5 border-l-2"
+                style={{ borderColor: s.br, color: 'var(--chart-subtle, var(--text-2))' }}
+              >
+                {section.note}
+              </span>
+            )}
+          </div>
+          <div className="h-[1px] flex-1 bg-[var(--border-1)] opacity-20" />
         </div>
-        <div className="h-[1px] flex-1 bg-[var(--border-1)] opacity-20" />
-      </div>
+      )}
       <div>
         {(section.lines || []).map((line, i) => renderLine(line, i))}
       </div>

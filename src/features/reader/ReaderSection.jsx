@@ -1,5 +1,4 @@
-import { sectionStyle, sectionLabel } from '@/music';
-import { sectionWeight } from '@/lib/songFlow';
+import { sectionIdentity, headingText } from '@/lib/sectionIdentity';
 import SectionBlock from '@/features/chart/SectionBlock';
 
 /**
@@ -7,38 +6,25 @@ import SectionBlock from '@/features/chart/SectionBlock';
  *
  * The chart body itself is `SectionBlock` — unchanged, and still the only place
  * that knows about chords, tabs, modulate markers and word-grouping. This owns
- * the frame around it.
+ * the frame around it, and the heading that is half the "where am I" mechanic
+ * (the structure ribbon is the other half; both read from `sectionIdentity`).
  */
 export default function ReaderSection({
   section, index, style = 'bar', transpose, modOffset, config, settings,
-  repeatOf = -1, onJumpToFirst, tabColors, keepWhole = true,
+  repeatOf = -1, onJumpToFirst, tabColors, keepWhole = true, stickyTop = 0,
 }) {
-  const s = sectionStyle(section.type, settings?.sectionColors, settings?.customSectionTypes);
-  const weight = sectionWeight(section.type);
-  const heavy = weight === 'hi';
-  const colour = style === 'mono' ? 'var(--chart-subtle, var(--ds-gray-700))' : s.b;
+  const id = sectionIdentity(section.type, settings);
+  const colour = style === 'mono' ? 'var(--chart-subtle, var(--ds-gray-700))' : id.color;
+  const heavy = id.heavy;
 
-  // A repeat renders as a one-line reference instead of the whole section.
   const asReference = repeatOf >= 0 && config.duplicateSections === 'ref';
   const condensed = repeatOf >= 0 && config.duplicateSections === 'condensed';
 
   const frame = {
-    bar: {
-      borderLeft: `${heavy ? 5 : 3}px solid ${colour}`,
-      paddingLeft: '0.75rem',
-    },
-    mono: {
-      borderLeft: '2px solid var(--chart-rule, var(--ds-gray-400))',
-      paddingLeft: '0.75rem',
-    },
-    block: {
-      background: s.bg,
-      borderRadius: '0.6rem',
-      padding: '0.6rem 0.75rem',
-    },
+    bar: { borderLeft: `${heavy ? 5 : 3}px solid ${colour}`, paddingLeft: '0.75rem' },
+    mono: { borderLeft: '2px solid var(--chart-rule, var(--ds-gray-400))', paddingLeft: '0.75rem' },
+    block: { background: id.fill, borderRadius: '0.6rem', padding: '0.6rem 0.75rem' },
     card: {
-      // Lift off the chart background rather than naming a token that does not
-      // exist — a card that matches its own background is an invisible card.
       background: 'color-mix(in srgb, var(--chart-text, #808080) 5%, transparent)',
       border: '1px solid var(--chart-rule, var(--ds-gray-300))',
       borderTop: `3px solid ${colour}`,
@@ -46,6 +32,38 @@ export default function ReaderSection({
       padding: '0.65rem 0.8rem',
     },
   }[style] || {};
+
+  // Sticky: the heading pins under the ribbon and stays until the next section
+  // pushes it out, so the section name is on screen even mid-scroll. This is
+  // the single strongest defence against losing your place.
+  const heading = (
+    <div
+      className="flex items-baseline gap-2 mb-1.5"
+      style={config.stickyHeadings ? {
+        position: 'sticky',
+        top: stickyTop,
+        zIndex: 5,
+        // Opaque, or the lyrics scroll visibly through the pinned heading.
+        background: 'var(--chart-bg, var(--ds-background-100))',
+        paddingTop: '0.2rem',
+        paddingBottom: '0.2rem',
+        marginLeft: '-0.25rem',
+        paddingLeft: '0.25rem',
+      } : undefined}
+    >
+      <span
+        className="font-bold uppercase tracking-wider"
+        style={{ color: colour, fontSize: heavy ? '0.8rem' : '0.7rem' }}
+      >
+        {headingText(id, config.headingStyle)}
+      </span>
+      {section.note && config.notePosition === 'inline' && (
+        <span className="text-label-11 italic text-[var(--chart-subtle,var(--ds-gray-700))]">
+          {section.note}
+        </span>
+      )}
+    </div>
+  );
 
   if (asReference) {
     return (
@@ -59,15 +77,10 @@ export default function ReaderSection({
           onClick={onJumpToFirst}
           className="flex items-center gap-2 w-full text-left bg-transparent border-none p-0 cursor-pointer"
         >
-          <span
-            className="text-label-11 font-bold uppercase tracking-wider"
-            style={{ color: colour }}
-          >
-            {sectionLabel(section.type, settings?.sectionLabels)}
+          <span className="font-bold uppercase tracking-wider text-label-11" style={{ color: colour }}>
+            {headingText(id, config.headingStyle)}
           </span>
-          <span className="text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
-            — as before
-          </span>
+          <span className="text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">— as before</span>
         </button>
       </div>
     );
@@ -82,12 +95,13 @@ export default function ReaderSection({
         // 'section' keeps a chorus whole across the gutter; 'balanced' lets
         // the columns even out and split it.
         breakInside: keepWhole ? 'avoid' : 'auto',
-        scrollMarginTop: '6rem',
-        marginBottom: heavy ? '1.5rem' : '1.1rem',
-        // A chorus reads a shade stronger than the verses around it.
-        fontWeight: heavy ? 500 : 400,
+        scrollMarginTop: stickyTop,
+        // A chorus gets more air above it than a verse, so the page has a
+        // shape you can read without reading the words.
+        marginBottom: heavy ? '1.6rem' : '1rem',
       }}
     >
+      {heading}
       <SectionBlock
         section={section}
         transpose={transpose}
@@ -102,8 +116,9 @@ export default function ReaderSection({
         showTabs
         tabInstrument={config.tabInstrument || 'all'}
         chordEmphasis={settings?.stageMode === 'bassist' ? 'root' : 'full'}
-        // Cues and inline notes leave the flow entirely when the note margin
-        // is on — they are collected there instead, keyed by section.
+        // The heading above already renders the section name and cue, so
+        // SectionBlock must not render its own or they double up.
+        hideHeading
         inlineNotes={config.notePosition === 'inline' && settings?.showInlineNotes !== false}
         noteStyle={settings?.inlineNoteStyle || 'dashes'}
         sectionColors={settings?.sectionColors}
