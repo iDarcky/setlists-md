@@ -77,11 +77,10 @@ const GoogleDriveCallback = lazy(() => import('@/features/auth/GoogleDriveCallba
 const PracticeFinale = lazy(() => import('@/features/performance/PracticeFinale'));
 const LiveFinale = lazy(() => import('@/features/performance/LiveFinale'));
 const LydianShowcase = lazy(() => import('@/features/design/LydianShowcase'));
-// Add-a-song surface. The reworked single-surface modal is behind the
-// `addSongModal` Labs flag; the tabbed Import|Browse modal stays the default
-// until it graduates. Both are lazy — only the one in use is fetched.
+// The add-a-song surface: search over the catalog, with Import and Blank
+// underneath. Graduated from Labs 2026-07 (the tabbed Import|Browse modal it
+// replaced is deleted). Lazy — only fetched when the user adds a song.
 const AddSongModal = lazy(() => import('@/features/import/AddSongModal'));
-const NewSongModal = lazy(() => import('@/features/import/NewSongModal'));
 const HelpPage = lazy(() => import('@/features/legal/HelpPage'));
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
 const AuthCallback = lazy(() => import('@/features/auth/AuthCallback'));
@@ -1508,34 +1507,6 @@ export default function App() {
     for (const id of ids) await handleCopySongToLibrary(id, target);
   };
 
-  // Legacy add-a-song modal only (Labs `addSongModal` off): a Browse pick opens
-  // the editor for review rather than saving straight to the library. The new
-  // modal routes catalog picks through handleAddCatalogSong instead.
-  const handleSmartImport = (mdText) => {
-    if (guardTeamReadOnly()) return; // adds to songs before navigate()'s gate
-    try {
-      const parsed = parseSongMd(mdText);
-      // Stable identity across re-imports: if a song with this title already
-      // exists, adopt its id so the import UPDATES it in place (keeping every
-      // setlist reference intact) instead of minting a new id that orphans
-      // past setlists. The editor still opens for review before Save.
-      const existing = matchSongByTitle(songs, parsed.title);
-      if (existing) {
-        const adopted = { ...songFromFlat({ ...parsed, id: existing.id }), id: existing.id, keyHistory: existing.keyHistory };
-        toast({ title: `Updating "${existing.title}"`, description: 'This song already exists — your import updates it and keeps setlist links.' });
-        setNewSongModal(null);
-        navigate('editor', { song: adopted });
-        return;
-      }
-      const song = songFromFlat({ ...parsed, id: generateId(), updatedAt: Date.now() });
-      setSongs(prev => [...prev, song]);
-      setNewSongModal(null);
-      navigate('editor', { song });
-    } catch {
-      toast({ title: 'Import failed', description: 'Could not parse converted chord sheet.', variant: 'error' });
-    }
-  };
-
   const handleImportParsedSongs = (parsedSongs) => {
     if (!parsedSongs || parsedSongs.length === 0) return;
     if (guardTeamReadOnly()) return;
@@ -2104,7 +2075,7 @@ export default function App() {
             <MobileTopBar
               key={view}
               view={view}
-              songs={songs}
+            songs={songs}
               setlists={setlists}
               onOpenDrawer={openDrawer}
               onOpenNotifications={user ? () => navigate('notifications') : undefined}
@@ -2128,7 +2099,7 @@ export default function App() {
           )}
           {view === 'home' && (
             <Dashboard
-              songs={songs}
+            songs={songs}
               setlists={setlists}
               settings={settings}
               onSelectSong={goChart}
@@ -2158,7 +2129,7 @@ export default function App() {
           )}
           {view === 'library' && (
             <Library
-              songs={songs}
+            songs={songs}
               loaded={loaded}
               onSelectSong={goChart}
               onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
@@ -2198,7 +2169,7 @@ export default function App() {
           )}
           {view === 'setlists' && (
             <Setlists
-              songs={songs}
+            songs={songs}
               setlists={setlists}
               loaded={loaded}
               onViewSetlist={goSetlistView}
@@ -2310,7 +2281,7 @@ export default function App() {
             <SetlistOverview
               key={currentSetlist.id}
               setlist={currentSetlist}
-              songs={songs}
+            songs={songs}
               onBack={goBack}
               onEdit={isTeamReadOnly ? null : () => goSetlistBuild(currentSetlist)}
               onExportZip={() => handleExportSetlist(currentSetlist)}
@@ -2330,7 +2301,7 @@ export default function App() {
           )}
           {view === 'setlist-build' && (
             <SetlistBuilder
-              songs={songs}
+            songs={songs}
               setlist={currentSetlist}
               onSave={handleSaveSetlist}
               onBack={goBack}
@@ -2347,7 +2318,7 @@ export default function App() {
           {view === 'setlist-play' && currentSetlist && (
             <SetlistPlayer
               setlist={currentSetlist}
-              songs={songs}
+            songs={songs}
               onBack={goBack}
               onFinish={(stats) => goLiveFinale(currentSetlist, stats, 'play')}
               defaultColumns={settings?.defaultColumns}
@@ -2361,7 +2332,7 @@ export default function App() {
           {view === 'setlist-performance' && currentSetlist && (
             <PerformanceView
               setlist={currentSetlist}
-              songs={songs}
+            songs={songs}
               onBack={goBack}
               onFinish={(stats) => goLiveFinale(currentSetlist, stats, 'performance')}
               defaultColumns={settings?.defaultColumns}
@@ -2380,7 +2351,7 @@ export default function App() {
           {view === 'setlist-practice' && currentSetlist && (
             <PracticeView
               setlist={currentSetlist}
-              songs={songs}
+            songs={songs}
               startIndex={practiceStartIndex}
               onBack={goBack}
               onFinish={(stats) => goPracticeFinale(currentSetlist, stats)}
@@ -2401,7 +2372,7 @@ export default function App() {
           {view === 'practice-finale' && currentSetlist && (
             <PracticeFinale
               setlist={currentSetlist}
-              songs={songs}
+            songs={songs}
               sessionStats={sessionStats}
               onRunAgain={handleRunSessionAgain}
               onUpdateSetlist={handleUpdateSetlist}
@@ -2524,7 +2495,7 @@ export default function App() {
               activeLibrary={activeLibrary}
               team={team}
               setlists={setlists}
-              songs={songs}
+            songs={songs}
               onRepairSetlistLinks={handleRepairSetlistLinks}
               onRemapService={handleRemapService}
               trash={trash}
@@ -2674,27 +2645,16 @@ export default function App() {
       )}
       {newSongModal && (
         <Suspense fallback={null}>
-          {settings?.addSongModal ? (
-            <AddSongModal
-              autoOpenPicker={newSongModal.initialTab === 'import'}
-              songs={songs}
-              onClose={() => setNewSongModal(null)}
-              onStartBlank={(title) => { setNewSongModal(null); goEditor(null, null, title); }}
-              onOpenSong={(s) => { setNewSongModal(null); goChart(s); }}
-              onImportSongs={handleImportParsedSongs}
-              onImportSetlistFile={handleImportSetlistFile}
-              onAddCatalogSong={handleAddCatalogSong}
-            />
-          ) : (
-            <NewSongModal
-              initialTab={newSongModal.initialTab}
-              onClose={() => setNewSongModal(null)}
-              onStartBlank={() => { setNewSongModal(null); goEditor(); }}
-              onImportSongs={handleImportParsedSongs}
-              onImportSetlistFile={handleImportSetlistFile}
-              onSmartImport={handleSmartImport}
-            />
-          )}
+          <AddSongModal
+            autoOpenPicker={newSongModal.initialTab === 'import'}
+            songs={songs}
+            onClose={() => setNewSongModal(null)}
+            onStartBlank={(title) => { setNewSongModal(null); goEditor(null, null, title); }}
+            onOpenSong={(s) => { setNewSongModal(null); goChart(s); }}
+            onImportSongs={handleImportParsedSongs}
+            onImportSetlistFile={handleImportSetlistFile}
+            onAddCatalogSong={handleAddCatalogSong}
+          />
         </Suspense>
       )}
 

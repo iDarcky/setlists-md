@@ -231,22 +231,29 @@ buys none of that back and costs a year.
 
 ### 3.5 Flag debt
 
-**8 Labs flags, none graduated.** Each is a live fork, and the two most
+**7 Labs flags, one graduated.** Each is a live fork, and the two most
 important (`addSongModal`, `pasteIntoChart`) are **off by default** — so the
 paste and import flows you're actively developing are not the ones users get.
 
 - [ ] **Set a graduation date per flag. Delete the losing path the day it graduates.**
-- [ ] 🔴 Graduate `addSongModal` + `pasteIntoChart` (needs a real week of use).
-- [ ] 🔴 **PDF import only works with `addSongModal` ON** — the legacy modal's
-      file handler predates `lib/importFiles` and doesn't list `.pdf`.
+- [x] ✅ `addSongModal` graduated (its legacy modal is deleted), which also fixed
+      PDF import for everyone.
+- [ ] 🔴 `pasteIntoChart` — still a flag, still off. **Next flag decision.**
 
 ### 3.6 Dead paths to delete on sight
 
 Each doubles the work of the pass that touches it.
 
-- [ ] `SetlistOverviewV2` + the legacy builder layout behind an unused `cards={false}`.
-- [ ] The legacy editor shell, once `songEditorCards` graduates.
-- [ ] `NewSongModal`, once `addSongModal` graduates.
+- [x] ✅ `SetlistOverviewV2` + the `cards={false}` escape hatch — deleted. The
+      cards viewer took over the `SetlistOverview` name, so the experiment's
+      naming is gone too.
+- [x] ✅ The legacy editor layout — deleted. `cardsHeader` was hardcoded `true`,
+      so every `!cardsHeader` branch was unreachable. Removing it cascaded into
+      ~20 further dead declarations that existed only to feed it:
+      1,789 → 1,423 lines.
+- [x] ✅ `NewSongModal` — deleted, which **graduates `addSongModal`**. Everyone
+      now gets the single add-a-song surface, and **PDF import works for
+      everyone** (it only ever worked with that flag on).
 - [ ] `Button2` + `PageHeaderLegacy` — now isolated in `features/design/`;
       nothing but the showcase imports them. Deleting is a decision about the
       showcase, not a refactor.
@@ -403,10 +410,13 @@ here first. Nothing in this section is scheduled on its own.
 - Transpose tabs ❓ feasibility spike.
 
 ### Song library
-- 🟡 **Collapse Cards/Compact into one list view** — they're the same row at
-  different padding, so the switcher asks users to make a choice that doesn't
-  earn itself. Density becomes a property of the view. Applies to Songs **and**
-  Setlists; folds into the `cardFields` work.
+- [x] ✅ **Compact removed (2026-07-27).** The third mode is gone from both
+  switchers; a stored `'compact'` resolves to the card list. Songs and Setlists
+  now offer Table (desktop) and Cards, nothing else.
+  **Leftover, deliberate:** `SongCard`/`SetlistCard` still accept
+  `variant="compact"`. Nothing selects it, so it's unreachable — kept on purpose
+  as the raw material for the reworked single list view (density as a property
+  of the row). Delete it in the library pass if that rework goes another way.
 - **Doubled mobile search** — the global cross-search also shows on Songs/Setlists where it duplicates the page's own. Scope it to the page there, keep global on Dashboard + ⌘K.
 - **Setlist search by contained song** — match song titles inside each setlist's items.
 - Drag-to-**reorder** table columns (show/hide shipped).

@@ -659,9 +659,6 @@ function LabsPanel({ settings, update }) {
       <LabsToggle settings={settings} update={update} flag="pasteIntoChart"
         label="Paste into the chart (prototype)"
         description="Makes a paste land where you aim it: paste into a section and it fills that section, paste one that has its own headings and it expands into several. A new song still opens on the big paste box." />
-      <LabsToggle settings={settings} update={update} flag="addSongModal"
-        label="Add a song (one surface)"
-        description="Replaces the tabbed New song modal with a single surface: a search box over the public-domain catalog, with Import and Blank underneath. Your own songs rank above the catalog, the whole sheet accepts dropped files, and picking a catalog song saves it and opens the hub instead of the editor." />
       <LabsToggle settings={settings} update={update} flag="accountPanel"
         label="Account panel (iOS 26 style)"
         description="Drops the hamburger — your avatar becomes the only menu. Tapping it opens one panel that merges the Space switcher with the menu: an Account sheet header, an identity row, your Spaces as a horizontal rail of tiles, then grouped app rows. Supersedes the hamburger-menu preview when both are on." />

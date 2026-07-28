@@ -422,14 +422,12 @@ export default function Setlists({
   };
 
   // Phones can pick Cards / Compact / Table. Default per device: desktop/tablet
-  // open in Table, phones open in Cards (the friendly default). Compact is
-  // mobile-only; on desktop it falls back to the card gallery.
+  // open in Table, phones open in Cards (the friendly default).
   const autoView = advanced ? 'table' : 'gallery';
   const vm = viewMode ?? autoView;
-  // Table is desktop/tablet only — phones get Cards + Compact.
-  const effectiveView = advanced
-    ? (vm === 'compact' ? 'gallery' : vm)
-    : (vm === 'table' ? 'gallery' : vm);
+  // Two views, not three — see Library.jsx. A stored 'compact' resolves to
+  // the card list.
+  const effectiveView = (vm === 'compact' || (!advanced && vm === 'table')) ? 'gallery' : vm;
   const mobileTable = !advanced && effectiveView === 'table';
   const colFloor = (cls) => (mobileTable ? '' : cls);
   // Per-view card fields (Card vs Compact). Legacy array format applies to both.
@@ -457,11 +455,6 @@ export default function Setlists({
           <TableViewIcon />
         </button>
       )}
-      <button onClick={() => setViewMode('compact')} aria-label="Compact list view" title="Compact list"
-        className={cn('w-9 h-9 sm:hidden items-center justify-center cursor-pointer border-none transition-colors flex',
-          vm === 'compact' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></svg>
-      </button>
       <button onClick={() => setViewMode('gallery')} aria-label="Card view" title="Card view"
         className={cn('w-9 h-9 flex items-center justify-center cursor-pointer border-none transition-colors',
           effectiveView === 'gallery' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}>

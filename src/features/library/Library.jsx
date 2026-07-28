@@ -545,11 +545,11 @@ export default function Library({
   // the card gallery.
   const autoView = advanced ? 'table' : 'gallery';
   const vm = viewMode ?? autoView;
-  // Table is desktop/tablet only — phones get Cards + Compact. A stored 'table'
-  // choice falls back to the card gallery on phones.
-  const effectiveView = advanced
-    ? (vm === 'compact' ? 'gallery' : vm)
-    : (vm === 'table' ? 'gallery' : vm);
+  // Two views, not three. Table is desktop/tablet only; everywhere else it's
+  // the card list. 'compact' was a third mode that rendered the same row at
+  // tighter padding — a choice that didn't earn itself — so a stored 'compact'
+  // now resolves to the card list.
+  const effectiveView = (vm === 'compact' || (!advanced && vm === 'table')) ? 'gallery' : vm;
   // Desktop table horizontally scrolls when the chosen columns overflow (plus).
   const mobileTable = false;
   // In plus mode every table column is user-chosen, so never hide any by
@@ -605,7 +605,7 @@ export default function Library({
               onChange={e => setQuery(e.target.value)}
             />
 
-            {/* View switcher — Table (desktop only) / Compact (mobile only) / Cards. */}
+            {/* View switcher — Table (desktop only) / Cards. */}
             <div className="flex items-center rounded-lg border border-[var(--modes-border)] overflow-hidden">
               {advanced && (
                 <button
@@ -617,16 +617,6 @@ export default function Library({
                   <TableViewIcon />
                 </button>
               )}
-              <button
-                onClick={() => setViewMode('compact')}
-                aria-label="Compact list view" title="Compact list"
-                className={cn('w-9 h-9 sm:hidden items-center justify-center cursor-pointer border-none transition-colors flex',
-                  vm === 'compact' ? 'bg-[var(--modes-surface-strong)] text-[var(--color-brand)]' : 'bg-transparent text-[var(--modes-text-muted)] hover:bg-[var(--modes-surface)]')}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" />
-                </svg>
-              </button>
               <button
                 onClick={() => setViewMode('gallery')}
                 aria-label="Card view" title="Card view"

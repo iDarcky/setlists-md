@@ -71,7 +71,6 @@ export const PORTABLE_PREF_KEYS = [
   'setlistsLibraryPlus',
   'hmMenu',
   'accountPanel',
-  'addSongModal',
   'pasteIntoChart',
 ];
 
