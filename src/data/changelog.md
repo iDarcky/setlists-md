@@ -6,7 +6,7 @@ A running log of what's new in setlists.md. Newest releases first.
 *July 2026*
 
 ### Added
-- **Add a song, all on one screen (Labs)** — search, import and blank song together instead of behind tabs. Drop a file anywhere on it; on a phone Import opens your files straight away. Turn it on in Settings → Labs.
+- **Add a song, all on one screen** — search, import and blank song together instead of behind tabs. Drop a file anywhere on it; on a phone Import opens your files straight away.
 - **Import a chord chart from a PDF** — drop one in and the chords, lyrics, sections, key, writers and play order come across. Romanian charts are understood too: STROFĂ, REFREN, PRE-REFREN and PUNTE become verses, choruses and bridges. Scanned or photographed PDFs say so rather than importing an empty song.
 - **Check a pasted song before it becomes a chart (Labs)** — paste anything and see the sections we found, each with a label you can tap to change. Blocks that repeat are marked as the chorus; join two blocks together or drop the ones that were website clutter.
 - **Repeat marks are understood** — `//: … ://` and `|: … :|` come off the lyrics and turn into the play order, so a chorus written once but sung twice is played twice. Counts like `://3` work as well.
@@ -14,7 +14,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Songs library + (Labs)** — extra columns (CCLI, year, length, arrangements, themes), a "used in setlists" count, group-by, data-quality quick filters and bulk tagging. Turn it on in Settings → Labs.
 - **Setlists library + (Labs)** — find a setlist by a song inside it, see total length, filter by draft or date, and duplicate or save a setlist as a template.
 - **All your filters in one place** — key, tempo, theme, language, year, scripture, moment and tags now live in a single Filters button on both libraries, as a full-height sheet on phones.
-- **Choose what your cards show** — pick which details appear on song and setlist cards, set separately for the Card and Compact views, and remembered per device.
+- **Choose what your cards show** — pick which details appear on song and setlist cards, remembered per device.
 - **Select several at once** — press and hold on a phone, or use the new Select button on any device, then tag, add to a setlist, duplicate or delete the lot. Less-used actions sit under "…".
 - **Cover art on song cards** — album art from a linked Spotify or YouTube track, with a brand-coloured placeholder when there's none.
 - **Next up** — the soonest upcoming service gets its own card at the top of the Setlists list.
@@ -34,6 +34,9 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Quick edit is mouse-only** — the pencil at the right of a song row no longer turns an ordinary tap into an accidental edit on a phone.
 - **Quieter syncing** — "Synced" no longer interrupts you for background syncs; you'll only see it when you tap Sync now, which now also tells you when everything was already up to date.
 - **A tidier scrollbar** throughout the app.
+- **The new way to add songs is now simply the way** — no longer something to switch on, and importing a PDF works for everyone.
+- **The app starts lighter.** Chord fingering diagrams are fetched only if you turn them on, so everyone else downloads about 160 KB less.
+- **One song list instead of three.** Cards and Compact were the same row at different spacing, so Compact has gone; the view switcher now appears only on a screen wide enough to offer the table.
 
 ### Fixed
 - **Saving no longer loses a pasted song.** Hitting Save with text still waiting in the paste box used to keep the details and quietly throw the lyrics away.
@@ -48,6 +51,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Done now leaves selection mode** instead of immediately switching it back on.
 - **Filter sheets no longer show a stray white outline** on phones.
 - **Cover art picks up Spotify links**, not only YouTube ones.
+- **Importing a PDF works without turning anything on first** — it previously needed the Labs add-a-song screen enabled.
 
 ## 0.16.0 — Notifications, reliability, and a card-based editor
 *July 2026*
