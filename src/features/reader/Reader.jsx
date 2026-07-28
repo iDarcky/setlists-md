@@ -8,6 +8,7 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useActiveSection } from '@/hooks/useActiveSection';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import { IconButton } from '@/ui/IconButton';
+import BottomSheet from '@/ui/BottomSheet';
 import ReaderSection from './ReaderSection';
 import ReaderNotes from './ReaderNotes';
 import ReaderCustomizeSheet from './ReaderCustomizeSheet';
@@ -22,6 +23,14 @@ const CloseIcon = () => (
     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
+const NoteIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 5h16M4 10h16M4 15h10" />
+  </svg>
+);
+
+// How far you have to pull before releasing exits.
+const PULL_EXIT = 96;
 
 /**
  * The reader. One surface, configured — not three.
@@ -49,6 +58,9 @@ export default function Reader({
 }) {
   const scrollRef = useRef(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [pull, setPull] = useState(0);
+  const pullStart = useRef(null);
   const wide = useMediaQuery('(min-width: 768px)');
 
   // Callers should hand over a resolved arrangement view, but accept a raw v2
@@ -56,9 +68,10 @@ export default function Reader({
   // chart, which is the worst thing that can happen on a stage.
   const song = songProp?.arrangements ? resolveSongView(songProp, arrangementId) : songProp;
 
+  const touch = useMediaQuery('(pointer: coarse)');
   const config = useMemo(
-    () => resolveReaderConfig(settings, preset, { embedded, wide, setlist }),
-    [settings, preset, embedded, wide, setlist]
+    () => resolveReaderConfig(settings, preset, { embedded, wide, setlist, touch }),
+    [settings, preset, embedded, wide, setlist, touch]
   );
 
   const { ordered, offsets, repeats } = useMemo(() => buildSongFlow(song), [song]);
@@ -73,6 +86,28 @@ export default function Reader({
     ...(settings?.tabNumberColor ? { number: settings.tabNumberColor } : null),
     ...(settings?.tabBg ? { bg: settings.tabBg } : null),
   };
+
+  const showPullGesture = !embedded && (config.exitStyle === 'pull' || config.exitStyle === 'both');
+
+  // Pull-to-exit: only when the chart is already scrolled to the top, so it
+  // can never fight a normal scroll. No permanent affordance — the ✕ is the
+  // discoverable exit; this is the fast one.
+  const onTouchStart = useCallback((e) => {
+    if (!showPullGesture) return;
+    pullStart.current = (scrollRef.current?.scrollTop ?? 0) <= 0 ? e.touches[0].clientY : null;
+  }, [showPullGesture]);
+
+  const onTouchMove = useCallback((e) => {
+    if (pullStart.current == null) return;
+    const dy = e.touches[0].clientY - pullStart.current;
+    setPull(dy > 0 ? Math.min(dy, PULL_EXIT * 1.5) : 0);
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    if (pullStart.current != null && pull >= PULL_EXIT) onExit?.();
+    pullStart.current = null;
+    setPull(0);
+  }, [pull, onExit]);
 
   const jumpTo = useCallback((idx) => {
     const el = document.getElementById(`section-${idx}`);
@@ -90,9 +125,13 @@ export default function Reader({
   if (!song) return null;
 
   const displayKey = selectedKey || song.key;
-  const showTitle = config.headerDensity !== 'min';
+  // Three genuinely different states, not two with a spare label:
+  //   min  — controls only, no title
+  //   std  — title
+  //   full — title plus a spelled-out meta row underneath
+  const showTitle = config.headerDensity === 'std' || config.headerDensity === 'full';
+  const showMetaRow = config.headerDensity === 'full';
   const showExitButton = config.exitStyle === 'x' || config.exitStyle === 'both';
-  const showPullBar = config.exitStyle === 'pull' || config.exitStyle === 'both';
   const ribbonSide = config.structurePosition === 'left' || config.structurePosition === 'right';
 
   const ribbonNode = config.structurePosition !== 'off' && ordered.length > 0 ? (
@@ -115,6 +154,10 @@ export default function Reader({
       className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-3.5 py-3.5"
       style={{
         fontSize: config.display.lyricFontSize,
+        // SectionBlock sizes chords off these vars, not off inherited font-size
+        // — without them the chord-size setting does nothing.
+        ['--chart-font-size-lyric']: `${config.display.lyricFontSize}px`,
+        ['--chart-font-size-chord']: `${config.display.chordFontSize}px`,
         ...(config.columns === 2
           ? { columnCount: 2, columnGap: '1.75rem', columnRule: '1px solid var(--chart-rule, var(--ds-gray-300))' }
           : null),
@@ -133,6 +176,7 @@ export default function Reader({
           repeatOf={repeats[idx]}
           onJumpToFirst={() => jumpTo(repeats[idx])}
           tabColors={tabColors}
+          keepWhole={config.columnFlow === 'section'}
         />
       ))}
     </div>
@@ -140,27 +184,31 @@ export default function Reader({
 
   return (
     <div
-      className="h-full flex flex-col overflow-hidden"
+      className="h-full flex flex-col overflow-hidden relative"
       style={{ background: 'var(--chart-bg, var(--ds-background-100))', color: 'var(--chart-text, var(--ds-gray-1000))' }}
+      onTouchStart={showPullGesture ? onTouchStart : undefined}
+      onTouchMove={showPullGesture ? onTouchMove : undefined}
+      onTouchEnd={showPullGesture ? onTouchEnd : undefined}
     >
-      {/* Pull-to-exit affordance. Always rendered above the header so it can
-          never be scrolled away — the old header collapsed and took the only
-          exit with it, mid-service. */}
-      {showPullBar && !embedded && (
-        <button
-          type="button"
-          onClick={onExit}
-          aria-label="Exit"
-          className="shrink-0 h-1.5 border-none cursor-pointer p-0"
-          style={{ background: 'linear-gradient(90deg, transparent, var(--ds-red-700), transparent)', opacity: 0.5 }}
-        />
+      {/* Pull-to-exit shows only while the gesture is happening. A permanent
+          coloured strip is chrome, and chrome is what this pass is removing. */}
+      {pull > 0 && (
+        <div
+          className="absolute inset-x-0 top-0 z-20 flex items-center justify-center pointer-events-none"
+          style={{ height: Math.min(pull, PULL_EXIT) }}
+        >
+          <span className="text-label-11 font-semibold text-[var(--ds-red-900)]">
+            {pull >= PULL_EXIT ? 'Release to exit' : 'Pull to exit'}
+          </span>
+        </div>
       )}
 
       {!embedded && (
         <div
-          className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-b"
+          className="shrink-0 flex flex-col border-b"
           style={{ borderColor: 'var(--chart-rule, var(--ds-gray-300))' }}
         >
+        <div className="flex items-center gap-2 px-3 py-1.5">
           <IconButton size="sm" aria-label="Customize" onClick={() => setSheetOpen(true)}>
             <MenuIcon />
           </IconButton>
@@ -168,9 +216,6 @@ export default function Reader({
           {showTitle && (
             <span className="min-w-0 flex-1 truncate text-label-13 font-semibold">
               {song.title}
-              {song.artist && (
-                <span className="font-normal opacity-60"> · {song.artist}</span>
-              )}
             </span>
           )}
 
@@ -201,11 +246,26 @@ export default function Reader({
             {song.time && <span>{song.time}</span>}
           </span>
 
+          {config.notePosition === 'peek' && (
+            <IconButton size="sm" aria-label="Notes" onClick={() => setNotesOpen(true)}>
+              <NoteIcon />
+            </IconButton>
+          )}
+
           {showExitButton && (
             <IconButton size="sm" aria-label="Exit" onClick={onExit}>
               <CloseIcon />
             </IconButton>
           )}
+        </div>
+
+        {showMetaRow && (
+          <div className="flex items-center gap-3 px-3 pb-1.5 text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
+            {song.capo ? <span>Capo {song.capo}</span> : null}
+            <span>{ordered.length} sections</span>
+            {song.ccli && <span>CCLI {song.ccli}</span>}
+          </div>
+        )}
         </div>
       )}
 
@@ -255,6 +315,19 @@ export default function Reader({
           {footer}
         </div>
       )}
+
+      {/* 'peek' keeps notes off the page until asked for — the third real
+          option, not a synonym for "off". */}
+      <BottomSheet open={notesOpen} onClose={() => setNotesOpen(false)} title="Notes & cues">
+        <ReaderNotes
+          ordered={ordered}
+          settings={settings}
+          songNotes={song.notes}
+          activeSection={activeSection}
+          onSelect={(i) => { setNotesOpen(false); jumpTo(i); }}
+          inSheet
+        />
+      </BottomSheet>
 
       <ReaderCustomizeSheet
         open={sheetOpen}

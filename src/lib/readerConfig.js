@@ -93,19 +93,25 @@ function pick(knob, value, fallback) {
  * @param ctx.embedded  true inside the Song Hub — the hub owns the chrome
  * @param ctx.wide      true when the viewport can carry two columns / a rail
  * @param ctx.setlist   true when reading a setlist (enables paging)
+ * @param ctx.touch     whether the device can do the pull gesture at all
  */
 export function resolveReaderConfig(settings, presetId, ctx = {}) {
   const preset = isReaderPreset(presetId) ? presetId : DEFAULT_PRESET;
   const base = PRESET_BASE[preset];
   const saved = settings?.readerConfig?.[preset] || {};
-  const { embedded = false, wide = false, setlist = false } = ctx;
+  const { embedded = false, wide = false, setlist = false, touch = true } = ctx;
 
   const display = resolveChartDisplay(settings);
+
+  // The app-wide ribbon position (Settings → Labs) is the default for every
+  // preset; a per-preset override beats it. Without this fallback the global
+  // control looks broken — it writes a key the reader never reads.
+  const globalRibbon = pick('structurePosition', settings?.structurePosition, base.structurePosition);
 
   const cfg = {
     preset,
     headerDensity: pick('headerDensity', saved.headerDensity, base.headerDensity),
-    structurePosition: pick('structurePosition', saved.structurePosition, base.structurePosition),
+    structurePosition: pick('structurePosition', saved.structurePosition, globalRibbon),
     sectionStyle: pick('sectionStyle', saved.sectionStyle, base.sectionStyle),
     columnFlow: pick('columnFlow', saved.columnFlow, base.columnFlow),
     notePosition: pick('notePosition', saved.notePosition, base.notePosition),
@@ -131,6 +137,11 @@ export function resolveReaderConfig(settings, presetId, ctx = {}) {
     cfg.showTools = false;
     cfg.confirmExit = false;
   }
+
+  // There must always be a way out. Pull-only on a device that cannot pull is
+  // no exit at all — the precise failure this whole pass exists to remove — so
+  // the button comes back regardless of what the preset asked for.
+  if (cfg.exitStyle === 'pull' && !touch) cfg.exitStyle = 'x';
 
   if (!wide) {
     // A right note margin costs ~25% of the width — on a phone that leaves

@@ -11,7 +11,7 @@ import SectionBlock from '@/features/chart/SectionBlock';
  */
 export default function ReaderSection({
   section, index, style = 'bar', transpose, modOffset, config, settings,
-  repeatOf = -1, onJumpToFirst, tabColors,
+  repeatOf = -1, onJumpToFirst, tabColors, keepWhole = true,
 }) {
   const s = sectionStyle(section.type, settings?.sectionColors, settings?.customSectionTypes);
   const weight = sectionWeight(section.type);
@@ -37,7 +37,9 @@ export default function ReaderSection({
       padding: '0.6rem 0.75rem',
     },
     card: {
-      background: 'var(--chart-card, var(--ds-background-100))',
+      // Lift off the chart background rather than naming a token that does not
+      // exist — a card that matches its own background is an invisible card.
+      background: 'color-mix(in srgb, var(--chart-text, #808080) 5%, transparent)',
       border: '1px solid var(--chart-rule, var(--ds-gray-300))',
       borderTop: `3px solid ${colour}`,
       borderRadius: '0.6rem',
@@ -50,7 +52,7 @@ export default function ReaderSection({
       <div
         id={`section-${index}`}
         data-section-index={index}
-        style={{ ...frame, breakInside: 'avoid', marginBottom: heavy ? '1.5rem' : '1.1rem' }}
+        style={{ ...frame, breakInside: keepWhole ? 'avoid' : 'auto', marginBottom: heavy ? '1.5rem' : '1.1rem' }}
       >
         <button
           type="button"
@@ -77,7 +79,9 @@ export default function ReaderSection({
       data-section-index={index}
       style={{
         ...frame,
-        breakInside: 'avoid',
+        // 'section' keeps a chorus whole across the gutter; 'balanced' lets
+        // the columns even out and split it.
+        breakInside: keepWhole ? 'avoid' : 'auto',
         scrollMarginTop: '6rem',
         marginBottom: heavy ? '1.5rem' : '1.1rem',
         // A chorus reads a shade stronger than the verses around it.

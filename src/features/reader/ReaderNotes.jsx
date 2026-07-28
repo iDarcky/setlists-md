@@ -6,15 +6,21 @@ import NoteContent from '@/ui/NoteContent';
  * The right-hand note margin. Costs about 25% of the width, so
  * `resolveReaderConfig` only ever hands it a wide screen.
  */
-export default function ReaderNotes({ ordered, settings, songNotes, activeSection, onSelect }) {
+export default function ReaderNotes({ ordered, settings, songNotes, activeSection, onSelect, inSheet = false }) {
   const entries = useMemo(() => collectNotes(ordered, settings), [ordered, settings]);
 
-  if (!entries.length && !songNotes) return null;
+  if (!entries.length && !songNotes) {
+    return inSheet
+      ? <p className="m-0 py-2 text-copy-13 text-[var(--ds-gray-700)]">No cues or notes on this song.</p>
+      : null;
+  }
 
   return (
     <aside
-      className="shrink-0 w-[13.5rem] overflow-y-auto border-l px-3 py-3.5"
-      style={{
+      className={inSheet
+        ? 'block'
+        : 'shrink-0 w-[13.5rem] overflow-y-auto border-l px-3 py-3.5'}
+      style={inSheet ? undefined : {
         borderColor: 'var(--chart-rule, var(--ds-gray-300))',
         background: 'color-mix(in srgb, var(--color-brand) 4%, transparent)',
       }}

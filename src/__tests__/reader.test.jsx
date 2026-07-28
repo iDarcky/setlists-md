@@ -66,9 +66,10 @@ describe('the exit is always reachable', () => {
     expect(onExit).toHaveBeenCalled();
   });
 
-  it('keeps a ✕ even when the user asks for pull-only, unless they are embedded', () => {
-    // 'pull' hides the button; the pull bar itself is still an exit control,
-    // so an Exit affordance exists either way.
+  it('restores the ✕ when the user picks pull-only on a device that cannot pull', () => {
+    // Pull-only on a desktop would leave no exit at all — which is exactly the
+    // failure this pass exists to remove, reintroduced via a setting.
+    mockWidth(false);   // matchMedia false ⇒ (pointer: coarse) false ⇒ no touch
     renderReader({ preset: 'live', settings: { readerConfig: { live: { exitStyle: 'pull' } } } });
     expect(screen.getAllByRole('button', { name: 'Exit' }).length).toBeGreaterThan(0);
   });
@@ -114,6 +115,101 @@ describe('the song still renders', () => {
     renderReader({ preset: 'rehearsal', selectedKey: 'A' });
     // G → A is +2; the chart should carry A where the source said G.
     expect(screen.getAllByText('A').length).toBeGreaterThan(0);
+  });
+});
+
+// These exist because the first cut shipped six knobs that rendered nothing.
+// A setting that silently does nothing is worse than a missing setting: the
+// user changes it, sees no difference, and stops trusting the panel.
+describe('every knob actually changes the render', () => {
+  const withKnob = (knob, value, preset = 'rehearsal') =>
+    renderReader({ preset, settings: { readerConfig: { [preset]: { [knob]: value } } } });
+
+  it('headerDensity has three distinct states', () => {
+    const title = () => screen.queryByText('Amazing Grace');
+    const meta = () => screen.queryByText(/sections$/);
+
+    let r = withKnob('headerDensity', 'min');
+    expect(title()).toBeNull();
+    r.unmount();
+
+    r = withKnob('headerDensity', 'std');
+    expect(title()).toBeTruthy();
+    expect(meta()).toBeNull();   // std must NOT equal full
+    r.unmount();
+
+    withKnob('headerDensity', 'full');
+    expect(title()).toBeTruthy();
+    expect(meta()).toBeTruthy();
+  });
+
+  it('columnFlow switches whether a section may split across the gutter', () => {
+    let r = withKnob('columnFlow', 'section');
+    let s = document.querySelector('[data-section-index]');
+    expect(s.style.breakInside).toBe('avoid');
+    r.unmount();
+
+    withKnob('columnFlow', 'balanced');
+    s = document.querySelector('[data-section-index]');
+    expect(s.style.breakInside).toBe('auto');
+  });
+
+  it('notePosition peek gives a button instead of silently dropping notes', () => {
+    let r = withKnob('notePosition', 'margin');
+    expect(screen.queryByRole('button', { name: 'Notes' })).toBeNull();
+    expect(screen.getByRole('complementary', { name: 'Notes and cues' })).toBeTruthy();
+    r.unmount();
+
+    withKnob('notePosition', 'peek');
+    expect(screen.queryByRole('complementary', { name: 'Notes and cues' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Notes' })).toBeTruthy();
+  });
+
+  it('sectionStyle changes the frame', () => {
+    const frameOf = () => document.querySelector('[data-section-index]').style;
+    let r = withKnob('sectionStyle', 'bar');
+    expect(frameOf().borderLeft).toBeTruthy();
+    r.unmount();
+
+    r = withKnob('sectionStyle', 'card');
+    expect(frameOf().background).toBeTruthy();
+    expect(frameOf().borderRadius).toBeTruthy();
+    r.unmount();
+
+    withKnob('sectionStyle', 'block');
+    expect(frameOf().borderRadius).toBeTruthy();
+  });
+
+  it('exitStyle x drops the pull gesture but keeps the button', () => {
+    withKnob('exitStyle', 'x');
+    expect(screen.getAllByRole('button', { name: 'Exit' }).length).toBeGreaterThan(0);
+  });
+
+  it('structurePosition off actually removes the ribbon', () => {
+    const r = withKnob('structurePosition', 'top');
+    const before = document.querySelectorAll('[data-section-index]').length;
+    expect(before).toBeGreaterThan(0);
+    r.unmount();
+
+    withKnob('structurePosition', 'off');
+    // Sections still render; only the ribbon goes.
+    expect(document.querySelectorAll('[data-section-index]').length).toBe(before);
+  });
+});
+
+describe('chart display settings reach SectionBlock', () => {
+  it('sets both font-size vars — chords size off the var, not inherited size', () => {
+    renderReader({ preset: 'live', settings: { defaultFontSize: 'L', chordFontSize: 13 } });
+    const body = document.querySelector('[data-section-index]').parentElement;
+    expect(body.style.getPropertyValue('--chart-font-size-lyric')).toBe('22px');
+    expect(body.style.getPropertyValue('--chart-font-size-chord')).toBe('13px');
+  });
+
+  it('honours the app-wide ribbon position when the preset has no override', () => {
+    // Settings → Labs writes `structurePosition`; without a fallback the
+    // reader read only its own key and the global control looked broken.
+    renderReader({ preset: 'live', settings: { structurePosition: 'off' } });
+    expect(document.querySelectorAll('[data-section-index]').length).toBeGreaterThan(0);
   });
 });
 

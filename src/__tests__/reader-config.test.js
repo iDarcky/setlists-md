@@ -103,6 +103,14 @@ describe('context overrides are physical, not preferences', () => {
     expect(c.paged).toBe(false);
   });
 
+  it('never leaves a device with no way out', () => {
+    const settings = { readerConfig: { live: { exitStyle: 'pull' } } };
+    // A pointer device cannot perform the gesture, so the button must return.
+    expect(resolveReaderConfig(settings, 'live', { wide: true, touch: false }).exitStyle).toBe('x');
+    // On touch, the user's choice stands.
+    expect(resolveReaderConfig(settings, 'live', { wide: true, touch: true }).exitStyle).toBe('pull');
+  });
+
   it('only pages for a setlist', () => {
     expect(resolveReaderConfig({}, 'live', { wide: true, setlist: true }).paged).toBe(true);
     expect(resolveReaderConfig({}, 'live', { wide: true, setlist: false }).paged).toBe(false);
