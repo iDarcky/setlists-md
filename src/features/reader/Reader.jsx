@@ -48,11 +48,15 @@ export default function Reader({
   selectedKey,
   onSelectKey,
   footer,
+  // The Song Hub owns the Aa button when embedded and hands its anchor rect
+  // down, exactly as it did to ChartView.
+  aaAnchor: hostAaAnchor,
+  onAaClose,
 }) {
   const scrollRef = useRef(null);
   // The Aa popover, anchored to the ☰ button — the same menu the Song Hub uses,
   // with a Visual tab added for the element-level options.
-  const [aaAnchor, setAaAnchor] = useState(null);
+  const [ownAaAnchor, setOwnAaAnchor] = useState(null);
   const wide = useMediaQuery('(min-width: 768px)');
 
   // Callers should pass a resolved arrangement view; accept a raw v2 song too,
@@ -149,21 +153,22 @@ export default function Reader({
                 // Read the rect synchronously: React nulls currentTarget once
                 // the handler returns, so a lazy state updater would see null.
                 const rect = e.currentTarget.getBoundingClientRect();
-                setAaAnchor(a => (a ? null : rect));
+                setOwnAaAnchor(a => (a ? null : rect));
               }}
             >
               <MenuIcon />
             </IconButton>
 
+            {/* Title and meta are ONE group that takes the leftover width, so
+                the title can never be squeezed to nothing, and the key stays
+                beside it rather than out by the exit — the key is the only live
+                control here and a mis-tap next to ✕ leaves the service. */}
+            <span className="flex-1 min-w-0 flex items-center gap-2">
             {showTitle && (
-              <span className="truncate text-label-13 font-semibold shrink min-w-[4rem] max-w-[45%]">
+              <span className="truncate text-label-13 font-semibold min-w-0">
                 {song.title}
               </span>
             )}
-
-            {/* Key, tempo and time sit WITH the title, not out by the exit —
-                the key is the only live control here and a mis-tap next to ✕
-                either transposes mid-song or leaves the service. */}
             <span className="shrink-0 flex items-center gap-2 text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
               {onSelectKey ? (
                 <Select value={displayKey} onValueChange={onSelectKey}>
@@ -185,8 +190,7 @@ export default function Reader({
               {song.tempo && <span className="tabular-nums">♩{song.tempo}</span>}
               {song.time && <span className="tabular-nums">{song.time}</span>}
             </span>
-
-            <span className="flex-1" />
+            </span>
 
             {onExit && (
               <IconButton size="sm" aria-label="Exit" onClick={onExit}>
@@ -222,6 +226,9 @@ export default function Reader({
           ref={scrollRef}
           className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden"
           style={{
+            // Reserve the scrollbar's width even when it is not showing, or the
+            // centred body sits a few px left of the centred header above it.
+            scrollbarGutter: 'stable',
             fontSize: config.display.lyricFontSize,
             // SectionBlock sizes chords off these vars, not inherited size.
             ['--chart-font-size-lyric']: `${config.display.lyricFontSize}px`,
@@ -268,11 +275,11 @@ export default function Reader({
         </div>
       )}
 
-      {aaAnchor && (
+      {(hostAaAnchor || ownAaAnchor) && (
         <AaMenu
           visualEdit
-          anchorRect={aaAnchor}
-          onClose={() => setAaAnchor(null)}
+          anchorRect={hostAaAnchor || ownAaAnchor}
+          onClose={() => { setOwnAaAnchor(null); onAaClose?.(); }}
           settings={settings}
           onUpdateSettings={onUpdateSettings}
           lyricSize={config.display.lyricFontSize}

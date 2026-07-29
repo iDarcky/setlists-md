@@ -20,7 +20,6 @@ import NoteContent from '@/ui/NoteContent';
 import StageHeader from '@/ui/StageHeader';
 import EdgeNavArrows from '@/ui/EdgeNavArrows';
 import { useIsTablet, useIsLandscape, useIsDesktop } from '@/lib/useMediaQuery';
-import { STAGE_MODE_MAP } from '@/data/stageModes';
 import { resolveChartDisplay, resolveColumns } from '@/lib/chartDisplay';
 import { useStageHeaderCollapse } from '@/hooks/useStageHeaderCollapse';
 import { useActiveSection } from '@/hooks/useActiveSection';
@@ -43,7 +42,6 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   // back through onUpdateSettings so a tweak here shows up on every song and in
   // the chart / live views too. They re-seed when the persisted settings change.
   const disp = resolveChartDisplay(settings, { fallbackLyric: defaultFontSize || 18 });
-  const stageMode = settings?.stageMode || 'leader';
   const [fontSize, setFontSize] = useState(disp.lyricFontSize);
   const [chordFontSize, setChordFontSize] = useState(disp.chordFontSize);
   const [notation, setNotation] = useState(disp.notation);
@@ -63,7 +61,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
     setShowDiagrams(disp.showDiagrams);
     setDisplayMode(settings?.displayMode || 'chords');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.notation, settings?.showChords, settings?.showDiagrams, settings?.stageMode, settings?.displayMode]);
+  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.notation, settings?.showChords, settings?.showDiagrams, settings?.displayMode]);
 
   // Persisting helpers — update the snappy local mirror and the device setting.
   const changeFontSize = (v) => { const n = Math.max(10, Math.min(30, v)); setFontSize(n); onUpdateSettings?.('defaultFontSize', n); };
@@ -75,16 +73,6 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
 
   // Picking a role applies its preset by writing every value through to
   // settings, so the role choice persists across songs and views too.
-  const applyRole = (id) => {
-    const preset = STAGE_MODE_MAP[id]?.settings || {};
-    onUpdateSettings?.('stageMode', id);
-    if (preset.lyricFontSize != null) onUpdateSettings?.('defaultFontSize', preset.lyricFontSize);
-    if (preset.chordFontSize != null) onUpdateSettings?.('chordFontSize', preset.chordFontSize);
-    onUpdateSettings?.('nashville', !!preset.nashville);
-    onUpdateSettings?.('notation', preset.notation || (preset.nashville ? 'nashville' : 'letters'));
-    onUpdateSettings?.('showChords', preset.showChords !== false);
-    onUpdateSettings?.('showDiagrams', !!preset.showDiagrams);
-  };
   const [showStructureEditor, setShowStructureEditor] = useState(false);
   const [setlistSheetOpen, setSetlistSheetOpen] = useState(false);
   const [chartWidth, setChartWidth] = useState(0);
@@ -527,8 +515,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
             showDiagrams={showDiagrams}
             displayMode={displayMode}
             tabInstrument={tabInstrument}
-            chordEmphasis={settings?.stageMode === 'bassist' ? 'root' : 'full'}
-            sectionColors={settings?.sectionColors}
+                        sectionColors={settings?.sectionColors}
             sectionLabels={settings?.sectionLabels}
             customSectionTypes={settings?.customSectionTypes}
             onSaveCue={handleSaveCue}
@@ -648,8 +635,6 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
       open={layoutOpen}
       onClose={() => setLayoutOpen(false)}
       variant="practice"
-      stageMode={stageMode}
-      onApplyRole={applyRole}
       displayMode={displayMode}
       onChangeDisplayMode={changeDisplayMode}
       tabInstrumentsPresent={tabInstrumentsPresent}

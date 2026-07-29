@@ -4,7 +4,6 @@ import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 import ChartStyleControls from '@/features/chart/ChartStyleControls';
 import { TAB_INSTRUMENTS } from '@/data/tabInstruments';
-import { STAGE_MODES } from '@/data/stageModes';
 import { cn } from '@/lib/utils';
 
 // Shared display-options sheet for PracticeView and PerformanceView.
@@ -20,8 +19,6 @@ export default function PerformanceLayoutSheet({
   open,
   onClose,
   variant = 'practice',
-  stageMode,
-  onApplyRole,
   displayMode,
   onChangeDisplayMode,
   tabInstrumentsPresent = [],
@@ -144,30 +141,7 @@ export default function PerformanceLayoutSheet({
           </SheetField>
         </div>
 
-        {/* ── Role ── */}
-        <SheetField label="Role" className="pt-1 border-t border-[var(--border-1)]">
-          <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
-            {STAGE_MODES.map(m => {
-              const active = stageMode === m.id;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => onApplyRole(m.id)}
-                  className={cn(
-                    'shrink-0 px-3 h-8 rounded-lg border transition-all text-label-12 font-semibold',
-                    active
-                      ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
-                      : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'
-                  )}
-                  title={m.description}
-                >
-                  {m.name}
-                </button>
-              );
-            })}
-          </div>
-        </SheetField>
+
 
         {/* ── Style (practice only) ── */}
         {full && (

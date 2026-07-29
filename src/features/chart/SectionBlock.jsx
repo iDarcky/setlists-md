@@ -134,21 +134,28 @@ export default function SectionBlock({
             })
           : null;
         return (
-          <div key={idx} className="my-2 flex items-center gap-2">
+          <div key={idx} className="my-2.5 flex items-center gap-2">
             <span
-              className="inline-flex items-baseline gap-1 text-label-11 font-bold px-2 py-0.5 rounded-md"
+              className="inline-flex items-baseline gap-1.5 font-black px-2.5 py-1 rounded-lg"
               style={{
-                color: 'var(--chord)',
-                border: '1px solid var(--chord)',
-                background: 'color-mix(in srgb, var(--chord) 12%, transparent)',
+                // Solid, not tinted: this is a moment the whole band has to
+                // hit together, so it reads as loud as it is rare.
+                color: 'var(--chart-bg, #fff)',
+                background: 'var(--chord)',
+                fontSize: 'calc(var(--chart-font-size-chord, 1em) * 1.05)',
+                letterSpacing: '0.02em',
               }}
             >
               <span aria-hidden="true">↗</span>
               {arriveAt || `${line.semitones > 0 ? '+' : ''}${line.semitones}`}
             </span>
-            <span className="text-label-10 uppercase tracking-wider" style={{ color: 'var(--chart-subtle, var(--text-2))' }}>
+            <span
+              className="text-label-10 uppercase tracking-[0.14em] font-bold"
+              style={{ color: 'var(--chord)' }}
+            >
               key change
             </span>
+            <span className="flex-1 h-px" style={{ background: 'var(--chord)', opacity: 0.35 }} />
           </div>
         );
       }

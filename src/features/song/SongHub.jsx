@@ -376,6 +376,8 @@ export default function SongHub({
                 onUpdateSettings={onUpdateSettings}
                 selectedKey={selectedKey}
                 onSelectKey={setSelectedKey}
+                aaAnchor={aaAnchor}
+                onAaClose={closeAa}
               />
             ) : (
               <ChartView

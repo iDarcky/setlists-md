@@ -34,7 +34,6 @@ export const PORTABLE_PREF_KEYS = [
   'customSectionTypes',
   'customChartThemes',
   'accentColor',
-  'stageMode',
   'lyricLineHeight',
   'sectionSpacing',
   'firstDayOfWeek',

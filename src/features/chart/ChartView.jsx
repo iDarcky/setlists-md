@@ -32,7 +32,6 @@ import {
   DEFAULT_LYRIC_FONT_ID,
 } from '@/data/chartThemes';
 import { resolveChartDisplay, resolveColumns, FONT_SIZES } from '@/lib/chartDisplay';
-import { STAGE_MODES } from '@/data/stageModes';
 import { TAB_INSTRUMENTS } from '@/data/tabInstruments';
 
 // Tokens written by useChartTheme (App.jsx) live on :root and decide the
@@ -230,18 +229,6 @@ export default function ChartView({
   // to a layout tuned for it. Writes every value through settings so the choice
   // persists across songs and carries into Practice / Live. The re-seed effect
   // above mirrors the new values into the local display state.
-  const stageMode = settings?.stageMode || 'leader';
-  const applyRole = (id) => {
-    const preset = STAGE_MODES.find(m => m.id === id)?.settings || {};
-    onUpdateSettings?.('stageMode', id);
-    if (preset.lyricFontSize != null) onUpdateSettings?.('defaultFontSize', preset.lyricFontSize);
-    if (preset.chordFontSize != null) onUpdateSettings?.('chordFontSize', preset.chordFontSize);
-    onUpdateSettings?.('nashville', !!preset.nashville);
-    onUpdateSettings?.('notation', preset.notation || (preset.nashville ? 'nashville' : 'letters'));
-    onUpdateSettings?.('showChords', preset.showChords !== false);
-    onUpdateSettings?.('showDiagrams', !!preset.showDiagrams);
-    if (preset.showInlineNotes != null) onUpdateSettings?.('showInlineNotes', preset.showInlineNotes);
-  };
   // Spacing controls (read straight from settings; the CSS vars below reflow
   // the chart live on change).
   const sectionSpacing = settings?.sectionSpacing ?? 24;
@@ -733,29 +720,7 @@ export default function ChartView({
                 </div>
               </SheetField>
 
-              <SheetField label="Instrument">
-                <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 py-0.5">
-                  {STAGE_MODES.map(m => {
-                    const active = stageMode === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => applyRole(m.id)}
-                        title={m.description}
-                        className={cn(
-                          'shrink-0 px-3 h-8 rounded-lg border transition-all text-label-12 font-semibold',
-                          active
-                            ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
-                            : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]',
-                        )}
-                      >
-                        {m.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </SheetField>
+
 
               {tabInstrumentsPresent.length >= 2 && (
                 <SheetField label="Tab instrument">

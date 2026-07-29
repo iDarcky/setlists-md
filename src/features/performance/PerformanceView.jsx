@@ -24,7 +24,6 @@ import StageHeader from '@/ui/StageHeader';
 import EdgeNavArrows from '@/ui/EdgeNavArrows';
 import { useActiveSection } from '@/hooks/useActiveSection';
 import { useIsTablet, useIsLandscape, useIsDesktop } from '@/lib/useMediaQuery';
-import { STAGE_MODE_MAP } from '@/data/stageModes';
 
 const RAIL_OPEN_KEY = 'setlists-md:perf-rail-open';
 
@@ -42,7 +41,6 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   // practice/chart setting so live has no inline picker; changes (via the
   // Customize sheet) write straight back to settings.
   const displayMode = settings?.displayMode || 'chords';
-  const stageMode = settings?.stageMode || 'leader';
   const [tabInstrument, setTabInstrument] = useState('all');
   const [layoutOpen, setLayoutOpen] = useState(false);
   const [setlistSheetOpen, setSetlistSheetOpen] = useState(false);
@@ -58,16 +56,6 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   const toggleShowChords = () => onUpdateSettings?.('showChords', !disp.showChords);
   const toggleShowDiagrams = () => onUpdateSettings?.('showDiagrams', !disp.showDiagrams);
   const changeColumns = (v) => onUpdateSettings?.('defaultColumns', v);
-  const applyRole = (id) => {
-    const preset = STAGE_MODE_MAP[id]?.settings || {};
-    onUpdateSettings?.('stageMode', id);
-    if (preset.lyricFontSize != null) onUpdateSettings?.('defaultFontSize', preset.lyricFontSize);
-    if (preset.chordFontSize != null) onUpdateSettings?.('chordFontSize', preset.chordFontSize);
-    onUpdateSettings?.('nashville', !!preset.nashville);
-    onUpdateSettings?.('notation', preset.notation || (preset.nashville ? 'nashville' : 'letters'));
-    onUpdateSettings?.('showChords', preset.showChords !== false);
-    onUpdateSettings?.('showDiagrams', !!preset.showDiagrams);
-  };
 
   // Parallel-browsing rail: on a landscape tablet we offer a persistent
   // setlist rail on the right so the leader can jump songs without leaving the
@@ -450,8 +438,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
               showDiagrams={disp.showDiagrams}
               displayMode={displayMode}
               tabInstrument={tabInstrument}
-              chordEmphasis={settings?.stageMode === 'bassist' ? 'root' : 'full'}
-              sectionColors={settings?.sectionColors}
+                            sectionColors={settings?.sectionColors}
               sectionLabels={settings?.sectionLabels}
               customSectionTypes={settings?.customSectionTypes}
               privateNotes={privateNotes}
@@ -561,8 +548,6 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
       open={layoutOpen}
       onClose={() => setLayoutOpen(false)}
       variant="live"
-      stageMode={stageMode}
-      onApplyRole={applyRole}
       displayMode={displayMode}
       onChangeDisplayMode={changeDisplayMode}
       tabInstrumentsPresent={tabInstrumentsPresent}

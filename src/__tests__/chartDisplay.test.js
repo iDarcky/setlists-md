@@ -13,30 +13,11 @@ describe('resolveChartDisplay — leader defaults', () => {
     expect(r.showDiagrams).toBe(false);
   });
 
-  it('returns leader preset when stageMode is unset', () => {
-    const r = resolveChartDisplay({});
-    expect(r.showChords).toBe(true);
-    expect(r.lyricFontSize).toBe(18);
-  });
 });
 
 describe('resolveChartDisplay — stage mode presets', () => {
-  it('vocalist: showChords=false and larger lyric size', () => {
-    const r = resolveChartDisplay({ stageMode: 'vocalist' });
-    expect(r.showChords).toBe(false);
-    expect(r.lyricFontSize).toBe(22);
-  });
 
-  it('guitarist: showDiagrams=true', () => {
-    const r = resolveChartDisplay({ stageMode: 'guitarist' });
-    expect(r.showDiagrams).toBe(true);
-  });
 
-  it('drummer: showChords=false and smallest lyric size', () => {
-    const r = resolveChartDisplay({ stageMode: 'drummer' });
-    expect(r.showChords).toBe(false);
-    expect(r.lyricFontSize).toBe(14);
-  });
 });
 
 describe('resolveChartDisplay — explicit settings override stage preset', () => {
@@ -51,12 +32,12 @@ describe('resolveChartDisplay — explicit settings override stage preset', () =
   });
 
   it('explicit showChords=false overrides a show-chords preset', () => {
-    const r = resolveChartDisplay({ stageMode: 'leader', showChords: false });
+    const r = resolveChartDisplay({ showChords: false });
     expect(r.showChords).toBe(false);
   });
 
   it('explicit showChords=true overrides a hide-chords preset', () => {
-    const r = resolveChartDisplay({ stageMode: 'vocalist', showChords: true });
+    const r = resolveChartDisplay({ showChords: true });
     expect(r.showChords).toBe(true);
   });
 
@@ -66,7 +47,7 @@ describe('resolveChartDisplay — explicit settings override stage preset', () =
   });
 
   it('explicit showDiagrams=false overrides guitarist preset', () => {
-    const r = resolveChartDisplay({ stageMode: 'guitarist', showDiagrams: false });
+    const r = resolveChartDisplay({ showDiagrams: false });
     expect(r.showDiagrams).toBe(false);
   });
 
@@ -91,7 +72,7 @@ describe('resolveChartDisplay — chordFontSize fallback chain', () => {
 
   it('explicit chordFontSize overrides the stage preset', () => {
     // guitarist preset has chordFontSize: 18, explicit setting should win
-    const r = resolveChartDisplay({ stageMode: 'guitarist', chordFontSize: 12 });
+    const r = resolveChartDisplay({ chordFontSize: 12 });
     expect(r.chordFontSize).toBe(12);
   });
 });

@@ -246,21 +246,27 @@ export default function AaMenu({
               </div>
 
               <Label>Line spacing</Label>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
                 <Stepper
                   value={Math.round((settings?.lyricLineHeight ?? 1.35) * 100)}
                   min={100} max={240} label="line height"
                   onChange={(v) => onUpdateSettings?.('lyricLineHeight', Math.round(v) / 100)}
                 />
+                {settings?.lyricLineHeight != null && (
+                  <Pick onClick={() => onUpdateSettings?.('lyricLineHeight', undefined)}>Reset</Pick>
+                )}
               </div>
 
               <Label>Gap between sections</Label>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
                 <Stepper
                   value={settings?.sectionSpacing ?? 24}
                   min={8} max={64} label="section gap"
                   onChange={(v) => onUpdateSettings?.('sectionSpacing', v)}
                 />
+                {settings?.sectionSpacing != null && (
+                  <Pick onClick={() => onUpdateSettings?.('sectionSpacing', undefined)}>Reset</Pick>
+                )}
               </div>
 
               <Label>Repeated sections</Label>
