@@ -22,6 +22,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Hamburger menu (Labs)** — a restructured mobile menu with a tappable account card and a full-width Space switcher.
 - **Account panel (Labs)** — drops the hamburger entirely: your avatar opens a single sheet that slides up from the bottom, with your Spaces and the menu together.
 - **One reader (Labs)** — the four separate reading screens become a single viewer. A display menu opens under the top bar and pushes the chart down instead of covering it, so you can see every change as you make it: text sizes, chord names, columns, top bar, where the structure sits, section style and heading, pinned headings, and repeats. Turn it on in Settings → Labs.
+- **Tap a chord to see how it's played** — any chord in the reader opens its guitar shape, and only that one. No strip of diagrams taking up the screen for the one chord you didn't know. The shape is the chord as written, so a chart that says G shows you G. Part of Pro.
 - **Two new chart themes** — Hymnal and Hymnal Night: warm paper, antique gold chords, and muted section colours. They're the first themes to carry their own section palette, so the whole chart changes together instead of just the background.
 
 ### Improved

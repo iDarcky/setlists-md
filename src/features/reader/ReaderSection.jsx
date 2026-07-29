@@ -14,7 +14,7 @@ import SectionBlock from '@/features/chart/SectionBlock';
  */
 export default function ReaderSection({
   section, index, config, songKey, settings, transpose, modOffset,
-  repeatOf = -1, onJumpToFirst, tabColors, stickyTop = 0,
+  repeatOf = -1, onJumpToFirst, tabColors, stickyTop = 0, onChordTap = null,
 }) {
   const id = sectionIdentity(section.type, settings);
   const style = config.sectionStyle;
@@ -153,6 +153,7 @@ export default function ReaderSection({
         tabColors={tabColors}
         myInstrument={config.myInstrument}
         tabTranspose={transpose}
+        onChordTap={onChordTap}
       />
     </div>
   );

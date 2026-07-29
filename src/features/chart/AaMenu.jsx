@@ -209,15 +209,11 @@ export default function AaMenu({
                     onClick={() => onUpdateSettings?.('accidentals', o[0])}>{o[1]}</Pick>
                 ))}
               </div>
-              {chartControls && (<>
-                <Label>Chord diagrams</Label>
-                <div className="flex gap-1.5 flex-wrap">
-                  {[[true, 'Show'], [false, 'Hide']].map(([v, l]) => (
-                    <Pick key={String(v)} active={!!settings?.showDiagrams === v}
-                      onClick={() => onUpdateSettings?.('showDiagrams', v)}>{l}</Pick>
-                  ))}
-                </div>
-              </>)}
+              {/* No diagram toggle. Element 11 made diagrams a question you
+                  ask — tap any chord — rather than a strip you switch on and
+                  then pay for on every screen. `showDiagrams` still drives the
+                  pre-reader chart's strip; it has no control here because it
+                  does nothing here. */}
             </>
           )}
 

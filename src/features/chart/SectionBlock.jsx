@@ -66,6 +66,10 @@ export default function SectionBlock({
   // block of screen you scroll past every section. Null = show everything.
   myInstrument = null,
   tabTranspose = 0,
+  // Element 11. When wired, every chord becomes tappable and calls back with
+  // the chord AS WRITTEN (letter names, transposed, capo NOT applied) plus the
+  // rect to anchor a popover to. Null = chords stay inert, as they always were.
+  onChordTap = null,
 }) {
   // Reader notation: prefer the explicit `notation` prop; fall back to the
   // legacy boolean `nns` (Nashville on/off) for callers not yet migrated.
@@ -230,9 +234,31 @@ export default function SectionBlock({
       // Bass "root emphasis": collapse each chord to the note a bassist plays —
       // the slash bass if present, otherwise the chord root.
       if (chordEmphasis === 'root') chord = bassNote(chord);
+      // Shapes are keyed by letter name, so a chart displayed in Nashville
+      // still has to look up "G" — you cannot finger a "1".
+      const shapeName = notationMode === 'letters'
+        ? chord
+        : notateChord(rawChord, { key: songKey, notation: 'letters', transpose: effectiveTranspose, accidentals });
+      // `role="button"`, not <button>: these sit inside lyric lines, and the
+      // app's `button { min-height: 36px }` base rule would give every chord a
+      // 36px box (44px on a phone) and blow the line spacing apart.
+      const tap = onChordTap
+        ? {
+          role: 'button',
+          tabIndex: 0,
+          'aria-label': `${shapeName} chord shape`,
+          onClick: (e) => onChordTap(shapeName, e.currentTarget.getBoundingClientRect()),
+          onKeyDown: (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            onChordTap(shapeName, e.currentTarget.getBoundingClientRect());
+          },
+        }
+        : {};
       return (
         <span
-          className="font-bold text-[var(--chord)] leading-none select-none whitespace-nowrap"
+          {...tap}
+          className={`font-bold text-[var(--chord)] leading-none select-none whitespace-nowrap${onChordTap ? ' cursor-pointer' : ''}`}
           style={{
             paddingBottom: hasLyrics ? 3 : 0,
             fontFamily: 'var(--chart-font-chord, var(--font-mono))',

@@ -11,6 +11,8 @@ import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import ReaderSection from './ReaderSection';
 import ReaderTopBar from './ReaderTopBar';
 import AaMenu from '@/features/chart/AaMenu';
+import ChordPopover from '@/features/chart/ChordPopover';
+import { useEntitlement } from '@/hooks/useEntitlement';
 
 /**
  * The chart reader — elements 1–6 only.
@@ -74,6 +76,12 @@ export default function Reader({
   // The Aa popover, anchored to the ☰ button — the same menu the Song Hub uses,
   // with a Visual tab added for the element-level options.
   const [ownAaAnchor, setOwnAaAnchor] = useState(null);
+  // Element 11 — the chord you tapped, and where it was.
+  const [tappedChord, setTappedChord] = useState(null);
+  const { allowed: canSeeShapes } = useEntitlement('chord-diagrams');
+  const onChordTap = useCallback((chord, rect) => {
+    setTappedChord(prev => (prev?.chord === chord ? null : { chord, rect }));
+  }, []);
   const wide = useMediaQuery('(min-width: 768px)');
 
   // Callers should pass a resolved arrangement view; accept a raw v2 song too,
@@ -275,6 +283,7 @@ export default function Reader({
               onJumpToFirst={() => jumpTo(repeats[idx])}
               tabColors={tabColors}
               stickyTop={headH}
+              onChordTap={canSeeShapes ? onChordTap : null}
             />
           ))}
           </div>
@@ -305,6 +314,14 @@ export default function Reader({
         >
           <div className="wide-container flex items-center gap-2 py-1.5">{footer}</div>
         </div>
+      )}
+
+      {tappedChord && (
+        <ChordPopover
+          chord={tappedChord.chord}
+          anchorRect={tappedChord.rect}
+          onClose={() => setTappedChord(null)}
+        />
       )}
 
       {(hostAaAnchor || ownAaAnchor) && (

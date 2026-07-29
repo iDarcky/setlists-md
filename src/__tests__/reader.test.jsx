@@ -256,3 +256,46 @@ describe('the display menu', () => {
     expect(screen.getByRole('button', { name: 'Letters' })).toBeTruthy();
   });
 });
+
+describe('element 11 — tap a chord', () => {
+  it('opens a popover for the chord you tapped, and only that one', () => {
+    renderReader();
+    const g = screen.getAllByRole('button', { name: 'G chord shape' })[0];
+    fireEvent.click(g);
+    const pop = screen.getByRole('dialog', { name: 'G chord shape' });
+    expect(pop).toBeTruthy();
+    // No strip: exactly one chord is on screen as a diagram.
+    expect(screen.queryAllByRole('dialog', { name: /chord shape$/ }).length).toBe(1);
+  });
+
+  it('names the chord AS WRITTEN — capo is not applied', () => {
+    // Capo 2 in G means the player fingers G shapes while the chart says G.
+    // Second-guessing that here would show a shape whose name is nowhere on
+    // screen, so the capo is deliberately ignored.
+    const song = songFromFlat({
+      id: 's', title: 'T', key: 'G', capo: 2,
+      sections: [{ type: 'Verse 1', lines: ['[G]a'] }],
+    });
+    render(<Reader song={song} settings={{}} onExit={() => {}} />);
+    fireEvent.click(screen.getAllByRole('button', { name: 'G chord shape' })[0]);
+    expect(screen.getByRole('dialog', { name: 'G chord shape' })).toBeTruthy();
+  });
+
+  it('follows a transpose — tapping shows the chord you can see', () => {
+    renderReader({ selectedKey: 'A' });
+    expect(screen.getAllByRole('button', { name: 'A chord shape' }).length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole('button', { name: 'G chord shape' }).length).toBe(0);
+  });
+
+  it('leaves chords inert without the entitlement', async () => {
+    vi.resetModules();
+    vi.doMock('@/hooks/useEntitlement', () => ({
+      useEntitlement: () => ({ allowed: false, requiredPlan: 'sync', currentPlan: 'free' }),
+      checkEntitlement: () => false,
+    }));
+    const { default: Gated } = await import('@/features/reader/Reader');
+    render(<Gated song={makeSong()} settings={{}} onExit={() => {}} />);
+    expect(screen.queryAllByRole('button', { name: /chord shape$/ }).length).toBe(0);
+    vi.doUnmock('@/hooks/useEntitlement');
+  });
+});
