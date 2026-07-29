@@ -764,6 +764,12 @@ only: stack, architecture, schema, the finish/release workflows, and gotchas.
 it's the short-lived handoff for whatever pass is in flight, and it links
 everything else in the right order.
 
+**`docs/READER.md` is the Reader's decision log** — the one viewer that replaces
+the four reading surfaces, element by element, with the reason behind each
+choice. Read it before touching anything under `src/features/reader/`,
+`SectionBlock`, `TabBlock`, `StructureRibbon` or `AaMenu`; the decisions there
+were expensive to reach and are not to be re-opened.
+
 **`docs/COMPONENTS.md` is the definitive component map** — the app decomposed
 into 25 named components, each with its owner files, state, status and debt,
 plus the dependency order to work them in and a per-component definition of

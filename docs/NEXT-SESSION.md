@@ -1,110 +1,168 @@
-# Next session — the reading-views rework
+# Next session — the Reader
 
-> **Short-lived working doc.** Delete it when the pass lands. It exists because
-> a new chat session starts with **no memory of previous conversations** — only
-> this repo. Everything a fresh session needs is here or linked from here.
+> **Short-lived handoff.** Delete it when the Reader graduates from Labs.
+> It exists because a new chat session starts with **no memory of previous
+> conversations** — only this repo.
 >
-> _Written 2026-07-27, end of the component-architecture work._
+> _Written 2026-07-29, at the end of the element-by-element design walk
+> (elements 1–11 built, shipped through `0.17.0-beta.19`)._
 
 ---
 
 ## Start here
 
-Read, in this order: this file → `docs/views-vision.md` (the product decision) →
-`docs/COMPONENTS.md` §2.4 and §2.7 (the two components) → `CLAUDE.md` (how the
-app works).
+Read, in this order:
 
-The one-line brief: **collapse three forked reading surfaces into two, with
-presets.**
+1. **This file** — where things stand, what to do next.
+2. **`docs/READER.md`** — the element-by-element decision log. **This is the
+   important one.** Every element carries a decision the owner made and the
+   reason behind it. Treat them as settled; don't re-open them.
+3. `CLAUDE.md` — how the app works.
+4. `docs/COMPONENTS.md` — what the pieces are.
 
-## The decision, already made — do not re-open it
+The previous handoff's brief ("collapse three surfaces into two, with presets")
+is **done and superseded**. Presets were scrapped; there is **one** viewer with
+flat settings. `docs/views-vision.md` and `docs/views_questions.md` are history
+— read them for background, never for instructions.
 
-From `docs/views-vision.md`: **do NOT build four separate views.** Four views
-means four forks of the same sheet and a "which do I open?" question for the
-user. Instead:
+Its two named defects are both resolved: the reader's exit is always visible
+(element 1 is fixed, with no auto-hide), and the `chart → song` back-edge
+question was answered by the Song Hub owning identity while the reader is just
+the reader.
 
-- **Chart** — read one song. Roughly today's `ChartView`.
-- **Player** — setlists, with three presets inside it:
-  - **Live** — locked down, header auto-hides, fewest controls.
-  - **Rehearsal** — everything visible, easy key/notation/column switching.
-  - **Practice** — Rehearsal plus metronome, section loop, slow-down, logged minutes.
+---
 
-The open question is **not** the shape. It's the per-preset control allow-list —
-exactly which knobs each preset exposes. `docs/views_questions.md` has the
-questionnaire; it needs the owner's answers before step 3 below.
+## Where things stand
 
-## Why it's being done
+**Built and on `beta`, behind the Labs flag `unifiedReader`** (Settings → Labs):
 
-`ChartView` (898 lines), `PerformanceView` (722) and `PracticeView` (923) each
-**re-implement the same state**: font size, display mode, tab instrument,
-notation, and the persist-to-settings dance. Three copies that have drifted.
-Every chart bug currently has to be fixed three times, which is why the reading
-experience doesn't feel coherent.
+| | Element | State |
+|---|---------|-------|
+| 1 | Top bar | done — fixed, no customization, `ReaderTopBar` shared with breaks |
+| 2 | Structure ribbon | done — Score geometry, per-section colour, 5 styles |
+| 3 | Section heading | done — name/letters/CAPS, sticky on phone only, repeats-as-reference |
+| 4 | Band cue | done — on the heading line, 240-char cap, `!` = loud |
+| 5 | Inline notes | done — leader on wide, above-the-line on narrow |
+| 6/7 | Chords + lyrics | done — lyrics never truncated, `chordFollows` spacing |
+| 8 | Key change | done — names the arrival key |
+| 9 | Tabs | done — instrument-aware, never side-scrolls, transpose-or-say-why |
+| 10 | Song-to-song | done — 4 nav styles, sticky footer, rail incl. phones, breaks |
+| 11 | Chord diagrams | done — tap a chord, Pro-gated, no strip |
+| 12 | **Practice tools** | **not started — this is next** |
 
-## Two known defects to fix in this pass
+707 tests, 0 lint errors. `npm run dev` · `npx vitest run` · `npm run build`.
 
-1. 🔴 **The exit control disappears when the header collapses mid-set.** Someone
-   on stage, mid-service, with no obvious way out of Live. Whatever else
-   changes, there must always be a visible exit.
-2. **The `chart → song` back-edge.** `features/chart/ChartView.jsx` imports
-   `features/song/SongDetails`, while `song` already depends on `chart` — so
-   neither can be worked on alone. It's a product question, not a mechanical
-   one: **does the hub own Details, or does the reader?** The architecture notes
-   say the hub owns identity and the chart is "just the reader", which suggests
-   an answer. Decide it, then cut the edge.
+**Nothing has been deleted.** With the flag off, `SetlistPlayer`,
+`PerformanceView` and `PracticeView` render exactly as they did, and
+`ChartView` still serves the Song Hub.
 
-## Suggested order
+---
 
-1. **Owner writes down what each surface shows today** — controls present,
-   controls missing, what annoys them. Half a page. This is the only step that
-   needs the owner, and it needs a pen, not a keyboard.
-2. **Answer the per-preset allow-list** in `docs/views_questions.md`.
-3. **Extract the shared display controller** — build on `lib/chartDisplay.js` and
-   `features/performance/PerformanceLayoutSheet.jsx`. **No visual change.** This
-   is boring, safe, and roughly 80% of the work.
-4. **Presets become configuration**, not new screens.
-5. **Then** `FullscreenChartViewer.jsx` — currently a scaffold, and the intended
-   home for the chart view modes plus auto-scroll / metronome / font stepping.
+## What to do next
+
+### 1. Element 12 — practice tools
+
+Metronome, count-in, section loop, slow-down. This is the reason a separate
+Practice screen exists, and **the last thing standing between us and deleting
+the four old surfaces**.
+
+Work it the way elements 1–11 were worked: **one element at a time, ask before
+building, ship each round to `beta` so the owner can test on a real device.**
+That rhythm is not optional — it is how the last eleven elements got decided.
+
+Questions that need answering before any of it is built:
+
+- Where does the tools bar live? Element 10's footer already owns the bottom
+  edge, so a second bar there means two bars.
+- Is section loop worth its complexity, or is slow-down + metronome enough?
+- Does the metronome need to survive the screen locking? (wake lock is carried
+  by the old views and was deliberately not ported)
+- Does the YouTube backing track tie into this? It **can** loop and slow down
+  (pitch-preserving) but **cannot** pitch-shift — already confirmed, don't
+  re-investigate.
+
+### 2. Then: graduate the flag and delete
+
+Once 12 lands: wire `FullscreenChartViewer` as a thin wrapper over `Reader`
+(not a fork), flip `unifiedReader` on by default, then delete `SetlistPlayer`,
+`PerformanceView` and `PracticeView` — roughly 2,300 lines of triplicated state
+management. `ChartView` stays for now; the Song Hub embeds it.
+
+---
+
+## How to work with this owner
+
+Learned the hard way over this pass, and worth more than any of the code below:
+
+- **Build exactly what was asked, and nothing adjacent.** The worst episode of
+  this pass: a header-density knob was built *after* the owner said element 1
+  takes no customization. Its `min` value hid the song title, and five rounds
+  went into debugging CSS before the real cause — the unasked-for knob — was
+  found.
+- **When they say something looks wrong, it is wrong.** Twice the answer given
+  was "but the CSS says…", and twice the owner was right and the code had a real
+  bug: the `min-h-0` trap below, and `duration && <…>` rendering a literal `0`
+  on a break. Go and measure before explaining.
+- **Ship every round to `beta`.** They test on a real phone. A description of a
+  change is not a change.
+- They say **"finish"** to close a batch — that runs the workflow in `CLAUDE.md`
+  (bump `-beta.<N>`, append to `src/data/changelog.md`, build, push,
+  fast-forward `beta`). They have **not** asked to promote to `main`.
+
+---
 
 ## Ground rules that already exist — don't relearn them the hard way
 
+- **`min-h-0` on every small control.** `styles/index.css` has, in `@layer base`,
+  `button { min-height: 36px }` and 44px under 640px. It silently beat four
+  rounds of padding tuning on the ribbon chips. Chords inside lyric lines use
+  `role="button"`, not `<button>`, for the same reason. Full write-up in
+  `docs/READER.md`.
+- **CSS custom properties must never name themselves in their own fallback.**
+  `--x: var(--y, var(--x))` is a cycle, which makes the property invalid at
+  computed-value time and **unset for the whole subtree**.
 - **Imports:** `@/` for anything outside a file's own folder, `./x` for
   siblings. ESLint fails the build otherwise.
 - **Design system:** `src/ui/README.md` is the canon. Don't add a primitive that
   already exists; don't add a `Thing2`.
 - **Never** `window.open`, `alert`, `confirm`, `prompt` — they don't work in an
   installed PWA. Use the `ui/` dialogs and `use-toast`.
-- **Tests:** `.test.js` = logic (node), `.test.jsx` = render (jsdom). See
-  `src/__tests__/editor-save.test.jsx` for the pattern, and note the jsdom
-  `env()`-in-`calc()` workaround in `vitest.setup.js`.
+- **Tests:** `.test.js` = logic (node), `.test.jsx` = render (jsdom). jsdom
+  workarounds live in `vitest.setup.js`.
 - **`section.lines[]` can be a string, a tab object, or a modulate object.**
-  Type-check before calling string methods. This has caused real bugs.
-- Verify with `npm run lint && npm test && npm run build` before committing.
+  Type-check before calling string methods.
+- **Any new reader setting must be added to `PORTABLE_PREF_KEYS`**
+  (`src/app/usePreferenceSync.js`) or it won't follow the user across devices.
+- Verify with `npm run lint && npx vitest run && npm run build` before
+  committing. The repo has 8 pre-existing lint *warnings* and 0 errors — keep
+  errors at 0.
 - **Migrations must be additive and backward-compatible** — there is no staging
-  database (deferred for budget), so beta writes to live church data.
+  database, so beta writes to live church data.
 
-## State of the repo as of this handoff
+---
 
-Branch `claude/app-component-architecture-i4rsur`, all green (622 tests, lint 0
-errors). Recently landed, so don't redo it:
+## Also landed this pass, outside the reader
 
-- `src/components/` → `src/features/*`, one folder per component; `@/` alias
-  enforced by lint.
-- Design-system pass: canon written, `Button2`, `PageHeaderLegacy` and six dead
-  primitives deleted, three unused npm deps removed.
-- `App.jsx` 3,168 → 2,823 (preference sync, notification feed and appearance
-  extracted). **The rest of the split is blocked on adopting a router** — see
-  `COMPONENTS.md` §1.1.
-- Deleted: `SetlistOverviewV2`, `NewSongModal` (graduating `addSongModal`, which
-  also fixed PDF import for everyone), the legacy editor layout (Editor.jsx
-  1,789 → 1,423), and the Compact list view.
-- Component-test harness added; first render tests cover the editor save path.
+- **"Roster" is now "the band"** everywhere a person reads it. `RosterPanel` →
+  `BandPanel`, `RosterReadCard` → `BandReadCard`, `canManageRoster` →
+  `canManageBand`, `onOpenRoster` → `onOpenBand`. The stored settings keys
+  (`rosterOverscheduleWarning`, `rosterStreakLimit`) and the `roster_assigned`
+  activity action **kept their names on purpose** — renaming them would reset
+  preferences and orphan history rows.
+- `src/lib/myInstrument.js` — resolves "what am I playing this service" from
+  `team_schedules` + `team_members.instruments`, wired in `App.jsx`.
+- Deleted: `src/data/stageModes.js` and the settings `chartLayout`,
+  `displayRole`, `autoHideHeader`, `stageMode`, `readerHeader`.
 
 ## Open decisions the owner still owes
 
-In `PLAN.md` §7. The two that touch this pass:
+In `PLAN.md` §7. The one that will trip up element 12:
 
-- Which bottom sheet is the app's — `BottomSheet` (6 uses) or `MobileSheet` (1)?
-  The performance layout sheets use `BottomSheet`, so this pass will trip over it.
-- Where the floating structure ribbon lives (Labs `structurePosition` /
-  `ribbonStyle`) — explicitly deferred *to* this pass.
+- Which bottom sheet is the app's — `BottomSheet` (7 uses, now including
+  `SetlistRail`) or `MobileSheet` (1)? Element 12's tools bar will land on this.
+
+## Branch
+
+Work continued on `claude/chart-redesign-practice-views-duggb4`, fast-forwarded
+to `beta` after each batch. `main` is at `0.16.x` — this whole cycle is
+unreleased.
