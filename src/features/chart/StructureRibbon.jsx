@@ -57,12 +57,11 @@ export function StructureRibbon({
   // px-1 keeps the first/last chip (and the active chip's ring) from being
   // clipped at the scroller's edges.
   const vertical = orientation === 'vertical';
-  // Dots need a fraction of the height a code box does, so the row shrinks
-  // with the style rather than reserving space for the tallest option.
-  const dense = style === 'dots';
+  // The row adds no height of its own beyond what the chips need — the boxes
+  // are 15px tall now, so a taller row is the only thing that could put space
+  // back above and below them.
   const rowClass = cn(
-    'flex gap-1 px-1 min-w-0',
-    dense ? 'py-0.5' : 'py-1',
+    'flex gap-1 px-1 py-0.5 min-w-0',
     vertical
       ? 'flex-col items-center'
       : (wrap ? 'flex-wrap' : 'flex-nowrap overflow-x-auto no-scrollbar'),
@@ -120,11 +119,12 @@ export function StructureRibbon({
               ref={active ? activeRef : null}
               {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index), title: labelOf(run.name) } : {})}
               className={cn(
-                // An actual box, not a pill: near-square corners, and a
-                // min-width equal to the height so a one-letter code ("C")
-                // renders square rather than as a narrow sliver.
+                // An actual box, not a pill: near-square corners, and a fixed
+                // height that is the text plus a hair — vertical padding is
+                // what made these read as pills. `min-w` matches the height so
+                // a one-letter code ("C") is a square, not a narrow sliver.
                 'shrink-0 inline-flex items-center justify-center gap-1 font-mono font-bold text-[11px] leading-none',
-                'px-1.5 py-[3px] min-w-[1.3rem] rounded-[3px] border transition-all',
+                'px-1 h-[15px] min-w-[15px] rounded-[3px] border transition-all',
                 onSelect && 'cursor-pointer hover:opacity-80',
                 active && 'ring-2 ring-offset-1 ring-offset-transparent',
               )}
@@ -169,7 +169,7 @@ export function StructureRibbon({
                   // Same box as `codes` when it fills — square corners, and
                   // wide enough that a single letter is a square.
                   activeFill && active
-                    && 'inline-flex items-center justify-center px-1.5 py-[3px] min-w-[1.3rem] rounded-[3px]',
+                    && 'inline-flex items-center justify-center px-1 h-[15px] min-w-[15px] rounded-[3px]',
                   onSelect && 'cursor-pointer hover:opacity-80',
                 )}
                 style={{
