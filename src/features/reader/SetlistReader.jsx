@@ -14,6 +14,9 @@ import Reader from './Reader';
  */
 export default function SetlistReader({
   setlist, songs, settings, onUpdateSettings, onBack, onFinish,
+  // What this player is rostered on for the service, so their instrument's
+  // tabs open and everyone else's collapse.
+  myInstrument = null,
 }) {
   const [idx, setIdx] = useState(0);
   const [keys, setKeys] = useState({});
@@ -89,6 +92,7 @@ export default function SetlistReader({
       song={cur.song}
       settings={settings}
       onUpdateSettings={onUpdateSettings}
+      myInstrument={myInstrument}
       onExit={onBack}
       selectedKey={keys[songId] || cur.key || cur.song.key}
       onSelectKey={(k) => setKeys(prev => ({ ...prev, [songId]: k }))}

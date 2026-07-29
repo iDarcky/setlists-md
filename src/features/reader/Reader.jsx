@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useCallback } from 'react';
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { semitonesBetween, keysInQualityOf } from '@/music';
 import { resolveSongView } from '@/arrangements';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/ui/Select';
@@ -41,6 +41,7 @@ const CloseIcon = () => (
 export default function Reader({
   song: songProp,
   arrangementId,
+  myInstrument = null,
   settings,
   onUpdateSettings,
   onExit,
@@ -54,6 +55,12 @@ export default function Reader({
   onAaClose,
 }) {
   const scrollRef = useRef(null);
+  // The chrome is sticky at the top of the scroller, so anything else that
+  // pins — the section headings — must pin BELOW it, and any scroll-to must
+  // stop below it too. Measured rather than hard-coded: the bar's height
+  // changes with the ribbon style and with the phone/desktop padding.
+  const headRef = useRef(null);
+  const [headH, setHeadH] = useState(0);
   // The Aa popover, anchored to the ☰ button — the same menu the Song Hub uses,
   // with a Visual tab added for the element-level options.
   const [ownAaAnchor, setOwnAaAnchor] = useState(null);
@@ -64,8 +71,8 @@ export default function Reader({
   const song = songProp?.arrangements ? resolveSongView(songProp, arrangementId) : songProp;
 
   const config = useMemo(
-    () => resolveReaderConfig(settings, { wide, embedded }),
-    [settings, wide, embedded]
+    () => resolveReaderConfig(settings, { wide, embedded, myInstrument }),
+    [settings, wide, embedded, myInstrument]
   );
 
   const { ordered, offsets, repeats } = useMemo(() => buildSongFlow(song), [song]);
@@ -79,10 +86,28 @@ export default function Reader({
     config.sticky ? 0.02 : 0.28,
   );
 
+  useEffect(() => {
+    const el = headRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(entries => {
+      const h = entries[0]?.contentRect?.height || 0;
+      setHeadH(prev => (Math.abs(prev - h) > 1 ? h : prev));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [embedded]);
+
   const jumpTo = useCallback((idx) => {
     const el = document.getElementById(`section-${idx}`);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
+    const sc = scrollRef.current;
+    if (!el) return;
+    if (!sc) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    // Land the section BELOW the sticky chrome. scrollIntoView aligns to the
+    // container's top edge, which is behind the header, so the heading you
+    // jumped to ended up hidden underneath it.
+    const top = el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
+    sc.scrollTo({ top: Math.max(0, top - headH - 8), behavior: 'smooth' });
+  }, [headH]);
 
   const transpose = (!selectedKey || !song?.key) ? 0 : semitonesBetween(song.key, selectedKey);
 
@@ -120,7 +145,7 @@ export default function Reader({
 
   return (
     <div
-      className="h-full flex flex-col overflow-y-auto overflow-x-hidden"
+      className="h-full flex flex-col overflow-y-auto overflow-x-hidden no-scrollbar"
       ref={scrollRef}
       style={embedded ? undefined : {
         // A performance surface owns the screen, so it wears the CHART theme
@@ -152,6 +177,7 @@ export default function Reader({
       {/* ── Element 1 — top bar ─────────────────────────────────────────── */}
       {showChrome && (
         <div
+          ref={headRef}
           className="reader-head sticky top-0 z-20 shrink-0 flex flex-col border-b"
           style={{ ...rule, background: 'var(--chart-bg, var(--ds-background-100))' }}
         >
@@ -282,6 +308,7 @@ export default function Reader({
               repeatOf={repeats[idx]}
               onJumpToFirst={() => jumpTo(repeats[idx])}
               tabColors={tabColors}
+              stickyTop={headH}
             />
           ))}
           </div>

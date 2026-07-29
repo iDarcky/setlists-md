@@ -1,14 +1,15 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
+import { transposeTab } from '@/lib/tabTranspose';
 
 // Tightened so more of a tab fits on screen: six strings at 18px spacing plus
 // padding made a single riff as tall as four lyric lines. These are the
 // unscaled SVG units — `scale` still applies on top.
-const STRING_SPACING = 13;
-const LABEL_WIDTH = 22;
-const PADDING_TOP = 8;
-const PADDING_BOTTOM = 6;
-const CHAR_WIDTH = 7;
-const ROW_PADDING = 12;
+const STRING_SPACING = 11;
+const LABEL_WIDTH = 18;
+const PADDING_TOP = 6;
+const PADDING_BOTTOM = 5;
+const CHAR_WIDTH = 6;
+const ROW_PADDING = 10;
 
 const DEFAULT_COLORS = {
   line: 'var(--ds-gray-400)',
@@ -17,9 +18,26 @@ const DEFAULT_COLORS = {
   bg: 'var(--ds-background-200)',
 };
 
-export default function TabBlock({ data, scale = 1, colors }) {
-  const parsed = useMemo(() => parseForRender(data), [data]);
+export default function TabBlock({
+  data, scale = 1, colors,
+  // Element 9. `transpose` shifts the frets when it can and flags the tab when
+  // it cannot; `writtenKey` names the key it was written in for that flag.
+  transpose = 0, writtenKey,
+  // Collapsed tabs show one line until asked for — a bassist should not scroll
+  // past the electric riff in every section.
+  collapsible = false, defaultOpen = true, label,
+}) {
+  const shift = useMemo(
+    () => transposeTab(data?.strings, transpose),
+    [data?.strings, transpose],
+  );
+  const shifted = useMemo(
+    () => ({ ...data, strings: shift.strings }),
+    [data, shift.strings],
+  );
+  const parsed = useMemo(() => parseForRender(shifted), [shifted]);
   const c = { ...DEFAULT_COLORS, ...(colors || {}) };
+  const [open, setOpen] = useState(defaultOpen);
 
   // Measure the available width so the tab can wrap onto multiple rows (broken
   // at bar lines) instead of overflowing into a horizontal scroll. Until the
@@ -53,20 +71,59 @@ export default function TabBlock({ data, scale = 1, colors }) {
 
   const height = PADDING_TOP + (parsed.strings.length - 1) * STRING_SPACING + PADDING_BOTTOM;
 
+  const instrument = label || data?.instrument;
+  const header = (collapsible || shift.flagged) && (
+    <div className="flex items-center gap-2 text-[11px] leading-none">
+      {collapsible && (
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          aria-expanded={open}
+          className="inline-flex items-center gap-1 bg-transparent border-none p-0 cursor-pointer font-semibold"
+          style={{ color: 'var(--chart-subtle, var(--text-2))' }}
+        >
+          <span aria-hidden="true" className="inline-block w-2">{open ? '▾' : '▸'}</span>
+          {instrument ? `${instrument} tab` : 'Tab'}
+        </button>
+      )}
+      {shift.flagged && (
+        <span
+          className="font-semibold"
+          style={{ color: 'var(--ds-amber-900, #a5730a)' }}
+          title={shift.reason === 'out-of-range'
+            ? 'These frets cannot move without going past the nut, so the tab is shown as written.'
+            : 'Transposed a long way — check the fingering.'}
+        >
+          {shift.reason === 'out-of-range'
+            ? `written in ${writtenKey || 'the original key'}`
+            : 'check fingering'}
+        </span>
+      )}
+    </div>
+  );
+
+  if (collapsible && !open) {
+    return <div ref={containerRef} className="my-1.5">{header}</div>;
+  }
+
   return (
     <div ref={containerRef} className="flex flex-col gap-2 max-w-full my-1.5">
+      {header}
       {rows.map((row, ri) => {
         const rowLen = row.end - row.start;
         const contentWidth = rowLen * CHAR_WIDTH;
         const totalWidth = LABEL_WIDTH + contentWidth + ROW_PADDING;
-        // A row only overflows when a single bar is wider than the container;
-        // allow that lone row to scroll rather than splitting mid-bar.
+        // A single bar can still be wider than the container. Rather than
+        // scroll — tab must never scroll sideways — that row scales itself
+        // down to fit, since a slightly smaller bar still reads.
         return (
-          <div key={ri} className="overflow-x-auto max-w-full">
+          <div key={ri} className="max-w-full">
             <svg
-              width={totalWidth * scale}
+              width="100%"
               height={height * scale}
               viewBox={`0 0 ${totalWidth} ${height}`}
+              preserveAspectRatio="xMinYMid meet"
+              style={{ maxWidth: totalWidth * scale }}
               className="block"
             >
               {/* String lines */}
@@ -95,7 +152,7 @@ export default function TabBlock({ data, scale = 1, colors }) {
                     y={y + 4}
                     fill={c.label}
                     fontFamily="var(--fm)"
-                    fontSize={9}
+                    fontSize={8}
                     fontWeight={600}
                     textAnchor="end"
                   >
@@ -104,21 +161,35 @@ export default function TabBlock({ data, scale = 1, colors }) {
                 );
               })}
 
-              {/* Bar lines within this row */}
+              {/* Bar lines within this row, numbered — the tab already broke
+                  at bars, but nothing said WHICH bar, so you could not tell
+                  bar 1 from bar 3 at a glance. */}
               {parsed.barPositions
                 .filter(pos => pos >= row.start && pos < row.end)
                 .map((pos, i) => {
                   const x = LABEL_WIDTH + (pos - row.start) * CHAR_WIDTH;
+                  const barNo = parsed.barPositions.indexOf(pos) + 2;
                   return (
-                    <line
-                      key={`bar-${i}`}
-                      x1={x}
-                      y1={PADDING_TOP - 4}
-                      x2={x}
-                      y2={PADDING_TOP + (parsed.strings.length - 1) * STRING_SPACING + 4}
-                      stroke={c.line}
-                      strokeWidth={1.5}
-                    />
+                    <g key={`bar-${i}`}>
+                      <line
+                        x1={x}
+                        y1={PADDING_TOP - 3}
+                        x2={x}
+                        y2={PADDING_TOP + (parsed.strings.length - 1) * STRING_SPACING + 3}
+                        stroke={c.line}
+                        strokeWidth={1.5}
+                      />
+                      <text
+                        x={x + 2}
+                        y={PADDING_TOP - 5}
+                        fill={c.label}
+                        fontFamily="var(--fm)"
+                        fontSize={6}
+                        opacity={0.7}
+                      >
+                        {barNo}
+                      </text>
+                    </g>
                   );
                 })}
 
@@ -146,21 +217,24 @@ export default function TabBlock({ data, scale = 1, colors }) {
                           y={y + 4}
                           fill={c.number}
                           fontFamily="var(--fm)"
-                          fontSize={10}
+                          fontSize={9}
                           fontWeight={700}
                           textAnchor="middle"
                         >
                           {f.fret}
                         </text>
-                        {/* Technique marker */}
+                        {/* Technique marker — lighter, italic and smaller than
+                            a fret number, because an 'h' used to look like one. */}
                         {f.technique && (
                           <text
-                            x={px + CHAR_WIDTH + 2}
-                            y={y - 6}
-                            fill="var(--ds-gray-600)"
+                            x={px + CHAR_WIDTH + 1}
+                            y={y - 4}
+                            fill={c.label}
                             fontFamily="var(--fm)"
-                            fontSize={9}
-                            fontWeight={600}
+                            fontSize={7}
+                            fontStyle="italic"
+                            fontWeight={400}
+                            opacity={0.85}
                           >
                             {f.technique}
                           </text>

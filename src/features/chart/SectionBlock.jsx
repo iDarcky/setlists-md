@@ -61,6 +61,11 @@ export default function SectionBlock({
   //   'above'  — on its own line ABOVE, so it is read before the line is sung
   //   'leader' — pushed to the right edge, joined by a dotted leader
   notePlacement = 'inline',
+  // Element 9. `myInstrument` is what YOU play this service (from the roster);
+  // a tab for another instrument collapses to one line instead of taking a
+  // block of screen you scroll past every section. Null = show everything.
+  myInstrument = null,
+  tabTranspose = 0,
 }) {
   // Reader notation: prefer the explicit `notation` prop; fall back to the
   // legacy boolean `nns` (Nashville on/off) for callers not yet migrated.
@@ -118,8 +123,18 @@ export default function SectionBlock({
 
   const renderLine = (line, idx) => {
     if (typeof line !== 'string') {
-      if (line.type === 'tab') return showTabs && tabMatches(line.instrument) ? <TabBlock key={idx} data={line} scale={tabScale} colors={tabColors} /> : null;
-      if (line.type === 'tabref') return showTabs && line.tab && tabMatches(line.tab.instrument) ? <TabBlock key={idx} data={line.tab} scale={tabScale} colors={tabColors} /> : null;
+      const tabProps = (t) => ({
+        data: t,
+        scale: tabScale,
+        colors: tabColors,
+        transpose: tabTranspose,
+        writtenKey: songKey,
+        // Collapse only when we know what you play AND this is not it.
+        collapsible: !!myInstrument,
+        defaultOpen: !myInstrument || !t.instrument || t.instrument === myInstrument,
+      });
+      if (line.type === 'tab') return showTabs && tabMatches(line.instrument) ? <TabBlock key={idx} {...tabProps(line)} /> : null;
+      if (line.type === 'tabref') return showTabs && line.tab && tabMatches(line.tab.instrument) ? <TabBlock key={idx} {...tabProps(line.tab)} /> : null;
       if (line.type === 'modulate') {
         // Element 8. Was a full-width brand pill between two rules — the
         // loudest thing on the page for an event that lasts one bar. Now a

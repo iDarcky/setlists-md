@@ -57,8 +57,12 @@ export function StructureRibbon({
   // px-1 keeps the first/last chip (and the active chip's ring) from being
   // clipped at the scroller's edges.
   const vertical = orientation === 'vertical';
+  // Dots need a fraction of the height a code box does, so the row shrinks
+  // with the style rather than reserving space for the tallest option.
+  const dense = style === 'dots';
   const rowClass = cn(
-    'flex gap-1 py-1 px-1 min-w-0',
+    'flex gap-1 px-1 min-w-0',
+    dense ? 'py-0.5' : 'py-1',
     vertical
       ? 'flex-col items-center'
       : (wrap ? 'flex-wrap' : 'flex-nowrap overflow-x-auto no-scrollbar'),
@@ -116,7 +120,9 @@ export function StructureRibbon({
               ref={active ? activeRef : null}
               {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index), title: labelOf(run.name) } : {})}
               className={cn(
-                'shrink-0 inline-flex items-center gap-1 font-mono font-bold text-[11px] px-2 py-1 rounded-[7px] border transition-all',
+                // Squarer than tall: the vertical padding is what made these
+                // read as pills rather than the code boxes they are.
+                'shrink-0 inline-flex items-center gap-1 font-mono font-bold text-[11px] px-2 py-0.5 rounded-[5px] border transition-all leading-tight',
                 onSelect && 'cursor-pointer hover:opacity-80',
                 active && 'ring-2 ring-offset-1 ring-offset-transparent',
               )}

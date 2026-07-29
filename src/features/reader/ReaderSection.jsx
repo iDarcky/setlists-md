@@ -14,7 +14,7 @@ import SectionBlock from '@/features/chart/SectionBlock';
  */
 export default function ReaderSection({
   section, index, config, songKey, settings, transpose, modOffset,
-  repeatOf = -1, onJumpToFirst, tabColors,
+  repeatOf = -1, onJumpToFirst, tabColors, stickyTop = 0,
 }) {
   const id = sectionIdentity(section.type, settings);
   const style = config.sectionStyle;
@@ -70,7 +70,8 @@ export default function ReaderSection({
   const outer = {
     ...frame,
     breakInside: 'avoid',
-    scrollMarginTop: '0.5rem',
+    // Land the section below the sticky chrome, not underneath it.
+    scrollMarginTop: stickyTop + 8,
     // A chorus gets more air above it than a verse, so the page has a shape
     // you can read without reading the words.
     marginBottom: heavy ? '1.6rem' : '1rem',
@@ -100,7 +101,8 @@ export default function ReaderSection({
         className="mb-1.5"
         style={config.sticky ? {
           position: 'sticky',
-          top: 0,
+          // Pin BELOW the header, or the heading slides under it and vanishes.
+          top: stickyTop,
           zIndex: 5,
           // Opaque, or lyrics scroll visibly through the pinned heading.
           background: 'var(--chart-bg, var(--ds-background-100))',
@@ -149,6 +151,8 @@ export default function ReaderSection({
         customSectionTypes={settings?.customSectionTypes}
         tabScale={settings?.tabSize || 1}
         tabColors={tabColors}
+        myInstrument={config.myInstrument}
+        tabTranspose={transpose}
       />
     </div>
   );

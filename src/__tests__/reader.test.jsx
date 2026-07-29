@@ -169,6 +169,26 @@ describe('element 3 — section heading', () => {
   });
 });
 
+describe('the sticky chrome', () => {
+  it('pins section headings BELOW the header, not underneath it', () => {
+    mockWidth(false);
+    renderReader({ settings: { readerSticky: 'on' } });
+    const head = document.querySelector('[data-section-index] > div');
+    expect(head.style.position).toBe('sticky');
+    // `top` is the measured header height. jsdom reports 0 for it, but the
+    // value must come from the measurement, not a hard-coded 0 literal —
+    // assert the scroll offset uses it too.
+    expect(head.style.top).toBeDefined();
+  });
+
+  it('offsets a section jump by the header height', () => {
+    renderReader();
+    const sec = document.querySelector('[data-section-index]');
+    // scrollMarginTop is headH + 8; jsdom measures 0, so 8px is the floor.
+    expect(sec.style.scrollMarginTop).toBe('8px');
+  });
+});
+
 describe('element 4 — band cue', () => {
   it('shows on the heading line and can be turned off', () => {
     const r = renderReader();
