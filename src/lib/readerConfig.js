@@ -16,8 +16,8 @@ import { resolveChartDisplay, resolveColumns } from '@/lib/chartDisplay';
 
 export const READER_KNOBS = {
   ribbon: ['top', 'bottom', 'left', 'right', 'off'],  // 2
-  heading: ['name', 'code'],               // 3
-  sectionStyle: ['bar', 'block', 'card', 'mono'],     // 3
+  heading: ['name', 'code', 'caps'],       // 3
+  sectionStyle: ['bar', 'plain', 'block', 'card'],   // 3
   sticky: ['on', 'off'],                   // 3
   repeats: ['full', 'ref', 'condensed'],   // 3
   notes: ['on', 'off'],                    // 4 + 5

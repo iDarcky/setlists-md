@@ -1,11 +1,14 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 
-const STRING_SPACING = 18;
-const LABEL_WIDTH = 28;
-const PADDING_TOP = 12;
-const PADDING_BOTTOM = 8;
-const CHAR_WIDTH = 9;
-const ROW_PADDING = 16;
+// Tightened so more of a tab fits on screen: six strings at 18px spacing plus
+// padding made a single riff as tall as four lyric lines. These are the
+// unscaled SVG units — `scale` still applies on top.
+const STRING_SPACING = 13;
+const LABEL_WIDTH = 22;
+const PADDING_TOP = 8;
+const PADDING_BOTTOM = 6;
+const CHAR_WIDTH = 7;
+const ROW_PADDING = 12;
 
 const DEFAULT_COLORS = {
   line: 'var(--ds-gray-400)',
@@ -92,7 +95,7 @@ export default function TabBlock({ data, scale = 1, colors }) {
                     y={y + 4}
                     fill={c.label}
                     fontFamily="var(--fm)"
-                    fontSize={11}
+                    fontSize={9}
                     fontWeight={600}
                     textAnchor="end"
                   >
@@ -143,7 +146,7 @@ export default function TabBlock({ data, scale = 1, colors }) {
                           y={y + 4}
                           fill={c.number}
                           fontFamily="var(--fm)"
-                          fontSize={12}
+                          fontSize={10}
                           fontWeight={700}
                           textAnchor="middle"
                         >

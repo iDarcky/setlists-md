@@ -241,7 +241,7 @@ export default function AaMenu({
 
               <Label>Section heading</Label>
               <div className="flex gap-1.5 flex-wrap">
-                {[['name', 'Full name'], ['code', 'Letters']].map(o => (
+                {[['name', 'Full name'], ['code', 'Letters'], ['caps', 'ALL CAPS']].map(o => (
                   <Pick key={o[0]} active={(settings?.readerHeading || 'name') === o[0]}
                     onClick={() => onUpdateSettings?.('readerHeading', o[0])}>{o[1]}</Pick>
                 ))}
@@ -253,7 +253,7 @@ export default function AaMenu({
 
               <Label>Section style</Label>
               <div className="flex gap-1.5 flex-wrap">
-                {[['bar', 'Bar'], ['block', 'Block'], ['card', 'Card'], ['mono', 'Grey']].map(o => (
+                {[['bar', 'Bar'], ['plain', 'No line'], ['block', 'Block'], ['card', 'Card']].map(o => (
                   <Pick key={o[0]} active={(settings?.readerSectionStyle || 'bar') === o[0]}
                     onClick={() => onUpdateSettings?.('readerSectionStyle', o[0])}>{o[1]}</Pick>
                 ))}

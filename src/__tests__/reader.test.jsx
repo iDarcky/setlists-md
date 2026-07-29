@@ -127,6 +127,12 @@ describe('element 3 — section heading', () => {
     expect(document.querySelector('[data-section-index] > div').style.position).toBe('');
   });
 
+  it('offers the original all-caps heading alongside name and code', () => {
+    render(<Reader song={makeSong()} settings={{ readerHeading: 'caps' }} onExit={() => {}} />);
+    // The old chart wrote "VERSE 1:" — same text as `name`, different weight.
+    expect(screen.getAllByText('Verse 1:').length).toBeGreaterThan(0);
+  });
+
   it('switches between the name and the ribbon code', () => {
     const r = render(<Reader song={makeSong()} settings={{ readerHeading: 'name' }} onExit={() => {}} />);
     expect(screen.getAllByText('Verse 1').length).toBeGreaterThan(0);
@@ -136,14 +142,21 @@ describe('element 3 — section heading', () => {
     expect(screen.getAllByText('V1').length).toBeGreaterThan(0);
   });
 
-  it('changes the frame with the section style', () => {
+  it('changes the frame with the section style, including no line at all', () => {
     const frame = () => document.querySelector('[data-section-index]').style;
     let r = render(<Reader song={makeSong()} settings={{ readerSectionStyle: 'bar' }} onExit={() => {}} />);
     expect(frame().borderLeft).toBeTruthy();
     r.unmount();
 
-    render(<Reader song={makeSong()} settings={{ readerSectionStyle: 'card' }} onExit={() => {}} />);
+    r = render(<Reader song={makeSong()} settings={{ readerSectionStyle: 'card' }} onExit={() => {}} />);
     expect(frame().borderRadius).toBeTruthy();
+    r.unmount();
+
+    // 'plain' is the original chart's look: the heading carries the section,
+    // with no rule beside it.
+    render(<Reader song={makeSong()} settings={{ readerSectionStyle: 'plain' }} onExit={() => {}} />);
+    expect(frame().borderLeft).toBeFalsy();
+    expect(frame().background).toBeFalsy();
   });
 
   it('renders a repeat as a reference, and in full when asked', () => {

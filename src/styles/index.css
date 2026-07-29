@@ -688,6 +688,15 @@
     padding-right: 32px;
   }
 
+  /* The reader's chrome runs edge-to-edge on a phone — 32px of side padding
+     on a 390px screen is 16% of the bar spent on nothing. */
+  @media (max-width: 639px) {
+    .reader-head .wide-container {
+      padding-left: 10px;
+      padding-right: 10px;
+    }
+  }
+
   /* Wide Layout for Editor and Performers */
   .wide-container {
     width: 100%;

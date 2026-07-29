@@ -52,7 +52,11 @@ export function sectionIdentity(type, settings) {
  * plainly while "C2" ties tightest to the ribbon.
  */
 export function headingText(identity, style = 'name') {
-  return style === 'code' ? identity.code : identity.name;
+  if (style === 'code') return identity.code;
+  // 'caps' is the original chart's heading — the full name in caps with a
+  // trailing colon. Same text as 'name'; the styling is what differs.
+  if (style === 'caps') return `${identity.name}:`;
+  return identity.name;
 }
 
-export const HEADING_STYLES = ['name', 'code'];
+export const HEADING_STYLES = ['name', 'code', 'caps'];

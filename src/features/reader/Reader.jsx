@@ -152,7 +152,7 @@ export default function Reader({
       {/* ── Element 1 — top bar ─────────────────────────────────────────── */}
       {showChrome && (
         <div
-          className="sticky top-0 z-20 shrink-0 flex flex-col border-b"
+          className="reader-head sticky top-0 z-20 shrink-0 flex flex-col border-b"
           style={{ ...rule, background: 'var(--chart-bg, var(--ds-background-100))' }}
         >
           <div className="wide-container flex items-center gap-2 py-1.5">
@@ -173,7 +173,7 @@ export default function Reader({
                 the title can never be squeezed to nothing, and the key stays
                 beside it rather than out by the exit — the key is the only live
                 control here and a mis-tap next to ✕ leaves the service. */}
-            <span className="flex-1 min-w-0 flex items-center gap-2.5">
+            <span className="min-w-0 flex items-center gap-2.5">
             {(
               <span
                 className="truncate text-label-13 font-semibold"
@@ -181,8 +181,10 @@ export default function Reader({
                   // Explicit colour and a real flex basis: inheriting the colour
                   // and shrinking from `auto` are both ways this has vanished.
                   color: 'var(--chart-text, #111111)',
-                  flex: '1 1 6rem',
+                  // Never grow: growing is what pushed the key over to the ✕.
+                  flex: '0 1 auto',
                   minWidth: '3rem',
+                  maxWidth: '22rem',
                 }}
               >
                 {song.title}
@@ -219,6 +221,8 @@ export default function Reader({
             </span>
             </span>
 
+            <span className="flex-1" />
+
             {onExit && (
               <IconButton size="sm" aria-label="Exit" onClick={onExit}>
                 <CloseIcon />
@@ -226,16 +230,16 @@ export default function Reader({
             )}
           </div>
 
-        </div>
-      )}
-
-      {/* ── Element 2 — structure ribbon ────────────────────────────────── */}
-      {config.ribbon === 'top' && ribbonNode && (
-        <div
-          className="sticky z-10 shrink-0 border-b overflow-hidden"
-          style={{ ...rule, top: showChrome ? 41 : 0, background: 'var(--chart-bg, var(--ds-background-100))' }}
-        >
-          <div className="wide-container py-1.5">{ribbonNode}</div>
+          {/* Element 2 lives INSIDE element 1's sticky block: one piece of
+              chrome that travels together, rather than two stacked stickies. */}
+          {config.ribbon === 'top' && ribbonNode && (
+            <div
+              className="wide-container overflow-hidden pb-1 -mt-0.5"
+              style={{ fontSize: '0.85em' }}
+            >
+              {ribbonNode}
+            </div>
+          )}
         </div>
       )}
 

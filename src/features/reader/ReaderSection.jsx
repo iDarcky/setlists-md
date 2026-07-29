@@ -18,7 +18,7 @@ export default function ReaderSection({
 }) {
   const id = sectionIdentity(section.type, settings);
   const style = config.sectionStyle;
-  const colour = style === 'mono' ? 'var(--chart-subtle, var(--ds-gray-700))' : id.color;
+  const colour = id.color;
   const heavy = id.heavy;
 
   // Their team writes "!!! sing up an octave !!!" because the .md format has
@@ -34,7 +34,9 @@ export default function ReaderSection({
 
   const frame = {
     bar: { borderLeft: `${heavy ? 5 : 3}px solid ${colour}`, paddingLeft: '0.75rem' },
-    mono: { borderLeft: '2px solid var(--chart-rule, var(--ds-gray-400))', paddingLeft: '0.75rem' },
+    // No rule at all — the section is carried by its heading alone, which is
+    // how the original chart read.
+    plain: {},
     block: { background: id.fill, borderRadius: '0.6rem', padding: '0.6rem 0.75rem' },
     card: {
       background: 'color-mix(in srgb, var(--chart-text, #808080) 5%, transparent)',
@@ -45,12 +47,21 @@ export default function ReaderSection({
     },
   }[style] || {};
 
+  const HEADING_CLASS = {
+    code: 'font-bold uppercase tracking-wider font-mono',
+    // The original chart's heading: heavy, all caps, wide tracking.
+    caps: 'font-black uppercase tracking-[0.15em]',
+    name: 'font-semibold tracking-wide first-letter:text-[1.15em]',
+  };
   const label = (
     <span
-      className={config.heading === 'code'
-        ? 'font-bold uppercase tracking-wider font-mono'
-        : 'font-semibold tracking-wide first-letter:text-[1.15em]'}
-      style={{ color: colour, fontSize: heavy ? '0.86rem' : '0.76rem' }}
+      className={HEADING_CLASS[config.heading] || HEADING_CLASS.name}
+      style={{
+        color: colour,
+        fontSize: config.heading === 'caps'
+          ? (heavy ? '0.95rem' : '0.86rem')
+          : (heavy ? '0.86rem' : '0.76rem'),
+      }}
     >
       {headingText(id, config.heading)}
     </span>
