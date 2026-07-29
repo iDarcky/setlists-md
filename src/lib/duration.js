@@ -25,6 +25,19 @@ export function formatClock(sec) {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
+// How long a session ran: "1h 5m" / "42m 10s" / "8s". Seconds matter at the
+// short end (a two-minute run-through) and are noise at the long end, so they
+// drop once there's an hour on the clock.
+export function formatElapsed(ms) {
+  const total = Math.max(0, Math.round((ms || 0) / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${String(s).padStart(2, '0')}s`;
+  return `${s}s`;
+}
+
 // Compact total for set summaries: "45 min" / "1h 5m".
 export function formatTotalDuration(totalSeconds) {
   const mins = Math.round((totalSeconds || 0) / 60);

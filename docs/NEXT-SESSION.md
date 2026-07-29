@@ -49,8 +49,9 @@ the reader.
 | 10 | Song-to-song | done — 4 nav styles, sticky footer, rail incl. phones, breaks |
 | 11 | Chord diagrams | done — tap a chord, Pro-gated, no strip |
 | 12 | Practice tools | done — metronome + slow-down, one row above the footer |
+| 13 | Finale | done — ONE finale, Time only, leaders-only reflection |
 
-731 tests, 0 lint errors. `npm run dev` · `npx vitest run` · `npm run build`.
+759 tests, 0 lint errors. `npm run dev` · `npx vitest run` · `npm run build`.
 
 **Nothing has been deleted.** With the flag off, `SetlistPlayer`,
 `PerformanceView` and `PracticeView` render exactly as they did, and
@@ -77,9 +78,23 @@ Round 1 is on the owner's phone for testing. Wait for their verdict before
 building anything more here — the loop/count-in decisions are recorded as cuts,
 not as backlog.
 
-### 2. Then: graduate the flag and delete
+### 2. Element 13 — the finale — DONE
 
-Element 12 has landed, so this is next. Wire `FullscreenChartViewer` as a thin wrapper over `Reader`
+One `ReaderFinale` replaces `LiveFinale` + `PracticeFinale` (~500 lines, ~80%
+identical). **Time is the only stat** — songs-reached, breaks, key-change and cue
+counts were all cut. "What changed" lists key changes only, derived from the
+reader's own transpose state. The reflection is now **leaders-only, RLS-enforced**
+(`team_setlist_notes` + `useLeaderNote`), because the old `serviceNote` field
+synced to every member's device. Reasoning in `docs/READER.md` §13.
+
+**⚠ This element ships a MIGRATION** — `20260729_team_setlist_notes.sql`. It is
+additive and the client degrades to "no reflection section" without it, so the
+build is safe to ship first, but the leaders-only note does nothing until the SQL
+is applied. There is no staging database: beta writes to live church data.
+
+### 3. Then: graduate the flag and delete
+
+Both remaining elements have landed, so this is next. Wire `FullscreenChartViewer` as a thin wrapper over `Reader`
 (not a fork), flip `unifiedReader` on by default, then delete `SetlistPlayer`,
 `PerformanceView` and `PracticeView` — roughly 2,300 lines of triplicated state
 management. `ChartView` stays for now; the Song Hub embeds it.

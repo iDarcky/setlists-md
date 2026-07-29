@@ -79,6 +79,8 @@ const LegalPage = lazy(() => import('@/features/legal/LegalPage'));
 const GoogleDriveCallback = lazy(() => import('@/features/auth/GoogleDriveCallback'));
 const PracticeFinale = lazy(() => import('@/features/performance/PracticeFinale'));
 const LiveFinale = lazy(() => import('@/features/performance/LiveFinale'));
+// Element 13, Labs `unifiedReader`: one finale in place of the two above.
+const ReaderFinale = lazy(() => import('@/features/reader/ReaderFinale'));
 const LydianShowcase = lazy(() => import('@/features/design/LydianShowcase'));
 // The add-a-song surface: search over the catalog, with Import and Blank
 // underneath. Graduated from Labs 2026-07 (the tabbed Import|Browse modal it
@@ -2400,7 +2402,24 @@ export default function App() {
               canEditShared={canEdit}
             />
           )}
-          {view === 'practice-finale' && currentSetlist && (
+          {/* Element 13, Labs `unifiedReader`: ONE finale for both kinds, in
+              place of LiveFinale + PracticeFinale (which were ~80% the same
+              file). Flag off → the two originals render untouched, since the old
+              views still feed them their richer session stats. */}
+          {settings?.unifiedReader && currentSetlist
+            && (view === 'practice-finale' || view === 'live-finale') && (
+            <ReaderFinale
+              setlist={currentSetlist}
+              mode={view === 'practice-finale' ? 'practice' : 'live'}
+              session={sessionStats}
+              userId={user?.id || null}
+              onRunAgain={handleRunSessionAgain}
+              onUpdateSetlist={handleUpdateSetlist}
+              onGoOverview={handleFinaleViewOverview}
+              onGoHome={handleFinaleGoHome}
+            />
+          )}
+          {!settings?.unifiedReader && view === 'practice-finale' && currentSetlist && (
             <PracticeFinale
               setlist={currentSetlist}
             songs={songs}
@@ -2411,7 +2430,7 @@ export default function App() {
               onGoHome={handleFinaleGoHome}
             />
           )}
-          {view === 'live-finale' && currentSetlist && (
+          {!settings?.unifiedReader && view === 'live-finale' && currentSetlist && (
             <LiveFinale
               setlist={currentSetlist}
               sessionStats={sessionStats}

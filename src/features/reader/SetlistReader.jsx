@@ -27,6 +27,11 @@ export default function SetlistReader({
   const [keys, setKeys] = useState({});
   const [railOpen, setRailOpen] = useState(false);
   const wide = useMediaQuery('(min-width: 768px)');
+  // Element 13. The ONLY thing tracked through a session: when it started.
+  // Everything else the old views carried in refs — farthest index, transpose
+  // count, cue count, touched-song set — was tracking maintained all session
+  // for a number on a screen nobody acts on.
+  const [startTime] = useState(() => Date.now());
 
   const items = useMemo(() => (setlist?.items || []).map(it => {
     if (it.type === 'break') return { ...it, isBreak: true };
@@ -85,7 +90,28 @@ export default function SetlistReader({
     ? (keys[nxt.song.id] || nxt.key || nxt.song.key || null)
     : null;
 
-  const finish = () => onFinish?.({ songCount: total });
+  // Element 13's "What changed": the keys actually moved during this session.
+  // Derived from the transpose state the reader already holds — no writes, and no
+  // editing added to a read-only surface. It is key changes ONLY; the reader
+  // cannot touch cues or notes, so listing them would be listing nothing.
+  const finish = () => {
+    // Deduped by song: `keys` is keyed by song id, so a song appearing twice in
+    // the set holds ONE key and would otherwise be listed twice — with a
+    // duplicate React key to go with it.
+    const seen = new Set();
+    const changes = items.reduce((out, it) => {
+      if (it.isBreak || it.isMissing || !it.song) return out;
+      if (seen.has(it.song.id)) return out;
+      const from = it.key || it.song.key;
+      const to = keys[it.song.id];
+      if (to && from && to !== from) {
+        seen.add(it.song.id);
+        out.push({ songId: it.song.id, title: it.song.title, from, to });
+      }
+      return out;
+    }, []);
+    onFinish?.({ startTime, changes });
+  };
   const openRail = () => setRailOpen(o => !o);
 
   // ONE footer, built once, handed to both surfaces — a break must not draw

@@ -57,6 +57,7 @@ src/features/reader/
 ├── ReaderSection.jsx   elements 3–5 (frame, sticky heading, cue)
 ├── ReaderFooter.jsx    element 10's bar. Shared by Reader AND BreakScreen.
 ├── ReaderPracticeRow.jsx  element 12 — the click + the backing track, one row.
+├── ReaderFinale.jsx    element 13 — one finale for live AND practice.
 ├── SetlistReader.jsx   prev/next, nav modes, keyboard/pedal, the rail
 ├── BreakScreen.jsx     a break, wearing the same chrome as a song
 └── SetlistRail.jsx     element 10's jump-anywhere list
@@ -64,6 +65,7 @@ src/features/reader/
 src/lib/readerConfig.js    every knob, resolved. Start here.
 src/lib/metronome.js       element 12's click — lookahead scheduler + its maths
 src/hooks/useYouTubeTrack.js  the backing-track engine, shared with SongPlayerBar
+src/hooks/useLeaderNote.js    element 13's leaders-only reflection (RLS-backed)
 src/lib/sectionIdentity.js one source for section code/name/colour/weight
 src/lib/tabTranspose.js    element 9's transpose rule
 src/lib/myInstrument.js    "what am I playing this service?"
@@ -275,13 +277,50 @@ deleting the old surfaces costs nothing but the finale stats (element 13).
 > `Number('')` are both **0**, so a song with a blank tempo clamped to the 40bpm
 > floor instead of falling back to 100. Caught by a test, not by a device.
 
+### 13 — The finale
+
+**One screen for both kinds** (`ReaderFinale`), in place of `LiveFinale` (246
+lines) and `PracticeFinale` (252) — which were ~80% the same file, with
+`formatDuration` and `StatGrid` duplicated verbatim and the copy already drifting
+apart. What genuinely differs between a service and a practice is small enough to
+be a lookup table: the phrase, the badge, one section, one CTA label, and which
+note it writes.
+
+First, the measured fact: **the finale was already wired to the reader and was
+lying.** `App.jsx` routed `SetlistReader`'s `onFinish` to the finale, but the
+reader passed `{ songCount }` and nothing else — so Time read **0s**, Songs read
+**1/N** however far you got, and the key/cue counts and "what changed" list were
+permanently empty. That was a live bug behind the flag, not a missing feature.
+
+- **Time is the only stat.** Songs-reached, breaks-crossed, key-change and
+  cue counts were all cut: each is tracking code maintained across a whole
+  session for a number nobody acts on. No start time → **no tile at all**, rather
+  than a finale claiming the service took 0s.
+- **"What changed" lists key changes only**, derived from the transpose state the
+  reader already holds — no writes, and no editing added to a read-only surface.
+  Cues and setlist notes genuinely have nothing to report until the reader can
+  edit; listing them would be listing nothing. Deduped by song, because a set
+  that plays a song twice holds one key for it.
+- **"You served with" is live-only** and reads `team_schedules` — the schedule,
+  not the session, so it needs no tracking. Unavailable members are left out.
+- **The reflection is leaders-only, enforced by RLS**, in its own
+  `team_setlist_notes` table. It used to be `serviceNote`/`practiceNote` on the
+  setlist object, which the team engine syncs to **every member's device** — so
+  hiding the field in the UI would not have hidden the text. Three cases:
+  no team → the setlist's own field (your device, your setlist); team + leader →
+  the leaders-only table; **team + member → no reflection at all.** That last one
+  is the point: a fallback there would put a leader's candid read straight back
+  onto a member's phone.
+- Old `serviceNote`/`practiceNote` values are **not backfilled** — they are
+  already on every device, and moving them would imply a privacy they never had.
+- Wake lock is still not acquired: the finale lives off-stage.
+
 ---
 
 ## Not yet designed
 
 | # | Element | Notes |
 |---|---------|-------|
-| 13 | Finale screens | `LiveFinale` / `PracticeFinale` still belong to the old surfaces |
 | — | Count-in, section loop | Cut from element 12 round 1. A loop needs per-section bars/timestamps — an `.md` format change |
 | — | Wake lock, session stats | Carried by the old views; not ported on purpose |
 
@@ -319,6 +358,7 @@ deleting the old surfaces costs nothing but the finale stats (element 13).
 - `src/__tests__/reader.test.jsx` — elements 1–6, 11
 - `src/__tests__/reader-practice.test.jsx` — element 12 (click, slow-down, track)
 - `src/__tests__/metronome.test.js` — the click's scheduling arithmetic
+- `src/__tests__/reader-finale.test.jsx` — element 13, incl. all three note scopes
 - `src/__tests__/setlist-reader.test.jsx` — element 10, breaks, nav modes
 - `src/__tests__/structure-ribbon.test.jsx` — chip geometry + the `min-h-0` trap
 - `src/__tests__/reader-config.test.js` — one case per knob

@@ -135,3 +135,60 @@ describe('element 10 — the other nav styles', () => {
     expect(screen.getByRole('button', { name: 'Open setlist' }).textContent).toContain('2 / 3');
   });
 });
+
+// ── Element 13 — what the reader hands the finale ─────────────────────────────
+describe('element 13 — the session handed to the finale', () => {
+  const finishAtEnd = (onFinish) => {
+    render(<SetlistReader setlist={setlist} songs={songs} settings={{}} onBack={() => {}} onFinish={onFinish} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+  };
+
+  it('carries a real start time — the finale used to read 0s', () => {
+    const onFinish = vi.fn();
+    const before = Date.now();
+    finishAtEnd(onFinish);
+    const { startTime } = onFinish.mock.calls[0][0];
+    expect(startTime).toBeGreaterThanOrEqual(before);
+    expect(startTime).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('reports no changes when nothing was transposed', () => {
+    const onFinish = vi.fn();
+    finishAtEnd(onFinish);
+    expect(onFinish.mock.calls[0][0].changes).toEqual([]);
+  });
+
+  it('reports the keys actually moved, from and to', () => {
+    const onFinish = vi.fn();
+    render(<SetlistReader setlist={setlist} songs={songs} settings={{}} onBack={() => {}} onFinish={onFinish} />);
+
+    // Transpose the first song through the reader's own key control.
+    fireEvent.click(screen.getByRole('combobox', { name: 'Key (transpose)' }));
+    fireEvent.click(screen.getByRole('option', { name: 'B' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+
+    expect(onFinish.mock.calls[0][0].changes).toEqual([
+      { songId: 's1', title: 'Amazing Grace', from: 'G', to: 'B' },
+    ]);
+  });
+
+  it('lists a song once even when the set plays it twice', () => {
+    // `keys` is keyed by song id, so a repeated song holds ONE key — listing it
+    // per slot would duplicate the row and its React key with it.
+    const twice = { id: 'sl2', items: [{ songId: 's1' }, { songId: 's1' }] };
+    const onFinish = vi.fn();
+    render(<SetlistReader setlist={twice} songs={songs} settings={{}} onBack={() => {}} onFinish={onFinish} />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Key (transpose)' }));
+    fireEvent.click(screen.getByRole('option', { name: 'B' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+
+    expect(onFinish.mock.calls[0][0].changes).toHaveLength(1);
+  });
+});
