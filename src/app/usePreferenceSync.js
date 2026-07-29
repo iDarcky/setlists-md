@@ -73,6 +73,7 @@ export const PORTABLE_PREF_KEYS = [
   'readerSectionStyle',
   'readerSticky',
   'readerNotes',
+  'readerFooter',
 ];
 
 export function extractPortablePrefs(s) {

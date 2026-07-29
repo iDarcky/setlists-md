@@ -40,6 +40,8 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Songs and setlists look like siblings** — both lists now share one card design, one header layout, and the same frosted bar as you scroll.
 - **Quick edit is mouse-only** — the pencil at the right of a song row no longer turns an ordinary tap into an accidental edit on a phone.
 - **Quieter syncing** — "Synced" no longer interrupts you for background syncs; you'll only see it when you tap Sync now, which now also tells you when everything was already up to date.
+- **A bottom bar that stays put** — prev and next sit on the bottom edge of the screen instead of at the end of the song, and it can name the song that's coming next, with its key, rather than only counting.
+- **Breaks look like the rest of the service** — same bar at the top, same bar at the bottom, and the break itself set like a title page instead of a card floating in the middle with the exit in the wrong place.
 - **"Roster" is now "the band"** — every screen that used to talk about rostering people now talks about the band, because that's what it is.
 - **A tidier scrollbar** throughout the app.
 - **The new way to add songs is now simply the way** — no longer something to switch on, and importing a PDF works for everyone.
@@ -58,7 +60,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **The "…" menu in that bar opens** — it was being clipped away behind the bar's own rounded edge.
 - **Done now leaves selection mode** instead of immediately switching it back on.
 - **Filter sheets no longer show a stray white outline** on phones.
-- **The structure ribbon's boxes are boxes again** — square corners and an even shape, instead of the rounded pills they'd drifted into.
+- **The structure ribbon is calm again** — one muted grey for every section you're not in, and colour on the one you are. A different colour per box turned the row into a rainbow on a phone.
 - **Cover art picks up Spotify links**, not only YouTube ones.
 - **Importing a PDF works without turning anything on first** — it previously needed the Labs add-a-song screen enabled.
 

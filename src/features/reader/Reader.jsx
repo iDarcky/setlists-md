@@ -325,8 +325,18 @@ export default function Reader({
         </div>
       )}
 
+      {/* Element 10. `sticky bottom-0`, not just last-in-flow: the whole reader
+          is ONE scroll container, so a plain flex child sits at the end of the
+          SONG rather than at the bottom of the screen. Mirror of the header. */}
       {footer && (
-        <div className="shrink-0 border-t" style={rule}>
+        <div
+          className="sticky bottom-0 z-20 shrink-0 border-t"
+          style={{
+            ...rule,
+            background: 'var(--chart-bg, var(--ds-background-100))',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          }}
+        >
           <div className="wide-container flex items-center gap-2 py-1.5">{footer}</div>
         </div>
       )}

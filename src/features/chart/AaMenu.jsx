@@ -259,6 +259,14 @@ export default function AaMenu({
                 ))}
               </div>
 
+              <Label>Bottom bar</Label>
+              <div className="flex gap-1.5 flex-wrap">
+                {[['count', 'Just the count'], ['next', 'Name the next song']].map(o => (
+                  <Pick key={o[0]} active={(settings?.readerFooter || 'next') === o[0]}
+                    onClick={() => onUpdateSettings?.('readerFooter', o[0])}>{o[1]}</Pick>
+                ))}
+              </div>
+
               <Label>Line spacing</Label>
               <div className="flex items-center gap-2">
                 <Stepper

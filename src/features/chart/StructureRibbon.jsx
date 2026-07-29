@@ -103,12 +103,17 @@ export function StructureRibbon({
     );
   }
 
-  // 'codes' — bordered mono code pills, coloured per section type. Matches the
-  // Song Hub V2 mockup's song-map row (rounded-rect chips, not the pill/dot
-  // variants). Reusable as a Settings ribbonStyle option.
+  // 'codes' — the Score mockup's ribbon, verbatim:
+  //   .rib { font: 10px mono; letter-spacing: .06em; padding: 2px 7px;
+  //          border-radius: 5px; border: 1px solid <hairline>; color: <muted> }
+  //   .rib[data-on] { background: <accent>; color: <bg>; font-weight: 700 }
+  // The calm comes from every inactive chip being ONE muted grey — a different
+  // colour per chip turns the row into a bar chart of nothing. Colour appears
+  // exactly once, on the chip you're standing in, which is also what makes the
+  // ribbon a position indicator rather than a menu.
   if (style === 'codes') {
     return (
-      <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-1.5')}>
+      <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-[5px]')}>
         {runs.map((run, i) => {
           const s = colorOf(run.name);
           const active = isActiveRun(run);
@@ -119,28 +124,30 @@ export function StructureRibbon({
               ref={active ? activeRef : null}
               {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index), title: labelOf(run.name) } : {})}
               className={cn(
-                // An actual box, not a pill: near-square corners, and a fixed
-                // height that is the text plus a hair — vertical padding is
-                // what made these read as pills. `min-w` matches the height so
-                // a one-letter code ("C") is a square, not a narrow sliver.
-                'shrink-0 inline-flex items-center justify-center gap-1 font-mono font-bold text-[11px] leading-none',
-                'px-1 h-[15px] min-w-[15px] rounded-[3px] border transition-all',
+                'shrink-0 inline-flex items-center gap-1 whitespace-nowrap font-mono text-[10px] leading-[1.5]',
+                'tracking-[0.06em] px-[7px] py-[2px] rounded-[5px] border transition-all',
+                active && 'font-bold',
                 onSelect && 'cursor-pointer hover:opacity-80',
-                active && 'ring-2 ring-offset-1 ring-offset-transparent',
               )}
-              style={{
-                // Neutral pill (border + fill); only the code text is
-                // section-coloured. With `activeFill`, the current chip fills
-                // solid in the section's colour instead — so the ribbon chip
-                // and the section heading it points at read as the same
-                // object, which is what makes the ribbon a position indicator
-                // rather than a menu.
-                ...(activeFill && active
-                  ? { color: 'var(--bg-1)', background: s.b, borderColor: s.b }
-                  : { color: s.b, borderColor: 'var(--border-1)', background: 'var(--bg-1)' }),
-                opacity: active || activeIndex == null ? 1 : 0.7,
-                ...(active && !activeFill ? { boxShadow: `0 0 0 2px ${s.b}` } : {}),
-              }}
+              style={activeFill
+                ? (active
+                  // The one filled chip. Its colour is the section's, so the
+                  // chip and the heading it points at are the same object.
+                  ? { color: 'var(--chart-bg, var(--bg-1))', background: s.b, borderColor: s.b }
+                  : {
+                    color: 'var(--chart-subtle, var(--ds-gray-700))',
+                    borderColor: 'var(--chart-rule, var(--border-1))',
+                    background: 'transparent',
+                  })
+                // Without `activeFill` this is the pre-reader chart's ribbon:
+                // every code carries its own section colour, current one ringed.
+                : {
+                  color: s.b,
+                  borderColor: 'var(--border-1)',
+                  background: 'var(--bg-1)',
+                  opacity: active || activeIndex == null ? 1 : 0.7,
+                  ...(active ? { boxShadow: `0 0 0 2px ${s.b}` } : {}),
+                }}
             >
               {compactLabel(run.name)}
               {run.count > 1 && <span className="opacity-70">×{run.count}</span>}
@@ -159,25 +166,26 @@ export function StructureRibbon({
           const active = isActiveRun(run);
           const Tag = onSelect ? 'button' : 'span';
           return (
-            <span key={i} ref={active ? activeRef : null} className="shrink-0 inline-flex items-baseline">
-              {i > 0 && <span className="text-[var(--ds-gray-500)] mx-1 text-[11px]">·</span>}
+            <span key={i} ref={active ? activeRef : null} className="shrink-0 inline-flex items-center">
+              {i > 0 && (
+                <span className="mx-1 text-[10px]" style={{ color: 'var(--chart-subtle, var(--ds-gray-500))' }}>·</span>
+              )}
               <Tag
                 {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index) } : {})}
                 className={cn(
-                  'bg-transparent border-none p-0 font-bold text-[11px] font-mono leading-none',
+                  // Same type as `codes` — the boxes are just gone.
+                  'bg-transparent border-none p-0 font-mono text-[10px] leading-[1.5] tracking-[0.06em]',
+                  active ? 'font-bold' : 'font-medium',
                   active && !activeFill && 'underline underline-offset-4',
-                  // Same box as `codes` when it fills — square corners, and
-                  // wide enough that a single letter is a square.
-                  activeFill && active
-                    && 'inline-flex items-center justify-center px-1 h-[15px] min-w-[15px] rounded-[3px]',
+                  // The filled chip is the `codes` chip exactly, borderless.
+                  activeFill && active && 'inline-flex items-center px-[7px] py-[2px] rounded-[5px]',
                   onSelect && 'cursor-pointer hover:opacity-80',
                 )}
-                style={{
-                  ...(activeFill && active
-                    ? { background: s.b, color: 'var(--bg-1)' }
-                    : { color: s.b }),
-                  opacity: active || activeIndex == null ? 1 : 0.7,
-                }}
+                style={activeFill
+                  ? (active
+                    ? { background: s.b, color: 'var(--chart-bg, var(--bg-1))' }
+                    : { color: 'var(--chart-subtle, var(--ds-gray-700))' })
+                  : { color: s.b, opacity: active || activeIndex == null ? 1 : 0.7 }}
               >
                 {compactLabel(run.name)}
                 {run.count > 1 && <span className="opacity-70">×{run.count}</span>}
