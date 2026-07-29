@@ -133,14 +133,19 @@ export default function Reader({
         // dark app reads as broken rather than as a stage.
         background: 'var(--chart-bg, var(--ds-background-100))',
         color: 'var(--chart-text, var(--ds-gray-1000))',
-        '--bg-1': 'var(--chart-bg, var(--ds-background-100))',
-        '--bg-2': 'var(--chart-bg, var(--ds-background-200))',
-        '--border-1': 'var(--chart-rule, var(--ds-gray-300))',
-        '--border-3': 'var(--chart-subtle, var(--ds-gray-600))',
-        '--text-1': 'var(--chart-text, var(--ds-gray-1000))',
-        '--text-2': 'var(--chart-subtle, var(--ds-gray-700))',
-        '--ds-gray-1000': 'var(--chart-text, var(--ds-gray-1000))',
-        '--ds-gray-700': 'var(--chart-subtle, var(--ds-gray-700))',
+        // NB: none of these may name themselves inside their own fallback.
+        // `--ds-gray-1000: var(--chart-text, var(--ds-gray-1000))` is a cycle,
+        // and a cyclic custom property is invalid at computed-value time — it
+        // becomes unset for the entire subtree, taking the title's colour with
+        // it. Every fallback below is a literal.
+        '--bg-1': 'var(--chart-bg, #ffffff)',
+        '--bg-2': 'var(--chart-bg, #ffffff)',
+        '--border-1': 'var(--chart-rule, rgba(0,0,0,.14))',
+        '--border-3': 'var(--chart-subtle, rgba(0,0,0,.3))',
+        '--text-1': 'var(--chart-text, #111111)',
+        '--text-2': 'var(--chart-subtle, #6b6b6b)',
+        '--ds-gray-1000': 'var(--chart-text, #111111)',
+        '--ds-gray-700': 'var(--chart-subtle, #6b6b6b)',
       }}
     >
       {/* ── Element 1 — top bar ─────────────────────────────────────────── */}
@@ -174,7 +179,7 @@ export default function Reader({
                 style={{
                   // Explicit colour and a real flex basis: inheriting the colour
                   // and shrinking from `auto` are both ways this has vanished.
-                  color: 'var(--chart-text, var(--ds-gray-1000))',
+                  color: 'var(--chart-text, #111111)',
                   flex: '1 1 6rem',
                   minWidth: '3rem',
                 }}
@@ -185,16 +190,14 @@ export default function Reader({
             <span className="shrink-0 flex items-center gap-2 text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
               {onSelectKey ? (
                 <Select value={displayKey} onValueChange={onSelectKey}>
+                  {/* Identical to the Song Hub's key chip — solid --chord fill,
+                      near-black text, mono bold. */}
                   <SelectTrigger
                     aria-label="Key (transpose)"
-                    className="h-7 w-auto min-w-0 gap-1 px-2.5 text-label-12 font-bold focus:ring-0 rounded-full"
-                    style={{
-                      color: 'var(--chord)',
-                      border: '1px solid var(--chord)',
-                      background: 'color-mix(in srgb, var(--chord) 14%, transparent)',
-                    }}
+                    className="!border-0 gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90 !h-7 !min-h-[28px] !w-auto !px-2 !py-0 !rounded-lg text-[13px]"
+                    style={{ background: 'var(--chord)', color: '#0a0a0a' }}
                   >
-                    {displayKey}
+                    <span>{displayKey}</span>
                   </SelectTrigger>
                   <SelectContent>
                     {keysInQualityOf(song.key, settings?.accidentals).map(k => (
@@ -204,12 +207,8 @@ export default function Reader({
                 </Select>
               ) : (
                 <span
-                  className="font-bold text-label-12 rounded-full px-2.5 py-0.5"
-                  style={{
-                    color: 'var(--chord)',
-                    border: '1px solid var(--chord)',
-                    background: 'color-mix(in srgb, var(--chord) 14%, transparent)',
-                  }}
+                  className="font-mono font-bold text-[13px] rounded-lg px-2 h-7 inline-flex items-center"
+                  style={{ background: 'var(--chord)', color: '#0a0a0a' }}
                 >
                   {displayKey}
                 </span>

@@ -84,6 +84,26 @@ describe('element 1 — top bar', () => {
   });
 });
 
+describe('the chart-theme token remap', () => {
+  it('never lets a custom property name itself in its own fallback', () => {
+    // `--ds-gray-1000: var(--chart-text, var(--ds-gray-1000))` is a dependency
+    // cycle. CSS counts a var() inside a fallback, so the property is invalid
+    // at computed-value time and becomes UNSET for the whole subtree — which
+    // is how the header title lost its colour and rendered invisible.
+    renderReader();
+    const root = document.querySelector('[data-section-index]')
+      .closest('div[style]').parentElement.closest('div[style*="--bg-1"]')
+      || document.body.firstElementChild.firstElementChild;
+    const inline = root.getAttribute('style') || '';
+    for (const decl of inline.split(';')) {
+      const [rawProp, ...rest] = decl.split(':');
+      const prop = rawProp.trim();
+      if (!prop.startsWith('--')) continue;
+      expect(rest.join(':')).not.toContain(`var(${prop}`);
+    }
+  });
+});
+
 describe('element 2 — structure ribbon', () => {
   it('renders and can be hidden', () => {
     const r = renderReader();
