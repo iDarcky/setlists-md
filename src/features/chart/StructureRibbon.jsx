@@ -107,10 +107,10 @@ export function StructureRibbon({
   //   .rib { font: 10px mono; letter-spacing: .06em; padding: 2px 7px;
   //          border-radius: 5px; border: 1px solid <hairline>; color: <muted> }
   //   .rib[data-on] { background: <accent>; color: <bg>; font-weight: 700 }
-  // The calm comes from every inactive chip being ONE muted grey — a different
-  // colour per chip turns the row into a bar chart of nothing. Colour appears
-  // exactly once, on the chip you're standing in, which is also what makes the
-  // ribbon a position indicator rather than a menu.
+  // Geometry is the mockup's; the colour is ours. Each code carries its section
+  // type's colour, and the chip you're standing in FILLS with it — so the row
+  // reads as the shape of the song, and the current chip and the heading it
+  // points at are visibly the same object.
   if (style === 'codes') {
     return (
       <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-[5px]')}>
@@ -140,7 +140,9 @@ export function StructureRibbon({
                   // chip and the heading it points at are the same object.
                   ? { color: 'var(--chart-bg, var(--bg-1))', background: s.b, borderColor: s.b }
                   : {
-                    color: 'var(--chart-subtle, var(--ds-gray-700))',
+                    // Every code keeps its section's colour — you read the
+                    // shape of the song off the row without reading it.
+                    color: s.b,
                     borderColor: 'var(--chart-rule, var(--border-1))',
                     background: 'transparent',
                   })
@@ -189,7 +191,7 @@ export function StructureRibbon({
                 style={activeFill
                   ? (active
                     ? { background: s.b, color: 'var(--chart-bg, var(--bg-1))' }
-                    : { color: 'var(--chart-subtle, var(--ds-gray-700))' })
+                    : { color: s.b })
                   : { color: s.b, opacity: active || activeIndex == null ? 1 : 0.7 }}
               >
                 {compactLabel(run.name)}

@@ -41,12 +41,15 @@ describe('ribbon chips vs the global button min-height', () => {
     expect(chip.className).toContain('rounded-[5px]');
   });
 
-  it('codes: only the chip you are standing in carries colour', () => {
+  it('codes: every code keeps its section colour, and the current one fills', () => {
+    // A verse and a chorus are different colours in the row, not two greys.
     const { container } = render(
       <StructureRibbon structure={structure} style="codes" activeIndex={0} activeFill onSelect={() => {}} />
     );
-    const [first, second] = container.querySelectorAll('button');
-    expect(first.style.background).toBeTruthy();
-    expect(second.style.background).toBe('transparent');
+    const [verse1, chorus, verse2] = container.querySelectorAll('button');
+    expect(verse1.style.background).toBeTruthy();          // the one you're in
+    expect(chorus.style.background).toBe('transparent');
+    expect(chorus.style.color).toBeTruthy();
+    expect(chorus.style.color).not.toBe(verse2.style.color);
   });
 });
