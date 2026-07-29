@@ -15,7 +15,6 @@ import { resolveChartDisplay, resolveColumns } from '@/lib/chartDisplay';
  */
 
 export const READER_KNOBS = {
-  header: ['min', 'std', 'full'],          // 1
   ribbon: ['top', 'bottom', 'left', 'right', 'off'],  // 2
   heading: ['name', 'code'],               // 3
   sectionStyle: ['bar', 'block', 'card', 'mono'],     // 3
@@ -25,7 +24,6 @@ export const READER_KNOBS = {
 };
 
 const DEFAULTS = {
-  header: 'std',
   ribbon: 'top',
   heading: 'name',
   sectionStyle: 'bar',
@@ -38,7 +36,6 @@ const DEFAULTS = {
 // `duplicateSections` are existing app-wide settings, reused rather than
 // duplicated so the controls that already exist keep working.
 const KEY = {
-  header: 'readerHeader',
   ribbon: 'structurePosition',
   heading: 'readerHeading',
   sectionStyle: 'readerSectionStyle',
@@ -65,7 +62,6 @@ export function resolveReaderConfig(settings, ctx = {}) {
   const { wide = false, embedded = false } = ctx;
 
   const cfg = {
-    header: pick('header', settings?.[KEY.header]),
     ribbon: pick('ribbon', settings?.[KEY.ribbon]),
     heading: pick('heading', settings?.[KEY.heading]),
     sectionStyle: pick('sectionStyle', settings?.[KEY.sectionStyle]),
@@ -81,9 +77,6 @@ export function resolveReaderConfig(settings, ctx = {}) {
   };
 
   // --- physical facts, not preferences ---
-
-  // The hub owns identity and back-navigation, so the reader shows no chrome.
-  if (embedded) cfg.header = 'none';
 
   // A note belongs to its line either way; only the treatment changes with the
   // room. Wide: out to the right edge on a dotted leader, like a printed

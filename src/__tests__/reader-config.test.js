@@ -7,7 +7,6 @@ const narrow = { wide: false };
 describe('defaults', () => {
   it('resolves a usable config from nothing', () => {
     const c = resolveReaderConfig(undefined, wide);
-    expect(c.header).toBe('std');
     expect(c.ribbon).toBe('top');
     expect(c.sectionStyle).toBe('bar');
     expect(c.sticky).toBe(false);   // wide: pinning is a phone affordance
@@ -64,10 +63,8 @@ describe('context overrides are physical facts, not preferences', () => {
     expect(resolveReaderConfig({ defaultColumns: 2 }, wide).columns).toBe(2);
   });
 
-  it('drops the chrome entirely inside the Song Hub', () => {
-    // The hub owns identity, back-navigation and the tabs.
-    const c = resolveReaderConfig({ readerHeader: 'full' }, { wide: true, embedded: true });
-    expect(c.header).toBe('none');
+  it('marks itself embedded so the host can own the chrome', () => {
+    expect(resolveReaderConfig({}, { wide: true, embedded: true }).embedded).toBe(true);
   });
 });
 

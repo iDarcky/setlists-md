@@ -13,7 +13,7 @@ import SectionBlock from '@/features/chart/SectionBlock';
  * highlighted chip and the heading it points at are the same object.
  */
 export default function ReaderSection({
-  section, index, config, settings, transpose, modOffset,
+  section, index, config, songKey, settings, transpose, modOffset,
   repeatOf = -1, onJumpToFirst, tabColors,
 }) {
   const id = sectionIdentity(section.type, settings);
@@ -120,7 +120,7 @@ export default function ReaderSection({
         transpose={transpose}
         modOffset={modOffset}
         notation={config.display.notation}
-        songKey={config.songKey}
+        songKey={songKey}
         accidentals={settings?.accidentals}
         condensed={condensed}
         onJumpToFirst={onJumpToFirst}

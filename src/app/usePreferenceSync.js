@@ -69,7 +69,6 @@ export const PORTABLE_PREF_KEYS = [
   'accountPanel',
   'pasteIntoChart',
   'unifiedReader',
-  'readerHeader',
   'readerHeading',
   'readerSectionStyle',
   'readerSticky',

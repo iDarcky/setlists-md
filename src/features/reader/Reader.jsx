@@ -95,9 +95,10 @@ export default function Reader({
   if (!song) return null;
 
   const displayKey = selectedKey || song.key;
-  const showChrome = config.header !== 'none';
-  const showTitle = config.header === 'std' || config.header === 'full';
-  const showMeta = config.header === 'full';
+  // Element 1 is fixed — no customization, by decision. An earlier cut gave it
+  // three density states nobody asked for, and a stored 'min' was silently
+  // hiding the title.
+  const showChrome = !embedded;
   const ribbonSide = config.ribbon === 'left' || config.ribbon === 'right';
 
   const ribbonNode = config.ribbon !== 'off' && ordered.length > 0 ? (
@@ -173,7 +174,7 @@ export default function Reader({
                 beside it rather than out by the exit — the key is the only live
                 control here and a mis-tap next to ✕ leaves the service. */}
             <span className="flex-1 min-w-0 flex items-center gap-2.5">
-            {showTitle && (
+            {(
               <span
                 className="truncate text-label-13 font-semibold"
                 style={{
@@ -225,13 +226,6 @@ export default function Reader({
             )}
           </div>
 
-          {showMeta && (
-            <div className="wide-container flex items-center gap-3 pb-1.5 text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
-              {song.artist && <span>{song.artist}</span>}
-              {song.capo ? <span>Capo {song.capo}</span> : null}
-              <span>{ordered.length} sections</span>
-            </div>
-          )}
         </div>
       )}
 
@@ -251,27 +245,33 @@ export default function Reader({
         )}
 
         {/* ── Elements 3–6 — the song ──────────────────────────────────── */}
-        <div
-          className="flex-1 min-w-0"
-          style={{
-            fontSize: config.display.lyricFontSize,
-            // SectionBlock sizes chords off these vars, not inherited size.
-            ['--chart-font-size-lyric']: `${config.display.lyricFontSize}px`,
-            ['--chart-font-size-chord']: `${config.display.chordFontSize}px`,
-            ['--chart-line-height-lyric']: settings?.lyricLineHeight ?? 1.35,
-            ['--chart-section-gap']: `${settings?.sectionSpacing ?? 24}px`,
-            ...(config.columns === 2
-              ? { columnCount: 2, columnGap: '1.75rem', columnRule: '1px solid var(--chart-rule, var(--ds-gray-300))' }
-              : null),
-          }}
-        >
-          <div className="wide-container py-3">
+        <div className="flex-1 min-w-0">
+          {/* The multi-column context MUST be established on the same element
+              that carries the width constraint. With `columnCount` on the
+              full-width parent and `wide-container` on a child, the columns
+              spanned the whole window while the header stayed at 1600px —
+              which is why the body never lined up with the bar above it. */}
+          <div
+            className="wide-container py-3"
+            style={{
+              fontSize: config.display.lyricFontSize,
+              // SectionBlock sizes chords off these vars, not inherited size.
+              ['--chart-font-size-lyric']: `${config.display.lyricFontSize}px`,
+              ['--chart-font-size-chord']: `${config.display.chordFontSize}px`,
+              ['--chart-line-height-lyric']: settings?.lyricLineHeight ?? 1.35,
+              ['--chart-section-gap']: `${settings?.sectionSpacing ?? 24}px`,
+              ...(config.columns === 2
+                ? { columnCount: 2, columnGap: '1.75rem', columnRule: '1px solid var(--chart-rule, var(--ds-gray-300))' }
+                : null),
+            }}
+          >
           {ordered.map((section, idx) => (
             <ReaderSection
               key={`${section.id || section.type}-${idx}`}
               section={section}
               index={idx}
               config={config}
+              songKey={song.key}
               settings={settings}
               transpose={transpose}
               modOffset={offsets[idx]}

@@ -285,7 +285,6 @@ export const DEFAULT_SETTINGS = {
   // its settings) in place of the four forked reading surfaces.
   unifiedReader: false,
   // Reader display (Labs `unifiedReader`) — see lib/readerConfig.js.
-  readerHeader: 'std',
   readerHeading: 'name',
   readerSectionStyle: 'bar',
   readerSticky: 'on',

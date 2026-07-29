@@ -63,25 +63,19 @@ describe('element 1 — top bar', () => {
     expect(onExit).toHaveBeenCalled();
   });
 
+  it('always shows the title — element 1 is fixed, with no density knob', () => {
+    // A stored density of 'min' used to hide it, which is a setting nobody
+    // asked for silently breaking the one thing the bar is for.
+    render(<Reader song={makeSong()} settings={{ readerHeader: 'min' }} onExit={() => {}} />);
+    expect(screen.getByText('Amazing Grace')).toBeTruthy();
+  });
+
   it('hands the chrome to the hub when embedded', () => {
     renderReader({ embedded: true });
     expect(screen.queryByRole('button', { name: 'Display options' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Exit' })).toBeNull();
   });
 
-  it('header density has three distinct states', () => {
-    let r = render(<Reader song={makeSong()} settings={{ readerHeader: 'min' }} onExit={() => {}} />);
-    expect(screen.queryByText('Amazing Grace')).toBeNull();
-    r.unmount();
-
-    r = render(<Reader song={makeSong()} settings={{ readerHeader: 'std' }} onExit={() => {}} />);
-    expect(screen.getByText('Amazing Grace')).toBeTruthy();
-    expect(screen.queryByText('John Newton')).toBeNull();   // std ≠ full
-    r.unmount();
-
-    render(<Reader song={makeSong()} settings={{ readerHeader: 'full' }} onExit={() => {}} />);
-    expect(screen.getByText('John Newton')).toBeTruthy();
-  });
 });
 
 describe('the chart-theme token remap', () => {
@@ -203,7 +197,8 @@ describe('elements 5–6 — notes and chords', () => {
     render(<Reader song={makeSong()} settings={{ defaultFontSize: 'L', chordFontSize: 13 }} onExit={() => {}} />);
     // The whole surface is one scroll container now, so the vars live on the
     // song wrapper between it and the sections.
-    const body = document.querySelector('[data-section-index]').parentElement.parentElement;
+    // The vars live on the same element as the width constraint and columns.
+    const body = document.querySelector('[data-section-index]').parentElement;
     expect(body.style.getPropertyValue('--chart-font-size-lyric')).toBe('22px');
     expect(body.style.getPropertyValue('--chart-font-size-chord')).toBe('13px');
   });
