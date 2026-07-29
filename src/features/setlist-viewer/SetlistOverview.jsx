@@ -9,7 +9,7 @@ import { IconButton } from '@/ui/IconButton';
 import { Button } from '@/ui/Button';
 import ExportSetlistDialog from '@/features/sharing/ExportSetlistDialog';
 import ShareSetlistDialog from '@/features/sharing/ShareSetlistDialog';
-import RosterPanel from '@/features/setlist-editor/RosterPanel';
+import BandPanel from '@/features/setlist-editor/BandPanel';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
 import { SHARE_ENABLED } from '@/lib/setlistShare';
@@ -270,9 +270,9 @@ export default function SetlistOverview({
     </div>
   ) : null;
 
-  // Band (mobile tab) — full editable roster for teams, hint otherwise.
+  // Band (mobile tab) — the full editable band for teams, hint otherwise.
   const bandContent = team ? (
-    <RosterPanel
+    <BandPanel
       inline
       v2
       cardSections
@@ -294,7 +294,7 @@ export default function SetlistOverview({
     </div>
   );
 
-  // The band — RosterPanel renders its own "Band" + "Add to the band" cards
+  // The band — BandPanel renders its own "Band" + "Add to the band" cards
   // (cardSections). Reused by the desktop side column and the mobile Band tab.
   const bandCardEl = bandContent;
 
@@ -371,7 +371,7 @@ export default function SetlistOverview({
         </div>
 
         {/* ── Desktop / tablet: Set order beside a Who's playing + Notes card.
-            The roster card is team/church-only; personal & sync never see it. ── */}
+            The band card is team/church-only; personal & sync never see it. ── */}
         <div className="hidden md:flex gap-3 mt-3 items-start">
           <div className="flex-1 min-w-0">{setCardEl}</div>
           {(team || notesEl) && (
@@ -391,8 +391,8 @@ export default function SetlistOverview({
                 {tabBtn('band', 'Band')}
               </div>
               {/* Both panels stay mounted and toggle with `hidden` so the band's
-                  roster is fetched on load — switching to it is instant, no
-                  "Loading roster…" flash. */}
+                  the band is fetched on load — switching to it is instant, no
+                  "Loading band…" flash. */}
               <div className={tab === 'setlist' ? 'mt-3 flex flex-col gap-3' : 'hidden'}>{setCardEl}{notesEl}</div>
               <div className={tab === 'band' ? 'mt-3' : 'hidden'}>{bandCardEl}</div>
             </>

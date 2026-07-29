@@ -299,7 +299,7 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
                   setMenuOpen(false);
                   const ok = await confirm({
                     title: `Remove ${displayName}?`,
-                    description: 'They will lose access to this team’s library, schedule, and roster. This cannot be undone — they’d need to be invited again.',
+                    description: 'They will lose access to this team’s library, schedule, and band. This cannot be undone — they’d need to be invited again.',
                     confirmLabel: 'Remove member',
                     cancelLabel: 'Keep member',
                     variant: 'danger',
@@ -517,7 +517,7 @@ function TeamStats({ teamId, members = [] }) {
             content: sl.content,
           }));
 
-        // ── Roster readiness for the very next service ──
+        // ── Band readiness for the very next service ──
         const next = upcoming[0] || null;
         let readiness = null;
         if (next?.date) {
@@ -574,7 +574,7 @@ function TeamStats({ teamId, members = [] }) {
         </div>
       </div>
 
-      {/* Roster readiness for the next service */}
+      {/* Band readiness for the next service */}
       {stats?.readiness && stats.readiness.total > 0 && (
         <div className="modes-card p-4">
           <div className="flex items-center justify-between gap-3 mb-2">

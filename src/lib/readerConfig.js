@@ -57,7 +57,7 @@ function pick(knob, value) {
  * @param settings   the app settings object
  * @param ctx.wide   viewport can carry two columns / a side rail
  * @param ctx.embedded  inside the Song Hub — the hub owns the chrome
- * @param ctx.myInstrument  what the reader plays this service, from the roster
+ * @param ctx.myInstrument  what the reader plays this service, from the band
  */
 export function resolveReaderConfig(settings, ctx = {}) {
   const { wide = false, embedded = false, myInstrument = null } = ctx;
@@ -75,7 +75,7 @@ export function resolveReaderConfig(settings, ctx = {}) {
     columns: resolveColumns(settings?.defaultColumns, wide),
     display: resolveChartDisplay(settings),
     // Element 9: tabs for other instruments collapse. A manual override in
-    // settings wins over the roster, and 'all' means never collapse.
+    // settings wins over the band, and 'all' means never collapse.
     myInstrument: settings?.tabInstrument && settings.tabInstrument !== 'all'
       ? settings.tabInstrument
       : myInstrument,

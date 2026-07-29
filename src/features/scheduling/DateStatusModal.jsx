@@ -197,7 +197,7 @@ export default function DateStatusModal({
         )}
 
         {/* Team availability — leaders/admins only (everyone else just sets
-            their own status; the full roster is gated). */}
+            their own status; the full band is gated). */}
         {canViewTeam && sortedMembers.length > 0 && (
           <div className="flex flex-col gap-2 pt-2 border-t border-[var(--modes-border)]">
             <div className="flex items-center justify-between">

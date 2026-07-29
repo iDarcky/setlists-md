@@ -162,7 +162,7 @@ export function TeamProvider({ children }) {
         if (ignore) return;
         setInvites(inviteRows || []);
       } catch (err) {
-        if (!ignore) console.error('[team] Failed to load team roster:', err);
+        if (!ignore) console.error('[team] Failed to load team members:', err);
       }
     })();
 
@@ -200,9 +200,9 @@ export function TeamProvider({ children }) {
       ? members.some(m => m.user_id === user?.id && m.role === 'leader')
       : false;
 
-    // Who may run the schedule/roster: admins (full power) and leaders (worship
+    // Who may run the schedule/band: admins (full power) and leaders (worship
     // leaders — manage availability + assignments, but not billing/team config).
-    const canManageRoster = isAdmin || isLeader;
+    const canManageBand = isAdmin || isLeader;
 
     return {
       teams,
@@ -216,7 +216,7 @@ export function TeamProvider({ children }) {
       isEditor,
       isMember,
       isLeader,
-      canManageRoster,
+      canManageBand,
       hasTeamPlan,
       ownedWorkspaceCount,
       atWorkspaceLimit,

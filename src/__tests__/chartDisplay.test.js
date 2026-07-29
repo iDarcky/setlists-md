@@ -15,12 +15,7 @@ describe('resolveChartDisplay — leader defaults', () => {
 
 });
 
-describe('resolveChartDisplay — stage mode presets', () => {
-
-
-});
-
-describe('resolveChartDisplay — explicit settings override stage preset', () => {
+describe('resolveChartDisplay — settings', () => {
   it('named size string S/M/L is mapped to a pixel value', () => {
     expect(resolveChartDisplay({ defaultFontSize: 'S' }).lyricFontSize).toBe(FONT_SIZES.S);
     expect(resolveChartDisplay({ defaultFontSize: 'M' }).lyricFontSize).toBe(FONT_SIZES.M);

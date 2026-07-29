@@ -4,7 +4,7 @@ import { showUndoToast } from "@/lib/undoToast";
 import { useConfirm } from "@/ui/useConfirmHook";
 import OfflineBanner from "@/ui/OfflineBanner";
 import WorkspacePickerDialog from "@/ui/WorkspacePickerDialog";
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { parseSongMd, songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate, clearAll } from './storage';
 import { shareTokenFromUrl } from '@/lib/setlistShare';
@@ -17,6 +17,7 @@ import { createTeamSyncEngine } from '@/sync/team-engine';
 import { getSyncState, setActiveProvider } from '@/sync/tokens';
 import { reconcileAdopt, applyPulled } from '@/sync/adopt';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
+import { resolveMyInstrument } from '@/lib/myInstrument';
 import OnboardingFlow from '@/features/onboarding/OnboardingFlow';
 import Dashboard from '@/features/dashboard/Dashboard';
 import Library from '@/features/library/Library';
@@ -172,6 +173,15 @@ export default function App() {
       && (sl.id === scheduleSetlistId || teamSetlistMap[sl.id] === scheduleSetlistId),
     [teamSetlistMap]
   );
+  // Element 9 of the reader: what YOU play this service, so everyone else's
+  // tabs collapse. Null (guest, no team, ambiguous) means show them all.
+  const myInstrument = useMemo(() => resolveMyInstrument({
+    userId: user?.id,
+    setlistId: currentSetlist?.id,
+    schedules,
+    members,
+    setlistMap: teamSetlistMap,
+  }), [user?.id, currentSetlist?.id, schedules, members, teamSetlistMap]);
   const [previewSongId, setPreviewSongId] = useState(null);
   const [previewSetlistId, setPreviewSetlistId] = useState(null);
   // Schedule list/calendar view — lifted here so the BottomNav morphing FAB can
@@ -250,7 +260,7 @@ export default function App() {
   useEffect(() => {
     if (activeLibrary === 'personal') {
       // In the Personal space there is NO active team — clear it so team-only
-      // surfaces (Band, roster, church members, team activity) don't leak in.
+      // surfaces (Band, schedule, church members, team activity) don't leak in.
       // (TeamProvider otherwise defaults activeTeamId to the first team on load.)
       setActiveTeam(null);
       return;
@@ -1774,7 +1784,7 @@ export default function App() {
       updatedAt: Date.now(),
       items: (src.items || []).map(it => ({ ...it })),
     };
-    // Templates are date-less + roster-less (those are per-service).
+    // Templates are date-less + band-less (those are per-service).
     delete tpl.date; delete tpl.time; delete tpl.endTime; delete tpl.rehearsal;
     setSetlists(prev => [...prev, tpl]);
     toast({ title: 'Saved as template', description: tpl.name });
@@ -2329,6 +2339,7 @@ export default function App() {
               songs={songs}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              myInstrument={myInstrument}
               onBack={goBack}
               onFinish={(stats) => (view === 'setlist-practice'
                 ? goPracticeFinale(currentSetlist, stats)

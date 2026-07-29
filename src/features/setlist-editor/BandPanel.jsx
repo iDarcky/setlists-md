@@ -53,7 +53,7 @@ function availabilityLabel(status) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly = false, inline = false, v2 = false, cardSections = false, setlists = [], overscheduleWarn = false, streakLimit = 3 }) {
+export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = false, inline = false, v2 = false, cardSections = false, setlists = [], overscheduleWarn = false, streakLimit = 3 }) {
   const confirm = useConfirm();
   const { team, members } = useTeam();
   const { schedules, createSchedule, updateSchedule, deleteSchedule, loading } = useTeamSchedules(team?.id);
@@ -100,8 +100,8 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
   // Filter schedules for this specific setlist (match against the DB ID)
   const setlistSchedules = schedules.filter(s => s.setlist_id === dbSetlistId);
 
-  // Readiness roll-up: how many of those rostered have confirmed / are unsure /
-  // are out / haven't replied. Drives the one-line summary above the roster.
+  // Readiness roll-up: how many of the band have confirmed / are unsure /
+  // are out / haven't replied. Drives the one-line summary above the band.
   const availSummary = useMemo(() => {
     const c = { available: 0, maybe: 0, unavailable: 0, pending: 0 };
     for (const s of setlistSchedules) {
@@ -112,10 +112,10 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
     return c;
   }, [setlistSchedules]);
 
-  // Members not yet on the roster
+  // Members not yet in the band
   const candidates = useMemo(() => {
-    const onRoster = new Set(setlistSchedules.map(s => s.user_id));
-    let list = members.filter(m => !onRoster.has(m.user_id));
+    const inBand = new Set(setlistSchedules.map(s => s.user_id));
+    let list = members.filter(m => !inBand.has(m.user_id));
     // Attach availability for the setlist's date.
     list = list.map(m => {
       const status = setlistDate
@@ -185,8 +185,8 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
   const handleAddMember = async (member, role, vocal) => {
     if (!member?.user_id || isAdding) return;
     if (!teamSetlistId) {
-      console.warn('[roster] No team setlist UUID for local id:', setlistId);
-      toast({ title: 'Sync required', description: 'This setlist needs to sync to the team library before you can manage the roster. Try switching to the team library and syncing first.', variant: 'error' });
+      console.warn('[band] No team setlist UUID for local id:', setlistId);
+      toast({ title: 'Sync required', description: 'This setlist needs to sync to the team library before you can manage the band. Try switching to the team library and syncing first.', variant: 'error' });
       return;
     }
     setIsAdding(true);
@@ -198,10 +198,10 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
       const created = await createSchedule(dbSetlistId, member.user_id, defaultRole, 'pending');
       if (vocal && created?.id) await updateSchedule(created.id, { vocal_part: vocal });
       const parts = [defaultRole, vocal].filter(Boolean).join(' · ');
-      toast({ title: 'Added to roster', description: parts ? `Scheduled on ${parts}.` : 'Member has been scheduled.' });
+      toast({ title: 'Added to the band', description: parts ? `Scheduled on ${parts}.` : 'Member has been scheduled.' });
     } catch (err) {
       console.error(err);
-      toast({ title: 'Error', description: err.message || 'Could not add member to roster.', variant: 'error' });
+      toast({ title: 'Error', description: err.message || 'Could not add member to the band.', variant: 'error' });
     } finally {
       setIsAdding(false);
       setAddingMemberId('');
@@ -226,7 +226,7 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
 
   const handleRemove = async (scheduleId) => {
     const ok = await confirm({
-      title: 'Remove from roster?',
+      title: 'Remove from the band?',
       description: 'They will be unassigned from this setlist. You can add them again later.',
       confirmLabel: 'Remove',
       variant: 'danger',
@@ -257,11 +257,11 @@ export default function RosterPanel({ setlistId, setlistDate, onClose, readOnly 
       <div className={inline ? `flex flex-col ${cardSections ? 'gap-3' : 'gap-6'}` : 'flex-1 overflow-y-auto p-4 flex flex-col gap-6'}>
         {loading && schedules.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
-            <span className="text-copy-14 text-[var(--ds-gray-500)]">Loading roster...</span>
+            <span className="text-copy-14 text-[var(--ds-gray-500)]">Loading band...</span>
           </div>
         ) : (
           <>
-            {/* Current Roster */}
+            {/* The band */}
             <div className={`flex flex-col gap-3 ${cardSections ? 'rounded-2xl border border-[var(--border-1)] bg-[var(--ds-background-100)] p-4' : ''}`}>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <p className={labelClass}>{bandLabel}</p>

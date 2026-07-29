@@ -47,7 +47,7 @@ export default function ScheduleListView({
   clockFormat = '12h',
   onSelectDate,
   onOpenSetlist,
-  onOpenRoster,
+  onOpenBand,
 }) {
   const today = useMemo(() => {
     const t = new Date();
@@ -152,7 +152,7 @@ export default function ScheduleListView({
                 <Button
                   size="xs"
                   variant="ghost"
-                  onClick={() => isAdmin ? onOpenRoster(sl) : onOpenSetlist(sl)}
+                  onClick={() => isAdmin ? onOpenBand(sl) : onOpenSetlist(sl)}
                 >
                   {isAdmin ? 'Edit band' : 'Open'} →
                 </Button>

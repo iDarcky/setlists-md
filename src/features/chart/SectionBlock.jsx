@@ -61,7 +61,7 @@ export default function SectionBlock({
   //   'above'  — on its own line ABOVE, so it is read before the line is sung
   //   'leader' — pushed to the right edge, joined by a dotted leader
   notePlacement = 'inline',
-  // Element 9. `myInstrument` is what YOU play this service (from the roster);
+  // Element 9. `myInstrument` is what YOU play this service (from the band);
   // a tab for another instrument collapses to one line instead of taking a
   // block of screen you scroll past every section. Null = show everything.
   myInstrument = null,

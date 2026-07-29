@@ -27,7 +27,7 @@ A running log of what's new in setlists.md. Newest releases first.
 ### Improved
 - **The section you're in stays on screen** — in the new reader, the section heading pins to the top as you scroll and the structure ribbon highlights the same section, so a glance tells you where you are without reading a word.
 - **Repeated sections can collapse to a line** — a chorus sung three times is written once, with a tappable "as before" for each repeat. A chorus after a key change always stays in full, because the chords have changed.
-- **Tabs know what you play** — when you're rostered on an instrument, that instrument's tabs open and everyone else's collapse to a single line you can tap. Tabs are also much smaller, numbered by bar, and never scroll sideways.
+- **Tabs know what you play** — the reader picks up the instrument you're scheduled on for the service, so those tabs open and everyone else's collapse to a single line you can tap. If you're not scheduled, the one instrument on your profile is used instead. Tabs are also much smaller, numbered by bar, and never scroll sideways.
 - **Tabs follow a key change** — frets shift with the key when they can. When they can't (a shift would go past the nut) the tab stays as written and says which key that is, rather than showing something unplayable.
 - **Notes sit with the line they belong to** — on a wide screen they run out to the right edge on a dotted leader, like a printed chart; on a phone they sit just above the line, so you read the instruction before you sing it. A note starting with `!` shows as a warning.
 - **A new song starts with somewhere to paste** — one big box, with Add section above it, instead of a bar asking again whether you wanted to import or browse.
@@ -40,6 +40,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Songs and setlists look like siblings** — both lists now share one card design, one header layout, and the same frosted bar as you scroll.
 - **Quick edit is mouse-only** — the pencil at the right of a song row no longer turns an ordinary tap into an accidental edit on a phone.
 - **Quieter syncing** — "Synced" no longer interrupts you for background syncs; you'll only see it when you tap Sync now, which now also tells you when everything was already up to date.
+- **"Roster" is now "the band"** — every screen that used to talk about rostering people now talks about the band, because that's what it is.
 - **A tidier scrollbar** throughout the app.
 - **The new way to add songs is now simply the way** — no longer something to switch on, and importing a PDF works for everyone.
 - **The app starts lighter.** Chord fingering diagrams are fetched only if you turn them on, so everyone else downloads about 160 KB less.
@@ -57,6 +58,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **The "…" menu in that bar opens** — it was being clipped away behind the bar's own rounded edge.
 - **Done now leaves selection mode** instead of immediately switching it back on.
 - **Filter sheets no longer show a stray white outline** on phones.
+- **The structure ribbon's boxes are boxes again** — square corners and an even shape, instead of the rounded pills they'd drifted into.
 - **Cover art picks up Spotify links**, not only YouTube ones.
 - **Importing a PDF works without turning anything on first** — it previously needed the Labs add-a-song screen enabled.
 

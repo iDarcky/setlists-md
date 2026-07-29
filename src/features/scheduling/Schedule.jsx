@@ -4,7 +4,7 @@ import PageHeader from '@/ui/PageHeader';
 import RecurringPicker from './RecurringPicker';
 import ScheduleListView from './ScheduleListView';
 import ScheduleCalendarView from './ScheduleCalendarView';
-import RosterPanel from '@/features/setlist-editor/RosterPanel';
+import BandPanel from '@/features/setlist-editor/BandPanel';
 import DateStatusModal from './DateStatusModal';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
@@ -20,12 +20,12 @@ function toLocalDateStr(date) {
 // view mode (list/calendar) is controlled by App so the BottomNav FAB can toggle
 // it alongside the desktop header switch.
 export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
-  const { team, members, canManageRoster } = useTeam();
+  const { team, members, canManageBand } = useTeam();
   const { user } = useAuth();
   const { availability, setStatus, clearStatus } = useTeamAvailability(team?.id);
 
   const [weeksAhead, setWeeksAhead] = useState(8);
-  const [rosterSetlist, setRosterSetlist] = useState(null);
+  const [bandSetlist, setBandSetlist] = useState(null);
   const [pickerDate, setPickerDate] = useState(null);
 
   const handleSetView = (next) => onSetView?.(next);
@@ -91,7 +91,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, 
             </div>
             <h2 className="text-heading-20 text-[var(--modes-text)] m-0">Schedule is a team feature</h2>
             <p className="text-copy-14 text-[var(--modes-text-muted)] max-w-sm m-0">
-              Create or join a team to plan services, coordinate availability, and build rosters together.
+              Create or join a team to plan services, coordinate availability, and build the band together.
             </p>
           </div>
         </div>
@@ -137,11 +137,11 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, 
             availability={availability}
             members={members}
             userId={user?.id}
-            isAdmin={canManageRoster}
+            isAdmin={canManageBand}
             clockFormat={clockFormat}
             onSelectDate={(date) => setPickerDate(date)}
             onOpenSetlist={(sl) => onOpenSetlist?.(sl)}
-            onOpenRoster={(sl) => setRosterSetlist(sl)}
+            onOpenBand={(sl) => setBandSetlist(sl)}
           />
         ) : (
           <ScheduleCalendarView
@@ -150,25 +150,25 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, 
             members={members}
             userId={user?.id}
             firstDayOfWeek={firstDayOfWeek}
-            isAdmin={canManageRoster}
+            isAdmin={canManageBand}
             onSelectDate={(date) => setPickerDate(date)}
             onOpenSetlist={(sl) => onOpenSetlist?.(sl)}
-            onOpenRoster={(sl) => setRosterSetlist(sl)}
+            onOpenBand={(sl) => setBandSetlist(sl)}
           />
         )}
       </div>
 
-      {rosterSetlist && (
+      {bandSetlist && (
         <div
           className="fixed inset-0 z-[200] flex justify-end bg-black/20 backdrop-blur-[2px]"
-          onClick={() => setRosterSetlist(null)}
+          onClick={() => setBandSetlist(null)}
         >
           <div className="h-full" onClick={e => e.stopPropagation()}>
-            <RosterPanel
-              setlistId={rosterSetlist.id}
-              setlistDate={rosterSetlist.date}
-              onClose={() => setRosterSetlist(null)}
-              readOnly={!canManageRoster}
+            <BandPanel
+              setlistId={bandSetlist.id}
+              setlistDate={bandSetlist.date}
+              onClose={() => setBandSetlist(null)}
+              readOnly={!canManageBand}
             />
           </div>
         </div>
@@ -183,12 +183,12 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, 
           setlists={pickerSetlists}
           rehearsals={pickerRehearsals}
           memberStatuses={pickerMemberStatuses}
-          canViewTeam={canManageRoster}
+          canViewTeam={canManageBand}
           clockFormat={clockFormat}
           onSetStatus={handleSetStatus}
           onClear={handleClearStatus}
           onOpenSetlist={(sl) => { setPickerDate(null); onOpenSetlist?.(sl); }}
-          onOpenRoster={(sl) => { setPickerDate(null); setRosterSetlist(sl); }}
+          onOpenBand={(sl) => { setPickerDate(null); setBandSetlist(sl); }}
           onClose={() => setPickerDate(null)}
         />
       )}

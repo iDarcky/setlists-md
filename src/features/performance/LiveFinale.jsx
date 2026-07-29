@@ -64,12 +64,12 @@ export default function LiveFinale({ setlist, sessionStats, onRunAgain, onUpdate
   }, [setlist.items, farthestIdx]);
   const fullRun = farthestIdx + 1 >= totalItems;
 
-  // Roster acknowledgement — only resolves with a team plan + scheduled rows.
+  // Band acknowledgement — only resolves with a team plan + scheduled rows.
   const { team, members } = useTeam();
   const { schedules } = useTeamSchedules(team?.id || null);
   // Schedules reference the team_setlists row UUID; map the local id to it.
   const { map: setlistMap } = useTeamSetlistMap(team?.id || null);
-  const roster = useMemo(() => {
+  const band = useMemo(() => {
     if (!team || !schedules?.length || !members?.length) return [];
     return schedules
       .filter(s => (s.setlist_id === setlist.id || setlistMap[setlist.id] === s.setlist_id) && s.availability !== 'unavailable')
@@ -150,14 +150,14 @@ export default function LiveFinale({ setlist, sessionStats, onRunAgain, onUpdate
           ]}
         />
 
-        {/* Roster acknowledgement — team plan only, scheduled rows only */}
-        {roster.length > 0 && (
+        {/* Band acknowledgement — team plan only, scheduled rows only */}
+        {band.length > 0 && (
           <section>
             <h3 className="text-label-12 uppercase tracking-[0.15em] text-[var(--ds-gray-600)] font-bold mb-3">
               You served with
             </h3>
             <ul className="flex flex-wrap gap-2 m-0 p-0 list-none">
-              {roster.map(p => (
+              {band.map(p => (
                 <li
                   key={p.key}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--ds-gray-300)] bg-[var(--ds-background-200)]"

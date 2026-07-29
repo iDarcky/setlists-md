@@ -115,7 +115,7 @@ export default function Dashboard({
   canEdit = true,
   onSignIn,
 }) {
-  const { team, members, isAdmin, canManageRoster } = useTeam();
+  const { team, members, isAdmin, canManageBand } = useTeam();
   const { user } = useAuth();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const { availability, setStatus: setAvailabilityStatus, clearStatus: clearAvailabilityStatus } = useTeamAvailability(team?.id);
@@ -677,7 +677,7 @@ export default function Dashboard({
           setlists={pickerSetlists}
           rehearsals={pickerRehearsals}
           memberStatuses={pickerMemberStatuses}
-          canViewTeam={canManageRoster}
+          canViewTeam={canManageBand}
           clockFormat={settings?.clockFormat || '12h'}
           onSetStatus={handlePickerSetStatus}
           onClear={handlePickerClear}

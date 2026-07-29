@@ -91,7 +91,7 @@ export function useNotificationFeed({
     return m?.profile?.display_name || m?.profile?.email || 'A member';
   };
   // Decline alerts are now server-authoritative: the DB trigger fans a row out
-  // to every roster manager (see 20260616_team_notifications.sql), so they land
+  // to every band manager (see 20260616_team_notifications.sql), so they land
   // even if this client never loaded that setlist, and read/dismiss persists
   // across devices. We enrich the generic server copy with locally-resolvable
   // names where possible, falling back to the row's stored body.
@@ -120,7 +120,7 @@ export function useNotificationFeed({
       setlistId: s.setlist_id,
     }));
 
-  // Server schedule rows (schedule_request from the roster trigger,
+  // Server schedule rows (schedule_request from the scheduling trigger,
   // schedule_maybe_nudge from the notify-worker) exist to reach LOCK SCREENS
   // via web push and to carry cross-device read state. In the tray, the
   // interactive virtual prompt above is the better rendering of the same fact

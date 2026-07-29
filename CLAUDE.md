@@ -210,7 +210,7 @@ src/
 │   ├── setlists/         # Setlists.jsx (library), SetlistCard, SetlistFilters, SetlistCardRow
 │   ├── setlist-editor/   # SetlistBuilder + SetlistItemRow, SetlistIdentityCard,
 │   │                     #   SetlistMetaForm, SetlistSongPicker, RecommendedNextPanel,
-│   │                     #   RosterPanel, RosterReadCard
+│   │                     #   BandPanel, BandReadCard
 │   ├── setlist-viewer/   # SetlistOverview (2 render sites!), SetlistOverviewV2 (legacy),
 │   │                     #   SetlistViewerCards
 │   ├── performance/      # SetlistPlayer, PerformanceView, PracticeView, LiveFinale,
@@ -489,7 +489,7 @@ The Teams/Church tier adds these additional tables:
   `(team_id, user_id, date)`. Standalone date-based availability,
   independent of any setlist. Members write only their own row; any team
   member can read everyone's. Used by `CalendarWidget` (member opts in by
-  tapping empty days) and by `RosterPanel` (leader sorts/filters candidates
+  tapping empty days) and by `BandPanel` (leader sorts/filters candidates
   by who's available on the setlist's date).
 
 RLS policies:

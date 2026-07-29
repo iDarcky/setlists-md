@@ -8,7 +8,7 @@ import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { toast } from '@/ui/use-toast';
 
 // Standard instruments offered when a member hasn't declared their own. Mirrors
-// RosterPanel's list (team_schedules.role holds the assigned instrument).
+// BandPanel's list (team_schedules.role holds the assigned instrument).
 const INSTRUMENT_OPTIONS = [
   'Acoustic Guitar', 'Electric Guitar', 'Bass', 'Drums', 'Keys', 'Piano',
 ];
@@ -48,7 +48,7 @@ const TeamFeatureNotice = ({ onBack }) => (
 );
 
 export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddSetlist }) {
-  const { team, members, canManageRoster } = useTeam();
+  const { team, members, canManageBand } = useTeam();
   const { user } = useAuth();
   const { schedules, createSchedule, updateSchedule, deleteSchedule } = useTeamSchedules(team?.id);
   const { availability, setStatus, clearStatus } = useTeamAvailability(team?.id);
@@ -112,7 +112,7 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
   // ({ role } and/or { vocal_part }).
   const patchSchedule = async (member, col, patch) => {
     if (!col.dbId) {
-      toast({ title: 'Sync required', description: 'This service must sync to the team library before you can roster it.', variant: 'error' });
+      toast({ title: 'Sync required', description: 'This service must sync to the team library before you can schedule the band.', variant: 'error' });
       return;
     }
     try {
@@ -124,12 +124,12 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
         if (row && patch.vocal_part !== undefined) await updateSchedule(row.id, { vocal_part: patch.vocal_part });
       }
     } catch (err) {
-      console.error('[scheduling] roster update failed:', err);
-      toast({ title: 'Error', description: err.message || 'Could not update roster.', variant: 'error' });
+      console.error('[scheduling] band update failed:', err);
+      toast({ title: 'Error', description: err.message || 'Could not update the band.', variant: 'error' });
     }
   };
 
-  const removeFromRoster = async (sched) => {
+  const removeFromBand = async (sched) => {
     if (!sched) return;
     try { await deleteSchedule(sched.id); }
     catch (err) { console.error('[scheduling] remove failed:', err); }
@@ -153,7 +153,7 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
     : null;
   const activeSched = active?.col ? scheduleFor(active.member.user_id, active.col) : null;
   const activeIsMe = active && active.member.user_id === user?.id;
-  const canRosterActive = active && canManageRoster && active.col.type === 'service';
+  const canManageActive = active && canManageBand && active.col.type === 'service';
   const roleOptions = active
     ? [...new Set([
         ...((active.member.instruments && active.member.instruments.length) ? active.member.instruments : INSTRUMENT_OPTIONS),
@@ -176,7 +176,7 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
 
       <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 pt-6 pb-28 flex flex-col gap-4">
         <p className="text-copy-13 text-[var(--modes-text-muted)] m-0">
-          {canManageRoster
+          {canManageBand
             ? 'Every Sunday this year, plus your scheduled services. Tap a cell to assign a role/vocal or mark your own availability.'
             : 'Every Sunday this year, plus your team’s services. Tap a cell on your own row to set your availability.'}
         </p>
@@ -244,8 +244,8 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
                     {columns.map(col => {
                       const sched = scheduleFor(member.user_id, col);
                       const avail = availFor(member.user_id, col.date);
-                      const canRoster = canManageRoster && col.type === 'service';
-                      const canEdit = canRoster || isMe;
+                      const canSchedule = canManageBand && col.type === 'service';
+                      const canEdit = canSchedule || isMe;
                       return (
                         <td key={col.id} className="border-b border-r border-[var(--modes-border)] p-1 align-middle">
                           <button
@@ -268,7 +268,7 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
                             )}
                             {!sched?.role && !sched?.vocal_part && (
                               sched ? (
-                                <span className="text-label-12 font-medium px-2 py-0.5 rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand)]">Rostered</span>
+                                <span className="text-label-12 font-medium px-2 py-0.5 rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand)]">Scheduled</span>
                               ) : avail ? (
                                 <span className={`text-label-12 font-medium px-2 py-0.5 rounded-full ${availClasses(avail)}`}>
                                   {avail.charAt(0).toUpperCase() + avail.slice(1)}
@@ -307,7 +307,7 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
               </p>
             </div>
 
-            {canRosterActive && (
+            {canManageActive && (
               <>
                 <div className="flex flex-col gap-2">
                   <span className="text-label-11 uppercase tracking-wider font-bold text-[var(--ds-gray-600)]">Instrument</span>
@@ -358,10 +358,10 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
                 {activeSched && (
                   <button
                     type="button"
-                    onClick={() => { removeFromRoster(activeSched); setActiveCell(null); }}
+                    onClick={() => { removeFromBand(activeSched); setActiveCell(null); }}
                     className="self-start text-label-12 font-medium text-[var(--ds-red-700)] bg-transparent border-none cursor-pointer px-0 hover:underline"
                   >
-                    Remove from roster
+                    Remove from the band
                   </button>
                 )}
               </>

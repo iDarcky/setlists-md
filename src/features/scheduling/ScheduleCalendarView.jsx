@@ -42,7 +42,7 @@ function buildMonthGrid(year, monthIdx, weekStart = 0) {
 /**
  * Renders the schedule as a month grid with prev/next chevrons.
  * Past dates are visible but read-only. Tap a day to open the
- * status picker; tap the setlist pill to open it / edit roster.
+ * status picker; tap the setlist pill to open it / edit the band.
  */
 export default function ScheduleCalendarView({
   setlists,

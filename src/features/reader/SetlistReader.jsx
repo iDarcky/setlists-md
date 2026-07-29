@@ -14,7 +14,7 @@ import Reader from './Reader';
  */
 export default function SetlistReader({
   setlist, songs, settings, onUpdateSettings, onBack, onFinish,
-  // What this player is rostered on for the service, so their instrument's
+  // What this player is scheduled on for the service, so their instrument's
   // tabs open and everyone else's collapse.
   myInstrument = null,
 }) {

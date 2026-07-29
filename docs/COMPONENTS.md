@@ -529,7 +529,7 @@ Needs a real demo-pass before the paid tier is sold.
 
 #### 3.4 — Scheduling 🟡
 **Owns.** `Schedule.jsx` · `SchedulingGrid.jsx` (427) · `features/scheduling/*` ·
-`features/setlist-editor/RosterPanel.jsx` (654) · `features/setlist-editor/RosterReadCard.jsx` ·
+`features/setlist-editor/BandPanel.jsx` (654) · `features/setlist-editor/BandReadCard.jsx` ·
 `hooks/useTeamSchedules.js` · `hooks/useTeamAvailability.js` ·
 `hooks/useTeamSetlistMap.js` · `lib/reminderOffsets.js`
 

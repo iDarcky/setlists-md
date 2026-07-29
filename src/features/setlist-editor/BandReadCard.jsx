@@ -15,10 +15,10 @@ function dotClass(status) {
 
 /**
  * Read-only "Who's playing" card for the desktop/tablet viewer (mockup's side
- * card). Everyone can see it; editing the roster stays in the Band tab / editor
- * (admin-only). Renders a hint when there's no team, or when no one is rostered.
+ * card). Everyone can see it; editing the band stays in the Band tab / editor
+ * (admin-only). Renders a hint when there's no team, or when no one is scheduled.
  */
-export default function RosterReadCard({ setlistId, setlistDate }) {
+export default function BandReadCard({ setlistId, setlistDate }) {
   const { team, members } = useTeam();
   const { schedules } = useTeamSchedules(team?.id);
   const { availability } = useTeamAvailability(team?.id);
@@ -47,7 +47,7 @@ export default function RosterReadCard({ setlistId, setlistDate }) {
       {!team ? (
         <p className="px-4 py-5 text-copy-13 text-[var(--ds-gray-600)] m-0">Assigning the band is part of a team workspace.</p>
       ) : rows.length === 0 ? (
-        <p className="px-4 py-5 text-copy-13 text-[var(--ds-gray-600)] m-0">No one rostered yet.</p>
+        <p className="px-4 py-5 text-copy-13 text-[var(--ds-gray-600)] m-0">No one on the band yet.</p>
       ) : (
         <div className="divide-y divide-[var(--ds-gray-200)]">
           {rows.map(r => {

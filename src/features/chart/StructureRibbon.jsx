@@ -120,9 +120,11 @@ export function StructureRibbon({
               ref={active ? activeRef : null}
               {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index), title: labelOf(run.name) } : {})}
               className={cn(
-                // Squarer than tall: the vertical padding is what made these
-                // read as pills rather than the code boxes they are.
-                'shrink-0 inline-flex items-center gap-1 font-mono font-bold text-[11px] px-2 py-0.5 rounded-[5px] border transition-all leading-tight',
+                // An actual box, not a pill: near-square corners, and a
+                // min-width equal to the height so a one-letter code ("C")
+                // renders square rather than as a narrow sliver.
+                'shrink-0 inline-flex items-center justify-center gap-1 font-mono font-bold text-[11px] leading-none',
+                'px-1.5 py-[3px] min-w-[1.3rem] rounded-[3px] border transition-all',
                 onSelect && 'cursor-pointer hover:opacity-80',
                 active && 'ring-2 ring-offset-1 ring-offset-transparent',
               )}
@@ -162,9 +164,12 @@ export function StructureRibbon({
               <Tag
                 {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index) } : {})}
                 className={cn(
-                  'bg-transparent border-none p-0 font-bold text-[11px] font-mono',
+                  'bg-transparent border-none p-0 font-bold text-[11px] font-mono leading-none',
                   active && !activeFill && 'underline underline-offset-4',
-                  activeFill && active && 'px-1.5 py-0.5 rounded-[5px]',
+                  // Same box as `codes` when it fills — square corners, and
+                  // wide enough that a single letter is a square.
+                  activeFill && active
+                    && 'inline-flex items-center justify-center px-1.5 py-[3px] min-w-[1.3rem] rounded-[3px]',
                   onSelect && 'cursor-pointer hover:opacity-80',
                 )}
                 style={{
