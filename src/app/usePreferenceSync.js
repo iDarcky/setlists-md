@@ -74,6 +74,7 @@ export const PORTABLE_PREF_KEYS = [
   'readerSticky',
   'readerNotes',
   'readerFooter',
+  'readerNav',
 ];
 
 export function extractPortablePrefs(s) {

@@ -22,6 +22,7 @@ export const READER_KNOBS = {
   repeats: ['full', 'ref', 'condensed'],   // 3
   notes: ['on', 'off'],                    // 4 + 5
   footer: ['count', 'next'],               // 10
+  nav: ['footer', 'pill', 'edge', 'swipe'],// 10
 };
 
 const DEFAULTS = {
@@ -32,6 +33,7 @@ const DEFAULTS = {
   repeats: 'ref',
   notes: 'on',
   footer: 'next',
+  nav: 'footer',
 };
 
 // Stored under these settings keys. `structurePosition` and
@@ -45,6 +47,7 @@ const KEY = {
   repeats: 'duplicateSections',
   notes: 'readerNotes',
   footer: 'readerFooter',
+  nav: 'readerNav',
 };
 
 export function readerSettingKey(knob) {
@@ -76,6 +79,7 @@ export function resolveReaderConfig(settings, ctx = {}) {
     repeats: pick('repeats', settings?.[KEY.repeats]),
     notes: pick('notes', settings?.[KEY.notes]) === 'on',
     footer: pick('footer', settings?.[KEY.footer]),
+    nav: pick('nav', settings?.[KEY.nav]),
     columns: resolveColumns(settings?.defaultColumns, wide),
     display: resolveChartDisplay(settings),
     // Element 9: tabs for other instruments collapse. A manual override in

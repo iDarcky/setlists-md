@@ -259,7 +259,15 @@ export default function AaMenu({
                 ))}
               </div>
 
-              <Label>Bottom bar</Label>
+              <Label>Song to song</Label>
+              <div className="flex gap-1.5 flex-wrap">
+                {[['footer', 'Bottom bar'], ['pill', 'Floating pill'], ['edge', 'Edge arrows'], ['swipe', 'Swipe']].map(o => (
+                  <Pick key={o[0]} active={(settings?.readerNav || 'footer') === o[0]}
+                    onClick={() => onUpdateSettings?.('readerNav', o[0])}>{o[1]}</Pick>
+                ))}
+              </div>
+
+              <Label>…and what it says</Label>
               <div className="flex gap-1.5 flex-wrap">
                 {[['count', 'Just the count'], ['next', 'Name the next song']].map(o => (
                   <Pick key={o[0]} active={(settings?.readerFooter || 'next') === o[0]}

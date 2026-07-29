@@ -1,17 +1,21 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { resolveSongView } from '@/arrangements';
+import { semitonesBetween } from '@/music';
 import { resolveReaderConfig } from '@/lib/readerConfig';
+import { useMediaQuery } from '@/lib/useMediaQuery';
+import FloatingNavPill from '@/ui/FloatingNavPill';
+import EdgeNavArrows from '@/ui/EdgeNavArrows';
 import Reader from './Reader';
 import ReaderFooter from './ReaderFooter';
 import BreakScreen from './BreakScreen';
+import SetlistRail from './SetlistRail';
 
 /**
- * A setlist read through the reader — prev/next and nothing more.
+ * A setlist read through the reader — element 10, and nothing more.
  *
- * Paging gestures, the practice tools bar, wake-lock, session stats and the
- * finale screens belong to elements we have not designed yet, and carrying
- * them early is what buried elements 1–6 last time. They come back when their
- * element does.
+ * The practice tools bar, wake-lock, session stats and the finale screens
+ * belong to elements we have not designed yet, and carrying them early is what
+ * buried elements 1–6 last time. They come back when their element does.
  */
 export default function SetlistReader({
   setlist, songs, settings, onUpdateSettings, onBack, onFinish,
@@ -21,6 +25,8 @@ export default function SetlistReader({
 }) {
   const [idx, setIdx] = useState(0);
   const [keys, setKeys] = useState({});
+  const [railOpen, setRailOpen] = useState(false);
+  const wide = useMediaQuery('(min-width: 768px)');
 
   const items = useMemo(() => (setlist?.items || []).map(it => {
     if (it.type === 'break') return { ...it, isBreak: true };
@@ -32,13 +38,32 @@ export default function SetlistReader({
   }), [setlist, songs]);
 
   const total = items.length;
-  const cur = items[idx];
-  const nxt = items[idx + 1] || null;
   const go = useCallback((n) => setIdx(Math.max(0, Math.min(total - 1, n))), [total]);
+  const goPrev = useCallback(() => setIdx(p => Math.max(0, p - 1)), []);
+  const goNext = useCallback(() => setIdx(p => Math.min(total - 1, p + 1)), [total]);
 
-  // The footer needs only the one knob, but it has to come from the same
-  // resolver as the rest of the reader or the setting silently does nothing.
-  const footerStyle = resolveReaderConfig(settings).footer;
+  // Keyboard and Bluetooth pedals are NOT one of the nav choices — a pedal
+  // user has no other hands, so they work whatever else is on screen.
+  useEffect(() => {
+    const handler = (e) => {
+      const el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); goNext(); }
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); goPrev(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [goNext, goPrev]);
+
+  const cfg = resolveReaderConfig(settings, { wide });
+
+  // `SetlistList` keys each row off the song's own key plus a transpose, so
+  // give it the key actually being read rather than the one on the song.
+  const railItems = useMemo(() => items.map(it => {
+    if (it.isBreak || it.isMissing || !it.song) return it;
+    const shown = keys[it.song.id] || it.key || it.song.key;
+    return { ...it, transpose: semitonesBetween(it.song.key, shown) };
+  }), [items, keys]);
 
   if (!total) {
     return (
@@ -48,52 +73,129 @@ export default function SetlistReader({
     );
   }
 
+  const cur = items[idx];
+  const nxt = items[idx + 1] || null;
   const nextLabel = nxt
     ? (nxt.isBreak ? (nxt.label || 'Break') : (nxt.song?.title || nxt.songTitle || 'Song'))
+    : null;
+  const prevLabel = idx > 0
+    ? (items[idx - 1].isBreak ? (items[idx - 1].label || 'Break') : (items[idx - 1].song?.title || 'Song'))
     : null;
   const nextKey = nxt && !nxt.isBreak && nxt.song
     ? (keys[nxt.song.id] || nxt.key || nxt.song.key || null)
     : null;
 
+  const finish = () => onFinish?.({ songCount: total });
+  const openRail = () => setRailOpen(o => !o);
+
   // ONE footer, built once, handed to both surfaces — a break must not draw
   // its own bar with the exit stranded inside it.
-  const footer = (
+  const footer = cfg.nav === 'footer' ? (
     <ReaderFooter
       index={idx}
       total={total}
-      style={footerStyle}
+      style={cfg.footer}
       nextLabel={nextLabel}
       nextKey={nextKey}
-      onPrev={() => go(idx - 1)}
-      onNext={() => go(idx + 1)}
-      onFinish={() => onFinish?.({ songCount: total })}
+      onPrev={goPrev}
+      onNext={goNext}
+      onFinish={finish}
+      onOpenSetlist={openRail}
     />
+  ) : null;
+
+  // The overlay navs live outside the reader's scroll container, so they are
+  // rendered here rather than passed down.
+  const overlay = (
+    <>
+      {cfg.nav === 'pill' && (
+        <FloatingNavPill
+          current={idx + 1}
+          total={total}
+          nextLabel={cfg.footer === 'next' ? nextLabel : null}
+          hasPrev={idx > 0}
+          hasNext={idx < total - 1}
+          onPrev={goPrev}
+          onNext={goNext}
+          onFinish={finish}
+          onOpenSetlist={openRail}
+        />
+      )}
+      {cfg.nav === 'edge' && (
+        <EdgeNavArrows
+          hasPrev={idx > 0}
+          hasNext={idx < total - 1}
+          onPrev={goPrev}
+          onNext={goNext}
+          onFinish={finish}
+          nextLabel={nextLabel}
+          prevLabel={prevLabel}
+        />
+      )}
+      {/* Edge arrows and swipe carry no counter of their own, so without this
+          there is no way into the setlist at all. */}
+      {(cfg.nav === 'edge' || cfg.nav === 'swipe') && !railOpen && (
+        <button
+          type="button"
+          onClick={openRail}
+          aria-label="Open setlist"
+          className="fixed left-1/2 -translate-x-1/2 z-[95] px-3 py-1 rounded-full border text-label-11 font-mono tabular-nums backdrop-blur-md cursor-pointer"
+          style={{
+            bottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))',
+            background: 'var(--chart-header-bg, var(--header-bg-blur))',
+            borderColor: 'var(--chart-header-border, var(--ds-gray-400))',
+            color: 'var(--chart-subtle, var(--ds-gray-700))',
+          }}
+        >
+          {idx + 1} / {total}
+        </button>
+      )}
+      <SetlistRail
+        open={railOpen}
+        wide={wide}
+        onClose={() => setRailOpen(false)}
+        title={setlist?.name}
+        items={railItems}
+        idx={idx}
+        onSelect={go}
+      />
+    </>
   );
 
-  if (cur?.isBreak || cur?.isMissing) {
-    return (
-      <BreakScreen
-        label={cur.label}
-        duration={cur.duration}
-        note={cur.note}
-        missing={!!cur.isMissing}
-        onExit={onBack}
-        footer={footer}
-      />
-    );
-  }
+  const swipe = cfg.nav === 'swipe'
+    ? { onSwipeLeft: goNext, onSwipeRight: goPrev }
+    : {};
 
-  const songId = cur.song.id;
-  return (
+  const body = (cur?.isBreak || cur?.isMissing) ? (
+    <BreakScreen
+      label={cur.label}
+      duration={cur.duration}
+      note={cur.note}
+      missing={!!cur.isMissing}
+      onExit={onBack}
+      footer={footer}
+    />
+  ) : (
     <Reader
       song={cur.song}
       settings={settings}
       onUpdateSettings={onUpdateSettings}
       myInstrument={myInstrument}
       onExit={onBack}
-      selectedKey={keys[songId] || cur.key || cur.song.key}
-      onSelectKey={(k) => setKeys(prev => ({ ...prev, [songId]: k }))}
+      selectedKey={keys[cur.song.id] || cur.key || cur.song.key}
+      onSelectKey={(k) => setKeys(prev => ({ ...prev, [cur.song.id]: k }))}
       footer={footer}
+      {...swipe}
     />
+  );
+
+  // A flex row, so the wide rail is a COLUMN beside the chart rather than an
+  // overlay: the chart narrows instead of being covered. The pill, the edge
+  // arrows and the phone sheet are all `fixed`, so they ignore this box.
+  return (
+    <div className="h-full flex">
+      <div className="flex-1 min-w-0 h-full">{body}</div>
+      {overlay}
+    </div>
   );
 }

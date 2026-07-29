@@ -18,7 +18,7 @@ import { IconButton } from '@/ui/IconButton';
 export default function ReaderFooter({
   index, total, style = 'next',
   nextLabel = null, nextKey = null,
-  onPrev, onNext, onFinish,
+  onPrev, onNext, onFinish, onOpenSetlist,
 }) {
   const atStart = index <= 0;
   const atEnd = index >= total - 1;
@@ -37,8 +37,10 @@ export default function ReaderFooter({
       </IconButton>
 
       {/* The centre is one min-w-0 group so a long song title truncates
-          instead of pushing the arrows off a phone. */}
-      <div className="flex-1 min-w-0 flex items-center justify-center gap-2">
+          instead of pushing the arrows off a phone. It is also the way into
+          the setlist — prev/next is for the running order, the rail is for the
+          closing song they just cut. */}
+      <Centre onClick={onOpenSetlist}>
         <span className="shrink-0 text-label-11 font-mono tabular-nums" style={{ color: muted }}>
           {index + 1} / {total}
         </span>
@@ -62,7 +64,7 @@ export default function ReaderFooter({
             </span>
           ) : null
         )}
-      </div>
+      </Centre>
 
       {atEnd && onFinish ? (
         <Button size="sm" variant="brand" onClick={onFinish}>Finish</Button>
@@ -78,6 +80,23 @@ export default function ReaderFooter({
         </IconButton>
       )}
     </>
+  );
+}
+
+// A button only when there's a setlist to open — a dead button in the middle
+// of the bar reads as broken.
+function Centre({ onClick, children }) {
+  const cls = 'flex-1 min-w-0 flex items-center justify-center gap-2';
+  if (!onClick) return <div className={cls}>{children}</div>;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Open setlist"
+      className={`${cls} bg-transparent border-none p-0 cursor-pointer`}
+    >
+      {children}
+    </button>
   );
 }
 

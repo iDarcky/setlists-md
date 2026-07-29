@@ -67,6 +67,13 @@ describe('element 10 — the footer', () => {
     expect(screen.getByText('· Last song')).toBeTruthy();
   });
 
+  it('opens the setlist from the counter', () => {
+    renderIt();
+    fireEvent.click(screen.getByRole('button', { name: 'Open setlist' }));
+    // Every item is reachable, not just the neighbours.
+    expect(screen.getAllByText('Goodness of God').length).toBeGreaterThan(0);
+  });
+
   it('pins to the bottom of the screen, not to the end of the song', () => {
     // The reader is ONE scroll container, so a plain last-in-flow child sits
     // below the final section instead of on the bottom edge.
@@ -74,5 +81,57 @@ describe('element 10 — the footer', () => {
     const bar = screen.getByText('1 / 3').closest('div[class*="sticky"]');
     expect(bar).toBeTruthy();
     expect(bar.className).toContain('bottom-0');
+  });
+});
+
+describe('the break screen', () => {
+  const atBreak = (settings = {}, over = {}) => {
+    const sl = { ...setlist, items: [{ songId: 's1' }, { type: 'break', ...over }, { songId: 's2' }] };
+    render(<SetlistReader setlist={sl} songs={songs} settings={settings} onBack={() => {}} onFinish={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
+  };
+
+  it('names the break ONCE, in the same bar a song uses', () => {
+    atBreak({}, { label: 'Benedicție', duration: 5 });
+    // Three copies of the same word — bar title, eyebrow and heading — was the
+    // break answering a question nobody asked.
+    expect(screen.getAllByText('Benedicție').length).toBe(1);
+    expect(screen.getByRole('button', { name: 'Exit' })).toBeTruthy();
+  });
+
+  it('never renders a stray 0 for a break with no length', () => {
+    // `duration && <…>` renders the literal 0 when duration is 0.
+    atBreak({}, { label: 'Benedicție', duration: 0 });
+    expect(screen.queryByText('0')).toBeNull();
+    expect(screen.getByText('Break')).toBeTruthy();
+  });
+});
+
+describe('element 10 — the other nav styles', () => {
+  const at = (nav) => renderIt({ readerNav: nav });
+
+  it('floats a pill instead of the bar', () => {
+    at('pill');
+    expect(screen.getByRole('button', { name: 'Next song' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Open setlist' })).toBeTruthy();
+  });
+
+  it('pins arrows to the screen edges', () => {
+    at('edge');
+    expect(screen.getByRole('button', { name: /Next/ })).toBeTruthy();
+    // Edge arrows carry no counter, so the setlist needs its own way in.
+    expect(screen.getByRole('button', { name: 'Open setlist' })).toBeTruthy();
+  });
+
+  it('leaves only the counter chip when swiping', () => {
+    at('swipe');
+    expect(screen.queryByRole('button', { name: 'Next song' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open setlist' })).toBeTruthy();
+  });
+
+  it('keeps the keyboard and pedal working whatever the choice is', () => {
+    at('swipe');
+    fireEvent.keyDown(window, { key: 'PageDown' });
+    expect(screen.getByRole('button', { name: 'Open setlist' }).textContent).toContain('2 / 3');
   });
 });

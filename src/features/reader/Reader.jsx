@@ -8,20 +8,9 @@ import { resolveReaderConfig } from '@/lib/readerConfig';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useActiveSection } from '@/hooks/useActiveSection';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
-import { IconButton } from '@/ui/IconButton';
 import ReaderSection from './ReaderSection';
+import ReaderTopBar from './ReaderTopBar';
 import AaMenu from '@/features/chart/AaMenu';
-
-const MenuIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" />
-  </svg>
-);
-const CloseIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-  </svg>
-);
 
 /**
  * The chart reader — elements 1–6 only.
@@ -49,12 +38,33 @@ export default function Reader({
   selectedKey,
   onSelectKey,
   footer,
+  // Element 10, 'swipe': a horizontal-dominant swipe on the chart advances.
+  // Vertical scroll is untouched — the gesture only fires past a threshold
+  // where |dx| clearly beats |dy|.
+  onSwipeLeft,
+  onSwipeRight,
   // The Song Hub owns the Aa button when embedded and hands its anchor rect
   // down, exactly as it did to ChartView.
   aaAnchor: hostAaAnchor,
   onAaClose,
 }) {
   const scrollRef = useRef(null);
+  const touchRef = useRef(null);
+  const onTouchStart = useCallback((e) => {
+    const t0 = e.touches?.[0];
+    touchRef.current = t0 ? { x: t0.clientX, y: t0.clientY } : null;
+  }, []);
+  const onTouchEnd = useCallback((e) => {
+    const start = touchRef.current;
+    touchRef.current = null;
+    if (!start) return;
+    const t1 = e.changedTouches?.[0];
+    if (!t1) return;
+    const dx = t1.clientX - start.x;
+    const dy = t1.clientY - start.y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+    if (dx < 0) onSwipeLeft?.(); else onSwipeRight?.();
+  }, [onSwipeLeft, onSwipeRight]);
   // The chrome is sticky at the top of the scroller, so anything else that
   // pins — the section headings — must pin BELOW it, and any scroll-to must
   // stop below it too. Measured rather than hard-coded: the bar's height
@@ -147,6 +157,8 @@ export default function Reader({
     <div
       className="h-full flex flex-col overflow-y-auto overflow-x-hidden no-scrollbar"
       ref={scrollRef}
+      onTouchStart={onSwipeLeft || onSwipeRight ? onTouchStart : undefined}
+      onTouchEnd={onSwipeLeft || onSwipeRight ? onTouchEnd : undefined}
       style={embedded ? undefined : {
         // A performance surface owns the screen, so it wears the CHART theme
         // and re-maps the app's foreground tokens onto it — the way
@@ -176,46 +188,12 @@ export default function Reader({
     >
       {/* ── Element 1 — top bar ─────────────────────────────────────────── */}
       {showChrome && (
-        <div
+        <ReaderTopBar
           ref={headRef}
-          className="reader-head sticky top-0 z-20 shrink-0 flex flex-col border-b"
-          style={{ ...rule, background: 'var(--chart-bg, var(--ds-background-100))' }}
-        >
-          <div className="wide-container flex items-center gap-2 py-1.5">
-            <IconButton
-              size="sm"
-              aria-label="Display options"
-              onClick={(e) => {
-                // Read the rect synchronously: React nulls currentTarget once
-                // the handler returns, so a lazy state updater would see null.
-                const rect = e.currentTarget.getBoundingClientRect();
-                setOwnAaAnchor(a => (a ? null : rect));
-              }}
-            >
-              <MenuIcon />
-            </IconButton>
-
-            {/* Title and meta are ONE group that takes the leftover width, so
-                the title can never be squeezed to nothing, and the key stays
-                beside it rather than out by the exit — the key is the only live
-                control here and a mis-tap next to ✕ leaves the service. */}
-            <span className="min-w-0 flex items-center gap-2.5">
-            {(
-              <span
-                className="truncate text-label-13 font-semibold"
-                style={{
-                  // Explicit colour and a real flex basis: inheriting the colour
-                  // and shrinking from `auto` are both ways this has vanished.
-                  color: 'var(--chart-text, #111111)',
-                  // Never grow: growing is what pushed the key over to the ✕.
-                  flex: '0 1 auto',
-                  minWidth: '3rem',
-                  maxWidth: '22rem',
-                }}
-              >
-                {song.title}
-              </span>
-            )}
+          title={song.title}
+          onMenu={(rect) => setOwnAaAnchor(a => (a ? null : rect))}
+          onExit={onExit}
+          meta={(
             <span className="shrink-0 flex items-center gap-2 text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
               {onSelectKey ? (
                 <Select value={displayKey} onValueChange={onSelectKey}>
@@ -245,28 +223,16 @@ export default function Reader({
               {song.tempo && <span className="tabular-nums">♩{song.tempo}</span>}
               {song.time && <span className="tabular-nums">{song.time}</span>}
             </span>
-            </span>
-
-            <span className="flex-1" />
-
-            {onExit && (
-              <IconButton size="sm" aria-label="Exit" onClick={onExit}>
-                <CloseIcon />
-              </IconButton>
-            )}
-          </div>
-
+          )}
+        >
           {/* Element 2 lives INSIDE element 1's sticky block: one piece of
               chrome that travels together, rather than two stacked stickies. */}
           {config.ribbon === 'top' && ribbonNode && (
-            <div
-              className="wide-container overflow-hidden pb-1 -mt-0.5"
-              style={{ fontSize: '0.85em' }}
-            >
+            <div className="wide-container overflow-hidden pb-1 -mt-0.5" style={{ fontSize: '0.85em' }}>
               {ribbonNode}
             </div>
           )}
-        </div>
+        </ReaderTopBar>
       )}
 
       <div className="flex-1 flex">

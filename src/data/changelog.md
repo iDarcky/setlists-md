@@ -40,8 +40,10 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Songs and setlists look like siblings** — both lists now share one card design, one header layout, and the same frosted bar as you scroll.
 - **Quick edit is mouse-only** — the pencil at the right of a song row no longer turns an ordinary tap into an accidental edit on a phone.
 - **Quieter syncing** — "Synced" no longer interrupts you for background syncs; you'll only see it when you tap Sync now, which now also tells you when everything was already up to date.
-- **A bottom bar that stays put** — prev and next sit on the bottom edge of the screen instead of at the end of the song, and it can name the song that's coming next, with its key, rather than only counting.
-- **Breaks look like the rest of the service** — same bar at the top, same bar at the bottom, and the break itself set like a title page instead of a card floating in the middle with the exit in the wrong place.
+- **A bottom bar that stays put** — prev and next sit on the bottom edge of the screen instead of at the end of the song, and it can name the song that's coming next, with its key, rather than only counting. Tap the counter to jump anywhere in the service.
+- **Four ways to move between songs** — the bottom bar, the floating pill, faint arrows on the screen edges, or a swipe. Keyboard arrows and Bluetooth pedals work whichever you pick.
+- **The setlist rail is back, and now it's on phones too** — a column beside the chart on a big screen, a sheet you pull up on a phone.
+- **Breaks look like the rest of the service** — the same top bar a song has, the same bar at the bottom, and the break named once instead of three times. A break with no length no longer shows a stray "0".
 - **"Roster" is now "the band"** — every screen that used to talk about rostering people now talks about the band, because that's what it is.
 - **A tidier scrollbar** throughout the app.
 - **The new way to add songs is now simply the way** — no longer something to switch on, and importing a PDF works for everyone.
