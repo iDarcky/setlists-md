@@ -134,7 +134,7 @@ export default function SectionBlock({
             })
           : null;
         return (
-          <div key={idx} className="my-2.5 flex items-center gap-2">
+          <div key={idx} className="mt-5 mb-4 flex items-center gap-2">
             <span
               className="inline-flex items-baseline gap-1.5 font-black px-2.5 py-1 rounded-lg"
               style={{

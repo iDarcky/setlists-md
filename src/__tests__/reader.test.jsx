@@ -181,10 +181,11 @@ describe('elements 5–6 — notes and chords', () => {
 
   it('sets both font-size vars — chords size off the var, not inherited size', () => {
     render(<Reader song={makeSong()} settings={{ defaultFontSize: 'L', chordFontSize: 13 }} onExit={() => {}} />);
-    // The vars live on the scroll container, above the max-width wrapper.
-    const scroller = document.querySelector('.overflow-y-auto');
-    expect(scroller.style.getPropertyValue('--chart-font-size-lyric')).toBe('22px');
-    expect(scroller.style.getPropertyValue('--chart-font-size-chord')).toBe('13px');
+    // The whole surface is one scroll container now, so the vars live on the
+    // song wrapper between it and the sections.
+    const body = document.querySelector('[data-section-index]').parentElement.parentElement;
+    expect(body.style.getPropertyValue('--chart-font-size-lyric')).toBe('22px');
+    expect(body.style.getPropertyValue('--chart-font-size-chord')).toBe('13px');
   });
 });
 

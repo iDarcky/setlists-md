@@ -275,9 +275,7 @@ export const DEFAULT_SETTINGS = {
   onboardingComplete: false,
   showInlineNotes: true,
   inlineNoteStyle: 'dashes',
-  displayRole: 'leader',
   duplicateSections: 'full',
-  chartLayout: 'columns',
   // Accidental spelling for chords/keys: 'auto' (follow the key), 'sharps', 'flats'.
   accidentals: 'auto',
   // Where the structure (section flow) ribbon sits in reading views:

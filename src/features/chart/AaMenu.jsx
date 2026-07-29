@@ -201,8 +201,22 @@ export default function AaMenu({
                 {styleAllowed
                   ? <Swatches activeValue={settings?.chartChordColor} onPick={(v) => onUpdateSettings?.('chartChordColor', v || undefined)} />
                   : <ProHint>Upgrade to recolour chords.</ProHint>}
-                {/* TODO: chord fingering-diagrams display — pulled for now,
-                    revisit (tracked in docs/PLAN.md). */}
+              </>)}
+              <Label>Sharps or flats</Label>
+              <div className="flex gap-1.5 flex-wrap">
+                {[['auto', 'Follow key'], ['sharps', '♯ Sharps'], ['flats', '♭ Flats']].map(o => (
+                  <Pick key={o[0]} active={(settings?.accidentals || 'auto') === o[0]}
+                    onClick={() => onUpdateSettings?.('accidentals', o[0])}>{o[1]}</Pick>
+                ))}
+              </div>
+              {chartControls && (<>
+                <Label>Chord diagrams</Label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {[[true, 'Show'], [false, 'Hide']].map(([v, l]) => (
+                    <Pick key={String(v)} active={!!settings?.showDiagrams === v}
+                      onClick={() => onUpdateSettings?.('showDiagrams', v)}>{l}</Pick>
+                  ))}
+                </div>
               </>)}
             </>
           )}
@@ -281,6 +295,14 @@ export default function AaMenu({
 
           {tab === 'page' && (
             <>
+              <Label>Show</Label>
+              <div className="flex gap-1.5 flex-wrap">
+                {[['chords', 'Chords + lyrics'], ['lyrics', 'Lyrics only'], ['chordsonly', 'Chords only']].map(o => (
+                  <Pick key={o[0]} active={(settings?.displayMode || 'chords') === o[0]}
+                    onClick={() => onUpdateSettings?.('displayMode', o[0])}>{o[1]}</Pick>
+                ))}
+              </div>
+
               {chartControls && (<>
               <Label>Theme</Label>
               <div ref={themesRef} className="flex gap-2 overflow-x-auto -mx-1 px-1 py-1">

@@ -421,43 +421,6 @@ function ChartPanel({ settings, update }) {
           ))}
         </div>
       </Row>
-      <Row label="Chart flow" description="How sections fill when using 2 columns.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {[
-            { key: 'columns', label: 'Top ↓ Down' },
-            { key: 'rows', label: 'Left → Right' },
-          ].map(({ key, label }) => (
-            <Button
-              key={key}
-              size="sm"
-              variant={settings.chartLayout === key ? 'secondary' : 'ghost'}
-              onClick={() => update('chartLayout', key)}
-              className={settings.chartLayout === key ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
-      </Row>
-      <Row label="Display mode" description="Control which elements are visible by default.">
-        <div className="flex p-1 bg-[var(--ds-gray-200)] rounded-lg flex-wrap">
-          {[
-            { key: 'leader', label: 'Full' },
-            { key: 'vocalist', label: 'Vocals' },
-            { key: 'drummer', label: 'Drums' },
-          ].map(({ key, label }) => (
-            <Button
-              key={key}
-              size="sm"
-              variant={settings.displayRole === key ? 'secondary' : 'ghost'}
-              onClick={() => update('displayRole', key)}
-              className={settings.displayRole === key ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
-      </Row>
       <Row label="Setlist rail" description="Show the setlist beside the chart in live & practice on landscape tablets.">
         <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
           {[

@@ -119,7 +119,8 @@ export default function Reader({
 
   return (
     <div
-      className="h-full flex flex-col overflow-hidden"
+      className="h-full flex flex-col overflow-y-auto overflow-x-hidden"
+      ref={scrollRef}
       style={embedded ? undefined : {
         // A performance surface owns the screen, so it wears the CHART theme
         // and re-maps the app's foreground tokens onto it — the way
@@ -144,7 +145,10 @@ export default function Reader({
     >
       {/* ── Element 1 — top bar ─────────────────────────────────────────── */}
       {showChrome && (
-        <div className="shrink-0 flex flex-col border-b" style={rule}>
+        <div
+          className="sticky top-0 z-20 shrink-0 flex flex-col border-b"
+          style={{ ...rule, background: 'var(--chart-bg, var(--ds-background-100))' }}
+        >
           <div className="wide-container flex items-center gap-2 py-1.5">
             <IconButton
               size="sm"
@@ -163,9 +167,18 @@ export default function Reader({
                 the title can never be squeezed to nothing, and the key stays
                 beside it rather than out by the exit — the key is the only live
                 control here and a mis-tap next to ✕ leaves the service. */}
-            <span className="flex-1 min-w-0 flex items-center gap-2">
+            <span className="flex-1 min-w-0 flex items-center gap-2.5">
             {showTitle && (
-              <span className="truncate text-label-13 font-semibold min-w-0">
+              <span
+                className="truncate text-label-13 font-semibold"
+                style={{
+                  // Explicit colour and a real flex basis: inheriting the colour
+                  // and shrinking from `auto` are both ways this has vanished.
+                  color: 'var(--chart-text, var(--ds-gray-1000))',
+                  flex: '1 1 6rem',
+                  minWidth: '3rem',
+                }}
+              >
                 {song.title}
               </span>
             )}
@@ -174,7 +187,12 @@ export default function Reader({
                 <Select value={displayKey} onValueChange={onSelectKey}>
                   <SelectTrigger
                     aria-label="Key (transpose)"
-                    className="h-6 w-auto min-w-0 gap-0.5 border-none bg-transparent px-1.5 text-label-12 font-bold text-[var(--chord)] focus:ring-0"
+                    className="h-7 w-auto min-w-0 gap-1 px-2.5 text-label-12 font-bold focus:ring-0 rounded-full"
+                    style={{
+                      color: 'var(--chord)',
+                      border: '1px solid var(--chord)',
+                      background: 'color-mix(in srgb, var(--chord) 14%, transparent)',
+                    }}
                   >
                     {displayKey}
                   </SelectTrigger>
@@ -185,7 +203,16 @@ export default function Reader({
                   </SelectContent>
                 </Select>
               ) : (
-                <span className="font-bold text-[var(--chord)] text-label-12">{displayKey}</span>
+                <span
+                  className="font-bold text-label-12 rounded-full px-2.5 py-0.5"
+                  style={{
+                    color: 'var(--chord)',
+                    border: '1px solid var(--chord)',
+                    background: 'color-mix(in srgb, var(--chord) 14%, transparent)',
+                  }}
+                >
+                  {displayKey}
+                </span>
               )}
               {song.tempo && <span className="tabular-nums">♩{song.tempo}</span>}
               {song.time && <span className="tabular-nums">{song.time}</span>}
@@ -211,24 +238,23 @@ export default function Reader({
 
       {/* ── Element 2 — structure ribbon ────────────────────────────────── */}
       {config.ribbon === 'top' && ribbonNode && (
-        <div className="shrink-0 border-b overflow-hidden" style={rule}>
+        <div
+          className="sticky z-10 shrink-0 border-b overflow-hidden"
+          style={{ ...rule, top: showChrome ? 41 : 0, background: 'var(--chart-bg, var(--ds-background-100))' }}
+        >
           <div className="wide-container py-1.5">{ribbonNode}</div>
         </div>
       )}
 
-      <div className="flex-1 min-h-0 flex">
+      <div className="flex-1 flex">
         {config.ribbon === 'left' && ribbonNode && (
           <div className="shrink-0 w-14 overflow-y-auto border-r px-1.5 py-2" style={rule}>{ribbonNode}</div>
         )}
 
         {/* ── Elements 3–6 — the song ──────────────────────────────────── */}
         <div
-          ref={scrollRef}
-          className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden"
+          className="flex-1 min-w-0"
           style={{
-            // Reserve the scrollbar's width even when it is not showing, or the
-            // centred body sits a few px left of the centred header above it.
-            scrollbarGutter: 'stable',
             fontSize: config.display.lyricFontSize,
             // SectionBlock sizes chords off these vars, not inherited size.
             ['--chart-font-size-lyric']: `${config.display.lyricFontSize}px`,
