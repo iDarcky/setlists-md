@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { semitonesBetween, keysInQualityOf } from '@/music';
 import { resolveSongView } from '@/arrangements';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/ui/Select';
+import { IconButton } from '@/ui/IconButton';
 import { buildSongFlow } from '@/lib/songFlow';
 import { resolveSectionColors } from '@/lib/sectionIdentity';
 import { resolveReaderConfig } from '@/lib/readerConfig';
@@ -10,9 +11,12 @@ import { useActiveSection } from '@/hooks/useActiveSection';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import ReaderSection from './ReaderSection';
 import ReaderTopBar from './ReaderTopBar';
+import ReaderPracticeRow, { MetronomeIcon } from './ReaderPracticeRow';
 import AaMenu from '@/features/chart/AaMenu';
 import ChordPopover from '@/features/chart/ChordPopover';
 import { useEntitlement } from '@/hooks/useEntitlement';
+import { useMetronome } from '@/hooks/useMetronome';
+import { clampTempo } from '@/lib/metronome';
 
 /**
  * The chart reader — elements 1–6 only.
@@ -87,6 +91,55 @@ export default function Reader({
   // Callers should pass a resolved arrangement view; accept a raw v2 song too,
   // because getting it wrong renders a silently blank chart.
   const song = songProp?.arrangements ? resolveSongView(songProp, arrangementId) : songProp;
+
+  // ── Element 12 — practice tools ──────────────────────────────────────────
+  // Round 1 is the click plus a tempo, and the backing track plus a speed. No
+  // count-in, no section loop, no wake lock — those were explicitly out.
+  //
+  // Nothing here is persisted, by decision: the tempo re-seeds from the song and
+  // the click STOPS on a song change, so there is no stored knob to sync and
+  // no way to walk into the next song with a click you forgot was running.
+  const [practiceOpen, setPracticeOpen] = useState(false);
+  const metronome = useMetronome();
+
+  // The tempo is DERIVED, not re-seeded by an effect. It is stamped with the
+  // song it belongs to, so arriving at a new song falls straight back to that
+  // song's written tempo — no effect, no render with last song's number in it.
+  const songId = song?.id;
+  const songTempo = song?.tempo;
+  const writtenBpm = clampTempo(songTempo || 100);
+  const [tempoSet, setTempoSet] = useState(null);
+  const bpm = tempoSet?.id === songId ? tempoSet.bpm : writtenBpm;
+
+  // Opening starts the click straight away — the icon IS the switch. The row
+  // keeps its own stop/start so silencing the click doesn't take the track
+  // controls with it.
+  //
+  // Read `practiceOpen` rather than using a state updater: starting audio inside
+  // an updater would fire twice under StrictMode's double-invoke and stack two
+  // clicks on top of each other.
+  const togglePractice = useCallback(() => {
+    if (practiceOpen) {
+      metronome.stop();
+      setPracticeOpen(false);
+    } else {
+      metronome.start(bpm, song?.time);
+      setPracticeOpen(true);
+    }
+  }, [practiceOpen, bpm, metronome, song?.time]);
+
+  const setTempo = metronome.setTempo; // stable; the metronome object itself is not
+  const changeBpm = useCallback((next) => {
+    const v = clampTempo(next);
+    setTempoSet({ id: songId, bpm: v });
+    setTempo(v);
+  }, [songId, setTempo]);
+
+  // A click left running from the last song is worse than silence: it is
+  // confidently wrong. Stopping the audio engine is a real external-system
+  // sync, so it IS an effect — unlike the tempo, which is derived above.
+  const stopClick = metronome.stop;
+  useEffect(() => { stopClick(); }, [songId, stopClick]);
 
   const config = useMemo(
     () => resolveReaderConfig(settings, { wide, embedded, myInstrument }),
@@ -201,6 +254,17 @@ export default function Reader({
           title={song.title}
           onMenu={(rect) => setOwnAaAnchor(a => (a ? null : rect))}
           onExit={onExit}
+          tools={(
+            <IconButton
+              size="sm"
+              aria-label={practiceOpen ? 'Close practice tools' : 'Practice tools'}
+              aria-pressed={practiceOpen}
+              onClick={togglePractice}
+              style={{ color: practiceOpen ? 'var(--chord)' : 'var(--chart-text, var(--ds-gray-1000))' }}
+            >
+              <MetronomeIcon />
+            </IconButton>
+          )}
           meta={(
             <span className="shrink-0 flex items-center gap-2 text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
               {onSelectKey ? (
@@ -300,10 +364,13 @@ export default function Reader({
         </div>
       )}
 
-      {/* Element 10. `sticky bottom-0`, not just last-in-flow: the whole reader
-          is ONE scroll container, so a plain flex child sits at the end of the
-          SONG rather than at the bottom of the screen. Mirror of the header. */}
-      {footer && (
+      {/* Elements 12 + 10 share ONE sticky block at the bottom edge — the
+          practice row above the nav row. Two separate stickies would fight over
+          `bottom-0` and the safe-area inset; one block with two rows cannot.
+          `sticky bottom-0`, not just last-in-flow: the whole reader is ONE
+          scroll container, so a plain flex child sits at the end of the SONG
+          rather than at the bottom of the screen. Mirror of the header. */}
+      {(footer || (showChrome && practiceOpen)) && (
         <div
           className="sticky bottom-0 z-20 shrink-0 border-t"
           style={{
@@ -312,7 +379,18 @@ export default function Reader({
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
         >
-          <div className="wide-container flex items-center gap-2 py-1.5">{footer}</div>
+          {showChrome && practiceOpen && (
+            <div className={`wide-container py-1.5${footer ? ' border-b' : ''}`} style={footer ? rule : undefined}>
+              <ReaderPracticeRow
+                song={song}
+                bpm={bpm}
+                onBpm={changeBpm}
+                clickRunning={metronome.running}
+                onToggleClick={() => (metronome.running ? metronome.stop() : metronome.start(bpm, song.time))}
+              />
+            </div>
+          )}
+          {footer && <div className="wide-container flex items-center gap-2 py-1.5">{footer}</div>}
         </div>
       )}
 

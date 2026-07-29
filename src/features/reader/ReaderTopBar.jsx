@@ -6,11 +6,16 @@ import { IconButton } from '@/ui/IconButton';
  * apart: the break screen used to hand-roll its own bar, which is how it ended
  * up with no menu button and the title in a different place.
  *
- * Fixed by decision — no density knob, no auto-hide. It is: menu · title ·
- * meta · exit, and whatever `children` the caller pins under it (the ribbon).
+ * Fixed by decision — no density knob, no auto-hide. It is: menu · tools ·
+ * title · meta · exit, and whatever `children` the caller pins under it (the
+ * ribbon).
+ *
+ * `tools` is element 12's switch, and sits BESIDE the menu by decision — the
+ * left cluster is where controls live. Nothing goes near the ✕: a mis-tap on
+ * the right-hand edge leaves the service.
  */
 const ReaderTopBar = forwardRef(function ReaderTopBar(
-  { title, meta = null, onMenu, onExit, children }, ref,
+  { title, meta = null, onMenu, onExit, tools = null, children }, ref,
 ) {
   return (
     <div
@@ -35,6 +40,8 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
             <MenuIcon />
           </IconButton>
         )}
+
+        {tools}
 
         {/* Title and meta are ONE group that takes the leftover width, so the
             title can never be squeezed to nothing and the key stays beside it

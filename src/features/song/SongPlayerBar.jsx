@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { youtubeId } from '@/lib/coverArt';
-import { ensureYouTubeApi } from '@/lib/embedPlayers';
 import { headerFrostStyle } from '@/lib/headerFrost';
+import { useYouTubeTrack, hiddenHostStyle } from '@/hooks/useYouTubeTrack';
+import { formatClock } from '@/lib/duration';
 
 // ── Backing-track transport bar ────────────────────────────────────────────
 // The bottom bar from docs/mockups/song-hub-v2.html. Plays the song's YouTube
@@ -9,19 +10,15 @@ import { headerFrostStyle } from '@/lib/headerFrost';
 // bar — driving the audio. YouTube's native player is loaded hidden (1px,
 // in-viewport) via the IFrame API and we command it; only our controls show.
 //
+// The player itself lives in `hooks/useYouTubeTrack` — the Reader's practice
+// row (element 12) drives the same engine with a compact transport, and the
+// ready-watchdog / poll / teardown logic must not exist in two places.
+//
 // Spotify playback was intentionally dropped: its embed iframe API runs via
 // `eval()`, which our CSP blocks — allowing it ('unsafe-eval') would weaken the
 // whole app — and it only streams full tracks to listeners already signed into
 // Spotify (a 30s preview otherwise). We still use Spotify links for cover art
 // (resolved server-side via oEmbed), just not for in-app playback.
-
-function fmtTime(sec) {
-  if (!sec || !isFinite(sec) || sec < 0) return '0:00';
-  const total = Math.floor(sec);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
 
 export default function SongPlayerBar({ youtubeUrl, title, artist }) {
   const ytId = youtubeId(youtubeUrl);
@@ -38,122 +35,34 @@ export default function SongPlayerBar({ youtubeUrl, title, artist }) {
 }
 
 function TrackTransport({ ytId, title, artist }) {
-  const hostRef = useRef(null);
-  const playerRef = useRef(null);
-  const pollRef = useRef(null);
-  const draggingRef = useRef(false); // suppress poll-driven position while scrubbing
-  const readyRef = useRef(false);    // mirrors `ready` for the watchdog closure
-  const watchdogRef = useRef(null);  // re-init timer if the player never signals ready
+  const {
+    hostRef, playing, position, duration, failed, loading,
+    toggle, seek, setDragging: setDraggingRef,
+  } = useYouTubeTrack(ytId);
 
-  const [ready, setReady] = useState(false);
-  const [playing, setPlaying] = useState(false);
-  const [position, setPosition] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [failed, setFailed] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [dragPos, setDragPos] = useState(0);
-  const [attempt, setAttempt] = useState(0); // bumped to force a clean player re-create
-
-  // Build (and tear down) the hidden YouTube player. The `attempt` dep lets a
-  // stalled init auto-recover: the embed occasionally drops its very first
-  // ready callback in a hidden container (or stalls behind a slow/blocked API
-  // load), and a clean re-create fixes it.
-  useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return undefined;
-    let disposed = false;
-    readyRef.current = false;
-    const stopPoll = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
-    const clearWatchdog = () => { if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; } };
-    const markReady = () => { readyRef.current = true; clearWatchdog(); setReady(true); };
-
-    // If the player hasn't signalled ready in time, re-create it a couple of
-    // times before surfacing "unavailable". Covers both a dropped first-init
-    // and an API load that never resolves (e.g. blocked/slow network).
-    watchdogRef.current = setTimeout(() => {
-      if (disposed || readyRef.current) return;
-      if (attempt < 2) setAttempt(a => a + 1);
-      else setFailed(true);
-    }, 6000);
-
-    ensureYouTubeApi().then((YT) => {
-      if (disposed) return;
-      const el = document.createElement('div');
-      host.appendChild(el);
-      const player = new YT.Player(el, {
-        videoId: ytId,
-        width: '320',
-        height: '180',
-        playerVars: { controls: 0, modestbranding: 1, rel: 0, playsinline: 1, disablekb: 1, iv_load_policy: 3, fs: 0 },
-        events: {
-          onReady: (e) => { if (disposed) return; markReady(); setDuration(e.target.getDuration() || 0); },
-          onStateChange: (e) => {
-            if (disposed) return;
-            const isPlaying = e.data === YT.PlayerState.PLAYING;
-            setPlaying(isPlaying);
-            if (isPlaying) {
-              setDuration(player.getDuration() || 0);
-              stopPoll();
-              pollRef.current = setInterval(() => {
-                if (!draggingRef.current) setPosition(player.getCurrentTime() || 0);
-              }, 250);
-            } else {
-              stopPoll();
-            }
-          },
-        },
-      });
-      playerRef.current = player;
-    }).catch(() => { if (!disposed) { clearWatchdog(); setFailed(true); } });
-
-    return () => {
-      disposed = true;
-      stopPoll();
-      clearWatchdog();
-      if (playerRef.current) { try { playerRef.current.destroy?.(); } catch { /* ignore teardown errors */ } }
-      playerRef.current = null;
-      host.innerHTML = '';
-    };
-  }, [ytId, attempt]);
-
-  const toggle = useCallback(() => {
-    const player = playerRef.current;
-    if (!player) return;
-    if (playing) player.pauseVideo(); else player.playVideo();
-  }, [playing]);
-
-  const seek = useCallback((sec) => {
-    const player = playerRef.current;
-    if (!player) return;
-    player.seekTo(sec, true);
-    setPosition(sec);
-  }, []);
 
   const displayPos = dragging ? dragPos : position;
-  const canScrub = ready && duration > 0;
-  const loading = !ready && !failed;
+  const canScrub = !loading && !failed && duration > 0;
 
   const onScrubInput = (e) => {
-    draggingRef.current = true;
+    setDraggingRef(true);
     setDragging(true);
     setDragPos(Number(e.target.value));
   };
   const onScrubCommit = () => {
-    if (!draggingRef.current) return;
+    if (!dragging) return;
     seek(dragPos);
-    draggingRef.current = false;
+    setDraggingRef(false);
     setDragging(false);
   };
 
-  // Hidden YouTube player — kept in-viewport at 1px but invisible, so only our
-  // controls show.
-  const hiddenHost = (
-    <div ref={hostRef} aria-hidden="true" style={{ position: 'fixed', left: 0, bottom: 0, width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none', zIndex: -1 }} />
-  );
-
   return (
     <>
-      {hiddenHost}
+      {/* Hidden YouTube player — kept in-viewport at 1px but invisible, so only
+          our controls show. */}
+      <div ref={hostRef} aria-hidden="true" style={hiddenHostStyle} />
 
       {/* Single non-wrapping row on every width: play · title · scrubber · time
           (the scrubber stays on the title's line on phones, not below it). */}
@@ -193,7 +102,7 @@ function TrackTransport({ ytId, title, artist }) {
 
         {/* Scrub bar — inline on the title's row at every width */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-          <span className="text-[11px] tabular-nums text-[var(--text-2)] w-9 text-right shrink-0">{fmtTime(displayPos)}</span>
+          <span className="text-[11px] tabular-nums text-[var(--text-2)] w-9 text-right shrink-0">{formatClock(displayPos)}</span>
           <input
             type="range"
             aria-label="Seek"
@@ -209,7 +118,7 @@ function TrackTransport({ ytId, title, artist }) {
             className="flex-1 min-w-0 h-1 cursor-pointer disabled:cursor-default"
             style={{ accentColor: 'var(--color-brand)' }}
           />
-          <span className="text-[11px] tabular-nums text-[var(--text-2)] w-9 shrink-0">{fmtTime(duration)}</span>
+          <span className="text-[11px] tabular-nums text-[var(--text-2)] w-9 shrink-0">{formatClock(duration)}</span>
         </div>
       </div>
     </>

@@ -48,9 +48,9 @@ the reader.
 | 9 | Tabs | done — instrument-aware, never side-scrolls, transpose-or-say-why |
 | 10 | Song-to-song | done — 4 nav styles, sticky footer, rail incl. phones, breaks |
 | 11 | Chord diagrams | done — tap a chord, Pro-gated, no strip |
-| 12 | **Practice tools** | **not started — this is next** |
+| 12 | Practice tools | done — metronome + slow-down, one row above the footer |
 
-707 tests, 0 lint errors. `npm run dev` · `npx vitest run` · `npm run build`.
+731 tests, 0 lint errors. `npm run dev` · `npx vitest run` · `npm run build`.
 
 **Nothing has been deleted.** With the flag off, `SetlistPlayer`,
 `PerformanceView` and `PracticeView` render exactly as they did, and
@@ -60,30 +60,26 @@ the reader.
 
 ## What to do next
 
-### 1. Element 12 — practice tools
+### 1. Element 12 — practice tools — DONE (round 1)
 
-Metronome, count-in, section loop, slow-down. This is the reason a separate
-Practice screen exists, and **the last thing standing between us and deleting
-the four old surfaces**.
+Shipped: metronome (accented downbeat off the song's `time`), a bpm stepper, the
+backing track brought into the Reader with its own **independent** rate stepper,
+all in ONE row above element 10's nav bar. Entry is one icon beside ☰. No
+count-in, no section loop, no wake lock — **all three were explicitly cut**.
+Full reasoning in `docs/READER.md` §12.
 
-Work it the way elements 1–11 were worked: **one element at a time, ask before
-building, ship each round to `beta` so the owner can test on a real device.**
-That rhythm is not optional — it is how the last eleven elements got decided.
+The framing fact, measured rather than assumed: **none of these tools existed to
+port.** `PracticeView` had no `AudioContext`, no click, no `playbackRate`, no
+loop, no autoscroll. The old Practice screen was a chart viewer with different
+chrome, so deleting it costs only the finale stats.
 
-Questions that need answering before any of it is built:
-
-- Where does the tools bar live? Element 10's footer already owns the bottom
-  edge, so a second bar there means two bars.
-- Is section loop worth its complexity, or is slow-down + metronome enough?
-- Does the metronome need to survive the screen locking? (wake lock is carried
-  by the old views and was deliberately not ported)
-- Does the YouTube backing track tie into this? It **can** loop and slow down
-  (pitch-preserving) but **cannot** pitch-shift — already confirmed, don't
-  re-investigate.
+Round 1 is on the owner's phone for testing. Wait for their verdict before
+building anything more here — the loop/count-in decisions are recorded as cuts,
+not as backlog.
 
 ### 2. Then: graduate the flag and delete
 
-Once 12 lands: wire `FullscreenChartViewer` as a thin wrapper over `Reader`
+Element 12 has landed, so this is next. Wire `FullscreenChartViewer` as a thin wrapper over `Reader`
 (not a fork), flip `unifiedReader` on by default, then delete `SetlistPlayer`,
 `PerformanceView` and `PracticeView` — roughly 2,300 lines of triplicated state
 management. `ChartView` stays for now; the Song Hub embeds it.
@@ -156,10 +152,11 @@ Learned the hard way over this pass, and worth more than any of the code below:
 
 ## Open decisions the owner still owes
 
-In `PLAN.md` §7. The one that will trip up element 12:
+In `PLAN.md` §7. Still unresolved:
 
 - Which bottom sheet is the app's — `BottomSheet` (7 uses, now including
-  `SetlistRail`) or `MobileSheet` (1)? Element 12's tools bar will land on this.
+  `SetlistRail`) or `MobileSheet` (1)? Element 12 dodged this by landing as a
+  row rather than a sheet, so it is no longer blocking anything in the reader.
 
 ## Branch
 

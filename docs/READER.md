@@ -52,15 +52,18 @@ the ☰ button, with the chart still on screen behind it.
 
 ```
 src/features/reader/
-├── Reader.jsx          the chart itself — elements 1–9, 11. ONE scroll container.
+├── Reader.jsx          the chart itself — elements 1–9, 11, 12. ONE scroll container.
 ├── ReaderTopBar.jsx    element 1. Shared by Reader AND BreakScreen.
 ├── ReaderSection.jsx   elements 3–5 (frame, sticky heading, cue)
 ├── ReaderFooter.jsx    element 10's bar. Shared by Reader AND BreakScreen.
+├── ReaderPracticeRow.jsx  element 12 — the click + the backing track, one row.
 ├── SetlistReader.jsx   prev/next, nav modes, keyboard/pedal, the rail
 ├── BreakScreen.jsx     a break, wearing the same chrome as a song
 └── SetlistRail.jsx     element 10's jump-anywhere list
 
 src/lib/readerConfig.js    every knob, resolved. Start here.
+src/lib/metronome.js       element 12's click — lookahead scheduler + its maths
+src/hooks/useYouTubeTrack.js  the backing-track engine, shared with SongPlayerBar
 src/lib/sectionIdentity.js one source for section code/name/colour/weight
 src/lib/tabTranspose.js    element 9's transpose rule
 src/lib/myInstrument.js    "what am I playing this service?"
@@ -214,14 +217,72 @@ never as a reference, because the chords have changed.
 - **Guitar only.** Piano needs a shape library that doesn't exist; deferred.
 - **Pro** — `useEntitlement('chord-diagrams')`. Without it chords stay inert.
 
+### 12 — Practice tools
+
+**Round 1 is the metronome and slow-down. Nothing else.** Count-in and section
+loop were both considered and **cut**: a loop has nothing to loop against — the
+`.md` format carries no bar count or timestamp per section — and that is a format
+change, not a reader change.
+
+First, the fact that reframed the whole element: **none of it existed to port.**
+`PracticeView` (908 lines) had no `AudioContext`, no click, no `playbackRate`, no
+loop and no autoscroll. The old Practice screen was a chart viewer with different
+chrome. So "the reason a separate Practice screen exists" was aspirational, and
+deleting the old surfaces costs nothing but the finale stats (element 13).
+
+- **One icon beside ☰ is the switch**, and **the icon IS the switch** — tapping it
+  starts the click *and* opens the row; tapping it again stops and closes. The
+  row keeps its own stop/start so silencing the click doesn't take the track
+  controls with it. Nothing was added near the ✕.
+- **ONE row, two halves, above element 10's nav bar** — click on the left, track
+  on the right. Two bars at the bottom edge, **never three**: the alternative was
+  a player, a tools bar *and* the nav bar, ~150px of chrome eating the chart on a
+  phone. Both rows share **one** `sticky bottom-0` block; two separate stickies
+  would fight over the safe-area inset.
+- On a narrow screen the halves **wrap onto two lines rather than truncate**.
+  Squeezing a tempo readout is how you end up unable to see the tempo you set.
+- **The right half only exists when the song has a YouTube link.** A dead
+  transport reads as broken.
+- **The click and the track slow down INDEPENDENTLY** — not locked together. The
+  click gets a **bpm stepper**; the track gets a **rate stepper** through
+  `getAvailablePlaybackRates()` so a step can never land on a rate the embed
+  refuses. Track rate is **pitch-preserving** and **cannot** pitch-shift — that
+  was confirmed once and is not to be re-investigated.
+- **Press-and-hold repeats** on the steppers. A tap-only stepper is 32 taps from
+  132bpm to 100 and nobody does that twice.
+- **Beat 1 is accented**, cycling on the song's existing `time` field — no new
+  data, no new setting. Missing or malformed `time` falls back to 4 rather than
+  refusing to click.
+- **Nothing is persisted.** The tempo is *derived* from the song (stamped with
+  its id), and **the click stops on a song change**. So there is no new key for
+  `PORTABLE_PREF_KEYS`, and no way to walk into the next song with a click you
+  forgot was running.
+- **No wake lock**, by decision. Audio only; the screen may sleep.
+- The player engine is **`hooks/useYouTubeTrack.js`**, extracted from
+  `SongPlayerBar` when this element needed the same player — the ready-watchdog,
+  position poll and teardown are hard-won and must not exist twice. The Song Hub
+  renders the full bar; the practice row renders a compact face.
+
+> **The click is a lookahead scheduler, not a `setInterval` that plays a sound.**
+> A timer that fires the click inherits every bit of main-thread jitter — a
+> re-render, a scroll, a GC pause — and a metronome that wobbles is worse than no
+> metronome. The interval only ever *schedules*, booking beats onto the audio
+> clock ~120ms early; the hardware plays them on time even if JS was busy. The
+> arithmetic is `beatsToSchedule()`, split out so it is testable without an
+> AudioContext.
+
+> **`clampTempo` uses `parseFloat`, not `Number`.** `Number(null)` and
+> `Number('')` are both **0**, so a song with a blank tempo clamped to the 40bpm
+> floor instead of falling back to 100. Caught by a test, not by a device.
+
 ---
 
 ## Not yet designed
 
 | # | Element | Notes |
 |---|---------|-------|
-| 12 | **Practice tools** | Metronome, count-in, section loop, slow-down. The reason a separate Practice screen exists. **The last thing standing between us and deleting the four old surfaces.** |
 | 13 | Finale screens | `LiveFinale` / `PracticeFinale` still belong to the old surfaces |
+| — | Count-in, section loop | Cut from element 12 round 1. A loop needs per-section bars/timestamps — an `.md` format change |
 | — | Wake lock, session stats | Carried by the old views; not ported on purpose |
 
 **Deliberately deferred, with reasons:**
@@ -256,6 +317,8 @@ never as a reference, because the chords have changed.
 ## Tests
 
 - `src/__tests__/reader.test.jsx` — elements 1–6, 11
+- `src/__tests__/reader-practice.test.jsx` — element 12 (click, slow-down, track)
+- `src/__tests__/metronome.test.js` — the click's scheduling arithmetic
 - `src/__tests__/setlist-reader.test.jsx` — element 10, breaks, nav modes
 - `src/__tests__/structure-ribbon.test.jsx` — chip geometry + the `min-h-0` trap
 - `src/__tests__/reader-config.test.js` — one case per knob
