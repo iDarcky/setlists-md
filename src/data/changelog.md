@@ -62,6 +62,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **The "…" menu in that bar opens** — it was being clipped away behind the bar's own rounded edge.
 - **Done now leaves selection mode** instead of immediately switching it back on.
 - **Filter sheets no longer show a stray white outline** on phones.
+- **The structure ribbon's boxes are the right size on a phone** — a global rule that makes every button at least 44px tall was stretching each section box into a slab. Tapping them still works; they're just boxes again.
 - **The structure ribbon is calm again** — one muted grey for every section you're not in, and colour on the one you are. A different colour per box turned the row into a rainbow on a phone.
 - **Cover art picks up Spotify links**, not only YouTube ones.
 - **Importing a PDF works without turning anything on first** — it previously needed the Labs add-a-song screen enabled.

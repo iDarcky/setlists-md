@@ -139,7 +139,9 @@ export default function SetlistReader({
           type="button"
           onClick={openRail}
           aria-label="Open setlist"
-          className="fixed left-1/2 -translate-x-1/2 z-[95] px-3 py-1 rounded-full border text-label-11 font-mono tabular-nums backdrop-blur-md cursor-pointer"
+          // min-h-0: the global `button { min-height: 44px }` on phones would
+          // otherwise blow this chip up into a capsule.
+          className="fixed left-1/2 -translate-x-1/2 z-[95] min-h-0 px-3 py-1 rounded-full border text-label-11 font-mono tabular-nums backdrop-blur-md cursor-pointer"
           style={{
             bottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))',
             background: 'var(--chart-header-bg, var(--header-bg-blur))',

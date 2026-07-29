@@ -82,7 +82,7 @@ export function StructureRibbon({
               key={i}
               ref={active ? activeRef : null}
               {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index), title: labelOf(run.name) } : {})}
-              className={cn('shrink-0 inline-flex items-center gap-1', onSelect && 'cursor-pointer hover:opacity-80')}
+              className={cn('shrink-0 inline-flex items-center gap-1 min-h-0', onSelect && 'cursor-pointer hover:opacity-80')}
             >
               {/* The dot uses the section's base colour (`s.b`) so it matches the
                   in-chart section titles, not a washed-out border tint. */}
@@ -125,6 +125,11 @@ export function StructureRibbon({
               {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index), title: labelOf(run.name) } : {})}
               className={cn(
                 'shrink-0 inline-flex items-center gap-1 whitespace-nowrap font-mono text-[10px] leading-[1.5]',
+                // `button { min-height: 36px }` (44px on a phone) lives in
+                // @layer base and beats every padding utility here. Without
+                // this opt-out the chip is a 44px slab and no amount of
+                // padding tuning touches it.
+                'min-h-0',
                 'tracking-[0.06em] px-[7px] py-[2px] rounded-[5px] border transition-all',
                 active && 'font-bold',
                 onSelect && 'cursor-pointer hover:opacity-80',
@@ -174,7 +179,7 @@ export function StructureRibbon({
                 {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index) } : {})}
                 className={cn(
                   // Same type as `codes` — the boxes are just gone.
-                  'bg-transparent border-none p-0 font-mono text-[10px] leading-[1.5] tracking-[0.06em]',
+                  'bg-transparent border-none p-0 min-h-0 font-mono text-[10px] leading-[1.5] tracking-[0.06em]',
                   active ? 'font-bold' : 'font-medium',
                   active && !activeFill && 'underline underline-offset-4',
                   // The filled chip is the `codes` chip exactly, borderless.
@@ -210,7 +215,7 @@ export function StructureRibbon({
             ref={active ? activeRef : null}
             {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index) } : {})}
             className={cn(
-              "inline-flex shrink-0 items-center gap-1 rounded-full border font-medium transition-all",
+              "inline-flex shrink-0 items-center gap-1 rounded-full border font-medium transition-all min-h-0",
               compact ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-[12px]",
               onSelect && "cursor-pointer hover:opacity-80",
               active && "ring-2 ring-offset-1 ring-offset-transparent"
