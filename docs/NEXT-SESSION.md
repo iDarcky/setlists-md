@@ -95,7 +95,16 @@ never read again is half a feature, and the missing half — somewhere to see pa
 feedback — is the bigger build. Deferred in `PLAN.md` → Team with the git ref;
 the migration was never applied, so production has no such table.
 
-### 3. Then: graduate the flag and delete
+### 3. Read `PLAN.md` §1 — it is now the sequence
+
+As of 2026-07-30 the owner's instruction is: **finish the reader, clear the 🔴s,
+then stop and re-plan.** `PLAN.md` §1.1/§1.2/§1.3 carries that in order, with the
+diagnosis already done for the confirmed ones. Four reader items remain (the
+metronome starting on tap, the practice row on a phone, the header/ribbon
+divider, then graduate-and-delete) — **and two of the 🔴s are in the Song Hub,
+which survives the deletion, so fix those before deleting anything.**
+
+### 4. Then: graduate the flag and delete
 
 Both remaining elements have landed, so this is next. Wire `FullscreenChartViewer` as a thin wrapper over `Reader`
 (not a fork), flip `unifiedReader` on by default, then delete `SetlistPlayer`,

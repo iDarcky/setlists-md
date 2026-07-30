@@ -3,7 +3,7 @@
 > **The single sequenced plan.** What to do, in what order, and why. Replaces
 > the old area-grouped plan (which said what was wrong but never what was next).
 >
-> _Last updated: 2026-07-27 · Version `0.17.0-beta.2` on `beta` · Target: **public beta October 1**._
+> _Last updated: 2026-07-30 · Version `0.17.0-beta.25` on `beta` · Target: **public beta October 1**._
 
 **Three docs, three jobs.** `CLAUDE.md` = how it works (stack, schema, gotchas,
 finish/release workflow) · `docs/COMPONENTS.md` = what the pieces are (25
@@ -34,33 +34,121 @@ programming. If you only do one thing in August, do Stream A.
 
 ## 1. Right now
 
-**Just landed:** the component-architecture foundation — feature folders,
-enforced boundaries, and the design-system canon (§3.1, all ✅).
+**Just landed:** the **Reader** — elements 1–13, behind the Labs flag
+`unifiedReader`. Its decision log is `docs/READER.md`; read that before touching
+any of it. Also landed: the component-architecture foundation (§3.1, all ✅).
 
-**The next three, in order:**
+> **Owner's call, 2026-07-30:** *"finish the reader and look at the 🔴 to fix
+> them and then stop for a bit with the changes and look at the plan and go from
+> there."*
+>
+> That is §1.1 → §1.2 → §1.3 below, in that order. The router, Stream A and the
+> component passes are **explicitly parked** until §1.3 — they were the previous
+> "next three" and they are still right, just not next.
 
-1. **Adopt a router** (§3.1) — this is now the blocker for the rest of the
-   App.jsx split, not a nice-to-have. Deleting the hand-rolled history stack is
-   what makes navigation, song CRUD and the route table separable at all.
+### 1.1 Finish the Reader
+
+The last four items. None is a new design round; each is a correction or a
+promise already made.
+
+1. 🔴 **The metronome must not start on tap** (element 12). The icon should open
+   the practice row; the row's own play button starts the click. Shipped wrong in
+   `0.17.0-beta.21` — two owner answers conflicted ("icon opens it" vs "the row
+   appears once the click starts") and the conflict was resolved the wrong way.
+2. 🔴 **The practice row is too long on a phone.** ❓ Needs a decision first —
+   §7 #10.
+3. 🟡 **A divider between the top bar and the structure ribbon** — a hairline,
+   lighter than the Score mockup's, which is the mockup element 2's geometry
+   already came from.
+4. 🔴 **Graduate the flag, then delete.** Wire `FullscreenChartViewer` as a thin
+   wrapper over `Reader` (**not** a fork), flip `unifiedReader` on by default,
+   then delete `SetlistPlayer`, `PerformanceView`, `PracticeView`, `LiveFinale`
+   and `PracticeFinale` — ~2,800 lines of triplicated state. `ChartView` stays;
+   the Song Hub embeds it. **Do §1.2 #3 first** — the Song Hub bugs below are in
+   the surface that survives the deletion.
+
+**Not part of finishing the reader**, though they came in with it: how many
+reading modes there really are (§7 #11) and editing from the reader (§7 #12).
+Both are new design rounds and belong after §1.3.
+
+### 1.2 🔴 Clear these, in this order
+
+Ordered by severity × confidence. The first is unverified and could be the most
+serious thing in this document; the last two are blocked on you.
+
+1. 🔴 **Members can edit songs.** From the owner's own note a month ago, filed
+   then as "critical security/data-integrity". **Not yet verified — do this
+   first, it is cheap to check.** The team sync engine treats members as
+   `readOnly`, but that is the engine refusing to *push*, which is not the same
+   as the UI refusing the *edit*: a member could edit locally, see it stick, and
+   lose it on the next pull. Silent data loss for the user who least expects it.
+2. 🔴 **Print / Save as PDF is broken** (reported 2026-07-30) — see §6 → PDF
+   export. A regression on a shipped feature, and the answer to "get the set to
+   someone who won't install anything". Reproduce first (entry point, platform,
+   installed PWA vs browser). Prime suspect: the print document builds an inline
+   `<script>`/`<style>` into a same-origin `<iframe srcdoc>` and inherits the
+   page CSP — an enforcing `script-src`/`style-src` without a hash or nonce
+   kills exactly this and nothing else. `CLAUDE.md` already flags that coupling.
+3. 🔴 **The Song Hub — two separate bugs, one report.**
+   - **Song map is unreachable.** Confirmed: the view-mode picker (Chords /
+     Lyrics only / Song map / Chords only) lives in `StageHeader`'s overflow menu
+     at `ChartView.jsx:443`, guarded by `!isPreview && !embedded`. The hub embeds
+     `ChartView`, so it never renders. This is the documented-but-never-done half
+     of the reader rework: `CLAUDE.md` says view modes are "slated to move into
+     `FullscreenChartViewer`". Nothing moved, so Song map is currently reachable
+     from **nowhere** except the old surfaces §1.1 #4 deletes.
+   - **Chart and Lyrics tabs render the same.** NOT confirmed. `SongHub.jsx:129`
+     looks correct. Suspect the `showChords` setting (`ChartView.jsx:840`) being
+     off, which would make the Chart tab lyrics-only. Needs a repro on a fresh
+     profile.
+4. 🔴 **The active-section highlight is wrong when the song fits on screen.**
+   Confirmed, one line. `src/hooks/useActiveSection.js` has a "near the bottom,
+   snap to the last section" rule:
+   `if (root.scrollTop + root.clientHeight >= root.scrollHeight - 16) current = lastIdx;`
+   With no scrollable overflow that is **true on the first frame**, so the last
+   section lights up immediately. Gate it on the content actually being
+   scrollable. Note this hits the **structure ribbon too**, not just the song
+   map — same hook, every surface.
+5. 🔴 **The Song Hub chart and the editor preview must follow the APP theme.**
+   Not an open question: `docs/READER.md` already records the decision — "a white
+   chart card sitting inside a dark app reads as broken rather than as a stage" —
+   and the code disagrees with it. A bug against a written decision.
+6. 🔴 **Prod-only sync bug** (2026-07-30) — **BLOCKED on you.** Prod-but-not-beta
+   means data or schema, not code, so there is nothing to read in the diff. Run
+   Settings → Sync → **Sync Doctor** in the affected Space; it re-runs the
+   engine's exact hash arithmetic per song and names the drifting field. Paste
+   its output. Do not guess at this one — see `CLAUDE.md`'s note on canonical-hash
+   baseline drift.
+7. 🟡 **The editor's `+` button renders over the chords** (screenshot, 2026-07-30).
+   Small and visible.
+8. 🟡 **Setlist editor: "Clean" and "Remove" both become "Remove", both red.**
+9. 🟡 **YouTube cover art not loading.** CSP is **not** the cause — `vercel.json`
+   allows `https://*.ytimg.com` and `coverArt.js:28` builds
+   `https://i.ytimg.com/vi/<id>/hqdefault.jpg`. Suspect `youtubeId()` failing on
+   `youtu.be` / `/shorts/` / extra params, or `hqdefault` 404ing. **Needs one
+   failing URL from you.**
+10. 🟡 **Odd numbers when dragging a song over a break** in the setlist editor.
+    **Needs a repro.** The only number in the break row is the note character
+    counter (`SetlistItemRow.jsx:124`), which sits on the notes *button* and only
+    renders when a note exists — that does not match "over the text box".
+
+### 1.3 Then stop, and re-plan from this file
+
+By the owner's decision, no new feature work between §1.2 and this point. When
+the list above is clear, come back here and pick the next block. The three that
+were queued before this batch, still in order:
+
+1. **Adopt a router** (§3.1) — the blocker for the rest of the App.jsx split,
+   not a nice-to-have. Deleting the hand-rolled history stack is what makes
+   navigation, song CRUD and the route table separable at all.
 2. **Setlist-builder tests** (§3.2) — the other surface where a bug silently
    destroys user work.
-3. **Start Stream A** (§2) — the domain split gates email, which gates OAuth.
-   It has a queue, so August is already late.
+3. **Start Stream A** (§2) — the domain split gates email, which gates OAuth. It
+   has a queue, so August is already late. **This is still the only thing that
+   can make October 1 not happen.**
 
-**🔴 BROKEN, FIX ASAP — Print / Save as PDF.** Reported 2026-07-30. This is a
-**regression on a shipped, advertised feature**, not a backlog item: PDF export
-is the answer to "get the set to someone who won't install anything", and every
-entry point runs through `openPrintWindow()` in `src/pdf/pdfDocument.js`. Not yet
-diagnosed — reproduce first (which entry point, which platform, installed PWA vs
-browser), then fix. Prime suspect: the print document builds an inline
-`<script>`/`<style>` into a same-origin `<iframe srcdoc>`, and `vercel.json`'s
-CSP has been moving — an enforcing `script-src`/`style-src` without a hash or
-nonce would kill exactly this and nothing else. `CLAUDE.md` already flags that
-coupling. **Do this before any further reader work.**
-
-**Two design calls waiting on you** (§7, #8–9) before the design system is fully
-closed: which bottom sheet is the app's, and whether `ScreenHeader` folds into
-`PageHeader`.
+**Design calls waiting on you** before their work can start: §7 #8–9 (design
+system) and the three new ones, §7 #10–12.
 
 ---
 
@@ -334,6 +422,10 @@ Each doubles the work of the pass that touches it.
 
 ### 3.7 Cross-cutting, cheapest during each pass
 
+- [ ] 🟡 **"Are you sure you want to leave?"** — a dirty-state guard on the song
+      AND setlist editors, covering browser back, refresh and tab switches. Real
+      data loss, flagged in the owner's June note and **still open**. Do it once,
+      centrally, rather than per editor.
 - [ ] **Accessibility** — add `eslint-plugin-jsx-a11y` (catches static cases
       free), then focus-management per component rather than one audit. 431
       `aria-` attributes says care was taken; 13 `onClick` on `div`/`span` says
@@ -453,15 +545,30 @@ This is what §4 passes 5–6 implement. Open: the per-preset control allow-list
 
 ## 6. Backlog by area (reference — not sequenced)
 
+> **Provenance.** Two inboxes were triaged into this section and can be thrown
+> away: the owner's **2026-07-30** list of 20 points (the 🔴s from it are
+> sequenced in §1.2; the rest are filed below), and the **June `Ideas_and_bugs.md`
+> note**. Of that older note, these shipped in the meantime and need no further
+> tracking: notes per setlist/song/user, zip export, tags vs service, chord
+> diagrams on tap (element 11), chord notation incl. Nashville, condensed
+> sections, the plan hierarchy, church logo, rehearsal booking + push. These were
+> **superseded by the Reader** (elements 1–13): edit layout from live, a better
+> customisation button, "top bar ruins everything", scrollable structure, a
+> separate live view, and "rehearsal mode" — except its *editing* half, which is
+> real and is §7 #12.
+
 Detail that belongs to a component pass. When you start a pass, read its section
 here first. Nothing in this section is scheduled on its own.
 
 ### Song details
+- ❓ **Capo: per-user rather than per-song?** A capo position belongs to the instrumentalist, not the song. Undecided since the June note; would need a per-user store.
 - Rich editor for **Story-behind** (breaks-style) ❓ both Story and Notes, or just Story?
 - Dedicated full song-details view ❓ route or expanded panel?
 - Field char limits (Themes/Genres/Verses/Moment/Tags) ❓ cap which?
 
 ### Song editor
+- 🟡 The `+` button renders over the chords (2026-07-30) — see §1.2 #7.
+- ⬜ The blank/paste new-song flow is still unfinished (2026-07-30).
 - Play order in the narrow strip still uses `shortCode` (`V1`, `PC`); the `xl` rail fixed the labels, the `< xl` strip didn't.
 - Validate the `xl` breakpoint for the rail on real screens.
 - Repetition finds no chorus when a source writes it out once — every block reads as a verse and the chips do the work. Watch whether that's the common case.
@@ -474,6 +581,13 @@ here first. Nothing in this section is scheduled on its own.
 - Cross-device version history (local per device today).
 
 ### Chart view
+- ⬜ **Ship the curated worship section-type list as defaults** — Selah, Free
+  Worship, Big Chorus, Tag, Vamp, Doxology, Spontaneous… `customSectionTypes`
+  already lets users add their own, so this is a data change, not a feature: a
+  small edit with an outsized effect on how "built for worship" the app feels.
+  List is in the owner's June note.
+- 🟡 The whole **Aa menu needs a rework** — acknowledged 2026-07-30, deliberately not yet.
+- ⬜ Metronome options, if any: **tap tempo** (musicians expect it; beats a stepper for finding a feel) and **count-in** (cut from element 12; it is what makes a click usable for *starting* a song rather than checking tempo). Everything else — subdivisions, sounds, volume — is knobs nobody asked for.
 - **Collapsed-header top gap (tablet)** — content scrolls into the strip above the structure ribbon; extend the header background to cover the safe-area inset.
 - Dual `F#/Gb` labels in the **chart** transpose dropdown (editor done).
 - **Chord fingering diagrams have no control** — the Aa toggle was pulled; rendering + `showDiagrams` still exist, and it's now lazy-loaded. Reinstate a control, likely in the fullscreen viewer.
@@ -496,6 +610,7 @@ here first. Nothing in this section is scheduled on its own.
 - Drag-to-**reorder** table columns (show/hide shipped).
 
 ### Setlists — overview & viewer
+- ⬜ Dots at the foot of the page showing how many items are in the set (June note, undecided).
 - 🟡 **Migrate to the card design** — identity card + content cards + consistent header/⋮.
 - Overview visual redesign + buttons rework (Set order/Band + Play live/Practice inline).
 - Warn before editing a **past** setlist.
@@ -507,6 +622,8 @@ here first. Nothing in this section is scheduled on its own.
 - ⚠️ `SetlistOverview` renders in **two places** (the `setlist-view` route and the desktop preview in `Setlists.jsx`), both wiring export callbacks — add or rename one and the preview silently no-ops.
 
 ### Setlist editor
+- 🟡 "Clean"/"Remove" → both "Remove", both red (2026-07-30) — §1.2 #8.
+- 🟡 Odd numbers when dragging a song over a break; needs a repro (2026-07-30) — §1.2 #10.
 - **Time → dropdown picker** for end-time (and start-time).
 - **Unify the destructive labels** — rehearsal, tag, note and end-time each have their own "remove/clear"; collapse into one shared **red** label.
 - **Clear song-search after selecting** (+ an "×") so adding several is quick.
@@ -524,6 +641,7 @@ here first. Nothing in this section is scheduled on its own.
   _Alt: a dedicated `templates` store — cleaner separation, new plumbing. Prefer the flag._
 
 ### Dashboard
+- ⬜ A weekly-practice widget, GitHub-contributions style (2026-07-30). Genuinely motivating for members; strictly a "nice" behind the 🔴s.
 - **Live customize mode** (drag widgets in place, tray for unused).
 - Default widget order + welcome-banner decision ❓ keep/remove/removable?
 - **Library widget** — improve or cut ("keys" stat unclear; no-op on click).
@@ -532,6 +650,7 @@ here first. Nothing in this section is scheduled on its own.
 - Next-up Practice button + practice-time widget (depends on Practice mode).
 
 ### Team
+- 🟡 The add-to-band picker renders the WHOLE band; cap it at 5–10 then scroll. Its filters/settings need a redesign (2026-07-30).
 - 🟡 **Post-service feedback, leaders-only** — DEFERRED, and the reason matters:
   the writing half was built and shipped (a reflection box on the reader's
   finale, backed by a `team_setlist_notes` table with admin-only RLS), then
@@ -554,6 +673,7 @@ here first. Nothing in this section is scheduled on its own.
 - Needs a real demo-pass before the paid tier is sold.
 
 ### Settings · Help · Nav
+- 🟡 **Themes sometimes won't change** — open since the June note; suspected state-caching / race. Overlaps §1.2 #5 (hub + preview must follow the app theme); look at them together.
 - 🟡 **Big Settings rework** — panel taxonomy, fold **Account** fully in, restore the helper texts stripped earlier. Supersedes the older "add/reorg settings" + "mobile settings rework" lines; keep those as sub-tasks.
 - Help: context-specific "?" per screen; surface feedback prominently.
 - **Hamburger panel** ❓ keep or replace — decide, then rework. Motivational quotes ❓ keep or drop.
@@ -564,6 +684,7 @@ here first. Nothing in this section is scheduled on its own.
 - Consider an unsubscribe row in Settings.
 
 ### Interop & import
+- 🟡 **PDF import does not handle two-column charts** (2026-07-30). High real-world impact — a large share of worship charts are two-column, so this is a first-impression failure on exactly the import that should sell the app.
 - **Photo / scanned-chart import** — a vision model behind an edge function
   (`chart-ocr`), gated on the existing unused `smart-import` entitlement.
   ⏭️ Tesseract was considered and rejected: it misreads exactly the characters
@@ -616,6 +737,9 @@ Everything marked ❓ above, collected. These block or reshape real work.
 | 7 | Team: which extra member fields (GDPR-sensitive)? | Team pass |
 | 8 | **Which bottom sheet is the app's** — `BottomSheet` (plain titled, 6 uses) or `MobileSheet` (drawer aesthetic, 1)? | Finishing the design system |
 | 9 | Absorb `ScreenHeader` into `PageHeader`? Visual change on 2 screens. | Settings / setlist-editor pass |
+| 10 | **The practice row is too long on a phone** — which shape? (a) the track half collapses to play + rate, scrubber on its own line only while playing; (b) click and track become two tabs in one row. | §1.1 #2, blocks finishing the reader |
+| 11 | **How many reading modes are there really?** Live / rehearsal / practice / campfire / full-screen are five *names* for one viewer — the preset idea coming back through the door. What actually differs is three flags: practice tools on?, cues shown?, screen kept awake? Recommend deleting the vocabulary and keeping the flags. | A design round after §1.3 |
+| 12 | **Editing from the reader** — structure, notes, and a fast chord fix. The hard part is not the editor, it is *"is this a correction or a new arrangement?"*, which is a question about whether a chart is mutable or versioned. The owner's month-old note raises this four separate ways (items 6, 7, 14, "Rehearsal mode"). **Biggest item in the backlog.** | A design round after §1.3 |
 
 ---
 
