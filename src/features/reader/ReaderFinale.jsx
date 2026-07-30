@@ -130,7 +130,20 @@ export default function ReaderFinale({
 
   const leave = (fn) => () => { persist(); fn?.(); };
 
-  const changes = session?.changes || [];
+  const played = session?.played || [];
+
+  // Context, all of it free — no session tracking behind any of it. Only the
+  // parts that actually exist are shown; a placeholder dash for a setlist with
+  // no date is noise pretending to be information.
+  const meta = [];
+  if (startTime) meta.push(formatElapsed(now - startTime));
+  if (setlist?.date) {
+    const d = new Date(`${setlist.date}T12:00:00`);
+    if (!Number.isNaN(d.getTime())) {
+      meta.push(d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }));
+    }
+  }
+  if (setlist?.location) meta.push(setlist.location);
 
   return (
     <div
@@ -160,42 +173,41 @@ export default function ReaderFinale({
             {phrase}
           </h2>
           <p className="mt-2 text-copy-15 text-[var(--ds-gray-700)] m-0">{flavour.sub}</p>
+
+          {/* Time sits on a meta line, not in a card of its own. A single stat
+              tile spanning the page reads as three tiles that failed to load. */}
+          {meta.length > 0 && (
+            <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-label-12 text-[var(--ds-gray-600)] m-0">
+              {meta.map((bit, i) => (
+                <span key={bit} className="flex items-center gap-2">
+                  {i > 0 && <span aria-hidden="true" className="opacity-50">·</span>}
+                  <span className={bit.match(/^\d/) ? 'tabular-nums' : undefined}>{bit}</span>
+                </span>
+              ))}
+            </p>
+          )}
         </div>
 
-        {/* The one stat. Sized to its content rather than stretched across a
-            four-column grid — a lone tile spanning the page reads as three
-            missing tiles. */}
-        {startTime && (
-          <div className="rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-200)] px-4 py-3 w-fit min-w-[8rem]">
-            <div className="text-label-11 uppercase tracking-[0.15em] text-[var(--ds-gray-600)] font-bold">
-              Time
-            </div>
-            <div className="mt-1 text-heading-24 font-semibold text-[var(--ds-gray-1000)] tabular-nums">
-              {formatElapsed(now - startTime)}
-            </div>
-          </div>
-        )}
-
-        {/* What changed — the keys they moved during the session, read from the
-            reader's own transpose state. It carries key changes ONLY: the reader
-            cannot edit cues or notes, so there is nothing else truthful to list
-            here until it can. */}
-        {changes.length > 0 && (
+        {/* What you played — the body of the screen.
+            The old cut of this had a lone `w-fit` Time tile floating in a
+            max-w-2xl column with both other sections hidden, which read as three
+            missing tiles above an empty page. A wrap-up that never says what you
+            played was the actual gap; the running order costs no tracking at all,
+            because the reader has already resolved it. */}
+        {played.length > 0 && (
           <section>
-            <SectionLabel>What changed</SectionLabel>
-            <ul className="flex flex-col gap-1.5 m-0 p-0 list-none">
-              {changes.map(c => (
-                <li
-                  key={c.songId}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-background-200)]"
-                >
-                  <span className="flex-1 text-copy-14 text-[var(--ds-gray-1000)] truncate">{c.title}</span>
-                  <span className="shrink-0 text-label-11 font-semibold font-mono text-[var(--color-brand)] bg-[var(--color-brand-soft)] border border-[var(--color-brand-border)] rounded px-1.5 py-0.5">
-                    {c.from} → {c.to}
-                  </span>
-                </li>
+            <SectionLabel>What you played</SectionLabel>
+            <ol className="flex flex-col gap-1 m-0 p-0 list-none">
+              {played.map((item, i) => (
+                <PlayedRow
+                  key={item.id}
+                  item={item}
+                  // Breaks are not numbered — they aren't songs, and numbering
+                  // them makes a 9-song set read as 11.
+                  number={played.slice(0, i + 1).filter(p => p.kind !== 'break').length}
+                />
               ))}
-            </ul>
+            </ol>
           </section>
         )}
 
@@ -263,6 +275,57 @@ export default function ReaderFinale({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * One line of the set as it was read. A record, not navigation — by decision.
+ * Nothing here is tappable: one mis-tap after a service should not put you back
+ * on stage, and the list's job is to say what happened.
+ */
+function PlayedRow({ item, number }) {
+  if (item.kind === 'break') {
+    return (
+      <li className="flex items-center gap-3 px-3 py-1.5">
+        <span className="w-5 shrink-0" aria-hidden="true" />
+        <span className="text-label-12 uppercase tracking-[0.12em] text-[var(--ds-gray-500)] truncate">
+          {item.title}
+        </span>
+        <span className="flex-1 border-t border-dashed border-[var(--ds-gray-300)]" aria-hidden="true" />
+      </li>
+    );
+  }
+
+  const missing = item.kind === 'missing';
+  return (
+    <li className="flex items-center gap-3 px-3 py-2 rounded-lg border border-[var(--ds-gray-300)] bg-[var(--ds-background-200)]">
+      <span className="w-5 shrink-0 text-label-11 font-mono tabular-nums text-[var(--ds-gray-500)]">
+        {number}
+      </span>
+      <span
+        className={`flex-1 min-w-0 truncate text-copy-14 ${missing ? 'italic text-[var(--ds-gray-500)]' : 'text-[var(--ds-gray-1000)]'}`}
+      >
+        {item.title}
+      </span>
+
+      {/* A moved key is marked ON the song, so "what changed" lives where the
+          song is rather than in a separate block that is empty most nights. */}
+      {item.fromKey && (
+        <span className="shrink-0 text-label-11 font-mono text-[var(--ds-gray-500)] line-through">
+          {item.fromKey}
+        </span>
+      )}
+      {item.key && (
+        <span
+          className="shrink-0 text-label-11 font-mono font-bold rounded px-1.5 py-0.5"
+          style={item.fromKey
+            ? { background: 'var(--color-brand-soft)', color: 'var(--color-brand)', border: '1px solid var(--color-brand-border)' }
+            : { color: 'var(--chord)' }}
+        >
+          {item.key}
+        </span>
+      )}
+    </li>
   );
 }
 

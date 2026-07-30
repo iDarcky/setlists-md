@@ -154,13 +154,17 @@ describe('element 13 — the session handed to the finale', () => {
     expect(startTime).toBeLessThanOrEqual(Date.now());
   });
 
-  it('reports no changes when nothing was transposed', () => {
+  it('hands over the whole set in order, breaks included', () => {
     const onFinish = vi.fn();
     finishAtEnd(onFinish);
-    expect(onFinish.mock.calls[0][0].changes).toEqual([]);
+    expect(onFinish.mock.calls[0][0].played).toEqual([
+      { id: 'i0', kind: 'song', title: 'Amazing Grace', key: 'G', fromKey: null },
+      { id: 'i1', kind: 'break', title: 'Offering' },
+      { id: 'i2', kind: 'song', title: 'Goodness of God', key: 'A', fromKey: null },
+    ]);
   });
 
-  it('reports the keys actually moved, from and to', () => {
+  it('reports the key a song was READ in, and the one it was written in', () => {
     const onFinish = vi.fn();
     render(<SetlistReader setlist={setlist} songs={songs} settings={{}} onBack={() => {}} onFinish={onFinish} />);
 
@@ -172,14 +176,15 @@ describe('element 13 — the session handed to the finale', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
     fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
 
-    expect(onFinish.mock.calls[0][0].changes).toEqual([
-      { songId: 's1', title: 'Amazing Grace', from: 'G', to: 'B' },
-    ]);
+    const { played } = onFinish.mock.calls[0][0];
+    expect(played[0]).toEqual({ id: 'i0', kind: 'song', title: 'Amazing Grace', key: 'B', fromKey: 'G' });
+    // An untouched song carries no fromKey, so nothing is marked as changed.
+    expect(played[2].fromKey).toBeNull();
   });
 
-  it('lists a song once even when the set plays it twice', () => {
-    // `keys` is keyed by song id, so a repeated song holds ONE key — listing it
-    // per slot would duplicate the row and its React key with it.
+  it('marks a song the set plays twice in both slots', () => {
+    // `keys` is per SONG, so a repeat is read in the same key — both rows must
+    // say so. (The old shape deduped, because it was a list of diffs.)
     const twice = { id: 'sl2', items: [{ songId: 's1' }, { songId: 's1' }] };
     const onFinish = vi.fn();
     render(<SetlistReader setlist={twice} songs={songs} settings={{}} onBack={() => {}} onFinish={onFinish} />);
@@ -189,6 +194,8 @@ describe('element 13 — the session handed to the finale', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
     fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
 
-    expect(onFinish.mock.calls[0][0].changes).toHaveLength(1);
+    const { played } = onFinish.mock.calls[0][0];
+    expect(played.map(p => p.id)).toEqual(['i0', 'i1']);   // distinct react keys
+    expect(played.every(p => p.key === 'B' && p.fromKey === 'G')).toBe(true);
   });
 });

@@ -49,9 +49,9 @@ the reader.
 | 10 | Song-to-song | done — 4 nav styles, sticky footer, rail incl. phones, breaks |
 | 11 | Chord diagrams | done — tap a chord, Pro-gated, no strip |
 | 12 | Practice tools | done — metronome + slow-down, one row above the footer |
-| 13 | Finale | done — ONE finale, Time only, leaders-only reflection |
+| 13 | Finale | done — ONE finale, the set as its body, leaders-only reflection |
 
-759 tests, 0 lint errors. `npm run dev` · `npx vitest run` · `npm run build`.
+764 tests, 0 lint errors. `npm run dev` · `npx vitest run` · `npm run build`.
 
 **Nothing has been deleted.** With the flag off, `SetlistPlayer`,
 `PerformanceView` and `PracticeView` render exactly as they did, and
@@ -81,9 +81,12 @@ not as backlog.
 ### 2. Element 13 — the finale — DONE
 
 One `ReaderFinale` replaces `LiveFinale` + `PracticeFinale` (~500 lines, ~80%
-identical). **Time is the only stat** — songs-reached, breaks, key-change and cue
-counts were all cut. "What changed" lists key changes only, derived from the
-reader's own transpose state. The reflection is now **leaders-only, RLS-enforced**
+identical). **The set you played is the body of the screen** — the running order
+with the key each song was actually read in, a moved key marked on its own row.
+**Time is the only stat**, and it sits on a meta line rather than in a lone tile;
+songs-reached, breaks, key-change and cue counts were all cut. (The first cut of
+this shipped too sparse — one floating stat card above an empty column — and was
+reworked in beta.23; the reasoning is in READER.md §13.) The reflection is now **leaders-only, RLS-enforced**
 (`team_setlist_notes` + `useLeaderNote`), because the old `serviceNote` field
 synced to every member's device. Reasoning in `docs/READER.md` §13.
 

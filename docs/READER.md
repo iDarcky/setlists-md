@@ -292,15 +292,28 @@ reader passed `{ songCount }` and nothing else — so Time read **0s**, Songs re
 **1/N** however far you got, and the key/cue counts and "what changed" list were
 permanently empty. That was a live bug behind the flag, not a missing feature.
 
-- **Time is the only stat.** Songs-reached, breaks-crossed, key-change and
-  cue counts were all cut: each is tracking code maintained across a whole
-  session for a number nobody acts on. No start time → **no tile at all**, rather
-  than a finale claiming the service took 0s.
-- **"What changed" lists key changes only**, derived from the transpose state the
-  reader already holds — no writes, and no editing added to a read-only surface.
-  Cues and setlist notes genuinely have nothing to report until the reader can
-  edit; listing them would be listing nothing. Deduped by song, because a set
-  that plays a song twice holds one key for it.
+- **"What you played" is the body** — the running order, numbered, each song with
+  the key it was actually *read* in. The reader resolves it and hands it over
+  whole (`session.played`), so the finale never re-resolves items against `songs`.
+  It is a **record, not navigation**: no row is tappable, because one mis-tap
+  after a service should not put you back on stage.
+- **A moved key is marked ON its row** (`G̶ → A`), not in a separate block. The
+  first cut had a "What changed" section that was hidden on any night nobody
+  transposed — which is most nights.
+- **Breaks are listed but not numbered.** Numbering them makes a 9-song set read
+  as 11.
+- **Time is the only stat, and it is a line, not a tile.** Songs-reached,
+  breaks-crossed, key-change and cue counts were all cut: each is tracking code
+  maintained across a whole session for a number nobody acts on. It sits on a
+  meta line with the date and location when the setlist has them.
+
+> **A lone stat tile reads as three tiles that failed to load.** The first cut of
+> this screen put Time in a single `w-fit` card in a `max-w-2xl` column with both
+> other sections conditionally hidden — so the common case (practice, no team, no
+> transposes) was a headline, one small floating card, a textarea and three
+> buttons. The owner called it empty and was right. The fix was not re-adding the
+> cut stats: it was that **a wrap-up screen which never says what you played was
+> the actual gap**, and the running order costs no tracking at all.
 - **"You served with" is live-only** and reads `team_schedules` — the schedule,
   not the session, so it needs no tracking. Unavailable members are left out.
 - **The reflection is leaders-only, enforced by RLS**, in its own

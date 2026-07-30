@@ -94,23 +94,31 @@ export default function SetlistReader({
   // Derived from the transpose state the reader already holds — no writes, and no
   // editing added to a read-only surface. It is key changes ONLY; the reader
   // cannot touch cues or notes, so listing them would be listing nothing.
+  // Element 13. The set as it was actually read, handed to the finale whole:
+  // running order, and the key each song was read in rather than the key it is
+  // written in. Resolved HERE because the reader has already done the work —
+  // making the finale re-resolve items against `songs` would duplicate the
+  // song-matching and arrangement logic on a screen that only wants to list it.
+  //
+  // A moved key travels on its own row (`fromKey`), so "what changed" is marked
+  // where the song is instead of in a separate block that is usually empty.
   const finish = () => {
-    // Deduped by song: `keys` is keyed by song id, so a song appearing twice in
-    // the set holds ONE key and would otherwise be listed twice — with a
-    // duplicate React key to go with it.
-    const seen = new Set();
-    const changes = items.reduce((out, it) => {
-      if (it.isBreak || it.isMissing || !it.song) return out;
-      if (seen.has(it.song.id)) return out;
-      const from = it.key || it.song.key;
-      const to = keys[it.song.id];
-      if (to && from && to !== from) {
-        seen.add(it.song.id);
-        out.push({ songId: it.song.id, title: it.song.title, from, to });
+    const played = items.map((it, i) => {
+      if (it.isBreak) return { id: `i${i}`, kind: 'break', title: it.label || 'Break' };
+      if (it.isMissing || !it.song) {
+        return { id: `i${i}`, kind: 'missing', title: it.songTitle || 'Missing song' };
       }
-      return out;
-    }, []);
-    onFinish?.({ startTime, changes });
+      const from = it.key || it.song.key;
+      const to = keys[it.song.id] || from;
+      return {
+        id: `i${i}`,
+        kind: 'song',
+        title: it.song.title,
+        key: to || null,
+        fromKey: to && from && to !== from ? from : null,
+      };
+    });
+    onFinish?.({ startTime, played });
   };
   const openRail = () => setRailOpen(o => !o);
 

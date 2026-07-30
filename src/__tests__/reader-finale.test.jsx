@@ -59,18 +59,30 @@ describe('element 13 — one screen, two flavours', () => {
   });
 });
 
-describe('element 13 — the one stat', () => {
-  it('shows the time the session ran', () => {
+describe('element 13 — the meta line', () => {
+  it('puts the elapsed time on a line, not in a lone tile', () => {
+    // A single stat card floating in the column read as three tiles that had
+    // failed to load, which is what made the first cut of this screen look empty.
     renderFinale({ session: { startTime: Date.now() - 125_000 } });
-    expect(screen.getByText('Time')).toBeTruthy();
     expect(screen.getByText('2m 05s')).toBeTruthy();
+    expect(screen.queryByText('Time')).toBeNull();
   });
 
-  it('shows no tile at all when there is no start time, rather than 0s', () => {
-    // A finale reached without a session (a stale route) must not claim the
-    // service took no time.
+  it('adds date and location only when the setlist has them', () => {
+    render(
+      <ReaderFinale
+        setlist={{ ...setlist, date: '2026-07-26', location: 'Main Hall' }}
+        mode="live"
+        session={{ startTime: Date.now() }}
+      />,
+    );
+    expect(screen.getByText('Sunday, Jul 26')).toBeTruthy();
+    expect(screen.getByText('Main Hall')).toBeTruthy();
+  });
+
+  it('shows no time at all without a session, rather than claiming 0s', () => {
     renderFinale({ session: null });
-    expect(screen.queryByText('Time')).toBeNull();
+    expect(screen.queryByText('0s')).toBeNull();
   });
 
   it('carries none of the stats that were cut', () => {
@@ -82,22 +94,48 @@ describe('element 13 — the one stat', () => {
   });
 });
 
-describe('element 13 — what changed', () => {
-  it('names the keys that moved, arrival key and all', () => {
-    renderFinale({
-      session: {
-        startTime: Date.now(),
-        changes: [{ songId: 's1', title: 'Amazing Grace', from: 'G', to: 'A' }],
-      },
-    });
-    expect(screen.getByText('What changed')).toBeTruthy();
+describe('element 13 — what you played', () => {
+  const played = [
+    { id: 'i0', kind: 'song', title: 'Amazing Grace', key: 'A', fromKey: 'G' },
+    { id: 'i1', kind: 'break', title: 'Offering' },
+    { id: 'i2', kind: 'song', title: 'Goodness of God', key: 'A', fromKey: null },
+  ];
+
+  it('is the body of the screen — the set, in order', () => {
+    renderFinale({ session: { startTime: Date.now(), played } });
+    expect(screen.getByText('What you played')).toBeTruthy();
     expect(screen.getByText('Amazing Grace')).toBeTruthy();
-    expect(screen.getByText('G → A')).toBeTruthy();
+    expect(screen.getByText('Goodness of God')).toBeTruthy();
+    expect(screen.getByText('Offering')).toBeTruthy();
   });
 
-  it('says nothing when nothing moved — no empty heading', () => {
-    renderFinale({ session: { startTime: Date.now(), changes: [] } });
-    expect(screen.queryByText('What changed')).toBeNull();
+  it('marks a moved key ON the song, struck-through from → to', () => {
+    renderFinale({ session: { startTime: Date.now(), played } });
+    expect(screen.getByText('G')).toBeTruthy();          // the written key
+    expect(screen.getAllByText('A').length).toBe(2);     // both songs read in A
+  });
+
+  it('numbers songs and NOT breaks — a 2-song set must not read as 3', () => {
+    renderFinale({ session: { startTime: Date.now(), played } });
+    const numbers = screen.getAllByText(/^[0-9]+$/).map(n => n.textContent);
+    expect(numbers).toEqual(['1', '2']);
+  });
+
+  it('says a missing song is missing rather than dropping it silently', () => {
+    renderFinale({
+      session: { startTime: Date.now(), played: [{ id: 'i0', kind: 'missing', title: 'Deleted Song' }] },
+    });
+    expect(screen.getByText('Deleted Song')).toBeTruthy();
+  });
+
+  it('is a record, not navigation — no row is a button', () => {
+    renderFinale({ session: { startTime: Date.now(), played } });
+    expect(screen.queryByRole('button', { name: /Amazing Grace/ })).toBeNull();
+  });
+
+  it('shows no heading when there is no set to show', () => {
+    renderFinale({ session: { startTime: Date.now(), played: [] } });
+    expect(screen.queryByText('What you played')).toBeNull();
   });
 });
 
