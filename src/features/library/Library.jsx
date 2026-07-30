@@ -178,8 +178,8 @@ function ActiveFacetChips({ facetSel, selectedTags, onRemoveFacet, onRemoveTag, 
   );
 }
 
-const INITIAL_VISIBLE = 100;
-const VISIBLE_PAGE_SIZE = 100;
+const INITIAL_VISIBLE = 50;
+const VISIBLE_PAGE_SIZE = 50;
 
 const TableViewIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -466,22 +466,33 @@ export default function Library({
     setSelected([]);
   }
 
-  const truncated = useMemo(
-    () => filtered.length > visibleCount ? filtered.slice(0, visibleCount) : filtered,
-    [filtered, visibleCount]
+  // SORT FIRST, then truncate. This order is the whole bug that made the library
+  // "hide some A songs": the slice used to run on `filtered`, which is in raw
+  // storage order, and only the surviving 50 were sorted afterwards. So a song
+  // starting with "A" sitting at position 120 in storage was cut before the sort
+  // ever saw it, and the list showed an alphabetical page with holes in it —
+  // which reads as missing data, not as pagination. Scrolling to the bottom
+  // "fixed" it because that raised the cap past the song.
+  const ordered = useMemo(
+    () => flatSort(filtered, sortMode, sortAsc, usage),
+    [filtered, sortMode, sortAsc, usage]
   );
-  const hasMore = filtered.length > truncated.length;
 
-  // Card gallery grouping follows the active sort mode.
+  const truncated = useMemo(
+    () => ordered.length > visibleCount ? ordered.slice(0, visibleCount) : ordered,
+    [ordered, visibleCount]
+  );
+  const hasMore = ordered.length > truncated.length;
+
+  // Card gallery grouping follows the active sort mode. Fed the ALREADY-sorted
+  // page, so rows keep their order inside each group (the sort is stable).
   const { groups, sortedKeys } = useMemo(
     () => groupAndSort(truncated, sortMode, sortAsc),
     [truncated, sortMode, sortAsc]
   );
 
-  const flatRows = useMemo(
-    () => flatSort(truncated, sortMode, sortAsc, usage),
-    [truncated, sortMode, sortAsc, usage]
-  );
+  // Already sorted by `ordered` — re-sorting the page would be a no-op.
+  const flatRows = truncated;
 
   useEffect(() => {
     if (!hasMore) return;
@@ -820,7 +831,7 @@ export default function Library({
             </table>
             {hasMore && (
               <div ref={sentinelRef} className="py-5 text-center text-copy-12 text-[var(--modes-text-dim)]">
-                Loading more… ({truncated.length} of {filtered.length})
+                Loading more… ({truncated.length} of {ordered.length})
               </div>
             )}
           </div>
@@ -849,7 +860,7 @@ export default function Library({
             ))}
             {hasMore && (
               <div ref={sentinelRef} className="py-5 text-center text-copy-12 text-[var(--modes-text-dim)]">
-                Loading more… ({truncated.length} of {filtered.length})
+                Loading more… ({truncated.length} of {ordered.length})
               </div>
             )}
           </div>
@@ -878,7 +889,7 @@ export default function Library({
             ))}
             {hasMore && (
               <div ref={sentinelRef} className="py-6 text-center text-copy-12 text-[var(--modes-text-dim)]">
-                Loading more… ({truncated.length} of {filtered.length})
+                Loading more… ({truncated.length} of {ordered.length})
               </div>
             )}
           </div>

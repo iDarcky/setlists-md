@@ -169,7 +169,7 @@ export default function SetlistIdentityCard({
         {endTime ? (
           <Field
             label="End"
-            action={<button type="button" onClick={() => onEndTimeChange?.('')} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Clear end time">clear</button>}
+            action={<button type="button" onClick={() => onEndTimeChange?.('')} className="text-label-11 text-[var(--ds-red-700)] hover:text-[var(--ds-red-800)] cursor-pointer" aria-label="Remove end time">remove</button>}
           >
             <TimePicker value={endTime} onChange={onEndTimeChange} clockFormat={clockFormat} hideIcon className="w-full" />
           </Field>
@@ -189,7 +189,7 @@ export default function SetlistIdentityCard({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-start">
           <Field
             label="Rehearsal"
-            action={<button type="button" onClick={() => onRehearsalDateChange('')} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer" aria-label="Remove rehearsal">remove</button>}
+            action={<button type="button" onClick={() => onRehearsalDateChange('')} className="text-label-11 text-[var(--ds-red-700)] hover:text-[var(--ds-red-800)] cursor-pointer" aria-label="Remove rehearsal">remove</button>}
           >
             <DatePicker value={rehearsalDate} onChange={onRehearsalDateChange} firstDayOfWeek={firstDayOfWeek} hideIcon className="w-full" />
           </Field>

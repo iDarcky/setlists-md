@@ -334,6 +334,14 @@ export default function Reader({
               ...(config.columns === 2
                 ? { columnCount: 2, columnGap: '1.75rem', columnRule: '1px solid var(--chart-rule, var(--ds-gray-300))' }
                 : null),
+              // Trailing space so the LAST section can still scroll up far
+              // enough to pin. Without it the song stops moving as soon as its
+              // bottom meets the viewport, so the final section's heading never
+              // reaches the sticky position and the ribbon never catches up to
+              // it. Only where headings actually pin — `config.sticky` is
+              // phone-only by element 3's decision, and on a desktop this would
+              // just be a screen of blank paper.
+              ...(config.sticky ? { paddingBottom: '60vh' } : null),
             }}
           >
           {ordered.map((section, idx) => (
