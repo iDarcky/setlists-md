@@ -71,11 +71,20 @@ export function repeatFirstIndex(ordered, offsets) {
 // Sections that carry the weight of a song. The old chart gave every section
 // identical visual weight, which is why a page of verses and choruses read as
 // one undifferentiated block — there was no shape to find your place in.
-const HEAVY = new Set(['Chorus', 'Refrain', 'Bridge']);
+// LOWERCASE, because `normalizeSectionName` lowercases. This set was
+// capitalised, so `HEAVY.has('chorus')` was always false and `sectionWeight`
+// never once returned 'hi' — meaning element 3's "a chorus is clearly heavier
+// than a verse" (extra air above it) silently did nothing from the day it
+// shipped, and so did the chorus indent built on top of it.
+const HEAVY = new Set(['chorus', 'refrain', 'bridge']);
 
 /** 'hi' for the sections a song leans on, 'base' for the rest. */
 export function sectionWeight(type) {
-  return HEAVY.has(normalizeSectionName(type)) ? 'hi' : 'base';
+  // Real charts number their sections — "Chorus 1", "Bridge 2". Strip a
+  // trailing index so the second chorus is as heavy as the first; matching the
+  // bare word only would have left "Bridge 1" reading as a verse.
+  const base = normalizeSectionName(type).replace(/\s*\d+$/, '');
+  return HEAVY.has(base) ? 'hi' : 'base';
 }
 
 /** All three in one pass — what the reader actually wants. */

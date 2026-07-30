@@ -44,6 +44,25 @@ const CHART_THEME_STYLE = {
   fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
 };
 
+// Embedded (the Song Hub's chart tab) and in the preview pane, the chart wears
+// the APP theme instead — `docs/READER.md`: "a white chart card sitting inside a
+// dark app reads as broken rather than as a stage." The chart theme is for a
+// surface that OWNS the screen.
+//
+// It re-points the `--chart-*` tokens rather than just setting a background,
+// because everything inside (chords, rules, subtle text) reads them; changing
+// only the background would leave stage-coloured ink on an app-coloured card.
+// Every value names a DIFFERENT property — a custom property that appears in
+// its own fallback is a cycle, invalid for the whole subtree.
+const APP_THEME_STYLE = {
+  background: 'var(--ds-background-100)',
+  color: 'var(--ds-gray-1000)',
+  '--chart-bg': 'var(--ds-background-100)',
+  '--chart-text': 'var(--ds-gray-1000)',
+  '--chart-subtle': 'var(--ds-gray-700)',
+  '--chart-rule': 'var(--ds-gray-300)',
+};
+
 export default function ChartView({
   song: songInput, onBack, onEdit, isPreview,
   defaultFontSize = 16,
@@ -157,6 +176,11 @@ export default function ChartView({
   const displayMode = displayModeProp ?? internalDisplayMode;
   const setDisplayMode = onDisplayMode || setInternalDisplayMode;
   const viewChords = displayMode === 'chords' || displayMode === 'chordsonly';
+  // When the HOST controls displayMode — the Song Hub's Chart/Lyrics tabs — its
+  // choice wins over the global `showChords` setting. That setting can be off
+  // from any other surface, and it was silently turning the Chart tab into a
+  // second Lyrics tab: two tabs, identical output, no way to tell why.
+  const chordsAllowed = displayModeProp != null ? true : showChords;
   const viewLyrics = displayMode === 'chords' || displayMode === 'lyrics';
   const viewTabs = displayMode === 'chords' || displayMode === 'tabs';
 
@@ -435,7 +459,7 @@ export default function ChartView({
     <div
       ref={scrollContainerRef}
       onClick={isPreview ? undefined : revealHeader}
-      style={CHART_THEME_STYLE}
+      style={embedded || isPreview ? APP_THEME_STYLE : CHART_THEME_STYLE}
       className={cn(
         // h-full (not 100dvh) so the chart fills its parent slot and owns the
         // *only* scrollbar — `<main>` already scrolls, and 100dvh overflowed it
@@ -845,7 +869,7 @@ export default function ChartView({
                   const el = document.getElementById(`section-${repeatFirstIndex[idx]}`);
                   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
-                showChords={showChords && viewChords}
+                showChords={chordsAllowed && viewChords}
                 showLyrics={viewLyrics}
                 showTabs={viewTabs}
                 tabInstrument={tabInstrument}

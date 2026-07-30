@@ -297,7 +297,7 @@ export default function AaMenu({
 
               <Label>Repeated sections</Label>
               <div className="flex gap-1.5 flex-wrap">
-                {[['full', 'In full'], ['ref', 'As before'], ['condensed', 'Condensed']].map(o => (
+                {[['full', 'Full'], ['condensed', 'Condensed']].map(o => (
                   <Pick key={o[0]} active={(settings?.duplicateSections || 'ref') === o[0]}
                     onClick={() => onUpdateSettings?.('duplicateSections', o[0])}>{o[1]}</Pick>
                 ))}

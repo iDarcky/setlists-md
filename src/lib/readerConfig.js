@@ -19,7 +19,10 @@ export const READER_KNOBS = {
   heading: ['name', 'code', 'caps'],       // 3
   sectionStyle: ['bar', 'plain', 'block', 'card'],   // 3
   sticky: ['on', 'off'],                   // 3
-  repeats: ['full', 'ref', 'condensed'],   // 3
+  // 'ref' was a third repeat style that read as 'Chorus — as before'. It
+  // and 'condensed' had collapsed onto the same pill, so it was two names
+  // for one thing. A stored 'ref' now falls back to the default via pick().
+  repeats: ['full', 'condensed'],          // 3
   notes: ['on', 'off'],                    // 4 + 5
   footer: ['count', 'next'],               // 10
   nav: ['footer', 'pill', 'edge', 'swipe'],// 10
@@ -30,7 +33,7 @@ const DEFAULTS = {
   heading: 'name',
   sectionStyle: 'bar',
   sticky: 'on',
-  repeats: 'ref',
+  repeats: 'condensed',
   notes: 'on',
   footer: 'next',
   nav: 'footer',

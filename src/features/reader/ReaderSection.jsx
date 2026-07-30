@@ -29,7 +29,8 @@ export default function ReaderSection({
   // short enough that it can never push the song off the screen.
   const CUE_MAX = 240;
   const cue = rawCue.length > CUE_MAX ? `${rawCue.slice(0, CUE_MAX).trimEnd()}…` : rawCue;
-  const asReference = repeatOf >= 0 && config.repeats === 'ref';
+  // One repeat treatment, one name. 'ref' and 'condensed' had converged on
+  // the same pill, so 'ref' is gone from the knob entirely.
   const condensed = repeatOf >= 0 && config.repeats === 'condensed';
 
   const frame = {
@@ -90,7 +91,7 @@ export default function ReaderSection({
   // standing in for. The pill says "this again" without taking a section's worth
   // of space to say it. Still tappable — element 3's decision is that a repeat
   // jumps you to the first one.
-  if (asReference || condensed) {
+  if (condensed) {
     return (
       <div id={`section-${index}`} data-section-index={index} style={outer}>
         <button

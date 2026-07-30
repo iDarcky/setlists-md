@@ -1111,10 +1111,9 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
                 legibility costs nothing. */}
             <span
               className="absolute leading-none text-[22px] sm:text-[20px] font-medium opacity-100 sm:opacity-65 sm:group-hover/ins:opacity-100 transition-opacity"
-              // Lifted a few px so it reads as belonging to the line ABOVE — the
-              // one it inserts after. Centred on the strip it looked like a
-              // marker for the NEXT lyric, which is the opposite of what it does.
-              style={{ right: 'calc(100% + 4px)', transform: 'translateY(-3px)' }}
+              // On the hairline the strip reveals — the mark and the line are one
+              // affordance, so they sit on one axis.
+              style={{ right: 'calc(100% + 4px)' }}
             >
               +
             </span>
