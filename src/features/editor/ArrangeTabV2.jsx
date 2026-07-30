@@ -1081,7 +1081,11 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
 
   // A subtle "+" between lines that opens the add menu, inserting at `idx`.
   const renderInsertPoint = (secIdx, idx) => (
-    <div key={`ins-${idx}`} className="group/ins relative h-1.5 flex items-center">
+    // The strip needs enough height of its OWN to hold its label. At `h-1.5`
+    // (6px) a 13–15px "+ Add" is centred on a 6px line, so ~5px of it lands on
+    // whatever is above — and what is directly above a lyric line is its chord
+    // row. Bleeding the hit area is fine; bleeding the ink is not.
+    <div key={`ins-${idx}`} className="group/ins relative h-3 flex items-center">
       {/* A big target wearing a small mark. The whole strip is clickable, but
           all that shows at rest is a faint hairline with a "+" at the left —
           a row of circular buttons down the card was louder than the lyrics. */}
@@ -1093,7 +1097,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
             type="button"
             aria-label="Add a line, chord, key change or tab here"
             title="Add a line, chord, key change or tab here"
-            className="absolute inset-x-0 -top-1.5 -bottom-1.5 z-[1] flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-[var(--ds-gray-600)] sm:text-[var(--ds-gray-500)] hover:text-[var(--color-brand)] text-left"
+            className="absolute inset-x-0 -top-1 -bottom-1 z-[1] flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-[var(--ds-gray-600)] sm:text-[var(--ds-gray-500)] hover:text-[var(--color-brand)] text-left"
           >
             {/* Touch has no hover: the mark stays legible there and only fades
                 back on devices that can actually reveal it. */}

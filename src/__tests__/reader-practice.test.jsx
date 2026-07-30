@@ -87,6 +87,8 @@ const renderReader = (props = {}) =>
   render(<Reader song={makeSong()} settings={{}} onExit={() => {}} {...props} />);
 
 const openTools = () => fireEvent.click(screen.getByRole('button', { name: 'Practice tools' }));
+// Starting is the ROW's job, not the icon's.
+const startClick = () => fireEvent.click(screen.getByRole('button', { name: 'Start the click' }));
 
 // The play button is in the DOM (disabled) from the first frame, so its mere
 // presence is NOT readiness — the rate list only arrives with the player's
@@ -102,10 +104,20 @@ describe('element 12 — getting to the tools', () => {
     expect(screen.queryByLabelText('Click tempo up')).toBeNull();
   });
 
-  it('the icon IS the switch — opening starts the click', () => {
+  it('the icon opens the row and does NOT start the click', () => {
+    // Tapping to see the tempo used to fill a quiet room with a click — the
+    // tool announcing itself before being asked.
     renderReader();
     openTools();
     expect(screen.getByLabelText('Click tempo up')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start the click' })).toBeTruthy();
+    expect(FakeAudioContext.scheduled ?? []).toHaveLength(0);
+  });
+
+  it('starts from the row’s own play button', () => {
+    renderReader();
+    openTools();
+    startClick();
     expect(screen.getByRole('button', { name: 'Stop the click' })).toBeTruthy();
     expect(FakeAudioContext.scheduled.length).toBeGreaterThan(0);
   });
@@ -120,6 +132,7 @@ describe('element 12 — getting to the tools', () => {
   it('silencing the click keeps the row — the track controls must survive it', () => {
     renderReader();
     openTools();
+    startClick();
     fireEvent.click(screen.getByRole('button', { name: 'Stop the click' }));
     expect(screen.getByRole('button', { name: 'Start the click' })).toBeTruthy();
     expect(screen.getByLabelText('Click tempo up')).toBeTruthy();
@@ -130,6 +143,7 @@ describe('element 12 — getting to the tools', () => {
     delete window.AudioContext;
     renderReader();
     openTools();
+    startClick();
     expect(screen.getByRole('button', { name: 'Start the click' })).toBeTruthy();
   });
 });
@@ -215,6 +229,7 @@ describe('element 12 — leaving a song', () => {
   it('stops a click rather than carrying it into the next song', () => {
     const { rerender } = renderReader();
     openTools();
+    startClick();
     expect(screen.getByRole('button', { name: 'Stop the click' })).toBeTruthy();
 
     rerender(
@@ -230,3 +245,4 @@ describe('element 12 — leaving a song', () => {
     expect(screen.getByText('130')).toBeTruthy();
   });
 });
+

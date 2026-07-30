@@ -111,22 +111,15 @@ export default function Reader({
   const [tempoSet, setTempoSet] = useState(null);
   const bpm = tempoSet?.id === songId ? tempoSet.bpm : writtenBpm;
 
-  // Opening starts the click straight away — the icon IS the switch. The row
-  // keeps its own stop/start so silencing the click doesn't take the track
-  // controls with it.
-  //
-  // Read `practiceOpen` rather than using a state updater: starting audio inside
-  // an updater would fire twice under StrictMode's double-invoke and stack two
-  // clicks on top of each other.
+  // The icon OPENS the row and nothing more. It used to start the click too,
+  // which meant a tap to see the tempo filled a quiet room with a click — the
+  // tool announcing itself before being asked. Starting is the row's own play
+  // button. Closing still stops, because a click with no visible control is
+  // worse than no click.
   const togglePractice = useCallback(() => {
-    if (practiceOpen) {
-      metronome.stop();
-      setPracticeOpen(false);
-    } else {
-      metronome.start(bpm, song?.time);
-      setPracticeOpen(true);
-    }
-  }, [practiceOpen, bpm, metronome, song?.time]);
+    if (practiceOpen) metronome.stop();
+    setPracticeOpen(o => !o);
+  }, [practiceOpen, metronome]);
 
   const setTempo = metronome.setTempo; // stable; the metronome object itself is not
   const changeBpm = useCallback((next) => {
@@ -151,10 +144,14 @@ export default function Reader({
   // The active section IS whichever heading is pinned — so the reading line
   // sits at the pin, not a third of the way down. Otherwise the ribbon
   // highlights one section while the pinned heading names another.
+  // Scroll-spy is a READER behaviour. Embedded (the Song Hub's chart tab, the
+  // editor preview, the side peek) the song sits still and complete, so there is
+  // no "where am I" to answer and nothing should be highlighted.
   const activeSection = useActiveSection(
     scrollRef,
     `${song?.id || ''}:${config.columns}:${config.sticky}`,
     config.sticky ? 0.02 : 0.28,
+    !embedded,
   );
 
   useEffect(() => {
@@ -300,7 +297,13 @@ export default function Reader({
           {/* Element 2 lives INSIDE element 1's sticky block: one piece of
               chrome that travels together, rather than two stacked stickies. */}
           {config.ribbon === 'top' && ribbonNode && (
-            <div className="wide-container overflow-hidden pb-1 -mt-0.5" style={{ fontSize: '0.85em' }}>
+            // A hairline between the bar and the ribbon — the Score mockup's
+            // divider, at a fraction of its weight. They are still ONE sticky
+            // block; this only separates them to the eye.
+            <div
+              className="wide-container overflow-hidden pt-1 pb-1 border-t"
+              style={{ fontSize: '0.85em', borderColor: 'var(--chart-rule, var(--ds-gray-300))' }}
+            >
               {ribbonNode}
             </div>
           )}

@@ -272,7 +272,15 @@ export default function ChartView({
 
   const openSheet = (name) => setActiveSheet(name);
   // Scroll-sync: which section is in view (drives the ribbon highlight).
-  const activeSection = useActiveSection(scrollContainerRef, `${song.id}:${displayMode}:${columns}`);
+  // Scroll-spy only where someone is actually reading along. Embedded (the Song
+  // Hub's chart tab) and in the preview pane the song sits still and complete —
+  // there is no "where am I" to answer, so nothing should be highlighted.
+  const activeSection = useActiveSection(
+    scrollContainerRef,
+    `${song.id}:${displayMode}:${columns}`,
+    0.28,
+    !embedded && !isPreview,
+  );
 
   // Track the reading area's width so the adaptive column default (above) can
   // react to the real space available — fullscreen vs. a narrow dock pane vs.
