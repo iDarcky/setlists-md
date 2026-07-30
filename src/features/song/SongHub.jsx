@@ -372,6 +372,9 @@ export default function SongHub({
               <Reader
                 embedded
                 song={song}
+                // Without this the Chart and Lyrics tabs render identically —
+                // the Reader had no idea which tab was active.
+                displayMode={chartDisplayMode}
                 settings={settings}
                 onUpdateSettings={onUpdateSettings}
                 selectedKey={selectedKey}

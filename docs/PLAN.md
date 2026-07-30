@@ -78,6 +78,15 @@ Both are new design rounds and belong after §1.3.
 
 ### 1.2 🔴 Clear these, in this order
 
+> ### ⚠ THE SONG HUB RENDERS `Reader`, NOT `ChartView`
+> `SongHub.jsx` branches on the `unifiedReader` Labs flag: flag ON → `<Reader
+> embedded>`, flag OFF → `<ChartView embedded>`. Two rounds of hub fixes went
+> into `ChartView` and changed nothing the owner could see, because the owner
+> tests with the flag ON. **Before fixing anything "in the Song Hub", check
+> which branch you are in.** The same trap is waiting in the editor preview and
+> the side peek.
+
+
 Ordered by severity × confidence. The first is unverified and could be the most
 serious thing in this document; the last two are blocked on you.
 
@@ -623,6 +632,7 @@ here first. Nothing in this section is scheduled on its own.
 - Transpose tabs ❓ feasibility spike.
 
 ### Song library
+- 🟡 **Download a song** — from the song page and from the library (owner calls it prio 1, 2026-07-30). Export already exists for setlists (.zip); this is the single-song equivalent.
 - 🟡 **The side peek should be shorter than the row it opened from** (2026-07-30) — so you can open it, read it, and click outside to dismiss without moving the mouse. Part of the side-peek decision in §1.1.
 - ⬜ Show the item COUNT on the songs library (2026-07-30, parked by the scope rule).
 - [x] ✅ **Compact removed (2026-07-27).** The third mode is gone from both

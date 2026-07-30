@@ -1111,9 +1111,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
                 legibility costs nothing. */}
             <span
               className="absolute leading-none text-[22px] sm:text-[20px] font-medium opacity-100 sm:opacity-65 sm:group-hover/ins:opacity-100 transition-opacity"
-              // On the hairline the strip reveals — the mark and the line are one
-              // affordance, so they sit on one axis.
-              style={{ right: 'calc(100% + 4px)' }}
+              // Centred EXPLICITLY on the strip. With `top:auto` an absolutely
+              // positioned box falls to its static position, which inside a flex
+              // row is not the centre — so the mark sat below the hairline it is
+              // meant to share an axis with. The hairline is `top-1/2` with a
+              // -50% translate; this is the same arithmetic.
+              style={{ right: 'calc(100% + 4px)', top: '50%', transform: 'translateY(-50%)' }}
             >
               +
             </span>

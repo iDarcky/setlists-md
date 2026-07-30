@@ -15,6 +15,8 @@ import SectionBlock from '@/features/chart/SectionBlock';
 export default function ReaderSection({
   section, index, config, songKey, settings, transpose, modOffset,
   repeatOf = -1, onJumpToFirst, tabColors, stickyTop = 0, onChordTap = null,
+  // Resolved by the Reader: the host's tab choice beats the global setting.
+  showChords,
 }) {
   const id = sectionIdentity(section.type, settings);
   const style = config.sectionStyle;
@@ -164,7 +166,7 @@ export default function ReaderSection({
         // `condensed` is handled by the repeat pill above; never reaches here.
         condensed={false}
         onJumpToFirst={onJumpToFirst}
-        showChords={config.display.showChords}
+        showChords={showChords ?? config.display.showChords}
         showLyrics
         showTabs
         tabInstrument="all"

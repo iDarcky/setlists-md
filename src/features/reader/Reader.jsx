@@ -41,6 +41,11 @@ export default function Reader({
   onUpdateSettings,
   onExit,
   embedded = false,
+  // The Song Hub's Chart / Lyrics tabs. When the host NAMES a mode it wins over
+  // the global `showChords` setting — otherwise a toggle flipped on some other
+  // surface silently turns the Chart tab into a second Lyrics tab, which is
+  // exactly what it was doing.
+  displayMode = null,
   selectedKey,
   onSelectKey,
   footer,
@@ -177,6 +182,9 @@ export default function Reader({
     sc.scrollTo({ top: Math.max(0, top - headH - 8), behavior: 'smooth' });
   }, [headH]);
 
+  // The host's tab choice beats the global setting; standalone, the setting rules.
+  const showChords = displayMode ? displayMode !== 'lyrics' : config.display.showChords;
+
   const transpose = (!selectedKey || !song?.key) ? 0 : semitonesBetween(song.key, selectedKey);
 
   const tabColors = {
@@ -217,7 +225,23 @@ export default function Reader({
       ref={scrollRef}
       onTouchStart={onSwipeLeft || onSwipeRight ? onTouchStart : undefined}
       onTouchEnd={onSwipeLeft || onSwipeRight ? onTouchEnd : undefined}
-      style={embedded ? undefined : {
+      style={embedded ? {
+        // Embedded (the Song Hub's chart tab) the reader wears the APP theme —
+        // `docs/READER.md`: "a white chart card sitting inside a dark app reads
+        // as broken rather than as a stage."
+        //
+        // `undefined` was NOT enough: the `--chart-*` tokens live on :root, so
+        // everything inside kept reading the stage colours and the card stayed
+        // themed. They have to be re-pointed here. Each names a DIFFERENT
+        // property — a custom property inside its own fallback is a cycle, and
+        // a cyclic property is unset for the entire subtree.
+        background: 'var(--ds-background-100)',
+        color: 'var(--ds-gray-1000)',
+        '--chart-bg': 'var(--ds-background-100)',
+        '--chart-text': 'var(--ds-gray-1000)',
+        '--chart-subtle': 'var(--ds-gray-700)',
+        '--chart-rule': 'var(--ds-gray-300)',
+      } : {
         // A performance surface owns the screen, so it wears the CHART theme
         // and re-maps the app's foreground tokens onto it — the way
         // StageHeader does. Without the re-map, anything reading --bg-1 /
@@ -359,6 +383,7 @@ export default function Reader({
               tabColors={tabColors}
               stickyTop={headH}
               onChordTap={canSeeShapes ? onChordTap : null}
+              showChords={showChords}
             />
           ))}
           </div>

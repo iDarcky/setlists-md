@@ -308,3 +308,44 @@ describe('element 11 — tap a chord', () => {
     vi.doUnmock('@/hooks/useEntitlement');
   });
 });
+
+// ── Embedded in the Song Hub ────────────────────────────────────────────────
+// The hub renders READER (not ChartView) whenever the `unifiedReader` Labs flag
+// is on. Two fixes were once made to ChartView for bugs that live here — these
+// pin the behaviour to the component the hub actually mounts.
+describe('embedded in the Song Hub', () => {
+  it('renders chords on the Chart tab even if the global setting is off', () => {
+    // The bug: `showChords:false` from any other surface silently turned the
+    // Chart tab into a second Lyrics tab.
+    render(
+      <Reader song={makeSong()} settings={{ showChords: false }} embedded displayMode="chords" onExit={() => {}} />
+    );
+    expect(screen.getAllByText('G').length).toBeGreaterThan(0);
+  });
+
+  it('renders NO chords on the Lyrics tab', () => {
+    render(
+      <Reader song={makeSong()} settings={{}} embedded displayMode="lyrics" onExit={() => {}} />
+    );
+    expect(screen.queryByText('G7')).toBeNull();
+  });
+
+  it('wears the APP theme, not the stage theme', () => {
+    // `style={undefined}` was not enough: the --chart-* tokens live on :root, so
+    // everything inside kept reading stage colours.
+    const { container } = render(
+      <Reader song={makeSong()} settings={{}} embedded onExit={() => {}} />
+    );
+    const root = container.firstChild;
+    expect(root.style.getPropertyValue('--chart-bg')).toBe('var(--ds-background-100)');
+    expect(root.style.getPropertyValue('--chart-text')).toBe('var(--ds-gray-1000)');
+  });
+
+  it('still wears the stage theme when it owns the screen', () => {
+    // Standalone it must NOT override --chart-*: those come from :root, where
+    // useChartTheme writes the stage palette. Overriding here would kill themes.
+    const { container } = render(<Reader song={makeSong()} settings={{}} onExit={() => {}} />);
+    expect(container.firstChild.style.getPropertyValue('--chart-bg')).toBe('');
+    expect(container.firstChild.style.getPropertyValue('--chart-text')).toBe('');
+  });
+});
