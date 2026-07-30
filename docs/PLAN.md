@@ -47,6 +47,17 @@ enforced boundaries, and the design-system canon (§3.1, all ✅).
 3. **Start Stream A** (§2) — the domain split gates email, which gates OAuth.
    It has a queue, so August is already late.
 
+**🔴 BROKEN, FIX ASAP — Print / Save as PDF.** Reported 2026-07-30. This is a
+**regression on a shipped, advertised feature**, not a backlog item: PDF export
+is the answer to "get the set to someone who won't install anything", and every
+entry point runs through `openPrintWindow()` in `src/pdf/pdfDocument.js`. Not yet
+diagnosed — reproduce first (which entry point, which platform, installed PWA vs
+browser), then fix. Prime suspect: the print document builds an inline
+`<script>`/`<style>` into a same-origin `<iframe srcdoc>`, and `vercel.json`'s
+CSP has been moving — an enforcing `script-src`/`style-src` without a hash or
+nonce would kill exactly this and nothing else. `CLAUDE.md` already flags that
+coupling. **Do this before any further reader work.**
+
 **Two design calls waiting on you** (§7, #8–9) before the design system is fully
 closed: which bottom sheet is the app's, and whether `ScreenHeader` folds into
 `PageHeader`.
@@ -563,6 +574,9 @@ here first. Nothing in this section is scheduled on its own.
 - **Export as ChordPro** (`.cho`).
 
 ### PDF export
+- 🔴 **BROKEN — the print/PDF button does not work (2026-07-30).** Fix before
+  anything else in this area; see §1. Everything below is backlog behind it.
+
 More entry points (library row, SetlistPlayer, PracticeView), NNS in PDF, chord
 diagrams in PDF, per-song setlist subtitle, cover-page customisation, total set
 duration, per-song selection, A4/Letter toggle, hide cover/tabs/notes toggles,
