@@ -255,6 +255,14 @@ export default function AaMenu({
                 ))}
               </div>
 
+              <Label>Under the top bar</Label>
+              <div className="flex gap-1.5 flex-wrap">
+                {[['ribbon', 'Song structure'], ['setlist', 'The set']].map(o => (
+                  <Pick key={o[0]} active={(settings?.readerTopBar || 'ribbon') === o[0]}
+                    onClick={() => onUpdateSettings?.('readerTopBar', o[0])}>{o[1]}</Pick>
+                ))}
+              </div>
+
               <Label>Song to song</Label>
               <div className="flex gap-1.5 flex-wrap">
                 {[['footer', 'Bottom bar'], ['pill', 'Floating pill'], ['edge', 'Edge arrows'], ['swipe', 'Swipe']].map(o => (

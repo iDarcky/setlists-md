@@ -276,6 +276,22 @@ deleting the old surfaces costs nothing but the finale stats (element 13).
 > `Number('')` are both **0**, so a song with a blank tempo clamped to the 40bpm
 > floor instead of falling back to 100. Caught by a test, not by a device.
 
+### 8b — The setlist bar (the second top-bar treatment)
+
+`readerTopBar`: **Song structure** (the ribbon, default) or **The set** — the
+app's original player bar, kept because the owner still likes it: a thin
+progress line across the whole set, then every item as a chip, songs numbered
+with their key, breaks dashed and italic.
+
+- It **replaces** the ribbon, never stacks with it. The ribbon maps where you
+  are in a SONG; this maps where you are in the SET. Two maps competing for one
+  glance is worse than either alone.
+- Only `SetlistReader` can build it — the Reader knows one song — so it arrives
+  through an `underBar` slot.
+- Element 1 said the top bar takes no customization. This is **the one
+  exception**, asked for by name. The bar itself (menu · title · key · exit) is
+  still fixed; only what hangs under it changes.
+
 ### 13 — The finale
 
 **One screen for both kinds** (`ReaderFinale`), in place of `LiveFinale` (246
@@ -327,6 +343,32 @@ permanently empty. That was a live bug behind the flag, not a missing feature.
 > failures came from treating it as a page: first a sparse one, then a long one.
 > One screenful, no page scroll, both ways out always visible. If it ever feels
 > empty again, more content is not the answer.
+
+---
+
+## The hub view — the reader's other face
+
+**The Song Hub is its own thing, and nothing configures it.** Owner, 2026-07-30:
+*"the song hub is a separate entity which only renders the lyrics and the chords,
+that's it… I don't want any changes, like themes and stuff like that, we need to
+disconnect it."*
+
+`resolveReaderConfig(settings, { embedded: true })` **ignores `settings`
+entirely** and returns `HUB_VIEW` — a fixed look defined in `readerConfig.js`.
+No chart theme, no Aa setting, no chart-style override reaches it.
+
+Four surfaces share that one face: the **Song Hub**, the **editor preview**, the
+**side peek**, and (flag on) the editor's read-only display. What you see while
+editing is what the song page shows.
+
+Why it had to be disconnected: two surfaces sharing one settings store is what
+let a toggle flipped in one place silently change the other. The Chart tab
+turning into a second Lyrics tab was exactly that, and it cost several rounds to
+find. **If the hub ever needs to be adjustable, give it its OWN store — do not
+reconnect it to the reader's.**
+
+The Aa menu still exists and still edits the READER's settings, which is what
+you see full-screen. It no longer has any effect on the hub.
 
 ---
 

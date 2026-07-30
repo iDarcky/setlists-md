@@ -9,6 +9,7 @@ import Reader from './Reader';
 import ReaderFooter from './ReaderFooter';
 import BreakScreen from './BreakScreen';
 import SetlistRail from './SetlistRail';
+import ReaderSetlistBar from './ReaderSetlistBar';
 
 /**
  * A setlist read through the reader — element 10, and nothing more.
@@ -67,7 +68,7 @@ export default function SetlistReader({
   const railItems = useMemo(() => items.map(it => {
     if (it.isBreak || it.isMissing || !it.song) return it;
     const shown = keys[it.song.id] || it.key || it.song.key;
-    return { ...it, transpose: semitonesBetween(it.song.key, shown) };
+    return { ...it, shownKey: shown, transpose: semitonesBetween(it.song.key, shown) };
   }), [items, keys]);
 
   if (!total) {
@@ -174,6 +175,12 @@ export default function SetlistReader({
     </>
   );
 
+  // Element 8 — the app's original player bar as a top-bar option. Only the
+  // setlist can build it: the reader knows one song, this maps the whole set.
+  const underBar = cfg.topBar === 'setlist' ? (
+    <ReaderSetlistBar items={railItems} idx={idx} onSelect={go} />
+  ) : null;
+
   const swipe = cfg.nav === 'swipe'
     ? { onSwipeLeft: goNext, onSwipeRight: goPrev }
     : {};
@@ -197,6 +204,7 @@ export default function SetlistReader({
       selectedKey={keys[cur.song.id] || cur.key || cur.song.key}
       onSelectKey={(k) => setKeys(prev => ({ ...prev, [cur.song.id]: k }))}
       footer={footer}
+      underBar={underBar}
       {...swipe}
     />
   );

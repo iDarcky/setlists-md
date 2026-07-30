@@ -75,6 +75,7 @@ export const PORTABLE_PREF_KEYS = [
   'readerNotes',
   'readerFooter',
   'readerNav',
+  'readerTopBar',
 ];
 
 export function extractPortablePrefs(s) {

@@ -6,6 +6,7 @@ import WorkspacePickerDialog from '@/ui/WorkspacePickerDialog';
 import { SearchBar } from '@/ui/SearchBar';
 import { cn } from '@/lib/utils';
 import { searchSongs, normalizeText } from '@/lib/search';
+import Reader from '@/features/reader/Reader';
 import { buildFacetOptions, matchesFacets, countActiveFacets } from '@/lib/songFacets';
 import LibraryFilters from './LibraryFilters';
 import { orderedVisibleColumns } from '@/lib/tableColumns';
@@ -985,6 +986,16 @@ export default function Library({
       >
         {previewSong && (
           <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
+            {chartDefaults?.settings?.unifiedReader ? (
+              // The side peek is the HUB VIEW too — same fixed look, so the
+              // peek, the song page and the editor preview cannot drift apart.
+              <Reader
+                key={previewSong.id}
+                song={previewSong}
+                embedded
+                settings={chartDefaults.settings}
+              />
+            ) : (
             <ChartView
               key={previewSong.id}
               song={previewSong}
@@ -995,6 +1006,7 @@ export default function Library({
               {...(chartMoveCopy ? chartMoveCopy(previewSong.id) : {})}
               {...chartDefaults}
             />
+            )}
           </Suspense>
         )}
       </SidePeek>

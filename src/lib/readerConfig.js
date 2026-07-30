@@ -26,6 +26,10 @@ export const READER_KNOBS = {
   notes: ['on', 'off'],                    // 4 + 5
   footer: ['count', 'next'],               // 10
   nav: ['footer', 'pill', 'edge', 'swipe'],// 10
+  // 8 — what hangs under the top bar. 'ribbon' maps the SONG, 'setlist' maps
+  // the SET (the app's original player bar). Never both: two maps competing for
+  // one glance.
+  topBar: ['ribbon', 'setlist'],
 };
 
 const DEFAULTS = {
@@ -37,6 +41,7 @@ const DEFAULTS = {
   notes: 'on',
   footer: 'next',
   nav: 'footer',
+  topBar: 'ribbon',
 };
 
 // Stored under these settings keys. `structurePosition` and
@@ -51,6 +56,7 @@ const KEY = {
   notes: 'readerNotes',
   footer: 'readerFooter',
   nav: 'readerNav',
+  topBar: 'readerTopBar',
 };
 
 export function readerSettingKey(knob) {
@@ -68,8 +74,46 @@ function pick(knob, value) {
  * @param ctx.embedded  inside the Song Hub — the hub owns the chrome
  * @param ctx.myInstrument  what the reader plays this service, from the band
  */
+// The HUB VIEW's fixed look. Deliberately NOT derived from `settings`.
+//
+// The hub (and the editor preview, the side peek, the editor's read-only
+// display) is its own thing: it shows the lyrics and the chords, full stop. It
+// is not a stage, so no chart theme touches it, and nothing in the Aa menu
+// changes it. Those settings belong to the READER, which is the surface that
+// has views. Two surfaces sharing one settings store is what let a toggle
+// flipped in one place silently change the other — the Chart tab turning into a
+// second Lyrics tab was exactly that, and it cost several rounds to find.
+//
+// If this ever needs to become adjustable, give it its OWN store. Do not
+// reconnect it to the reader's.
+const HUB_VIEW = {
+  ribbon: 'off',        // the hub draws the song map in its own top card
+  heading: 'name',
+  sectionStyle: 'bar',
+  sticky: false,        // nothing pins: the hub is browsed, not performed from
+  repeats: 'full',      // reading a song, you want to see all of it
+  notes: true,
+  footer: 'next',
+  nav: 'footer',
+  columns: 1,
+};
+
 export function resolveReaderConfig(settings, ctx = {}) {
   const { wide = false, embedded = false, myInstrument = null } = ctx;
+
+  // Embedded = the hub view. Fixed, and answerable to nothing but this file.
+  if (embedded) {
+    return {
+      ...HUB_VIEW,
+      // Two columns on a wide screen is a fact about the space, not a taste.
+      columns: wide ? 2 : 1,
+      display: resolveChartDisplay(null),
+      myInstrument,
+      embedded: true,
+      topBar: 'ribbon',
+      notePlacement: wide ? 'leader' : 'above',
+    };
+  }
 
   const cfg = {
     ribbon: pick('ribbon', settings?.[KEY.ribbon]),
@@ -83,6 +127,7 @@ export function resolveReaderConfig(settings, ctx = {}) {
     notes: pick('notes', settings?.[KEY.notes]) === 'on',
     footer: pick('footer', settings?.[KEY.footer]),
     nav: pick('nav', settings?.[KEY.nav]),
+    topBar: pick('topBar', settings?.[KEY.topBar]),
     columns: resolveColumns(settings?.defaultColumns, wide),
     display: resolveChartDisplay(settings),
     // Element 9: tabs for other instruments collapse. A manual override in

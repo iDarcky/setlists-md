@@ -58,6 +58,9 @@ export default function Reader({
   // down, exactly as it did to ChartView.
   aaAnchor: hostAaAnchor,
   onAaClose,
+  // Element 8: what hangs under the top bar in place of the ribbon. The setlist
+  // knows the set; the reader only knows one song, so the host supplies it.
+  underBar = null,
 }) {
   const scrollRef = useRef(null);
   const touchRef = useRef(null);
@@ -320,7 +323,8 @@ export default function Reader({
         >
           {/* Element 2 lives INSIDE element 1's sticky block: one piece of
               chrome that travels together, rather than two stacked stickies. */}
-          {config.ribbon === 'top' && ribbonNode && (
+          {underBar}
+          {!underBar && config.ribbon === 'top' && ribbonNode && (
             // A hairline between the bar and the ribbon — the Score mockup's
             // divider, at a fraction of its weight. They are still ONE sticky
             // block; this only separates them to the eye.
