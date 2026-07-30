@@ -123,7 +123,7 @@ export default function SetlistMetaForm({ name, date, time = '20:00', endTime = 
           <div className="w-32 flex flex-col gap-1">
             <label className="text-label-12 font-semibold text-[var(--ds-gray-600)] px-0.5 flex items-center justify-between">
               End
-              <button type="button" onClick={() => onEndTimeChange?.('')} className="font-normal text-[var(--ds-red-700)] hover:text-[var(--ds-red-800)] cursor-pointer" aria-label="Remove end time">remove</button>
+              <button type="button" onClick={() => onEndTimeChange?.('')} className="font-normal text-[var(--ds-red-600)] hover:text-[var(--ds-red-700)] cursor-pointer" aria-label="Remove end time">remove</button>
             </label>
             <TimePicker
               value={endTime}
@@ -162,7 +162,7 @@ export default function SetlistMetaForm({ name, date, time = '20:00', endTime = 
                 <div className="w-36">
                   <TimePicker value={rehearsalTime || '19:00'} onChange={onRehearsalTimeChange} clockFormat={clockFormat} />
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => onRehearsalDateChange('')} aria-label="Remove rehearsal" className="!text-[var(--ds-red-700)] hover:text-[var(--ds-red-800)]">Remove</Button>
+                <Button size="sm" variant="ghost" onClick={() => onRehearsalDateChange('')} aria-label="Remove rehearsal" className="!text-[var(--ds-red-600)] hover:text-[var(--ds-red-700)]">Remove</Button>
               </div>
               {onRehearsalLocationChange && (
                 <Input
@@ -215,7 +215,7 @@ export default function SetlistMetaForm({ name, date, time = '20:00', endTime = 
                 tabIndex={0}
                 onClick={() => removeTag(idx)}
                 onKeyDown={(e) => e.key === 'Enter' && removeTag(idx)}
-                className="text-[var(--ds-gray-600)] hover:text-[var(--ds-error-600)] cursor-pointer text-[10px] leading-none ml-0.5"
+                className="text-[var(--ds-red-600)] hover:text-[var(--ds-red-700)] cursor-pointer text-[10px] leading-none ml-0.5"
               >
                 ✕
               </span>

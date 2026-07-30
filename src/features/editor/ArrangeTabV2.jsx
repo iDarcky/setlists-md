@@ -1081,13 +1081,14 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
 
   // A subtle "+" between lines that opens the add menu, inserting at `idx`.
   const renderInsertPoint = (secIdx, idx) => (
-    // The strip must be AT LEAST as tall as its own label, or the label lands on
-    // the neighbours — and what sits directly above a lyric line is its chord
-    // row, so the "+ Add" was printing over the chords. A first attempt at h-3
-    // (12px) still wasn't enough for a 15px glyph. The button no longer bleeds
-    // at all (`inset-0`, not `-top/-bottom`), so the ink physically cannot leave
-    // the strip; the strip's own height IS the hit target.
-    <div key={`ins-${idx}`} className="group/ins relative h-5 flex items-center">
+    // The mark lives in the LEFT GUTTER, not over the text column.
+    //
+    // Two height fixes failed before this: any strip short enough not to bloat
+    // the editor is shorter than its own 15px label, so the label bled onto the
+    // neighbours — and directly above a lyric line is its chord row. Height was
+    // never the answer. The gutter is empty by construction, so a mark placed
+    // there cannot collide with a chord however tall it is.
+    <div key={`ins-${idx}`} className="group/ins relative h-2 flex items-center">
       {/* A big target wearing a small mark. The whole strip is clickable, but
           all that shows at rest is a faint hairline with a "+" at the left —
           a row of circular buttons down the card was louder than the lyrics. */}
@@ -1099,12 +1100,18 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
             type="button"
             aria-label="Add a line, chord, key change or tab here"
             title="Add a line, chord, key change or tab here"
-            className="absolute inset-0 z-[1] flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-[var(--ds-gray-600)] sm:text-[var(--ds-gray-500)] hover:text-[var(--color-brand)] text-left"
+            // The hit area still spans the row (easy to tap); only the visible
+            // mark is pushed out into the gutter, where nothing else renders.
+            className="absolute inset-0 z-[1] flex items-center bg-transparent border-none cursor-pointer text-[var(--ds-gray-600)] sm:text-[var(--ds-gray-500)] hover:text-[var(--color-brand)] text-left"
           >
             {/* Touch has no hover: the mark stays legible there and only fades
                 back on devices that can actually reveal it. */}
-            <span className="text-[15px] sm:text-[13px] leading-none opacity-100 sm:opacity-40 sm:group-hover/ins:opacity-100 transition-opacity">+</span>
-            <span className="text-label-11 opacity-0 sm:group-hover/ins:opacity-100 transition-opacity">Add</span>
+            <span
+              className="absolute leading-none text-[15px] sm:text-[13px] opacity-100 sm:opacity-40 sm:group-hover/ins:opacity-100 transition-opacity"
+              style={{ right: 'calc(100% + 6px)' }}
+            >
+              +
+            </span>
           </button>
         }
       >

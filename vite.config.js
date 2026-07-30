@@ -104,7 +104,13 @@ export default defineConfig({
         // diagrams and is offline when they first enable them gets empty boxes
         // until they reconnect (ChordDiagram fails soft). Once shown anywhere,
         // the HTTP cache keeps it for offline use.
-        globIgnores: ['**/pdf-*.js', '**/pdf.worker*', '**/svguitar*'],
+        // SCOPED TO assets/ ON PURPOSE. `**/pdf-*.js` also matched
+        // `/pdf-print.js` — the public script that wires the print preview's
+        // controls (cols, size, font, chords…). It was silently excluded from
+        // the precache, so in the installed PWA those buttons did nothing while
+        // the app-side Done/Print still worked. The lazy pdf.js library chunk
+        // that this ignore is actually for is emitted as `assets/pdf-<hash>.js`.
+        globIgnores: ['**/assets/pdf-*.js', '**/pdf.worker*', '**/svguitar*'],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
         // Web Push handlers (push + notificationclick) live in a plain script

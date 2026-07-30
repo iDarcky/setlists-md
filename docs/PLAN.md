@@ -42,6 +42,11 @@ any of it. Also landed: the component-architecture foundation (§3.1, all ✅).
 > them and then stop for a bit with the changes and look at the plan and go from
 > there."*
 >
+> **Scope rule, agreed 2026-07-30:** new ideas get NOTED here and are not
+> worked on until this block is done, unless they are a P0 blocker. The goal
+> that ends the freeze: **🔴 list clear · reader finished · flag graduated ·
+> the four old surfaces deleted.**
+>
 > That is §1.1 → §1.2 → §1.3 below, in that order. The router, Stream A and the
 > component passes are **explicitly parked** until §1.3 — they were the previous
 > "next three" and they are still right, just not next.
@@ -113,7 +118,21 @@ serious thing in this document; the last two are blocked on you.
    Not an open question: `docs/READER.md` already records the decision — "a white
    chart card sitting inside a dark app reads as broken rather than as a stage" —
    and the code disagrees with it. A bug against a written decision.
-6. 🔴 **Prod-only sync bug** (2026-07-30) — **BLOCKED on you.** Prod-but-not-beta
+6. 🔴 **Prod-only sync loop** (2026-07-30) — **still open, and SPREADING: 2 → 4
+   songs between two runs.** Ruled out so far: the `.md` round-trip (frontmatter
+   keys ARE lowercased at `parser.js:34`, so `originaltitle` reads back fine) and
+   the push not recording `updated_at` (`team-engine.js` stores `data.updated_at`
+   from the push response). The live clue is that the toast says *"Uploaded 4
+   songs"* while Sync Doctor calls the same 4 *"newer on the server"* — we push,
+   then immediately consider the result foreign. Prime suspect now: **array-valued
+   extra-meta fields don't round-trip.** `writers`, `themes`, `genres` are arrays;
+   `parser.js:203` coerces with `String(meta[k])`, so `['A','B']` becomes `"A,B"`
+   and re-serializes differently from what the server holds — permanent drift, and
+   the drift list (`writers`, `language`, `year`, `originaltitle`) is entirely
+   extra-meta. To confirm: open one drifting song and check whether `writers` is
+   an array locally. **Do not delete the songs** — nothing is corrupt, they just
+   never converge. Old §1.2 note below.
+   BLOCKED-on-you remainder: Prod-but-not-beta
    means data or schema, not code, so there is nothing to read in the diff. Run
    Settings → Sync → **Sync Doctor** in the affected Space; it re-runs the
    engine's exact hash arithmetic per song and names the drifting field. Paste
@@ -598,6 +617,7 @@ here first. Nothing in this section is scheduled on its own.
 - Transpose tabs ❓ feasibility spike.
 
 ### Song library
+- ⬜ Show the item COUNT on the songs library (2026-07-30, parked by the scope rule).
 - [x] ✅ **Compact removed (2026-07-27).** The third mode is gone from both
   switchers; a stored `'compact'` resolves to the card list. Songs and Setlists
   now offer Table (desktop) and Cards, nothing else.
@@ -610,6 +630,8 @@ here first. Nothing in this section is scheduled on its own.
 - Drag-to-**reorder** table columns (show/hide shipped).
 
 ### Setlists — overview & viewer
+- ⬜ Show the item COUNT on the setlists library (2026-07-30, parked).
+- 🟡 **Paginate setlists, truncating the PAST.** Deliberately not done in beta.27: setlists already sort before rendering so they have no ordering bug, and a naive cap makes the Upcoming/Past group counts lie. But the owner's question is the right one — a church with 300+ setlists loads and lays out all of them. The shape that works: keep Upcoming whole (small, and the part people act on) and page the Past. (2026-07-30)
 - ⬜ Dots at the foot of the page showing how many items are in the set (June note, undecided).
 - 🟡 **Migrate to the card design** — identity card + content cards + consistent header/⋮.
 - Overview visual redesign + buttons rework (Set order/Band + Play live/Practice inline).

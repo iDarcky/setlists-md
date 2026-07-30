@@ -1356,6 +1356,16 @@ export default function App() {
   };
 
   const handleDeleteSong = (id) => {
+    // A member's library is READ-ONLY, and the sync engine already refuses to
+    // push their writes. Without this guard the write still lands in local
+    // state, looks saved, and is then silently reverted by the next pull —
+    // silent data loss for the person least able to predict it. The buttons are
+    // hidden for members, but these handlers are reachable from several
+    // surfaces, so the refusal belongs here rather than only in the UI.
+    if (isTeamReadOnly) {
+      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      return;
+    }
     const removed = songs.find((s) => s.id === id);
     const nextSongs = songs.filter((s) => s.id !== id);
     setSongs(nextSongs);
@@ -1390,6 +1400,16 @@ export default function App() {
   // ----- Bulk song actions (Library selection toolbar) -----
   const handleDeleteSongs = async (ids) => {
     if (!ids || ids.length === 0) return;
+    // A member's library is READ-ONLY, and the sync engine already refuses to
+    // push their writes. Without this guard the write still lands in local
+    // state, looks saved, and is then silently reverted by the next pull —
+    // silent data loss for the person least able to predict it. The buttons are
+    // hidden for members, but these handlers are reachable from several
+    // surfaces, so the refusal belongs here rather than only in the UI.
+    if (isTeamReadOnly) {
+      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      return;
+    }
     if (settings?.confirmBeforeDelete !== false) {
       const ok = await confirm({
         title: `Delete ${ids.length} song${ids.length === 1 ? '' : 's'}?`,
@@ -1659,6 +1679,16 @@ export default function App() {
   // preserving the song's other arrangements.
   const handleUpdateSong = useCallback((updatedSong) => {
     if (!updatedSong || !updatedSong.id) return;
+    // A member's library is READ-ONLY, and the sync engine already refuses to
+    // push their writes. Without this guard the write still lands in local
+    // state, looks saved, and is then silently reverted by the next pull —
+    // silent data loss for the person least able to predict it. The buttons are
+    // hidden for members, but these handlers are reachable from several
+    // surfaces, so the refusal belongs here rather than only in the UI.
+    if (isTeamReadOnly) {
+      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      return;
+    }
     setSongs(prev => {
       const i = prev.findIndex(s => s.id === updatedSong.id);
       if (i < 0) return prev;
@@ -1692,7 +1722,7 @@ export default function App() {
       arr[i] = { ...next, updatedAt: Date.now() };
       return arr;
     });
-  }, []);
+  }, [isTeamReadOnly]);
 
   // Manual trigger for the Settings → Sync "Setlist links" panel. Same heal the
   // load path runs; useful right after re-importing a missing song.
@@ -1701,6 +1731,16 @@ export default function App() {
   }, [songs]);
 
   const handleUpdateSetlist = useCallback((updatedSetlist) => {
+    // A member's library is READ-ONLY, and the sync engine already refuses to
+    // push their writes. Without this guard the write still lands in local
+    // state, looks saved, and is then silently reverted by the next pull —
+    // silent data loss for the person least able to predict it. The buttons are
+    // hidden for members, but these handlers are reachable from several
+    // surfaces, so the refusal belongs here rather than only in the UI.
+    if (isTeamReadOnly) {
+      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      return;
+    }
     setSetlists(prev => {
       const i = prev.findIndex(s => s.id === updatedSetlist.id);
       if (i < 0) return prev;
@@ -1708,7 +1748,7 @@ export default function App() {
       next[i] = updatedSetlist;
       return next;
     });
-  }, []);
+  }, [isTeamReadOnly]);
 
   const handleDeleteSetlist = (id) => {
     const removed = setlists.find(s => s.id === id);
