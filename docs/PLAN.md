@@ -85,6 +85,11 @@ Both are new design rounds and belong after §1.3.
 > tests with the flag ON. **Before fixing anything "in the Song Hub", check
 > which branch you are in.** The same trap is waiting in the editor preview and
 > the side peek.
+>
+> **And the hub's own CARD is a third place.** `SongHub.jsx` painted the wrapper
+> the tabs sit in with `--chart-bg`/`--chart-text`, so a light chart theme put a
+> cream band across a dark app no matter what the reader inside did. Theme bugs
+> "in the hub" can live in the reader, the chart, OR the card. Check all three.
 
 
 Ordered by severity × confidence. The first is unverified and could be the most

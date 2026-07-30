@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { resolveSongView } from '@/arrangements';
+import { buildSongFlow } from '@/lib/songFlow';
 import { transposeKey, semitonesBetween, keysInQualityOf } from '@/music';
 import ChartView from '@/features/chart/ChartView';
 import Reader from '@/features/reader/Reader';
@@ -79,6 +80,10 @@ export default function SongHub({
 
   const [aaAnchor, setAaAnchor] = useState(null);
   const [displayMode, setDisplayMode] = useState('chords');
+  // Derived HERE rather than reported up by the chart. It used to be filled by
+  // ChartView's `onReportStructure`, which meant that with the `unifiedReader`
+  // flag on — where the hub mounts Reader instead — the song map simply
+  // vanished from the top card. Same source the readers use.
   const [chartStructure, setChartStructure] = useState([]);
   const [fsMode, setFsMode] = useState(null); // null | 'chart' | 'lyrics' → WIP fullscreen viewer
   const closeAa = useCallback(() => setAaAnchor(null), []);
@@ -121,11 +126,20 @@ export default function SongHub({
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  // Above the early return: a hook may not be called conditionally.
+  const songMap = useMemo(
+    () => (song ? buildSongFlow(song).ordered || [] : []).map(sec => sec.type),
+    [song],
+  );
+
   if (!song) return null;
 
   const cleanAddedBy = addedBy && addedBy.trim() && addedBy.trim() !== 'Guest' ? addedBy.trim() : '';
   const byline = [song.artist, cleanAddedBy && `added by ${cleanAddedBy}`].filter(Boolean).join('  ·  ');
-  const showRibbon = chartStructure.length > 0;
+  // Prefer what the chart reports (it knows about repeats/modulations it has
+  // resolved); fall back to the derived flow so the map is never empty.
+  const ribbonStructure = chartStructure.length > 0 ? chartStructure : songMap;
+  const showRibbon = ribbonStructure.length > 0;
   const chartDisplayMode = activeTab === 'lyrics' ? 'lyrics' : displayMode;
   const isReaderTab = activeTab === 'chart' || activeTab === 'lyrics';
   const hasPlayer = !!youtubeId(song.youtube);
@@ -300,7 +314,7 @@ export default function SongHub({
               <span className="hidden sm:inline text-[10px] uppercase tracking-[0.12em] text-[var(--text-2)] shrink-0">Song map</span>
               <div className="min-w-0 flex-1 overflow-x-auto no-scrollbar">
                 <StructureRibbon
-                  structure={chartStructure}
+                  structure={ribbonStructure}
                   compact
                   orientation="horizontal"
                   collapse
@@ -320,11 +334,14 @@ export default function SongHub({
         {/* ════ READER CARD (tabs + chart-only Aa / full screen live here) ════ */}
         <div
           className="flex-1 min-h-0 flex flex-col overflow-hidden border border-[var(--border-1)] rounded-2xl"
+          // APP theme, not the stage theme. This wrapper — the card the TABS
+          // sit in — was painting itself `--chart-bg`, so picking a light chart
+          // theme put a cream band across a dark app. `docs/READER.md` already
+          // says the hub is a browsing surface, not a stage; the reader inside
+          // re-points its own tokens, and this is the other half of that.
           style={{
-            background: 'var(--chart-bg, var(--ds-background-100))',
-            color: 'var(--chart-text, var(--ds-gray-1000))',
-            '--text-1': 'var(--chart-text, var(--ds-gray-1000))',
-            '--text-2': 'var(--chart-subtle, var(--ds-gray-900))',
+            background: 'var(--ds-background-100)',
+            color: 'var(--ds-gray-1000)',
           }}
         >
           {/* Tab header: brand pills (left) + chart-only Aa / full screen (right). */}
