@@ -90,36 +90,12 @@ export default function SetlistReader({
     ? (keys[nxt.song.id] || nxt.key || nxt.song.key || null)
     : null;
 
-  // Element 13's "What changed": the keys actually moved during this session.
-  // Derived from the transpose state the reader already holds — no writes, and no
-  // editing added to a read-only surface. It is key changes ONLY; the reader
-  // cannot touch cues or notes, so listing them would be listing nothing.
-  // Element 13. The set as it was actually read, handed to the finale whole:
-  // running order, and the key each song was read in rather than the key it is
-  // written in. Resolved HERE because the reader has already done the work —
-  // making the finale re-resolve items against `songs` would duplicate the
-  // song-matching and arrangement logic on a screen that only wants to list it.
-  //
-  // A moved key travels on its own row (`fromKey`), so "what changed" is marked
-  // where the song is instead of in a separate block that is usually empty.
-  const finish = () => {
-    const played = items.map((it, i) => {
-      if (it.isBreak) return { id: `i${i}`, kind: 'break', title: it.label || 'Break' };
-      if (it.isMissing || !it.song) {
-        return { id: `i${i}`, kind: 'missing', title: it.songTitle || 'Missing song' };
-      }
-      const from = it.key || it.song.key;
-      const to = keys[it.song.id] || from;
-      return {
-        id: `i${i}`,
-        kind: 'song',
-        title: it.song.title,
-        key: to || null,
-        fromKey: to && from && to !== from ? from : null,
-      };
-    });
-    onFinish?.({ startTime, played });
-  };
+  // Element 13. The finale takes ONE thing: when the session started. An
+  // earlier cut also handed over the whole set (`played`) to list on the finale;
+  // that list turned a full stop into a page you scroll, and was cut. Don't
+  // reintroduce the payload without the screen that needs it.
+  const finish = () => onFinish?.({ startTime });
+
   const openRail = () => setRailOpen(o => !o);
 
   // ONE footer, built once, handed to both surfaces — a break must not draw

@@ -49,7 +49,7 @@ the reader.
 | 10 | Song-to-song | done — 4 nav styles, sticky footer, rail incl. phones, breaks |
 | 11 | Chord diagrams | done — tap a chord, Pro-gated, no strip |
 | 12 | Practice tools | done — metronome + slow-down, one row above the footer |
-| 13 | Finale | done — ONE finale, the set as its body, leaders-only reflection |
+| 13 | Finale | done — ONE finale, one screenful, leaders-only reflection |
 
 764 tests, 0 lint errors. `npm run dev` · `npx vitest run` · `npm run build`.
 
@@ -81,14 +81,17 @@ not as backlog.
 ### 2. Element 13 — the finale — DONE
 
 One `ReaderFinale` replaces `LiveFinale` + `PracticeFinale` (~500 lines, ~80%
-identical). **The set you played is the body of the screen** — the running order
-with the key each song was actually read in, a moved key marked on its own row.
-**Time is the only stat**, and it sits on a meta line rather than in a lone tile;
-songs-reached, breaks, key-change and cue counts were all cut. (The first cut of
-this shipped too sparse — one floating stat card above an empty column — and was
-reworked in beta.23; the reasoning is in READER.md §13.) The reflection is now **leaders-only, RLS-enforced**
-(`team_setlist_notes` + `useLeaderNote`), because the old `serviceNote` field
-synced to every member's device. Reasoning in `docs/READER.md` §13.
+identical). **It is one screenful that never scrolls**, with View setlist + Home
+pinned outside the scroller. **Time is the only stat**, on a meta line.
+
+It took THREE cuts to land — sparse, then too long, then right. Read the boxed
+warning in `READER.md` §13 before touching it: a "What you played" list was built
+and cut ("too much scrolling"), and so was "Run it again". **The finale is a full
+stop, not a page to read.** If it looks empty, more content is not the answer.
+
+The reflection is **leaders-only, RLS-enforced** (`team_setlist_notes` +
+`useLeaderNote`), because the old `serviceNote` field synced to every member's
+device. Reasoning in `docs/READER.md` §13.
 
 **⚠ This element ships a MIGRATION** — `20260729_team_setlist_notes.sql`. It is
 additive and the client degrades to "no reflection section" without it, so the

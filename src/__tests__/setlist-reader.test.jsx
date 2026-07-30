@@ -138,64 +138,29 @@ describe('element 10 — the other nav styles', () => {
 
 // ── Element 13 — what the reader hands the finale ─────────────────────────────
 describe('element 13 — the session handed to the finale', () => {
-  const finishAtEnd = (onFinish) => {
+  it('carries a real start time — the finale used to read 0s', () => {
+    const onFinish = vi.fn();
+    const before = Date.now();
     render(<SetlistReader setlist={setlist} songs={songs} settings={{}} onBack={() => {}} onFinish={onFinish} />);
     fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
     fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
-  };
 
-  it('carries a real start time — the finale used to read 0s', () => {
-    const onFinish = vi.fn();
-    const before = Date.now();
-    finishAtEnd(onFinish);
     const { startTime } = onFinish.mock.calls[0][0];
     expect(startTime).toBeGreaterThanOrEqual(before);
     expect(startTime).toBeLessThanOrEqual(Date.now());
   });
 
-  it('hands over the whole set in order, breaks included', () => {
-    const onFinish = vi.fn();
-    finishAtEnd(onFinish);
-    expect(onFinish.mock.calls[0][0].played).toEqual([
-      { id: 'i0', kind: 'song', title: 'Amazing Grace', key: 'G', fromKey: null },
-      { id: 'i1', kind: 'break', title: 'Offering' },
-      { id: 'i2', kind: 'song', title: 'Goodness of God', key: 'A', fromKey: null },
-    ]);
-  });
-
-  it('reports the key a song was READ in, and the one it was written in', () => {
+  it('hands over the start time and NOTHING else', () => {
+    // An earlier cut also sent the whole set (`played`) for the finale to list.
+    // That list turned a full stop into a page you scroll and was cut; the
+    // payload went with it rather than lingering as dead weight.
     const onFinish = vi.fn();
     render(<SetlistReader setlist={setlist} songs={songs} settings={{}} onBack={() => {}} onFinish={onFinish} />);
-
-    // Transpose the first song through the reader's own key control.
-    fireEvent.click(screen.getByRole('combobox', { name: 'Key (transpose)' }));
-    fireEvent.click(screen.getByRole('option', { name: 'B' }));
-
     fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
     fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
 
-    const { played } = onFinish.mock.calls[0][0];
-    expect(played[0]).toEqual({ id: 'i0', kind: 'song', title: 'Amazing Grace', key: 'B', fromKey: 'G' });
-    // An untouched song carries no fromKey, so nothing is marked as changed.
-    expect(played[2].fromKey).toBeNull();
-  });
-
-  it('marks a song the set plays twice in both slots', () => {
-    // `keys` is per SONG, so a repeat is read in the same key — both rows must
-    // say so. (The old shape deduped, because it was a list of diffs.)
-    const twice = { id: 'sl2', items: [{ songId: 's1' }, { songId: 's1' }] };
-    const onFinish = vi.fn();
-    render(<SetlistReader setlist={twice} songs={songs} settings={{}} onBack={() => {}} onFinish={onFinish} />);
-
-    fireEvent.click(screen.getByRole('combobox', { name: 'Key (transpose)' }));
-    fireEvent.click(screen.getByRole('option', { name: 'B' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
-
-    const { played } = onFinish.mock.calls[0][0];
-    expect(played.map(p => p.id)).toEqual(['i0', 'i1']);   // distinct react keys
-    expect(played.every(p => p.key === 'B' && p.fromKey === 'G')).toBe(true);
+    expect(Object.keys(onFinish.mock.calls[0][0])).toEqual(['startTime']);
   });
 });

@@ -2413,7 +2413,6 @@ export default function App() {
               mode={view === 'practice-finale' ? 'practice' : 'live'}
               session={sessionStats}
               userId={user?.id || null}
-              onRunAgain={handleRunSessionAgain}
               onUpdateSetlist={handleUpdateSetlist}
               onGoOverview={handleFinaleViewOverview}
               onGoHome={handleFinaleGoHome}

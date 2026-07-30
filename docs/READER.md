@@ -283,8 +283,7 @@ deleting the old surfaces costs nothing but the finale stats (element 13).
 lines) and `PracticeFinale` (252) — which were ~80% the same file, with
 `formatDuration` and `StatGrid` duplicated verbatim and the copy already drifting
 apart. What genuinely differs between a service and a practice is small enough to
-be a lookup table: the phrase, the badge, one section, one CTA label, and which
-note it writes.
+be a lookup table: the phrase, the badge, one section, and which note it writes.
 
 First, the measured fact: **the finale was already wired to the reader and was
 lying.** `App.jsx` routed `SetlistReader`'s `onFinish` to the finale, but the
@@ -292,28 +291,17 @@ reader passed `{ songCount }` and nothing else — so Time read **0s**, Songs re
 **1/N** however far you got, and the key/cue counts and "what changed" list were
 permanently empty. That was a live bug behind the flag, not a missing feature.
 
-- **"What you played" is the body** — the running order, numbered, each song with
-  the key it was actually *read* in. The reader resolves it and hands it over
-  whole (`session.played`), so the finale never re-resolves items against `songs`.
-  It is a **record, not navigation**: no row is tappable, because one mis-tap
-  after a service should not put you back on stage.
-- **A moved key is marked ON its row** (`G̶ → A`), not in a separate block. The
-  first cut had a "What changed" section that was hidden on any night nobody
-  transposed — which is most nights.
-- **Breaks are listed but not numbered.** Numbering them makes a 9-song set read
-  as 11.
-- **Time is the only stat, and it is a line, not a tile.** Songs-reached,
-  breaks-crossed, key-change and cue counts were all cut: each is tracking code
-  maintained across a whole session for a number nobody acts on. It sits on a
-  meta line with the date and location when the setlist has them.
-
-> **A lone stat tile reads as three tiles that failed to load.** The first cut of
-> this screen put Time in a single `w-fit` card in a `max-w-2xl` column with both
-> other sections conditionally hidden — so the common case (practice, no team, no
-> transposes) was a headline, one small floating card, a textarea and three
-> buttons. The owner called it empty and was right. The fix was not re-adding the
-> cut stats: it was that **a wrap-up screen which never says what you played was
-> the actual gap**, and the running order costs no tracking at all.
+- **It is ONE screenful and the page never scrolls.** Root is a flex column:
+  header · a middle that is the only scroller (and only when it must be) · the
+  buttons pinned below. This is the shape, not a detail of it.
+- **Two buttons — View setlist, Home — always on screen**, outside the scroller.
+  The way off this screen must never be something you scroll to find.
+- **"Run it again" was cut.** Finishing a set and immediately restarting it is
+  not a thing that happens.
+- **Time is the only stat, on a meta line, not a tile** — with the date and
+  location when the setlist carries them. Songs-reached, breaks-crossed,
+  key-change and cue counts were all cut: each is tracking code maintained across
+  a whole session for a number nobody acts on.
 - **"You served with" is live-only** and reads `team_schedules` — the schedule,
   not the session, so it needs no tracking. Unavailable members are left out.
 - **The reflection is leaders-only, enforced by RLS**, in its own
@@ -327,6 +315,23 @@ permanently empty. That was a live bug behind the flag, not a missing feature.
 - Old `serviceNote`/`practiceNote` values are **not backfilled** — they are
   already on every device, and moving them would imply a privacy they never had.
 - Wake lock is still not acquired: the finale lives off-stage.
+
+> ### ⚠ This screen took THREE cuts. Don't re-add what came out.
+> **Cut 1** put Time in a lone `w-fit` card in a tall `max-w-2xl` column with both
+> other sections conditionally hidden — a headline, one floating card, a textarea
+> and three buttons. The owner said it felt empty, and it did.
+>
+> **Cut 2** answered that by adding **"What you played"** — the whole running
+> order, numbered, with the key each song was read in. It filled the space and
+> made it *worse*: *"too much scrolling going on. Maybe the what you played was
+> not a good idea."* The payload feeding it (`session.played`) was removed with
+> it rather than left as dead weight, so `onFinish` sends `{ startTime }` alone.
+>
+> **Cut 3 is the shape to keep.** The lesson is not about how much is on the
+> screen — it is that **the finale is a full stop, not a page to read.** Both
+> failures came from treating it as a page: first a sparse one, then a long one.
+> One screenful, no page scroll, both ways out always visible. If it ever feels
+> empty again, more content is not the answer.
 
 ---
 

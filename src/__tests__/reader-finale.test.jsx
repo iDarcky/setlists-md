@@ -50,7 +50,7 @@ describe('element 13 — one screen, two flavours', () => {
     renderFinale({ mode: 'practice' });
     expect(screen.getByText('Practice')).toBeTruthy();
     expect(screen.getByText('For the leaders')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Back to setlist' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'View setlist' })).toBeTruthy();
   });
 
   it('falls back to the live flavour rather than blank on an unknown mode', () => {
@@ -91,51 +91,6 @@ describe('element 13 — the meta line', () => {
     expect(screen.queryByText('Breaks')).toBeNull();
     expect(screen.queryByText('Key changes')).toBeNull();
     expect(screen.queryByText('Cues added')).toBeNull();
-  });
-});
-
-describe('element 13 — what you played', () => {
-  const played = [
-    { id: 'i0', kind: 'song', title: 'Amazing Grace', key: 'A', fromKey: 'G' },
-    { id: 'i1', kind: 'break', title: 'Offering' },
-    { id: 'i2', kind: 'song', title: 'Goodness of God', key: 'A', fromKey: null },
-  ];
-
-  it('is the body of the screen — the set, in order', () => {
-    renderFinale({ session: { startTime: Date.now(), played } });
-    expect(screen.getByText('What you played')).toBeTruthy();
-    expect(screen.getByText('Amazing Grace')).toBeTruthy();
-    expect(screen.getByText('Goodness of God')).toBeTruthy();
-    expect(screen.getByText('Offering')).toBeTruthy();
-  });
-
-  it('marks a moved key ON the song, struck-through from → to', () => {
-    renderFinale({ session: { startTime: Date.now(), played } });
-    expect(screen.getByText('G')).toBeTruthy();          // the written key
-    expect(screen.getAllByText('A').length).toBe(2);     // both songs read in A
-  });
-
-  it('numbers songs and NOT breaks — a 2-song set must not read as 3', () => {
-    renderFinale({ session: { startTime: Date.now(), played } });
-    const numbers = screen.getAllByText(/^[0-9]+$/).map(n => n.textContent);
-    expect(numbers).toEqual(['1', '2']);
-  });
-
-  it('says a missing song is missing rather than dropping it silently', () => {
-    renderFinale({
-      session: { startTime: Date.now(), played: [{ id: 'i0', kind: 'missing', title: 'Deleted Song' }] },
-    });
-    expect(screen.getByText('Deleted Song')).toBeTruthy();
-  });
-
-  it('is a record, not navigation — no row is a button', () => {
-    renderFinale({ session: { startTime: Date.now(), played } });
-    expect(screen.queryByRole('button', { name: /Amazing Grace/ })).toBeNull();
-  });
-
-  it('shows no heading when there is no set to show', () => {
-    renderFinale({ session: { startTime: Date.now(), played: [] } });
-    expect(screen.queryByText('What you played')).toBeNull();
   });
 });
 
@@ -239,8 +194,35 @@ describe('element 13 — leaving', () => {
 
   it('does not write when the note was never touched', () => {
     const onUpdateSetlist = vi.fn();
-    renderFinale({ onUpdateSetlist, onRunAgain: () => {} });
-    fireEvent.click(screen.getByRole('button', { name: 'Run it again' }));
+    const onGoOverview = vi.fn();
+    renderFinale({ onUpdateSetlist, onGoOverview });
+    fireEvent.click(screen.getByRole('button', { name: 'View setlist' }));
     expect(onUpdateSetlist).not.toHaveBeenCalled();
+    expect(onGoOverview).toHaveBeenCalled();
+  });
+});
+
+describe('element 13 — two buttons, always on screen', () => {
+  it('offers exactly two ways out, and Run it again is not one of them', () => {
+    renderFinale({ session: { startTime: Date.now() } });
+    expect(screen.getByRole('button', { name: 'View setlist' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Home' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Run it again' })).toBeNull();
+  });
+
+  it('keeps the buttons OUT of the scrolling region', () => {
+    // The way off this screen must never be something you scroll to find. The
+    // page itself never scrolls; only the middle does, and the buttons are not
+    // inside it.
+    const { container } = renderFinale({ session: { startTime: Date.now() } });
+    const scroller = container.querySelector('.overflow-y-auto');
+    expect(scroller).toBeTruthy();
+    expect(scroller.contains(screen.getByRole('button', { name: 'Home' }))).toBe(false);
+    expect(scroller.contains(screen.getByRole('button', { name: 'View setlist' }))).toBe(false);
+  });
+
+  it('never lets the page itself scroll', () => {
+    const { container } = renderFinale({ session: { startTime: Date.now() } });
+    expect(container.firstChild.className).toContain('overflow-hidden');
   });
 });
