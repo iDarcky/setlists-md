@@ -83,16 +83,35 @@ export default function ReaderSection({
     marginLeft: heavy ? '0.85rem' : undefined,
   };
 
-  if (asReference) {
+  // A repeated section renders as the PDF export's pill — `↩ CHORUS`, small,
+  // rounded, tinted with the section's own colour. Copied deliberately rather
+  // than reinvented: the reader used to hand `condensed` down to SectionBlock,
+  // which drew a full-width bordered box that outweighed the sections it was
+  // standing in for. The pill says "this again" without taking a section's worth
+  // of space to say it. Still tappable — element 3's decision is that a repeat
+  // jumps you to the first one.
+  if (asReference || condensed) {
     return (
       <div id={`section-${index}`} data-section-index={index} style={outer}>
         <button
           type="button"
           onClick={onJumpToFirst}
-          className="flex items-center gap-2 w-full text-left bg-transparent border-none p-0 cursor-pointer"
+          aria-label={`${id.name} — same as before, go to the first one`}
+          className="min-h-0 inline-flex items-center gap-1.5 bg-transparent cursor-pointer"
+          style={{
+            fontSize: '0.72em',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            padding: '0.25em 0.85em',
+            borderRadius: '999px',
+            color: colour,
+            border: `1px solid color-mix(in srgb, ${colour} 35%, transparent)`,
+            background: `color-mix(in srgb, ${colour} 8%, transparent)`,
+          }}
         >
-          {label}
-          <span className="text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">— as before</span>
+          <span aria-hidden="true">↩</span>
+          {id.name}
         </button>
       </div>
     );
@@ -141,7 +160,8 @@ export default function ReaderSection({
         notation={config.display.notation}
         songKey={songKey}
         accidentals={settings?.accidentals}
-        condensed={condensed}
+        // `condensed` is handled by the repeat pill above; never reaches here.
+        condensed={false}
         onJumpToFirst={onJumpToFirst}
         showChords={config.display.showChords}
         showLyrics

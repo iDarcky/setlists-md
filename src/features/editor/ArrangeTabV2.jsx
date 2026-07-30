@@ -1110,8 +1110,11 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
                 be: out here in the gutter it has nothing to collide with, so
                 legibility costs nothing. */}
             <span
-              className="absolute leading-none text-[19px] sm:text-[17px] font-medium opacity-100 sm:opacity-60 sm:group-hover/ins:opacity-100 transition-opacity"
-              style={{ right: 'calc(100% + 4px)' }}
+              className="absolute leading-none text-[22px] sm:text-[20px] font-medium opacity-100 sm:opacity-65 sm:group-hover/ins:opacity-100 transition-opacity"
+              // Lifted a few px so it reads as belonging to the line ABOVE — the
+              // one it inserts after. Centred on the strip it looked like a
+              // marker for the NEXT lyric, which is the opposite of what it does.
+              style={{ right: 'calc(100% + 4px)', transform: 'translateY(-3px)' }}
             >
               +
             </span>

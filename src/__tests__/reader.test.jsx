@@ -159,13 +159,22 @@ describe('element 3 — section heading', () => {
     expect(frame().background).toBeFalsy();
   });
 
-  it('renders a repeat as a reference, and in full when asked', () => {
+  it('renders a repeat as a reference pill, and in full when asked', () => {
+    // The reference is the PDF export's pill now — `↩ Chorus`, tappable to jump
+    // to the first one — rather than a heading plus "— as before".
     let r = render(<Reader song={makeSong()} settings={{ duplicateSections: 'ref' }} onExit={() => {}} />);
-    expect(screen.getAllByText('— as before').length).toBe(1);
+    expect(screen.getAllByRole('button', { name: /same as before/i }).length).toBe(1);
     r.unmount();
 
     render(<Reader song={makeSong()} settings={{ duplicateSections: 'full' }} onExit={() => {}} />);
-    expect(screen.queryByText('— as before')).toBeNull();
+    expect(screen.queryByRole('button', { name: /same as before/i })).toBeNull();
+  });
+
+  it('condensed repeats use the SAME pill, not SectionBlock’s full-width box', () => {
+    // `condensed` used to fall through to SectionBlock, which drew a bordered
+    // box that outweighed the sections it stood in for.
+    render(<Reader song={makeSong()} settings={{ duplicateSections: 'condensed' }} onExit={() => {}} />);
+    expect(screen.getAllByRole('button', { name: /same as before/i }).length).toBe(1);
   });
 });
 

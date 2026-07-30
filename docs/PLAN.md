@@ -81,19 +81,25 @@ Both are new design rounds and belong after §1.3.
 Ordered by severity × confidence. The first is unverified and could be the most
 serious thing in this document; the last two are blocked on you.
 
-1. 🔴 **Members can edit songs.** From the owner's own note a month ago, filed
-   then as "critical security/data-integrity". **Not yet verified — do this
-   first, it is cheap to check.** The team sync engine treats members as
-   `readOnly`, but that is the engine refusing to *push*, which is not the same
-   as the UI refusing the *edit*: a member could edit locally, see it stick, and
-   lose it on the next pull. Silent data loss for the user who least expects it.
-2. 🔴 **Print / Save as PDF is broken** (reported 2026-07-30) — see §6 → PDF
-   export. A regression on a shipped feature, and the answer to "get the set to
-   someone who won't install anything". Reproduce first (entry point, platform,
-   installed PWA vs browser). Prime suspect: the print document builds an inline
-   `<script>`/`<style>` into a same-origin `<iframe srcdoc>` and inherits the
-   page CSP — an enforcing `script-src`/`style-src` without a hash or nonce
-   kills exactly this and nothing else. `CLAUDE.md` already flags that coupling.
+1. ✅ **Members can edit songs — CHECKED AND FIXED** (beta.28). The owner
+   verified the UI: buttons are hidden for members. The code check found the
+   real gap — `handleSaveSong` was guarded but `handleDeleteSong`,
+   `handleDeleteSongs`, `handleUpdateSong` and `handleUpdateSetlist` were not.
+   The sync engine already refuses to PUSH a member's write, which is the worse
+   failure: the write lands in local state, looks saved, and is silently
+   reverted by the next pull. All four now refuse with a toast, and both
+   useCallbacks carry `isTeamReadOnly` so a demoted member can't slip through a
+   stale closure.
+2. ✅ **Print / Save as PDF — FIXED** (beta.28 + beta.29), confirmed working by
+   the owner. Root cause was NOT the CSP: `vite.config.js` had
+   `globIgnores: ['**/pdf-*.js']` to keep the lazy pdf.js chunk out of the
+   precache, and that glob also matched `/pdf-print.js`, the public script that
+   wires the preview's controls. It was silently excluded, so the in-document
+   buttons were dead in the installed PWA while the app-side Done/Print worked.
+   Scoped to `assets/`. Also: the controls script now loads from an absolute
+   URL (the export lives in `<iframe srcdoc>`, where relative resolution is
+   engine-dependent), and the duplicated Print/Close inside the document are
+   gone. **The wider PDF export overhaul is still open** — see §6.
 3. 🔴 **The Song Hub — two separate bugs, one report.**
    - **Song map is unreachable.** Confirmed: the view-mode picker (Chords /
      Lyrics only / Song map / Chords only) lives in `StageHeader`'s overflow menu
@@ -617,6 +623,7 @@ here first. Nothing in this section is scheduled on its own.
 - Transpose tabs ❓ feasibility spike.
 
 ### Song library
+- 🟡 **The side peek should be shorter than the row it opened from** (2026-07-30) — so you can open it, read it, and click outside to dismiss without moving the mouse. Part of the side-peek decision in §1.1.
 - ⬜ Show the item COUNT on the songs library (2026-07-30, parked by the scope rule).
 - [x] ✅ **Compact removed (2026-07-27).** The third mode is gone from both
   switchers; a stored `'compact'` resolves to the card list. Songs and Setlists
