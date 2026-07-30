@@ -767,8 +767,7 @@ function buildDocument(song, transpose, initialPrefs = {}) {
           <span class="check"></span>Repeats
         </button>
         <div class="action-group">
-          <button class="action primary" type="button" data-action="print">Print / Save as PDF</button>
-          <button class="action" type="button" data-action="close">Close</button>
+
         </div>
       </div>
     </div>

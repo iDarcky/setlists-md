@@ -1106,9 +1106,12 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
           >
             {/* Touch has no hover: the mark stays legible there and only fades
                 back on devices that can actually reveal it. */}
+            {/* Bigger and more present than the in-flow version was allowed to
+                be: out here in the gutter it has nothing to collide with, so
+                legibility costs nothing. */}
             <span
-              className="absolute leading-none text-[15px] sm:text-[13px] opacity-100 sm:opacity-40 sm:group-hover/ins:opacity-100 transition-opacity"
-              style={{ right: 'calc(100% + 6px)' }}
+              className="absolute leading-none text-[19px] sm:text-[17px] font-medium opacity-100 sm:opacity-60 sm:group-hover/ins:opacity-100 transition-opacity"
+              style={{ right: 'calc(100% + 4px)' }}
             >
               +
             </span>

@@ -23,9 +23,10 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Account panel (Labs)** — drops the hamburger entirely: your avatar opens a single sheet that slides up from the bottom, with your Spaces and the menu together.
 - **One reader (Labs)** — the four separate reading screens become a single viewer. A display menu opens under the top bar and pushes the chart down instead of covering it, so you can see every change as you make it: text sizes, chord names, columns, top bar, where the structure sits, section style and heading, pinned headings, and repeats. Turn it on in Settings → Labs.
 - **Tap a chord to see how it's played** — any chord in the reader opens its guitar shape, and only that one. No strip of diagrams taking up the screen for the one chord you didn't know. The shape is the chord as written, so a chart that says G shows you G. Part of Pro.
+- **Choruses step in** — Chorus, Refrain and Bridge sit slightly indented from the verses, so the shape of a song is readable from a music stand without reading a word of it.
 - **Print / Save as PDF works again** — the controls in the print preview (columns, size, font, chords, colours) were dead: the small script that powers them was being left out of the offline bundle by mistake, so it never loaded in the installed app.
 - **Members can no longer change a library they only have read access to.** The buttons were already hidden, but a few paths still let an edit through — it would look saved and then quietly disappear on the next sync.
-- **The ＋ between lines now sits in the margin**, clear of the chords.
+- **The ＋ between lines now sits in the margin**, clear of the chords, and it's bigger and easier to spot.
 - **Remove actions are a softer red**, and the tag and note removes are red too.
 - **The songs library was hiding songs, and it's fixed** — it was showing an alphabetical page with holes in it: the list was cut to a page BEFORE it was sorted, so a song starting with "A" that happened to sit far down in storage was dropped before the sort ever saw it. It now sorts first and pages after, so the first 50 you see really are the first 50 in the order you chose, and scrolling loads the rest.
 - **"clear" is now "remove", and both are red** in the setlist editor, so the actions that take something away look like it.

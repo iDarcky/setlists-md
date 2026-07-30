@@ -75,6 +75,12 @@ export default function ReaderSection({
     // A chorus gets more air above it than a verse, so the page has a shape
     // you can read without reading the words.
     marginBottom: heavy ? '1.6rem' : '1rem',
+    // ...and it steps IN. `heavy` is Chorus/Refrain/Bridge (songFlow's HEAVY
+    // set) — the sections a song leans on. A small step is enough to make the
+    // verse/chorus alternation visible at a glance from a music stand; more
+    // than this and long chorus lines start wrapping earlier than the verses
+    // around them, which costs more than the shape gains.
+    marginLeft: heavy ? '0.85rem' : undefined,
   };
 
   if (asReference) {
