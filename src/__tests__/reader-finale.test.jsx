@@ -1,9 +1,9 @@
 // Element 13 — the finale, mounted.
 //
-// One screen for both kinds. Time is the only stat, by decision. The reflection
-// has THREE cases and the middle one is the whole point of the element: in a team
-// it is leaders-only, and a member must not get a fallback that puts the text
-// back on their device.
+// One screen for both kinds, one screenful, no page scroll. Time is the only
+// stat. THREE things were built here and cut — "What you played", "Run it again"
+// and the reflection box — so the tests below also pin what must NOT come back
+// without a decision to bring it back.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ReaderFinale from '@/features/reader/ReaderFinale';
@@ -16,12 +16,6 @@ const scheduleState = { schedules: [] };
 vi.mock('@/hooks/useTeamSchedules', () => ({ useTeamSchedules: () => scheduleState }));
 vi.mock('@/hooks/useTeamSetlistMap', () => ({ useTeamSetlistMap: () => ({ map: {}, loading: false }) }));
 
-// The leaders-only note's cloud layer. `enabled` is what the component keys the
-// whole section off, so it stands in for "am I a leader, and does the table
-// exist".
-const leaderNote = { enabled: false, ready: true, note: '', save: vi.fn() };
-vi.mock('@/hooks/useLeaderNote', () => ({ useLeaderNote: () => leaderNote }));
-
 const setlist = { id: 'sl-1', name: 'Sunday Morning', items: [] };
 
 beforeEach(() => {
@@ -29,9 +23,6 @@ beforeEach(() => {
   teamState.members = [];
   teamState.isAdmin = false;
   scheduleState.schedules = [];
-  leaderNote.enabled = false;
-  leaderNote.note = '';
-  leaderNote.save = vi.fn();
 });
 
 const renderFinale = (props = {}) =>
@@ -42,14 +33,12 @@ describe('element 13 — one screen, two flavours', () => {
     renderFinale({ mode: 'live' });
     expect(screen.getByText('Live')).toBeTruthy();
     expect(screen.getByText('Sunday Morning')).toBeTruthy();
-    expect(screen.getByText('How did it feel?')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'View setlist' })).toBeTruthy();
   });
 
   it('wears the Practice badge and practice copy from the SAME component', () => {
     renderFinale({ mode: 'practice' });
     expect(screen.getByText('Practice')).toBeTruthy();
-    expect(screen.getByText('For the leaders')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'View setlist' })).toBeTruthy();
   });
 
@@ -127,81 +116,6 @@ describe('element 13 — you served with', () => {
   });
 });
 
-describe('element 13 — the reflection, and who can read it', () => {
-  it('outside a team, writes the setlist’s own field', () => {
-    const onUpdateSetlist = vi.fn();
-    renderFinale({ onUpdateSetlist });
-    const box = screen.getByLabelText('How did it feel?');
-    fireEvent.change(box, { target: { value: 'Pads carried the bridge.' } });
-    fireEvent.blur(box);
-    expect(onUpdateSetlist).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'sl-1', serviceNote: 'Pads carried the bridge.' }),
-    );
-    expect(screen.getByText('Saved with this setlist.')).toBeTruthy();
-  });
-
-  it('shows the existing note without being typed into', () => {
-    render(<ReaderFinale setlist={{ ...setlist, serviceNote: 'Last time it dragged.' }} mode="live" />);
-    expect(screen.getByLabelText('How did it feel?').value).toBe('Last time it dragged.');
-  });
-
-  it('as a team LEADER, writes the leaders-only note and says so', () => {
-    teamState.team = { id: 't1' };
-    teamState.isAdmin = true;
-    leaderNote.enabled = true;
-    const onUpdateSetlist = vi.fn();
-    renderFinale({ onUpdateSetlist });
-    const box = screen.getByLabelText('How did it feel?');
-    fireEvent.change(box, { target: { value: 'Keys were a semitone high.' } });
-    fireEvent.blur(box);
-    expect(leaderNote.save).toHaveBeenCalledWith('Keys were a semitone high.');
-    // And crucially NOT onto the setlist, which syncs to every member.
-    expect(onUpdateSetlist).not.toHaveBeenCalled();
-    expect(screen.getByText(/Only leaders can read this/)).toBeTruthy();
-  });
-
-  it('as a team MEMBER, there is no reflection at all', () => {
-    // The critical case. A fallback to the setlist field here would put a
-    // leader's candid note straight back onto every member's device — the exact
-    // thing the leaders-only table exists to prevent.
-    teamState.team = { id: 't1' };
-    teamState.isAdmin = false;
-    leaderNote.enabled = false;
-    renderFinale();
-    expect(screen.queryByLabelText('How did it feel?')).toBeNull();
-    expect(screen.queryByText(/Only leaders can read this/)).toBeNull();
-  });
-
-  it('a member cannot even read a legacy note through this screen', () => {
-    teamState.team = { id: 't1' };
-    teamState.isAdmin = false;
-    leaderNote.enabled = false;
-    render(<ReaderFinale setlist={{ ...setlist, serviceNote: 'Old shared note.' }} mode="live" />);
-    expect(screen.queryByText('Old shared note.')).toBeNull();
-  });
-});
-
-describe('element 13 — leaving', () => {
-  it('saves before it navigates, on every way out', () => {
-    const onUpdateSetlist = vi.fn();
-    const onGoHome = vi.fn();
-    renderFinale({ onUpdateSetlist, onGoHome });
-    fireEvent.change(screen.getByLabelText('How did it feel?'), { target: { value: 'Good one.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Home' }));
-    expect(onUpdateSetlist).toHaveBeenCalled();
-    expect(onGoHome).toHaveBeenCalled();
-  });
-
-  it('does not write when the note was never touched', () => {
-    const onUpdateSetlist = vi.fn();
-    const onGoOverview = vi.fn();
-    renderFinale({ onUpdateSetlist, onGoOverview });
-    fireEvent.click(screen.getByRole('button', { name: 'View setlist' }));
-    expect(onUpdateSetlist).not.toHaveBeenCalled();
-    expect(onGoOverview).toHaveBeenCalled();
-  });
-});
-
 describe('element 13 — two buttons, always on screen', () => {
   it('offers exactly two ways out, and Run it again is not one of them', () => {
     renderFinale({ session: { startTime: Date.now() } });
@@ -224,5 +138,31 @@ describe('element 13 — two buttons, always on screen', () => {
   it('never lets the page itself scroll', () => {
     const { container } = renderFinale({ session: { startTime: Date.now() } });
     expect(container.firstChild.className).toContain('overflow-hidden');
+  });
+});
+
+describe('element 13 — what was deliberately cut', () => {
+  it('has no reflection box', () => {
+    // Cut because a leaders-only note needs somewhere for leaders to READ it
+    // later, and that surface does not exist. Deferred in PLAN.md, not deleted
+    // from history.
+    renderFinale({ session: { startTime: Date.now() } });
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(screen.queryByText(/Only leaders can read this/)).toBeNull();
+  });
+
+  it('writes nothing to the setlist on the way out', () => {
+    const onUpdateSetlist = vi.fn();
+    const onGoHome = vi.fn();
+    renderFinale({ session: { startTime: Date.now() }, onUpdateSetlist, onGoHome });
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }));
+    expect(onUpdateSetlist).not.toHaveBeenCalled();
+    expect(onGoHome).toHaveBeenCalled();
+  });
+
+  it('has no running order and no third button', () => {
+    renderFinale({ session: { startTime: Date.now() } });
+    expect(screen.queryByText('What you played')).toBeNull();
+    expect(screen.getAllByRole('button')).toHaveLength(2);
   });
 });

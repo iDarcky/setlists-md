@@ -272,7 +272,7 @@ is its UI** (`sync/team-engine.js` vs `features/sync/SyncStatus.jsx`).
 - **Song Hub** (`SongHub.jsx`) is the song-open target. It owns identity + transpose + tab navigation and embeds `ChartView` as **just the reader** (`embedded` + controlled `selectedKey`/`displayMode`/`aaAnchor`/`arrangementId` props). Tabs are **Chart / Lyrics / Details** rendered as brand-coloured pills (matching the top nav). The **Aa** display popover and a centered **"Advanced"** `Dialog` both render inside `ChartView`; the Aa + full-screen buttons live in the reader **tab header** and show only on Chart/Lyrics (hidden on Details). Full-screen opens `FullscreenChartViewer` (WIP — future home of the chart "view modes"). The hub ⋮ menu carries Print/Move/Copy (desktop) plus Campfire+Edit folded in on mobile. Backing-track audio is `SongPlayerBar` (YouTube-only): a single card pinned to the bottom, laid out as one non-wrapping row (play · title · scrubber · time) so the scrubber stays on the title's line even on phones.
 - **No server for song data** — songs/setlists stored client-side in IndexedDB via idb-keyval. Supabase only handles auth + account-level preferences.
 - **Songs** are stored as parsed objects on a **v2 multi-arrangement schema** (`src/arrangements.js`): top-level identity (`id`, `title`, `artist`, `ccli`, `tags`, `keyHistory`, `defaultArrangementId`) plus an `arrangements[]` array. Each arrangement carries its own `key`, `tempo`, `time`, `capo`, `notes`, `structure[]`, and `sections[]`. The `.md` format flattens to a single arrangement; multi-arrangement state is app-internal.
-- **Notes live at three levels** — per-arrangement `arrangement.notes` (markdown, shared across setlists), per-setlist-item `items[i].note` (100-char cue), and per-break `items[i].note` (500-char markdown). Two scoped layers sit beside them: `team_notes` (per-**user** private, via `usePrivateNotes`) and `team_setlist_notes` (per-setlist **leaders-only**, via `useLeaderNote` — the reader finale's reflection).
+- **Notes live at three levels** — per-arrangement `arrangement.notes` (markdown, shared across setlists), per-setlist-item `items[i].note` (100-char cue), and per-break `items[i].note` (500-char markdown). One scoped layer sits beside them: `team_notes` (per-**user** private, via `usePrivateNotes`). A per-setlist **leaders-only** layer was built and then removed — see `docs/PLAN.md` → Team, "Post-service feedback".
 - **The .md format** is the interchange format — YAML frontmatter + `## Section` headers + `[Chord]lyrics` inline chords + `> notes` for band cues + `{tab}...{/tab}` for guitar tabs
 - **Section types** each have a color scheme defined in `music.js` (Intro, Verse, Chorus, Bridge, etc.)
 - **Transpose** is applied at render time via `transposeChord()` — stored data is always in the original key
@@ -537,19 +537,6 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   upsert works across partial scopes. RLS: a user reads/writes only their own
   rows, scoped to teams they belong to. Client: `src/notes/usePrivateNotes.js`
   (cloud + IndexedDB cache, offline-capable) surfaced via `ui/NotesStack`.
-- `20260729_team_setlist_notes.sql` — adds the `team_setlist_notes` table: the
-  reader finale's reflection, **leaders-only and RLS-enforced**. ONE row per
-  `(team_id, setlist_key, kind)` shared between a team's leaders — deliberately
-  NOT per-user like `team_notes`. `setlist_key` is the **local** setlist id (the
-  value promoted onto `team_setlists.setlist_key`), never the `team_setlists` row
-  uuid, so the client never bridges through the sync manifest to read its own
-  note. Also adds `get_user_leader_teams()` (SECURITY DEFINER: admin members
-  UNION team owners). The old `serviceNote`/`practiceNote` setlist fields are
-  **not** backfilled — those values are already on every member's device, and
-  copying them into a leaders-only table would imply a privacy they never had.
-  Client: `src/hooks/useLeaderNote.js` (cloud + IndexedDB cache, offline-capable,
-  degrades to disabled on `42P01` so a pre-migration project still renders).
-
 - `20260701_realtime_publication.sql` — adds `team_schedules`,
   `team_availability`, `team_notifications`, `team_activity` to the
   `supabase_realtime` publication (they were subscribed client-side but never

@@ -2412,8 +2412,6 @@ export default function App() {
               setlist={currentSetlist}
               mode={view === 'practice-finale' ? 'practice' : 'live'}
               session={sessionStats}
-              userId={user?.id || null}
-              onUpdateSetlist={handleUpdateSetlist}
               onGoOverview={handleFinaleViewOverview}
               onGoHome={handleFinaleGoHome}
             />

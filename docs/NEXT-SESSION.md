@@ -49,7 +49,7 @@ the reader.
 | 10 | Song-to-song | done — 4 nav styles, sticky footer, rail incl. phones, breaks |
 | 11 | Chord diagrams | done — tap a chord, Pro-gated, no strip |
 | 12 | Practice tools | done — metronome + slow-down, one row above the footer |
-| 13 | Finale | done — ONE finale, one screenful, leaders-only reflection |
+| 13 | Finale | done — ONE finale, one screenful, two pinned buttons |
 
 764 tests, 0 lint errors. `npm run dev` · `npx vitest run` · `npm run build`.
 
@@ -89,14 +89,11 @@ warning in `READER.md` §13 before touching it: a "What you played" list was bui
 and cut ("too much scrolling"), and so was "Run it again". **The finale is a full
 stop, not a page to read.** If it looks empty, more content is not the answer.
 
-The reflection is **leaders-only, RLS-enforced** (`team_setlist_notes` +
-`useLeaderNote`), because the old `serviceNote` field synced to every member's
-device. Reasoning in `docs/READER.md` §13.
-
-**⚠ This element ships a MIGRATION** — `20260729_team_setlist_notes.sql`. It is
-additive and the client degrades to "no reflection section" without it, so the
-build is safe to ship first, but the leaders-only note does nothing until the SQL
-is applied. There is no staging database: beta writes to live church data.
+**There is no reflection box, and no migration.** A leaders-only one was built
+(table + admin RLS + hook) and then **removed**: a note leaders can write but
+never read again is half a feature, and the missing half — somewhere to see past
+feedback — is the bigger build. Deferred in `PLAN.md` → Team with the git ref;
+the migration was never applied, so production has no such table.
 
 ### 3. Then: graduate the flag and delete
 

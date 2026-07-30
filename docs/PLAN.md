@@ -521,6 +521,20 @@ here first. Nothing in this section is scheduled on its own.
 - Next-up Practice button + practice-time widget (depends on Practice mode).
 
 ### Team
+- 🟡 **Post-service feedback, leaders-only** — DEFERRED, and the reason matters:
+  the writing half was built and shipped (a reflection box on the reader's
+  finale, backed by a `team_setlist_notes` table with admin-only RLS), then
+  **removed** because there is nowhere for a leader to READ it later. A note you
+  can write and never find again is half a feature, and the missing half — a
+  place per setlist (or in the Team screen) where past feedback is listed — is
+  the larger build. Pick that surface FIRST, then restore the writing side.
+  The removed code is recoverable from git: `ReaderFinale`'s note section,
+  `src/hooks/useLeaderNote.js` and
+  `supabase/migrations/20260729_team_setlist_notes.sql`, all at `49ebb2a^`. The
+  migration was **never applied**, so there is no table in production and no
+  drift to undo. Note the older `serviceNote`/`practiceNote` setlist fields
+  still exist and still sync to every member — the whole point of the removed
+  work was that leaders' candid notes should not.
 - Landing rework — surface the church; "Invite member" shouldn't be first.
 - **Stats & insights** tab (most/least played song & key, top member).
 - Admin/leader-only **Options** tab.

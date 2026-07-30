@@ -65,7 +65,6 @@ src/features/reader/
 src/lib/readerConfig.js    every knob, resolved. Start here.
 src/lib/metronome.js       element 12's click — lookahead scheduler + its maths
 src/hooks/useYouTubeTrack.js  the backing-track engine, shared with SongPlayerBar
-src/hooks/useLeaderNote.js    element 13's leaders-only reflection (RLS-backed)
 src/lib/sectionIdentity.js one source for section code/name/colour/weight
 src/lib/tabTranspose.js    element 9's transpose rule
 src/lib/myInstrument.js    "what am I playing this service?"
@@ -304,16 +303,6 @@ permanently empty. That was a live bug behind the flag, not a missing feature.
   a whole session for a number nobody acts on.
 - **"You served with" is live-only** and reads `team_schedules` — the schedule,
   not the session, so it needs no tracking. Unavailable members are left out.
-- **The reflection is leaders-only, enforced by RLS**, in its own
-  `team_setlist_notes` table. It used to be `serviceNote`/`practiceNote` on the
-  setlist object, which the team engine syncs to **every member's device** — so
-  hiding the field in the UI would not have hidden the text. Three cases:
-  no team → the setlist's own field (your device, your setlist); team + leader →
-  the leaders-only table; **team + member → no reflection at all.** That last one
-  is the point: a fallback there would put a leader's candid read straight back
-  onto a member's phone.
-- Old `serviceNote`/`practiceNote` values are **not backfilled** — they are
-  already on every device, and moving them would imply a privacy they never had.
 - Wake lock is still not acquired: the finale lives off-stage.
 
 > ### ⚠ This screen took THREE cuts. Don't re-add what came out.
@@ -327,7 +316,13 @@ permanently empty. That was a live bug behind the flag, not a missing feature.
 > not a good idea."* The payload feeding it (`session.played`) was removed with
 > it rather than left as dead weight, so `onFinish` sends `{ startTime }` alone.
 >
-> **Cut 3 is the shape to keep.** The lesson is not about how much is on the
+> **Cut 3** dropped the reflection box too — not for layout, but because a
+> leaders-only note needs somewhere for leaders to *read* it later, and that
+> surface does not exist. Building the writing half first was the mistake.
+> Deferred in `PLAN.md` → Team; the code and its (never-applied) migration are
+> recoverable from git.
+>
+> **What is left is the shape to keep.** The lesson is not about how much is on the
 > screen — it is that **the finale is a full stop, not a page to read.** Both
 > failures came from treating it as a page: first a sparse one, then a long one.
 > One screenful, no page scroll, both ways out always visible. If it ever feels
@@ -376,7 +371,7 @@ permanently empty. That was a live bug behind the flag, not a missing feature.
 - `src/__tests__/reader.test.jsx` — elements 1–6, 11
 - `src/__tests__/reader-practice.test.jsx` — element 12 (click, slow-down, track)
 - `src/__tests__/metronome.test.js` — the click's scheduling arithmetic
-- `src/__tests__/reader-finale.test.jsx` — element 13, incl. all three note scopes
+- `src/__tests__/reader-finale.test.jsx` — element 13, incl. what must NOT return
 - `src/__tests__/setlist-reader.test.jsx` — element 10, breaks, nav modes
 - `src/__tests__/structure-ribbon.test.jsx` — chip geometry + the `min-h-0` trap
 - `src/__tests__/reader-config.test.js` — one case per knob
