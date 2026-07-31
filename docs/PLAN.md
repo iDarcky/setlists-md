@@ -640,6 +640,7 @@ here first. Nothing in this section is scheduled on its own.
 - 🟡 **Download a song** — from the song page and from the library (owner calls it prio 1, 2026-07-30). Export already exists for setlists (.zip); this is the single-song equivalent.
 - 🟡 **The side peek should be shorter than the row it opened from** (2026-07-30) — so you can open it, read it, and click outside to dismiss without moving the mouse. Part of the side-peek decision in §1.1.
 - ⬜ Show the item COUNT on the songs library (2026-07-30, parked by the scope rule).
+- 🟡 **Surface the trash where a deletion is actually noticed** (2026-07-31, from reader element 14). The 30-day song bin already exists and works — but it is reachable ONLY from Settings → Data, which is nowhere near the two places you find out a song is gone: a setlist item pointing at a deleted song, and the library right after a delete. Two cheap wins: (a) the reader's missing-song screen offers **Restore** when the id is in the trash (element 14 covers this); (b) an **Undo** on the delete toast. Neither needs new storage.
 - [x] ✅ **Compact removed (2026-07-27).** The third mode is gone from both
   switchers; a stored `'compact'` resolves to the card list. Songs and Setlists
   now offer Table (desktop) and Cards, nothing else.
@@ -749,6 +750,7 @@ margins/spacing, section-per-page, reset-to-defaults, jsPDF fallback.
 
 ### Chores
 - Extend the **trash bin** (soft-delete) to setlists + a team-library bin (songs done).
+- 🟡 **Media cache policy — "keep art for the upcoming setlists"** (2026-07-31, owner's idea, from reader element 27). Worth separating the two halves the question mixes: **song data is not a cache problem** — markdown in IndexedDB, a 1,000-song library is a few MB, already fully offline. **Media is**: cover art and YouTube are the things that fail with no signal, and they're unbounded. The rule to build: keep every song, keep art for songs in the next N setlists, placeholder for the rest. Measure a real large library before spending anything here.
 - **Naming consistency** pass (casing across headers).
 - Repo file clean-up (dead/orphaned files, stale docs).
 - More / custom roster instruments (per-team).

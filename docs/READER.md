@@ -402,6 +402,128 @@ remembers. Numbered from 14 so they can be worked the same way as the rest.
 it. That is what tomorrow's pass is for — most of these are cheap if decided,
 expensive if discovered on a Sunday.
 
+#### What the owner decided, 2026-07-31
+
+Answers to the table above, in the owner's words, with what each one means for
+the build. Where the answer was a question back, the reply is under it — those
+are **still open** until confirmed.
+
+**14 — Nothing to show.** *"this should not happen. What do we do in this case?
+Recover from trash?"* → **Yes — and the trash already exists.** Deleted songs go
+to a 30-day recoverable bin (`storage.js` `loadTrash`/`saveTrash`, restored from
+Settings → Data). So the missing-song screen can do the real thing: look the id
+up in the trash and offer **Restore** right there, falling back to Skip / Remove
+from setlist when it genuinely isn't recoverable. That is the whole element, and
+it's cheap.
+
+Two cases, two screens:
+- **Missing** (a setlist item whose song is gone) — the title from the setlist
+  item, why it isn't there, Restore / Skip / Remove. `SetlistReader` already
+  flags `isMissing` but hands it to `BreakScreen`; it needs its own screen, not
+  a break's.
+- **Empty** (a real song with no sections) — "This song has no chart yet" + Edit.
+
+**15 — The first paint.** *"I don't know, what do you think?"* → Paint the
+chrome you already know, never a spinner. Opening a song from a list means the
+title, artist and key are already in hand, so the top bar renders instantly and
+only the chart area is pending — and it should be blank, not skeleton-shimmered:
+a shimmer that resolves in 40ms is a flash of fake content. On the phones this
+runs on, parsing is single-digit milliseconds, so in practice **nobody sees a
+loading state at all**; the rule exists so a slow case degrades to a partial
+page rather than an empty one. Cheap, no decision cost. **Proposed default:
+top bar immediately, chart when ready, no spinner under ~300ms.**
+
+**16 — The room changed.** *"I think that by default screen lock should be off.
+Maybe we can do what Google Pixel does and show a rotate screen in the bottom
+left?"* → Two things. (a) **Rotation lock off by default** — the reader follows
+the device. (b) A **Pixel-style rotate button**: when the device orientation
+changes but the OS has rotation locked, a small floating button appears bottom-left
+offering to rotate this screen anyway; it fades after a few seconds. That is the
+Pixel behaviour exactly, and it is the right one — it never rotates under you,
+it offers. Keeping your place across the reflow is the other half and is
+non-negotiable: anchor on the **active section**, not scroll offset.
+
+**17 — The screen went to sleep.** *"If the screen went to sleep in the live or
+practice, the app should keep the timer and position for when the user returns
+(eg sermon). The same should be done if a user leaves the app (but not closes
+it) and then returns."* → Session state (index, transpose, `startTime`, the
+practice row's state) survives sleep and backgrounding. Sleep is free — the tab
+is still alive. Backgrounding is not: iOS discards tabs, so this needs the state
+**persisted**, not just held in React. Same mechanism as 18.
+
+**18 — Coming back.** *"It should go from where it left"* → One rule, both
+elements: the reader restores the session. Persist `{setlistId, idx, keys,
+startTime}` on change; on mount, restore if the setlist matches. Needs an expiry
+(a Sunday-morning session should not restore on Tuesday) — **proposed: same
+calendar day.**
+
+**19 — Capo.** *"Yes, we need to do something with capo, right now its not
+working"* → Confirmed as a real gap and in scope. The chart shows **sounding**
+chords; a capoed guitarist reads **shapes**. Both are legitimate and they are
+different renderings of the same chart, so this is a toggle, not a setting to
+get right once.
+
+**20 — Auto-scroll.** *"Can we try a basic version of this? ... It should be
+somehow synced automatically with the song bpm?"* → Yes, and the bpm link is the
+right instinct — element 12 already has the tempo and a running clock, so
+scrolling at a rate derived from bpm costs almost nothing on top. The honest
+caveat: **bpm alone can't know the song's length in bars**, so a bpm-derived
+rate drifts unless the chart says how long each section is (that's the same
+`.md` format change that killed section loop). The basic version that works
+without any format change: a **speed the user sets, with bpm as the starting
+guess**, plus tap-to-pause on touch. That's the version to try.
+
+**21 — Arrangement switching.** *"This should be for the practice view"* →
+Scoped to practice. Not in live.
+
+**22 — Notes on stage.** *"Yes, notes are needed, especially for the practice
+view, right now you cannot take any notes during practice"* → The gap is
+**writing**, not just reading. Practice needs a way to capture a note as it
+happens ("watch the turnaround"), which is `team_notes` (private, per-user) —
+the table and hook already exist and have no UI in the reader.
+
+**23 — Getting the chart out.** *"Is it really needed from inside the reader in
+a live/practice environment? It can be done from the setlist hub"* → Cut. Print
+lives in the hub. (Also the cheapest element on the list to un-cut later.)
+
+**24 — Reading at a distance.** *"A cool idea here is to do the stage version
+from the earlier mockup ... only show full screen of the lyrics and chords - we
+strip everything out and it's controlled with pedal?"* → This is a bigger idea
+than the element: a **stage view** — chrome stripped to nothing, lyrics and
+chords only, pedal-driven. It overlaps the full-screen question below (option 1
+says full-screen IS the reader; this says there is a fourth, barer thing). Needs
+its own pass.
+
+**25 — Follow the leader.** *"Yes, this would be cool to have. Is it hard to
+do?"* → The transport is already built — realtime is published for
+`team_schedules`/`team_availability`/`team_notifications`/`team_activity`, and
+adding one more table is a one-line migration. Broadcasting "leader is on item
+3" is genuinely easy. What makes it XL is everything around it: who is the
+leader, what happens when two people claim it, what a follower can still do on
+their own screen, what happens when a follower's copy of the setlist differs,
+and what happens when the signal drops mid-service (the worst case: half the
+band frozen on song 4 because the leader's phone lost wifi). **The mechanism is
+a day; the failure modes are the feature.** Not before the reader is finished.
+
+**26 — Reachability.** *"the phone/tablet usually sits on a stand ... What's
+your point?"* → Fair — the point doesn't hold for the stand case, which is the
+common one. It only applies to the phone-in-hand case (a vocalist, someone
+checking a chart between songs), and on a phone the ☰ sheet already comes up
+from the bottom where the thumb is. **No separate element; folded into the ☰.**
+
+**27 — Offline in the reader.** *"How do we handle this? How do we handle
+massive libraries of songs/setlists in the cache? One idea that I have is that
+we only keep the upcoming setlists?"* → Two different things, and it's worth
+separating them because one is already solved. **Song data** is not a cache
+problem: songs are markdown in IndexedDB and a 1,000-song library is a few
+megabytes — it all fits, and it is all offline already. What doesn't fit is
+**media**: cover art and YouTube. Those are the things that fail with no signal,
+and those are what the "upcoming setlists" rule should govern. So: keep every
+song, keep art for the songs in the next N setlists, and let everything else
+fall back to a placeholder. The reader's job in element 27 is narrower still —
+**fail visibly and calmly**: no broken image, no dead play button, a track
+control that says "needs signal" instead of spinning.
+
 ### Still open from earlier elements
 
 | # | Element | Notes |
@@ -432,15 +554,40 @@ Recommendation: **1**. The hub view exists to be uncustomizable; full-screen is
 where you want the opposite. Making full-screen the Reader also means the ☰
 built for the reader serves it, instead of needing its own.
 
-### The side peek — open the hub instead? ❓
+A fourth appeared on 2026-07-31 with element 24: a **stage view** — everything
+stripped, lyrics and chords only, pedal-driven. It is not a rival to option 1 so
+much as a *setting inside it*: if full-screen is the Reader, "strip everything"
+is a top-bar/nav/ribbon combination the Reader can already express. Build option
+1; make stage the preset it reaches.
 
-Owner's idea, 2026-07-30. Worth it: the peek is already the hub view, so
-"open the peek" and "open the hub" now differ only in chrome, and one of them
-is a second thing to maintain. Against: the peek's value is that it is
-*dismissible without leaving the list* — replacing it with a route trades that
-away. Middle path: keep the peek, and make it **shorter than the row it opened
-from** (already noted in `PLAN.md`) so it can be dismissed without moving the
-mouse.
+#### The flashbang ⚠️
+
+Owner, 2026-07-31: *"the leader searches for a song at night and the reader is
+set to light mode and presses full screen and bang flashbang."* Real, and it is
+an argument **against** letting full-screen inherit a stored theme blindly. The
+hub view deliberately follows the app theme (see "The hub view"), so a dark app
+at night is dark right up until full-screen swaps in the reader's own light
+setting. Whatever full-screen becomes, the transition must not raise the
+brightness of the screen without the user asking for it in that moment. The
+cheapest correct rule: **full-screen opens in the theme you were already
+looking at**, and changing it is a deliberate act inside the ☰ — the reader's
+stored theme applies to the reader, not to a surface you arrived at from
+somewhere darker.
+
+### The side peek — opens the hub, in the peek ✅
+
+Owner's idea 2026-07-30, decided 2026-07-31: *"I do believe that the side-peek
+should open the song hub but in the side peek. And we need to optimize the modal
+so that the mouse is outside so the user could easily click outside to exit."*
+
+So: the peek renders the **full song hub**, not a reduced preview — one surface,
+not two. And it stays a peek: dismissible without leaving the list. The second
+half is a real constraint on its geometry — the panel must not sit under the
+cursor that opened it. Opening from a row on the left means the peek is on the
+right and **narrower than the space left over**, so the pointer is already
+outside it and a click anywhere dismisses. (This is the same note as the
+"shorter than the row it opened from" idea in `PLAN.md`, generalised: it isn't
+about height, it's about the pointer never being captured.)
 
 ### The ☰ menu — what actually belongs in it
 
@@ -464,6 +611,30 @@ they'd be reached for:
 popover anchored to ☰ on a desktop. Apple splits by size class the same way —
 sheet on iPhone, popover on iPad/Mac — and it satisfies the panel rule (never
 cover what it changes) better than one popover forced onto both.
+
+#### Concept, 2026-07-31
+
+Drafted as a clickable page (published artifact, "The ☰ menu — concept"). What
+it settles and what it leaves open:
+
+- **Nine rows in three groups** — *Reading* (Display · Jump to · The screen),
+  *This song* (This song · Practice · Notes), *Other* (Fix it · Who's playing ·
+  Share). The grouping is what makes nine rows scannable; ungrouped, nine is a
+  list you read rather than a menu you aim at.
+- **Every row carries its current value as a subtitle.** The menu answers "what
+  is it set to" without being opened twice.
+- **One level of drill-in**, with a back arrow. No nesting past that.
+- **Both shapes drawn against a real chart** — the phone sheet detented so the
+  chart shows above it, the desktop popover beside it. The panel rule is the
+  reason the concept draws the chart at all.
+
+Two calls in it are arguable and are the owner's to make:
+1. **Nine rows.** Defensible because they're grouped, but it is the most the
+   shape can carry.
+2. **Practice moves into the ☰**, out of element 12's bottom row. That changes a
+   shipped decision — element 12 put the click and the track *on the chart* so
+   they're reachable mid-song. Moving them costs that. The middle path: the row
+   stays, and the ☰ entry opens its options.
 
 **Deliberately deferred, with reasons:**
 - **Numbered per-repeat cues** (`> 2: Acapella`) — confirmed as a real gap from
