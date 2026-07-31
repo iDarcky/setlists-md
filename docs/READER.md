@@ -374,10 +374,96 @@ you see full-screen. It no longer has any effect on the hub.
 
 ## Not yet designed
 
+### The elements nobody has named yet
+
+Written 2026-07-30, for the element-by-element pass. Elements 1–13 covered what
+a chart *shows*. Most of these are about what happens when something goes
+**wrong**, or when the room changes — and those are the moments a musician
+remembers. Numbered from 14 so they can be worked the same way as the rest.
+
+| # | Element | Why it matters | Cost |
+|---|---------|----------------|------|
+| 14 | **Nothing to show** | A song with no sections, a setlist item whose song was deleted, a chart that failed to parse. Right now: a blank reader. On a Sunday a blank screen is indistinguishable from a crash. | S |
+| 15 | **The first paint** | What is on screen between opening the reader and the song being ready. A flash of empty chrome reads as broken on a slow phone. | S |
+| 16 | **The room changed** | Rotate the tablet mid-song. Columns reflow, the section you were on moves — do you keep your place? This is the ONE job, and rotation is the easiest way to break it. | M |
+| 17 | **The screen went to sleep** | Deliberately not ported. Still the single most common real-world complaint about any chart app. Needs a decision, not just a wake lock. | S |
+| 18 | **Coming back** | You leave the reader mid-service (a call, a notification, the app is backgrounded, the tab is discarded). Do you return to song 5 where you were, or song 1? | M |
+| 19 | **Capo** | The chart shows sounding chords; a capoed guitarist wants shapes. `capo` is on the arrangement and the reader currently ignores it. Element 11 already ruled it out for diagrams — the chart itself is undecided. | M |
+| 20 | **Auto-scroll** | Genuinely absent from the whole app, and the feature most competitors lead with. Either decide it's not wanted (defensible — a section-anchored reader may not need it) or design it. | L |
+| 21 | **Arrangement switching in the reader** | The hub can switch arrangements; the reader can't. Mid-rehearsal "let's do the short version" has no answer. | M |
+| 22 | **The three note levels, on stage** | Element 4 is the band cue, element 5 the inline note. Arrangement notes and private notes (`team_notes`) have **no home in the reader at all** — they exist and are invisible where they'd be used. | M |
+| 23 | **Getting the chart out** | No print/PDF entry point from the reader. Someone asks for it after the service and you have to leave and go find the song. | S |
+| 24 | **Reading at a distance** | The stand is a metre away. Not the same problem as "big text" — it's contrast, weight and line spacing together. Older musicians are the ones who'll say so first. | M |
+| 25 | **Follow the leader** | The leader jumps to song 5 or repeats the bridge; the band is still on 4. Realtime already exists (`team_schedules`, the publication). This is the biggest *feature* left, not the biggest *fix*. | XL |
+| 26 | **Reachability** | Where controls sit for a thumb on a phone held one-handed while the other hand plays. Everything currently lives at the top. | S |
+| 27 | **Offline in the reader** | Cover art, the YouTube track, chord diagrams — all fail differently with no signal. Element 12's track already needs it. | S |
+
+**On defaults:** every element above has a default whether or not anyone chose
+it. That is what tomorrow's pass is for — most of these are cheap if decided,
+expensive if discovered on a Sunday.
+
+### Still open from earlier elements
+
 | # | Element | Notes |
 |---|---------|-------|
 | — | Count-in, section loop | Cut from element 12 round 1. A loop needs per-section bars/timestamps — an `.md` format change |
 | — | Wake lock, session stats | Carried by the old views; not ported on purpose |
+| 8b | Setlist bar | Shipped, needs a rework pass (owner, 2026-07-30) |
+| — | **Full-screen from the hub** | `FullscreenChartViewer` is a WIP stub with no ☰ and no hub chrome. Three ways out, all defensible — see below |
+
+### Full-screen from the hub — three ways, ❓ undecided
+
+`FullscreenChartViewer` is a WIP stub: no ☰, no hub chrome, connected to
+neither surface. The owner, 2026-07-30: *"it's a lot of work, pff."* The three
+honest options:
+
+1. **It IS the Reader, single-song.** `SetlistReader` minus prev/next. One
+   renderer, one menu, one set of decisions — and every element already built
+   arrives for free. The reader has to handle a one-song "set" anyway.
+   **Cheapest and the one that stops the drift.**
+2. **It is the hub view, bigger.** Same fixed look, no controls, just larger.
+   Trivial to build, but then the app has a full-screen mode you cannot change
+   anything in, which is the opposite of why people go full-screen.
+3. **It is Practice.** Full-screen means "I'm working on this song", so give it
+   the click and the track. Coherent — but it makes full-screen a *mode* rather
+   than a size, and the owner has been consistently against modes.
+
+Recommendation: **1**. The hub view exists to be uncustomizable; full-screen is
+where you want the opposite. Making full-screen the Reader also means the ☰
+built for the reader serves it, instead of needing its own.
+
+### The side peek — open the hub instead? ❓
+
+Owner's idea, 2026-07-30. Worth it: the peek is already the hub view, so
+"open the peek" and "open the hub" now differ only in chrome, and one of them
+is a second thing to maintain. Against: the peek's value is that it is
+*dismissible without leaving the list* — replacing it with a route trades that
+away. Middle path: keep the peek, and make it **shorter than the row it opened
+from** (already noted in `PLAN.md`) so it can be dismissed without moving the
+mouse.
+
+### The ☰ menu — what actually belongs in it
+
+The owner's constraint: *"there would be more options than just the visual."*
+So it is not an Aa menu with a new coat of paint; it is **the reader's one
+menu**, and Aa is one section of it. Candidates, roughly in order of how often
+they'd be reached for:
+
+1. **Display** — what Aa holds today (text, chords, columns, sections, repeats)
+2. **Practice** — the click and the track, promoted out of element 12's row
+3. **Jump to** — the section list, for when the ribbon is off or the song is long
+4. **This song** — transpose, capo, arrangement, notation
+5. **Fix it** — the fast correction the owner keeps asking for (§7 #12); the
+   "is this a correction or a new arrangement?" question lives here
+6. **Notes** — band cue · arrangement note · my note (element 22 above)
+7. **Get it out** — print / PDF / share
+8. **The screen** — keep awake, distance mode, brightness
+9. **Who's playing** — my instrument for this service (drives element 9's tabs)
+
+**Shape:** sheet on a phone (detented so the chart stays visible above it),
+popover anchored to ☰ on a desktop. Apple splits by size class the same way —
+sheet on iPhone, popover on iPad/Mac — and it satisfies the panel rule (never
+cover what it changes) better than one popover forced onto both.
 
 **Deliberately deferred, with reasons:**
 - **Numbered per-repeat cues** (`> 2: Acapella`) — confirmed as a real gap from
