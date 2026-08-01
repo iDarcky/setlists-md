@@ -22,7 +22,7 @@ import { useState, useEffect } from 'react';
 //
 // Returns the active section index, or `null` when there isn't one. Callers must
 // treat `null` as "highlight nothing" — not as index 0.
-export function useActiveSection(scrollRef, resetKey, lineFraction = 0.28, enabled = true) {
+export function useActiveSection(scrollRef, resetKey, lineFraction = 0.28, enabled = true, linePx = null) {
   const [active, setActive] = useState(0);
 
   useEffect(() => {
@@ -48,7 +48,13 @@ export function useActiveSection(scrollRef, resetKey, lineFraction = 0.28, enabl
       if (!scrollable) { setActive(null); return; }
 
       const rootTop = root.getBoundingClientRect().top;
-      const line = root.clientHeight * lineFraction;
+      // `linePx` — an EXACT reading line in pixels, which is what the reader
+      // needs. Its headings pin at the bottom of the sticky chrome (`headH`,
+      // 70–90px), but the fraction put the line at 2% of the viewport (~12px),
+      // so the ribbon changed 60–80px of scrolling BEFORE the heading actually
+      // pinned. The two halves of "where am I" have to agree to the pixel:
+      // pass the pin line and they do.
+      const line = linePx != null ? linePx : root.clientHeight * lineFraction;
       // The active section is the last one whose top has scrolled above the
       // reading line. Sections are stacked, so once one is below it the rest are.
       let current = 0;
@@ -71,7 +77,7 @@ export function useActiveSection(scrollRef, resetKey, lineFraction = 0.28, enabl
       window.removeEventListener('resize', schedule);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [scrollRef, resetKey, lineFraction, enabled]);
+  }, [scrollRef, resetKey, lineFraction, enabled, linePx]);
 
   // Masked on the way out rather than zeroed in state: setting state inside the
   // effect to express "disabled" is a cascading render, and the value is a pure

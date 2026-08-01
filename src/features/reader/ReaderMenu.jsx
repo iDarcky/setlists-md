@@ -390,8 +390,14 @@ export default function ReaderMenu({
           Where things ARE. */}
       {panel === 'layout' && (
         <>
-              <Segs label="Columns" value={settings?.defaultColumns === 2 ? 2 : 1}
-                options={[[1, '1'], [2, '2']]} onChange={(v) => set('defaultColumns', v)} />
+              {/* Columns are a fact about the SPACE, not a taste, and a phone
+                  has room for one. `resolveReaderConfig` already forces 1 when
+                  the viewport is narrow, so the control was a switch that did
+                  nothing there — worse than absent. (Owner, 2026-08-01.) */}
+              {!phone && (
+                <Segs label="Columns" value={settings?.defaultColumns === 2 ? 2 : 1}
+                  options={[[1, '1'], [2, '2']]} onChange={(v) => set('defaultColumns', v)} />
+              )}
               <Segs label="Structure — where" value={settings?.structurePosition || 'top'}
                 options={[['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['off', 'Hidden']]}
                 onChange={(v) => set('structurePosition', v)} />

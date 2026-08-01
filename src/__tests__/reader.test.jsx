@@ -392,3 +392,23 @@ describe('embedded in the Song Hub', () => {
     expect(container.firstChild.style.getPropertyValue('--chart-text')).toBe('');
   });
 });
+
+describe('the ribbon and the pinned heading agree', () => {
+  it('reads its active section from the PIN line, not a fraction of the viewport', () => {
+    // The two halves of "where am I" (element 2's chip and element 3's pinned
+    // heading) must change at the same instant. The ribbon used to spy on a
+    // line at 2% of the viewport while headings pinned at the header's height —
+    // 60-80px apart, so the chip changed well before the heading moved.
+    mockWidth(false);                       // sticky headings are phone-only
+    const { container } = render(
+      <Reader song={makeSong()} settings={{}} onExit={() => {}} />,
+    );
+    const heading = container.querySelector('[data-section-index="1"] > div');
+    const head = container.querySelector('.reader-head');
+    expect(head).toBeTruthy();
+    // The heading pins at a measured offset rather than at 0 — the value the
+    // scroll-spy is now handed.
+    expect(heading.style.position).toBe('sticky');
+    expect(heading.style.top).toBeTruthy();
+  });
+});

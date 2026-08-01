@@ -176,14 +176,25 @@ export default function Reader({
     `${song?.id || ''}:${config.columns}:${config.sticky}`,
     config.sticky ? 0.02 : 0.28,
     !embedded,
+    // Where headings PIN is the reading line, exactly. Anything else and the
+    // ribbon changes at a different moment from the heading it points at.
+    config.sticky ? headH : null,
   );
 
   useEffect(() => {
     const el = headRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return undefined;
     const ro = new ResizeObserver(entries => {
-      const h = entries[0]?.contentRect?.height || 0;
-      setHeadH(prev => (Math.abs(prev - h) > 1 ? h : prev));
+      // BORDER box, not content box. `contentRect` excludes the header's
+      // 1px bottom border, so `stickyTop` landed a pixel short of the header's
+      // real bottom edge and the pinned heading sat under the divider instead
+      // of below it. `borderBoxSize` is the honest number; the bounding rect is
+      // the fallback for engines that don't report it.
+      const box = entries[0]?.borderBoxSize?.[0]?.blockSize;
+      const h = box ?? el.getBoundingClientRect().height ?? 0;
+      // Sub-pixel: round UP so the heading can never overlap the divider.
+      const next = Math.ceil(h);
+      setHeadH(prev => (prev !== next ? next : prev));
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -423,8 +434,17 @@ export default function Reader({
         )}
       </div>
 
+      {/* `sticky bottom-0`, not just last-in-flow. The whole reader is ONE
+          scroll container, so a plain flex child sits at the end of the SONG —
+          which is what "bottom" did: you had to scroll to the end of the chart
+          to see the map of where you were in it. Same fix the practice row
+          already carries. It sits ABOVE the nav block below (z-10 vs z-20) so
+          the two stack rather than overlap. */}
       {config.ribbon === 'bottom' && ribbonNode && (
-        <div className="shrink-0 border-t overflow-hidden" style={rule}>
+        <div
+          className="sticky bottom-0 z-10 shrink-0 border-t overflow-hidden"
+          style={{ ...rule, background: 'var(--chart-bg, var(--ds-background-100))' }}
+        >
           <div className="wide-container py-1.5">{ribbonNode}</div>
         </div>
       )}
