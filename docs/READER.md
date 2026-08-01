@@ -687,8 +687,36 @@ instrument is the thing the other controls are downstream of. So The music opens
 on it, and capo/chords/notation read as its consequences. (Per-user, per-setlist,
 per-instrument capo is a later want; noted, not built.)
 
-Result: **four rows, one drill-in level**, and the top bar keeps ☰ · practice ·
-edit · exit — so nothing that was one tap becomes three.
+Result: **three rows, one drill-in level** (four, until *The screen* was cut in
+round 2), and the top bar keeps ☰ · practice · edit · exit — so nothing that was
+one tap becomes three.
+
+#### Cut again, and rebuilt to the mockup — 2026-08-01 (round 2)
+
+Owner on the first build: *"this is a bit overwhelming. please make it look
+exactly like the mockup but with our colors."*
+
+- **Three rows.** *The screen* is cut — keep-awake already lives in Settings
+  (and the reader now honours it), and a row holding one switch is a row
+  holding nothing.
+- **The row shape was the problem.** The build had a two-line card with a
+  bordered icon tile; the mockup has a single line — glyph · label · current
+  value right-aligned in mono · chevron. The card version made three rows
+  occupy the height of eight, which is where "overwhelming" came from.
+- **Panels are `Field` blocks now**: a 10px mono uppercase label over a row of
+  small segmented pills, per the concept. Font pickers went from a 44px-per-row
+  bordered list to pills — that list alone was most of the Look tab's height.
+- **Geometry is the mockup's, colours are ours.** 296px popover, 18px sheet
+  radius with a grab handle, 27px steppers, `5px` seg gaps.
+
+**The overflow-on-the-right fix** was two real bugs, not styling:
+1. The clamp measured `window.innerWidth`, which **includes the scrollbar**, so
+   the popover was allowed to extend under and past it.
+   `document.documentElement.clientWidth` is the honest number.
+2. The phone/desktop threshold was 640px. Between 640 and 700 the popover was
+   wider than the room beside the ☰. It is 700 now, plus a hard
+   `maxWidth: calc(100vw - 16px)` and `overflow-x: hidden` on the body so a
+   wrapping seg row can never widen the panel itself.
 
 #### Built, 2026-08-01 — `src/features/reader/ReaderMenu.jsx`
 

@@ -1,11 +1,14 @@
 import { CHART_FONTS, CHART_COLOR_PALETTE } from '@/data/chartThemes';
 
 /**
- * The small controls that settings panels are built out of.
+ * The small controls `AaMenu` is built out of.
  *
- * Extracted from `AaMenu` when the reader grew its own ☰ menu: the two panels
- * share a visual language, and two private copies of a stepper drift within a
- * release. Nothing here holds state — every control is value + onChange.
+ * Extracted from it when the reader grew its own ☰ menu, so the primitives sit
+ * beside the design system rather than inside one panel. The reader's
+ * `ReaderMenu` deliberately does NOT use these: it follows the concept
+ * mockup's tighter geometry (single-line rows, 27px steppers, small segmented
+ * pills), and forcing one set of controls to serve both looks would flatten the
+ * difference the mockup exists to make. Nothing here holds state.
  */
 
 /** A ± stepper. `unit` is rendered small after the number ('px', '%', …). */
@@ -40,20 +43,6 @@ export function Pick({ active, onClick, children }) {
           : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}>
       {children}
     </button>
-  );
-}
-
-/** A labelled row of `Pick`s bound to one setting key. */
-export function PickRow({ label, options, value, onChange }) {
-  return (
-    <>
-      <Label>{label}</Label>
-      <div className="flex gap-1.5 flex-wrap">
-        {options.map(([v, l]) => (
-          <Pick key={v} active={value === v} onClick={() => onChange(v)}>{l}</Pick>
-        ))}
-      </div>
-    </>
   );
 }
 
@@ -98,28 +87,4 @@ export function Swatches({ activeValue, onPick }) {
 
 export function ProHint({ children }) {
   return <p className="text-copy-13 text-[var(--text-2)] m-0">{children}</p>;
-}
-
-/** An on/off switch for a single boolean setting. */
-export function Switch({ checked, onChange, label, description }) {
-  return (
-    <button
-      type="button" role="switch" aria-checked={!!checked} onClick={() => onChange(!checked)}
-      className="w-full min-h-0 flex items-center gap-3 px-3 py-2.5 rounded-xl border border-[var(--border-1)] bg-[var(--bg-1)] text-left cursor-pointer hover:border-[var(--border-3)] transition-colors"
-    >
-      <span className="flex-1 min-w-0">
-        <span className="block text-label-13 font-medium text-[var(--text-1)]">{label}</span>
-        {description && <span className="block text-copy-13 text-[var(--text-2)] mt-0.5">{description}</span>}
-      </span>
-      <span
-        className="shrink-0 w-10 h-6 rounded-full p-0.5 transition-colors"
-        style={{ background: checked ? 'var(--color-brand)' : 'var(--border-2)' }}
-      >
-        <span
-          className="block w-5 h-5 rounded-full bg-white transition-transform"
-          style={{ transform: checked ? 'translateX(16px)' : 'none' }}
-        />
-      </span>
-    </button>
-  );
 }

@@ -257,17 +257,20 @@ describe('the ☰ menu', () => {
     expect(document.querySelectorAll('[data-section-index]').length).toBe(4);
   });
 
-  it('is four rows and no more — the cut that kept one tap from becoming three', () => {
+  it('is three rows and no more — the cut that kept one tap from becoming three', () => {
     renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    ['Display', 'The music', 'Notes', 'The screen'].forEach(label => {
+    ['Display', 'The music', 'Notes'].forEach(label => {
       expect(screen.getByText(label)).toBeTruthy();
     });
-    // Cut rows, each for a recorded reason (READER.md → "Cut down to four").
+    // Cut rows, each for a recorded reason (READER.md → "Cut down to three").
     expect(screen.queryByText('Jump to')).toBeNull();
     expect(screen.queryByText('Practice')).toBeNull();
     expect(screen.queryByText('Fix it')).toBeNull();
     expect(screen.queryByText('Share')).toBeNull();
+    // The screen went too: keep-awake already lives in Settings, and a row
+    // holding one switch is a row holding nothing.
+    expect(screen.queryByText('The screen')).toBeNull();
   });
 
   it('drills one level into Display, and comes back', () => {
