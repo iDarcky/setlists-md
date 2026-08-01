@@ -25,7 +25,11 @@ const DEFAULT_BPM = 100;
 // beats. 25ms/120ms is the standard pairing: comfortably more lookahead than
 // wake interval, so a late wake still has beats already booked.
 const LOOKAHEAD_MS = 25;
-const SCHEDULE_AHEAD_S = 0.12;
+// Raised from 0.12s. The horizon is the only thing standing between a late
+// scheduler pass and a missed beat, and 0.12s covers less than a frame budget's
+// worth of slack on a busy phone. A quarter-second of booked-ahead audio costs
+// nothing and absorbs a long task whole.
+const SCHEDULE_AHEAD_S = 0.25;
 
 export function clampTempo(bpm) {
   // `parseFloat`, NOT `Number`: tempo comes off the .md frontmatter as a string,
@@ -62,29 +66,42 @@ export function beatsPerBar(time) {
  *
  * @returns {{ beats: Array<{ at: number, accent: boolean }>, nextTime: number, nextBeat: number }}
  */
-export function beatsToSchedule({ now, nextTime, beat, bpm, perBar, horizon = SCHEDULE_AHEAD_S }) {
+export function beatsToSchedule({ now, nextTime, beat, bpm, perBar, horizon = SCHEDULE_AHEAD_S, anchor = null }) {
   const secondsPerBeat = 60 / clampTempo(bpm);
   const bars = Math.max(1, perBar);
   const beats = [];
   let t = nextTime;
   let n = beat;
 
-  // ── Catch up, don't machine-gun ──────────────────────────────────────────
-  // The scheduler is a `setInterval`, and browsers throttle or suspend timers
-  // in a background tab while the AUDIO clock keeps running. Come back after
-  // 30 seconds and `nextTime` is 30 seconds behind `now` — at which point the
-  // loop below books every beat in between, all with a time in the PAST, and
-  // Web Audio plays anything scheduled in the past immediately. That is a burst
-  // of clicks followed by a click that is permanently late: the "metronome gets
-  // out of sync" report.
+  // ── Never fall behind, never leave the grid ──────────────────────────────
+  // The scheduler is a timer, and a timer can be late — throttled in a hidden
+  // tab, starved by a long task, stopped outright while the device sleeps. The
+  // AUDIO clock keeps running regardless, so a late pass wakes with `nextTime`
+  // behind `now`.
   //
-  // Skipping whole beats keeps the BAR phase, so the accent still lands on
-  // beat one — dropping to `now` exactly would put the downbeat wherever the
-  // interruption happened to end.
+  // Booking those beats anyway is the bug that was heard as "out of sync":
+  // Web Audio plays anything scheduled in the past IMMEDIATELY, so a 30-second
+  // gap became a burst of clicks followed by a click that never caught up.
+  //
+  // What we do instead is land on the next beat OF THE ORIGINAL GRID. `anchor`
+  // is the time of beat 0, so beat k is always exactly `anchor + k *
+  // secondsPerBeat` — computed, never accumulated, which is also why the click
+  // cannot drift over a long session. Nothing is dropped from the count: `n`
+  // advances by however many beats genuinely elapsed, so the accent still falls
+  // on beat one of the bar and the count is exactly where it would have been
+  // had the timer never faltered. Beats whose moment has already passed can't
+  // be played — no scheduler can play a sound in the past — but the pulse
+  // resumes in phase rather than restarting wherever the interruption ended.
   if (t < now) {
-    const missed = Math.ceil((now - t) / secondsPerBeat);
-    t += missed * secondsPerBeat;
-    n += missed;
+    if (anchor != null) {
+      const k = Math.ceil((now - anchor) / secondsPerBeat);
+      n += Math.max(0, k - Math.round((t - anchor) / secondsPerBeat));
+      t = anchor + k * secondsPerBeat;
+    } else {
+      const missed = Math.ceil((now - t) / secondsPerBeat);
+      t += missed * secondsPerBeat;
+      n += missed;
+    }
   }
 
   // Bounded so a pathological input (a huge horizon, a stalled clock) can never
@@ -98,17 +115,56 @@ export function beatsToSchedule({ now, nextTime, beat, bpm, perBar, horizon = SC
 }
 
 /**
+ * A tick that keeps ticking when the page is hidden.
+ *
+ * `setInterval` on the main thread is clamped to ~1s (or suspended) in a
+ * background tab, which is precisely when the scheduler must NOT stop: the
+ * audio clock carries on and every beat it fails to book is a beat that
+ * silently doesn't happen. A Worker's timer is throttled far less
+ * aggressively, so the click survives a glance at another app.
+ *
+ * Built from a Blob rather than a file so it needs no separate chunk and works
+ * offline with no extra precache entry. Falls back to `setInterval` wherever
+ * Workers or blob URLs are unavailable (older WebViews, strict CSP) — the
+ * lookahead still covers ordinary main-thread jitter there.
+ */
+export function createTicker(intervalMs, onTick) {
+  if (typeof Worker !== 'undefined' && typeof URL?.createObjectURL === 'function') {
+    try {
+      const src = `let id=null;onmessage=e=>{if(e.data.start){clearInterval(id);id=setInterval(()=>postMessage(0),e.data.start)}else{clearInterval(id);id=null}}`;
+      const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+      const worker = new Worker(url);
+      worker.onmessage = () => onTick();
+      worker.postMessage({ start: intervalMs });
+      return () => {
+        worker.postMessage({ start: 0 });
+        worker.terminate();
+        URL.revokeObjectURL(url);
+      };
+    } catch {
+      /* fall through to the timer */
+    }
+  }
+  const id = setInterval(onTick, intervalMs);
+  return () => clearInterval(id);
+}
+
+/**
  * The click itself. Returns a handle rather than a class — nothing needs to
  * subclass a metronome, and a closure keeps the audio context private so it
  * cannot be left running by a stray reference.
  */
 export function createMetronome() {
   let ctx = null;
-  let timer = null;
+  let stopTicker = null;
   let nextTime = 0;
   let beat = 0;
   let bpm = DEFAULT_BPM;
   let perBar = 4;
+  // The time of beat 0. Every beat is computed FROM this rather than added to
+  // the last one, so a long session cannot accumulate rounding drift and a late
+  // pass can always find the grid again.
+  let anchor = 0;
 
   function ensureContext() {
     if (ctx) return ctx;
@@ -140,16 +196,16 @@ export function createMetronome() {
 
   function pass() {
     if (!ctx) return;
-    const next = beatsToSchedule({ now: ctx.currentTime, nextTime, beat, bpm, perBar });
+    const next = beatsToSchedule({ now: ctx.currentTime, nextTime, beat, bpm, perBar, anchor });
     for (const b of next.beats) playClick(b.at, b.accent);
     nextTime = next.nextTime;
     beat = next.nextBeat;
   }
 
   function stop() {
-    if (timer) {
-      clearInterval(timer);
-      timer = null;
+    if (stopTicker) {
+      stopTicker();
+      stopTicker = null;
     }
   }
 
@@ -170,7 +226,8 @@ export function createMetronome() {
       // A beat's grace before the first click, so the downbeat is scheduled
       // rather than fired late at whatever `currentTime` happened to be.
       nextTime = c.currentTime + 0.06;
-      timer = setInterval(pass, LOOKAHEAD_MS);
+      anchor = nextTime;
+      stopTicker = createTicker(LOOKAHEAD_MS, pass);
       pass();
       return true;
     },
@@ -186,10 +243,17 @@ export function createMetronome() {
     setTempo(nextBpm) {
       const prev = bpm;
       bpm = clampTempo(nextBpm);
-      if (!ctx || !timer || bpm === prev) return;
+      if (!ctx || !stopTicker || bpm === prev) return;
       const spb = 60 / bpm;
       const now = ctx.currentTime;
+      // `nextTime` was booked at the old spacing and can sit a whole horizon in
+      // the future, so without this the first beat after a change is still at
+      // the old tempo — which a HELD − / + does dozens of times a second.
       if (nextTime > now + spb) nextTime = now + spb;
+      // Re-anchor the grid to the beat we just committed to: the old anchor
+      // describes a grid at the old tempo, and catch-up must land on the grid
+      // actually being played.
+      anchor = nextTime - beat * spb;
     },
     stop,
     dispose() {

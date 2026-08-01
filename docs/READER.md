@@ -769,7 +769,50 @@ Shipped as designed above. Notes worth keeping:
 - Shared controls moved to `src/ui/PanelControls.jsx`; `AaMenu` imports the
   same ones, so the two panels cannot drift.
 
-### The five views — what they actually are ❓
+### The four views — the map, agreed 2026-08-01
+
+The owner's list, confirmed and completed. **A view is a TEMPLATE of the
+Reader** — one renderer, one set of elements, different defaults and different
+chrome around it. Not a different chart. Anything that forks the chart itself is
+the mistake this whole rework exists to undo.
+
+| # | View | Opens from — and ONLY from | What makes it different |
+|---|------|----------------------------|--------------------------|
+| 1 | **Song hub, full screen** | the full-screen button inside the Song Hub. From the **side peek it expands within the peek**, never to the real screen — the peek's whole value is that you never left the list | one song, no prev/next. `FullscreenReader` today |
+| 2 | **Campfire** | the Campfire button on a song | one song, and **recommended next songs at the bottom** |
+| 3 | **Live** | Play in the setlist hub | the important one. Whole set, nav, the rail |
+| 4 | **Practice** | Practice in the setlist hub | needs a rework. Owns the click, the track, note-writing, arrangement switching |
+
+**What the list was missing** — three more surfaces render a chart, and each
+needs a decision even if the decision is "not a view":
+
+- **The hub view** (the Chart/Lyrics tab inside the Song Hub, the side peek at
+  rest, the editor preview). Already settled: a fixed look, answerable to
+  nothing, `HUB_VIEW` in `readerConfig.js`. It is a **template with no
+  settings**, which is a legitimate fifth entry in the table even though it is
+  not a "view" in the owner's sense.
+- **The shared setlist viewer** (`SharedSetlistViewer`) — a public link opened
+  by someone with no account and no settings of their own. It renders a chart
+  today and it is not the Reader. Either it becomes view 5 with everything
+  locked, or it stays a separate read-only renderer forever. **Undecided.**
+- **Print / PDF** (`src/pdf/`) — a genuinely different renderer with its own
+  layout engine, and it should stay that way. Paper is not a screen.
+
+Also worth naming: `setlist-play` and `setlist-performance` are **two routes
+into view 3**. They render the same thing with the same props and differ only in
+which finale they land on. One of them should go.
+
+#### Do we map first, or finalise the look first?
+
+**Map first — but the map is the four rows above, and it is already done.** The
+useful next step is not more mapping, it is the **element pass**: a view is
+nothing but a set of element defaults plus its chrome, so until the elements are
+settled, "mapping" view 3 means writing down settings that are about to change.
+Finalise the elements, then each view is an afternoon of choosing defaults and
+building the one piece of chrome that is unique to it (Campfire's recommended
+list, Practice's tools, Live's rail).
+
+### The five views — what they actually are (superseded by the map above) ❓
 
 The owner asked, twice, whether the reader really needs five views, and the
 question deserves the facts rather than a design opinion. Today:

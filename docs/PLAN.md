@@ -171,6 +171,22 @@ serious thing in this document; the last two are blocked on you.
     counter (`SetlistItemRow.jsx:124`), which sits on the notes *button* and only
     renders when a note exists — that does not match "over the text box".
 
+### 1.2b Straight after the Reader — in this order
+
+1. 🔴 **Rethink the colours across every theme** (owner, 2026-08-01, *prio 1*).
+   Two fixes landed piecemeal — the dark ramp's hue was fighting its own
+   background, and Midnight tinted only half its scale — which is evidence the
+   themes were never designed as a set. What this pass owes: one method for
+   deriving a theme (ground → chrome ramp → text ramp → accent → chord), every
+   app theme and every **chart** theme rebuilt through it, and a check that the
+   accent-colour setting reaches everything it should. The `color-mix` brand
+   derivation (2026-08-01) is the first piece of that method, not the end of it.
+2. 🟡 **Separate volume for the click and the backing track** (owner,
+   2026-08-01, "for the future"). Element 12 has one `gain` constant for the
+   click and no control at all for the track. Practising with a track means
+   riding the click under it, and today the only lever is the device volume,
+   which moves both.
+
 ### 1.3 Then stop, and re-plan from this file
 
 By the owner's decision, no new feature work between §1.2 and this point. When

@@ -123,3 +123,40 @@ describe('catching up after the tab was suspended', () => {
     expect(ahead.beats[0].at).toBeCloseTo(1.05, 5);
   });
 });
+
+describe('the grid survives an interruption', () => {
+  // `anchor` is the time of beat 0. Every beat is anchor + k*spb, computed
+  // rather than accumulated, so a late pass can find the ORIGINAL grid again
+  // instead of restarting wherever the interruption happened to end.
+  const spb = 0.5;              // 120bpm
+  const base = { bpm: 120, perBar: 4, anchor: 0 };
+
+  it('resumes ON the original grid, not offset by the gap', () => {
+    // Interrupted mid-beat: now = 10.31s, which is 20.62 beats in.
+    const { beats } = beatsToSchedule({ ...base, now: 10.31, nextTime: 0.5, beat: 1 });
+    // The next beat of the grid is beat 21 → t = 10.5, NOT 10.31 + something.
+    expect(beats[0].at).toBeCloseTo(21 * spb, 6);
+  });
+
+  it('keeps the count, so the accent lands where it always would have', () => {
+    // 10.31s in = beat 21 next. 21 % 4 === 1, so it is NOT a downbeat, and the
+    // downbeat comes three beats later — exactly as if nothing had happened.
+    const { beats } = beatsToSchedule({ ...base, now: 10.31, nextTime: 0.5, beat: 1, horizon: 2 });
+    const accents = beats.map(b => b.accent);
+    expect(accents[0]).toBe(false);
+    expect(accents[3]).toBe(true);
+  });
+
+  it('never books a beat in the past', () => {
+    const { beats } = beatsToSchedule({ ...base, now: 60, nextTime: 0.5, beat: 1 });
+    expect(beats.every(b => b.at >= 60)).toBe(true);
+  });
+
+  it('does not drift over a long run, because beats are computed not summed', () => {
+    // Beat 100_000 at 120bpm is exactly 50_000s after the anchor. An
+    // accumulating scheduler would be off by a float epsilon per beat.
+    const n = 100000;
+    const { beats } = beatsToSchedule({ ...base, now: n * spb - 0.01, nextTime: 0, beat: 0 });
+    expect(beats[0].at).toBeCloseTo(n * spb, 9);
+  });
+});

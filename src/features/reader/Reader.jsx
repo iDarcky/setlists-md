@@ -351,7 +351,7 @@ export default function Reader({
             // between two pieces of chrome. And it is brand-tinted rather than
             // grey — at 30% the teal is still a hairline, but it is the one
             // line in the reader that says "the bar ends here".
-            <div className="border-t" style={{ borderColor: 'var(--color-brand-border)' }}>
+            <div className="border-t" style={{ borderColor: 'var(--chart-divider, var(--color-brand-border))' }}>
               <div className="wide-container overflow-hidden pt-1 pb-1" style={{ fontSize: '0.85em' }}>
                 {ribbonNode}
               </div>

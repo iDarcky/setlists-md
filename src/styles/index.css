@@ -291,6 +291,29 @@
 }
 
 @layer base {
+  /* ── The brand's derived tones ─────────────────────────────────────────────
+     `--color-brand` is overridden at runtime by the Accent colour setting
+     (`useChartTheme` writes it as an inline style on :root). Its three
+     companions were hard-coded teal in @theme, so setting an accent recoloured
+     buttons and focus rings and left every soft fill, brand text and hairline
+     the original teal — the app half-changed. Deriving them with `color-mix`
+     means one setting moves all four.
+
+     Declared here rather than in @theme so Tailwind never tries to build
+     colour utilities out of a `color-mix()` expression; every call site uses
+     the arbitrary form `[var(--color-brand-soft)]` anyway. `@layer base` also
+     wins over `@layer theme` regardless of source order. */
+  :root {
+    --color-brand-soft: color-mix(in srgb, var(--color-brand) 15%, transparent);
+    --color-brand-border: color-mix(in srgb, var(--color-brand) 34%, transparent);
+    --color-brand-text: var(--color-brand);
+    /* The reader's one brand-coloured line — element 1's divider. Stronger than
+       --color-brand-border on purpose: at 34% on a dark ground the teal reads
+       as grey ("is that hairline the same brand color? I don't feel like"), and
+       this line exists precisely to be recognised as the end of the bar. */
+    --chart-divider: color-mix(in srgb, var(--color-brand) 60%, transparent);
+  }
+
   /* "Midnight" — legacy navy dark surface, kept as an opt-in flavor of the
      dark theme. Overrides page surfaces and tints the low-end gray ramp
      (100–400, used for card fills, hovers, input borders, dividers)
