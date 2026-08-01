@@ -284,11 +284,20 @@ not hunting a position — and a 3rem range input was the one control on that ro
 nobody can hit accurately on a phone while holding an instrument. The Song Hub's
 player bar keeps the full transport for when you ARE looking for a spot.
 
-#### The divider under element 1 — 2026-08-01
+#### The divider — settled 2026-08-01, after two placements
 
-Full-bleed and brand-tinted (`--color-brand-border`, teal at 30%). Bounded to
-the `wide-container` it stopped short of both edges and read as an underline for
-the song title rather than a division between two pieces of chrome.
+It is the **bottom edge of the whole sticky block** (bar + ribbon), brand-tinted
+via `--chart-divider` (the accent at 60%). It lives on `ReaderTopBar`, not
+between the bar and the ribbon.
+
+The reasoning, because the owner was conflicted and this is the kind of thing
+that gets re-opened: element 2 already decided the bar and the ribbon are **one
+piece of chrome that travels together, not two stacked stickies**. A rule
+between them argues the opposite — and in practice it read as an underline for
+the song title. The boundary that actually exists on that screen is
+**chrome ↔ chart**, and that is where the line belongs. It is also the only
+placement that still makes sense when the ribbon is off, or when element 8's
+setlist bar is showing instead.
 
 ### 8b — The setlist bar (the second top-bar treatment)
 

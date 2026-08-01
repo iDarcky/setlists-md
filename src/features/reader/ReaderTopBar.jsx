@@ -21,8 +21,15 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
     <div
       ref={ref}
       className="reader-head sticky top-0 z-20 shrink-0 flex flex-col border-b"
+      // The brand-tinted divider closes the WHOLE sticky block — bar plus
+      // whatever is pinned under it — rather than sitting between the two.
+      // Element 2's decision is that the bar and the ribbon are ONE piece of
+      // chrome that travels together; a line between them argues the opposite,
+      // and it landed as an underline for the song title. The boundary that
+      // actually exists is chrome ↔ chart, and this is it. (2026-08-01, after
+      // one round with the line in the other place.)
       style={{
-        borderColor: 'var(--chart-rule, var(--ds-gray-300))',
+        borderColor: 'var(--chart-divider, var(--chart-rule, var(--ds-gray-300)))',
         background: 'var(--chart-bg, var(--ds-background-100))',
       }}
     >

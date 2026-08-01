@@ -341,20 +341,12 @@ export default function Reader({
               chrome that travels together, rather than two stacked stickies. */}
           {underBar}
           {!underBar && config.ribbon === 'top' && ribbonNode && (
-            // A hairline between the bar and the ribbon — the Score mockup's
-            // divider, at a fraction of its weight. They are still ONE sticky
-            // block; this only separates them to the eye.
-            //
-            // The rule is on the FULL-WIDTH wrapper, not on the `wide-container`
-            // inside it: bounded to the container it stopped short of both edges
-            // and read as an underline for the title rather than a division
-            // between two pieces of chrome. And it is brand-tinted rather than
-            // grey — at 30% the teal is still a hairline, but it is the one
-            // line in the reader that says "the bar ends here".
-            <div className="border-t" style={{ borderColor: 'var(--chart-divider, var(--color-brand-border))' }}>
-              <div className="wide-container overflow-hidden pt-1 pb-1" style={{ fontSize: '0.85em' }}>
-                {ribbonNode}
-              </div>
+            // No rule between the bar and the ribbon. They are ONE piece of
+            // chrome by element 2's decision, and a line here splits what that
+            // decision deliberately fused. The divider lives on the bottom of
+            // the whole sticky block instead — see `ReaderTopBar`.
+            <div className="wide-container overflow-hidden pt-1 pb-1" style={{ fontSize: '0.85em' }}>
+              {ribbonNode}
             </div>
           )}
         </ReaderTopBar>
