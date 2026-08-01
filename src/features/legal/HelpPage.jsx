@@ -160,7 +160,6 @@ export default function HelpPage({ onBack, onMarkSeen }) {
             <Item term="Roles">One tap applies a preset for <strong className="text-[var(--modes-text)]">Leader</strong>, <strong className="text-[var(--modes-text)]">Vocalist</strong>, <strong className="text-[var(--modes-text)]">Guitarist</strong>, <strong className="text-[var(--modes-text)]">Bassist</strong>, <strong className="text-[var(--modes-text)]">Keys</strong>, or <strong className="text-[var(--modes-text)]">Drummer</strong>.</Item>
             <Item term="Navigation">Choose how you move between songs in Settings → Navigation controls: a <strong className="text-[var(--modes-text)]">floating pill</strong>, <strong className="text-[var(--modes-text)]">header buttons</strong>, or <strong className="text-[var(--modes-text)]">swipe</strong>. Arrow keys and Bluetooth pedals always work too.</Item>
             <Item term="Setlist rail">On a landscape tablet the set sits beside the chart; on a phone tap the list icon to open it as a sheet.</Item>
-            <Item term="Auto-hide title bar">The header tucks away after a few idle seconds for a bigger chart — tap to bring it back, or turn it off in Settings.</Item>
             <Item term="Customize">The sliders icon opens display options without leaving the song.</Item>
           </div>
           <Tip>Install the app via &ldquo;Add to Home Screen&rdquo; for true full-screen — and the screen stays awake while you play.</Tip>

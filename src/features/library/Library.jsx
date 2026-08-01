@@ -6,7 +6,6 @@ import WorkspacePickerDialog from '@/ui/WorkspacePickerDialog';
 import { SearchBar } from '@/ui/SearchBar';
 import { cn } from '@/lib/utils';
 import { searchSongs, normalizeText } from '@/lib/search';
-import Reader from '@/features/reader/Reader';
 import { buildFacetOptions, matchesFacets, countActiveFacets } from '@/lib/songFacets';
 import LibraryFilters from './LibraryFilters';
 import { orderedVisibleColumns } from '@/lib/tableColumns';
@@ -26,6 +25,9 @@ import {
 import { splitMulti } from '@/lib/songFacets';
 
 const ChartView = lazy(() => import('@/features/chart/ChartView'));
+// The peek IS the song hub (decided 2026-07-31). Lazy for the same reason the
+// route is: the hub pulls in svguitar, the PDF exporter and the YouTube player.
+const SongHub = lazy(() => import('@/features/song/SongHub'));
 
 const SORT_MODES = [
   { key: 'title', label: 'Title' },
@@ -331,6 +333,7 @@ export default function Library({
   isFullscreen = false,
   onToggleFullscreen,
   onEditSong,
+  onUpdateSong,
   readOnly = false,
   chartDefaults = {},
   canEdit = true,
@@ -366,9 +369,13 @@ export default function Library({
 
   // Row click opens the full chart; a dedicated row button opens the peek.
   const openFull = (song) => onSelectSong?.(song);
+  // Tapping the SAME row's peek button again closes it. The pointer is already
+  // on that button, so dismissing costs no movement at all — the cheapest half
+  // of "make it easy to click out of" (owner, 2026-07-31); the other half is
+  // the panel never reaching under the pointer, in `SidePeek`.
   const openPeek = (song, e) => {
     e?.stopPropagation();
-    onSelectPreview?.(song.id);
+    onSelectPreview?.(song.id === previewSongId ? null : song.id);
   };
 
   const [query, setQuery] = useState('');
@@ -987,13 +994,21 @@ export default function Library({
         {previewSong && (
           <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
             {chartDefaults?.settings?.unifiedReader ? (
-              // The side peek is the HUB VIEW too — same fixed look, so the
-              // peek, the song page and the editor preview cannot drift apart.
-              <Reader
+              // The peek is the SONG HUB, not a reduced preview of it (owner,
+              // 2026-07-31). Before this it mounted a bare embedded `Reader`,
+              // so the peek and the song page were two different answers to
+              // "show me this song" — one with tabs, art, key and the player,
+              // one with just the chart. The hub already renders that same
+              // embedded Reader inside itself, so this is one surface fewer to
+              // keep in step, not one more to build.
+              <SongHub
                 key={previewSong.id}
                 song={previewSong}
-                embedded
-                settings={chartDefaults.settings}
+                onBack={closePeek}
+                onEdit={onEditSong ? () => onEditSong(previewSong) : null}
+                onUpdateSong={onUpdateSong}
+                {...(chartMoveCopy ? chartMoveCopy(previewSong.id) : {})}
+                {...chartDefaults}
               />
             ) : (
             <ChartView

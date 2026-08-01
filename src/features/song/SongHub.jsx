@@ -6,6 +6,7 @@ import ChartView from '@/features/chart/ChartView';
 import Reader from '@/features/reader/Reader';
 import SongDetails from './SongDetails';
 import FullscreenChartViewer from './FullscreenChartViewer';
+import FullscreenReader from '@/features/reader/FullscreenReader';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import SongPlayerBar from './SongPlayerBar';
 import { OverflowMenu } from '@/ui/OverflowMenu';
@@ -421,7 +422,24 @@ export default function SongHub({
         )}
       </div>
 
-      {fsMode && (
+      {fsMode && (settings?.unifiedReader ? (
+        // Full screen IS the Reader, single-song (`docs/READER.md`, option 1).
+        // Not a fork of it and not a bigger hub view: the hub is deliberately
+        // uncustomizable, and full screen is exactly where you want the
+        // opposite — the ☰, the practice tools and every element already built
+        // arrive for free, and there is no second set of decisions to keep in
+        // step. The reader handles a one-song "set" already; it just has no
+        // prev/next to draw.
+        <FullscreenReader
+          song={song}
+          settings={settings}
+          onUpdateSettings={onUpdateSettings}
+          displayMode={fsMode === 'lyrics' ? 'lyrics' : displayMode}
+          selectedKey={selectedKey}
+          onSelectKey={setSelectedKey}
+          onClose={() => setFsMode(null)}
+        />
+      ) : (
         <FullscreenChartViewer
           title={song.title}
           keyLabel={keyValue}
@@ -429,7 +447,7 @@ export default function SongHub({
           chartProps={chartProps}
           onClose={() => setFsMode(null)}
         />
-      )}
+      ))}
     </div>
   );
 }

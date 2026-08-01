@@ -77,7 +77,7 @@ export default function PracticeView({ setlist, songs, onBack, onFinish, onUpdat
   const [setlistSheetOpen, setSetlistSheetOpen] = useState(false);
   const [chartWidth, setChartWidth] = useState(0);
   const scrollRef = useRef(null);
-  const [headerCollapsed, setHeaderCollapsed, revealHeader] = useStageHeaderCollapse(scrollRef, settings?.autoHideHeader === true);
+  const [headerCollapsed, setHeaderCollapsed, revealHeader] = useStageHeaderCollapse(scrollRef, false);
 
   // Parallel-browsing setlist rail — same affordance as the live Performance
   // view, so the leader can jump songs mid-practice without leaving the chart.

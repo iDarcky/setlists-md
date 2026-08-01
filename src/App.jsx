@@ -2193,6 +2193,7 @@ export default function App() {
               isFullscreen={isFullscreen}
               onToggleFullscreen={toggleFullscreen}
               onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
+              onUpdateSong={isTeamReadOnly ? null : handleUpdateSong}
               readOnly={isTeamReadOnly}
               setlists={setlists}
               activeLibrary={activeLibrary}
@@ -2382,6 +2383,8 @@ export default function App() {
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               myInstrument={myInstrument}
+              trash={trash}
+              onRestoreSong={isTeamReadOnly ? null : handleRestoreSong}
               onBack={goBack}
               onFinish={(stats) => (view === 'setlist-practice'
                 ? goPracticeFinale(currentSetlist, stats)

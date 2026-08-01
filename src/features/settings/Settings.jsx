@@ -455,27 +455,6 @@ function ChartPanel({ settings, update }) {
           </SelectContent>
         </Select>
       </Row>
-      <Row label="Auto-hide title bar" description="Collapse the header in live & practice after a few seconds idle; tap to bring it back.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {[
-            { key: true, label: 'On' },
-            { key: false, label: 'Off' },
-          ].map(({ key, label }) => {
-            const active = (settings.autoHideHeader === true) === key;
-            return (
-              <Button
-                key={String(key)}
-                size="sm"
-                variant={active ? 'secondary' : 'ghost'}
-                onClick={() => update('autoHideHeader', key)}
-                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </div>
-      </Row>
       <Row label="Accidentals" description="How sharps and flats are spelled. Auto follows the song's key (e.g. F♯ in G, G♭ in D♭).">
         <Select value={settings.accidentals || 'auto'} onValueChange={(v) => update('accidentals', v)}>
           <SelectTrigger className="h-9 w-44 bg-[var(--ds-background-100)]">

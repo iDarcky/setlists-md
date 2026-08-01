@@ -8,6 +8,7 @@ import EdgeNavArrows from '@/ui/EdgeNavArrows';
 import Reader from './Reader';
 import ReaderFooter from './ReaderFooter';
 import BreakScreen from './BreakScreen';
+import MissingSongScreen from './MissingSongScreen';
 import SetlistRail from './SetlistRail';
 import ReaderSetlistBar from './ReaderSetlistBar';
 
@@ -23,6 +24,9 @@ export default function SetlistReader({
   // What this player is scheduled on for the service, so their instrument's
   // tabs open and everyone else's collapse.
   myInstrument = null,
+  // Element 14. The 30-day bin, so a missing song can be put back from the
+  // place you notice it's gone rather than from Settings → Data.
+  trash = [], onRestoreSong,
 }) {
   const [idx, setIdx] = useState(0);
   const [keys, setKeys] = useState({});
@@ -185,12 +189,27 @@ export default function SetlistReader({
     ? { onSwipeLeft: goNext, onSwipeRight: goPrev }
     : {};
 
-  const body = (cur?.isBreak || cur?.isMissing) ? (
+  // Element 14 — a missing song is not a break, and must not look like one.
+  // `songId` is matched against the bin because the setlist item still holds
+  // the id of the song that was deleted; that's the whole recovery path.
+  const recoverable = cur?.isMissing && onRestoreSong
+    ? trash.find(e => e.song?.id === cur.songId)
+    : null;
+
+  const body = cur?.isMissing ? (
+    <MissingSongScreen
+      title={cur.songTitle || recoverable?.song?.title}
+      onExit={onBack}
+      onRestore={recoverable ? () => onRestoreSong(cur.songId) : null}
+      onSkip={goNext}
+      hasNext={idx < total - 1}
+      footer={footer}
+    />
+  ) : cur?.isBreak ? (
     <BreakScreen
       label={cur.label}
       duration={cur.duration}
       note={cur.note}
-      missing={!!cur.isMissing}
       onExit={onBack}
       footer={footer}
     />

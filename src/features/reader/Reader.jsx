@@ -372,6 +372,17 @@ export default function Reader({
               ...(config.sticky ? { paddingBottom: '60vh' } : null),
             }}
           >
+          {/* Element 14, the other half: a real song with nothing in it. A
+              blank reader is indistinguishable from a crash, and this is the
+              one case where a chart legitimately has nothing to draw — a song
+              imported from a title-only list, or one whose body was cleared. */}
+          {ordered.length === 0 && (
+            <div className="py-16 text-center">
+              <p className="m-0 text-copy-14" style={{ color: 'var(--chart-subtle, var(--ds-gray-700))' }}>
+                This song has no chart yet.
+              </p>
+            </div>
+          )}
           {ordered.map((section, idx) => (
             <ReaderSection
               key={`${section.id || section.type}-${idx}`}

@@ -46,6 +46,8 @@ A running log of what's new in setlists.md. Newest releases first.
 - **One wrap-up screen at the end of a set (Labs)** — finishing a service or a practice now lands on a single screen instead of two near-identical ones, and it fits without scrolling: how long you ran, and who you served with after a service in a Space. Two ways out — View setlist and Home — always visible.
 - **A click and a slow-down, right in the reader (Labs)** — tap the metronome beside the menu and a row appears above the song: a click at the song's own tempo with beat one accented, and − / + to practise under tempo (hold them to move quickly). One tap on the written tempo puts you back. Songs with a YouTube link get their backing track in the same row, with its own separate speed — slow the track right down and it stays in the same key. The click stops when you move to the next song, so it can never follow you into the wrong one.
 - **Two new chart themes** — Hymnal and Hymnal Night: warm paper, antique gold chords, and muted section colours. They're the first themes to carry their own section palette, so the whole chart changes together instead of just the background.
+- **A song that's been deleted says so, and you can put it back (Labs)** — a setlist item whose song is gone used to draw the same screen as a scheduled break. It now names the missing song and, if it's still in the 30-day trash, offers to restore it on the spot. There's a way past it too, because the service doesn't stop.
+- **Full screen is the reader now (Labs)** — the full-screen button on the song page opens the real reader instead of a work-in-progress placeholder, so the menu, the practice tools, the structure ribbon and every display setting are all there. It fades in rather than snapping to a bright chart theme in a dark room.
 
 ### Improved
 - **The section you're in stays on screen** — in the new reader, the section heading pins to the top as you scroll and the structure ribbon highlights the same section, so a glance tells you where you are without reading a word.
@@ -72,6 +74,9 @@ A running log of what's new in setlists.md. Newest releases first.
 - **The new way to add songs is now simply the way** — no longer something to switch on, and importing a PDF works for everyone.
 - **The app starts lighter.** Chord fingering diagrams are fetched only if you turn them on, so everyone else downloads about 160 KB less.
 - **One song list instead of three.** Cards and Compact were the same row at different spacing, so Compact has gone; the view switcher now appears only on a screen wide enough to offer the table.
+- **The side panel opens the whole song page** — not a stripped-down preview of it. Same tabs, same key, same artwork, same player, just in the panel. It's also never wider than the space it leaves behind, so the row you clicked stays uncovered and one click anywhere outside closes it — and clicking the same row again closes it without moving the mouse at all.
+- **The Auto-hide title bar setting is gone.** The reader's title bar is one thin row now, so there was nothing left worth hiding, and a header that slides away while you're reading was a cost with no matching benefit.
+- **A song with no chart yet says so** rather than showing an empty page.
 
 ### Fixed
 - **Saving no longer loses a pasted song.** Hitting Save with text still waiting in the paste box used to keep the details and quietly throw the lyrics away.

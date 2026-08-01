@@ -423,7 +423,8 @@ Two cases, two screens:
   a break's.
 - **Empty** (a real song with no sections) — "This song has no chart yet" + Edit.
 
-**15 — The first paint.** *"I don't know, what do you think?"* → Paint the
+**15 — The first paint.** *"I don't know, what do you think?"* — and, 2026-08-01,
+*"if is needed, skeletons?"* → **Not needed. No skeletons.** Paint the
 chrome you already know, never a spinner. Opening a song from a list means the
 title, artist and key are already in hand, so the top bar renders instantly and
 only the chart area is pending — and it should be blank, not skeleton-shimmered:
@@ -464,14 +465,14 @@ different renderings of the same chart, so this is a toggle, not a setting to
 get right once.
 
 **20 — Auto-scroll.** *"Can we try a basic version of this? ... It should be
-somehow synced automatically with the song bpm?"* → Yes, and the bpm link is the
-right instinct — element 12 already has the tempo and a running clock, so
-scrolling at a rate derived from bpm costs almost nothing on top. The honest
-caveat: **bpm alone can't know the song's length in bars**, so a bpm-derived
-rate drifts unless the chart says how long each section is (that's the same
-`.md` format change that killed section loop). The basic version that works
-without any format change: a **speed the user sets, with bpm as the starting
-guess**, plus tap-to-pause on touch. That's the version to try.
+somehow synced automatically with the song bpm?"* → **Deferred, 2026-08-01.**
+The bpm link was the right instinct, but bpm alone can't know a song's length in
+bars, so a bpm-derived rate drifts unless the chart says how long each section
+is — the same `.md` format change that killed section loop. The fallback was a
+speed the user sets, and the owner killed that on the spot: *"a speed per song?
+We have 7-10 songs per setlist, not cool to set the speed for each song."* He's
+right — a per-song knob in a 10-song service is nine chores. It comes back when
+sections carry lengths, and not before.
 
 **21 — Arrangement switching.** *"This should be for the practice view"* →
 Scoped to practice. Not in live.
@@ -505,6 +506,16 @@ and what happens when the signal drops mid-service (the worst case: half the
 band frozen on song 4 because the leader's phone lost wifi). **The mechanism is
 a day; the failure modes are the feature.** Not before the reader is finished.
 
+Then, 2026-08-01: *"Can we do a beta test to the follow-the-leader and we can
+decide later the other stuff?"* → **Yes, and that's the right shape for it** —
+the failure modes above can't be reasoned out from a desk, they have to be felt
+in a room. The testable slice: the leader broadcasts "I'm on item N"; a follower
+moves with it, sees a visible **Following** state, and can break away in one tap
+that sticks. Nothing else — no role negotiation, no conflict rules, no offline
+queue. It answers the two questions worth answering first: does the latency feel
+right in a room, and does anyone actually want to be moved. Everything else on
+the list stays deferred until it does.
+
 **26 — Reachability.** *"the phone/tablet usually sits on a stand ... What's
 your point?"* → Fair — the point doesn't hold for the stand case, which is the
 common one. It only applies to the phone-in-hand case (a vocalist, someone
@@ -531,9 +542,9 @@ control that says "needs signal" instead of spinning.
 | — | Count-in, section loop | Cut from element 12 round 1. A loop needs per-section bars/timestamps — an `.md` format change |
 | — | Wake lock, session stats | Carried by the old views; not ported on purpose |
 | 8b | Setlist bar | Shipped, needs a rework pass (owner, 2026-07-30) |
-| — | **Full-screen from the hub** | `FullscreenChartViewer` is a WIP stub with no ☰ and no hub chrome. Three ways out, all defensible — see below |
+| — | **Full-screen from the hub** | ✅ Shipped 2026-08-01 as option 1 — `FullscreenReader` mounts the Reader itself. The old `FullscreenChartViewer` stub survives only on the flag-off path |
 
-### Full-screen from the hub — three ways, ❓ undecided
+### Full-screen from the hub — three ways, decided ✅
 
 `FullscreenChartViewer` is a WIP stub: no ☰, no hub chrome, connected to
 neither surface. The owner, 2026-07-30: *"it's a lot of work, pff."* The three
@@ -635,6 +646,49 @@ Two calls in it are arguable and are the owner's to make:
    shipped decision — element 12 put the click and the track *on the chart* so
    they're reachable mid-song. Moving them costs that. The middle path: the row
    stays, and the ☰ entry opens its options.
+
+#### Cut down to four, 2026-08-01
+
+The owner's verdict on the concept: **too big**, and — the sharper objection —
+*"this new menu will require multiple clicks/taps for something that is
+currently achieved with only one."* That is the real constraint, and it kills
+rows rather than shrinking them. What survives:
+
+| Row | Holds |
+|-----|-------|
+| **Display** | two tabs: **Look** (themes, colours, sizes, line spacing, section gap, fonts, and every tab control — grid resolution, size, string/number colour, background) and **Layout** (columns 1/2, setlist rail, navigation controls, structure ribbon + position, under-the-top-bar, section heading + style, repeated sections, and chords/lyrics-only kept small as an emergency lever) |
+| **The music** | opens on **who's playing**, because that is the master switch the rest hang off — then capo, chord names, accidentals, arrangement |
+| **Notes** | band cue · arrangement note · my note, in one place. Writable, not just readable |
+| **The screen** | keep awake · rotate |
+
+**Tabs inside Display are fine** — that was the owner's question, and the answer
+is that Aa already ships three (Page / Lyrics / Chords), so a tabbed panel is
+the pattern the app has, not a new one. Two tabs replace the current three.
+
+**Cut, with reasons:**
+- **Jump to** — the ribbon already does it, and with the ribbon off, scrolling
+  is faster than opening a menu. Conceded; no counter-argument worth the row.
+- **Share / get it out** — print lives in the hub (element 23).
+- **Practice** — stays an **icon in the top bar**, exactly as element 12 shipped
+  it. This resolves the concept's second arguable call in favour of the existing
+  decision: one tap, mid-song, is the whole point of it.
+- **Fix it** — the concept read it as a menu row; the owner means something
+  else entirely (*"press a button and a mini editor for each part opens"*).
+  That is an **icon beside practice**, not a ☰ entry, and it is its own element
+  — see §7 #12 in `PLAN.md`. Removed from the menu.
+
+**Accidentals moved out of Display** on purpose: it is about how the music is
+*spelled*, not how the page *looks*. It belongs with capo and chord names.
+
+**"Who's playing" folded into The music** rather than kept as its own row, and
+this is a real combination, not filing. The owner's own case for it — *"you can
+change to vocals and not have chords, or to bass and not have capo"* — says the
+instrument is the thing the other controls are downstream of. So The music opens
+on it, and capo/chords/notation read as its consequences. (Per-user, per-setlist,
+per-instrument capo is a later want; noted, not built.)
+
+Result: **four rows, one drill-in level**, and the top bar keeps ☰ · practice ·
+edit · exit — so nothing that was one tap becomes three.
 
 **Deliberately deferred, with reasons:**
 - **Numbered per-repeat cues** (`> 2: Acapella`) — confirmed as a real gap from

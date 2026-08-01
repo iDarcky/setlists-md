@@ -3,8 +3,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 // Collapse the stage header's title + meta rows down to just the structure
 // ribbon. Driven by scroll DIRECTION with hysteresis so momentum scrolling
 // doesn't make it flip-flop ("spasms"), plus an idle-timer fallback. Tapping
-// the chart calls `reveal()` to bring it back. Gated by `enabled` (the
-// Auto-hide title bar setting).
+// the chart calls `reveal()` to bring it back.
+//
+// DORMANT as of 2026-08-01. The "Auto-hide title bar" setting that drove it is
+// gone: the reader's top bar (element 1) is one thin row, so there is nothing
+// worth hiding, and a header that moves under you while you read was a cost
+// with no matching benefit. Every call site now passes `enabled = false`, which
+// pins `collapsed` at false and makes `reveal()` a no-op. Kept, not deleted,
+// because the two old stage views still call it and they go at graduation.
 //
 // Returns [collapsed, setCollapsed, reveal].
 export function useStageHeaderCollapse(scrollRef, enabled, { idleDelay = 4000 } = {}) {

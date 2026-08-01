@@ -45,7 +45,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   const [layoutOpen, setLayoutOpen] = useState(false);
   const [setlistSheetOpen, setSetlistSheetOpen] = useState(false);
   const scrollRef = useRef(null);
-  const [headerCollapsed, setHeaderCollapsed, revealHeader] = useStageHeaderCollapse(scrollRef, settings?.autoHideHeader === true);
+  const [headerCollapsed, setHeaderCollapsed, revealHeader] = useStageHeaderCollapse(scrollRef, false);
 
   // Customize-sheet handlers — write through to settings so a mid-service tweak
   // persists and matches the practice/chart views.

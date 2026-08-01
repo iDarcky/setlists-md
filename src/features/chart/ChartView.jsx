@@ -274,7 +274,7 @@ export default function ChartView({
   const scrollContainerRef = useRef(null);
   // Three-row header collapse (shared with practice/live): scroll down hides
   // title+meta, scroll up / tap reveals. Off in the editor preview.
-  const [headerCollapsed, , revealHeader] = useStageHeaderCollapse(scrollContainerRef, !isPreview && settings?.autoHideHeader === true);
+  const [headerCollapsed, , revealHeader] = useStageHeaderCollapse(scrollContainerRef, false);
 
   const transpose = semitonesBetween(song.key, selectedKey);
 
