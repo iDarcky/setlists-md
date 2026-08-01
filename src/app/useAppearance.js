@@ -14,7 +14,9 @@ export function useAppearance(settings) {
     const theme = settings.theme;
 
     const setThemeColor = (mode) => {
-      const color = mode === 'light' ? '#f6f4ef' : mode === 'midnight' ? '#14161e' : '#0a0807';
+      // Must track --ds-background-100 per theme, or the phone's status bar is
+      // a different colour from the page under it.
+      const color = mode === 'light' ? '#f6f4ef' : mode === 'midnight' ? '#161a24' : '#161618';
       // Remove the media-scoped tags so the single active tag wins everywhere.
       document.querySelectorAll('meta[name="theme-color"][media]').forEach(m => m.remove());
       let tag = document.querySelector('meta[name="theme-color"]:not([media])');
@@ -40,14 +42,6 @@ export function useAppearance(settings) {
     document.documentElement.setAttribute('data-theme', theme);
     setThemeColor(theme);
   }, [settings?.theme]);
-
-  // Labs: preview the Song Hub V2 neutral palette app-wide (overrides the dark
-  // theme tokens — see [data-palette="neutral"] in styles/index.css).
-  useEffect(() => {
-    const el = document.documentElement;
-    if (settings?.mockupPalette) el.setAttribute('data-palette', 'neutral');
-    else el.removeAttribute('data-palette');
-  }, [settings?.mockupPalette]);
 
   // Settings → General → "Lock orientation". Best-effort: the Screen Orientation
   // lock API only resolves in full screen / an installed PWA on most engines and

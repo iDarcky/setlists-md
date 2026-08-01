@@ -32,19 +32,27 @@
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Roboto Mono, Menlo, Monaco, Libration Mono, Courier New, monospace;
 
   /* Page Backgrounds (Dark Mode fallback) */
-  --ds-background-100: #0a0807;
-  --ds-background-200: #050403;
+  --ds-background-100: hsl(240, 4%, 9%);
+  --ds-background-200: hsl(0, 0%, 4%);
 
-    /* Geist Gray Scale (Dark Mode) */
-  --ds-gray-100-value: 0, 0%, 10%;
-  --ds-gray-200-value: 0, 0%, 12%;
-  --ds-gray-300-value: 0, 0%, 16%;
-  --ds-gray-400-value: 0, 0%, 18%;
-  --ds-gray-500-value: 0, 0%, 27%;
-  --ds-gray-600-value: 0, 0%, 53%;
-  --ds-gray-700-value: 0, 0%, 56%;
-  --ds-gray-800-value: 0, 0%, 49%;
-  --ds-gray-900-value: 0, 0%, 63%;
+  /* Geist Gray Scale (Dark Mode).
+     Promoted from the Labs "neutral palette" on 2026-08-01. The old dark ramp
+     was PURE neutral (0,0% at every step) sitting on a WARM near-black ground
+     (#0a0807), so every hairline was a cold grey line on brown-black — which is
+     what "I don't like the outline colour in dark mode" was seeing. It was not
+     the line's lightness, it was its hue disagreeing with the page underneath.
+     This ramp carries a consistent 240° bias at low saturation, and the ground
+     is lifted from 3% to 9% so a 17% border reads as a hairline rather than a
+     hard edge. Text steps (700–1000) keep their contrast. */
+  --ds-gray-100-value: 240, 5%, 12%;
+  --ds-gray-200-value: 240, 6%, 13%;
+  --ds-gray-300-value: 240, 6%, 16%;
+  --ds-gray-400-value: 240, 5%, 17%;
+  --ds-gray-500-value: 240, 5%, 24%;
+  --ds-gray-600-value: 240, 5%, 31%;
+  --ds-gray-700-value: 240, 3%, 45%;
+  --ds-gray-800-value: 240, 3%, 55%;
+  --ds-gray-900-value: 240, 3%, 64%;
   --ds-gray-1000-value: 0, 0%, 93%;
 
   --ds-blue-100-value: 216, 50%, 12%;
@@ -271,15 +279,15 @@
   --header-bg-blur: rgba(0, 0, 0, 0.45);
   /* Solid header tone for the chart view — opaque so the lyric area
      scrolling underneath never bleeds through. Default = dark. */
-  --chart-header-bg: #0a0807;
+  --chart-header-bg: hsl(240, 4%, 9%);
   --chart-header-border: rgba(255, 255, 255, 0.06);
   --fm: var(--font-mono);
 
   /* Shared Dashboard Surfaces (Dark Default) */
-  --dashboard-hero-bg: hsl(0, 0%, 4%);
-  --dashboard-hero-hover: hsl(0, 0%, 6%);
-  --dashboard-row-odd-bg: hsl(0, 0%, 4%);
-  --dashboard-row-even-bg: hsl(0, 0%, 0%);
+  --dashboard-hero-bg: hsl(240, 4%, 9%);
+  --dashboard-hero-hover: hsl(240, 5%, 12%);
+  --dashboard-row-odd-bg: hsl(240, 4%, 8%);
+  --dashboard-row-even-bg: hsl(240, 4%, 5%);
 }
 
 @layer base {
@@ -290,42 +298,31 @@
      reading as cold neutral gray. Text-weight grays (500–1000) stay
      neutral to preserve contrast. The modes-variant wash is themed
      separately via --modes-bg further down. */
+  /* Refreshed 2026-08-01, alongside the dark ramp. The old one tinted only
+     100–400 and left 500–600 neutral, so a card border was navy and the input
+     border one step up was grey — the seam showed on every form. The hue now
+     runs the whole chrome range, and the borders were pulled DOWN (26% → 21%):
+     they were brighter than the dark theme's, which made Midnight read as the
+     outlined theme rather than the blue one. */
   [data-theme="midnight"] {
-    --ds-background-100: #14161e;
-    --ds-background-200: #0e1017;
+    --ds-background-100: hsl(228, 20%, 11%);
+    --ds-background-200: hsl(228, 22%, 8%);
 
-    --ds-gray-100-value: 228, 16%, 14%;
-    --ds-gray-200-value: 228, 16%, 17%;
-    --ds-gray-300-value: 228, 15%, 22%;
-    --ds-gray-400-value: 228, 13%, 26%;
+    --ds-gray-100-value: 228, 19%, 14%;
+    --ds-gray-200-value: 228, 18%, 17%;
+    --ds-gray-300-value: 228, 17%, 19%;
+    --ds-gray-400-value: 228, 16%, 21%;
+    --ds-gray-500-value: 228, 14%, 28%;
+    --ds-gray-600-value: 228, 11%, 36%;
+    --ds-gray-700-value: 226, 9%, 48%;
 
-    --chart-header-bg: #0e1017;
-    --chart-header-border: rgba(255, 255, 255, 0.08);
-  }
+    --dashboard-hero-bg: hsl(228, 20%, 11%);
+    --dashboard-hero-hover: hsl(228, 19%, 14%);
+    --dashboard-row-odd-bg: hsl(228, 21%, 10%);
+    --dashboard-row-even-bg: hsl(228, 22%, 8%);
 
-  /* Labs: "Neutral palette" — preview of the Song Hub V2 mockup colours
-     app-wide (Settings → Labs). Forces a neutral-dark surface set on top of
-     whatever theme is active; higher specificity than [data-theme] so it wins
-     regardless of source order. */
-  :root[data-palette="neutral"] {
-    --ds-background-100: #161618;
-    --ds-background-200: #0a0a0a;
-    --ds-gray-100: #1c1c1f;
-    --ds-gray-200: #202024;
-    --ds-gray-300: #26262b;
-    --ds-gray-400: #2a2a2e;
-    --ds-gray-500: #3a3a40;
-    --ds-gray-600: #4a4a52;
-    --ds-gray-700: #6f6f76;
-    --ds-gray-800: #8a8a90;
-    --ds-gray-900: #a1a1a6;
-    --ds-gray-1000: #ededed;
-    --chord: #e0b341;
-    --chart-header-bg: #0a0a0a;
-    --dashboard-hero-bg: #161618;
-    --dashboard-hero-hover: #1c1c1f;
-    --dashboard-row-odd-bg: #141416;
-    --dashboard-row-even-bg: #0e0e10;
+    --chart-header-bg: hsl(228, 22%, 8%);
+    --chart-header-border: rgba(255, 255, 255, 0.07);
   }
 
   [data-theme="light"] {

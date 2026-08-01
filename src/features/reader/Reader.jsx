@@ -344,11 +344,17 @@ export default function Reader({
             // A hairline between the bar and the ribbon — the Score mockup's
             // divider, at a fraction of its weight. They are still ONE sticky
             // block; this only separates them to the eye.
-            <div
-              className="wide-container overflow-hidden pt-1 pb-1 border-t"
-              style={{ fontSize: '0.85em', borderColor: 'var(--chart-rule, var(--ds-gray-300))' }}
-            >
-              {ribbonNode}
+            //
+            // The rule is on the FULL-WIDTH wrapper, not on the `wide-container`
+            // inside it: bounded to the container it stopped short of both edges
+            // and read as an underline for the title rather than a division
+            // between two pieces of chrome. And it is brand-tinted rather than
+            // grey — at 30% the teal is still a hairline, but it is the one
+            // line in the reader that says "the bar ends here".
+            <div className="border-t" style={{ borderColor: 'var(--color-brand-border)' }}>
+              <div className="wide-container overflow-hidden pt-1 pb-1" style={{ fontSize: '0.85em' }}>
+                {ribbonNode}
+              </div>
             </div>
           )}
         </ReaderTopBar>

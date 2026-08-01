@@ -61,7 +61,7 @@ const ROLES = [
 
 // The mockup's row glyphs: a single character each, not an icon set. At 19px in
 // a 13.5px row, a drawn icon is noise — the label is doing the work.
-const GLYPH = { display: 'Aa', music: '♪', notes: '✉' };
+const GLYPH = { look: 'Aa', layout: '▤', music: '♪', notes: '✉' };
 
 // ── Mockup primitives ───────────────────────────────────────────────────────
 // Geometry copied from the concept; every colour is one of ours.
@@ -177,7 +177,6 @@ export default function ReaderMenu({
   mode = 'live',
 }) {
   const [panel, setPanel] = useState('root');
-  const [displayTab, setDisplayTab] = useState('look');
   const { allowed: styleAllowed } = useEntitlement('chart-style');
 
   const set = (key, value) => onUpdateSettings?.(key, value);
@@ -206,7 +205,7 @@ export default function ReaderMenu({
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [panel, displayTab]);
+  }, [panel]);
 
   // ── Geometry ───────────────────────────────────────────────────────────────
   // `clientWidth`, NOT `innerWidth`: innerWidth includes the scrollbar, so
@@ -230,6 +229,7 @@ export default function ReaderMenu({
 
   const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
   const visibleThemes = styleAllowed ? CHART_THEMES : CHART_THEMES.filter(t => FREE_CHART_THEME_IDS.has(t.id));
+  const themeName = CHART_THEMES.find(t => t.id === themeId)?.name || 'Theme';
 
   // ── Row values: what it's set to, not what it does ──────────────────────────
   const roleId = settings?.displayRole || 'leader';
@@ -241,26 +241,22 @@ export default function ReaderMenu({
     .filter(c => c.note);
   const noteCount = cues.length + (arrangementNote ? 1 : 0);
 
-  const title = panel === 'display' ? 'Display'
-    : panel === 'music' ? 'The music'
-      : panel === 'notes' ? 'Notes'
-        : song?.title || 'Menu';
+  const title = panel === 'look' ? 'Look'
+    : panel === 'layout' ? 'Layout'
+      : panel === 'music' ? 'The music'
+        : panel === 'notes' ? 'Notes' : '';
 
-  // ── Panel head: back · title · close. The mockup's, plus a close because a
-  // real panel has to be dismissable without finding the backdrop.
-  const head = (
+  // The ROOT has no header — the mockup's doesn't, and the song's name was
+  // already in the top bar two rows up (owner: "why do we have the song name in
+  // the title?"). A panel gets back + its own name; closing is the backdrop,
+  // Escape, or the ☰ again.
+  const head = panel === 'root' ? null : (
     <div className="shrink-0 flex items-center gap-[9px] px-3.5 pt-2 pb-2.5 border-b border-[var(--border-1)]">
-      {panel !== 'root' && (
-        <button type="button" onClick={() => setPanel('root')} aria-label="Back"
-          className="w-6 h-6 min-h-0 shrink-0 grid place-items-center rounded-[7px] border border-[var(--border-2)] bg-transparent text-[var(--text-1)] cursor-pointer hover:bg-[var(--bg-2)]">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-        </button>
-      )}
-      <h4 className="m-0 flex-1 min-w-0 text-[13px] font-semibold text-[var(--text-1)] truncate">{title}</h4>
-      <button type="button" onClick={onClose} aria-label="Close menu"
-        className="w-6 h-6 min-h-0 shrink-0 grid place-items-center rounded-[7px] bg-transparent border-none text-[var(--ds-gray-600)] cursor-pointer hover:text-[var(--text-1)] hover:bg-[var(--bg-2)]">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+      <button type="button" onClick={() => setPanel('root')} aria-label="Back"
+        className="w-6 h-6 min-h-0 shrink-0 grid place-items-center rounded-[7px] border border-[var(--border-2)] bg-transparent text-[var(--text-1)] cursor-pointer hover:bg-[var(--bg-2)]">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
       </button>
+      <h4 className="m-0 flex-1 min-w-0 text-[13px] font-semibold text-[var(--text-1)] truncate">{title}</h4>
     </div>
   );
 
@@ -270,8 +266,10 @@ export default function ReaderMenu({
     <div className="overflow-y-auto overflow-x-hidden py-1.5">
       {panel === 'root' && (
         <>
-          <Row glyph={GLYPH.display} label="Display" onClick={() => setPanel('display')}
-            value={`${config?.columns === 2 ? '2 col' : '1 col'} · ${lyricSize}px`} />
+          <Row glyph={GLYPH.look} label="Look" onClick={() => setPanel('look')}
+            value={`${themeName} · ${lyricSize}px`} />
+          <Row glyph={GLYPH.layout} label="Layout" onClick={() => setPanel('layout')}
+            value={config?.columns === 2 ? '2 col' : '1 col'} />
           <Row glyph={GLYPH.music} label="The music" onClick={() => setPanel('music')}
             value={capo ? `${roleLabel} · capo ${capo}` : roleLabel} />
           <Row glyph={GLYPH.notes} label="Notes" onClick={() => setPanel('notes')}
@@ -279,20 +277,13 @@ export default function ReaderMenu({
         </>
       )}
 
-      {/* ── Display ────────────────────────────────────────────────────────
-          Two tabs, the owner's split: LOOK is how the page is painted, LAYOUT
-          is where things are. Tabs inside a panel are the pattern the app
-          already has — Aa shipped three — so this is one fewer, not one more. */}
-      {panel === 'display' && (
+      {/* ── Look ───────────────────────────────────────────────────────────
+          How the page is PAINTED. Its own root row rather than a tab inside a
+          Display panel (owner, 2026-08-01: "because we have space, maybe we can
+          do look and layout as different outside tabs?") — the two most-opened
+          panels are now one tap, not two. */}
+      {panel === 'look' && (
         <>
-          <div className="flex gap-[5px] px-4 pt-1.5 pb-0.5">
-            {[['look', 'Look'], ['layout', 'Layout']].map(([id, label]) => (
-              <Seg key={id} active={displayTab === id} onClick={() => setDisplayTab(id)}>{label}</Seg>
-            ))}
-          </div>
-
-          {displayTab === 'look' && (
-            <>
               <Field label="Theme">
                 <div ref={themesRef} className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
                   {visibleThemes.map(t => (
@@ -392,11 +383,13 @@ export default function ReaderMenu({
                   ))}
                 </div>
               </Field>
-            </>
-          )}
+        </>
+      )}
 
-          {displayTab === 'layout' && (
-            <>
+      {/* ── Layout ─────────────────────────────────────────────────────────
+          Where things ARE. */}
+      {panel === 'layout' && (
+        <>
               <Segs label="Columns" value={settings?.defaultColumns === 2 ? 2 : 1}
                 options={[[1, '1'], [2, '2']]} onChange={(v) => set('defaultColumns', v)} />
               <Segs label="Structure — where" value={settings?.structurePosition || 'top'}
@@ -429,8 +422,6 @@ export default function ReaderMenu({
               <Segs label="In a pinch" value={settings?.displayMode || 'chords'}
                 options={[['chords', 'Both'], ['lyrics', 'Lyrics'], ['chordsonly', 'Chords']]}
                 onChange={(v) => set('displayMode', v)} />
-            </>
-          )}
         </>
       )}
 

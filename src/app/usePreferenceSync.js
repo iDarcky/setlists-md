@@ -43,7 +43,6 @@ export const PORTABLE_PREF_KEYS = [
   'displayMode',
   'ribbonStyle',
   'structurePosition',
-  'mockupPalette',
   'keepAwake',
   'lockOrientation',
   'accidentals',

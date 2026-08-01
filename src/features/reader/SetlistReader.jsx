@@ -29,8 +29,15 @@ export default function SetlistReader({
   trash = [], onRestoreSong,
   // 'live' | 'practice' — see the note on Reader's own `mode`.
   mode = 'live',
+  // Which item to open on. Tapping a song in the setlist overview means "start
+  // HERE", and until now the reader ignored it and always opened song 1 — the
+  // old `PracticeView` honoured it, the reader that replaced it did not.
+  startIndex = 0,
 }) {
-  const [idx, setIdx] = useState(0);
+  const [idx, setIdx] = useState(() => {
+    const n = (setlist?.items || []).length;
+    return Number.isInteger(startIndex) && startIndex > 0 && startIndex < n ? startIndex : 0;
+  });
   const [keys, setKeys] = useState({});
   const [railOpen, setRailOpen] = useState(false);
   const wide = useMediaQuery('(min-width: 768px)');

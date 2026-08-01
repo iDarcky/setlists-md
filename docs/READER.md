@@ -276,6 +276,20 @@ deleting the old surfaces costs nothing but the finale stats (element 13).
 > `Number('')` are both **0**, so a song with a blank tempo clamped to the 40bpm
 > floor instead of falling back to 100. Caught by a test, not by a device.
 
+#### The practice row, round 2 — 2026-08-01
+
+**The scrubber is gone**, and the clock with it: play/pause and slower/faster,
+nothing else (owner). Practising means playing from the top at a slower speed,
+not hunting a position — and a 3rem range input was the one control on that row
+nobody can hit accurately on a phone while holding an instrument. The Song Hub's
+player bar keeps the full transport for when you ARE looking for a spot.
+
+#### The divider under element 1 — 2026-08-01
+
+Full-bleed and brand-tinted (`--color-brand-border`, teal at 30%). Bounded to
+the `wide-container` it stopped short of both edges and read as an underline for
+the song title rather than a division between two pieces of chrome.
+
 ### 8b — The setlist bar (the second top-bar treatment)
 
 `readerTopBar`: **Song structure** (the ribbon, default) or **The set** — the
@@ -690,6 +704,18 @@ per-instrument capo is a later want; noted, not built.)
 Result: **three rows, one drill-in level** (four, until *The screen* was cut in
 round 2), and the top bar keeps ☰ · practice · edit · exit — so nothing that was
 one tap becomes three.
+
+#### Round 3 — Look and Layout come to the surface, 2026-08-01
+
+- **No header on the root.** The mockup's root is a list, not a page. The song
+  title was in it, and the top bar two rows up already says the title (owner:
+  *"why do we have the song name in the title?"*). A panel still gets back + its
+  own name; closing is the backdrop, Escape, or the ☰ again.
+- **Look and Layout are top-level rows**, not tabs inside a Display panel
+  (owner: *"because we have space, maybe we can do look and layout as different
+  outside tabs?"*). Four rows: **Look · Layout · The music · Notes**. The two
+  most-opened panels are now one tap rather than two, which is the same
+  principle that cut the menu from nine rows in the first place.
 
 #### Cut again, and rebuilt to the mockup — 2026-08-01 (round 2)
 

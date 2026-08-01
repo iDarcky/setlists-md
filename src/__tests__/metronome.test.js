@@ -94,3 +94,32 @@ describe('beatsToSchedule', () => {
     expect(nextTime).toBeCloseTo(0.6); // clamped to 100bpm
   });
 });
+
+describe('catching up after the tab was suspended', () => {
+  // A background tab throttles `setInterval` while the AUDIO clock keeps
+  // running, so a pass can wake with `nextTime` far behind `now`.
+  it('does not book a burst of beats in the past', () => {
+    const { beats } = beatsToSchedule({
+      now: 30, nextTime: 0.06, beat: 0, bpm: 120, perBar: 4,
+    });
+    // Every beat must be schedulable — a past `at` is played immediately by
+    // Web Audio, which is the machine-gun burst users heard as "out of sync".
+    expect(beats.every(b => b.at >= 30)).toBe(true);
+    expect(beats.length).toBeLessThan(4);
+  });
+
+  it('keeps the bar phase across the gap, so the accent stays on beat one', () => {
+    // 120bpm = 0.5s/beat, 4/4. Start at t=0, jump to t=10 → exactly 20 beats
+    // missed, so the next beat is a downbeat again.
+    const { beats, nextBeat } = beatsToSchedule({
+      now: 10, nextTime: 0, beat: 0, bpm: 120, perBar: 4,
+    });
+    expect(nextBeat % 4).toBe(1);          // one beat consumed past the boundary
+    expect(beats[0].accent).toBe(true);
+  });
+
+  it('is unchanged when the scheduler is keeping up', () => {
+    const ahead = beatsToSchedule({ now: 1, nextTime: 1.05, beat: 3, bpm: 100, perBar: 4 });
+    expect(ahead.beats[0].at).toBeCloseTo(1.05, 5);
+  });
+});

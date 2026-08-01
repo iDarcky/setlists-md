@@ -164,3 +164,25 @@ describe('element 13 — the session handed to the finale', () => {
     expect(Object.keys(onFinish.mock.calls[0][0])).toEqual(['startTime']);
   });
 });
+
+describe('starting from a chosen song', () => {
+  // The setlist overview sends the index of the row you tapped ("Open practice
+  // from here"). `PracticeView` honoured it; the reader that replaced it
+  // dropped it on the floor and always opened song 1.
+  it('opens the item the setlist sent, not the first one', () => {
+    render(
+      <SetlistReader setlist={setlist} songs={songs} settings={{}} startIndex={2}
+        onBack={() => {}} onFinish={() => {}} />,
+    );
+    expect(screen.getByText('3 / 3')).toBeTruthy();
+    expect(screen.getAllByText(/Goodness of God/).length).toBeGreaterThan(0);
+  });
+
+  it('ignores an index that is out of range rather than rendering nothing', () => {
+    render(
+      <SetlistReader setlist={setlist} songs={songs} settings={{}} startIndex={99}
+        onBack={() => {}} onFinish={() => {}} />,
+    );
+    expect(screen.getByText('1 / 3')).toBeTruthy();
+  });
+});

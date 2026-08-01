@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { youtubeId } from '@/lib/coverArt';
 import { MAX_BPM, MIN_BPM } from '@/lib/metronome';
 import { useYouTubeTrack, hiddenHostStyle } from '@/hooks/useYouTubeTrack';
-import { formatClock } from '@/lib/duration';
 
 /**
  * Element 12 — the practice row.
@@ -94,32 +93,18 @@ export default function ReaderPracticeRow({
 
 /**
  * The compact transport. Same engine as the Song Hub's bar (`useYouTubeTrack`),
- * a smaller face: play · elapsed · scrubber · rate. No title — the top bar two
- * rows up already says which song this is.
+ * a smaller face: play · rate. No title — the top bar two rows up already says
+ * which song this is.
+ *
+ * **No scrubber, and no clock** (owner, 2026-08-01: "remove the scrub from the
+ * practice view so we leave just the play/pause and slower/faster"). Practising
+ * a song means playing it from the top at a slower speed, not hunting a
+ * position — and a 3rem range input is the one control on this row nobody can
+ * hit accurately on a phone while holding an instrument. The Song Hub's player
+ * bar still has the full transport for when you ARE looking for a spot.
  */
 function TrackHalf({ ytId, text, muted }) {
-  const {
-    hostRef, playing, position, duration, failed, loading,
-    rate, rates, toggle, seek, setRate, setDragging: setDraggingRef,
-  } = useYouTubeTrack(ytId);
-
-  const [dragging, setDragging] = useState(false);
-  const [dragPos, setDragPos] = useState(0);
-
-  const displayPos = dragging ? dragPos : position;
-  const canScrub = !loading && !failed && duration > 0;
-
-  const onScrubInput = (e) => {
-    setDraggingRef(true);
-    setDragging(true);
-    setDragPos(Number(e.target.value));
-  };
-  const onScrubCommit = () => {
-    if (!dragging) return;
-    seek(dragPos);
-    setDraggingRef(false);
-    setDragging(false);
-  };
+  const { hostRef, playing, failed, loading, rate, rates, toggle, setRate } = useYouTubeTrack(ytId);
 
   // Only the rates this video actually offers, so a step can never land on a
   // rate the player will refuse.
@@ -131,7 +116,7 @@ function TrackHalf({ ytId, text, muted }) {
   };
 
   return (
-    <div className="flex items-center gap-2 min-w-0 flex-1">
+    <div className="flex items-center gap-2 min-w-0">
       <div ref={hostRef} aria-hidden="true" style={hiddenHostStyle} />
 
       <button
@@ -157,37 +142,17 @@ function TrackHalf({ ytId, text, muted }) {
       {failed ? (
         <span className="text-label-11" style={{ color: muted }}>Track unavailable</span>
       ) : (
-        <>
-          <span className="shrink-0 text-label-11 tabular-nums w-8 text-right" style={{ color: muted }}>
-            {formatClock(displayPos)}
-          </span>
-          <input
-            type="range"
-            aria-label="Seek backing track"
-            min={0}
-            max={duration || 0}
-            step="0.1"
-            value={Math.min(displayPos, duration || 0)}
-            onChange={onScrubInput}
-            onMouseUp={onScrubCommit}
-            onTouchEnd={onScrubCommit}
-            onKeyUp={onScrubCommit}
-            disabled={!canScrub}
-            className="flex-1 min-w-[3rem] h-1 cursor-pointer disabled:cursor-default"
-            style={{ accentColor: 'var(--color-brand)' }}
-          />
-          <Stepper
-            value={rate}
-            min={usable[0]}
-            max={usable[usable.length - 1]}
-            onChange={(_, dir) => stepRate(dir)}
-            stepped
-            label="Backing-track speed"
-            format={(v) => `${v}×`}
-            text={text}
-            muted={muted}
-          />
-        </>
+        <Stepper
+          value={rate}
+          min={usable[0]}
+          max={usable[usable.length - 1]}
+          onChange={(_, dir) => stepRate(dir)}
+          stepped
+          label="Backing-track speed"
+          format={(v) => `${v}×`}
+          text={text}
+          muted={muted}
+        />
       )}
     </div>
   );

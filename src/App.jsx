@@ -2384,6 +2384,7 @@ export default function App() {
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               myInstrument={myInstrument}
               mode={view === 'setlist-practice' ? 'practice' : 'live'}
+              startIndex={view === 'setlist-practice' ? practiceStartIndex : 0}
               trash={trash}
               onRestoreSong={isTeamReadOnly ? null : handleRestoreSong}
               onBack={goBack}

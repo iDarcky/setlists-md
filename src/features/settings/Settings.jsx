@@ -589,9 +589,6 @@ function LabsPanel({ settings, update }) {
       <LabsToggle settings={settings} update={update} flag="unifiedReader"
         label="One reader (preview)"
         description="Replaces the four separate reading screens with a single viewer. Live, Rehearsal and Practice become saved bundles of its settings, customizable from one button in the reader — header size, where the structure ribbon sits, section style, columns, where notes go, how repeats render, and how you exit. Off keeps today's screens exactly as they are." />
-      <LabsToggle settings={settings} update={update} flag="mockupPalette"
-        label="Neutral palette (preview)"
-        description="Preview the Song Hub V2 neutral-dark colours across the whole app, so you can compare them with the current dark theme before we commit." />
       <LabsToggle settings={settings} update={update} flag="songsLibraryPlus"
         label="Songs library +"
         description="Extra Songs-list power: more columns (CCLI, year, length, arrangements, themes…) with drag-to-reorder, a 'used in setlists' count, group-by and data-quality quick filters, bulk tagging, and a row-density toggle. Removes the table view on phones." />

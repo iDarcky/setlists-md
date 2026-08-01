@@ -257,10 +257,12 @@ describe('the ☰ menu', () => {
     expect(document.querySelectorAll('[data-section-index]').length).toBe(4);
   });
 
-  it('is three rows and no more — the cut that kept one tap from becoming three', () => {
+  it('is four rows and no more — the cut that kept one tap from becoming three', () => {
     renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    ['Display', 'The music', 'Notes'].forEach(label => {
+    // Look and Layout are top-level, not tabs inside a Display panel: the two
+    // most-opened panels are one tap, not two.
+    ['Look', 'Layout', 'The music', 'Notes'].forEach(label => {
       expect(screen.getByText(label)).toBeTruthy();
     });
     // Cut rows, each for a recorded reason (READER.md → "Cut down to three").
@@ -273,18 +275,24 @@ describe('the ☰ menu', () => {
     expect(screen.queryByText('The screen')).toBeNull();
   });
 
-  it('drills one level into Display, and comes back', () => {
+  it('drills one level into Layout, and comes back', () => {
     renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    fireEvent.click(screen.getByText('Display'));
+    fireEvent.click(screen.getByText('Layout'));
 
-    // Look holds how the page is painted; Layout, where things are.
-    fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
     expect(screen.getByRole('button', { name: 'Boxes' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'ALL CAPS' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByText('The music')).toBeTruthy();
+  });
+
+  it('does not put the song title in the menu — the top bar already says it', () => {
+    renderReader();
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    // One "Amazing Grace" on screen: the top bar's. The root list is a list,
+    // not a page with a header.
+    expect(screen.getAllByText('Amazing Grace').length).toBe(1);
   });
 
   it('applies a role as VISIBLE settings, never as a hidden override', () => {

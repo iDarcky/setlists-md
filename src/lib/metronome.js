@@ -68,6 +68,25 @@ export function beatsToSchedule({ now, nextTime, beat, bpm, perBar, horizon = SC
   const beats = [];
   let t = nextTime;
   let n = beat;
+
+  // ── Catch up, don't machine-gun ──────────────────────────────────────────
+  // The scheduler is a `setInterval`, and browsers throttle or suspend timers
+  // in a background tab while the AUDIO clock keeps running. Come back after
+  // 30 seconds and `nextTime` is 30 seconds behind `now` — at which point the
+  // loop below books every beat in between, all with a time in the PAST, and
+  // Web Audio plays anything scheduled in the past immediately. That is a burst
+  // of clicks followed by a click that is permanently late: the "metronome gets
+  // out of sync" report.
+  //
+  // Skipping whole beats keeps the BAR phase, so the accent still lands on
+  // beat one — dropping to `now` exactly would put the downbeat wherever the
+  // interruption happened to end.
+  if (t < now) {
+    const missed = Math.ceil((now - t) / secondsPerBeat);
+    t += missed * secondsPerBeat;
+    n += missed;
+  }
+
   // Bounded so a pathological input (a huge horizon, a stalled clock) can never
   // spin here — at 240bpm the horizon holds a handful of beats, never hundreds.
   while (t < now + horizon && beats.length < 64) {
@@ -156,9 +175,21 @@ export function createMetronome() {
       return true;
     },
     /** Retempo while running. Beats already booked keep their time; the new
-     *  spacing takes effect from the next one, so there is no lurch. */
+     *  spacing takes effect from the next one, so there is no lurch.
+     *
+     *  It also RE-ANCHORS: `nextTime` was computed at the old spacing and can
+     *  sit up to `SCHEDULE_AHEAD_S` in the future, so without this the first
+     *  beat after a tempo change is still spaced at the old tempo — which is
+     *  exactly what a held − / + press does, dozens of times a second. Pull it
+     *  back to one new-tempo beat after now whenever it has drifted further
+     *  than that. */
     setTempo(nextBpm) {
+      const prev = bpm;
       bpm = clampTempo(nextBpm);
+      if (!ctx || !timer || bpm === prev) return;
+      const spb = 60 / bpm;
+      const now = ctx.currentTime;
+      if (nextTime > now + spb) nextTime = now + spb;
     },
     stop,
     dispose() {
