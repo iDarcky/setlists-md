@@ -34,6 +34,10 @@ export default function ReaderSection({
   // One repeat treatment, one name. 'ref' and 'condensed' had converged on
   // the same pill, so 'ref' is gone from the knob entirely.
   const condensed = repeatOf >= 0 && config.repeats === 'condensed';
+  // 'hide' — the repeat isn't drawn at all. The div stays so the ribbon's
+  // scroll-spy still has something to point at (it keeps the chip); it just
+  // has no height of its own.
+  const hidden = repeatOf >= 0 && config.repeats === 'hide';
 
   const frame = {
     bar: { borderLeft: `${heavy ? 5 : 3}px solid ${colour}`, paddingLeft: '0.75rem' },
@@ -93,6 +97,10 @@ export default function ReaderSection({
   // standing in for. The pill says "this again" without taking a section's worth
   // of space to say it. Still tappable — element 3's decision is that a repeat
   // jumps you to the first one.
+  if (hidden) {
+    return <div id={`section-${index}`} data-section-index={index} aria-hidden="true" />;
+  }
+
   if (condensed) {
     return (
       <div id={`section-${index}`} data-section-index={index} style={outer}>
@@ -129,12 +137,17 @@ export default function ReaderSection({
         className="mb-1.5"
         style={config.sticky ? {
           position: 'sticky',
-          // Pin BELOW the header, or the heading slides under it and vanishes.
-          top: stickyTop,
+          // Pin ONE PIXEL HIGH, and pad that pixel back. Two sticky edges that
+          // merely ABUT will show a sliver of whatever scrolls between them on
+          // any device whose pixel ratio isn't a whole number — the header
+          // measures 73.33px, the heading pins at 73.33px, and the rounding
+          // falls either side of the seam. Overlapping by a pixel cannot fail;
+          // the extra padding keeps the text exactly where it was.
+          top: stickyTop - 1,
           zIndex: 5,
           // Opaque, or lyrics scroll visibly through the pinned heading.
           background: 'var(--chart-bg, var(--ds-background-100))',
-          paddingTop: '0.2rem',
+          paddingTop: 'calc(0.2rem + 1px)',
           paddingBottom: '0.2rem',
           marginLeft: '-0.25rem',
           paddingLeft: '0.25rem',

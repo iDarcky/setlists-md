@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { youtubeId } from '@/lib/coverArt';
-import { MAX_BPM, MIN_BPM } from '@/lib/metronome';
+import { MAX_BPM, MIN_BPM, TAP_MIN, clampTempo, pruneTaps, tempoFromTaps } from '@/lib/metronome';
 import { useYouTubeTrack, hiddenHostStyle } from '@/hooks/useYouTubeTrack';
 
 /**
@@ -25,6 +25,9 @@ export default function ReaderPracticeRow({
   song,
   bpm,
   onBpm,
+  // Writes the tempo back onto the song. Absent (a read-only library, or a
+  // host that doesn't own the song) → the tempo stays session-only.
+  onSaveTempo = null,
   clickRunning,
   onToggleClick,
   canClick = true,
@@ -32,6 +35,34 @@ export default function ReaderPracticeRow({
   const ytId = youtubeId(song?.youtube);
   const text = 'var(--chart-text, var(--ds-gray-1000))';
   const muted = 'var(--chart-subtle, var(--ds-gray-700))';
+
+  // ── Tap tempo ────────────────────────────────────────────────────────────
+  // Four taps, then it commits and keeps tracking (owner, 2026-08-01). Taps
+  // live in a ref, not state: they change on every tap and nothing about the
+  // row's appearance depends on the list itself, only on how many there are.
+  const tapsRef = useRef([]);
+  const [tapCount, setTapCount] = useState(0);
+  const tapIdle = useRef(null);
+  const tap = () => {
+    const next = pruneTaps(tapsRef.current, Date.now());
+    tapsRef.current = next;
+    setTapCount(next.length);
+    const found = tempoFromTaps(next);
+    if (found) onBpm(found);
+    clearTimeout(tapIdle.current);
+    tapIdle.current = setTimeout(() => setTapCount(0), 2000);
+  };
+  useEffect(() => () => clearTimeout(tapIdle.current), []);
+
+  // Typing an exact tempo. Held as a string while editing so a half-typed "1"
+  // isn't clamped to 40 under the user's fingers.
+  const [typing, setTyping] = useState(null);
+  const commitTyped = () => {
+    if (typing == null) return;
+    const n = parseInt(typing, 10);
+    if (Number.isFinite(n)) onBpm(clampTempo(n));
+    setTyping(null);
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
@@ -68,7 +99,29 @@ export default function ReaderPracticeRow({
           suffix="bpm"
           text={text}
           muted={muted}
+          // The number itself is the exact-entry control — tap it and type.
+          // A stepper alone takes 32 presses to get from 132 to 100.
+          editing={typing}
+          onStartEdit={() => setTyping(String(bpm))}
+          onEditChange={setTyping}
+          onCommitEdit={commitTyped}
         />
+
+        {/* TAP. The only way to get a tempo out of a recording — YouTube
+            exposes no BPM and its audio can't be analysed from a cross-origin
+            embed. Four taps and it commits, then keeps tracking. */}
+        <button
+          type="button"
+          onClick={tap}
+          className="min-h-0 shrink-0 w-9 h-7 rounded-lg grid place-items-center cursor-pointer border text-label-11 font-mono font-bold tracking-wider"
+          style={{
+            borderColor: tapCount ? 'var(--chord)' : 'var(--chart-rule, var(--ds-gray-400))',
+            color: tapCount ? 'var(--chord)' : text,
+          }}
+          aria-label={`Tap tempo — ${TAP_MIN} taps`}
+        >
+          {tapCount > 0 && tapCount < TAP_MIN ? `${tapCount}/${TAP_MIN}` : 'TAP'}
+        </button>
 
         {/* The song's written tempo, and a way back to it. Slowing down is only
             useful if returning to the real tempo is one tap. */}
@@ -81,6 +134,22 @@ export default function ReaderPracticeRow({
             aria-label={`Back to the written tempo, ${song.tempo}`}
           >
             ♩{song.tempo}
+          </button>
+        )}
+
+        {/* Save to the song (owner, 2026-08-01). Only shows when there is
+            something to save — a tempo that already matches the song is not an
+            action, and element 12's rule is still that nothing persists by
+            itself. */}
+        {onSaveTempo && Number(song?.tempo) !== bpm && (
+          <button
+            type="button"
+            onClick={() => onSaveTempo(bpm)}
+            className="min-h-0 shrink-0 px-2 py-0.5 rounded-lg text-label-11 font-semibold cursor-pointer border-0"
+            style={{ background: 'var(--color-brand)', color: '#fff' }}
+            aria-label={`Save ${bpm} as this song's tempo`}
+          >
+            Save
           </button>
         )}
       </div>
@@ -165,7 +234,11 @@ function TrackHalf({ ytId, text, muted }) {
  * `stepped` hands the direction to the caller instead of doing the arithmetic,
  * for the track rate — its values are a fixed list from the player, not a range.
  */
-function Stepper({ value, min, max, onChange, label, format, suffix, text, muted, stepped = false }) {
+function Stepper({
+  value, min, max, onChange, label, format, suffix, text, muted, stepped = false,
+  // Exact entry: `editing` is the in-progress string, or null when idle.
+  editing = null, onStartEdit = null, onEditChange = null, onCommitEdit = null,
+}) {
   const timers = useRef({ delay: null, repeat: null });
 
   const clear = useCallback(() => {
@@ -217,10 +290,28 @@ function Stepper({ value, min, max, onChange, label, format, suffix, text, muted
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
       </button>
 
-      <span className="tabular-nums text-label-12 font-mono font-semibold text-center" style={{ color: text, minWidth: suffix ? '2.5rem' : '2.25rem' }}>
-        {format(value)}
-        {suffix && <span className="ml-0.5 font-sans font-normal text-label-11" style={{ color: muted }}>{suffix}</span>}
-      </span>
+      {editing != null ? (
+        <input
+          type="text" inputMode="numeric" pattern="[0-9]*"
+          aria-label={`${label}, exact`}
+          value={editing}
+          autoFocus
+          onChange={(e) => onEditChange(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+          onBlur={onCommitEdit}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur(); }}
+          className="min-h-0 h-7 tabular-nums text-label-12 font-mono font-semibold text-center rounded border bg-transparent outline-none"
+          style={{ color: text, borderColor: 'var(--chord)', width: suffix ? '2.75rem' : '2.5rem' }}
+        />
+      ) : (
+        <span
+          {...(onStartEdit ? { role: 'button', tabIndex: 0, onClick: onStartEdit, onKeyDown: (e) => e.key === 'Enter' && onStartEdit() } : {})}
+          className={`tabular-nums text-label-12 font-mono font-semibold text-center${onStartEdit ? ' cursor-text' : ''}`}
+          style={{ color: text, minWidth: suffix ? '2.5rem' : '2.25rem' }}
+        >
+          {format(value)}
+          {suffix && <span className="ml-0.5 font-sans font-normal text-label-11" style={{ color: muted }}>{suffix}</span>}
+        </span>
+      )}
 
       <button
         type="button"

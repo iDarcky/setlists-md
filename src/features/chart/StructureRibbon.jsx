@@ -91,7 +91,7 @@ export function StructureRibbon({
                 style={{ background: s.b, boxShadow: active ? `0 0 0 2px ${s.b}` : undefined }}
               />
               {showLabels && (
-                <span className={cn('font-mono font-bold text-[11px]', !active && 'opacity-70')} style={{ color: s.b }}>{labelOf(run.name)}</span>
+                <span className="font-mono font-bold text-[11px]" style={{ color: s.b }}>{labelOf(run.name)}</span>
               )}
               {run.count > 1 && (
                 <span className="text-[10px] font-semibold" style={{ color: s.b }}>×{run.count}</span>
@@ -150,9 +150,8 @@ export function StructureRibbon({
                 // every code carries its own section colour, current one ringed.
                 : {
                   color: s.b,
-                  borderColor: 'var(--border-1)',
-                  background: 'var(--bg-1)',
-                  opacity: active || activeIndex == null ? 1 : 0.7,
+                  borderColor: 'var(--chart-rule, var(--border-1))',
+                  background: 'transparent',
                   ...(active ? { boxShadow: `0 0 0 2px ${s.b}` } : {}),
                 }}
             >
@@ -192,7 +191,7 @@ export function StructureRibbon({
                   ? (active
                     ? { background: s.b, color: 'var(--chart-bg, var(--bg-1))' }
                     : { color: s.b })
-                  : { color: s.b, opacity: active || activeIndex == null ? 1 : 0.7 }}
+                  : { color: s.b }}
               >
                 {compactLabel(run.name)}
                 {run.count > 1 && <span className="opacity-70">×{run.count}</span>}
@@ -222,12 +221,17 @@ export function StructureRibbon({
               onSelect && "cursor-pointer hover:opacity-80",
               active && "ring-2 ring-offset-1 ring-offset-transparent"
             )}
+            // Option (a), owner 2026-08-01: an inactive chip is an OUTLINE with
+            // its section's colour on it — no fill, no dimmed text, no opacity.
+            // It used to stack all three (tinted background + muted `s.d` text +
+            // 0.72 opacity), and three dimming mechanisms at once is what made
+            // the row read as muddy rather than quiet. One filled chip on a row
+            // of clean outlines is the contrast the ribbon actually needs.
             style={{
               ...(activeFill && active
-                ? { background: s.b, borderColor: s.b, color: 'var(--bg-1)' }
-                : { borderColor: s.br, background: s.bg, color: s.d }),
-              opacity: active || activeIndex == null ? 1 : 0.72,
-              ...(active && !activeFill ? { boxShadow: `0 0 0 2px ${s.br}` } : {}),
+                ? { background: s.b, borderColor: s.b, color: 'var(--chart-bg, var(--bg-1))' }
+                : { borderColor: s.br, background: 'transparent', color: s.b }),
+              ...(active && !activeFill ? { boxShadow: `0 0 0 2px ${s.b}` } : {}),
             }}
           >
             {labelOf(run.name)}

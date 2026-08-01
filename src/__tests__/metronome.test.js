@@ -4,7 +4,7 @@
 // without an AudioContext. A metronome that drifts is worse than no metronome,
 // and drift lives in exactly these three functions.
 import { describe, it, expect } from 'vitest';
-import { beatsPerBar, clampTempo, beatsToSchedule, MIN_BPM, MAX_BPM } from '@/lib/metronome';
+import { beatsPerBar, clampTempo, beatsToSchedule, MIN_BPM, MAX_BPM, tempoFromTaps, pruneTaps } from '@/lib/metronome';
 
 describe('beatsPerBar', () => {
   it('takes the numerator — that is how many beats until the accent returns', () => {
@@ -158,5 +158,38 @@ describe('the grid survives an interruption', () => {
     const n = 100000;
     const { beats } = beatsToSchedule({ ...base, now: n * spb - 0.01, nextTime: 0, beat: 0 });
     expect(beats[0].at).toBeCloseTo(n * spb, 9);
+  });
+});
+
+describe('tap tempo', () => {
+  it('needs four taps before it commits', () => {
+    expect(tempoFromTaps([0, 500, 1000])).toBeNull();
+    expect(tempoFromTaps([0, 500, 1000, 1500])).toBe(120);
+  });
+
+  it('averages the gaps, so one sloppy tap does not throw it', () => {
+    // 500, 520, 480 → mean 500 → 120bpm
+    expect(tempoFromTaps([0, 500, 1020, 1500])).toBe(120);
+  });
+
+  it('reads only the last four, because extra taps are a correction', () => {
+    // Four slow taps then four fast ones: the fast ones win outright.
+    const slow = [0, 1000, 2000, 3000];
+    const fast = [3300, 3600, 3900, 4200];
+    expect(tempoFromTaps([...slow, ...fast])).toBe(200);
+  });
+
+  it('clamps rather than refusing an absurd tempo', () => {
+    expect(tempoFromTaps([0, 10, 20, 30])).toBe(240);
+    expect(tempoFromTaps([0, 5000, 10000, 15000])).toBe(40);
+  });
+
+  it('starts a new count after a pause', () => {
+    const t = pruneTaps([1000, 1500, 2000], 9000);
+    expect(t).toEqual([9000]);
+  });
+
+  it('keeps counting while the taps keep coming', () => {
+    expect(pruneTaps([1000, 1500], 2000)).toEqual([1000, 1500, 2000]);
   });
 });

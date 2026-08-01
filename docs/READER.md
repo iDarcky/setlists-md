@@ -99,7 +99,6 @@ original surfaces render untouched.
 Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
 
 - Position: top (default) / bottom / left / right / off — `structurePosition`.
-  Left/right collapse to top on a phone; a vertical rail has nowhere to live.
 - Styles: Boxes / Chips / Inline / Dots / Dots+label — `ribbonStyle`.
 - **Consecutive-only collapse**: `V1 C V2 C B C×2`, never a global tally.
 - Geometry of the Boxes/Inline chip is the **Score mockup verbatim**: `10px`
@@ -108,6 +107,20 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
   monochrome variant was tried and rejected.
 - Element 2 renders **inside** element 1's sticky block — one piece of chrome
   that travels together, not two stacked stickies.
+- **Inactive chips are an OUTLINE in their section's colour** — no fill, no
+  dimmed text, no opacity (owner, 2026-08-01, "do a"). They used to stack all
+  three (tinted background + muted text + 0.72 opacity), and three dimming
+  mechanisms at once is what made the row read as muddy. One filled chip on a
+  row of clean outlines is the contrast the ribbon needs.
+- **Bottom means the bottom of the SCREEN.** It pins in the same block as the
+  nav bar. (`sticky bottom-0` alone is not enough — see the trap below.)
+- **Left/right float**, transparent, over the chart: `pointer-events-none` with
+  the chips re-enabling, so the space around them still scrolls the song. That
+  is why a phone can have them now — a docked 56px rail was 14% of a 390px
+  screen, a floating one costs nothing.
+- **The scroll-spy reads the PIN LINE**, in pixels, not a fraction of the
+  viewport. `useActiveSection` takes `linePx`; the reader passes `headH`. With
+  the fraction the chip changed 60–80px of scrolling before the heading pinned.
 
 > ### ⚠ The `min-h-0` trap — read this before touching any small control
 > `styles/index.css` carries, in `@layer base`:
@@ -137,6 +150,13 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
 - Repeats: **reference by default** — a repeated chorus renders as
   `Chorus — as before`, tappable to jump to the first one. `duplicateSections`.
   This is the lever that buys bigger text *and* less scrolling.
+  **Three values now: Full · Condensed · Hidden.** `hide` draws nothing at all,
+  not even the pill (owner, 2026-08-01) — but the section's div stays (empty,
+  `aria-hidden`) and **the ribbon still lists it**. The ribbon is the map of the
+  song; a section missing from the map breaks the one job.
+- The pinned heading sits at **`stickyTop - 1`** with a matching extra pixel of
+  padding. Two sticky edges that merely ABUT show a sliver of scrolling content
+  on any device whose pixel ratio isn't a whole number. Overlap, never abut.
 
 ### 4 — Band cue
 - Starts **on the same line as the section heading** and wraps from there like
@@ -276,6 +296,25 @@ deleting the old surfaces costs nothing but the finale stats (element 13).
 > `Number('')` are both **0**, so a song with a blank tempo clamped to the 40bpm
 > floor instead of falling back to 100. Caught by a test, not by a device.
 
+#### Tap tempo — 2026-08-01
+
+- **TAP button beside the bpm**, four taps then it commits and keeps tracking.
+  A gap of 2s starts a fresh count. `tempoFromTaps` / `pruneTaps` in
+  `src/lib/metronome.js`, tested without any audio.
+- **The bpm readout is the exact-entry control** — tap the number, type it.
+  A stepper alone takes 32 presses to get from 132 to 100.
+- **A tapped tempo saves to the song** (owner's call, overriding element 12's
+  "nothing persists"): a **Save** button appears only while the working tempo
+  differs from the song's. `onSaveTempo` → `onUpdateSong`, so it is null in a
+  read-only team library.
+
+> **Tempo cannot be read from a YouTube link, and this will be asked again.**
+> The IFrame API exposes duration, position, playback rate and quality — no
+> tempo. The audio can't be analysed either: the embed is a cross-origin iframe
+> with no media element to route into Web Audio (`createMediaElementSource`
+> requires same-origin). Spotify's `audio-features` carries tempo but is closed
+> to new apps. Tapping is the answer.
+
 #### The practice row, round 2 — 2026-08-01
 
 **The scrubber is gone**, and the clock with it: play/pause and slower/faster,
@@ -299,7 +338,28 @@ the song title. The boundary that actually exists on that screen is
 placement that still makes sense when the ribbon is off, or when element 8's
 setlist bar is showing instead.
 
-### 8b — The setlist bar (the second top-bar treatment)
+### 8b — The setlist bar — SET / HEADER / STRUCTURE
+
+**Revised 2026-08-01, by the owner, against this element's original rule.** The
+set bar no longer *replaces* the structure ribbon. It sits **above the title
+row**, inside the same sticky block, and the ribbon keeps its place below:
+
+```
+┌ the set      ── element 8b, every item in the service
+├ the header   ── element 1: ☰ · practice · title · key · ✕
+├ the structure ── element 2, where the user put it
+└ ─────────────── the brand divider closes the block
+```
+
+The original rule was "never both: the ribbon maps the SONG, this maps the SET,
+and stacking both is two maps competing for the same glance." The owner
+overruled it. Recorded as his call, not re-argued.
+
+`readerTopBar` is therefore a **visibility** switch for the set bar, not an
+either/or with the ribbon; the ribbon is still turned off through
+`structurePosition: 'off'`.
+
+### 8b — original notes
 
 `readerTopBar`: **Song structure** (the ribbon, default) or **The set** — the
 app's original player bar, kept because the owner still likes it: a thin
@@ -861,6 +921,18 @@ describing all along.
 ## Traps that have already cost time
 
 1. **`min-h-0`** — see the box under element 2. Four rounds.
+0. **Two `sticky bottom-0` siblings do not stack.** They both pin to the same
+   0px and the higher z-index simply covers the other. beta.41 shipped the
+   bottom ribbon as its own sticky block "above" the nav bar at z-10 — it was
+   there, pinned, and painted underneath. **One block, several rows**, which is
+   what elements 12 + 10 already did and what the comment above them already
+   said. `src/__tests__/reader.test.jsx` now asserts there is exactly one.
+0b. **Never round a measured sticky offset up.** beta.41 changed `headH` to
+   `Math.ceil(borderBoxHeight)` reasoning that the heading must not overlap the
+   divider. Backwards: on a fractional-DPR phone the header is 73.33px, ceil
+   gives 74, and the heading pins 0.67px BELOW the header — which is exactly the
+   hairline gap it was meant to close. Measure raw, and make the thing below
+   overlap by a pixel.
 2. **CSS custom-property cycles.** `--ds-gray-1000: var(--chart-text, var(--ds-gray-1000))`
    is a dependency cycle; a cyclic property is *invalid at computed-value time*
    and becomes **unset for the whole subtree**. Every fallback in `Reader`'s

@@ -52,9 +52,13 @@ describe('context overrides are physical facts, not preferences', () => {
     expect(resolveReaderConfig(on, wide).sticky).toBe(false);
   });
 
-  it('moves a side ribbon to the top when there is no room for a rail', () => {
+  it('keeps a side ribbon on a phone, because it floats now', () => {
+    // It used to collapse to 'top' here: a DOCKED 56px rail really did have
+    // nowhere to live on a 390px screen. It floats over the chart now
+    // (transparent, `pointer-events-none` except the chips), so it costs no
+    // layout width and the phone can have it. Owner, 2026-08-01.
     const s = { structurePosition: 'left' };
-    expect(resolveReaderConfig(s, narrow).ribbon).toBe('top');
+    expect(resolveReaderConfig(s, narrow).ribbon).toBe('left');
     expect(resolveReaderConfig(s, wide).ribbon).toBe('left');
   });
 

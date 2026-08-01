@@ -4,189 +4,150 @@
 > It exists because a new chat session starts with **no memory of previous
 > conversations** — only this repo.
 >
-> _Written 2026-07-29, at the end of the element-by-element design walk
-> (elements 1–11 built, shipped through `0.17.0-beta.19`)._
+> _Rewritten 2026-08-01. State: `0.17.0-beta.42` on `beta`, branch
+> `claude/reader-element-12-practice-ax9bk5`. 798 tests, 0 lint errors
+> (8 pre-existing warnings)._
 
 ---
 
 ## Start here
 
-Read, in this order:
-
-1. **This file** — where things stand, what to do next.
-2. **`docs/READER.md`** — the element-by-element decision log. **This is the
-   important one.** Every element carries a decision the owner made and the
-   reason behind it. Treat them as settled; don't re-open them.
+1. **This file.**
+2. **`docs/READER.md`** — the element-by-element decision log. **The important
+   one.** Every element carries a decision the owner made and the reason behind
+   it. Treat them as settled; don't re-open them.
 3. `CLAUDE.md` — how the app works.
-4. `docs/COMPONENTS.md` — what the pieces are.
+4. `docs/PLAN.md` §1 — what is parked and in what order.
 
-The previous handoff's brief ("collapse three surfaces into two, with presets")
-is **done and superseded**. Presets were scrapped; there is **one** viewer with
-flat settings. `docs/views-vision.md` and `docs/views_questions.md` are history
-— read them for background, never for instructions.
-
-Its two named defects are both resolved: the reader's exit is always visible
-(element 1 is fixed, with no auto-hide), and the `chart → song` back-edge
-question was answered by the Song Hub owning identity while the reader is just
-the reader.
+**Do not raise graduating the `unifiedReader` flag.** The owner has asked twice
+to stop mentioning it. It is his call and it is not close.
 
 ---
 
-## Where things stand
+## Read this before anything else: three fixes were claimed and did not work
 
-**Built and on `beta`, behind the Labs flag `unifiedReader`** (Settings → Labs):
+On 2026-08-01 three fixes were reported as done. The owner, on beta.41, found
+that none of them worked. He was right, and the code **was** on `beta` — they
+were wrong, not missing. Two root causes, now fixed, now in `READER.md`'s trap
+list:
 
-| | Element | State |
-|---|---------|-------|
-| 1 | Top bar | done — fixed, no customization, `ReaderTopBar` shared with breaks |
-| 2 | Structure ribbon | done — Score geometry, per-section colour, 5 styles |
-| 3 | Section heading | done — name/letters/CAPS, sticky on phone only, repeats-as-reference |
-| 4 | Band cue | done — on the heading line, 240-char cap, `!` = loud |
-| 5 | Inline notes | done — leader on wide, above-the-line on narrow |
-| 6/7 | Chords + lyrics | done — lyrics never truncated, `chordFollows` spacing |
-| 8 | Key change | done — names the arrival key |
-| 9 | Tabs | done — instrument-aware, never side-scrolls, transpose-or-say-why |
-| 10 | Song-to-song | done — 4 nav styles, sticky footer, rail incl. phones, breaks |
-| 11 | Chord diagrams | done — tap a chord, Pro-gated, no strip |
-| 12 | Practice tools | done — metronome + slow-down, one row above the footer |
-| 13 | Finale | done — ONE finale, one screenful, two pinned buttons |
+1. **Two `sticky bottom-0` siblings do not stack.** The bottom structure ribbon
+   got its own sticky block at `z-10`, "above" the nav block at `z-20`. They
+   both pin to the same 0px and the higher z simply covers the other — it was
+   there, pinned, and painted underneath the nav bar. → **one block, several
+   rows**, which is what elements 12 + 10 already did.
+2. **`Math.ceil` on a measured sticky offset creates the gap it was meant to
+   close.** `headH` was rounded up so the pinned heading "could not overlap the
+   divider". Backwards: on a fractional-DPR phone the header is 73.33px, ceil
+   gives 74, and the heading pins 0.67px *below* it — a sliver of scrolling
+   chart, which is precisely the hairline the owner reported. → measure raw, and
+   **overlap by a pixel** (`top: stickyTop - 1` + matching padding).
 
-764 tests, 0 lint errors. `npm run dev` · `npx vitest run` · `npm run build`.
+The third — the ribbon changing at the moment the heading pins — was a real fix
+(`useActiveSection` takes an exact `linePx` instead of a viewport fraction; the
+reader passes `headH`) and may simply have been masked by the other two. **Check
+it on a phone before touching it.** If it is still wrong the next suspects are
+`readerSticky` off, or testing on a tablet, where `config.sticky` is false by
+design and nothing pins at all.
 
-**Nothing has been deleted.** With the flag off, `SetlistPlayer`,
-`PerformanceView` and `PracticeView` render exactly as they did, and
-`ChartView` still serves the Song Hub.
-
----
-
-## What to do next
-
-### 1. Element 12 — practice tools — DONE (round 1)
-
-Shipped: metronome (accented downbeat off the song's `time`), a bpm stepper, the
-backing track brought into the Reader with its own **independent** rate stepper,
-all in ONE row above element 10's nav bar. Entry is one icon beside ☰. No
-count-in, no section loop, no wake lock — **all three were explicitly cut**.
-Full reasoning in `docs/READER.md` §12.
-
-The framing fact, measured rather than assumed: **none of these tools existed to
-port.** `PracticeView` had no `AudioContext`, no click, no `playbackRate`, no
-loop, no autoscroll. The old Practice screen was a chart viewer with different
-chrome, so deleting it costs only the finale stats.
-
-Round 1 is on the owner's phone for testing. Wait for their verdict before
-building anything more here — the loop/count-in decisions are recorded as cuts,
-not as backlog.
-
-### 2. Element 13 — the finale — DONE
-
-One `ReaderFinale` replaces `LiveFinale` + `PracticeFinale` (~500 lines, ~80%
-identical). **It is one screenful that never scrolls**, with View setlist + Home
-pinned outside the scroller. **Time is the only stat**, on a meta line.
-
-It took THREE cuts to land — sparse, then too long, then right. Read the boxed
-warning in `READER.md` §13 before touching it: a "What you played" list was built
-and cut ("too much scrolling"), and so was "Run it again". **The finale is a full
-stop, not a page to read.** If it looks empty, more content is not the answer.
-
-**There is no reflection box, and no migration.** A leaders-only one was built
-(table + admin RLS + hook) and then **removed**: a note leaders can write but
-never read again is half a feature, and the missing half — somewhere to see past
-feedback — is the bigger build. Deferred in `PLAN.md` → Team with the git ref;
-the migration was never applied, so production has no such table.
-
-### 3. Read `PLAN.md` §1 — it is now the sequence
-
-As of 2026-07-30 the owner's instruction is: **finish the reader, clear the 🔴s,
-then stop and re-plan.** `PLAN.md` §1.1/§1.2/§1.3 carries that in order, with the
-diagnosis already done for the confirmed ones. Four reader items remain (the
-metronome starting on tap, the practice row on a phone, the header/ribbon
-divider, then graduate-and-delete) — **and two of the 🔴s are in the Song Hub,
-which survives the deletion, so fix those before deleting anything.**
-
-### 4. Then: graduate the flag and delete
-
-Both remaining elements have landed, so this is next. Wire `FullscreenChartViewer` as a thin wrapper over `Reader`
-(not a fork), flip `unifiedReader` on by default, then delete `SetlistPlayer`,
-`PerformanceView` and `PracticeView` — roughly 2,300 lines of triplicated state
-management. `ChartView` stays for now; the Song Hub embeds it.
+**The lesson:** when the owner says something looks wrong, go and measure it in
+the code. Do not explain why it should be fine. Most of what cost rounds this
+session was explaining instead of measuring.
 
 ---
 
-## How to work with this owner
+## Working agreement (the owner's, stated repeatedly)
 
-Learned the hard way over this pass, and worth more than any of the code below:
-
-- **Build exactly what was asked, and nothing adjacent.** The worst episode of
-  this pass: a header-density knob was built *after* the owner said element 1
-  takes no customization. Its `min` value hid the song title, and five rounds
-  went into debugging CSS before the real cause — the unasked-for knob — was
-  found.
-- **When they say something looks wrong, it is wrong.** Twice the answer given
-  was "but the CSS says…", and twice the owner was right and the code had a real
-  bug: the `min-h-0` trap below, and `duration && <…>` rendering a literal `0`
-  on a break. Go and measure before explaining.
-- **Ship every round to `beta`.** They test on a real phone. A description of a
-  change is not a change.
-- They say **"finish"** to close a batch — that runs the workflow in `CLAUDE.md`
-  (bump `-beta.<N>`, append to `src/data/changelog.md`, build, push,
-  fast-forward `beta`). They have **not** asked to promote to `main`.
+- **One element at a time. Ask the questions and let him decide BEFORE
+  building.**
+- Build exactly what is asked. No adjacent settings, no knobs nobody requested.
+- **Ship every round to `beta`** via the "finish" workflow in `CLAUDE.md` — he
+  tests on his phone. A description of a change is not a change.
+- Batch the **questions** (4–6 at a time; he answers them all in one go).
+  Serialise the **builds** — anything visual goes one at a time, because "it
+  doesn't feel right" only surfaces on the device.
 
 ---
 
-## Ground rules that already exist — don't relearn them the hard way
+## Just shipped (beta.42) — all of it needs testing on a phone
 
-- **`min-h-0` on every small control.** `styles/index.css` has, in `@layer base`,
-  `button { min-height: 36px }` and 44px under 640px. It silently beat four
-  rounds of padding tuning on the ribbon chips. Chords inside lyric lines use
-  `role="button"`, not `<button>`, for the same reason. Full write-up in
-  `docs/READER.md`.
-- **CSS custom properties must never name themselves in their own fallback.**
-  `--x: var(--y, var(--x))` is a cycle, which makes the property invalid at
-  computed-value time and **unset for the whole subtree**.
-- **Imports:** `@/` for anything outside a file's own folder, `./x` for
-  siblings. ESLint fails the build otherwise.
-- **Design system:** `src/ui/README.md` is the canon. Don't add a primitive that
-  already exists; don't add a `Thing2`.
-- **Never** `window.open`, `alert`, `confirm`, `prompt` — they don't work in an
-  installed PWA. Use the `ui/` dialogs and `use-toast`.
-- **Tests:** `.test.js` = logic (node), `.test.jsx` = render (jsdom). jsdom
-  workarounds live in `vitest.setup.js`.
-- **`section.lines[]` can be a string, a tab object, or a modulate object.**
-  Type-check before calling string methods.
-- **Any new reader setting must be added to `PORTABLE_PREF_KEYS`**
-  (`src/app/usePreferenceSync.js`) or it won't follow the user across devices.
-- Verify with `npm run lint && npx vitest run && npm run build` before
-  committing. The repo has 8 pre-existing lint *warnings* and 0 errors — keep
-  errors at 0.
-- **Migrations must be additive and backward-compatible** — there is no staging
-  database, so beta writes to live church data.
+| What | Where |
+|---|---|
+| Bottom ribbon moved into the nav's sticky block | `Reader.jsx` |
+| Pinned heading overlaps the divider by 1px | `ReaderSection.jsx` |
+| `headH` measured raw from the border box (no ceil) | `Reader.jsx` |
+| Ribbon reads the pin line in px (`linePx`) | `useActiveSection.js` |
+| Inactive chips: outline + section colour, no fill, no opacity | `StructureRibbon.jsx` |
+| Left/right ribbon floats, transparent, now allowed on phones | `Reader.jsx`, `readerConfig.js` |
+| **SET / HEADER / STRUCTURE** — the set bar sits above the title row | `ReaderTopBar.jsx` (`aboveBar` prop) |
+| Repeats gain a third value, `hide` — nothing drawn, ribbon still lists it | `readerConfig.js`, `ReaderSection.jsx` |
+| Tap tempo (4 taps) · type an exact tempo · **Save to song** | `metronome.js`, `ReaderPracticeRow.jsx` |
+| 1/2 columns hidden on phones | `ReaderMenu.jsx` |
 
 ---
 
-## Also landed this pass, outside the reader
+## The views — the map, agreed
 
-- **"Roster" is now "the band"** everywhere a person reads it. `RosterPanel` →
-  `BandPanel`, `RosterReadCard` → `BandReadCard`, `canManageRoster` →
-  `canManageBand`, `onOpenRoster` → `onOpenBand`. The stored settings keys
-  (`rosterOverscheduleWarning`, `rosterStreakLimit`) and the `roster_assigned`
-  activity action **kept their names on purpose** — renaming them would reset
-  preferences and orphan history rows.
-- `src/lib/myInstrument.js` — resolves "what am I playing this service" from
-  `team_schedules` + `team_members.instruments`, wired in `App.jsx`.
-- Deleted: `src/data/stageModes.js` and the settings `chartLayout`,
-  `displayRole`, `autoHideHeader`, `stageMode`, `readerHeader`.
+A view is a **template of the Reader**: one renderer, different defaults and
+different chrome. Never a different chart.
 
-## Open decisions the owner still owes
+| # | View | Opens from, and only from |
+|---|---|---|
+| 1 | Song hub full screen | the hub's full-screen button. From the side peek it expands **within the peek** |
+| 2 | Campfire | the Campfire button. Needs recommended-next at the bottom |
+| 3 | Live | Play in the setlist hub |
+| 4 | Practice | Practice in the setlist hub. Needs a rework |
+| 5 | The hub view | the Chart/Lyrics tab, the peek at rest, the editor preview. **No settings at all** |
+| 6 | Shared setlist viewer | a public link. ❓ view or separate renderer — undecided |
+| 7 | Print / PDF | a genuinely different renderer. Stays that way |
 
-In `PLAN.md` §7. Still unresolved:
+`setlist-play` and `setlist-performance` are **two routes into view 3** with
+identical props, differing only in which finale they land on. One should go.
 
-- Which bottom sheet is the app's — `BottomSheet` (7 uses, now including
-  `SetlistRail`) or `MobileSheet` (1)? Element 12 dodged this by landing as a
-  row rather than a sheet, so it is no longer blocking anything in the reader.
+---
 
-## Branch
+## Where the element walk got to
 
-Work continued on `claude/chart-redesign-practice-views-duggb4`, fast-forwarded
-to `beta` after each batch. `main` is at `0.16.x` — this whole cycle is
-unreleased.
+Elements 1–14 are built. The owner's answers to 15–27 are in `READER.md`,
+verbatim. His stated order from here:
+
+1. **Element 12** — the tap-tempo work above landed but has not been reviewed.
+   Ask before changing anything else in the row.
+2. **Element 8b (setlist bar)** — still marked "needs a rework", and the new
+   SET/HEADER/STRUCTURE stack is unreviewed.
+3. Batch **15 · 17 · 18 · 27** — all behaviour, no visuals.
+4. Batch **16 · 19 · 21 · 22** to decide; build one at a time.
+5. **24** (stage view) and **25** (follow the leader) last, each on its own.
+
+---
+
+## Parked, in `PLAN.md`
+
+- 🔴 **§1.2b prio 1 — rethink the colours across every theme.** Two piecemeal
+  fixes (the dark ramp's hue fighting its own ground; Midnight tinting only half
+  its scale) are evidence the themes were never designed as a set.
+- 🟡 Separate volumes for the click and the backing track.
+- 🟡 Custom chord shapes, for chords with no shape in the library.
+- ⏭️ Auto-scroll — deferred until sections carry lengths in the `.md`.
+
+---
+
+## True, and easy to get wrong
+
+- **The Song Hub renders `Reader`, not `ChartView`,** when the flag is on. Three
+  places can cause a "hub theme bug": the reader, the chart, and the hub's own
+  card. `PLAN.md` §1.2 has the warning box.
+- **`min-h-0` on every small control.** `button { min-height: 44px }` on phones
+  lives in `@layer base` and beats every padding utility. Four rounds lost.
+- **CSS custom-property cycles** are invalid at computed-value time and unset
+  the whole subtree. Every fallback must be a literal or name a *different*
+  property.
+- **`resolveReaderConfig(settings, { embedded: true })` ignores `settings`
+  entirely** and returns `HUB_VIEW`. Deliberate — the hub view is the Reader
+  with the settings wire cut. Do not reconnect it.
+- **Tempo cannot come from a YouTube link.** No BPM in the IFrame API, and the
+  audio can't be analysed from a cross-origin embed (`createMediaElementSource`
+  needs same-origin). Spotify's `audio-features` carries tempo but is closed to
+  new apps. Tapping is the answer, and it is built.
+- **`applyKeyHistories` is reference-preserving on purpose.** A map that
+  re-mints every object reintroduces whole-library IndexedDB rewrites on launch.

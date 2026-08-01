@@ -265,3 +265,40 @@ export function createMetronome() {
     },
   };
 }
+
+/**
+ * Tap tempo — the only way to get a BPM out of a recording.
+ *
+ * Worth writing down, because it will be asked again: **a tempo cannot be read
+ * from a YouTube link.** The IFrame API exposes duration, position, playback
+ * rate and quality — no tempo — and the audio can't be analysed either, because
+ * the embed is a cross-origin iframe with no media element to route into Web
+ * Audio (`createMediaElementSource` requires same-origin). Spotify's
+ * `audio-features` endpoint does carry tempo but is closed to new apps. So the
+ * musician taps, which takes four taps and always works.
+ *
+ * @param taps  timestamps in ms, oldest first
+ * @returns the bpm, or null while there aren't enough taps
+ */
+export const TAP_MIN = 4;          // owner's call: four taps, then it commits
+export const TAP_RESET_MS = 2000;  // a gap this long starts a new count
+
+export function tempoFromTaps(taps, { min = TAP_MIN } = {}) {
+  if (!Array.isArray(taps) || taps.length < min) return null;
+  // The last `min` taps only — a musician who taps eight times is correcting
+  // the first four, not averaging with them.
+  const recent = taps.slice(-min);
+  const gaps = [];
+  for (let i = 1; i < recent.length; i += 1) gaps.push(recent[i] - recent[i - 1]);
+  const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+  if (!Number.isFinite(mean) || mean <= 0) return null;
+  return clampTempo(60000 / mean);
+}
+
+/** Drop taps separated by more than `resetMs` — a fresh count, not a slow one. */
+export function pruneTaps(taps, now, { resetMs = TAP_RESET_MS } = {}) {
+  const list = Array.isArray(taps) ? taps : [];
+  const last = list[list.length - 1];
+  if (last != null && now - last > resetMs) return [now];
+  return [...list, now];
+}

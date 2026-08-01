@@ -15,7 +15,7 @@ import { IconButton } from '@/ui/IconButton';
  * the right-hand edge leaves the service.
  */
 const ReaderTopBar = forwardRef(function ReaderTopBar(
-  { title, meta = null, onMenu, onExit, tools = null, children }, ref,
+  { title, meta = null, onMenu, onExit, tools = null, aboveBar = null, children }, ref,
 ) {
   return (
     <div
@@ -33,6 +33,10 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
         background: 'var(--chart-bg, var(--ds-background-100))',
       }}
     >
+      {/* Element 8b's setlist bar, when it's on. ABOVE the title row, inside
+          the same sticky block: SET / HEADER / STRUCTURE. */}
+      {aboveBar}
+
       <div className="wide-container flex items-center gap-2 py-1.5">
         {onMenu && (
           <IconButton

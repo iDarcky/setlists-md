@@ -22,7 +22,12 @@ export const READER_KNOBS = {
   // 'ref' was a third repeat style that read as 'Chorus — as before'. It
   // and 'condensed' had collapsed onto the same pill, so it was two names
   // for one thing. A stored 'ref' now falls back to the default via pick().
-  repeats: ['full', 'condensed'],          // 3
+  //
+  // 'hide' drops a repeat from the CHART entirely — not even the pill (owner,
+  // 2026-08-01). The structure ribbon still lists it: the ribbon is the map of
+  // the song, and a section missing from the map breaks the one job. Tapping
+  // its chip jumps to the first time that section is played.
+  repeats: ['full', 'condensed', 'hide'],  // 3
   notes: ['on', 'off'],                    // 4 + 5
   footer: ['count', 'next'],               // 10
   nav: ['footer', 'pill', 'edge', 'swipe'],// 10
@@ -146,8 +151,11 @@ export function resolveReaderConfig(settings, ctx = {}) {
   cfg.notePlacement = wide ? 'leader' : 'above';
 
   if (!wide) {
-    // A vertical rail has nowhere to live on a phone.
-    if (cfg.ribbon === 'left' || cfg.ribbon === 'right') cfg.ribbon = 'top';
+    // Left/right used to collapse to 'top' here — a docked 56px rail really did
+    // have nowhere to live on a 390px screen. It FLOATS now (transparent, over
+    // the chart, owner 2026-08-01), so it costs no layout width and the phone
+    // can have it. Columns still can't: two columns of lyrics on a phone is
+    // four words a line.
     cfg.columns = 1;
   }
 

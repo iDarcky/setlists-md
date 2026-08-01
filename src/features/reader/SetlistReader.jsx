@@ -29,6 +29,8 @@ export default function SetlistReader({
   trash = [], onRestoreSong,
   // 'live' | 'practice' — see the note on Reader's own `mode`.
   mode = 'live',
+  // Element 12 — a tapped tempo saves to the song.
+  onUpdateSong = null,
   // Which item to open on. Tapping a song in the setlist overview means "start
   // HERE", and until now the reader ignored it and always opened song 1 — the
   // old `PracticeView` honoured it, the reader that replaced it did not.
@@ -229,6 +231,7 @@ export default function SetlistReader({
       onUpdateSettings={onUpdateSettings}
       myInstrument={myInstrument}
       mode={mode}
+      onUpdateSong={onUpdateSong}
       onExit={onBack}
       selectedKey={keys[cur.song.id] || cur.key || cur.song.key}
       onSelectKey={(k) => setKeys(prev => ({ ...prev, [cur.song.id]: k }))}

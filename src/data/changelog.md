@@ -82,6 +82,13 @@ A running log of what's new in setlists.md. Newest releases first.
 - **The metronome stayed in time after you looked away.** Leaving the app or switching tabs stopped the click's timer while its clock kept running, so coming back fired every missed beat at once and then ran late for good. It now skips the beats you missed and comes back in on the downbeat. Holding − or + also lands on the new tempo immediately instead of one beat later.
 - **Tapping a song in a setlist opens that song.** Practice always started from song one, however far down the list you tapped.
 - **The practice row lost the scrubber** — play/pause and slower/faster, nothing else. Hunting for a position mid-practice was never the job, and the scrubber was the one control on that row you couldn't hit while holding an instrument. The song page's player still has the full transport.
+- **Tap the tempo.** Four taps on TAP and the click follows you — the only way to get a tempo out of a recording, since a YouTube link carries no BPM. You can also tap the number and type one exactly, and Save it onto the song once you've found it.
+- **The set, the header and the structure now stack** instead of the set replacing the structure: the running order across the top, the song's title row under it, then the structure where you put it — all pinned together.
+- **Structure chips read cleanly when they're not the one you're on** — a clean outline in the section's own colour, instead of a tinted fill dimmed twice over.
+- **The structure ribbon can sit on the left or right on a phone.** It floats over the chart rather than taking a column, so it costs no width.
+- **Repeated sections can be hidden completely** — not even the small "as before" tag. They stay on the structure ribbon, so you can still see and jump to them.
+- **"Structure at the bottom" really is at the bottom now.** It was pinned, but painted underneath the nav bar, so it looked like nothing had happened.
+- **The pinned section heading no longer shows a hairline gap** above it on some phones.
 - **The structure ribbon and the pinned heading change at the same moment.** The ribbon was reading its position from a line near the very top of the screen while headings pinned under the header — 60-80px apart, so the chip moved well before the heading did. They read the same line now.
 - **The pinned heading sits just below the divider**, not under it. The header's height was measured without its own border, so everything pinning below it landed a pixel short.
 - **"Structure at the bottom" now means the bottom of the screen**, not the bottom of the song. It pins above the nav bar instead of only appearing once you've scrolled to the end of the chart — which was the one place you no longer needed a map.

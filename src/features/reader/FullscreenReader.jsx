@@ -18,6 +18,7 @@ import Reader from './Reader';
  */
 export default function FullscreenReader({
   song, settings, onUpdateSettings, displayMode, selectedKey, onSelectKey, onClose,
+  onUpdateSong = null,
 }) {
   // ── The flashbang ──────────────────────────────────────────────────────────
   // Owner, 2026-07-31: "the leader searches for a song at night and the reader
@@ -55,6 +56,7 @@ export default function FullscreenReader({
         song={song}
         settings={settings}
         onUpdateSettings={onUpdateSettings}
+        onUpdateSong={onUpdateSong}
         displayMode={displayMode}
         selectedKey={selectedKey}
         onSelectKey={onSelectKey}

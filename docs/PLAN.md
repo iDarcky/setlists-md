@@ -181,7 +181,11 @@ serious thing in this document; the last two are blocked on you.
    app theme and every **chart** theme rebuilt through it, and a check that the
    accent-colour setting reaches everything it should. The `color-mix` brand
    derivation (2026-08-01) is the first piece of that method, not the end of it.
-2. 🟡 **Separate volume for the click and the backing track** (owner,
+2. 🟡 **Custom chord shapes** (owner, 2026-08-01). `data/chordShapes.js` holds
+   ~50 worship voicings; element 11's tap-a-chord popover has nothing to show
+   for anything outside that list. Let users add a shape for a chord that has
+   none.
+3. 🟡 **Separate volume for the click and the backing track** (owner,
    2026-08-01, "for the future"). Element 12 has one `gain` constant for the
    click and no control at all for the track. Practising with a track means
    riding the click under it, and today the only lever is the device volume,

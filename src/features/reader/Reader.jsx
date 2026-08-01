@@ -68,6 +68,9 @@ export default function Reader({
   // why every practice-only decision — writing a note, switching arrangement —
   // had nowhere to attach: the reader could not tell which one it was in.
   mode = 'live',
+  // Element 12: a tapped tempo writes back to the song (owner, 2026-08-01), so
+  // the reader needs a way to save one. Absent → the tempo stays session-only.
+  onUpdateSong = null,
 }) {
   const scrollRef = useRef(null);
   const touchRef = useRef(null);
@@ -192,9 +195,16 @@ export default function Reader({
       // the fallback for engines that don't report it.
       const box = entries[0]?.borderBoxSize?.[0]?.blockSize;
       const h = box ?? el.getBoundingClientRect().height ?? 0;
-      // Sub-pixel: round UP so the heading can never overlap the divider.
-      const next = Math.ceil(h);
-      setHeadH(prev => (prev !== next ? next : prev));
+      // NO rounding. beta.41 did `Math.ceil`, reasoning that the heading should
+      // never overlap the divider — which is backwards. On a fractional-DPR
+      // phone the header is e.g. 73.33px tall, ceil gives 74, and the heading
+      // pins 0.67px BELOW the header's bottom edge, showing a sliver of the
+      // chart scrolling behind it. That sliver is the "small line between the
+      // hairline and the heading pin", and beta.41 created it rather than
+      // fixing it. Abutting sticky edges must OVERLAP, never abut — the
+      // heading pins one pixel high (see `ReaderSection`) and paints over the
+      // seam.
+      setHeadH(prev => (Math.abs(prev - h) > 0.5 ? h : prev));
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -248,6 +258,7 @@ export default function Reader({
   ) : null;
 
   const rule = { borderColor: 'var(--chart-rule, var(--ds-gray-300))' };
+  const bottomRibbon = config.ribbon === 'bottom' && !!ribbonNode;
 
   return (
     <div
@@ -302,6 +313,7 @@ export default function Reader({
       {showChrome && (
         <ReaderTopBar
           ref={headRef}
+          aboveBar={underBar}
           title={song.title}
           onMenu={(rect) => setOwnAaAnchor(a => (a ? null : rect))}
           onExit={onExit}
@@ -349,9 +361,13 @@ export default function Reader({
           )}
         >
           {/* Element 2 lives INSIDE element 1's sticky block: one piece of
-              chrome that travels together, rather than two stacked stickies. */}
-          {underBar}
-          {!underBar && config.ribbon === 'top' && ribbonNode && (
+              chrome that travels together, rather than two stacked stickies.
+              The order is SET / HEADER / STRUCTURE (owner, 2026-08-01): the set
+              bar no longer REPLACES the ribbon, it sits above the bar and the
+              ribbon keeps its place below. That reverses element 8b's original
+              "never both" — the owner's call, and it is recorded as his in
+              docs/READER.md. All three pin together as one block. */}
+          {config.ribbon === 'top' && ribbonNode && (
             // No rule between the bar and the ribbon. They are ONE piece of
             // chrome by element 2's decision, and a line here splits what that
             // decision deliberately fused. The divider lives on the bottom of
@@ -364,8 +380,19 @@ export default function Reader({
       )}
 
       <div className="flex-1 flex">
+        {/* Floating and transparent (owner, 2026-08-01), not a docked column.
+            Docked it cost 56px of chart width, which is why it used to collapse
+            to 'top' on a phone. Floating, it costs nothing, so the phone can
+            have it too — `pointer-events-none` on the strip with the chips
+            themselves re-enabling, so the space around them still scrolls the
+            chart underneath. */}
         {config.ribbon === 'left' && ribbonNode && (
-          <div className="shrink-0 w-14 overflow-y-auto border-r px-1.5 py-2" style={rule}>{ribbonNode}</div>
+          <div
+            className="absolute left-0 top-0 bottom-0 z-10 w-12 overflow-y-auto no-scrollbar px-1 py-2 pointer-events-none [&_button]:pointer-events-auto"
+            style={{ background: 'transparent' }}
+          >
+            {ribbonNode}
+          </div>
         )}
 
         {/* ── Elements 3–6 — the song ──────────────────────────────────── */}
@@ -430,32 +457,25 @@ export default function Reader({
         </div>
 
         {config.ribbon === 'right' && ribbonNode && (
-          <div className="shrink-0 w-14 overflow-y-auto border-l px-1.5 py-2" style={rule}>{ribbonNode}</div>
+          <div
+            className="absolute right-0 top-0 bottom-0 z-10 w-12 overflow-y-auto no-scrollbar px-1 py-2 pointer-events-none [&_button]:pointer-events-auto"
+            style={{ background: 'transparent' }}
+          >
+            {ribbonNode}
+          </div>
         )}
       </div>
 
-      {/* `sticky bottom-0`, not just last-in-flow. The whole reader is ONE
-          scroll container, so a plain flex child sits at the end of the SONG —
-          which is what "bottom" did: you had to scroll to the end of the chart
-          to see the map of where you were in it. Same fix the practice row
-          already carries. It sits ABOVE the nav block below (z-10 vs z-20) so
-          the two stack rather than overlap. */}
-      {config.ribbon === 'bottom' && ribbonNode && (
-        <div
-          className="sticky bottom-0 z-10 shrink-0 border-t overflow-hidden"
-          style={{ ...rule, background: 'var(--chart-bg, var(--ds-background-100))' }}
-        >
-          <div className="wide-container py-1.5">{ribbonNode}</div>
-        </div>
-      )}
+      {/* ── The bottom edge — ONE sticky block, three rows ────────────────
+          structure (when it's set to 'bottom') · practice · nav.
 
-      {/* Elements 12 + 10 share ONE sticky block at the bottom edge — the
-          practice row above the nav row. Two separate stickies would fight over
-          `bottom-0` and the safe-area inset; one block with two rows cannot.
-          `sticky bottom-0`, not just last-in-flow: the whole reader is ONE
-          scroll container, so a plain flex child sits at the end of the SONG
-          rather than at the bottom of the screen. Mirror of the header. */}
-      {(footer || (showChrome && practiceOpen)) && (
+          It has to be one block. Two `sticky bottom-0` siblings do NOT stack:
+          they both pin to the same edge and the higher z-index covers the
+          other. That is exactly what shipped in beta.41 — the bottom ribbon
+          was there, pinned, and painted underneath the nav bar, so it looked
+          like nothing had changed. A z-index cannot separate two elements that
+          want the same 0px. */}
+      {(bottomRibbon || footer || (showChrome && practiceOpen)) && (
         <div
           className="sticky bottom-0 z-20 shrink-0 border-t"
           style={{
@@ -464,12 +484,21 @@ export default function Reader({
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
         >
+          {bottomRibbon && (
+            <div
+              className={`wide-container overflow-hidden py-1.5${(footer || practiceOpen) ? ' border-b' : ''}`}
+              style={{ ...(footer || practiceOpen ? rule : null), fontSize: '0.85em' }}
+            >
+              {ribbonNode}
+            </div>
+          )}
           {showChrome && practiceOpen && (
             <div className={`wide-container py-1.5${footer ? ' border-b' : ''}`} style={footer ? rule : undefined}>
               <ReaderPracticeRow
                 song={song}
                 bpm={bpm}
                 onBpm={changeBpm}
+                onSaveTempo={onUpdateSong ? (v) => onUpdateSong({ ...song, tempo: v }) : null}
                 clickRunning={metronome.running}
                 onToggleClick={() => (metronome.running ? metronome.stop() : metronome.start(bpm, song.time))}
               />

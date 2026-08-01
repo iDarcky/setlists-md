@@ -412,3 +412,36 @@ describe('the ribbon and the pinned heading agree', () => {
     expect(heading.style.top).toBeTruthy();
   });
 });
+
+describe('the bottom edge is ONE sticky block', () => {
+  it('puts a bottom-positioned ribbon in the same block as the nav, not beside it', () => {
+    // beta.41 shipped two `sticky bottom-0` siblings and expected z-index to
+    // stack them. It cannot: they both pin to the same 0px and the higher z
+    // simply covers the other, so the ribbon was invisible under the nav bar.
+    mockWidth(false);
+    const { container } = render(
+      <Reader
+        song={makeSong()} settings={{ structurePosition: 'bottom' }}
+        onExit={() => {}} footer={<div>nav</div>}
+      />,
+    );
+    const pinned = container.querySelectorAll('.sticky.bottom-0');
+    expect(pinned.length).toBe(1);
+    // …and the ribbon is inside it, above the nav row.
+    expect(pinned[0].textContent).toContain('nav');
+    expect(pinned[0].querySelectorAll('button').length).toBeGreaterThan(0);
+  });
+});
+
+describe('element 3 — repeats can be hidden outright', () => {
+  it('draws nothing for a repeat, but keeps it on the map', () => {
+    mockWidth(true);
+    const { container } = render(
+      <Reader song={makeSong()} settings={{ duplicateSections: 'hide' }} onExit={() => {}} />,
+    );
+    // The song is V1 C V2 C — the second chorus is a repeat.
+    const repeat = container.querySelector('[data-section-index="3"]');
+    expect(repeat).toBeTruthy();          // still there for the scroll-spy
+    expect(repeat.textContent).toBe('');  // and draws nothing at all
+  });
+});

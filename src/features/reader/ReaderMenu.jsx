@@ -417,7 +417,7 @@ export default function ReaderMenu({
                 options={[['bar', 'Bar'], ['plain', 'No line'], ['block', 'Block'], ['card', 'Card']]}
                 onChange={(v) => set('readerSectionStyle', v)} />
               <Segs label="Repeated sections" value={settings?.duplicateSections || 'condensed'}
-                options={[['full', 'Full'], ['condensed', 'Condensed']]}
+                options={[['full', 'Full'], ['condensed', 'Condensed'], ['hide', 'Hidden']]}
                 onChange={(v) => set('duplicateSections', v)} />
               <Segs label="Song to song" value={settings?.readerNav || 'footer'}
                 options={[['footer', 'Bottom bar'], ['pill', 'Pill'], ['edge', 'Edge arrows'], ['swipe', 'Swipe']]}
