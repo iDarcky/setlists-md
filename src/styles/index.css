@@ -851,6 +851,19 @@
   100% { opacity: 1; }
 }
 
+/* The reader's ☰ as a phone sheet. Travel, not just fade: a panel that rises
+   from the edge it is anchored to reads as attached to the screen bottom. */
+@keyframes sheet-up {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes sheet-up {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+}
+
 /* Light-mode override for modes variant */
 [data-theme="light"] [data-theme-variant="modes"] {
   --modes-surface: rgba(0, 0, 0, 0.035);

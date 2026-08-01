@@ -27,6 +27,8 @@ export default function SetlistReader({
   // Element 14. The 30-day bin, so a missing song can be put back from the
   // place you notice it's gone rather than from Settings → Data.
   trash = [], onRestoreSong,
+  // 'live' | 'practice' — see the note on Reader's own `mode`.
+  mode = 'live',
 }) {
   const [idx, setIdx] = useState(0);
   const [keys, setKeys] = useState({});
@@ -219,6 +221,7 @@ export default function SetlistReader({
       settings={settings}
       onUpdateSettings={onUpdateSettings}
       myInstrument={myInstrument}
+      mode={mode}
       onExit={onBack}
       selectedKey={keys[cur.song.id] || cur.key || cur.song.key}
       onSelectKey={(k) => setKeys(prev => ({ ...prev, [cur.song.id]: k }))}

@@ -3,14 +3,14 @@ import { createPortal } from 'react-dom';
 import { useEntitlement } from '@/hooks/useEntitlement';
 import {
   CHART_THEMES,
-  CHART_FONTS,
-  CHART_FONT_MAP,
-  CHART_COLOR_PALETTE,
   DEFAULT_CHART_THEME_ID,
   DEFAULT_CHORD_FONT_ID,
   DEFAULT_LYRIC_FONT_ID,
   FREE_CHART_THEME_IDS,
 } from '@/data/chartThemes';
+// Shared with the reader's ☰ menu — two private copies of a stepper drift
+// within a release.
+import { Stepper, Label, Pick, FontList, Swatches, ProHint } from '@/ui/PanelControls';
 
 // The chart's single "Aa" display popover. Three tabs — Lyrics / Chords / Page —
 // fold the old Display + Layout sheets into one anchored menu. Lyrics and Chords
@@ -27,79 +27,6 @@ const NOTATIONS = [
   { id: 'solfege', label: 'Do-Re-Mi' },
 ];
 
-function Stepper({ value, min, max, onChange, label }) {
-  return (
-    <div className="flex items-center justify-between bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-1">
-      <button type="button" aria-label={`Decrease ${label}`} disabled={value <= min}
-        onClick={() => onChange(Math.max(min, value - 1))}
-        className="w-9 h-8 rounded-md text-[var(--text-1)] text-lg leading-none disabled:opacity-30 hover:bg-[var(--bg-2)] cursor-pointer disabled:cursor-not-allowed">−</button>
-      <span className="text-label-13 font-mono font-semibold text-[var(--text-1)] tabular-nums">{value}<span className="text-[var(--text-2)] text-label-10 ml-0.5">px</span></span>
-      <button type="button" aria-label={`Increase ${label}`} disabled={value >= max}
-        onClick={() => onChange(Math.min(max, value + 1))}
-        className="w-9 h-8 rounded-md text-[var(--text-1)] text-lg leading-none disabled:opacity-30 hover:bg-[var(--bg-2)] cursor-pointer disabled:cursor-not-allowed">+</button>
-    </div>
-  );
-}
-
-function Label({ children }) {
-  return <h3 className="text-label-10 uppercase tracking-wider text-[var(--text-2)] mt-4 first:mt-0 mb-2">{children}</h3>;
-}
-
-function FontList({ activeId, onPick }) {
-  return (
-    <div className="flex flex-col gap-1 max-h-44 overflow-y-auto -mx-0.5 px-0.5">
-      {CHART_FONTS.map(f => {
-        const on = f.id === activeId;
-        return (
-          <button key={f.id} type="button" onClick={() => onPick(f.id)}
-            className={`flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-colors ${on ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--border-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}>
-            <span className="text-label-13 text-[var(--text-1)]" style={{ fontFamily: f.stack }}>{f.name}</span>
-            {on && <span className="text-[var(--color-brand)]">✓</span>}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function Swatches({ activeValue, onPick }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {CHART_COLOR_PALETTE.map(c => {
-        const on = (c.value || null) === (activeValue || null);
-        const isTheme = c.value === null;
-        return (
-          <button key={c.id} type="button" onClick={() => onPick(c.value)} title={c.name} aria-label={c.name}
-            className="w-8 h-8 rounded-full cursor-pointer"
-            style={{
-              background: isTheme
-                ? 'linear-gradient(135deg, var(--chart-text, #888) 50%, var(--chord, #e0b341) 50%)'
-                : c.value,
-              border: '2px solid ' + (on ? 'var(--text-1)' : 'transparent'),
-              boxShadow: on ? '0 0 0 2px var(--bg-1), 0 0 0 3px var(--color-brand)' : 'inset 0 0 0 1px var(--border-2)',
-            }} />
-        );
-      })}
-    </div>
-  );
-}
-
-function Pick({ active, onClick, children }) {
-  return (
-    <button type="button" onClick={onClick} aria-pressed={active}
-      className={`px-3 h-8 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${
-        active
-          ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
-          : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}>
-      {children}
-    </button>
-  );
-}
-
-function ProHint({ children }) {
-  return <p className="text-copy-13 text-[var(--text-2)] m-0">{children}</p>;
-}
-
 export default function AaMenu({
   anchorRect, onClose, settings, onUpdateSettings,
   lyricSize, onLyricSize, chordSize, onChordSize,
@@ -108,10 +35,6 @@ export default function AaMenu({
   // When false, hide chart-only controls (theme, columns, fonts, colours,
   // advanced) — used by the editing-canvas Aa, which only needs notation + sizes.
   chartControls = true,
-  // Adds a "Visual" tab holding the reader's element-level options (structure
-  // ribbon placement + style, section heading). Opt-in so the Song Hub's Aa is
-  // unchanged; the new reader turns it on.
-  visualEdit = false,
 }) {
   const [tab, setTab] = useState('page');
   const { allowed: styleAllowed } = useEntitlement('chart-style');
@@ -167,7 +90,6 @@ export default function AaMenu({
           {tabBtn('page', 'Page')}
           {tabBtn('lyrics', 'Lyrics')}
           {tabBtn('chords', 'Chords')}
-          {visualEdit && tabBtn('visual', 'Visual')}
         </div>
 
         <div className="p-3.5 overflow-y-auto">
@@ -214,102 +136,6 @@ export default function AaMenu({
                   then pay for on every screen. `showDiagrams` still drives the
                   pre-reader chart's strip; it has no control here because it
                   does nothing here. */}
-            </>
-          )}
-
-          {tab === 'visual' && (
-            <>
-              <Label>Structure — where</Label>
-              <div className="flex gap-1.5 flex-wrap">
-                {[['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['off', 'Hidden']].map(o => (
-                  <Pick key={o[0]} active={(settings?.structurePosition || 'top') === o[0]}
-                    onClick={() => onUpdateSettings?.('structurePosition', o[0])}>{o[1]}</Pick>
-                ))}
-              </div>
-
-              <Label>Structure — style</Label>
-              <div className="flex gap-1.5 flex-wrap">
-                {[['codes', 'Boxes'], ['chips', 'Chips'], ['numbered', 'Inline'], ['dots', 'Dots'], ['dotlabel', 'Dots+label']].map(o => (
-                  <Pick key={o[0]} active={(settings?.ribbonStyle || 'codes') === o[0]}
-                    onClick={() => onUpdateSettings?.('ribbonStyle', o[0])}>{o[1]}</Pick>
-                ))}
-              </div>
-
-              <Label>Section heading</Label>
-              <div className="flex gap-1.5 flex-wrap">
-                {[['name', 'Full name'], ['code', 'Letters'], ['caps', 'ALL CAPS']].map(o => (
-                  <Pick key={o[0]} active={(settings?.readerHeading || 'name') === o[0]}
-                    onClick={() => onUpdateSettings?.('readerHeading', o[0])}>{o[1]}</Pick>
-                ))}
-                {[['on', 'Pinned'], ['off', 'Not pinned']].map(o => (
-                  <Pick key={o[0]} active={(settings?.readerSticky || 'on') === o[0]}
-                    onClick={() => onUpdateSettings?.('readerSticky', o[0])}>{o[1]}</Pick>
-                ))}
-              </div>
-
-              <Label>Section style</Label>
-              <div className="flex gap-1.5 flex-wrap">
-                {[['bar', 'Bar'], ['plain', 'No line'], ['block', 'Block'], ['card', 'Card']].map(o => (
-                  <Pick key={o[0]} active={(settings?.readerSectionStyle || 'bar') === o[0]}
-                    onClick={() => onUpdateSettings?.('readerSectionStyle', o[0])}>{o[1]}</Pick>
-                ))}
-              </div>
-
-              <Label>Under the top bar</Label>
-              <div className="flex gap-1.5 flex-wrap">
-                {[['ribbon', 'Song structure'], ['setlist', 'The set']].map(o => (
-                  <Pick key={o[0]} active={(settings?.readerTopBar || 'ribbon') === o[0]}
-                    onClick={() => onUpdateSettings?.('readerTopBar', o[0])}>{o[1]}</Pick>
-                ))}
-              </div>
-
-              <Label>Song to song</Label>
-              <div className="flex gap-1.5 flex-wrap">
-                {[['footer', 'Bottom bar'], ['pill', 'Floating pill'], ['edge', 'Edge arrows'], ['swipe', 'Swipe']].map(o => (
-                  <Pick key={o[0]} active={(settings?.readerNav || 'footer') === o[0]}
-                    onClick={() => onUpdateSettings?.('readerNav', o[0])}>{o[1]}</Pick>
-                ))}
-              </div>
-
-              <Label>…and what it says</Label>
-              <div className="flex gap-1.5 flex-wrap">
-                {[['count', 'Just the count'], ['next', 'Name the next song']].map(o => (
-                  <Pick key={o[0]} active={(settings?.readerFooter || 'next') === o[0]}
-                    onClick={() => onUpdateSettings?.('readerFooter', o[0])}>{o[1]}</Pick>
-                ))}
-              </div>
-
-              <Label>Line spacing</Label>
-              <div className="flex items-center gap-2">
-                <Stepper
-                  value={Math.round((settings?.lyricLineHeight ?? 1.35) * 100)}
-                  min={100} max={240} label="line height"
-                  onChange={(v) => onUpdateSettings?.('lyricLineHeight', Math.round(v) / 100)}
-                />
-                {settings?.lyricLineHeight != null && (
-                  <Pick onClick={() => onUpdateSettings?.('lyricLineHeight', undefined)}>Reset</Pick>
-                )}
-              </div>
-
-              <Label>Gap between sections</Label>
-              <div className="flex items-center gap-2">
-                <Stepper
-                  value={settings?.sectionSpacing ?? 24}
-                  min={8} max={64} label="section gap"
-                  onChange={(v) => onUpdateSettings?.('sectionSpacing', v)}
-                />
-                {settings?.sectionSpacing != null && (
-                  <Pick onClick={() => onUpdateSettings?.('sectionSpacing', undefined)}>Reset</Pick>
-                )}
-              </div>
-
-              <Label>Repeated sections</Label>
-              <div className="flex gap-1.5 flex-wrap">
-                {[['full', 'Full'], ['condensed', 'Condensed']].map(o => (
-                  <Pick key={o[0]} active={(settings?.duplicateSections || 'ref') === o[0]}
-                    onClick={() => onUpdateSettings?.('duplicateSections', o[0])}>{o[1]}</Pick>
-                ))}
-              </div>
             </>
           )}
 

@@ -76,6 +76,11 @@ export const PORTABLE_PREF_KEYS = [
   'readerFooter',
   'readerNav',
   'readerTopBar',
+  // The ☰ → "The music" row writes both: the role preset itself, and the tab
+  // filter it implies. Without these two the picker looked like it worked and
+  // then forgot itself on the next device.
+  'displayRole',
+  'tabInstrument',
 ];
 
 export function extractPortablePrefs(s) {

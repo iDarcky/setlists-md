@@ -13,6 +13,8 @@ import ReaderSection from './ReaderSection';
 import ReaderTopBar from './ReaderTopBar';
 import ReaderPracticeRow, { MetronomeIcon } from './ReaderPracticeRow';
 import AaMenu from '@/features/chart/AaMenu';
+import ReaderMenu from './ReaderMenu';
+import { useWakeLock } from '@/hooks/useWakeLock';
 import ChordPopover from '@/features/chart/ChordPopover';
 import { useEntitlement } from '@/hooks/useEntitlement';
 import { useMetronome } from '@/hooks/useMetronome';
@@ -61,6 +63,11 @@ export default function Reader({
   // Element 8: what hangs under the top bar in place of the ribbon. The setlist
   // knows the set; the reader only knows one song, so the host supplies it.
   underBar = null,
+  // 'live' | 'practice'. Until now the reader had ONE behaviour and three route
+  // names (`setlist-play`, `setlist-performance`, `setlist-practice`), which is
+  // why every practice-only decision — writing a note, switching arrangement —
+  // had nowhere to attach: the reader could not tell which one it was in.
+  mode = 'live',
 }) {
   const scrollRef = useRef(null);
   const touchRef = useRef(null);
@@ -85,8 +92,12 @@ export default function Reader({
   // changes with the ribbon style and with the phone/desktop padding.
   const headRef = useRef(null);
   const [headH, setHeadH] = useState(0);
-  // The Aa popover, anchored to the ☰ button — the same menu the Song Hub uses,
-  // with a Visual tab added for the element-level options.
+  // The ☰ menu, anchored to its button. Standalone this opens `ReaderMenu` —
+  // the reader's own four-row menu. EMBEDDED (the Song Hub, the side peek) the
+  // host owns the Aa button and passes a rect down, and that still opens
+  // `AaMenu`: the hub is a browsing surface with its own fixed look, and giving
+  // it the reader's menu would reconnect the two surfaces that were
+  // deliberately disconnected (`docs/READER.md` → "The hub view").
   const [ownAaAnchor, setOwnAaAnchor] = useState(null);
   // Element 11 — the chord you tapped, and where it was.
   const [tappedChord, setTappedChord] = useState(null);
@@ -146,6 +157,11 @@ export default function Reader({
     () => resolveReaderConfig(settings, { wide, embedded, myInstrument }),
     [settings, wide, embedded, myInstrument]
   );
+
+  // The ☰ → "The screen" row. Only where the reader owns the screen: embedded
+  // in the hub it is a card in a page, and holding a wake lock for a card is
+  // the app quietly deciding your phone shouldn't sleep while you browse.
+  useWakeLock(!embedded && settings?.keepAwake === true);
 
   const { ordered, offsets, repeats } = useMemo(() => buildSongFlow(song), [song]);
 
@@ -453,11 +469,27 @@ export default function Reader({
         />
       )}
 
-      {(hostAaAnchor || ownAaAnchor) && (
+      {ownAaAnchor && (
+        <ReaderMenu
+          anchorRect={ownAaAnchor}
+          onClose={() => setOwnAaAnchor(null)}
+          settings={settings}
+          onUpdateSettings={onUpdateSettings}
+          song={song}
+          config={config}
+          mode={mode}
+          lyricSize={config.display.lyricFontSize}
+          onLyricSize={(v) => onUpdateSettings?.('defaultFontSize', v)}
+          chordSize={config.display.chordFontSize}
+          onChordSize={(v) => onUpdateSettings?.('chordFontSize', v)}
+        />
+      )}
+
+      {/* The hub's Aa button, unchanged. See the note on `ownAaAnchor`. */}
+      {hostAaAnchor && (
         <AaMenu
-          visualEdit
-          anchorRect={hostAaAnchor || ownAaAnchor}
-          onClose={() => { setOwnAaAnchor(null); onAaClose?.(); }}
+          anchorRect={hostAaAnchor}
+          onClose={() => onAaClose?.()}
           settings={settings}
           onUpdateSettings={onUpdateSettings}
           lyricSize={config.display.lyricFontSize}

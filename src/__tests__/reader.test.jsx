@@ -246,23 +246,55 @@ describe('elements 5–6 — notes and chords', () => {
   });
 });
 
-describe('the display menu', () => {
-  it('opens the shared Aa popover, with the chart still visible behind it', () => {
+describe('the ☰ menu', () => {
+  it('opens the reader\'s own menu, with the chart still visible behind it', () => {
     renderReader();
-    expect(screen.queryByRole('dialog', { name: 'Display options' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Reader menu' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    expect(screen.getByRole('dialog', { name: 'Display options' })).toBeTruthy();
-    // A popover, not a full sheet — the chart it changes stays on screen.
+    expect(screen.getByRole('dialog', { name: 'Reader menu' })).toBeTruthy();
+    // The panel rule: the chart it changes stays on screen.
     expect(document.querySelectorAll('[data-section-index]').length).toBe(4);
   });
 
-  it('carries the Visual tab for the element-level options', () => {
+  it('is four rows and no more — the cut that kept one tap from becoming three', () => {
     renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Visual' }));
+    ['Display', 'The music', 'Notes', 'The screen'].forEach(label => {
+      expect(screen.getByText(label)).toBeTruthy();
+    });
+    // Cut rows, each for a recorded reason (READER.md → "Cut down to four").
+    expect(screen.queryByText('Jump to')).toBeNull();
+    expect(screen.queryByText('Practice')).toBeNull();
+    expect(screen.queryByText('Fix it')).toBeNull();
+    expect(screen.queryByText('Share')).toBeNull();
+  });
+
+  it('drills one level into Display, and comes back', () => {
+    renderReader();
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    fireEvent.click(screen.getByText('Display'));
+
+    // Look holds how the page is painted; Layout, where things are.
+    fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
     expect(screen.getByRole('button', { name: 'Boxes' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Letters' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'ALL CAPS' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('The music')).toBeTruthy();
+  });
+
+  it('applies a role as VISIBLE settings, never as a hidden override', () => {
+    const onUpdateSettings = vi.fn();
+    renderReader({ onUpdateSettings });
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    fireEvent.click(screen.getByText('The music'));
+    fireEvent.click(screen.getByRole('button', { name: 'Vocals' }));
+
+    // A role that silently overrode the display panel is the bug that turned
+    // the hub's Chart tab into a second Lyrics tab. It writes real settings.
+    expect(onUpdateSettings).toHaveBeenCalledWith('displayRole', 'vocalist');
+    expect(onUpdateSettings).toHaveBeenCalledWith('displayMode', 'lyrics');
   });
 });
 

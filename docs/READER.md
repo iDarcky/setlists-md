@@ -690,6 +690,57 @@ per-instrument capo is a later want; noted, not built.)
 Result: **four rows, one drill-in level**, and the top bar keeps ☰ · practice ·
 edit · exit — so nothing that was one tap becomes three.
 
+#### Built, 2026-08-01 — `src/features/reader/ReaderMenu.jsx`
+
+Shipped as designed above. Notes worth keeping:
+
+- **The hub still opens `AaMenu`.** Standalone, ☰ opens `ReaderMenu`; embedded,
+  the host passes an `aaAnchor` and that path is unchanged. Giving the hub the
+  reader's menu would reconnect the two surfaces that "The hub view" above
+  deliberately disconnected. `AaMenu`'s **Visual tab is gone** — those were
+  reader-only options and they live in Display → Layout now.
+- **The role picker writes real settings.** Picking *Vocals* writes
+  `displayRole: 'vocalist'` AND `displayMode: 'lyrics'`, visibly. It is not a
+  layer that overrides the display panel from underneath — that shape is
+  exactly what turned the hub's Chart tab into a second Lyrics tab, and it cost
+  several rounds to find. Both keys are in `PORTABLE_PREF_KEYS`.
+- **Capo tells the truth.** The row shows the arrangement's capo and says the
+  chords below are *sounding*, because that is what they are. A knob that did
+  nothing would be worse than the gap. Element 19 is the real work.
+- **Notes are read-only for now** — the arrangement note plus every band cue,
+  in one place, which is what "see them all in a place" asked for. Writing one
+  is element 22 and needs the practice surface.
+- **`Reader` now takes `mode` ('live' | 'practice')**. See "The five views"
+  below — this is the prerequisite the practice-only elements were missing.
+- Shared controls moved to `src/ui/PanelControls.jsx`; `AaMenu` imports the
+  same ones, so the two panels cannot drift.
+
+### The five views — what they actually are ❓
+
+The owner asked, twice, whether the reader really needs five views, and the
+question deserves the facts rather than a design opinion. Today:
+
+| Route | Entered from | How the reader behaves |
+|-------|--------------|------------------------|
+| `setlist-performance` | a setlist's **Play** | identical |
+| `setlist-play` | the older play path | identical |
+| `setlist-practice` | a setlist's **Practice** | identical |
+| campfire | a song's **Play** → an ephemeral one-item setlist through `setlist-performance` | identical |
+| `song-hub` chart tab / full screen | the library | the hub view / the reader |
+
+**Three of those routes render the exact same component with the exact same
+props.** `SetlistReader` took no mode at all until 2026-08-01; the ONLY
+difference App made between them was which finale they land on. So the honest
+answer to "do we need five views" is: there are not five views. There is one
+reader, one hub view, and three route names for the same screen.
+
+That is also why every practice-only decision had nowhere to go — the reader
+could not tell which one it was in. `mode` is now threaded through, and the
+practice-only wants (writing a note, switching arrangement, per-song tools) hang
+off it. `setlist-play` should collapse into `setlist-performance` at graduation;
+that leaves **live** and **practice**, which is the split the owner has been
+describing all along.
+
 **Deliberately deferred, with reasons:**
 - **Numbered per-repeat cues** (`> 2: Acapella`) — confirmed as a real gap from
   the owner's PDF, but it's an `.md` **format change**. Not while the reader is
