@@ -18,11 +18,27 @@ import { IconButton } from '@/ui/IconButton';
  * height and whether the bottom bar could be smaller: it is centred (every row
  * is `items-center`), it was just taller than it looked.
  *
- * 36px here, opting out of the phone floor. The ☰ and ✕ are reached between
+ * 32px here, opting out of the phone floor. The ☰ and ✕ are reached between
  * songs, not mid-song — unlike the footer's prev/next, which keep a bigger
- * target because they are hit in the dark (see `ReaderFooter`).
+ * target because they are hit in the dark (see `ReaderFooter`). It was 36px
+ * until the owner said the three read "too big and too separate"; at 32px in a
+ * 2px cluster they are one group of tools rather than three loose buttons.
  */
-export const BAR_BUTTON = 'min-h-0 h-9 w-9 text-[var(--chart-text,var(--ds-gray-1000))]';
+export const BAR_BUTTON = 'min-h-0 h-8 w-8 text-[var(--chart-text,var(--ds-gray-1000))]';
+
+/**
+ * Edit mode's colour. ORANGE, not the brand (owner, 2026-08-03: *"maybe we can
+ * use an orange color for the header, so we know we're doing something"*) —
+ * and that is the right instinct: the brand colour is what the app looks like
+ * normally, so tinting the chrome with it says "this app" rather than "you are
+ * changing something". Orange is not used anywhere else in the reader, which is
+ * the whole job.
+ *
+ * A literal, deliberately: it must read the same against every chart theme, and
+ * a token that follows the theme would be washed out by exactly the pale papers
+ * where the warning matters most.
+ */
+export const EDIT_ACCENT = '#f97316';
 
 /**
  * Element 1 — the top bar. ONE component, so a song and a break cannot drift
@@ -38,7 +54,10 @@ export const BAR_BUTTON = 'min-h-0 h-9 w-9 text-[var(--chart-text,var(--ds-gray-
  * the right-hand edge leaves the service.
  */
 const ReaderTopBar = forwardRef(function ReaderTopBar(
-  { title, meta = null, onMenu, onExit, tools = null, leading = null, aboveBar = null, editing = false, children }, ref,
+  {
+    title, meta = null, onMenu, onExit, tools = null, leading = null,
+    aboveBar = null, editing = false, exitDisabled = false, children,
+  }, ref,
 ) {
   return (
     <div
@@ -52,16 +71,16 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
       // actually exists is chrome ↔ chart, and this is it. (2026-08-01, after
       // one round with the line in the other place.)
       // Edit mode colours the CHROME rather than adding an element to it: the
-      // divider goes brand and the block takes a faint brand wash. Element 1 is
-      // fixed and takes no additions, so a mode it can be in has to be a STATE
-      // of the bar, not a new thing in it. (Same principle the owner picked for
-      // the follow-the-leader indicator, 2026-08-03.)
+      // divider and the wash go ORANGE (see EDIT_ACCENT). Element 1 is fixed
+      // and takes no additions, so a mode it can be in has to be a STATE of the
+      // bar, not a new thing in it. (Same principle the owner picked for the
+      // follow-the-leader indicator, 2026-08-03.)
       style={{
         borderColor: editing
-          ? 'var(--color-brand)'
+          ? EDIT_ACCENT
           : 'var(--chart-divider, var(--chart-rule, var(--ds-gray-300)))',
         background: editing
-          ? 'color-mix(in srgb, var(--color-brand) 7%, var(--chart-bg, var(--ds-background-100)))'
+          ? `color-mix(in srgb, ${EDIT_ACCENT} 9%, var(--chart-bg, var(--ds-background-100)))`
           : 'var(--chart-bg, var(--ds-background-100))',
       }}
     >
@@ -71,23 +90,28 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
 
       {/* py-1, not py-1.5 — see BAR_BUTTON on where the height actually comes
           from. */}
-      <div className="wide-container flex items-center gap-2 py-1">
-        {onMenu && (
-          <IconButton
-            size="sm"
-            className={BAR_BUTTON}
-            aria-label="Display options"
-            onClick={(e) => {
-              // Read the rect synchronously: React nulls currentTarget once the
-              // handler returns, so a lazy state updater would see null.
-              onMenu(e.currentTarget.getBoundingClientRect());
-            }}
-          >
-            <MenuIcon />
-          </IconButton>
-        )}
-
-        {tools}
+      <div className="wide-container flex items-center gap-1.5 py-1">
+        {/* ONE cluster, not three separate buttons (owner, 2026-08-03: the
+            icons "are a bit too big and they are too separate"). At 36px with
+            an 8px gap they read as three unrelated controls; 32px with a 2px
+            gap reads as one group of tools, and gives 24px back to the title. */}
+        <span className="shrink-0 flex items-center gap-0.5">
+          {onMenu && (
+            <IconButton
+              size="sm"
+              className={BAR_BUTTON}
+              aria-label="Display options"
+              onClick={(e) => {
+                // Read the rect synchronously: React nulls currentTarget once
+                // the handler returns, so a lazy state updater would see null.
+                onMenu(e.currentTarget.getBoundingClientRect());
+              }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
+          {tools}
+        </span>
 
         {/* Title and meta are ONE group that takes the leftover width, so the
             title can never be squeezed to nothing and the key stays beside it
@@ -119,8 +143,20 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
             A mis-tap here costs you a panel, not the service. */}
         {leading}
 
+        {/* You cannot walk out of edit mode through the exit (owner,
+            2026-08-03: "it should not allow me to leave while I have the editor
+            open"). Leaving mid-edit stranded the change — applied, but with no
+            way back to Cancel it. Finish or discard first; both are one tap
+            away in the edit row. */}
         {onExit && (
-          <IconButton size="sm" className={BAR_BUTTON} aria-label="Exit" onClick={onExit}>
+          <IconButton
+            size="sm"
+            className={BAR_BUTTON}
+            aria-label="Exit"
+            disabled={exitDisabled}
+            title={exitDisabled ? 'Finish editing first' : undefined}
+            onClick={onExit}
+          >
             <CloseIcon />
           </IconButton>
         )}

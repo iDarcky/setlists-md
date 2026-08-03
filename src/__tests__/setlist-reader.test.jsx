@@ -341,9 +341,64 @@ describe('edit mode', () => {
   });
 
   it('offers the fork only once something has changed', () => {
-    renderMode('practice', { onSaveAsArrangement: vi.fn() });
+    const onUpdateSong = vi.fn();
+    const { rerender } = render(
+      <SetlistReader
+        setlist={multiSet} songs={[multi]} settings={{}} mode="practice"
+        onBack={() => {}} onFinish={() => {}}
+        onUpdateSong={onUpdateSong} onSaveAsArrangement={vi.fn()}
+      />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     // Forking an untouched song makes a duplicate, not an arrangement.
-    expect(screen.queryByText('Save as new arrangement')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Save as a new arrangement' })).toBeNull();
+
+    // Once the song really differs from the snapshot, it appears.
+    fireEvent.click(screen.getByRole('button', { name: 'Move Verse 1 later' }));
+    const edited = { ...onUpdateSong.mock.calls[0][0] };
+    const nextSong = { ...multi, arrangements: [{ ...multi.arrangements[0], structure: edited.structure, structureMode: 'custom' }] };
+    rerender(
+      <SetlistReader
+        setlist={multiSet} songs={[nextSong]} settings={{}} mode="practice"
+        onBack={() => {}} onFinish={() => {}}
+        onUpdateSong={onUpdateSong} onSaveAsArrangement={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Save as a new arrangement' })).toBeTruthy();
+  });
+
+  // Owner, 2026-08-03: "it should not allow me to leave while I have the editor
+  // open." Leaving mid-edit stranded the change — applied, with no way back to
+  // Cancel it.
+  it('will not let you walk out through the exit', () => {
+    renderMode('practice');
+    expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+    expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(false);
+  });
+
+  it('has nothing to undo until something is done', () => {
+    renderMode('practice');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+    expect(screen.getByRole('button', { name: 'Undo the last change' }).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Move Verse 1 later' }));
+    expect(screen.getByRole('button', { name: 'Undo the last change' }).disabled).toBe(false);
+  });
+
+  it('puts everything back on Cancel', () => {
+    const onUpdateSong = vi.fn();
+    renderMode('practice', { onUpdateSong });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move Verse 1 later' }));
+    onUpdateSong.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    // Restored from the snapshot taken on entry — the same one the fork uses.
+    expect(onUpdateSong).toHaveBeenCalledWith(expect.objectContaining({
+      structure: multi.arrangements[0].structure,
+    }));
+    // ...and edit mode is over, so the exit works again.
+    expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(false);
   });
 });

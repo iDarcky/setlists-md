@@ -23,6 +23,8 @@ import { clampTempo } from '@/lib/metronome';
 import ReaderEditBar, { EditIcon } from './ReaderEditBar';
 import { materialiseStructure, moveSlot, removeSlot, snapshotEditable, isDirty } from '@/lib/editStructure';
 
+const EMPTY = [];
+
 /**
  * The chart reader — elements 1–6 only.
  *
@@ -290,10 +292,36 @@ export default function Reader({
   }, [headH]);
 
   // ── Edit mode's operations ───────────────────────────────────────────────
+  // Every edit pushes the state BEFORE it onto the session's history, which is
+  // what Undo pops (owner, 2026-08-03: "we also need like undo buttons for when
+  // doing a mistake"). The stack lives on the edit session, so it is discarded
+  // with the session rather than outliving the mode it belongs to.
   const writeSong = useCallback((patch) => {
     if (!song) return;
+    const before = snapshotEditable(song);
+    setEditSession(prev => (prev && prev.id === songId
+      ? { ...prev, history: [...prev.history, before] }
+      : prev));
     onUpdateSong?.({ ...song, ...patch });
-  }, [song, onUpdateSong]);
+  }, [song, songId, onUpdateSong]);
+
+  // useMemo so the empty case is a STABLE reference: a fresh `[]` every render
+  // would change `undo`'s identity on every render.
+  const history = useMemo(() => (editing ? editSession.history : EMPTY), [editing, editSession]);
+
+  const undo = useCallback(() => {
+    if (!history.length || !song) return;
+    const prevState = history[history.length - 1];
+    setEditSession(prev => (prev ? { ...prev, history: prev.history.slice(0, -1) } : prev));
+    onUpdateSong?.({ ...song, ...prevState });
+  }, [history, song, onUpdateSong]);
+
+  // Cancel puts EVERYTHING back and leaves. It can exist at all only because
+  // edit mode snapshots on entry — the same snapshot the fork uses.
+  const cancelEdit = useCallback(() => {
+    if (editBase && song) onUpdateSong?.({ ...song, ...editBase });
+    setEditSession(null);
+  }, [editBase, song, onUpdateSong]);
 
   const editStructure = useCallback((op) => {
     // Materialise first: a song played in document order has no `structure` to
@@ -309,7 +337,7 @@ export default function Reader({
   const toggleEdit = useCallback(() => {
     setEditSession(prev => (prev?.id === songId
       ? null
-      : { id: songId, base: snapshotEditable(song) }));
+      : { id: songId, base: snapshotEditable(song), history: [] }));
   }, [songId, song]);
 
   // Leaving a song leaves its edit session behind. `editing` is derived from
@@ -390,6 +418,7 @@ export default function Reader({
           onMenu={(rect) => setOwnAaAnchor(a => (a ? null : rect))}
           onExit={onExit}
           editing={editing}
+          exitDisabled={editing}
           tools={(
             <>
               {config.can.practiceTools && (
@@ -635,6 +664,9 @@ export default function Reader({
             <div className={`wide-container py-1${footer ? ' border-b' : ''}`} style={footer ? rule : undefined}>
               <ReaderEditBar
                 onDone={toggleEdit}
+                onCancel={cancelEdit}
+                onUndo={undo}
+                canUndo={history.length > 0}
                 onSaveAsArrangement={onSaveAsArrangement ? saveAsArrangement : null}
                 dirty={isDirty(editBase, song)}
               />
