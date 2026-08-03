@@ -161,8 +161,8 @@ export default function Reader({
   useEffect(() => { stopClick(); }, [songId, stopClick]);
 
   const config = useMemo(
-    () => resolveReaderConfig(settings, { wide, embedded, myInstrument }),
-    [settings, wide, embedded, myInstrument]
+    () => resolveReaderConfig(settings, { wide, embedded, myInstrument, mode }),
+    [settings, wide, embedded, myInstrument, mode]
   );
 
   // The ☰ → "The screen" row. Only where the reader owns the screen: embedded
@@ -285,7 +285,7 @@ export default function Reader({
           title={song.title}
           onMenu={(rect) => setOwnAaAnchor(a => (a ? null : rect))}
           onExit={onExit}
-          tools={(
+          tools={config.can.practiceTools && (
             <IconButton
               size="sm"
               className={BAR_BUTTON}
@@ -299,13 +299,13 @@ export default function Reader({
           )}
           meta={(
             <span className="shrink-0 flex items-center gap-2 text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
-              {onSelectKey ? (
+              {onSelectKey && config.can.transpose ? (
                 <Select value={displayKey} onValueChange={onSelectKey}>
                   {/* Identical to the Song Hub's key chip — solid --chord fill,
                       near-black text, mono bold. */}
                   <SelectTrigger
                     aria-label="Key (transpose)"
-                    className="!border-0 gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90 !h-[25px] !min-h-[25px] !w-auto !px-2 !py-0 !rounded-lg text-[13px]"
+                    className="!border-0 gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90 !h-[20px] !min-h-[20px] !w-auto !px-2 !py-0 !rounded-lg text-[13px]"
                     style={{ background: 'var(--chord)', color: '#0a0a0a' }}
                   >
                     <span>{displayKey}</span>
@@ -318,7 +318,7 @@ export default function Reader({
                 </Select>
               ) : (
                 <span
-                  className="font-mono font-bold text-[13px] rounded-lg px-2 h-[25px] inline-flex items-center"
+                  className="font-mono font-bold text-[13px] rounded-lg px-2 h-[20px] inline-flex items-center"
                   style={{ background: 'var(--chord)', color: '#0a0a0a' }}
                 >
                   {displayKey}

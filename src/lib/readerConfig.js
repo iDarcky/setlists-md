@@ -103,8 +103,78 @@ const HUB_VIEW = {
   columns: 1,
 };
 
+/**
+ * ── The view table ──────────────────────────────────────────────────────────
+ *
+ * **A view is a TEMPLATE of the Reader** (`docs/READER.md`): one renderer,
+ * different defaults and different chrome. What makes Live different from
+ * Practice is not a different chart — it is which capabilities are switched on.
+ *
+ * This table is where that difference LIVES. The owner, 2026-08-03: *"in the
+ * end I want each view to do something else, for example the key transpose for
+ * practice but not for live, how do we implement it now before we do the
+ * split?"* — this is the answer. Without it, every per-view difference becomes
+ * a `mode === 'practice'` check scattered across ten components, and the split
+ * becomes a hunt rather than an edit.
+ *
+ * Two rules:
+ *
+ *  1. **A capability is a fact about the VIEW, not a user setting.** Nothing
+ *     here goes in `READER_KNOBS`, the ☰ or `PORTABLE_PREF_KEYS`. If the user
+ *     should be able to change it, it is a knob, not a capability.
+ *  2. **Read it as `config.can.<x>` at the call site.** One line where it is
+ *     used, so the decision stays here.
+ *
+ * ⚠ **Every value below currently matches what the reader ALREADY does**, so
+ * introducing this table changed no behaviour. That is deliberate: the
+ * mechanism lands first and separately from any decision about what goes in it.
+ * Flipping a `true` to a `false` here is the whole edit.
+ */
+const VIEW = {
+  live: {
+    // Element 1's key pill. `true` = a live Select; `false` = a plain chip
+    // showing the key it is written in.
+    transpose: true,
+    // Element 12's metronome icon in the bar.
+    practiceTools: true,
+    // The edit icon — §7 #12. Not built yet; practice-only when it is
+    // (owner, 2026-08-03: "Practice only.").
+    editSong: false,
+    // Element 21. Owner: "This should be for the practice view".
+    switchArrangement: false,
+    // Element 22. The gap is WRITING a note, and it is practice that needs it.
+    writeNotes: false,
+  },
+  practice: {
+    transpose: true,
+    practiceTools: true,
+    editSong: false,
+    switchArrangement: true,
+    writeNotes: true,
+  },
+};
+
+// The hub view is not a "view" in the owner's sense — it is the Reader with the
+// settings wire cut. It can do none of these: it is a browsing surface.
+const HUB_CAN = {
+  transpose: false,
+  practiceTools: false,
+  editSong: false,
+  switchArrangement: false,
+  writeNotes: false,
+};
+
+export function resolveViewCapabilities(mode) {
+  return VIEW[mode] || VIEW.live;
+}
+
 export function resolveReaderConfig(settings, ctx = {}) {
-  const { wide = false, embedded = false, myInstrument = null } = ctx;
+  const {
+    wide = false, embedded = false, myInstrument = null,
+    // 'live' | 'practice'. Campfire and the hub's full screen become rows in
+    // VIEW when they stop being routes into `live`.
+    mode = 'live',
+  } = ctx;
 
   // Embedded = the hub view. Fixed, and answerable to nothing but this file.
   if (embedded) {
@@ -117,6 +187,8 @@ export function resolveReaderConfig(settings, ctx = {}) {
       embedded: true,
       topBar: 'ribbon',
       notePlacement: wide ? 'leader' : 'above',
+      can: HUB_CAN,
+      mode: 'hub',
     };
   }
 
@@ -141,6 +213,10 @@ export function resolveReaderConfig(settings, ctx = {}) {
       ? settings.tabInstrument
       : myInstrument,
     embedded,
+    // What this VIEW can do, as opposed to what the user has chosen. See the
+    // VIEW table above.
+    can: resolveViewCapabilities(mode),
+    mode,
   };
 
   // --- physical facts, not preferences ---

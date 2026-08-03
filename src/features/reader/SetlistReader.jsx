@@ -104,7 +104,7 @@ export default function SetlistReader({
     return () => window.removeEventListener('keydown', handler);
   }, [goNext, goPrev]);
 
-  const cfg = resolveReaderConfig(settings, { wide });
+  const cfg = resolveReaderConfig(settings, { wide, mode });
 
   // `SetlistList` keys each row off the song's own key plus a transpose, so
   // give it the key actually being read rather than the one on the song.

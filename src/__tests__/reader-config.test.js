@@ -79,3 +79,36 @@ describe('display still flows through chartDisplay', () => {
     expect(c.display.lyricFontSize).toBe(22);
   });
 });
+
+// ── The view table ──────────────────────────────────────────────────────────
+// A view is a template of the Reader; what differs between Live and Practice
+// is which capabilities are on. These tests exist so the MECHANISM cannot
+// regress silently — the values themselves are the owner's to set.
+describe('view capabilities', () => {
+  it('resolves a capability set for every mode, defaulting to live', () => {
+    expect(resolveReaderConfig({}, { ...wide, mode: 'live' }).can).toBeTruthy();
+    expect(resolveReaderConfig({}, { ...wide, mode: 'practice' }).can).toBeTruthy();
+    // An unknown mode must not hand back `undefined` — every `config.can.x`
+    // read would silently become "not allowed".
+    expect(resolveReaderConfig({}, { ...wide, mode: 'nonsense' }).can)
+      .toEqual(resolveReaderConfig({}, { ...wide, mode: 'live' }).can);
+    expect(resolveReaderConfig({}, wide).can)
+      .toEqual(resolveReaderConfig({}, { ...wide, mode: 'live' }).can);
+  });
+
+  it('separates live from practice where the owner has already decided', () => {
+    const live = resolveReaderConfig({}, { ...wide, mode: 'live' }).can;
+    const practice = resolveReaderConfig({}, { ...wide, mode: 'practice' }).can;
+    // Element 21 — "This should be for the practice view".
+    expect(live.switchArrangement).toBe(false);
+    expect(practice.switchArrangement).toBe(true);
+    // Element 22 — the gap is WRITING a note, and practice is where it happens.
+    expect(live.writeNotes).toBe(false);
+    expect(practice.writeNotes).toBe(true);
+  });
+
+  it('gives the hub view no capabilities at all — it is a browsing surface', () => {
+    const can = resolveReaderConfig({}, { wide: true, embedded: true }).can;
+    expect(Object.values(can).every(v => v === false)).toBe(true);
+  });
+});

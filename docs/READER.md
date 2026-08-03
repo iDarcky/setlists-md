@@ -1011,6 +1011,42 @@ everywhere) is built; the rest are decided and queued.
 > full-screen reader surface must spread one of them**, or its controls will
 > silently wear the wrong theme.
 
+## The view table — where "each view does something else" lives
+
+Owner, 2026-08-03: *"in the end I want each view to do something else, for
+example the key transpose for practice but not for live, how do we implement it
+now before we do the split?"*
+
+**`VIEW` in `src/lib/readerConfig.js`.** `mode` was already threaded from App
+through `SetlistReader` to `Reader`; what was missing was a place for a
+per-view difference to *live*. Without it, every one becomes a
+`mode === 'practice'` check scattered across components, and the split becomes a
+hunt instead of an edit.
+
+```js
+const VIEW = {
+  live:     { transpose: ?, practiceTools: ?, editSong: ?, switchArrangement: false, writeNotes: false },
+  practice: { transpose: ?, practiceTools: ?, editSong: ?, switchArrangement: true,  writeNotes: true  },
+};
+```
+
+Two rules:
+
+1. **A capability is a fact about the VIEW, not a user setting.** Nothing in
+   this table goes in `READER_KNOBS`, the ☰, or `PORTABLE_PREF_KEYS`. If the
+   user should be able to change it, it is a knob, not a capability.
+2. **Read it as `config.can.<x>` at the call site** — one line where it is used,
+   so the decision stays in the table.
+
+The table shipped with **every value matching what the reader already did**, so
+introducing it changed nothing. Deliberate: the mechanism lands separately from
+any decision about what goes in it. Flipping a value is now the whole edit.
+`resolveReaderConfig` also returns `mode`, and the hub view returns `HUB_CAN`
+(everything false — it is a browsing surface, not a view).
+
+Campfire and the hub's full screen become **rows in this table** when they stop
+being routes into `live`.
+
 ## Traps that have already cost time
 
 1. **`min-h-0`** — see the box under element 2. Four rounds.
