@@ -52,6 +52,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Tell it what you're playing** — Vocals and Drums drop the chords, Guitar and Bass open their own tabs, and it says so rather than changing things behind your back. Everything stays adjustable under Display.
 
 ### Improved
+- **Edit a song while you practise (Labs)** — a pencil beside the metronome turns the chart itself into the editor: the tempo and the time signature at the top become fields you type in, and every section grows arrows to move it in the play order and a × to take it out. Nothing covers the song while you change it, and the top bar turns your brand colour so you always know you're editing. Practice only — not during a service. When you've changed something, **Save as new arrangement** keeps the edit as a second version and puts the original back the way it was.
 - **The setlist opens from the top bar too (Labs)** — a double-chevron button on the right of the bar on a desktop or tablet, so you can jump anywhere in the service without reaching for the bottom of the screen. It turns around when the panel is open. The counter in the bottom bar still opens it as well.
 - **A smaller key chip in the reader**, so the top bar reads as one line rather than a row built around it.
 - **The section you're in stays on screen** — in the new reader, the section heading pins to the top as you scroll and the structure ribbon highlights the same section, so a glance tells you where you are without reading a word.

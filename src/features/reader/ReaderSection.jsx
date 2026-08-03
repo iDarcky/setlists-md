@@ -12,11 +12,39 @@ import SectionBlock from '@/features/chart/SectionBlock';
  * other half. Both read their colour and code from `sectionIdentity`, so the
  * highlighted chip and the heading it points at are the same object.
  */
+/**
+ * A play-order handle. `min-h-0` because the global `button { min-height: 44px }`
+ * on phones would turn each of these into a slab beside a 12px heading —
+ * READER.md's min-h-0 box, and the reason this is not a plain <button>'s
+ * default size.
+ */
+function EditHandle({ label, onClick, disabled = false, danger = false, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="min-h-0 w-[22px] h-[22px] grid place-items-center rounded-md border cursor-pointer bg-transparent text-[13px] leading-none disabled:opacity-25 disabled:cursor-not-allowed"
+      style={{
+        borderColor: 'var(--chart-rule, var(--ds-gray-400))',
+        color: danger ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--ds-gray-700))',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function ReaderSection({
   section, index, config, songKey, settings, transpose, modOffset,
   repeatOf = -1, onJumpToFirst, tabColors, stickyTop = 0, onChordTap = null,
   // Resolved by the Reader: the host's tab choice beats the global setting.
   showChords,
+  // Edit mode — the structure handles ride on the heading, so the play order is
+  // edited where the play order IS rather than in a list that re-describes it.
+  editing = false, onMove = null, onRemove = null, canMoveUp = false, canMoveDown = false,
 }) {
   const id = sectionIdentity(section.type, settings);
   const style = config.sectionStyle;
@@ -90,6 +118,25 @@ export default function ReaderSection({
     marginLeft: heavy ? '0.85rem' : undefined,
   };
 
+  // The play-order handles. Deliberately ↑/↓ rather than drag: on a phone the
+  // chart is inside a scroll container and (in a setlist) can be inside a swipe
+  // gesture, so a long-press-drag has two things to fight before it starts —
+  // and losing a section to a mis-drag mid-rehearsal is a much worse failure
+  // than two taps being slower than one.
+  const handles = editing && (onMove || onRemove) ? (
+    <span className="inline-flex items-center gap-0.5 ml-2 align-middle">
+      {onMove && (
+        <>
+          <EditHandle label={`Move ${id.name} earlier`} disabled={!canMoveUp} onClick={() => onMove(-1)}>↑</EditHandle>
+          <EditHandle label={`Move ${id.name} later`} disabled={!canMoveDown} onClick={() => onMove(1)}>↓</EditHandle>
+        </>
+      )}
+      {onRemove && (
+        <EditHandle label={`Take ${id.name} out of the play order`} onClick={onRemove} danger>×</EditHandle>
+      )}
+    </span>
+  ) : null;
+
   // A repeated section renders as the PDF export's pill — `↩ CHORUS`, small,
   // rounded, tinted with the section's own colour. Copied deliberately rather
   // than reinvented: the reader used to hand `condensed` down to SectionBlock,
@@ -97,16 +144,18 @@ export default function ReaderSection({
   // standing in for. The pill says "this again" without taking a section's worth
   // of space to say it. Still tappable — element 3's decision is that a repeat
   // jumps you to the first one.
-  if (hidden) {
+  if (hidden && !editing) {
     return <div id={`section-${index}`} data-section-index={index} aria-hidden="true" />;
   }
 
-  if (condensed) {
+  // In edit mode a hidden repeat has to come BACK, as its pill: you cannot
+  // reorder or remove a slot in the play order that draws nothing at all.
+  if (hidden || condensed) {
     return (
       <div id={`section-${index}`} data-section-index={index} style={outer}>
         <button
           type="button"
-          onClick={onJumpToFirst}
+          onClick={editing ? undefined : onJumpToFirst}
           aria-label={`${id.name} — same as before, go to the first one`}
           className="min-h-0 inline-flex items-center gap-1.5 bg-transparent cursor-pointer"
           style={{
@@ -124,6 +173,7 @@ export default function ReaderSection({
           <span aria-hidden="true">↩</span>
           {id.name}
         </button>
+        {handles}
       </div>
     );
   }
@@ -154,6 +204,7 @@ export default function ReaderSection({
         } : undefined}
       >
         {label}
+        {handles}
         {cue && config.notes && (
           <span
             className="text-label-11 ml-2"

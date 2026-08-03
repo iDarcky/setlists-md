@@ -163,7 +163,10 @@ const VIEW = {
     // is offered and it sticks — onto the setlist item, not the song.
     saveKey: true,
     practiceTools: true,
-    editSong: false,
+    // Practice only (owner, 2026-08-03). Editing a shared object mid-service,
+    // in a hurry, is the same argument `MissingSongScreen` already uses for
+    // refusing "remove from setlist".
+    editSong: true,
     switchArrangement: true,
     writeNotes: true,
   },

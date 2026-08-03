@@ -8,7 +8,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } fro
 import { parseSongMd, songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate, clearAll } from './storage';
 import { shareTokenFromUrl } from '@/lib/setlistShare';
-import { withArrangement, songFromFlat } from './arrangements';
+import { withArrangement, addArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
 import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
 import { DEMO_SONGS_MD } from '@/data/demos';
@@ -1724,6 +1724,37 @@ export default function App() {
     });
   }, [isTeamReadOnly]);
 
+  // Edit mode's fork (`docs/READER.md` — the edit element). Lives here because
+  // it needs the REAL v2 song: the reader only ever holds a resolved
+  // single-arrangement view, and rebuilding a whole song from that view is how
+  // a song-level field gets dropped on the floor.
+  //
+  // The shape follows from the owner's two calls: edits CHANGE THE SONG as they
+  // are made, and forking is a BUTTON you press afterwards. So by the time this
+  // runs, the current arrangement already holds the edits — the fork copies it
+  // into a new arrangement and puts the original back to its pre-edit snapshot.
+  const handleSaveAsArrangement = useCallback(({ songId, arrangementId, restore }) => {
+    if (isTeamReadOnly) {
+      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      return;
+    }
+    setSongs(prev => {
+      const i = prev.findIndex(s => s.id === songId);
+      if (i < 0 || !Array.isArray(prev[i].arrangements)) return prev;
+      const existing = prev[i];
+      const edited = existing.arrangements.find(a => a.id === arrangementId);
+      if (!edited) return prev;
+      // `addArrangement` deep-clones its seed, so the new arrangement does not
+      // share `sections` with the one we are about to revert.
+      const { song: withNew } = addArrangement(existing, null, edited);
+      const next = withArrangement(withNew, arrangementId, (a) => ({ ...a, ...restore }));
+      const arr = [...prev];
+      arr[i] = { ...next, updatedAt: Date.now() };
+      return arr;
+    });
+    toast({ title: 'Saved as a new arrangement', description: 'The original is back the way it was.' });
+  }, [isTeamReadOnly]);
+
   // Manual trigger for the Settings → Sync "Setlist links" panel. Same heal the
   // load path runs; useful right after re-importing a missing song.
   const handleRepairSetlistLinks = useCallback(() => {
@@ -2386,6 +2417,7 @@ export default function App() {
               mode={view === 'setlist-practice' ? 'practice' : 'live'}
               startIndex={view === 'setlist-practice' ? practiceStartIndex : 0}
               onUpdateSong={isTeamReadOnly ? null : handleUpdateSong}
+              onSaveAsArrangement={isTeamReadOnly ? null : handleSaveAsArrangement}
               trash={trash}
               onRestoreSong={isTeamReadOnly ? null : handleRestoreSong}
               onBack={goBack}

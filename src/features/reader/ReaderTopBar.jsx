@@ -38,7 +38,7 @@ export const BAR_BUTTON = 'min-h-0 h-9 w-9 text-[var(--chart-text,var(--ds-gray-
  * the right-hand edge leaves the service.
  */
 const ReaderTopBar = forwardRef(function ReaderTopBar(
-  { title, meta = null, onMenu, onExit, tools = null, leading = null, aboveBar = null, children }, ref,
+  { title, meta = null, onMenu, onExit, tools = null, leading = null, aboveBar = null, editing = false, children }, ref,
 ) {
   return (
     <div
@@ -51,9 +51,18 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
       // and it landed as an underline for the song title. The boundary that
       // actually exists is chrome ↔ chart, and this is it. (2026-08-01, after
       // one round with the line in the other place.)
+      // Edit mode colours the CHROME rather than adding an element to it: the
+      // divider goes brand and the block takes a faint brand wash. Element 1 is
+      // fixed and takes no additions, so a mode it can be in has to be a STATE
+      // of the bar, not a new thing in it. (Same principle the owner picked for
+      // the follow-the-leader indicator, 2026-08-03.)
       style={{
-        borderColor: 'var(--chart-divider, var(--chart-rule, var(--ds-gray-300)))',
-        background: 'var(--chart-bg, var(--ds-background-100))',
+        borderColor: editing
+          ? 'var(--color-brand)'
+          : 'var(--chart-divider, var(--chart-rule, var(--ds-gray-300)))',
+        background: editing
+          ? 'color-mix(in srgb, var(--color-brand) 7%, var(--chart-bg, var(--ds-background-100)))'
+          : 'var(--chart-bg, var(--ds-background-100))',
       }}
     >
       {/* Element 8b's setlist bar, when it's on. ABOVE the title row, inside

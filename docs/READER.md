@@ -1011,6 +1011,58 @@ everywhere) is built; the rest are decided and queued.
 > full-screen reader surface must spread one of them**, or its controls will
 > silently wear the wrong theme.
 
+### Edit mode — 2026-08-03
+
+**It is not a panel.** The owner's shape: *"you press the edit and then you get
+a couple of interactive fields? Something like that? Like the whole view changes
+somehow?"* So the **chart itself becomes editable**, which is the strongest form
+of the panel rule (*a panel never covers what it changes*) — the limit of that
+rule is not having a panel.
+
+| | |
+|---|---|
+| **Where** | An icon beside practice, per the ☰'s round-3 cut: `☰ · practice · edit · exit`. **Practice only** (`can.editSong`) — editing a shared object mid-service, in a hurry, is the same argument `MissingSongScreen` uses for refusing "remove from setlist". |
+| **The mode is a STATE of the chrome, not an addition to it** | The top bar's divider goes brand and the block takes a 7% brand wash. Element 1 is fixed and takes no new elements, so a mode it can be in has to colour what is already there. |
+| **Tempo + time** | They were already on that row as text; in edit mode they become the fields. That is the answer to *"this editor should also let users edit the key/tempo on the fly, rather than opening the tempo menu"* — you edit the number you were already looking at. Committed on blur/Enter, never per keystroke: a half-typed `9` is a real tempo the metronome would use. |
+| **Structure** | ↑ ↓ × on each section heading — the play order edited where the play order **is**. **Not drag**: the chart is inside a scroll container and (in a setlist) possibly a swipe gesture, so a long-press-drag has two things to fight, and losing a section to a mis-drag mid-rehearsal is far worse than two taps being slower than one. |
+| **Repeats reappear** | A `hide`/`condensed` repeat renders its pill in edit mode. You cannot reorder or remove a slot that draws nothing. |
+| **The fork** | *"Save as new arrangement"*, a **button** (owner's option a), shown **only once something has changed**. Not a prompt on first edit: "correction or new arrangement?" is the hardest question in the app (`PLAN.md` §7 #12) and asking it the moment someone nudges a tempo puts it at the worst possible time. |
+
+**How the fork works, and why that way.** Edits apply to the song **immediately**
+(owner: *"it should change the song"*). `editBase` is snapshotted on entry, and
+exists for exactly one reason: the fork copies the **current, edited**
+arrangement into a new one and puts the **original back** to that snapshot. The
+alternative — fork first, then edit — would force the "correction or
+arrangement?" decision *before* the change, which is the question nobody can
+answer yet.
+
+`handleSaveAsArrangement` lives in **`App.jsx`**, not the reader, because it
+needs the real v2 song: the reader only ever holds a resolved
+single-arrangement view, and rebuilding a whole song from that view is how a
+song-level field gets dropped on the floor.
+
+> **Play-order edits touch `structure`, NEVER `sections`.** Removing the third
+> chorus must not delete the chorus — and because every slot naming a section
+> shares one body, removing bodies would silently empty the other repeats too.
+> The arithmetic is `src/lib/editStructure.js`, pure and tested, because a
+> structure edit landing on the wrong slot is **invisible**: it re-orders
+> somebody's song and nothing says so until they play it.
+>
+> **A song with no `structure` must have one materialised on the first edit.**
+> Document-order songs make `orderSections` return `sections` untouched, so an
+> edit written to an empty array changes nothing and the tap appears dead. Same
+> if the stored structure doesn't fully resolve — `orderSections` is ignoring
+> it, so the indices being edited refer to a list nobody reads.
+
+**Not in this round: chord editing.** `SectionBlock`'s `onChordTap(chord, rect)`
+hands back the **displayed** chord — already transposed, possibly Nashville —
+and does **not** say which occurrence was tapped. Editing one needs section +
+line + chord index carried through, and the picked chord un-transposed back into
+the song's own key before writing. That is real plumbing in `SectionBlock` with
+an off-by-one that would silently edit the wrong chord, so it is its own round.
+The decision itself is made: **(a) tap the chord in the chart**, opening the
+song editor's `ChordPicker`.
+
 ## The view table — where "each view does something else" lives
 
 Owner, 2026-08-03: *"in the end I want each view to do something else, for

@@ -247,3 +247,103 @@ describe('starting from a chosen song', () => {
     expect(screen.getByText('1 / 3')).toBeTruthy();
   });
 });
+
+// ── Edit mode ───────────────────────────────────────────────────────────────
+// Practice only (owner, 2026-08-03). Editing a shared object mid-service, in a
+// hurry, is the same argument MissingSongScreen uses for refusing "remove from
+// setlist".
+describe('edit mode', () => {
+  // A song with a real play order — one section has nothing to reorder, and
+  // the move handles are (correctly) disabled at the ends.
+  const multi = songFromFlat({
+    id: 'm1', title: 'Cornerstone', key: 'C',
+    sections: [
+      { type: 'Verse 1', lines: ['[C]a'] },
+      { type: 'Chorus', lines: ['[F]b'] },
+      { type: 'Verse 2', lines: ['[G]c'] },
+    ],
+  });
+  const multiSet = { id: 'sl2', items: [{ songId: 'm1' }] };
+  const renderMode = (mode, over = {}) => render(
+    <SetlistReader
+      setlist={multiSet} songs={[multi]} settings={{}} mode={mode}
+      onBack={() => {}} onFinish={() => {}} onUpdateSong={vi.fn()} {...over}
+    />
+  );
+
+  it('is not offered in live, at all', () => {
+    renderMode('live');
+    expect(screen.queryByRole('button', { name: 'Edit this song' })).toBeNull();
+  });
+
+  it('is offered in practice', () => {
+    renderMode('practice');
+    expect(screen.getByRole('button', { name: 'Edit this song' })).toBeTruthy();
+  });
+
+  it('needs somewhere to write — a read-only library gets no edit button', () => {
+    // App passes `onUpdateSong = null` in a team library the user can't write
+    // to. Without this the button would appear and silently do nothing.
+    renderMode('practice', { onUpdateSong: null });
+    expect(screen.queryByRole('button', { name: 'Edit this song' })).toBeNull();
+  });
+
+  it('turns the tempo and the time into fields, in place', () => {
+    renderMode('practice');
+    // Not a panel: the values that were already in the bar become editable
+    // where they were.
+    expect(screen.queryByLabelText('Tempo')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+    expect(screen.getByLabelText('Tempo')).toBeTruthy();
+    expect(screen.getByLabelText('Time signature')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Stop editing' })).toBeTruthy();
+  });
+
+  it('writes a tempo on Enter, not on every keystroke', () => {
+    const onUpdateSong = vi.fn();
+    renderMode('practice', { onUpdateSong });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+    const field = screen.getByLabelText('Tempo');
+    fireEvent.change(field, { target: { value: '96' } });
+    // A half-typed "9" is a real tempo the metronome would try to use.
+    expect(onUpdateSong).not.toHaveBeenCalled();
+    fireEvent.blur(field);
+    expect(onUpdateSong).toHaveBeenCalledWith(expect.objectContaining({ tempo: 96 }));
+  });
+
+  it('gives each section a play-order handle, and reorders the STRUCTURE', () => {
+    const onUpdateSong = vi.fn();
+    renderMode('practice', { onUpdateSong });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+    // At the ends the handles are disabled — there is nowhere to go.
+    expect(screen.getByRole('button', { name: 'Move Verse 1 earlier' }).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move Verse 1 later' }));
+    // The play order is written down and marked custom, and the section BODIES
+    // are untouched — reordering must never rewrite the words.
+    expect(onUpdateSong).toHaveBeenCalledWith(expect.objectContaining({
+      structure: ['Chorus', 'Verse 1', 'Verse 2'],
+      structureMode: 'custom',
+    }));
+    expect(onUpdateSong.mock.calls[0][0].sections).toHaveLength(3);
+  });
+
+  it('takes a section out of the play order without deleting it', () => {
+    const onUpdateSong = vi.fn();
+    renderMode('practice', { onUpdateSong });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Take Chorus out of the play order' }));
+    const written = onUpdateSong.mock.calls[0][0];
+    expect(written.structure).toEqual(['Verse 1', 'Verse 2']);
+    // The words survive. The same body is referenced by every slot that names
+    // it, so deleting bodies here would empty the other repeats too.
+    expect(written.sections).toHaveLength(3);
+  });
+
+  it('offers the fork only once something has changed', () => {
+    renderMode('practice', { onSaveAsArrangement: vi.fn() });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+    // Forking an untouched song makes a duplicate, not an arrangement.
+    expect(screen.queryByText('Save as new arrangement')).toBeNull();
+  });
+});

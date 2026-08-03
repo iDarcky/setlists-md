@@ -20,6 +20,8 @@ import ChordPopover from '@/features/chart/ChordPopover';
 import { useEntitlement } from '@/hooks/useEntitlement';
 import { useMetronome } from '@/hooks/useMetronome';
 import { clampTempo } from '@/lib/metronome';
+import ReaderEditBar, { EditIcon } from './ReaderEditBar';
+import { materialiseStructure, moveSlot, removeSlot, snapshotEditable, isDirty } from '@/lib/editStructure';
 
 /**
  * The chart reader — elements 1–6 only.
@@ -36,6 +38,49 @@ import { clampTempo } from '@/lib/metronome';
  *
  * The chart body is still `SectionBlock`; this owns the frame around it.
  */
+/**
+ * One editable value in the top bar. Local state while typing, committed on
+ * blur or Enter — writing on every keystroke would push a song update (and a
+ * sync) per character, and a half-typed "12" is a real tempo the metronome
+ * would try to use.
+ *
+ * `min-h-0`: the phone's 44px floor applies to inputs' siblings in this row and
+ * would make the bar taller in edit mode than out of it, which reads as the
+ * page jumping when you press edit.
+ */
+function BarField({ value, onCommit, width, label, prefix = '', inputMode }) {
+  const incoming = String(value ?? '');
+  const [draft, setDraft] = useState(incoming);
+  // Re-seed when the song's value changes underneath (a different song, or the
+  // practice row saving a tapped tempo) WITHOUT clobbering what is being typed.
+  // Two state slots rather than a ref: adjusting state during render is the
+  // documented React pattern for this, and reading a ref during render is not.
+  const [seen, setSeen] = useState(incoming);
+  if (incoming !== seen) {
+    setSeen(incoming);
+    setDraft(incoming);
+  }
+  const commit = () => onCommit(draft);
+  return (
+    <span className="inline-flex items-center" style={{ color: 'var(--chart-text, var(--ds-gray-1000))' }}>
+      {prefix && <span aria-hidden="true">{prefix}</span>}
+      <input
+        value={draft}
+        aria-label={label}
+        inputMode={inputMode}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+          if (e.key === 'Escape') { setDraft(String(value ?? '')); e.currentTarget.blur(); }
+        }}
+        className="min-h-0 h-[20px] px-1 rounded border bg-transparent text-label-11 tabular-nums text-center outline-none focus:border-[var(--color-brand)]"
+        style={{ width, borderColor: 'var(--chart-rule, var(--ds-gray-400))', color: 'inherit' }}
+      />
+    </span>
+  );
+}
+
 export default function Reader({
   song: songProp,
   arrangementId,
@@ -75,6 +120,9 @@ export default function Reader({
   // Element 12: a tapped tempo writes back to the song (owner, 2026-08-01), so
   // the reader needs a way to save one. Absent → the tempo stays session-only.
   onUpdateSong = null,
+  // Edit mode's fork. Only the host can build it: it needs the REAL v2 song
+  // from state, not this resolved single-arrangement view.
+  onSaveAsArrangement = null,
 }) {
   const scrollRef = useRef(null);
   const touchRef = useRef(null);
@@ -165,6 +213,21 @@ export default function Reader({
     [settings, wide, embedded, myInstrument, mode]
   );
 
+  // ── Edit mode ────────────────────────────────────────────────────────────
+  // Not a panel. The owner's shape: press edit and the CHART becomes editable —
+  // the tempo and time in the bar turn into fields, each section grows a play-
+  // order handle. See `ReaderEditBar` for why there is no sheet.
+  //
+  // Edits apply IMMEDIATELY to the song (owner: "it should change the song").
+  // `editBase` is the snapshot taken on entry, and it exists for exactly one
+  // reason: "Save as a new arrangement" has to be able to put the original
+  // back. Stamped with the song id like `tempoSet`, so arriving at a different
+  // song can never restore this one's fields over it.
+  const [editSession, setEditSession] = useState(null);
+  const canEdit = !embedded && config.can.editSong && !!onUpdateSong;
+  const editing = canEdit && editSession?.id === songId;
+  const editBase = editing ? editSession.base : null;
+
   // The ☰ → "The screen" row. Only where the reader owns the screen: embedded
   // in the hub it is a card in a page, and holding a wake lock for a card is
   // the app quietly deciding your phone shouldn't sleep while you browse.
@@ -226,6 +289,47 @@ export default function Reader({
     sc.scrollTo({ top: Math.max(0, top - headH - 8), behavior: 'smooth' });
   }, [headH]);
 
+  // ── Edit mode's operations ───────────────────────────────────────────────
+  const writeSong = useCallback((patch) => {
+    if (!song) return;
+    onUpdateSong?.({ ...song, ...patch });
+  }, [song, onUpdateSong]);
+
+  const editStructure = useCallback((op) => {
+    // Materialise first: a song played in document order has no `structure` to
+    // edit, and without writing the implied order down the first tap lands on
+    // an empty array and appears to do nothing.
+    const current = materialiseStructure(song, ordered);
+    const next = op(current);
+    if (next === current) return;              // no-op — don't dirty the song
+    // 'custom', or `orderSections` ignores the array we just wrote.
+    writeSong({ structure: next, structureMode: 'custom' });
+  }, [song, ordered, writeSong]);
+
+  const toggleEdit = useCallback(() => {
+    setEditSession(prev => (prev?.id === songId
+      ? null
+      : { id: songId, base: snapshotEditable(song) }));
+  }, [songId, song]);
+
+  // Leaving a song leaves its edit session behind. `editing` is derived from
+  // the stamp rather than cleared by an effect, so this needs no cleanup — the
+  // session simply stops matching.
+
+  const saveAsArrangement = useCallback(() => {
+    if (!editBase || !onSaveAsArrangement) return;
+    onSaveAsArrangement({
+      songId,
+      arrangementId: song?._arrangementId,
+      // The CURRENT (edited) arrangement becomes the new one; the original is
+      // put back to how it was when edit mode opened. The alternative — fork
+      // first, then edit — would mean deciding "correction or arrangement?"
+      // before making the change, which is the question nobody can answer yet.
+      restore: editBase,
+    });
+    setEditSession(null);
+  }, [editBase, onSaveAsArrangement, songId, song]);
+
   // The host's tab choice beats the global setting; standalone, the setting rules.
   const showChords = displayMode ? displayMode !== 'lyrics' : config.display.showChords;
 
@@ -285,17 +389,36 @@ export default function Reader({
           title={song.title}
           onMenu={(rect) => setOwnAaAnchor(a => (a ? null : rect))}
           onExit={onExit}
-          tools={config.can.practiceTools && (
-            <IconButton
-              size="sm"
-              className={BAR_BUTTON}
-              aria-label={practiceOpen ? 'Close practice tools' : 'Practice tools'}
-              aria-pressed={practiceOpen}
-              onClick={togglePractice}
-              style={{ color: practiceOpen ? 'var(--chord)' : 'var(--chart-text, var(--ds-gray-1000))' }}
-            >
-              <MetronomeIcon />
-            </IconButton>
+          editing={editing}
+          tools={(
+            <>
+              {config.can.practiceTools && (
+                <IconButton
+                  size="sm"
+                  className={BAR_BUTTON}
+                  aria-label={practiceOpen ? 'Close practice tools' : 'Practice tools'}
+                  aria-pressed={practiceOpen}
+                  onClick={togglePractice}
+                  style={practiceOpen ? { color: 'var(--chord)' } : undefined}
+                >
+                  <MetronomeIcon />
+                </IconButton>
+              )}
+              {/* Beside practice, per the ☰'s round-3 cut: "the top bar keeps
+                  ☰ · practice · edit · exit". */}
+              {canEdit && (
+                <IconButton
+                  size="sm"
+                  className={BAR_BUTTON}
+                  aria-label={editing ? 'Stop editing' : 'Edit this song'}
+                  aria-pressed={editing}
+                  onClick={toggleEdit}
+                  style={editing ? { color: 'var(--color-brand)' } : undefined}
+                >
+                  <EditIcon />
+                </IconButton>
+              )}
+            </>
           )}
           meta={(
             <span className="shrink-0 flex items-center gap-2 text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
@@ -324,8 +447,38 @@ export default function Reader({
                   {displayKey}
                 </span>
               )}
-              {song.tempo && <span className="tabular-nums">♩{song.tempo}</span>}
-              {song.time && <span className="tabular-nums">{song.time}</span>}
+              {/* The tempo and the time are ALREADY on this row as text. In
+                  edit mode they become the fields — which is the owner's
+                  "a couple of interactive fields", and the answer to "this
+                  editor should also let users edit the key/tempo on the fly,
+                  rather than opening the tempo menu". You edit the number you
+                  were already looking at. */}
+              {editing ? (
+                <>
+                  <BarField
+                    value={song.tempo ?? ''}
+                    prefix="♩"
+                    width={38}
+                    label="Tempo"
+                    inputMode="numeric"
+                    onCommit={(v) => {
+                      const n = parseInt(v, 10);
+                      writeSong({ tempo: Number.isFinite(n) ? clampTempo(n) : null });
+                    }}
+                  />
+                  <BarField
+                    value={song.time || ''}
+                    width={34}
+                    label="Time signature"
+                    onCommit={(v) => writeSong({ time: v.trim() })}
+                  />
+                </>
+              ) : (
+                <>
+                  {song.tempo && <span className="tabular-nums">♩{song.tempo}</span>}
+                  {song.time && <span className="tabular-nums">{song.time}</span>}
+                </>
+              )}
             </span>
           )}
         >
@@ -420,6 +573,11 @@ export default function Reader({
               stickyTop={headH}
               onChordTap={canSeeShapes ? onChordTap : null}
               showChords={showChords}
+              editing={editing}
+              onMove={editing ? (d) => editStructure(st => moveSlot(st, idx, d)) : null}
+              onRemove={editing ? () => editStructure(st => removeSlot(st, idx)) : null}
+              canMoveUp={idx > 0}
+              canMoveDown={idx < ordered.length - 1}
             />
           ))}
           </div>
@@ -444,7 +602,7 @@ export default function Reader({
           was there, pinned, and painted underneath the nav bar, so it looked
           like nothing had changed. A z-index cannot separate two elements that
           want the same 0px. */}
-      {(bottomRibbon || footer || (showChrome && practiceOpen)) && (
+      {(bottomRibbon || footer || (showChrome && practiceOpen) || editing) && (
         <div
           className="sticky bottom-0 z-20 shrink-0 border-t"
           style={{
@@ -470,6 +628,15 @@ export default function Reader({
                 onSaveTempo={onUpdateSong ? (v) => onUpdateSong({ ...song, tempo: v }) : null}
                 clickRunning={metronome.running}
                 onToggleClick={() => (metronome.running ? metronome.stop() : metronome.start(bpm, song.time))}
+              />
+            </div>
+          )}
+          {editing && (
+            <div className={`wide-container py-1${footer ? ' border-b' : ''}`} style={footer ? rule : undefined}>
+              <ReaderEditBar
+                onDone={toggleEdit}
+                onSaveAsArrangement={onSaveAsArrangement ? saveAsArrangement : null}
+                dirty={isDirty(editBase, song)}
               />
             </div>
           )}
