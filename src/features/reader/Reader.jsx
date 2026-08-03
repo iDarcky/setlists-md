@@ -11,6 +11,7 @@ import { useActiveSection } from '@/hooks/useActiveSection';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import ReaderSection from './ReaderSection';
 import ReaderTopBar from './ReaderTopBar';
+import { chartSurface, hubSurface } from './readerSurface';
 import ReaderPracticeRow, { MetronomeIcon } from './ReaderPracticeRow';
 import AaMenu from '@/features/chart/AaMenu';
 import ReaderMenu from './ReaderMenu';
@@ -266,48 +267,11 @@ export default function Reader({
       ref={scrollRef}
       onTouchStart={onSwipeLeft || onSwipeRight ? onTouchStart : undefined}
       onTouchEnd={onSwipeLeft || onSwipeRight ? onTouchEnd : undefined}
-      style={embedded ? {
-        // Embedded (the Song Hub's chart tab) the reader wears the APP theme —
-        // `docs/READER.md`: "a white chart card sitting inside a dark app reads
-        // as broken rather than as a stage."
-        //
-        // `undefined` was NOT enough: the `--chart-*` tokens live on :root, so
-        // everything inside kept reading the stage colours and the card stayed
-        // themed. They have to be re-pointed here. Each names a DIFFERENT
-        // property — a custom property inside its own fallback is a cycle, and
-        // a cyclic property is unset for the entire subtree.
-        background: 'var(--ds-background-100)',
-        color: 'var(--ds-gray-1000)',
-        '--chart-bg': 'var(--ds-background-100)',
-        '--chart-text': 'var(--ds-gray-1000)',
-        '--chart-subtle': 'var(--ds-gray-700)',
-        '--chart-rule': 'var(--ds-gray-300)',
-      } : {
-        // A performance surface owns the screen, so it wears the CHART theme
-        // and re-maps the app's foreground tokens onto it — the way
-        // StageHeader does. Without the re-map, anything reading --bg-1 /
-        // --border-1 / --text-* (the structure ribbon, most notably) renders in
-        // the APP theme, which put dark pills on white paper.
-        //
-        // Embedded in the Song Hub it deliberately does NOT: the hub is a
-        // browsing surface inside the app, and a white chart card sitting in a
-        // dark app reads as broken rather than as a stage.
-        background: 'var(--chart-bg, var(--ds-background-100))',
-        color: 'var(--chart-text, var(--ds-gray-1000))',
-        // NB: none of these may name themselves inside their own fallback.
-        // `--ds-gray-1000: var(--chart-text, var(--ds-gray-1000))` is a cycle,
-        // and a cyclic custom property is invalid at computed-value time — it
-        // becomes unset for the entire subtree, taking the title's colour with
-        // it. Every fallback below is a literal.
-        '--bg-1': 'var(--chart-bg, #ffffff)',
-        '--bg-2': 'var(--chart-bg, #ffffff)',
-        '--border-1': 'var(--chart-rule, rgba(0,0,0,.14))',
-        '--border-3': 'var(--chart-subtle, rgba(0,0,0,.3))',
-        '--text-1': 'var(--chart-text, #111111)',
-        '--text-2': 'var(--chart-subtle, #6b6b6b)',
-        '--ds-gray-1000': 'var(--chart-text, #111111)',
-        '--ds-gray-700': 'var(--chart-subtle, #6b6b6b)',
-      }}
+      // Both surfaces live in `readerSurface.js` so the break and missing-song
+      // screens paint from the SAME object — see the note there. They used to
+      // have no remap at all, which left their ☰ and ✕ in app colours on a
+      // chart background.
+      style={embedded ? hubSurface : chartSurface}
     >
       {/* ── Element 1 — top bar ─────────────────────────────────────────── */}
       {showChrome && (

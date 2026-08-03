@@ -94,6 +94,19 @@ original surfaces render untouched.
   fill, `#0a0a0a` text, mono bold, `!rounded-lg`, `h-7`.
 - `ReaderTopBar` is used by **both** `Reader` and `BreakScreen`. The break used
   to hand-roll its own bar and drifted (lost the ☰, moved the title).
+- **The SAME bar on every screen** — song, break, missing song (owner,
+  2026-08-03: *"lets do the same header to everything, the one with the ☰ and
+  the X"*). Sharing the component was **not** enough: `BreakScreen` and
+  `MissingSongScreen` passed it three props, so the break lost the ☰ again and,
+  once 8b landed, the set bar with it. The drift came back through props instead
+  of through a second component. The structure ribbon is the one thing a break
+  does not get — it has no sections to map.
+- **No artist in the bar** (owner, 2026-08-03): *"it would take too much space
+  for nothing to gain."* Two same-titled songs in one set stay ambiguous, by
+  choice.
+- **Tempo and time stay dead text, and stay.** They are *"needed text for the
+  drummer and other players"* (owner). Making ♩ the way into the practice row
+  was rejected — the metronome icon is the switch and it stays the only one.
 
 ### 2 — Structure ribbon
 Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
@@ -917,6 +930,32 @@ describing all along.
   over `Reader`, not a fork.
 
 ---
+
+## The header pass — 2026-08-03
+
+The owner's answers, in order, for the header work. Round 1 (the same bar
+everywhere) is built; the rest are decided and queued.
+
+| # | Decision |
+|---|---|
+| Bar | **The same header on every screen** — ☰ and ✕ on the break and the missing-song screen too. First thing built. |
+| Artist | **No.** Too much width for no gain. |
+| ♩ tempo / time | **Stay as dead text** — the drummer needs to read them. The metronome icon remains the only way into practice. |
+| Edit button | **Yes**, a mini editor for the song, opened from an icon in the bar. |
+| Mutable or versioned | **Changes the song**, *and* offers "save as a new arrangement". Both, not one. |
+| Where | **Practice only.** Not live. |
+| Set bar scrolling | **Wheel-over-the-bar + edge fades.** |
+| Row spacing | **Halve it** — 12px/10px → 6px/6px, then look again. |
+| Rail button | **Beside** the footer counter, not instead of it. Desktop/tablet only; the phone keeps the counter. |
+
+> **`IconButton` reads the APP tokens.** Its ghost variant is
+> `--ds-gray-700` / `--ds-gray-1000` / `--ds-gray-200`, and only `Reader`
+> re-pointed those at the chart tokens. So the break's ☰ and ✕ painted in app
+> colours on a chart background — near-invisible on a light chart theme inside a
+> dark app. Both surfaces now live in `readerSurface.js` (`chartSurface` /
+> `hubSurface`) and all three screens spread the same object. **Any new
+> full-screen reader surface must spread one of them**, or its controls will
+> silently wear the wrong theme.
 
 ## Traps that have already cost time
 

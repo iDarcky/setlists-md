@@ -11,6 +11,7 @@ import BreakScreen from './BreakScreen';
 import MissingSongScreen from './MissingSongScreen';
 import SetlistRail from './SetlistRail';
 import ReaderSetlistBar from './ReaderSetlistBar';
+import ReaderMenu from './ReaderMenu';
 
 /**
  * A setlist read through the reader — element 10, and nothing more.
@@ -42,6 +43,12 @@ export default function SetlistReader({
   });
   const [keys, setKeys] = useState({});
   const [railOpen, setRailOpen] = useState(false);
+  // The ☰ for the break / missing-song screens — see `openMenu` below. STAMPED
+  // with the item it was opened on, and derived rather than cleared by an
+  // effect: this menu is mounted a level above the screen it belongs to, so
+  // navigating away would otherwise leave it hanging over the next song still
+  // holding the break's anchor rect. Same shape as `Reader`'s `tempoSet`.
+  const [menu, setMenu] = useState(null);
   const wide = useMediaQuery('(min-width: 768px)');
   // Element 13. The ONLY thing tracked through a session: when it started.
   // Everything else the old views carried in refs — farthest index, transpose
@@ -207,10 +214,21 @@ export default function SetlistReader({
     ? trash.find(e => e.song?.id === cur.songId)
     : null;
 
+  // The ☰ on a screen that has no song. `Reader` owns its own menu (it is also
+  // used standalone, by `FullscreenReader`), so this second mount is only ever
+  // reached by the break and missing-song branches below — the two bodies that
+  // are NOT the reader. `ReaderMenu` already optional-chains `song`, so Look,
+  // Layout and the role picker work exactly as they do on a song; the panels
+  // that read the song simply have nothing to show.
+  const menuAnchor = menu?.idx === idx ? menu.rect : null;
+  const openMenu = (rect) => setMenu(m => (m?.idx === idx ? null : { idx, rect }));
+
   const body = cur?.isMissing ? (
     <MissingSongScreen
       title={cur.songTitle || recoverable?.song?.title}
       onExit={onBack}
+      onMenu={openMenu}
+      aboveBar={underBar}
       onRestore={recoverable ? () => onRestoreSong(cur.songId) : null}
       onSkip={goNext}
       hasNext={idx < total - 1}
@@ -222,6 +240,8 @@ export default function SetlistReader({
       duration={cur.duration}
       note={cur.note}
       onExit={onBack}
+      onMenu={openMenu}
+      aboveBar={underBar}
       footer={footer}
     />
   ) : (
@@ -248,6 +268,21 @@ export default function SetlistReader({
     <div className="h-full flex">
       <div className="flex-1 min-w-0 h-full">{body}</div>
       {overlay}
+      {menuAnchor && (
+        <ReaderMenu
+          anchorRect={menuAnchor}
+          onClose={() => setMenu(null)}
+          settings={settings}
+          onUpdateSettings={onUpdateSettings}
+          song={null}
+          config={cfg}
+          mode={mode}
+          lyricSize={cfg.display.lyricFontSize}
+          onLyricSize={(v) => onUpdateSettings?.('defaultFontSize', v)}
+          chordSize={cfg.display.chordFontSize}
+          onChordSize={(v) => onUpdateSettings?.('chordFontSize', v)}
+        />
+      )}
     </div>
   );
 }

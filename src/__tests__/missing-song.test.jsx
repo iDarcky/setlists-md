@@ -82,4 +82,14 @@ describe('element 14 — the song is not here', () => {
     fireEvent.click(screen.getByText('Skip to the next one'));
     expect(screen.getAllByText(/Goodness of God/).length).toBeGreaterThan(0);
   });
+
+  // The same bar as a song and a break (owner, 2026-08-03). Most true here:
+  // this is the screen already telling you something has gone wrong, and it is
+  // the worst possible moment to also lose the menu and the map of the set.
+  it('carries the SAME bar — ☰, ✕, and the set when it is on', () => {
+    renderIt({ settings: { readerTopBar: 'setlist' } });
+    expect(screen.getByRole('button', { name: 'Display options' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Exit' })).toBeTruthy();
+    expect(screen.getAllByText('Goodness of God').length).toBeGreaterThan(0);
+  });
 });

@@ -1,4 +1,5 @@
 import ReaderTopBar from './ReaderTopBar';
+import { chartSurface } from './readerSurface';
 
 /**
  * Element 14 — a setlist item whose song isn't here.
@@ -20,21 +21,23 @@ import ReaderTopBar from './ReaderTopBar';
  * afterwards.
  */
 export default function MissingSongScreen({
-  title, onExit, onRestore, onSkip, footer, hasNext = false,
+  title, onExit, onMenu, aboveBar = null, onRestore, onSkip, footer, hasNext = false,
 }) {
   const rule = { borderColor: 'var(--chart-rule, var(--ds-gray-300))' };
   const muted = 'var(--chart-subtle, var(--ds-gray-700))';
   const text = 'var(--chart-text, var(--ds-gray-1000))';
 
   return (
-    <div
-      className="h-full flex flex-col overflow-hidden"
-      style={{ background: 'var(--chart-bg, var(--ds-background-100))', color: text }}
-    >
-      {/* The title is the one from the SETLIST ITEM, not the song — the song is
+    <div className="h-full flex flex-col overflow-hidden" style={chartSurface}>
+      {/* The same bar as a song and a break — ☰, title, ✕, and the set above it
+          (owner, 2026-08-03). Losing your place in the service is the ONE thing
+          the reader must not do, and that is most true on the screen that is
+          already telling you something has gone wrong.
+
+          The title is the one from the SETLIST ITEM, not the song — the song is
           what's missing. A bar reading "Song not available" tells you nothing;
           the name tells you whether it matters. */}
-      <ReaderTopBar title={title || 'Missing song'} onExit={onExit} />
+      <ReaderTopBar title={title || 'Missing song'} onExit={onExit} onMenu={onMenu} aboveBar={aboveBar} />
 
       <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex items-center justify-center px-6">
         <div className="w-full max-w-sm text-center">

@@ -105,6 +105,33 @@ describe('the break screen', () => {
     expect(screen.queryByText('0')).toBeNull();
     expect(screen.getByText('Break')).toBeTruthy();
   });
+
+  // The bar has now drifted away from the song's TWICE — first as a hand-rolled
+  // second component, then (once that was fixed by sharing `ReaderTopBar`) by
+  // passing it three props. Sharing the component is not enough on its own.
+  it('carries the SAME bar as a song — ☰ and ✕, not just ✕', () => {
+    atBreak({}, { label: 'Offering', duration: 5 });
+    expect(screen.getByRole('button', { name: 'Display options' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Exit' })).toBeTruthy();
+  });
+
+  it('carries the set bar when the set bar is on', () => {
+    atBreak({ readerTopBar: 'setlist' }, { label: 'Offering', duration: 5 });
+    // Every item in the service, on the break too — losing the map of the set
+    // is the one thing the reader must not do.
+    expect(screen.getByRole('button', { name: 'Break: Offering' })).toBeTruthy();
+    expect(screen.getAllByText('Amazing Grace').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Goodness of God').length).toBeGreaterThan(0);
+  });
+
+  it('opens the ☰ from the break, with no song to read', () => {
+    atBreak({}, { label: 'Offering' });
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    // Look and Layout are settings, so they work with no song at all.
+    expect(screen.getByRole('dialog', { name: 'Reader menu' })).toBeTruthy();
+    expect(screen.getByText('Look')).toBeTruthy();
+    expect(screen.getByText('Layout')).toBeTruthy();
+  });
 });
 
 describe('element 10 — the other nav styles', () => {

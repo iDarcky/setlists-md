@@ -99,6 +99,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **A song with no chart yet says so** rather than showing an empty page.
 
 ### Fixed
+- **Breaks and missing songs get the same top bar as a song (Labs)** — the ☰ and the set across the top were both missing from them, so reaching the display menu or seeing where you were in the service meant moving off the break first. Their menu and exit buttons were also drawn in the app's colours instead of the chart's, which made them nearly invisible on a light chart theme.
 - **Saving no longer loses a pasted song.** Hitting Save with text still waiting in the paste box used to keep the details and quietly throw the lyrics away.
 - **A pasted song with no Verse or Chorus labels no longer disappears** when you turn it into a chart.
 - **Add section no longer wipes a song you just pasted** — it now only appears when the box is empty.

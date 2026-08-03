@@ -1,5 +1,6 @@
 import NoteContent from '@/ui/NoteContent';
 import ReaderTopBar from './ReaderTopBar';
+import { chartSurface } from './readerSurface';
 
 /**
  * A break, read through the reader.
@@ -9,9 +10,17 @@ import ReaderTopBar from './ReaderTopBar';
  * eyebrow, a heading and a bar title all saying "Benedicție" is three answers
  * to a question nobody asked. The middle is what the bar cannot carry: how
  * long it runs, and what the band does during it.
+ *
+ * **The bar is the SAME bar** (owner, 2026-08-03: "the same header to
+ * everything, the one with the ☰ and the X"). Sharing the component was never
+ * enough on its own — this screen passed it three props, so the break quietly
+ * lost the ☰ and, once element 8b landed, the set bar too. That is the exact
+ * drift `ReaderTopBar` exists to prevent, arriving through props instead of
+ * through a second component. The structure ribbon is the one thing a break
+ * does NOT get: it has no sections to map.
  */
 export default function BreakScreen({
-  label, duration, note, onExit, footer,
+  label, duration, note, onExit, onMenu, aboveBar = null, footer,
 }) {
   const rule = { borderColor: 'var(--chart-rule, var(--ds-gray-300))' };
   const muted = 'var(--chart-subtle, var(--ds-gray-700))';
@@ -21,14 +30,8 @@ export default function BreakScreen({
   const title = label || 'Break';
 
   return (
-    <div
-      className="h-full flex flex-col overflow-hidden"
-      style={{
-        background: 'var(--chart-bg, var(--ds-background-100))',
-        color: 'var(--chart-text, var(--ds-gray-1000))',
-      }}
-    >
-      <ReaderTopBar title={title} onExit={onExit} />
+    <div className="h-full flex flex-col overflow-hidden" style={chartSurface}>
+      <ReaderTopBar title={title} onExit={onExit} onMenu={onMenu} aboveBar={aboveBar} />
 
       <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex items-center justify-center px-6">
         <div className="w-full max-w-md text-center">
