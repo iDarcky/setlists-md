@@ -1025,10 +1025,27 @@ hunt instead of an edit.
 
 ```js
 const VIEW = {
-  live:     { transpose: ?, practiceTools: ?, editSong: ?, switchArrangement: false, writeNotes: false },
-  practice: { transpose: ?, practiceTools: ?, editSong: ?, switchArrangement: true,  writeNotes: true  },
+  live:     { transpose: true, saveKey: false, practiceTools: true, editSong: ?, switchArrangement: false, writeNotes: false },
+  practice: { transpose: true, saveKey: true,  practiceTools: true, editSong: ?, switchArrangement: true,  writeNotes: true  },
 };
 ```
+
+> ### The key change is SILENT in live and OBVIOUS in practice
+> Owner, 2026-08-03, with the scenario that settles it: *"the piano player
+> starts the song transpose +3 but in G and the guitar/bass/electric has to
+> quickly transpose in their own apps, but then the save button appears."*
+>
+> Mid-service, several players transpose at once and **none of them is deciding
+> anything about the setlist** — a Save button appearing on three phones is
+> noise at the moment there is least attention to spare. So live transposes
+> freely and offers nothing; practice offers the Save, because in practice
+> changing the key **is** the decision being made. That is `saveKey`, and it is
+> why `transpose` stays `true` in both: the split is not "can you transpose", it
+> is "does anything follow from it".
+>
+> An earlier proposal had one inline Save in both views, taught by copy. The
+> scenario killed it. **Nothing is taught by copy here** — the control's
+> presence is the whole message.
 
 Two rules:
 

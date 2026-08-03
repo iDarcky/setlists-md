@@ -133,8 +133,20 @@ const HUB_VIEW = {
 const VIEW = {
   live: {
     // Element 1's key pill. `true` = a live Select; `false` = a plain chip
-    // showing the key it is written in.
+    // showing the key it is written in. On in BOTH views — see `saveKey`.
     transpose: true,
+    // Whether a changed key can be KEPT, and whether the reader says so.
+    //
+    // The owner's scenario, 2026-08-03, and it settles this: *"the piano player
+    // starts the song transpose +3 but in G and the guitar/bass/electric has to
+    // quickly transpose in their own apps, but then the save button appears."*
+    // Mid-service, three players are transposing at once and none of them is
+    // deciding anything about the setlist — a Save appearing three times is
+    // noise at the exact moment there is least attention to spare. So **live is
+    // quick and SILENT**: transpose freely, nothing appears, nothing persists.
+    // **Practice is obvious**: the Save shows up, because in practice changing
+    // the key IS the decision being made.
+    saveKey: false,
     // Element 12's metronome icon in the bar.
     practiceTools: true,
     // The edit icon — §7 #12. Not built yet; practice-only when it is
@@ -147,6 +159,9 @@ const VIEW = {
   },
   practice: {
     transpose: true,
+    // Practice is where changing the key is a DECISION, not a scramble, so it
+    // is offered and it sticks — onto the setlist item, not the song.
+    saveKey: true,
     practiceTools: true,
     editSong: false,
     switchArrangement: true,
@@ -158,6 +173,7 @@ const VIEW = {
 // settings wire cut. It can do none of these: it is a browsing surface.
 const HUB_CAN = {
   transpose: false,
+  saveKey: false,
   practiceTools: false,
   editSong: false,
   switchArrangement: false,
