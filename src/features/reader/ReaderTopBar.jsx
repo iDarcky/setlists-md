@@ -2,6 +2,29 @@ import { forwardRef } from 'react';
 import { IconButton } from '@/ui/IconButton';
 
 /**
+ * The chrome's icon buttons, sized honestly — the `min-h-0` trap again
+ * (`docs/READER.md`), this time in the bar itself rather than in the ribbon.
+ *
+ * `IconButton size="sm"` says `h-8` (32px), but `styles/index.css` carries in
+ * `@layer base`:
+ *
+ *     button                          { min-height: 36px }
+ *     @media (max-width: 639px) button { min-height: 44px }
+ *
+ * `min-height` beats `height`, so the ☰ and ✕ were **44px tall on a phone** and
+ * the bar was `6 + 44 + 6 = 56px` — not the 44px the classes read like. That is
+ * where the reader's chrome height was actually going; the padding was never
+ * the problem. Owner, 2026-08-03, asking whether the header was aligned by
+ * height and whether the bottom bar could be smaller: it is centred (every row
+ * is `items-center`), it was just taller than it looked.
+ *
+ * 36px here, opting out of the phone floor. The ☰ and ✕ are reached between
+ * songs, not mid-song — unlike the footer's prev/next, which keep a bigger
+ * target because they are hit in the dark (see `ReaderFooter`).
+ */
+export const BAR_BUTTON = 'min-h-0 h-9 w-9';
+
+/**
  * Element 1 — the top bar. ONE component, so a song and a break cannot drift
  * apart: the break screen used to hand-roll its own bar, which is how it ended
  * up with no menu button and the title in a different place.
@@ -15,7 +38,7 @@ import { IconButton } from '@/ui/IconButton';
  * the right-hand edge leaves the service.
  */
 const ReaderTopBar = forwardRef(function ReaderTopBar(
-  { title, meta = null, onMenu, onExit, tools = null, aboveBar = null, children }, ref,
+  { title, meta = null, onMenu, onExit, tools = null, leading = null, aboveBar = null, children }, ref,
 ) {
   return (
     <div
@@ -37,10 +60,13 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
           the same sticky block: SET / HEADER / STRUCTURE. */}
       {aboveBar}
 
-      <div className="wide-container flex items-center gap-2 py-1.5">
+      {/* py-1, not py-1.5 — see BAR_BUTTON on where the height actually comes
+          from. */}
+      <div className="wide-container flex items-center gap-2 py-1">
         {onMenu && (
           <IconButton
             size="sm"
+            className={BAR_BUTTON}
             aria-label="Display options"
             onClick={(e) => {
               // Read the rect synchronously: React nulls currentTarget once the
@@ -51,6 +77,11 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
             <MenuIcon />
           </IconButton>
         )}
+
+        {/* The setlist rail, when the host has one and the screen is wide
+            enough to show it as a column. Beside ☰ because they are the two
+            "where am I" controls; nothing goes near the ✕. */}
+        {leading}
 
         {tools}
 
@@ -79,7 +110,7 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
         <span className="flex-1" />
 
         {onExit && (
-          <IconButton size="sm" aria-label="Exit" onClick={onExit}>
+          <IconButton size="sm" className={BAR_BUTTON} aria-label="Exit" onClick={onExit}>
             <CloseIcon />
           </IconButton>
         )}

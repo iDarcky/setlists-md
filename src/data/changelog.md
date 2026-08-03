@@ -52,6 +52,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Tell it what you're playing** — Vocals and Drums drop the chords, Guitar and Bass open their own tabs, and it says so rather than changing things behind your back. Everything stays adjustable under Display.
 
 ### Improved
+- **The setlist opens from the top bar too (Labs)** — a button beside the ☰ on a desktop or tablet, so you can jump anywhere in the service without reaching for the bottom of the screen. The counter in the bottom bar still opens it as well.
 - **The section you're in stays on screen** — in the new reader, the section heading pins to the top as you scroll and the structure ribbon highlights the same section, so a glance tells you where you are without reading a word.
 - **Repeated sections can collapse to a line** — a chorus sung three times is written once, with a tappable "as before" for each repeat. A chorus after a key change always stays in full, because the chords have changed.
 - **Tabs know what you play** — the reader picks up the instrument you're scheduled on for the service, so those tabs open and everyone else's collapse to a single line you can tap. If you're not scheduled, the one instrument on your profile is used instead. Tabs are also much smaller, numbered by bar, and never scroll sideways.
@@ -99,6 +100,9 @@ A running log of what's new in setlists.md. Newest releases first.
 - **A song with no chart yet says so** rather than showing an empty page.
 
 ### Fixed
+- **The reader's bars are shorter (Labs)** — the top and bottom bars were taller than they looked: a rule meant to keep buttons easy to tap on a phone was making every icon in them 44px tall. The top bar drops from 56px to 44px and the bottom bar to 48px, giving the song back half a line of screen. The next/previous buttons stay big, because those are the ones you hit mid-song without looking.
+- **The set across the top scrolls with a mouse (Labs)** — it always could, but the scrollbar was hidden and there was nothing else to grab. A wheel now moves it sideways while you're over it, and the ends fade out so you can see the set continues.
+- **A break with a note starts at the top** instead of floating in the middle of the screen, so a long note reads from the first line rather than starting below the fold.
 - **Breaks and missing songs get the same top bar as a song (Labs)** — the ☰ and the set across the top were both missing from them, so reaching the display menu or seeing where you were in the service meant moving off the break first. Their menu and exit buttons were also drawn in the app's colours instead of the chart's, which made them nearly invisible on a light chart theme.
 - **Saving no longer loses a pasted song.** Hitting Save with text still waiting in the paste box used to keep the details and quietly throw the lyrics away.
 - **A pasted song with no Verse or Chorus labels no longer disappears** when you turn it into a chart.

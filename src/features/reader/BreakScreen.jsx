@@ -20,7 +20,7 @@ import { chartSurface } from './readerSurface';
  * does NOT get: it has no sections to map.
  */
 export default function BreakScreen({
-  label, duration, note, onExit, onMenu, aboveBar = null, footer,
+  label, duration, note, onExit, onMenu, aboveBar = null, leading = null, footer,
 }) {
   const rule = { borderColor: 'var(--chart-rule, var(--ds-gray-300))' };
   const muted = 'var(--chart-subtle, var(--ds-gray-700))';
@@ -31,9 +31,16 @@ export default function BreakScreen({
 
   return (
     <div className="h-full flex flex-col overflow-hidden" style={chartSurface}>
-      <ReaderTopBar title={title} onExit={onExit} onMenu={onMenu} aboveBar={aboveBar} />
+      <ReaderTopBar title={title} onExit={onExit} onMenu={onMenu} aboveBar={aboveBar} leading={leading} />
 
-      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex items-center justify-center px-6">
+      {/* Centred when the break is just a length — a lone "5 min" belongs in
+          the middle of the screen. TOP-aligned as soon as there is a note
+          (owner, 2026-08-03): text centred vertically starts in a different
+          place depending on how long it is, and a note long enough to scroll
+          was starting below the fold. Reading starts at the top. */}
+      <div className={`flex-1 min-h-0 overflow-y-auto no-scrollbar flex justify-center px-6 ${
+        note ? 'items-start pt-10 pb-8' : 'items-center'
+      }`}>
         <div className="w-full max-w-md text-center">
           {mins ? (
             <div className="font-mono font-bold text-[44px] leading-none" style={{ color: 'var(--chord)' }}>
@@ -62,7 +69,7 @@ export default function BreakScreen({
           className="shrink-0 border-t"
           style={{ ...rule, paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
-          <div className="wide-container flex items-center gap-2 py-1.5">{footer}</div>
+          <div className="wide-container flex items-center gap-2 py-1">{footer}</div>
         </div>
       )}
     </div>

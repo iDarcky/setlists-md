@@ -12,6 +12,19 @@ import MissingSongScreen from './MissingSongScreen';
 import SetlistRail from './SetlistRail';
 import ReaderSetlistBar from './ReaderSetlistBar';
 import ReaderMenu from './ReaderMenu';
+import { BAR_BUTTON } from './ReaderTopBar';
+import { IconButton } from '@/ui/IconButton';
+
+function ListIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <line x1="8" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="20" y2="12" /><line x1="8" y1="18" x2="20" y2="18" />
+      <circle cx="4" cy="6" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="18" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
 
 /**
  * A setlist read through the reader — element 10, and nothing more.
@@ -203,6 +216,29 @@ export default function SetlistReader({
     <ReaderSetlistBar items={railItems} idx={idx} onSelect={go} />
   ) : null;
 
+  // The rail, from the top bar (owner, 2026-08-03) — BESIDE the footer's
+  // counter, never instead of it: no existing way in is removed.
+  //
+  // Wide screens only. On a phone the rail is a bottom sheet and the footer
+  // counter is already where the thumb is, so a second opener at the top of the
+  // screen is the reachability problem element 26 describes, not a fix for it.
+  const railButton = wide ? (
+    <IconButton
+      size="sm"
+      className={BAR_BUTTON}
+      // NOT "Open setlist" — that is the footer counter's name, and two
+      // controls answering to one name is a screen reader reading the same
+      // label twice for two different things. This one is a toggle and says so
+      // (`aria-pressed`); the counter opens.
+      aria-label="Setlist"
+      aria-pressed={railOpen}
+      onClick={openRail}
+      style={{ color: railOpen ? 'var(--chord)' : 'var(--chart-text, var(--ds-gray-1000))' }}
+    >
+      <ListIcon />
+    </IconButton>
+  ) : null;
+
   const swipe = cfg.nav === 'swipe'
     ? { onSwipeLeft: goNext, onSwipeRight: goPrev }
     : {};
@@ -229,6 +265,7 @@ export default function SetlistReader({
       onExit={onBack}
       onMenu={openMenu}
       aboveBar={underBar}
+      leading={railButton}
       onRestore={recoverable ? () => onRestoreSong(cur.songId) : null}
       onSkip={goNext}
       hasNext={idx < total - 1}
@@ -242,6 +279,7 @@ export default function SetlistReader({
       onExit={onBack}
       onMenu={openMenu}
       aboveBar={underBar}
+      leading={railButton}
       footer={footer}
     />
   ) : (
@@ -257,6 +295,7 @@ export default function SetlistReader({
       onSelectKey={(k) => setKeys(prev => ({ ...prev, [cur.song.id]: k }))}
       footer={footer}
       underBar={underBar}
+      railButton={railButton}
       {...swipe}
     />
   );

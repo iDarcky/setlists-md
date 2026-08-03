@@ -10,7 +10,7 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useActiveSection } from '@/hooks/useActiveSection';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import ReaderSection from './ReaderSection';
-import ReaderTopBar from './ReaderTopBar';
+import ReaderTopBar, { BAR_BUTTON } from './ReaderTopBar';
 import { chartSurface, hubSurface } from './readerSurface';
 import ReaderPracticeRow, { MetronomeIcon } from './ReaderPracticeRow';
 import AaMenu from '@/features/chart/AaMenu';
@@ -64,6 +64,9 @@ export default function Reader({
   // Element 8: what hangs under the top bar in place of the ribbon. The setlist
   // knows the set; the reader only knows one song, so the host supplies it.
   underBar = null,
+  // The rail opener, for the same reason: only the host knows there IS a set.
+  // Sits beside ☰ in the bar's left cluster.
+  railButton = null,
   // 'live' | 'practice'. Until now the reader had ONE behaviour and three route
   // names (`setlist-play`, `setlist-performance`, `setlist-practice`), which is
   // why every practice-only decision — writing a note, switching arrangement —
@@ -278,12 +281,14 @@ export default function Reader({
         <ReaderTopBar
           ref={headRef}
           aboveBar={underBar}
+          leading={railButton}
           title={song.title}
           onMenu={(rect) => setOwnAaAnchor(a => (a ? null : rect))}
           onExit={onExit}
           tools={(
             <IconButton
               size="sm"
+              className={BAR_BUTTON}
               aria-label={practiceOpen ? 'Close practice tools' : 'Practice tools'}
               aria-pressed={practiceOpen}
               onClick={togglePractice}
@@ -336,7 +341,7 @@ export default function Reader({
             // chrome by element 2's decision, and a line here splits what that
             // decision deliberately fused. The divider lives on the bottom of
             // the whole sticky block instead — see `ReaderTopBar`.
-            <div className="wide-container overflow-hidden pt-1 pb-1" style={{ fontSize: '0.85em' }}>
+            <div className="wide-container overflow-hidden pt-0.5 pb-1" style={{ fontSize: '0.85em' }}>
               {ribbonNode}
             </div>
           )}
@@ -450,14 +455,14 @@ export default function Reader({
         >
           {bottomRibbon && (
             <div
-              className={`wide-container overflow-hidden py-1.5${(footer || practiceOpen) ? ' border-b' : ''}`}
+              className={`wide-container overflow-hidden py-1${(footer || practiceOpen) ? ' border-b' : ''}`}
               style={{ ...(footer || practiceOpen ? rule : null), fontSize: '0.85em' }}
             >
               {ribbonNode}
             </div>
           )}
           {showChrome && practiceOpen && (
-            <div className={`wide-container py-1.5${footer ? ' border-b' : ''}`} style={footer ? rule : undefined}>
+            <div className={`wide-container py-1${footer ? ' border-b' : ''}`} style={footer ? rule : undefined}>
               <ReaderPracticeRow
                 song={song}
                 bpm={bpm}
@@ -468,7 +473,7 @@ export default function Reader({
               />
             </div>
           )}
-          {footer && <div className="wide-container flex items-center gap-2 py-1.5">{footer}</div>}
+          {footer && <div className="wide-container flex items-center gap-2 py-1">{footer}</div>}
         </div>
       )}
 

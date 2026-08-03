@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 /**
  * Element 8 — the setlist bar, the reader's second top-bar treatment.
@@ -20,6 +20,22 @@ import { useEffect, useRef } from 'react';
 export default function ReaderSetlistBar({ items, idx, onSelect }) {
   const barRef = useRef(null);
   const activeRef = useRef(null);
+  // Which ends have more set beyond them. Owner, 2026-08-03: the bar "is not
+  // scrollable on desktop" — it always was (`overflow-x-auto`), but
+  // `no-scrollbar` hides the only affordance a mouse has, so on a desktop
+  // there was no bar to drag, no gesture, and nothing saying the set continued.
+  const [edges, setEdges] = useState({ start: false, end: false });
+
+  const syncEdges = useCallback(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    setEdges(prev => {
+      // 1px of slack: fractional DPRs never land exactly on 0 or on max.
+      const next = { start: el.scrollLeft > 1, end: el.scrollLeft < max - 1 };
+      return (prev.start === next.start && prev.end === next.end) ? prev : next;
+    });
+  }, []);
 
   // Keep the current chip in view, the same way the ribbon does. Without this
   // the bar is a map of a set you can't see your place in.
@@ -30,8 +46,37 @@ export default function ReaderSetlistBar({ items, idx, onSelect }) {
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   }, [idx]);
 
+  // A vertical wheel scrolls it sideways while the pointer is over it — the
+  // same idiom the ☰'s theme strip uses. `passive: false` because the handler
+  // calls preventDefault; React's onWheel is passive and cannot.
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return undefined;
+    const onWheel = (e) => {
+      if (!e.deltaY || el.scrollWidth <= el.clientWidth) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // Re-measure when the set changes or the bar is resized (rotation, the rail
+  // opening beside it), not only on scroll.
+  useEffect(() => {
+    syncEdges();
+    const el = barRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(syncEdges);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [syncEdges, items, idx]);
+
   const total = items.length;
   const progress = total > 1 ? (idx / (total - 1)) * 100 : 100;
+  const fade = (dir) => ({
+    background: `linear-gradient(to ${dir}, var(--chart-bg, var(--ds-background-100)), transparent)`,
+  });
 
   return (
     <div className="shrink-0">
@@ -44,7 +89,16 @@ export default function ReaderSetlistBar({ items, idx, onSelect }) {
         />
       </div>
 
-      <div ref={barRef} className="no-scrollbar flex gap-1.5 px-3 sm:px-5 py-1.5 overflow-x-auto">
+      {/* `relative` so the fades can sit over the ends of the scroller. */}
+      <div className="relative">
+      <div
+        ref={barRef}
+        onScroll={syncEdges}
+        // items-center: this was the ONE row in the sticky block that did not
+        // centre its children (the default `stretch` made each chip's box
+        // taller than its own content). py-1 to match the bar and the ribbon.
+        className="no-scrollbar flex items-center gap-1.5 px-3 sm:px-5 py-1 overflow-x-auto"
+      >
         {items.map((item, i) => {
           const active = i === idx;
           const ref = active ? activeRef : undefined;
@@ -111,6 +165,17 @@ export default function ReaderSetlistBar({ items, idx, onSelect }) {
             </button>
           );
         })}
+      </div>
+
+      {/* The affordance a mouse has instead of a scrollbar: the set visibly
+          runs off the edge. `pointer-events-none` so the chips underneath
+          stay tappable right up to the edge. */}
+      {edges.start && (
+        <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-8" style={fade('right')} />
+      )}
+      {edges.end && (
+        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8" style={fade('left')} />
+      )}
       </div>
     </div>
   );

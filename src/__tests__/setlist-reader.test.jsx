@@ -163,6 +163,40 @@ describe('element 10 — the other nav styles', () => {
   });
 });
 
+// The rail from the top bar (owner, 2026-08-03) — BESIDE the footer counter,
+// never instead of it.
+describe('the rail button in the top bar', () => {
+  it('is a second way in, not a replacement for the counter', () => {
+    renderIt();
+    expect(screen.getByRole('button', { name: 'Setlist' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Open setlist' })).toBeTruthy();
+  });
+
+  it('opens the rail', () => {
+    renderIt();
+    fireEvent.click(screen.getByRole('button', { name: 'Setlist' }));
+    expect(screen.getByRole('button', { name: 'Setlist' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getAllByText('Goodness of God').length).toBeGreaterThan(0);
+  });
+
+  it('is on the break and the missing-song screen too', () => {
+    renderIt();
+    fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
+    expect(screen.getByRole('button', { name: 'Setlist' })).toBeTruthy();
+  });
+
+  it('is absent on a phone, where the footer counter is already at the thumb', () => {
+    // `wide` is false — the rail is a bottom sheet there, and a second opener
+    // at the TOP of the screen is element 26's reachability problem, not a fix.
+    window.matchMedia = vi.fn().mockImplementation(query => ({
+      matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {},
+    }));
+    renderIt();
+    expect(screen.queryByRole('button', { name: 'Setlist' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open setlist' })).toBeTruthy();
+  });
+});
+
 // ── Element 13 — what the reader hands the finale ─────────────────────────────
 describe('element 13 — the session handed to the finale', () => {
   it('carries a real start time — the finale used to read 0s', () => {

@@ -944,9 +944,42 @@ everywhere) is built; the rest are decided and queued.
 | Edit button | **Yes**, a mini editor for the song, opened from an icon in the bar. |
 | Mutable or versioned | **Changes the song**, *and* offers "save as a new arrangement". Both, not one. |
 | Where | **Practice only.** Not live. |
+| What it edits | **Four things, in this order** (owner, 2026-08-03): **key** (from the dropdown, and in practice it should *save onto the setlist item*, not just the session) · **tempo + time signature** · **structure** · **chords and lyrics — "fast changes not quite full changes"**. |
 | Set bar scrolling | **Wheel-over-the-bar + edge fades.** |
 | Row spacing | **Halve it** — 12px/10px → 6px/6px, then look again. |
 | Rail button | **Beside** the footer counter, not instead of it. Desktop/tablet only; the phone keeps the counter. |
+
+### Round 2 — the chrome's real height, and the set bar's missing affordance
+
+> **The bar was 56px on a phone, not 44px — and the padding was never the
+> cause.** `IconButton size="sm"` reads `h-8` (32px), but `@layer base` carries
+> `button { min-height: 36px }` and, under 640px, `44px`. **`min-height` beats
+> `height`**, so every ☰/✕/prev/next in the reader was 44px tall and each row
+> was `6 + 44 + 6`. This is the `min-h-0` trap for the third time; it had been
+> applied to ribbon chips and ☰ rows and never to the bar itself. Two named
+> constants now: `BAR_BUTTON` (36px, `ReaderTopBar`) and `NAV_BUTTON` (40px,
+> `ReaderFooter`). **They are deliberately different sizes** — the ☰ and ✕ are
+> reached between songs, prev/next is hit mid-song in the dark.
+
+- **Everything in the bar IS centred** (owner asked, 2026-08-03): every row is
+  `flex items-center`, so the 18px title, the 28px key chip and the 15px meta
+  all centre on the row's height. The one exception was the set bar's chip row,
+  which had no `items-center` and so used the default `stretch` — fixed.
+- **Row padding halved**: every chrome row `py-1.5` → `py-1`, the top ribbon
+  `pt-1` → `pt-0.5`. With the button fix the phone header goes **56px → 44px**
+  and the footer **56px → 48px**.
+- **The set bar scrolls on the wheel, with edge fades.** It was always
+  `overflow-x-auto`; `no-scrollbar` hid the only affordance a mouse has, so on a
+  desktop there was nothing to drag and nothing saying the set continued. Same
+  wheel idiom as the ☰'s theme strip (`passive: false` — React's `onWheel` is
+  passive and cannot `preventDefault`).
+- **The rail opens from the bar**, beside ☰, **wide screens only**. It is named
+  **"Setlist"**, not "Open setlist": the footer counter already answers to that,
+  and two controls with one accessible name is a screen reader saying the same
+  word for two different things.
+- **A break with a note reads from the TOP**, not vertically centred — centred
+  text starts in a different place depending on its length, and a long note
+  began below the fold. A break with only a length stays centred.
 
 > **`IconButton` reads the APP tokens.** Its ghost variant is
 > `--ds-gray-700` / `--ds-gray-1000` / `--ds-gray-200`, and only `Reader`

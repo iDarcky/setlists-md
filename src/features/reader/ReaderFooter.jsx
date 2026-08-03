@@ -2,6 +2,16 @@ import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 
 /**
+ * Bigger than the top bar's `BAR_BUTTON` (36px), and deliberately so.
+ *
+ * Prev/next is the one control hit MID-song, on a dark stage, without looking.
+ * The phone's 44px floor is the right size for that and the wrong size for the
+ * ☰; opting out to 40px is as small as this row should ever go. The row shrank
+ * by dropping its padding (`py-1.5` → `py-1`), not by shrinking the targets.
+ */
+const NAV_BUTTON = 'min-h-0 h-10 w-10';
+
+/**
  * Element 10 — how you get to the next song.
  *
  * One component, used unchanged on songs AND on breaks. A break used to draw
@@ -28,6 +38,7 @@ export default function ReaderFooter({
     <>
       <IconButton
         size="sm"
+        className={NAV_BUTTON}
         aria-label="Previous song"
         disabled={atStart}
         onClick={onPrev}
@@ -71,6 +82,7 @@ export default function ReaderFooter({
       ) : (
         <IconButton
           size="sm"
+          className={NAV_BUTTON}
           aria-label="Next song"
           disabled={atEnd}
           onClick={onNext}
