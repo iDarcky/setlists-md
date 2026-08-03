@@ -9,7 +9,7 @@ import { IconButton } from '@/ui/IconButton';
  * ☰; opting out to 40px is as small as this row should ever go. The row shrank
  * by dropping its padding (`py-1.5` → `py-1`), not by shrinking the targets.
  */
-const NAV_BUTTON = 'min-h-0 h-10 w-10';
+const NAV_BUTTON = 'min-h-0 h-10 w-10 text-[var(--chart-text,var(--ds-gray-1000))]';
 
 /**
  * Element 10 — how you get to the next song.
@@ -42,7 +42,6 @@ export default function ReaderFooter({
         aria-label="Previous song"
         disabled={atStart}
         onClick={onPrev}
-        style={{ color: 'var(--chart-text, var(--ds-gray-1000))' }}
       >
         <Chevron dir="left" />
       </IconButton>
@@ -86,7 +85,6 @@ export default function ReaderFooter({
           aria-label="Next song"
           disabled={atEnd}
           onClick={onNext}
-          style={{ color: 'var(--chart-text, var(--ds-gray-1000))' }}
         >
           <Chevron dir="right" />
         </IconButton>

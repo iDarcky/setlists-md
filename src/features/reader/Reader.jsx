@@ -305,7 +305,7 @@ export default function Reader({
                       near-black text, mono bold. */}
                   <SelectTrigger
                     aria-label="Key (transpose)"
-                    className="!border-0 gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90 !h-7 !min-h-[28px] !w-auto !px-2 !py-0 !rounded-lg text-[13px]"
+                    className="!border-0 gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90 !h-[25px] !min-h-[25px] !w-auto !px-2 !py-0 !rounded-lg text-[13px]"
                     style={{ background: 'var(--chord)', color: '#0a0a0a' }}
                   >
                     <span>{displayKey}</span>
@@ -318,7 +318,7 @@ export default function Reader({
                 </Select>
               ) : (
                 <span
-                  className="font-mono font-bold text-[13px] rounded-lg px-2 h-7 inline-flex items-center"
+                  className="font-mono font-bold text-[13px] rounded-lg px-2 h-[25px] inline-flex items-center"
                   style={{ background: 'var(--chord)', color: '#0a0a0a' }}
                 >
                   {displayKey}

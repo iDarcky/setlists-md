@@ -52,7 +52,8 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Tell it what you're playing** — Vocals and Drums drop the chords, Guitar and Bass open their own tabs, and it says so rather than changing things behind your back. Everything stays adjustable under Display.
 
 ### Improved
-- **The setlist opens from the top bar too (Labs)** — a button beside the ☰ on a desktop or tablet, so you can jump anywhere in the service without reaching for the bottom of the screen. The counter in the bottom bar still opens it as well.
+- **The setlist opens from the top bar too (Labs)** — a double-chevron button on the right of the bar on a desktop or tablet, so you can jump anywhere in the service without reaching for the bottom of the screen. It turns around when the panel is open. The counter in the bottom bar still opens it as well.
+- **A smaller key chip in the reader**, so the top bar reads as one line rather than a row built around it.
 - **The section you're in stays on screen** — in the new reader, the section heading pins to the top as you scroll and the structure ribbon highlights the same section, so a glance tells you where you are without reading a word.
 - **Repeated sections can collapse to a line** — a chorus sung three times is written once, with a tappable "as before" for each repeat. A chorus after a key change always stays in full, because the chords have changed.
 - **Tabs know what you play** — the reader picks up the instrument you're scheduled on for the service, so those tabs open and everyone else's collapse to a single line you can tap. If you're not scheduled, the one instrument on your profile is used instead. Tabs are also much smaller, numbered by bar, and never scroll sideways.
@@ -100,6 +101,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **A song with no chart yet says so** rather than showing an empty page.
 
 ### Fixed
+- **Hovering a button in the reader no longer makes its icon disappear (Labs)** — on a light chart theme the hover highlight was being drawn in the app's colours, so it came out near-black under an icon that stayed dark. The highlight is now mixed from the chart's own text colour, so it's a faint wash in every theme. The next/previous arrows couldn't highlight at all, for a second reason, and now do.
 - **The reader's bars are shorter (Labs)** — the top and bottom bars were taller than they looked: a rule meant to keep buttons easy to tap on a phone was making every icon in them 44px tall. The top bar drops from 56px to 44px and the bottom bar to 48px, giving the song back half a line of screen. The next/previous buttons stay big, because those are the ones you hit mid-song without looking.
 - **The set across the top scrolls with a mouse (Labs)** — it always could, but the scrollbar was hidden and there was nothing else to grab. A wheel now moves it sideways while you're over it, and the ends fade out so you can see the set continues.
 - **A break with a note starts at the top** instead of floating in the middle of the screen, so a long note reads from the first line rather than starting below the fold.

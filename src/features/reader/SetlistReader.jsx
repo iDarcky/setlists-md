@@ -15,13 +15,21 @@ import ReaderMenu from './ReaderMenu';
 import { BAR_BUTTON } from './ReaderTopBar';
 import { IconButton } from '@/ui/IconButton';
 
-function ListIcon() {
+/**
+ * A double chevron, pointing the way the rail will MOVE: `«` pulls it out from
+ * the right edge, `»` pushes it back. Owner asked for "the 2 or 3 chevrons that
+ * we currently use" — there is no such icon anywhere in the app (the reader's
+ * other chevrons are all single: the footer arrows, the ☰'s row disclosure,
+ * `PageHeader`'s back). This is the panel-toggle idiom it most likely meant;
+ * say the word and it becomes three.
+ */
+function RailChevrons({ open }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-      <line x1="8" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="20" y2="12" /><line x1="8" y1="18" x2="20" y2="18" />
-      <circle cx="4" cy="6" r="1.4" fill="currentColor" stroke="none" />
-      <circle cx="4" cy="12" r="1.4" fill="currentColor" stroke="none" />
-      <circle cx="4" cy="18" r="1.4" fill="currentColor" stroke="none" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+      style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 160ms ease-out' }}>
+      <polyline points="15 18 9 12 15 6" />
+      <polyline points="20 18 14 12 20 6" />
     </svg>
   );
 }
@@ -233,9 +241,8 @@ export default function SetlistReader({
       aria-label="Setlist"
       aria-pressed={railOpen}
       onClick={openRail}
-      style={{ color: railOpen ? 'var(--chord)' : 'var(--chart-text, var(--ds-gray-1000))' }}
     >
-      <ListIcon />
+      <RailChevrons open={railOpen} />
     </IconButton>
   ) : null;
 

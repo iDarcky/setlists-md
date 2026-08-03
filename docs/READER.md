@@ -973,10 +973,31 @@ everywhere) is built; the rest are decided and queued.
   desktop there was nothing to drag and nothing saying the set continued. Same
   wheel idiom as the ☰'s theme strip (`passive: false` — React's `onWheel` is
   passive and cannot `preventDefault`).
-- **The rail opens from the bar**, beside ☰, **wide screens only**. It is named
-  **"Setlist"**, not "Open setlist": the footer counter already answers to that,
-  and two controls with one accessible name is a screen reader saying the same
-  word for two different things.
+- **The rail opens from the bar**, on the **right**, **wide screens only**. It
+  is named **"Setlist"**, not "Open setlist": the footer counter already answers
+  to that, and two controls with one accessible name is a screen reader saying
+  the same word for two different things. A **double chevron** that turns around
+  when the rail is open — the owner asked for "the 2 or 3 chevrons that we
+  currently use" and **there is no such icon in the app**; every other chevron
+  here is single. The right-hand placement bends element 1's "nothing goes near
+  the ✕": accepted because this opens a panel, so a mis-tap costs a panel rather
+  than the service.
+- **The key chip is 25px** (owner), down from 28. It is a `<button>`, so the
+  phone's 44px floor still has to be opted out of by hand.
+
+> ### ⚠ The chart surface must remap the INTERACTION greys too
+> `IconButton`'s ghost variant hovers to `bg-[var(--ds-gray-200)]`, and that
+> token was not in `chartSurface`. So it kept coming from the **app** theme: a
+> dark app on a light chart painted a near-black pill under an icon that
+> correctly stayed dark, and the icon vanished on hover (owner, 2026-08-03).
+> `--ds-gray-100/200/300/400` are now mapped, with the hover tint **derived
+> from `--chart-text`** via `color-mix` — a faint wash of the foreground, right
+> in every theme by construction. Inverting the icon instead would have made
+> hover depend on knowing the pill's brightness.
+>
+> The nav arrows had a **second** cause: `style={{ color }}` inline. An inline
+> style beats a class, so `hover:text-*` could never apply to them. Colour the
+> reader's chrome buttons with a **class**, never `style`.
 - **A break with a note reads from the TOP**, not vertically centred — centred
   text starts in a different place depending on its length, and a long note
   began below the fold. A break with only a length stays centred.

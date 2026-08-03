@@ -35,6 +35,23 @@ export const chartSurface = {
   '--text-2': 'var(--chart-subtle, #6b6b6b)',
   '--ds-gray-1000': 'var(--chart-text, #111111)',
   '--ds-gray-700': 'var(--chart-subtle, #6b6b6b)',
+  // The INTERACTION greys, and they are not optional.
+  //
+  // `IconButton`'s ghost variant hovers to `bg-[var(--ds-gray-200)]`. That one
+  // was left out of this remap, so it kept coming from the APP theme: in a dark
+  // app on a light chart theme it painted a near-BLACK pill under an icon that
+  // (correctly) stayed dark — the icon vanished on hover. Owner, 2026-08-03:
+  // "on light mode the hover is black but the icon doesn't change colors to
+  // white."
+  //
+  // Inverting the icon would be the wrong fix — it makes the hover state depend
+  // on knowing the pill's brightness. A tint DERIVED from the chart's own text
+  // colour is correct in every theme by construction: always a faint wash of
+  // the foreground over the chart's background, never a slab.
+  '--ds-gray-100': 'color-mix(in srgb, var(--chart-text, #111111) 6%, transparent)',
+  '--ds-gray-200': 'color-mix(in srgb, var(--chart-text, #111111) 12%, transparent)',
+  '--ds-gray-300': 'var(--chart-rule, rgba(0,0,0,.14))',
+  '--ds-gray-400': 'var(--chart-subtle, #6b6b6b)',
 };
 
 /**

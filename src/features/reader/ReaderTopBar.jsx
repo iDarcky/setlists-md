@@ -22,7 +22,7 @@ import { IconButton } from '@/ui/IconButton';
  * songs, not mid-song — unlike the footer's prev/next, which keep a bigger
  * target because they are hit in the dark (see `ReaderFooter`).
  */
-export const BAR_BUTTON = 'min-h-0 h-9 w-9';
+export const BAR_BUTTON = 'min-h-0 h-9 w-9 text-[var(--chart-text,var(--ds-gray-1000))]';
 
 /**
  * Element 1 — the top bar. ONE component, so a song and a break cannot drift
@@ -78,11 +78,6 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
           </IconButton>
         )}
 
-        {/* The setlist rail, when the host has one and the screen is wide
-            enough to show it as a column. Beside ☰ because they are the two
-            "where am I" controls; nothing goes near the ✕. */}
-        {leading}
-
         {tools}
 
         {/* Title and meta are ONE group that takes the leftover width, so the
@@ -108,6 +103,12 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
         </span>
 
         <span className="flex-1" />
+
+        {/* The setlist rail. On the RIGHT (owner, 2026-08-03) — which does bend
+            element 1's "nothing goes near the ✕", so it is separated from it by
+            the gap and it opens a panel rather than doing anything destructive.
+            A mis-tap here costs you a panel, not the service. */}
+        {leading}
 
         {onExit && (
           <IconButton size="sm" className={BAR_BUTTON} aria-label="Exit" onClick={onExit}>
