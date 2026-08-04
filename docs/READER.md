@@ -1125,6 +1125,19 @@ Two things had to be carried that did not exist before:
 > `src/__tests__/structure-ribbon.test.jsx` now drives a whole gesture end to
 > end, so a regression in the effect's lifetime fails there and not on a phone.
 
+#### Edit mode, round 6 — 2026-08-04
+
+| | |
+|---|---|
+| **The nav row goes too** | Not disabled — **hidden**, like the pill and the edge arrows. Every button on it is inert in edit mode, and a whole bar of dead controls under the edit row is worse than the room it takes. |
+| **A SOLID stripe, not a wash** | The 9% orange mixed into the background landed differently on every chart theme — nearly invisible over cream, muddy over near-black — and dragged the title's contrast with it (owner: *"it will look different for each theme and some might not be readable"*). The background is now always the chart's own; the mode is carried by a **3px solid `EDIT_ACCENT` stripe** and the divider. A mark **on** the background instead of **in** it cannot fail a contrast check. |
+| **Growing the header moves the content with it** | Pressing edit with the map hidden forces the ribbon on, which grows the sticky header by its whole height — and the pinned heading ended up behind it until you scrolled (owner). `Reader` now compares `headH` against its previous value and adds the delta to `scrollTop`. Only while actually scrolled: at the top there is nothing behind the header to rescue. |
+
+> **A full solid orange BAR was not built.** It would need the title, the icons
+> and the key chip to invert per theme to stay legible — which is the very
+> readability problem the change was asked for. One line away if the stripe
+> turns out to be too quiet.
+
 #### Edit mode, round 5 — 2026-08-04
 
 | | |
@@ -1218,6 +1231,15 @@ map is edited in the map's own language.
 
 **Superseded, not in this round:** nothing — the `+` above shipped alongside the
 ↑/↓ handles rather than replacing them.
+
+### Who may edit, and where — settled 2026-08-04
+
+| Question | Answer |
+|---|---|
+| Which views carry the editor? | **Practice only** today. Live, the shared viewer, print and the hub view do not, and the view table is what says so (`can.editSong`). |
+| The hub's full screen? | **Not yet.** Full screen *is* the Reader, so it is a one-line change in `VIEW` when its own row exists — but it gets that row when the practice editor has been used in anger, not before. |
+| Who may edit? | **Editor role or higher — already enforced.** `isTeamReadOnly = activeLibrary !== 'personal' && !isAdmin && !isEditor`, and App nulls `onUpdateSong` for it. The edit icon needs `onUpdateSong`, and so does the practice row's tempo Save, so **both** were gated from the day they shipped. |
+| Setlist or song? | **The song.** That is what "New version" is for: a change that should not touch the song becomes an arrangement instead. |
 
 ## The view table — where "each view does something else" lives
 

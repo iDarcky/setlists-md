@@ -158,9 +158,11 @@ export default function SetlistReader({
 
   // ONE footer, built once, handed to both surfaces — a break must not draw
   // its own bar with the exit stranded inside it.
-  const footer = cfg.nav === 'footer' ? (
+  // Hidden entirely while editing, like the pill and the edge arrows: every
+  // button on it is disabled in that mode, and a whole bar of dead controls
+  // under the edit row is worse than the room it takes.
+  const footer = cfg.nav === 'footer' && !locked ? (
     <ReaderFooter
-      locked={locked}
       index={idx}
       total={total}
       style={cfg.footer}

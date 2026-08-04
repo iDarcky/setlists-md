@@ -296,11 +296,44 @@ export default function Reader({
       // fixing it. Abutting sticky edges must OVERLAP, never abut — the
       // heading pins one pixel high (see `ReaderSection`) and paints over the
       // seam.
-      setHeadH(prev => (Math.abs(prev - h) > 0.5 ? h : prev));
+      setHeadH(prev => {
+        if (Math.abs(prev - h) <= 0.5) return prev;
+        // The header GREW (pressing edit turns the song map back on), so
+        // everything below it just moved down by the difference — including the
+        // heading that was pinned, which is now behind the map until you scroll
+        // (owner, 2026-08-04). Push the scroller by the same amount and the
+        // page does not appear to move at all. Only when already scrolled:
+        // at the top there is nothing behind the header to rescue.
+        const sc = scrollRef.current;
+        if (sc && prev > 0 && sc.scrollTop > 0) sc.scrollTop += (h - prev);
+        return h;
+      });
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, [embedded]);
+
+  // When the sticky header CHANGES HEIGHT, the content under it has to move by
+  // the same amount or it ends up behind the header — which is exactly what
+  // pressing edit did with the structure hidden (owner, 2026-08-04: "the section
+  // heading if it's pinned is going underneath the song map and you need to
+  // scroll to bring it back up"). Forcing the map on grows the header by its
+  // whole height, and nothing was compensating.
+  //
+  // A ref, not state: this reads the PREVIOUS measurement to compute a delta,
+  // and it must not itself cause a render.
+  const lastHeadH = useRef(0);
+  useEffect(() => {
+    const prev = lastHeadH.current;
+    lastHeadH.current = headH;
+    const delta = headH - prev;
+    const sc = scrollRef.current;
+    // Only while actually scrolled: at the top there is nothing behind the
+    // header to rescue, and nudging there would scroll the song away from a
+    // reader who had not moved.
+    if (!sc || !prev || Math.abs(delta) < 1 || sc.scrollTop <= 0) return;
+    sc.scrollTop += delta;
+  }, [headH]);
 
   const jumpTo = useCallback((idx) => {
     const el = document.getElementById(`section-${idx}`);

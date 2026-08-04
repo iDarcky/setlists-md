@@ -83,11 +83,21 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
         borderColor: editing
           ? EDIT_ACCENT
           : 'var(--chart-divider, var(--chart-rule, var(--ds-gray-300)))',
-        background: editing
-          ? `color-mix(in srgb, ${EDIT_ACCENT} 9%, var(--chart-bg, var(--ds-background-100)))`
-          : 'var(--chart-bg, var(--ds-background-100))',
+        // The BACKGROUND stays the chart's own, in every mode. A tint mixed
+        // into it lands differently on every chart theme — 9% orange over cream
+        // is nearly invisible and over near-black is muddy — and it drags the
+        // title's contrast with it (owner, 2026-08-04: "if we use this opacity
+        // it will look different for each theme and some might not be
+        // readable"). The mode is carried by SOLID marks instead: the stripe
+        // below and the divider, both `EDIT_ACCENT` at full strength, which
+        // read identically against every theme because nothing is mixed in.
+        background: 'var(--chart-bg, var(--ds-background-100))',
       }}
     >
+      {/* Edit mode's mark: solid, full-strength, and it cannot fail a contrast
+          check because it sits ON the background rather than IN it. */}
+      {editing && <div className="h-[3px] w-full shrink-0" style={{ background: EDIT_ACCENT }} />}
+
       {/* How far through the SET you are. It used to belong to
           `ReaderSetlistBar`, so turning the set bar off took the progress with
           it (owner, 2026-08-03). It lives here now — top of the sticky block,

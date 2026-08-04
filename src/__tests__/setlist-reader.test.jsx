@@ -574,7 +574,9 @@ describe('edit mode — locking and the section controls', () => {
     // Each of these is one tap from leaving the song with the change applied
     // and Cancel out of reach.
     expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Next song' }).disabled).toBe(true);
+    // The whole nav row goes, rather than sitting there as a bar of dead
+    // controls under the edit row.
+    expect(screen.queryByRole('button', { name: 'Next song' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Display options' }).disabled).toBe(true);
     expect(screen.getByRole('button', { name: 'Practice tools' }).disabled).toBe(true);
     expect(screen.getByRole('button', { name: 'Setlist' }).disabled).toBe(true);
