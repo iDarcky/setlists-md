@@ -3,7 +3,7 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.62` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.63` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
 > can compare against `beta`. 878 tests, 0 lint errors (8 pre-existing
@@ -100,15 +100,17 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.62) — element 28, rounds 1 + 2
+## Just shipped (beta.63) — element 28, rounds 1–3
 
 | What | Where |
 |---|---|
-| **Three tabs — Style · Layout · Music.** No root list, no drill-in, no back. Opening the ☰ lands you IN a panel. "Look" → "Style" at the owner's request | `ReaderMenu.jsx` |
-| **Notes left the ☰** — it goes in the setlist rail (element 29). ⚠ `song.notes` now appears NOWHERE in the reader, and the rail only exists inside a setlist | `ReaderMenu.jsx` |
-| **The phone shape is a PUSH-DOWN panel, not a sheet.** It renders inside the reader's sticky header (`ReaderTopBar`'s new `panel` prop) so the chart is displaced, not covered. No scrim — a catcher would eat element 11's chord taps. Handle on the bottom edge, drags up | `ReaderMenu.jsx`, `ReaderTopBar.jsx`, `Reader.jsx`, `SetlistReader.jsx`, `BreakScreen`/`MissingSongScreen` |
-| **The ☰ wears the reader theme** — `chartOverlaySurface` = `chartSurface` + the three tokens a panel reads and the chart body doesn't + `--bg-2` as a wash, or every hover is invisible | `readerSurface.js` |
-| **Columns gated at 768, not 700** — 700–767 (iPad mini portrait, 744) showed a switch `resolveReaderConfig` forced back to 1 | `ReaderMenu.jsx` |
+| **Three tabs — Style · Layout · Music.** No root list, no drill-in, no back. "Look" → "Style" | `ReaderMenu.jsx` |
+| **Notes left the ☰** for the setlist rail (element 29). ⚠ `song.notes` now appears NOWHERE in the reader, and the rail only exists inside a setlist | `ReaderMenu.jsx` |
+| **The phone sheet is FIXED `height: 44vh`** — smaller, same size on every tab, body scrolls inside (`flex-1 min-h-0`). The round-2 push-down panel was tried and **deleted** | `ReaderMenu.jsx` |
+| **The theme swatch ring** was two rings of one colour at two radii — now one, matching the colour swatches | `ReaderMenu.jsx` |
+| **Field labels**: Geist Mono 10px ALL CAPS wide-tracked muted → sans 12px/600 sentence case | `ReaderMenu.jsx` |
+| **The ☰ wears the reader theme** — `chartOverlaySurface` | `readerSurface.js` |
+| **Columns gated at 768, not 700** | `ReaderMenu.jsx` |
 
 **Next in element 28: the Style tab**, field by field, then Layout, then Music.
 

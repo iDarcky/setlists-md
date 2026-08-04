@@ -4,7 +4,7 @@
 // a note column before the element-by-element design had settled any of them,
 // which buried the decisions that HAD been made. These tests cover exactly the
 // six elements that are designed, so the next one has a clean floor to build on.
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import Reader from '@/features/reader/Reader';
 import { songFromFlat } from '@/arrangements';
@@ -21,8 +21,8 @@ vi.mock('@/hooks/useEntitlement', () => ({
 // It answers PER QUERY, against a real width. The old version returned one
 // boolean for every query, which was fine while the reader asked exactly one
 // question ("am I wide?") and became wrong the moment element 28 added a second
-// ('(max-width: 699.98px)' — the ☰'s popover/push-down split): a desktop mock
-// answered `true` to both, so the desktop tests were exercising the phone shape.
+// (the ☰'s sheet/popover split): a desktop mock answered `true` to both, so the
+// desktop tests were exercising the phone shape.
 function mockWidth(px) {
   const w = px === true ? 1024 : px === false ? 390 : px;
   window.innerWidth = w;
@@ -354,13 +354,13 @@ describe('the ☰ menu', () => {
   });
 });
 
-// The phone shape — element 28, round 2.
+// The phone shape — element 28, round 3.
 //
-// It is a PUSH-DOWN panel now, not a bottom sheet: it renders inside the
-// reader's own sticky header so the chart is displaced rather than covered, and
-// the handle on its bottom edge drags it back up. The round-1 sheet is gone,
-// and so are its detents — the owner on that gesture: "it really drags, and it
-// feels strange because it blocks and drags a bit".
+// Round 2 tried a push-down panel inside the sticky header; the owner tried both
+// and kept the SHEET ("I think I like the sheet more, but maybe not that big?"),
+// at a FIXED height with the body scrolling inside it. The detents stayed dead —
+// on those: "it really drags, and it feels strange because it blocks and drags
+// a bit".
 describe('the ☰ on a phone — element 28', () => {
   beforeEach(() => { mockWidth(390); });
 
@@ -368,7 +368,7 @@ describe('the ☰ on a phone — element 28', () => {
     renderReader(props);
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
     const panel = screen.getByRole('dialog', { name: 'Reader menu' });
-    return { panel, handle: panel.lastChild };
+    return { panel, handle: panel.firstChild };
   };
   const drag = (from, dy) => {
     fireEvent.touchStart(from, { touches: [{ clientX: 100, clientY: 400 }] });
@@ -376,27 +376,31 @@ describe('the ☰ on a phone — element 28', () => {
     fireEvent.touchEnd(from, { changedTouches: [{ clientX: 100, clientY: 400 + dy }] });
   };
 
-  it('lives INSIDE the sticky header, so the chart is pushed down not covered', () => {
+  it('is a FIXED height, so switching tabs never resizes it', () => {
     const { panel } = openPanel();
-    // Portaled to document.body it would cover the chart; this is the whole
-    // difference between the sheet and the push-down.
-    expect(panel.closest('.reader-head')).toBeTruthy();
-    expect(panel.parentElement).not.toBe(document.body);
-    // And the chart is all still there, under it.
-    expect(document.querySelectorAll('[data-section-index]').length).toBe(4);
+    // `height`, not `maxHeight` (owner: "fixed length and scroll inside").
+    // Style is ten fields and Music is four; the sheet must not jump between
+    // them, and the chart above it must not move.
+    expect(panel.style.height).toBe('44vh');
+    expect(panel.style.maxHeight).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: 'Music' }));
+    expect(panel.style.height).toBe('44vh');
   });
 
-  it('puts no scrim over the chart', () => {
-    openPanel();
-    // A full-screen catcher would swallow the chord taps (element 11) on a
-    // chart that is still visible and still meant to work.
-    expect(screen.queryByRole('button', { name: 'Close menu' })).toBeNull();
+  it('scrolls the fields inside itself rather than growing', () => {
+    const { panel } = openPanel();
+    // Without `min-h-0` a flex child refuses to shrink below its content and
+    // the sheet grows past its own height instead of scrolling.
+    const body = panel.lastChild;
+    expect(body.className).toContain('flex-1');
+    expect(body.className).toContain('min-h-0');
+    expect(body.className).toContain('overflow-y-auto');
   });
 
-  it('drags UP to close — the direction it came from', () => {
+  it('drags DOWN to close — the direction it came from', () => {
     const { handle } = openPanel();
     vi.useFakeTimers();
-    drag(handle, -120);
+    drag(handle, 120);
     act(() => { vi.advanceTimersByTime(300); });
     vi.useRealTimers();
     expect(screen.queryByRole('dialog', { name: 'Reader menu' })).toBeNull();
@@ -404,18 +408,18 @@ describe('the ☰ on a phone — element 28', () => {
 
   it('stays put on a short drag, or a drag the wrong way', () => {
     const { handle } = openPanel();
-    drag(handle, -20);
+    drag(handle, 30);
     expect(screen.getByRole('dialog', { name: 'Reader menu' })).toBeTruthy();
-    drag(handle, 200);
+    drag(handle, -200);
     expect(screen.getByRole('dialog', { name: 'Reader menu' })).toBeTruthy();
   });
 
-  it('is a popover on a desktop, portaled clear of the header', () => {
+  it('is a popover with no fixed height on a desktop', () => {
     mockWidth(1024);
     openPanel();
     const panel = screen.getByRole('dialog', { name: 'Reader menu' });
-    expect(panel.closest('.reader-head')).toBeNull();
-    expect(panel.style.position).toBe('');   // `fixed` comes from the class
+    expect(panel.style.height).toBe('');
+    expect(panel.style.maxHeight).toBe('74vh');
   });
 });
 

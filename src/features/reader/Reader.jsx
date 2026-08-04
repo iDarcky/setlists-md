@@ -169,12 +169,6 @@ export default function Reader({
   // it the reader's menu would reconnect the two surfaces that were
   // deliberately disconnected (`docs/READER.md` → "The hub view").
   const [ownAaAnchor, setOwnAaAnchor] = useState(null);
-  // Element 28: which SHAPE the ☰ takes. Below 700 it is an inline push-down
-  // panel inside the sticky header (the chart moves, nothing is covered); above
-  // it is a portaled popover anchored to the button. 700 rather than 768 for
-  // the same reason it always was — between 640 and 700 the popover is wider
-  // than the room beside the ☰.
-  const menuInline = useMediaQuery('(max-width: 699.98px)');
   // Element 11 — the chord you tapped, and where it was.
   const [tappedChord, setTappedChord] = useState(null);
   const { allowed: canSeeShapes } = useEntitlement('chord-diagrams');
@@ -635,12 +629,8 @@ export default function Reader({
     />
   ) : null;
 
-  // The ☰'s contents, built once and mounted in ONE of two places: inline in
-  // the sticky header on a phone, or portaled as a popover on a desktop. One
-  // node, so the two shapes cannot drift into two menus.
   const menuNode = ownAaAnchor ? (
     <ReaderMenu
-      inline={menuInline}
       anchorRect={ownAaAnchor}
       onClose={() => setOwnAaAnchor(null)}
       settings={settings}
@@ -681,7 +671,6 @@ export default function Reader({
           editing={editing}
           exitDisabled={editing}
           progress={progress}
-          panel={menuInline ? menuNode : null}
           tools={(
             <>
               {config.can.practiceTools && (
@@ -1002,9 +991,7 @@ export default function Reader({
         />
       )}
 
-      {/* Desktop only. On a phone the same node is inside the sticky header
-          (see `panel` above), where it pushes the chart down. */}
-      {!menuInline && menuNode}
+      {menuNode}
 
       {/* The hub's Aa button, unchanged. See the note on `ownAaAnchor`. */}
       {hostAaAnchor && (

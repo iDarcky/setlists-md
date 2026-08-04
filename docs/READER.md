@@ -1023,6 +1023,51 @@ the break and missing-song screens via a `menuPanel` prop.
 > desktop tests were exercising the phone shape. It answers per-query against a
 > real width now. Any new breakpoint needs the same check.
 
+#### Element 28, round 3 — the sheet comes back, smaller, 2026-08-04
+
+**The push-down panel lost.** The owner tried both shapes on the device:
+*"I think I like the sheet more, but maybe not that big?"* So round 2's inline
+panel is **deleted**, not kept as a second shape — along with `ReaderTopBar`'s
+`panel` prop and the `menuPanel` plumbing through `BreakScreen` /
+`MissingSongScreen` / `SetlistReader`. A shape nobody picked is debt.
+
+Worth keeping from that round, since the argument still stands and may come
+back for something else: pushing down obeys the panel rule by construction, and
+the sheet's old 58vh cap was written up as being there to keep the chart
+visible — a cap that admits the shape is fighting the rule. The owner's answer
+is that the sheet is fine if it is simply **smaller**.
+
+- **Fixed `height: 44vh`, not `max-height`** (owner: *"fixed length and scroll
+  inside"*). Two things this buys, and they are the reason to prefer a fixed
+  height to a cap: the chart above never moves when you switch tabs, and Style's
+  ten fields and Music's four occupy the same box instead of the sheet jumping
+  between them. The body is `flex-1 min-h-0 overflow-y-auto` — **without
+  `min-h-0` a flex child refuses to shrink below its content**, and the sheet
+  grows past its own height instead of scrolling.
+- **The handle drags DOWN**, 1:1, past 72px. No detents, no rubber band beyond a
+  22px hint upward.
+
+**The theme swatch's selected ring was two rings.** A 1px brand *border* plus a
+1.5px brand *box-shadow* — 2.5px of one colour at two different corner radii
+(the shadow follows the border-box, the border is inset), which is what made the
+selected swatch's edge look furred rather than crisp. It is now the same ring
+the colour `Swatches` in the same panel already use: a 2px gap in the panel's
+own colour, then the brand line. The strip needed padding, because that ring is
+drawn OUTSIDE the swatch's box and the scroller was clipping it on the first and
+last one.
+
+**The field labels were five signals stacked.** Owner: *"the setting headers are
+strange at all"*. They were Geist **Mono**, **10px**, **ALL CAPS**, **0.1em
+tracking**, and the **muted** grey. Any one of those reads as "quiet label"; all
+five together read as a code comment, and 10px uppercase mono is genuinely hard
+at arm's length on a phone. Now: the app's sans at **12px/600, sentence case,
+`--text-2`**. Same job, one signal.
+
+> The two typefaces, for the next time this comes up: `--font-sans` is **Geist
+> Sans**, `--font-mono` is **Geist Mono**, both variable, both self-hosted.
+> Mono in this app means *a number you compare* (keys, tempo, counters) — not
+> "small print".
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the

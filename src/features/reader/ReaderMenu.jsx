@@ -60,21 +60,23 @@ import {
  * **"Look" became "Style"** — the owner asked for a better name and this pairs
  * with Layout: Style is how the page is painted, Layout is where things are.
  *
- * ## Two shapes, and the phone one no longer covers the chart
+ * ## Two shapes
  *
- * **Desktop** — a popover anchored to the ☰, unchanged.
+ * **Desktop** — a popover anchored to the ☰.
  *
- * **Phone — an INLINE panel that pushes the chart down**, rendered into the
- * reader's own sticky header block rather than portaled over it. Owner:
- * *"is a sheet the best option we have for mobile? We already hide half of the
- * screen with it"*. The bottom sheet was mockup geometry, not a decision, and
- * it was capped at 58vh to stop it covering the chart — a cap that admits the
- * shape was fighting the panel rule instead of serving it. Pushing down obeys
- * the rule by construction: no scrim, no modal, the chart's scroll position is
- * untouched, and the controls sit against the chart they change.
+ * **Phone — a sheet, at a FIXED 44vh.** Round 2 tried the push-down panel
+ * instead; the owner tried both and picked the sheet (*"I think I like the
+ * sheet more, but maybe not that big?"*), so the push-down is gone rather than
+ * kept as a second shape nobody chose.
  *
- * The detents went with the sheet. A push-down panel is as tall as it needs to
- * be, up to a cap, and the handle at its bottom edge drags UP to close.
+ * Fixed height, not `max-height`, at the owner's request (*"let's make the menu
+ * not that long, like fixed length and scroll inside"*). Two things that buys:
+ * the chart above it never moves when you switch tabs, and Style's ten fields
+ * and Music's four occupy the same box instead of the sheet jumping between
+ * them. The body scrolls inside it.
+ *
+ * The detents are gone with the push-down. One height, and the handle drags
+ * DOWN to dismiss — the direction the sheet came from.
  */
 
 const NOTATIONS = [['letters', 'Letters'], ['nashville', 'Numbers'], ['solfege', 'Do-Re-Mi']];
@@ -103,10 +105,21 @@ const TABS = [['style', 'Style'], ['layout', 'Layout'], ['music', 'Music']];
 // ── Mockup primitives ───────────────────────────────────────────────────────
 // Geometry copied from the concept; every colour is one of ours.
 
+/**
+ * A labelled block. The label was five "this is a minor label" signals stacked
+ * on one another — Geist **Mono**, **10px**, **ALL CAPS**, **0.1em tracking**,
+ * and the **muted** grey — which is why the owner read them as strange
+ * (2026-08-04: *"the setting headers are strange at all"*). Any one of those
+ * says "quiet label"; all five together say "code comment", and 10px uppercase
+ * mono is genuinely hard to read at arm's length on a phone.
+ *
+ * Now: the app's own sans at 12px/600, sentence case, on the chart's ordinary
+ * secondary ink. Same job, one signal, legible.
+ */
 function Field({ label, children }) {
   return (
-    <div className="px-4 pt-2.5 pb-0.5">
-      <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--ds-gray-600)] mb-[7px]">{label}</div>
+    <div className="px-4 pt-3 pb-0.5">
+      <div className="text-[12px] font-semibold text-[var(--text-2)] mb-[7px]">{label}</div>
       {children}
     </div>
   );
@@ -191,11 +204,6 @@ export default function ReaderMenu({
   anchorRect, onClose, settings, onUpdateSettings,
   song, config,
   lyricSize, onLyricSize, chordSize, onChordSize,
-  // Phone: rendered INTO the reader's sticky header block, so it pushes the
-  // chart down instead of covering it. Desktop: a portaled popover anchored to
-  // the ☰. The host decides which, because only the host has a header to
-  // render into.
-  inline = false,
 }) {
   const [tab, setTab] = useState('style');
   const { allowed: styleAllowed } = useEntitlement('chart-style');
@@ -241,9 +249,10 @@ export default function ReaderMenu({
   // thumb speed, hard-stopped at 80px, then jumped to a detent on release.
   // Four behaviours in one gesture.
   //
-  // The push-down panel does not need any of that. It has one height, and the
-  // handle at its BOTTOM edge drags it back up out of the way — the direction
-  // it would go anyway. Tracks the thumb 1:1, so it cannot block.
+  // One height means none of that is needed. The handle drags DOWN, tracking
+  // the thumb 1:1, and lets go past the trigger. Up is a short rubber band —
+  // there is nowhere up for a fixed sheet to go, and a handle that gives
+  // nothing in one direction reads as broken rather than as a limit.
   //
   // Everything here runs OUTSIDE React, for the reasons written on `Reader`'s
   // pull-to-finish: React's synthetic touch listeners are passive so
@@ -267,15 +276,15 @@ export default function ReaderMenu({
     const el = panelRef.current;
     const grab = grabRef.current;
     if (!el || !grab) return undefined;
-    // Damped travel at which it lets go. ~110px of thumb, well under a
-    // thumb-length and far past anything accidental.
-    const TRIGGER = 56;
+    // Raw thumb travel at which it lets go. Well under a thumb-length and far
+    // past anything accidental.
+    const TRIGGER = 72;
     const paint = (d) => { el.style.transform = d ? `translateY(${d}px)` : ''; };
     const ease = (on) => { el.style.transition = on ? 'transform 190ms cubic-bezier(0.32, 0.72, 0, 1)' : ''; };
     const cancel = () => { dragRef.current = null; ease(true); paint(0); setTimeout(() => ease(false), 210); };
 
     const onStart = (e) => {
-      if (!live.current.inline || e.touches?.length !== 1) return;
+      if (!live.current.phone || e.touches?.length !== 1) return;
       dragRef.current = { y: e.touches[0].clientY, d: 0 };
     };
     const onMove = (e) => {
@@ -285,20 +294,17 @@ export default function ReaderMenu({
       if (!t) return;
       e.preventDefault();
       const dy = t.clientY - p.y;
-      // Up is the way out and tracks 1:1. Down is a short rubber band — there
-      // is nowhere further down for it to go, and a handle that gives nothing
-      // in one direction reads as broken rather than as a limit.
-      p.d = dy <= 0 ? dy : Math.min(dy * 0.3, 22);
+      p.d = dy >= 0 ? dy : Math.max(dy * 0.3, -22);
       paint(p.d);
     };
     const onEnd = () => {
       const p = dragRef.current;
       dragRef.current = null;
       if (!p) return;
-      if (p.d <= -TRIGGER) {
+      if (p.d >= TRIGGER) {
         // Animate OUT rather than vanishing under the thumb.
         ease(true);
-        paint(-(el.getBoundingClientRect().height || 320));
+        paint(el.getBoundingClientRect().height || 320);
         closeTimer.current = setTimeout(() => live.current.onClose?.(), 160);
         return;
       }
@@ -327,6 +333,10 @@ export default function ReaderMenu({
     ? (document.documentElement?.clientWidth || window.innerWidth)
     : 1024;
   const winH = typeof window !== 'undefined' ? window.innerHeight : 768;
+  // A sheet below 700px, not 640: at 640–700 the popover was wider than the
+  // room beside the ☰, which is the other half of the "overflows on the right"
+  // report.
+  const phone = winW < 700;
   const W = Math.min(296, winW - 16);   // the mockup's popover width
   // Align to whichever edge of the ☰ keeps the panel on screen. The reader's ☰
   // is top-LEFT, so a right-aligned popover pushed it off the edge.
@@ -338,7 +348,7 @@ export default function ReaderMenu({
   // Deliberately no dependency array — it re-runs on every render, which is the
   // point: the mount-once gesture must always see the current values without
   // ever being torn down and rebuilt (which is what breaks a drag mid-gesture).
-  useEffect(() => { live.current = { inline, onClose }; });
+  useEffect(() => { live.current = { phone, onClose }; });
 
   const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
   const visibleThemes = styleAllowed ? CHART_THEMES : CHART_THEMES.filter(t => FREE_CHART_THEME_IDS.has(t.id));
@@ -371,7 +381,10 @@ export default function ReaderMenu({
   const body = (
     // overflow-x-hidden: a wrapping seg row or the theme strip must never widen
     // the panel itself.
-    <div ref={bodyRef} className="overflow-y-auto overflow-x-hidden py-1.5">
+    // flex-1 + min-h-0: inside a fixed-height sheet this is the part that
+    // scrolls. Without `min-h-0` a flex child refuses to shrink below its
+    // content and the sheet grows past its own height instead of scrolling.
+    <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-1.5">
 
       {/* ── Look ───────────────────────────────────────────────────────────
           How the page is PAINTED. Its own root row rather than a tab inside a
@@ -381,14 +394,26 @@ export default function ReaderMenu({
       {tab === 'style' && (
         <>
               <Field label="Theme">
-                <div ref={themesRef} className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                {/* px/py: the selected ring is drawn outside the swatch's box,
+                    so without padding it is clipped by the scroller on the
+                    first and last swatch. */}
+                <div ref={themesRef} className="flex gap-2.5 overflow-x-auto no-scrollbar px-1 py-1 -mx-1">
                   {visibleThemes.map(t => (
+                    // The selected ring is ONE ring. It used to be a 1px brand
+                    // border AND a 1.5px brand box-shadow on top of it — 2.5px
+                    // of the same colour, at two different corner radii
+                    // (the shadow's is the border-box's, the border's is
+                    // inset), which is what made the selected swatch's edge
+                    // look furred rather than crisp. This is the same ring the
+                    // colour `Swatches` below already use: a gap in the panel's
+                    // own colour, then the brand line.
                     <button key={t.id} type="button" onClick={() => set('chartTheme', t.id)}
-                      className="shrink-0 min-h-0 h-[30px] w-[54px] rounded-lg overflow-hidden border cursor-pointer flex items-end justify-end px-1.5 py-1"
+                      className="shrink-0 min-h-0 h-[30px] w-[54px] rounded-lg overflow-hidden border border-transparent cursor-pointer flex items-end justify-end px-1.5 py-1"
                       style={{
                         background: t.bg, color: t.chord, fontFamily: 'var(--font-mono)',
-                        borderColor: themeId === t.id ? 'var(--color-brand)' : 'var(--border-2)',
-                        boxShadow: themeId === t.id ? '0 0 0 1.5px var(--color-brand)' : 'none',
+                        boxShadow: themeId === t.id
+                          ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
+                          : 'inset 0 0 0 1px var(--border-2)',
                       }}
                       aria-label={`Theme: ${t.name}`} aria-pressed={themeId === t.id} title={t.name}>
                       <span className="text-[10px] font-bold">Am</span>
@@ -577,59 +602,19 @@ export default function ReaderMenu({
     </div>
   );
 
-  // ── Inline: the phone's push-down panel ───────────────────────────────────
-  // NOT a portal. It renders inside the reader's sticky header block, so the
-  // chart below it is pushed down rather than covered — no scrim, no modal, and
-  // the chart's scroll position is untouched. The ☰ toggles it; Escape closes
-  // it; the handle at the bottom edge drags it away.
-  //
-  // No backdrop, deliberately. A full-screen invisible catcher would eat the
-  // chord taps (element 11) on the chart that is still right there and still
-  // meant to be usable.
-  if (inline) {
-    return (
-      <div
-        ref={panelRef}
-        role="dialog" aria-label="Reader menu"
-        className="shrink-0 overflow-hidden flex flex-col border-t border-[var(--border-1)]"
-        // Same remap as the popover. It is NOT portaled here, so it would
-        // inherit `chartSurface` from the reader anyway — but the three panel
-        // tokens (`--border-2`, `--ds-gray-600`, and `--bg-2` as a wash) are
-        // not in `chartSurface`, so it still needs the overlay set.
-        style={{
-          ...chartOverlaySurface,
-          // Capped, not fixed: Style is ten fields and Music is four. A panel
-          // that is always the tallest thing it might need to be steals the
-          // chart's room on the tab that doesn't need it.
-          maxHeight: '46vh',
-          animation: 'reader-panel-down 190ms cubic-bezier(0.32, 0.72, 0, 1)',
-        }}
-      >
-        {head}
-        {body}
-        {/* The handle is at the BOTTOM here — the panel came down from the top
-            bar, so the way out is back up, and the affordance belongs on the
-            edge you pull. */}
-        <div
-          ref={grabRef}
-          className="shrink-0 py-1.5 grid place-items-center cursor-grab"
-          style={{ touchAction: 'none' }}
-          aria-hidden="true"
-        >
-          <div className="w-[34px] h-1 rounded-full bg-[var(--border-2)]" />
-        </div>
-      </div>
-    );
-  }
-
   return createPortal((
     <>
       <button type="button" aria-label="Close menu" tabIndex={-1} onClick={onClose}
-        className="fixed inset-0 z-[119] bg-transparent border-none cursor-default" />
+        className={`fixed inset-0 z-[119] border-none cursor-default ${phone ? 'bg-black/30' : 'bg-transparent'}`} />
       <div
         ref={panelRef}
         role="dialog" aria-label="Reader menu"
-        className="fixed z-[120] overflow-hidden flex flex-col rounded-[14px] border border-[var(--border-2)]"
+        className={
+          'fixed z-[120] overflow-hidden flex flex-col '
+          + (phone
+            ? 'left-0 right-0 bottom-0 rounded-t-[18px] border-t border-[var(--border-2)]'
+            : 'rounded-[14px] border border-[var(--border-2)]')
+        }
         // The READER's theme, not the app's (owner, 2026-08-04). The panel is
         // portaled to `document.body`, so it inherits nothing from the reader's
         // own subtree and has to carry the remap itself — see
@@ -637,12 +622,34 @@ export default function ReaderMenu({
         // why there is no `--ds-background-100` class on the line above.
         style={{
           ...chartOverlaySurface,
-          top, ...(left != null ? { left } : { right }),
-          width: W, maxWidth: 'calc(100vw - 16px)', maxHeight: '74vh',
-          boxShadow: '0 18px 44px rgba(0,0,0,0.45)',
-          animation: 'pop-in 120ms ease-out',
+          ...(phone
+            ? {
+              maxWidth: '100vw',
+              // FIXED, not a cap (owner: "fixed length and scroll inside").
+              // The chart above never moves when you switch tabs, and Style's
+              // ten fields and Music's four occupy the same box.
+              height: '44vh',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+              boxShadow: '0 -12px 44px rgba(0,0,0,0.35)',
+              animation: 'sheet-up 200ms cubic-bezier(0.32, 0.72, 0, 1)',
+            }
+            : {
+              top, ...(left != null ? { left } : { right }),
+              width: W, maxWidth: 'calc(100vw - 16px)', maxHeight: '74vh',
+              boxShadow: '0 18px 44px rgba(0,0,0,0.45)',
+              animation: 'pop-in 120ms ease-out',
+            }),
         }}
       >
+        {/* The grab handle, at the top edge the sheet rose from. `touch-action:
+            none` so the browser doesn't claim the gesture before the listener
+            sees it. */}
+        {phone && (
+          <div ref={grabRef} className="shrink-0 pt-1.5 pb-0.5 grid place-items-center cursor-grab"
+            style={{ touchAction: 'none' }} aria-hidden="true">
+            <div className="w-[34px] h-1 rounded-full bg-[var(--border-2)]" />
+          </div>
+        )}
         {head}
         {body}
       </div>

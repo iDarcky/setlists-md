@@ -19,12 +19,6 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
   {
     title, meta = null, onMenu, onExit, tools = null, leading = null,
     aboveBar = null, editing = false, exitDisabled = false, progress = null, children,
-    // Element 28: the ☰'s phone panel, rendered INSIDE the sticky block so the
-    // chart is pushed down rather than covered. It goes below the song map,
-    // which keeps the map adjacent to the bar it belongs to and puts the panel
-    // against the chart it changes. Desktop passes nothing — there the menu is
-    // a portaled popover.
-    panel = null,
   }, ref,
 ) {
   return (
@@ -178,8 +172,6 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
 
       {/* The song map, on the chart's own paper in every mode. */}
       {children}
-
-      {panel}
     </div>
   );
 });
