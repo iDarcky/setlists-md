@@ -177,7 +177,7 @@ export default function SetlistReader({
   // rendered here rather than passed down.
   const overlay = (
     <>
-      {cfg.nav === 'pill' && (
+      {cfg.nav === 'pill' && !locked && (
         <FloatingNavPill
           current={idx + 1}
           total={total}
@@ -190,7 +190,7 @@ export default function SetlistReader({
           onOpenSetlist={openRail}
         />
       )}
-      {cfg.nav === 'edge' && (
+      {cfg.nav === 'edge' && !locked && (
         <EdgeNavArrows
           hasPrev={idx > 0}
           hasNext={idx < total - 1}
@@ -203,7 +203,12 @@ export default function SetlistReader({
       )}
       {/* Edge arrows and swipe carry no counter of their own, so without this
           there is no way into the setlist at all. */}
-      {(cfg.nav === 'edge' || cfg.nav === 'swipe') && !railOpen && (
+      {/* The pill, the edge arrows and the counter chip are all `fixed` to the
+          bottom, so they sit ON TOP of the edit row rather than above it
+          (owner, 2026-08-04). They are hidden while editing rather than
+          restacked: song navigation is locked in edit mode anyway, so a control
+          that cannot do anything is worse than no control. */}
+      {(cfg.nav === 'edge' || cfg.nav === 'swipe') && !railOpen && !locked && (
         <button
           type="button"
           onClick={openRail}

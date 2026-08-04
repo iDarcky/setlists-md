@@ -602,23 +602,50 @@ describe('edit mode — locking and the section controls', () => {
     expect(screen.getByRole('button', { name: 'Take Verse 1 out of the play order' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit Verse 1' }));
-    const box = screen.getByLabelText('Section lyrics and chords');
-    // The .md itself, brackets and all — the same text the editor's Write tab
-    // shows, rather than a second representation to keep in sync.
-    expect(box.value).toBe('[C]my hope');
+    // LYRICS by default — the words, with the chord markers stripped.
+    const box = screen.getByLabelText('Section lyrics');
+    expect(box.value).toBe('my hope');
 
-    fireEvent.change(box, { target: { value: '[Am]my hope is built' } });
+    fireEvent.change(box, { target: { value: 'my hope is built' } });
     // Not per keystroke: a song update per character is a sync per character.
     expect(onUpdateSong).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText('Save'));
-    expect(onUpdateSong.mock.calls[0][0].sections[0].lines).toEqual(['[Am]my hope is built']);
+    // The chord is put back at its old character position — editing the words
+    // must never cost you the chords.
+    expect(onUpdateSong.mock.calls[0][0].sections[0].lines).toEqual(['[C]my hope is built']);
+  });
+
+  it('keeps a chord attached when the line it sat on gets shorter', () => {
+    const onUpdateSong = vi.fn();
+    open({ onUpdateSong });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Chorus' }));
+    // '[F]on Christ' → the chord sits at 0, so it survives any shortening.
+    // Use Verse 1 for a mid-line case instead.
+    fireEvent.click(screen.getByText('Discard'));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Verse 1' }));
+    fireEvent.change(screen.getByLabelText('Section lyrics'), { target: { value: 'my' } });
+    fireEvent.click(screen.getByText('Save'));
+    expect(onUpdateSong.mock.calls[0][0].sections[0].lines).toEqual(['[C]my']);
+  });
+
+  it('offers Source for the things Lyrics cannot express', () => {
+    const onUpdateSong = vi.fn();
+    open({ onUpdateSong });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Verse 1' }));
+    fireEvent.click(screen.getByText('Source'));
+    // The raw .md, brackets and all — for adding a chord where there is none.
+    const box = screen.getByLabelText('Section lyrics and chords');
+    expect(box.value).toBe('[C]my hope');
+    fireEvent.change(box, { target: { value: '[C]my [G]hope' } });
+    fireEvent.click(screen.getByText('Save'));
+    expect(onUpdateSong.mock.calls[0][0].sections[0].lines).toEqual(['[C]my [G]hope']);
   });
 
   it('leaves the song alone when the lyric edit is cancelled', () => {
     const onUpdateSong = vi.fn();
     open({ onUpdateSong });
     fireEvent.click(screen.getByRole('button', { name: 'Edit Verse 1' }));
-    fireEvent.change(screen.getByLabelText('Section lyrics and chords'), { target: { value: 'nope' } });
+    fireEvent.change(screen.getByLabelText('Section lyrics'), { target: { value: 'nope' } });
     // "Discard", not "Cancel" — the edit row's Cancel throws away the whole
     // session, and two buttons a few centimetres apart both reading "Cancel"
     // is an ambiguity you notice only after losing work.

@@ -45,6 +45,12 @@ export function StructureRibbon({
   addOptions = null,
   onAddSection = null,
   onReorder = null,
+  // `onRemoveSlot(index)` — drop a chip on the bin to take it out of the play
+  // order (owner, 2026-08-04: "how can we delete a section from the song
+  // map?"). A drop TARGET rather than a × per chip: the gesture already exists,
+  // and a permanent × on every chip is the control-between-every-pair shape
+  // that the `+` was already cut for.
+  onRemoveSlot = null,
 }) {
   // Collapse consecutive duplicates: "C1, C1, C1" → one entry "C1 ×3".
   // Memoised because the drag effect depends on it — a fresh array every render
@@ -111,7 +117,7 @@ export function StructureRibbon({
   // rendering is a ref write during render and the compiler rejects it.
   const liveRef = useRef({});
   useEffect(() => {
-    liveRef.current = { runs, onReorder, total: structure.length, drag };
+    liveRef.current = { runs, onReorder, onRemoveSlot, total: structure.length, drag };
   });
 
   // ⚠ MOUNT-ONCE, and it has to be.
@@ -166,9 +172,13 @@ export function StructureRibbon({
       // hit-test by coordinates instead of by `e.target`.
       const hit = document.elementFromPoint(e.clientX, e.clientY);
       // `runs.length` is the END sentinel — dropping past the last chip.
+      const binZone = hit?.closest?.('[data-drop-bin]');
       const endZone = hit?.closest?.('[data-drop-end]');
       const el = hit?.closest?.('[data-run]');
-      const over = endZone ? liveRuns.length : (el ? Number(el.getAttribute('data-run')) : null);
+      // -1 is the BIN sentinel, `runs.length` the END sentinel.
+      const over = binZone ? -1
+        : endZone ? liveRuns.length
+          : (el ? Number(el.getAttribute('data-run')) : null);
       if (over == null) return;
       // The drop target lives on the HOLD, written synchronously, because the
       // gesture cannot wait for a render. Reading it back out of React state in
@@ -180,7 +190,7 @@ export function StructureRibbon({
     };
     const onUp = () => {
       const h = holdRef.current;
-      const { runs: liveRuns, onReorder: reorder, total } = liveRef.current;
+      const { runs: liveRuns, onReorder: reorder, total, onRemoveSlot: remove } = liveRef.current;
       if (h?.el && h.pointerId != null) {
         try { h.el.releasePointerCapture?.(h.pointerId); } catch { /* already gone */ }
       }
@@ -188,8 +198,10 @@ export function StructureRibbon({
       if (h?.engaged) {
         // Letting go of a drag must not also fire the chip's jump.
         suppressRef.current = true;
-        if (h.over != null && h.over !== h.from) {
-          const run = liveRuns[h.from];
+        const run = liveRuns[h.from];
+        if (h.over === -1) {
+          if (run) remove?.(run.index);
+        } else if (h.over != null && h.over !== h.from) {
           const to = h.over >= liveRuns.length ? total : liveRuns[h.over]?.index;
           if (run && to != null) reorder?.(run.index, run.count, to);
         }
@@ -257,6 +269,25 @@ export function StructureRibbon({
             ? { outline: '2px dashed var(--color-brand)', outlineOffset: 2 }
             : { border: '1px dashed var(--border-2)' }}
         />
+      );
+    }
+    // The bin, only while dragging. A permanent one is a destructive target
+    // sitting in the chrome waiting to be brushed.
+    if (onRemoveSlot && drag) {
+      tail.push(
+        <span
+          key="bin"
+          data-drop-bin="true"
+          className="shrink-0 inline-flex items-center justify-center w-7 h-[19px] rounded-[5px] border border-dashed"
+          style={drag.over === -1
+            ? { borderColor: 'var(--ds-red-900)', background: 'color-mix(in srgb, var(--ds-red-900) 18%, transparent)', color: 'var(--ds-red-900)' }
+            : { borderColor: 'var(--ds-red-900)', color: 'var(--ds-red-900)' }}
+          aria-hidden="true"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M6 6l1 14h10l1-14" />
+          </svg>
+        </span>
       );
     }
     if (onAddSection && addOptions?.length) {

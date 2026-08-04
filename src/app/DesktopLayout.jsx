@@ -105,7 +105,15 @@ export default function DesktopLayout({
       */}
       <main
         ref={mainRef}
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] bg-[var(--ds-background-100)] relative w-full transition-transform duration-300 ease-out"
+        // `scrollbar-gutter: stable` permanently RESERVES the scrollbar's width,
+        // which is what stops the layout shifting when a page grows past the
+        // viewport. In a full-screen surface it is a dead strip down the right
+        // edge instead — the owner's "line on the right of the reader where the
+        // scroll bar used to be" (2026-08-04). Full-screen surfaces own the
+        // whole screen and manage their own scrolling, so they don't need it.
+        className={`flex-1 min-h-0 overflow-y-auto overscroll-contain bg-[var(--ds-background-100)] relative w-full transition-transform duration-300 ease-out${
+          isFullscreen ? '' : ' [scrollbar-gutter:stable]'
+        }`}
         style={{
           transform: applyDrawerTransform
             ? (drawerPresentation === 'sheet' ? 'translateY(10px) scale(0.93)' : 'translateX(72%) scale(0.92)')

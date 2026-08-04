@@ -499,6 +499,9 @@ export default function Reader({
       onReorder={editing
         ? (from, count, to) => editStructure(st => moveRun(st, from, count, to))
         : null}
+      // Drop a chip on the bin. Same undo toast as the heading's trash — one
+      // removal, one way to take it back, wherever you did it from.
+      onRemoveSlot={editing ? (slot) => removeSection(slot, ordered[slot]) : null}
     />
   ) : null;
 

@@ -89,8 +89,12 @@ function TextAction({ onClick, label, primary = false }) {
       type="button"
       onClick={onClick}
       className="min-h-0 h-[26px] shrink-0 px-2.5 rounded-lg border text-label-11 font-semibold cursor-pointer"
+      // BRAND, not the edit accent (owner, 2026-08-04: orange "suggests
+      // danger"). Right — orange is the mode's warning colour, and painting the
+      // safe way out in it says the opposite of what Done means. The chrome
+      // stays orange; the button that finishes is the app's own colour.
       style={primary
-        ? { background: EDIT_ACCENT, borderColor: EDIT_ACCENT, color: '#1a1004' }
+        ? { background: 'var(--color-brand)', borderColor: 'var(--color-brand)', color: '#fff' }
         : {
           background: 'transparent',
           borderColor: 'var(--chart-rule, var(--ds-gray-400))',

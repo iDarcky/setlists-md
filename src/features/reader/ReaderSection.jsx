@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { sectionIdentity, headingText, resolveSectionColors } from '@/lib/sectionIdentity';
 import SectionBlock from '@/features/chart/SectionBlock';
-import { serializeTabBlock } from '@/parser';
+import { serializeTabBlock, lineToPlacement, placementToLine } from '@/parser';
 
 /**
  * One section — elements 3, 4 and 5.
@@ -61,36 +61,86 @@ function PencilIcon() {
   );
 }
 
+const asText = (l) => {
+  if (typeof l === 'string') return l;
+  if (l?.type === 'tab') return serializeTabBlock(l);
+  if (l?.type === 'modulate') return `{modulate: ${l.semitones > 0 ? '+' : ''}${l.semitones}}`;
+  return '';
+};
+
 /**
- * A section's words, as the text they actually are.
+ * A section's words — **Lyrics** or **Source**, the same two the song editor
+ * offers (owner, 2026-08-04: *"we have two options, edit lyrics and edit raw
+ * source, we can follow the same model here too"*).
  *
- * `.md` all the way down — `[C]` markers and all — because that is what the
- * file holds and what the editor's Write tab shows. Anything smarter (a rich
- * field, chords as objects) is a second representation to keep in sync with the
- * first, and the reader is not the place to invent one.
+ * - **Lyrics** (default) shows the words with the chord markers stripped, and
+ *   puts the chords back on save by CHARACTER POSITION — `lineToPlacement` /
+ *   `placementToLine` in `parser.js`, the same pair `ArrangeTabV2` uses. A
+ *   position past the end of a shortened line is clamped to the end rather than
+ *   dropped, which is what the editor means by "nudged to fit".
+ * - **Source** is the raw `.md`, brackets and all, for anything that isn't a
+ *   word: adding a chord where there is none, a tab block, a key change.
  *
- * Committed on Save, not per keystroke: a song update per character would push
- * a sync per character, and a half-typed `[Cm` is a chord the chart would try
- * to render.
+ * > **Lyrics mode is refused when the section holds a tab or a modulate
+ * > marker.** Those are lines with no words, so stripping chords from them is
+ * > meaningless and rebuilding them from an edited word list would destroy
+ * > them. The editor sidesteps this by editing one line at a time; a whole
+ * > section in one box cannot, so it says so and opens in Source.
+ *
+ * Committed on Save, not per keystroke: a song update per character is a sync
+ * per character, and a half-typed `[Cm` is a chord the chart would try to draw.
  */
 function LyricEditor({ section, onSave, onCancel }) {
-  const [text, setText] = useState(() => (section.lines || [])
-    // A line can be a string, a tab object or a modulate marker — `.join()`
-    // alone renders "[object Object]", which is the oldest bug in this codebase.
-    .map(l => {
-      if (typeof l === 'string') return l;
-      if (l?.type === 'tab') return serializeTabBlock(l);
-      if (l?.type === 'modulate') return `{modulate: ${l.semitones > 0 ? '+' : ''}${l.semitones}}`;
-      return '';
-    })
-    .join('\n'));
+  const lines = section.lines || [];
+  // A tab or a modulate marker anywhere in the section rules out Lyrics mode.
+  const wordsOnly = lines.every(l => typeof l === 'string');
+  const [mode, setMode] = useState(wordsOnly ? 'lyrics' : 'source');
+  const [text, setText] = useState(() => (wordsOnly
+    ? lines.map(l => lineToPlacement(l).plainText).join('\n')
+    : lines.map(asText).join('\n')));
+
+  const switchTo = (next) => {
+    if (next === mode) return;
+    // Re-derive from the CURRENT text so a switch never silently discards what
+    // was just typed.
+    if (next === 'source') {
+      const src = text.split('\n').map((plainText, i) => {
+        const original = typeof lines[i] === 'string' ? lines[i] : '';
+        const { chords } = lineToPlacement(original);
+        return placementToLine({ plainText, chords: clampChords(chords, plainText) });
+      });
+      setText(src.join('\n'));
+    } else {
+      setText(text.split('\n').map(l => lineToPlacement(l).plainText).join('\n'));
+    }
+    setMode(next);
+  };
+
+  const commit = () => {
+    if (mode === 'source') { onSave(text); return; }
+    // Lyrics: re-attach each line's original chords at their old positions.
+    onSave(text.split('\n').map((plainText, i) => {
+      const original = typeof lines[i] === 'string' ? lines[i] : '';
+      const { chords } = lineToPlacement(original);
+      return placementToLine({ plainText, chords: clampChords(chords, plainText) });
+    }).join('\n'));
+  };
 
   return (
     <div className="mt-1.5">
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <ModeTab id="lyrics" label="Lyrics" active={mode} onPick={switchTo} disabled={!wordsOnly} />
+        <ModeTab id="source" label="Source" active={mode} onPick={switchTo} />
+        <span className="text-label-10" style={{ color: 'var(--chart-subtle, var(--ds-gray-700))' }}>
+          {mode === 'lyrics'
+            ? 'Your chords stay attached'
+            : (wordsOnly ? 'Chords go in square brackets' : 'This section has a tab or a key change')}
+        </span>
+      </div>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        aria-label="Section lyrics and chords"
+        aria-label={mode === 'lyrics' ? 'Section lyrics' : 'Section lyrics and chords'}
         spellCheck={false}
         rows={Math.min(16, Math.max(3, text.split('\n').length + 1))}
         className="w-full rounded-lg border p-2 font-mono text-[13px] leading-[1.5] bg-transparent outline-none focus:border-[var(--color-brand)]"
@@ -98,7 +148,7 @@ function LyricEditor({ section, onSave, onCancel }) {
       />
       <div className="mt-1.5 flex items-center gap-1.5">
         <button
-          type="button" onClick={() => onSave(text)}
+          type="button" onClick={commit}
           className="min-h-0 h-[26px] px-2.5 rounded-lg border-none cursor-pointer text-label-11 font-semibold"
           style={{ background: 'var(--color-brand)', color: '#fff' }}
         >
@@ -115,12 +165,34 @@ function LyricEditor({ section, onSave, onCancel }) {
         >
           Discard
         </button>
-        <span className="text-label-10" style={{ color: 'var(--chart-subtle, var(--ds-gray-700))' }}>
-          Chords go in square brackets
-        </span>
       </div>
     </div>
   );
+}
+
+// Declared at module scope, not inside `LyricEditor`. A component created
+// during render is a NEW type every render, so React unmounts and remounts it —
+// it would lose focus and any state on every keystroke.
+function ModeTab({ id, label, active, onPick, disabled = false }) {
+  const on = active === id;
+  return (
+    <button
+      type="button" onClick={() => onPick(id)} aria-pressed={on} disabled={disabled}
+      className="min-h-0 h-[22px] px-2 rounded-md border text-label-11 font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+      style={on
+        ? { background: 'var(--color-brand)', borderColor: 'var(--color-brand)', color: '#fff' }
+        : { background: 'transparent', borderColor: 'var(--chart-rule, var(--ds-gray-400))', color: 'var(--chart-subtle, var(--ds-gray-700))' }}
+    >
+      {label}
+    </button>
+  );
+}
+
+// A chord whose position is past the end of a shortened line moves to the end
+// rather than disappearing — the editor's "nudged to fit".
+function clampChords(chords, plainText) {
+  const max = (plainText || '').length;
+  return chords.map(c => ({ ...c, pos: Math.min(c.pos, max) }));
 }
 
 export default function ReaderSection({

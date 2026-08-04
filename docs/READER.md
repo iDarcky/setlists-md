@@ -1125,6 +1125,23 @@ Two things had to be carried that did not exist before:
 > `src/__tests__/structure-ribbon.test.jsx` now drives a whole gesture end to
 > end, so a regression in the effect's lifetime fails there and not on a phone.
 
+#### Edit mode, round 5 — 2026-08-04
+
+| | |
+|---|---|
+| **Delete from the map** | A **bin drop-zone** appears at the end of the ribbon while dragging; drop a chip on it to take that slot out. A drop target rather than a `×` per chip — the gesture already exists, and a control between every pair of chips is the shape the `+` was already cut for. A permanent bin is a destructive target sitting in the chrome waiting to be brushed. Same undo toast as the heading's trash. |
+| **Lyrics / Source** | The section editor now offers both, the way the song editor does. **Lyrics** strips the chord markers and puts the chords back **by character position** on save (`lineToPlacement`/`placementToLine` — the same pair `ArrangeTabV2` uses), clamping a position past the end of a shortened line rather than dropping it. **Source** is the raw `.md`. Switching modes re-derives from the current text, so a switch never discards what was just typed. |
+| **Lyrics is refused for tabs and key changes** | Those lines have no words, so stripping chords is meaningless and rebuilding them from an edited word list would destroy them. The editor sidesteps this by editing one line at a time; a whole section in one box cannot, so it opens in Source and says why. |
+| **Done is BRAND, not orange** | Orange is the mode's warning colour; painting the safe way out in it says the opposite of what Done means. The chrome stays orange. |
+| **The floating navs hide while editing** | The pill, the edge arrows and the counter chip are all `fixed` to the bottom, so they sat *on top of* the edit row. Hidden rather than restacked: song navigation is locked in edit mode anyway, and a control that cannot do anything is worse than no control. |
+
+> **`scrollbar-gutter: stable` is a dead strip in a full-screen surface.**
+> `DesktopLayout`'s `<main>` reserved the scrollbar's width permanently — which
+> is right for a page that might grow, and wrong for the reader, where it was a
+> line down the right edge that never went away (owner, 2026-08-04: *"a line in
+> the right of the reader where the scroll bar used to be"*). It is dropped when
+> `isFullscreen`: those surfaces own the screen and scroll themselves.
+
 #### Edit mode, round 4 — 2026-08-04
 
 - **The map is forced back on while editing.** `structurePosition` can be `off`,
