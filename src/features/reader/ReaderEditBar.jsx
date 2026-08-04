@@ -27,10 +27,9 @@ import { BAR_BUTTON, EDIT_ACCENT } from './ReaderTopBar';
  * especially on mobile."* Four actions cannot be four full-size buttons on a
  * 390px row. So:
  *
- *  - **Undo and the fork are icons.** They are reached rarely and their meaning
- *    is carried by shape.
- *  - **Cancel and Done are text**, because "which one discards my work" is not
- *    a question anybody should answer from an icon.
+ *  - **Only undo is an icon**, because the curved arrow is universal.
+ *  - **Everything else is text.** "Which one discards my work" and "what is an
+ *    arrangement" are both questions no 16px glyph answers.
  *  - **The "Editing" label is gone.** The bar is orange; saying it again in
  *    words was the row's widest element and told nobody anything new.
  */
@@ -55,17 +54,16 @@ export default function ReaderEditBar({
           arrangement?" is the hardest question in the app (PLAN.md §7 #12) and
           asking it the moment someone nudges a tempo puts it at the worst
           possible time. Only offered once something has actually changed —
-          forking an untouched song makes a duplicate, not an arrangement. */}
+          forking an untouched song makes a duplicate, not an arrangement.
+
+          WORDS, not a glyph (owner, 2026-08-04: "the branch icon is not
+          something that someone would understand"). Right — a git fork means
+          nothing to a worship leader, and "make this a second version of the
+          song instead of changing this one" is not a concept any 16px symbol
+          carries. It is also the only irreversible-feeling action in the row,
+          so it is the last one that should be guessed at. */}
       {onSaveAsArrangement && dirty && (
-        <IconButton
-          size="sm"
-          className={BAR_BUTTON}
-          aria-label="Save as a new arrangement"
-          title="Save as a new arrangement"
-          onClick={onSaveAsArrangement}
-        >
-          <ForkIcon />
-        </IconButton>
+        <TextAction onClick={onSaveAsArrangement} label="New version" />
       )}
 
       <span className="flex-1 min-w-0" />
@@ -114,22 +112,18 @@ export function EditIcon() {
   );
 }
 
+/**
+ * The conventional undo arrow — a full curved arrow bending back on itself, the
+ * one every app draws. The first cut was a partial arc that read as "refresh"
+ * (owner, 2026-08-04: "the undo icon is not the normal one"). An undo control
+ * is the one thing in edit mode nobody should have to think about.
+ */
 function UndoIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 7v6h6" />
-      <path d="M3.5 13a9 9 0 1 0 2.1-9.4L3 7" />
-    </svg>
-  );
-}
-
-function ForkIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="6" cy="4" r="2" /><circle cx="6" cy="20" r="2" /><circle cx="18" cy="9" r="2" />
-      <path d="M6 6v12" /><path d="M18 11a4 4 0 0 1-4 4H6" />
+      <polyline points="9 14 4 9 9 4" />
+      <path d="M4 9h10a6 6 0 0 1 0 12h-3" />
     </svg>
   );
 }

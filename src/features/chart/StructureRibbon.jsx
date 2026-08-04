@@ -31,6 +31,15 @@ export function StructureRibbon({
   // Fill the active chip solid in its section colour rather than ringing a
   // neutral pill. Opt-in so the existing chart keeps its current look.
   activeFill = false,
+  // EDIT MODE ONLY — `onAdd(afterIndex)` plays that section once more, right
+  // after itself. The owner's route to a faster structure edit (2026-08-04:
+  // "a better way to edit the structure faster, not moving sections up/down
+  // but adding sections in the song map... we can add a plus icon there?").
+  //
+  // It works because the ribbon ALREADY collapses consecutive duplicates: with
+  // `collapse`, adding after the run merges into it, so `C ×2` simply becomes
+  // `C ×3`. The map is edited in the map's own language.
+  onAdd = null,
 }) {
   // Collapse consecutive duplicates: "C1, C1, C1" → one entry "C1 ×3".
   const runs = [];
@@ -67,13 +76,38 @@ export function StructureRibbon({
       : (wrap ? 'flex-wrap' : 'flex-nowrap overflow-x-auto no-scrollbar'),
   );
   const colorOf = (name) => sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
+
+  // Interleaved AFTER each chip rather than nested inside it: a chip is a
+  // <button> when it is tappable, and a button inside a button is invalid HTML
+  // that browsers resolve by dropping one of them.
+  const decorate = (nodes) => (!onAdd ? nodes : nodes.flatMap((node, i) => {
+    const run = runs[i];
+    const s2 = colorOf(run.name);
+    return [node, (
+      <button
+        key={`add-${i}`}
+        type="button"
+        // min-h-0: the phone's 44px floor would make this one control taller
+        // than the whole ribbon. See READER.md's min-h-0 box.
+        className="shrink-0 min-h-0 w-[17px] h-[17px] grid place-items-center rounded-[5px] border bg-transparent cursor-pointer text-[11px] leading-none font-bold"
+        style={{ borderColor: s2.br, color: s2.b }}
+        aria-label={`Play ${labelOf(run.name)} once more`}
+        title={`Play ${labelOf(run.name)} once more`}
+        // The LAST slot of the run, so the copy lands inside it and the chip's
+        // ×N ticks up instead of a second chip appearing beside it.
+        onClick={() => onAdd(run.index + run.count - 1)}
+      >
+        +
+      </button>
+    )];
+  }));
   const labelOf = (name) => (compact ? compactLabel(name) : sectionLabel(name, sectionLabels));
 
   if (style === 'dots' || style === 'dotlabel') {
     const showLabels = style === 'dotlabel';
     return (
       <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-1.5')}>
-        {runs.map((run, i) => {
+        {decorate(runs.map((run, i) => {
           const s = colorOf(run.name);
           const active = isActiveRun(run);
           const Tag = onSelect ? 'button' : 'span';
@@ -98,7 +132,7 @@ export function StructureRibbon({
               )}
             </Tag>
           );
-        })}
+        }))}
       </div>
     );
   }
@@ -114,7 +148,7 @@ export function StructureRibbon({
   if (style === 'codes') {
     return (
       <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-[5px]')}>
-        {runs.map((run, i) => {
+        {decorate(runs.map((run, i) => {
           const s = colorOf(run.name);
           const active = isActiveRun(run);
           const Tag = onSelect ? 'button' : 'span';
@@ -159,7 +193,7 @@ export function StructureRibbon({
               {run.count > 1 && <span className="opacity-70">×{run.count}</span>}
             </Tag>
           );
-        })}
+        }))}
       </div>
     );
   }
@@ -167,7 +201,7 @@ export function StructureRibbon({
   if (style === 'numbered') {
     return (
       <div ref={scrollerRef} className={cn(rowClass, 'items-baseline')}>
-        {runs.map((run, i) => {
+        {decorate(runs.map((run, i) => {
           const s = colorOf(run.name);
           const active = isActiveRun(run);
           const Tag = onSelect ? 'button' : 'span';
@@ -198,7 +232,7 @@ export function StructureRibbon({
               </Tag>
             </span>
           );
-        })}
+        }))}
       </div>
     );
   }
@@ -206,7 +240,7 @@ export function StructureRibbon({
   // Default: chips.
   return (
     <div ref={scrollerRef} className={rowClass}>
-      {runs.map((run, i) => {
+      {decorate(runs.map((run, i) => {
         const s = colorOf(run.name);
         const active = isActiveRun(run);
         const Tag = onSelect ? 'button' : 'span';
@@ -240,7 +274,7 @@ export function StructureRibbon({
             )}
           </Tag>
         );
-      })}
+      }))}
     </div>
   );
 }

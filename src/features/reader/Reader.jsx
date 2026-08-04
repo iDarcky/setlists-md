@@ -22,10 +22,10 @@ import { useMetronome } from '@/hooks/useMetronome';
 import { clampTempo } from '@/lib/metronome';
 import ReaderEditBar, { EditIcon } from './ReaderEditBar';
 import {
-  materialiseStructure, moveSlot, removeSlot, snapshotEditable, isDirty,
+  materialiseStructure, moveSlot, removeSlot, addSlotAfter, snapshotEditable, isDirty,
   replaceChordInLine, withEditedLine,
 } from '@/lib/editStructure';
-import ChordPicker from '@/features/editor/ChordPicker';
+import ChordAutocomplete from '@/features/editor/ChordAutocomplete';
 import { transposeChord } from '@/music';
 
 const EMPTY = [];
@@ -424,6 +424,10 @@ export default function Reader({
       sectionColors={resolveSectionColors(settings)}
       sectionLabels={settings?.sectionLabels}
       customSectionTypes={settings?.customSectionTypes}
+      // Edit mode's fast route through the structure: the map is already a
+      // list of the play order, so editing it there beats walking down the
+      // page moving headings one at a time.
+      onAdd={editing ? (afterIndex) => editStructure(st => addSlotAfter(st, afterIndex)) : null}
     />
   ) : null;
 
@@ -636,7 +640,7 @@ export default function Reader({
               tabColors={tabColors}
               stickyTop={headH}
               onChordTap={editing
-                ? (chord, rect, meta) => setChordEdit({ rect, meta: { ...meta, section } })
+                ? (chord, rect, meta) => setChordEdit({ chord, rect, meta: { ...meta, section } })
                 : (canSeeShapes ? onChordTap : null)}
               showChords={showChords}
               editing={editing}
@@ -713,12 +717,33 @@ export default function Reader({
         </div>
       )}
 
+      {/* `ChordAutocomplete`, NOT `ChordPicker` (owner, 2026-08-04: "the chords
+          don't work on mobile, also it should allow me to add new chords... can
+          we get the other picker"). Both were already in the editor and the
+          wrong one got wired:
+
+            ChordPicker         a fixed 290px popover of root × suffix buttons.
+                                No text entry, so a slash chord or anything past
+                                the nine suffixes is unreachable — and at a
+                                hard 290px anchored to a tapped chord it hangs
+                                off the side or the bottom of a phone.
+            ChordAutocomplete   types ANY chord (`isChordToken` validates,
+                                slash and extended included), suggests the
+                                song's diatonic chords first, and DOCKS
+                                full-width at the bottom on touch instead of
+                                floating — which is the mobile half of the same
+                                complaint.
+
+          It also leaves the input unfocused on touch on purpose, so the
+          keyboard doesn't cover the bar you are tapping chips in. */}
       {chordEdit && (
-        <ChordPicker
+        <ChordAutocomplete
+          initial={chordEdit.chord || ''}
+          songKey={displayKey}
           anchorRect={chordEdit.rect}
-          onSelect={applyChord}
+          editing
+          onCommit={applyChord}
           onClose={() => setChordEdit(null)}
-          recentChords={[]}
         />
       )}
 

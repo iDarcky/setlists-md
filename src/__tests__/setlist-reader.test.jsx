@@ -351,7 +351,7 @@ describe('edit mode', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     // Forking an untouched song makes a duplicate, not an arrangement.
-    expect(screen.queryByRole('button', { name: 'Save as a new arrangement' })).toBeNull();
+    expect(screen.queryByText('New version')).toBeNull();
 
     // Once the song really differs from the snapshot, it appears.
     fireEvent.click(screen.getByRole('button', { name: 'Move Verse 1 later' }));
@@ -364,7 +364,7 @@ describe('edit mode', () => {
         onUpdateSong={onUpdateSong} onSaveAsArrangement={vi.fn()}
       />
     );
-    expect(screen.getByRole('button', { name: 'Save as a new arrangement' })).toBeTruthy();
+    expect(screen.getByText('New version')).toBeTruthy();
   });
 
   // Owner, 2026-08-03: "it should not allow me to leave while I have the editor
@@ -425,19 +425,38 @@ describe('edit mode — chords', () => {
     return r;
   };
 
-  it('opens the chord picker instead of the shape, while editing', () => {
+  // Type a chord and commit it, the way the chord bar actually works.
+  const pick = (chord) => {
+    const input = screen.getByPlaceholderText('Type…');
+    fireEvent.change(input, { target: { value: chord } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+  };
+
+  it('opens the chord BAR instead of the shape, while editing', () => {
     openEditor();
     // Same gesture, two meanings, separated by the mode.
     fireEvent.click(screen.getAllByRole('button', { name: 'F chord shape' })[0]);
-    expect(screen.getByText('sus4')).toBeTruthy();   // the editor's own picker
+    // `ChordAutocomplete`, not `ChordPicker` — it takes any chord by name and
+    // docks properly on a phone.
+    expect(screen.getByText('Replace chord')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Type…')).toBeTruthy();
+  });
+
+  it('takes a chord the old grid could not reach', () => {
+    const onUpdateSong = vi.fn();
+    openEditor({ onUpdateSong });
+    fireEvent.click(screen.getAllByRole('button', { name: 'F chord shape' })[0]);
+    // A slash chord: unreachable in a root × suffix grid, which is half of why
+    // the picker was swapped.
+    pick('D/F#');
+    expect(onUpdateSong.mock.calls[0][0].sections[0].lines[0]).toBe('[C]my [D/F#]hope is [C]built');
   });
 
   it('writes the chord you picked, in the key the song is WRITTEN in', () => {
     const onUpdateSong = vi.fn();
     openEditor({ onUpdateSong });
     fireEvent.click(screen.getAllByRole('button', { name: 'F chord shape' })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'G' }));
-    fireEvent.click(screen.getByText('maj'));
+    pick('G');
     expect(onUpdateSong).toHaveBeenCalledWith(expect.objectContaining({
       sections: [expect.objectContaining({ lines: ['[C]my [G]hope is [C]built'] })],
     }));
@@ -461,8 +480,7 @@ describe('edit mode — chords', () => {
 
     // Tap the G (written F) and pick A. Displayed A at +2 is written G.
     fireEvent.click(screen.getByRole('button', { name: 'G chord shape' }));
-    fireEvent.click(screen.getByRole('button', { name: 'A' }));
-    fireEvent.click(screen.getByText('maj'));
+    pick('A');
     expect(onUpdateSong.mock.calls[0][0].sections[0].lines[0]).toBe('[C]my [G]hope is [C]built');
   });
 
@@ -471,8 +489,53 @@ describe('edit mode — chords', () => {
     openEditor({ onUpdateSong });
     // Two Cs on this line — the second one.
     fireEvent.click(screen.getAllByRole('button', { name: 'C chord shape' })[1]);
-    fireEvent.click(screen.getByRole('button', { name: 'A' }));
-    fireEvent.click(screen.getByText('m'));
+    pick('Am');
     expect(onUpdateSong.mock.calls[0][0].sections[0].lines[0]).toBe('[C]my [F]hope is [Am]built');
+  });
+});
+
+// The owner's faster route through the structure (2026-08-04): edit the map,
+// not the page.
+describe('edit mode — the + on the song map', () => {
+  const multi = songFromFlat({
+    id: 'm2', title: 'Cornerstone', key: 'C',
+    sections: [
+      { type: 'Verse 1', lines: ['[C]a'] },
+      { type: 'Chorus', lines: ['[F]b'] },
+    ],
+  });
+
+  const openEditor = (onUpdateSong) => {
+    render(
+      <SetlistReader
+        setlist={{ id: 'sl5', items: [{ songId: 'm2' }] }} songs={[multi]}
+        settings={{}} mode="practice" onBack={() => {}} onFinish={() => {}}
+        onUpdateSong={onUpdateSong}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+  };
+
+  it('shows no + until you are editing', () => {
+    render(
+      <SetlistReader
+        setlist={{ id: 'sl5', items: [{ songId: 'm2' }] }} songs={[multi]}
+        settings={{}} mode="practice" onBack={() => {}} onFinish={() => {}}
+        onUpdateSong={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: /once more/ })).toBeNull();
+  });
+
+  it('plays that section once more, in the play order', () => {
+    const onUpdateSong = vi.fn();
+    openEditor(onUpdateSong);
+    fireEvent.click(screen.getByRole('button', { name: 'Play Chorus once more' }));
+    expect(onUpdateSong).toHaveBeenCalledWith(expect.objectContaining({
+      structure: ['Verse 1', 'Chorus', 'Chorus'],
+      structureMode: 'custom',
+    }));
+    // The section BODIES are untouched — this is the play order, not the words.
+    expect(onUpdateSong.mock.calls[0][0].sections).toHaveLength(2);
   });
 });

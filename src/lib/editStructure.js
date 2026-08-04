@@ -73,6 +73,21 @@ export function removeSlot(structure, idx) {
   return structure.filter((_, i) => i !== idx);
 }
 
+/**
+ * Play the slot at `afterIndex` once more, immediately after itself.
+ *
+ * The ribbon collapses consecutive duplicates, so inserting a copy right after
+ * the run's last slot makes the chip's `×N` tick up rather than adding a second
+ * chip beside it — which is what "add it to the song map" should look like.
+ */
+export function addSlotAfter(structure, afterIndex) {
+  if (!Array.isArray(structure)) return structure;
+  if (afterIndex < 0 || afterIndex >= structure.length) return structure;
+  const next = structure.slice();
+  next.splice(afterIndex + 1, 0, structure[afterIndex]);
+  return next;
+}
+
 /** The fields edit mode can change, snapshotted for "save as new arrangement". */
 export const EDITABLE_FIELDS = ['key', 'tempo', 'time', 'capo', 'notes', 'structure', 'structureMode', 'sections'];
 

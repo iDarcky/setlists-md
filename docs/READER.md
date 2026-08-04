@@ -1082,9 +1082,35 @@ Two things had to be carried that did not exist before:
 > section sung three times is one body, so editing it correctly changes every
 > repeat.
 
-**Superseded, not in this round:** the ↑/↓ handles on section headings. The owner's
-faster route is **a `+` on the structure ribbon** that adds a repeat of that
-section to the play order — editing the map rather than the page. Queued.
+> ### ⚠ `ChordPicker` is the WRONG picker. Use `ChordAutocomplete`.
+> Both live in `features/editor/` and the wrong one was wired first (owner,
+> 2026-08-04: *"the chords don't work on mobile, also it should allow me to add
+> new chords... can we get the other picker"*).
+>
+> | | |
+> |---|---|
+> | `ChordPicker` | A fixed **290px** popover of root × suffix buttons. **No text entry**, so a slash chord or anything past its nine suffixes is unreachable — and at a hard 290px anchored to a tapped chord it hangs off the side or the bottom of a phone. |
+> | `ChordAutocomplete` | Types **any** chord (`isChordToken` validates; slash and extended included), suggests the song's diatonic chords first, and **docks full-width at the bottom on touch** instead of floating. It also leaves the input unfocused on touch on purpose, so the keyboard doesn't cover the bar you're tapping chips in. |
+
+#### The `+` on the song map — 2026-08-04
+
+Owner: *"a better way to edit the structure faster, not moving sections up/down
+but adding sections in the song map… we can add a plus icon there?"*
+
+**`StructureRibbon` takes `onAdd(afterIndex)` in edit mode** and grows a small
+`+` after each chip. It plays that section **once more, right after itself** —
+and it works so cleanly because the ribbon *already* collapses consecutive
+duplicates: the copy lands inside the run, so `C ×2` simply becomes `C ×3`. The
+map is edited in the map's own language.
+
+- The `+` is **interleaved after each chip, never nested inside it**: a chip is
+  a `<button>` when tappable, and a button inside a button is invalid HTML that
+  browsers resolve by dropping one.
+- The heading `↑ ↓ ×` handles **stay**. `+` adds; they reorder and remove, and
+  reordering still needs a home.
+
+**Superseded, not in this round:** nothing — the `+` above shipped alongside the
+↑/↓ handles rather than replacing them.
 
 ## The view table — where "each view does something else" lives
 

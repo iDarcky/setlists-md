@@ -5,7 +5,7 @@
 // they play it.
 import { describe, it, expect } from 'vitest';
 import {
-  materialiseStructure, moveSlot, removeSlot, snapshotEditable, isDirty, entryName,
+  materialiseStructure, moveSlot, removeSlot, addSlotAfter, snapshotEditable, isDirty, entryName,
   replaceChordInLine, withEditedLine,
 } from '@/lib/editStructure';
 
@@ -188,5 +188,31 @@ describe('withEditedLine', () => {
   it('shrugs off an out-of-range section or line', () => {
     expect(withEditedLine(sections, 9, 0, 'x')).toBe(sections);
     expect(withEditedLine(null, 0, 0, 'x')).toBe(null);
+  });
+});
+
+describe('addSlotAfter', () => {
+  it('plays that section once more, right after itself', () => {
+    expect(addSlotAfter(['Verse 1', 'Chorus', 'Verse 2'], 1))
+      .toEqual(['Verse 1', 'Chorus', 'Chorus', 'Verse 2']);
+  });
+
+  it('lands INSIDE an existing run, so the chip ticks up rather than splitting', () => {
+    // The ribbon collapses consecutive duplicates. Adding after the run's LAST
+    // slot keeps them adjacent, so `C ×2` becomes `C ×3` instead of a second
+    // chip appearing beside the first.
+    const st = ['Chorus', 'Chorus', 'Verse 2'];
+    expect(addSlotAfter(st, 1)).toEqual(['Chorus', 'Chorus', 'Chorus', 'Verse 2']);
+  });
+
+  it('appends at the end', () => {
+    expect(addSlotAfter(['Verse 1', 'Chorus'], 1)).toEqual(['Verse 1', 'Chorus', 'Chorus']);
+  });
+
+  it('returns the same array for an out-of-range index', () => {
+    const st = ['A'];
+    expect(addSlotAfter(st, 3)).toBe(st);
+    expect(addSlotAfter(st, -1)).toBe(st);
+    expect(addSlotAfter(null, 0)).toBe(null);
   });
 });
