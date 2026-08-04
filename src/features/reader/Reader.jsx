@@ -597,16 +597,11 @@ export default function Reader({
       // now, and a gesture that both moves the section AND throws the page
       // somewhere else is a gesture nobody can aim.
       onSelect={editing ? null : jumpTo}
-      // Editing forces 'codes' as well as forcing the map on. Two reasons, and
-      // they are the same reason: a chip has to be a DRAG HANDLE now, and
-      // 'dots' is a 10px circle and 'numbered' is bare text with no box — there
-      // is nothing there to grab, and nothing to paint a drop outline on. The
-      // boxed map is also the only one that survives the orange ground, because
-      // an inverted chip needs a chip.
+      // Editing forces 'codes' as well as forcing the map on: a chip has to be
+      // a DRAG HANDLE now, and 'dots' is a 10px circle while 'numbered' is bare
+      // text with no box — nothing there to grab, and nothing to paint a drop
+      // outline on.
       style={editing ? 'codes' : (settings?.ribbonStyle || 'codes')}
-      // The map sits on edit mode's solid orange now, so its chips invert
-      // rather than carrying section colour as text on it. See `accent`.
-      accent={editing}
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
       // EXPANDED while editing (owner: "I imagine that when the user presses
       // the edit the cx3 expands to c c c"). Right — a collapsed `C ×3` is one

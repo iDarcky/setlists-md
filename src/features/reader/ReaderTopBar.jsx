@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import { IconButton } from '@/ui/IconButton';
-import { BAR_BUTTON, EDIT_INK, EDIT_CHROME } from './readerChrome';
+import { BAR_BUTTON, EDIT_ACCENT, EDIT_INK, EDIT_CHROME } from './readerChrome';
 
 /**
  * Element 1 — the top bar. ONE component, so a song and a break cannot drift
@@ -32,51 +32,68 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
       // and it landed as an underline for the song title. The boundary that
       // actually exists is chrome ↔ chart, and this is it. (2026-08-01, after
       // one round with the line in the other place.)
-      // Edit mode colours the CHROME rather than adding an element to it, and
-      // it colours ALL of it — bar, set bar, ribbon, the lot (owner,
-      // 2026-08-04). Element 1 is fixed and takes no additions, so a mode it
-      // can be in has to be a STATE of the bar, not a new thing in it. (Same
-      // principle the owner picked for the follow-the-leader indicator,
-      // 2026-08-03.)
-      //
-      // A SOLID ground, never a tint: 9% orange mixed into the chart's own
-      // background is nearly invisible over cream and muddy over near-black,
-      // and it drags the title's contrast with it (owner: "if we use this
-      // opacity it will look different for each theme and some might not be
-      // readable"). `EDIT_CHROME` pins the ground AND the ink, so the block
-      // reads identically on every chart theme.
-      style={editing
-        ? { ...EDIT_CHROME, borderColor: 'rgba(26,16,4,0.35)' }
-        : {
-          borderColor: 'var(--chart-divider, var(--chart-rule, var(--ds-gray-300)))',
-          background: 'var(--chart-bg, var(--ds-background-100))',
-        }}
+      // Edit mode colours the CHROME rather than adding an element to it:
+      // element 1 is fixed and takes no additions, so a mode it can be in has
+      // to be a STATE of the bar, not a new thing in it. (Same principle the
+      // owner picked for the follow-the-leader indicator, 2026-08-03.) The
+      // divider stays orange even though the map below it is not — it closes
+      // the block, and an orange line under the map says the map belongs to
+      // the mode, which it does: it is the thing you edit the play order with.
+      style={{
+        borderColor: editing
+          ? EDIT_ACCENT
+          : 'var(--chart-divider, var(--chart-rule, var(--ds-gray-300)))',
+        background: 'var(--chart-bg, var(--ds-background-100))',
+      }}
     >
-      {/* How far through the SET you are. It used to belong to
-          `ReaderSetlistBar`, so turning the set bar off took the progress with
-          it (owner, 2026-08-03). It lives here now — top of the sticky block,
-          exactly where it always appeared — so it survives every combination.
-          The top, not the bottom nav: two of the four nav styles (pill, swipe)
-          have no bottom bar to put it on. */}
-      {progress != null && (
-        <div className="h-0.5 w-full shrink-0" style={{ background: 'var(--chart-rule, var(--ds-gray-300))' }}>
-          <div
-            className="h-full transition-[width] duration-300"
-            // Orange on orange is nothing, so on the edit ground the filled
-            // part of the line becomes the ink — the same swap the key chip
-            // makes.
-            style={{ width: `${progress}%`, background: editing ? EDIT_INK : 'var(--color-brand)' }}
-          />
-        </div>
-      )}
+      {/* ── The ORANGE part of the block: progress · set · title row ────────
+          The set and the header, and NOT the song map (owner, 2026-08-04,
+          after a round with the whole block orange). The map is the one thing
+          you are looking at while you edit — it is where the play order is
+          changed — and it reads best on the chart's own paper, in the same
+          section colours it has everywhere else in the app. Painting it too
+          meant inverting every chip to survive the ground, which is a second
+          appearance for the map nobody asked to learn.
 
-      {/* Element 8b's setlist bar, when it's on. ABOVE the title row, inside
-          the same sticky block: SET / HEADER / STRUCTURE. */}
-      {aboveBar}
+          A SOLID ground, never a tint: 9% orange mixed into the chart's own
+          background is nearly invisible over cream and muddy over near-black,
+          and it drags the title's contrast with it (owner: "if we use this
+          opacity it will look different for each theme and some might not be
+          readable"). `EDIT_CHROME` pins the ground AND the ink, so this reads
+          identically on every chart theme.
 
-      {/* py-1, not py-1.5 — see BAR_BUTTON on where the height actually comes
-          from. */}
-      <div className="wide-container flex items-center gap-1.5 py-1.5 sm:py-1">
+          One wrapper for all three rows rather than a style on each: the token
+          re-points have to reach the set bar's subtree, and re-pointing them
+          BACK for the ribbon underneath would mean `--chart-bg: var(--chart-bg)`
+          — a cycle, which is invalid at computed-value time and unsets the
+          whole subtree (`docs/READER.md`, trap 2). Keeping the ribbon outside
+          the wrapper is the only version that cannot hit that. */}
+      <div className="flex flex-col transition-colors" style={editing ? EDIT_CHROME : undefined}>
+        {/* How far through the SET you are. It used to belong to
+            `ReaderSetlistBar`, so turning the set bar off took the progress
+            with it (owner, 2026-08-03). It lives here now — top of the sticky
+            block, exactly where it always appeared — so it survives every
+            combination. The top, not the bottom nav: two of the four nav
+            styles (pill, swipe) have no bottom bar to put it on. */}
+        {progress != null && (
+          <div className="h-0.5 w-full shrink-0" style={{ background: 'var(--chart-rule, var(--ds-gray-300))' }}>
+            <div
+              className="h-full transition-[width] duration-300"
+              // Orange on orange is nothing, so on the edit ground the filled
+              // part of the line becomes the ink — the same swap the key chip
+              // makes.
+              style={{ width: `${progress}%`, background: editing ? EDIT_INK : 'var(--color-brand)' }}
+            />
+          </div>
+        )}
+
+        {/* Element 8b's setlist bar, when it's on. ABOVE the title row, inside
+            the same sticky block: SET / HEADER / STRUCTURE. */}
+        {aboveBar}
+
+        {/* py-1, not py-1.5 — see BAR_BUTTON on where the height actually comes
+            from. */}
+        <div className="wide-container flex items-center gap-1.5 py-1.5 sm:py-1">
         {/* ONE cluster, not three separate buttons (owner, 2026-08-03: the
             icons "are a bit too big and they are too separate"). At 36px with
             an 8px gap they read as three unrelated controls; 32px with a 2px
@@ -150,8 +167,10 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
             <CloseIcon />
           </IconButton>
         )}
+        </div>
       </div>
 
+      {/* The song map, on the chart's own paper in every mode. */}
       {children}
     </div>
   );

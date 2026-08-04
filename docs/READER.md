@@ -1149,33 +1149,49 @@ Two things had to be carried that did not exist before:
 #### Edit mode, round 8 — 2026-08-04 · **element 1 closed**
 
 Owner: *"everything should be made orange, the song map and the set as well,
-right now it looks strange only the header."* Right, and the half-way version
-was worse than either end — an orange title row between a chart-coloured set bar
-and a chart-coloured ribbon reads as a **band that has landed on** the header
-rather than as the header being in a different mode. Chrome in a mode is chrome
-in a mode all the way down.
+right now it looks strange only the header."* Right about the **set** — an
+orange title row between a chart-coloured set bar and a chart-coloured ribbon
+reads as a band that has *landed on* the header rather than as the header being
+in a different mode. The set bar and the title row are one object and they
+change together.
 
-`EDIT_ROW` became **`EDIT_CHROME`** and moved from the title row to the whole
-sticky block. Three things fell out of that:
+**The line lands under the title row, not under the map** (see the correction
+below): everything you use to *control* the mode goes orange; the map you
+*read* stays on paper.
+
+`EDIT_ROW` became **`EDIT_CHROME`** and now wraps **the progress line, the set
+bar and the title row** — the top of the block, as one piece.
 
 | | |
 |---|---|
 | **The set bar came for free** | `ReaderSetlistBar` was already written entirely in `--chart-*`, so re-pointing the tokens turns it orange with no edit at all: its current song stays a dark pill, its edge fades keep matching the ground. This is the payoff for the surface objects in `readerSurface.js` — a component that names no colours of its own can be moved onto a new ground. |
 | **The progress line inverts** | Orange on orange is nothing, so the filled part becomes the ink (`EDIT_INK`) — the same swap the key chip already makes with `--chord`. |
-| **The ribbon does NOT come free** | Its chips carry `s.b`, the **section's** identity (pink chorus, teal bridge) — not a token of the surface, and it has to survive or the map stops being a map. Coloured text on orange is mud. |
+| **The divider stays orange** | Even though the map below it is not. It closes the block, and an orange line under the map says the map belongs to the mode — which it does: it is the thing you change the play order with. |
 
-**So the chips invert** (`StructureRibbon accent`): each one **fills** with its
-own section colour, takes a **white hairline** — which separates it from the
-ground whatever colour that ground is — and labels in white; the active chip
-keeps its ring, in white. The `+`, the drop outlines and the end-zone go white
-for the same reason (brand teal on orange is the hardest thing on the row to
-find). The bin **stays red** (owner, round 5) but gets a white pill to be red
-*on*, and fills solid red when you are over it.
+#### …but NOT the song map — corrected same day
 
-> **Editing also forces the ribbon style to `codes`**, alongside forcing the map
-> on. Same reason twice: a chip has to be a *drag handle* now, and `dots` is a
-> 10px circle while `numbered` is bare text with no box — nothing to grab, and
-> nothing to paint a drop outline on. An inverted chip also needs a chip.
+The first cut of this round painted the **whole** sticky block, ribbon included.
+Owner, on it: *"remove it from the song map and leave it just for the header and
+the set."*
+
+The map is the one thing you are **looking at** while you edit, and it reads
+best on the chart's own paper in the same section colours it wears everywhere
+else in the app. Painting it orange meant **inverting every chip** to survive
+the ground — filled in its section colour with a white hairline — which is a
+second appearance for the map that nobody asked to learn, for the one moment
+it matters most that the map looks familiar. `StructureRibbon`'s `accent` prop
+was deleted with it: it had exactly one caller and no second one coming.
+
+> ⚠ **The ribbon is kept OUTSIDE the wrapper, not restored inside it.** Undoing
+> the token re-points on a child would mean `--chart-bg: var(--chart-bg)` —
+> a property inside its own fallback is a **cycle**, invalid at computed-value
+> time, and unsets the whole subtree (trap 2). One wrapper around the three
+> orange rows is the only version that cannot hit that.
+
+> **Editing still forces the ribbon style to `codes`**, alongside forcing the
+> map on — but for one reason now, not two: a chip has to be a *drag handle*,
+> and `dots` is a 10px circle while `numbered` is bare text with no box, so
+> there is nothing to grab and nothing to paint a drop outline on.
 
 **Pull down to finish.** Owner: *"drag down to exit mode"* → *"what if it's an
 installed pwa? Then we have no drag to refresh, and I was thinking that you drag

@@ -101,8 +101,7 @@ The facts to check before designing anything:
 
 | What | Where |
 |---|---|
-| **The WHOLE sticky block goes orange in edit mode** — set bar, title row, ribbon, progress line | `readerChrome.js` (`EDIT_CHROME`), `ReaderTopBar.jsx` |
-| Ribbon chips **invert** on the orange: filled in the section colour + white hairline; `+`/drop marks white; the bin keeps red on a white pill | `StructureRibbon.jsx` (`accent` prop) |
+| **The set bar + title row + progress line go orange in edit mode** — one wrapper, one piece. The **song map stays on the chart's own paper** (owner: *"leave it just for the header and the set"*) | `readerChrome.js` (`EDIT_CHROME`), `ReaderTopBar.jsx` |
 | Editing forces the ribbon style to `codes` (a dot is not a drag handle) | `Reader.jsx` |
 | **Pull down to finish** — at `scrollTop === 0`, ~98px of drag exits edit mode | `Reader.jsx` |
 | The `scrollTop += delta` compensation **actually removed** (beta.58 documented it and left it running) | `Reader.jsx` |
