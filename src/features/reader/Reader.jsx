@@ -28,8 +28,11 @@ import {
 import ChordAutocomplete from '@/features/editor/ChordAutocomplete';
 import { transposeChord } from '@/music';
 import { parseSectionLines } from '@/parser';
+import { showUndoToast } from '@/lib/undoToast';
 
 const EMPTY = [];
+
+const ribbonSideOf = (pos) => pos === 'left' || pos === 'right';
 
 /**
  * The chart reader — elements 1–6 only.
@@ -389,6 +392,23 @@ export default function Reader({
     writeSong({ sections });
   }, [song, writeSong]);
 
+  // Taking a section out is the one edit you make and immediately doubt, so it
+  // gets the app's existing undo toast (`showUndoToast`, the 5s countdown ring
+  // used by the editor and the setlist builder) rather than a bespoke one. The
+  // undo BUTTON in the edit row still works too — this is the version that
+  // finds you, instead of waiting to be found.
+  const removeSection = useCallback((idx, section) => {
+    const before = materialiseStructure(song, ordered);
+    editStructure(st => removeSlot(st, idx));
+    showUndoToast({
+      title: `${section?.type || 'Section'} removed`,
+      // Restores the play order as it was, which is also correct when the
+      // removal was refused (a one-section song) — putting back what is already
+      // there is a no-op rather than a second edit.
+      onUndo: () => writeSong({ structure: before, structureMode: 'custom' }),
+    });
+  }, [song, ordered, editStructure, writeSong]);
+
   const toggleEdit = useCallback(() => {
     setChordEdit(null);
     setEditSession(prev => {
@@ -439,9 +459,17 @@ export default function Reader({
   // three density states nobody asked for, and a stored 'min' was silently
   // hiding the title.
   const showChrome = !embedded;
-  const ribbonSide = config.ribbon === 'left' || config.ribbon === 'right';
+  // Editing forces the map back on (owner, 2026-08-04). The structure can be
+  // hidden, and hiding the thing you edit the play order with makes the ↑/↓
+  // handles' retirement a dead end — there would be no way to reorder at all.
+  // Forced to 'top' rather than restored to whatever it was: a floating side
+  // rail is 48px wide, which is not somewhere you drag chips.
+  const ribbonPlace = editing && (config.ribbon === 'off' || ribbonSideOf(config.ribbon))
+    ? 'top'
+    : config.ribbon;
+  const ribbonSide = ribbonPlace === 'left' || ribbonPlace === 'right';
 
-  const ribbonNode = config.ribbon !== 'off' && ordered.length > 0 ? (
+  const ribbonNode = ribbonPlace !== 'off' && ordered.length > 0 ? (
     <StructureRibbon
       structure={ordered.map(s => s.type)}
       activeIndex={activeSection}
@@ -475,7 +503,7 @@ export default function Reader({
   ) : null;
 
   const rule = { borderColor: 'var(--chart-rule, var(--ds-gray-300))' };
-  const bottomRibbon = config.ribbon === 'bottom' && !!ribbonNode;
+  const bottomRibbon = ribbonPlace === 'bottom' && !!ribbonNode;
 
   return (
     <div
@@ -605,7 +633,7 @@ export default function Reader({
               ribbon keeps its place below. That reverses element 8b's original
               "never both" — the owner's call, and it is recorded as his in
               docs/READER.md. All three pin together as one block. */}
-          {config.ribbon === 'top' && ribbonNode && (
+          {ribbonPlace === 'top' && ribbonNode && (
             // No rule between the bar and the ribbon. They are ONE piece of
             // chrome by element 2's decision, and a line here splits what that
             // decision deliberately fused. The divider lives on the bottom of
@@ -624,7 +652,7 @@ export default function Reader({
             have it too — `pointer-events-none` on the strip with the chips
             themselves re-enabling, so the space around them still scrolls the
             chart underneath. */}
-        {config.ribbon === 'left' && ribbonNode && (
+        {ribbonPlace === 'left' && ribbonNode && (
           <div
             className="absolute left-0 top-0 bottom-0 z-10 w-12 overflow-y-auto no-scrollbar px-1 py-2 pointer-events-none [&_button]:pointer-events-auto"
             style={{ background: 'transparent' }}
@@ -692,14 +720,14 @@ export default function Reader({
                 : (canSeeShapes ? onChordTap : null)}
               showChords={showChords}
               editing={editing}
-              onRemove={editing ? () => editStructure(st => removeSlot(st, idx)) : null}
+              onRemove={editing ? () => removeSection(idx, section) : null}
               onEditLines={editing ? (text) => editSectionLines(section, text) : null}
             />
           ))}
           </div>
         </div>
 
-        {config.ribbon === 'right' && ribbonNode && (
+        {ribbonPlace === 'right' && ribbonNode && (
           <div
             className="absolute right-0 top-0 bottom-0 z-10 w-12 overflow-y-auto no-scrollbar px-1 py-2 pointer-events-none [&_button]:pointer-events-auto"
             style={{ background: 'transparent' }}

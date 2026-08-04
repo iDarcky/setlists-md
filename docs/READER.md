@@ -1098,6 +1098,46 @@ Two things had to be carried that did not exist before:
 > strip of chips hides most of its own options, which is the opposite of what a
 > suggestion list is for. Opt-in, so the editor's own uses are untouched.
 
+> ### ⚠ AN EFFECT THAT OWNS A GESTURE MUST NOT DEPEND ON ANYTHING THAT CHANGES
+> The song-map drag shipped broken **twice**, and the gesture was never the
+> problem. The effect that owned it depended on `[onReorder, drag, runs,
+> structure.length]`. `structure` is `ordered.map(s => s.type)` in the reader —
+> a **new array every render** — so `runs` re-memoised every render, the effect
+> re-ran every render, and **its cleanup called `clearHold()`**.
+>
+> Which means the 250ms hold timer fired → `setDrag` → re-render → cleanup →
+> `holdRef.current = null` → `onMove` bailed on `if (!h) return` and `onUp` read
+> `engaged: false`. **The drop could never fire.** No amount of tuning the hold,
+> the threshold or the hit-testing would ever have fixed it.
+>
+> It is `[]` now, with the moving parts read out of a `liveRef` written in its
+> own effect. Two more rules came out of it:
+>
+> - **The drop target lives on the HOLD, not in state.** Reading it back out of
+>   React state in `onUp` meant it lagged one render behind the finger, so a
+>   quick release dropped on the *previous* target. State is for paint only.
+> - **`touch-action` is decided when the gesture starts**, so it cannot be
+>   switched on mid-drag. Chips claim `pan-y`, and a reorderable ribbon
+>   **wraps** instead of scrolling — a horizontal scroller and a horizontal drag
+>   are the same gesture and the scroller wins, so the conflict is removed
+>   rather than arbitrated.
+>
+> `src/__tests__/structure-ribbon.test.jsx` now drives a whole gesture end to
+> end, so a regression in the effect's lifetime fails there and not on a phone.
+
+#### Edit mode, round 4 — 2026-08-04
+
+- **The map is forced back on while editing.** `structurePosition` can be `off`,
+  and hiding the thing you edit the play order with left no way to reorder at
+  all once ↑/↓ retired. Forced to `top`, not restored to whatever it was: a
+  floating side rail is 48px wide, which is not somewhere you drag chips.
+- **Removing a section raises the app's undo toast** (`showUndoToast`, the 5s
+  countdown ring the editor and setlist builder already use) — the version that
+  finds you, as well as the Undo button that waits to be found.
+- **The compact chord bar has no header row at all.** With the caption and the
+  picker gone it held nothing but the ✕, so it was a whole row of height for one
+  20px button; the ✕ rides at the end of the input row now.
+
 #### Edit mode, round 3 — 2026-08-04
 
 | | |

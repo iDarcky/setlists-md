@@ -83,7 +83,11 @@ export function StructureRibbon({
     'flex gap-1 px-1 py-0.5 min-w-0',
     vertical
       ? 'flex-col items-center'
-      : (wrap ? 'flex-wrap' : 'flex-nowrap overflow-x-auto no-scrollbar'),
+      // Reorderable ⇒ WRAP. A horizontally scrolling strip and a horizontal
+      // drag are the same gesture, and the scroller wins; wrapping removes the
+      // conflict rather than arbitrating it, and it also shows the whole
+      // expanded map at once, which is what you want while editing it.
+      : ((wrap || onReorder) ? 'flex-wrap' : 'flex-nowrap overflow-x-auto no-scrollbar'),
   );
   const colorOf = (name) => sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
   const labelOf = (name) => (compact ? compactLabel(name) : sectionLabel(name, sectionLabels));
@@ -101,23 +105,46 @@ export function StructureRibbon({
   const holdRef = useRef(null);
   // Set when a drag ends, consumed by the capture-phase click listener below.
   const suppressRef = useRef(false);
-
+  // Everything the listeners need that CHANGES, in one box they can read at
+  // event time. See the warning below for why this is not a dependency array.
+  // Written in an EFFECT, not during render — assigning `.current` while
+  // rendering is a ref write during render and the compiler rejects it.
+  const liveRef = useRef({});
   useEffect(() => {
-    if (!onReorder) return undefined;
+    liveRef.current = { runs, onReorder, total: structure.length, drag };
+  });
+
+  // ⚠ MOUNT-ONCE, and it has to be.
+  //
+  // This effect used to depend on `[onReorder, drag, runs, structure.length]`.
+  // `structure` is `ordered.map(s => s.type)` in the reader — a NEW array every
+  // render — so `runs` re-memoised every render, this effect re-ran every
+  // render, and its cleanup called `clearHold()`.
+  //
+  // Which means: the 250ms timer fires → `setDrag` → re-render → cleanup →
+  // `holdRef.current = null` → `onMove` bails on `if (!h) return` and `onUp`
+  // reads `engaged: false`. **The drag could never have completed**, and no
+  // amount of tuning the gesture would have fixed it. Two rounds went to that.
+  //
+  // With `[]` the listeners live as long as the component and read the moving
+  // parts out of `liveRef`. Nothing that changes may go in the dependency array
+  // of an effect that owns gesture state.
+  useEffect(() => {
     const clearHold = () => {
       if (holdRef.current?.timer) clearTimeout(holdRef.current.timer);
       holdRef.current = null;
     };
-    // Attached HERE, not built in render: a handler created during render that
-    // touches `holdRef.current` counts as a ref read during render. All of the
-    // gesture's bookkeeping lives in this effect, and `decorate` only labels the
-    // chips with `data-run` so the listeners can find them.
     const onDown = (e) => {
+      if (!liveRef.current.onReorder) return;
       const el = e.target?.closest?.('[data-run]');
       if (!el) return;
       const i = Number(el.getAttribute('data-run'));
+      // Keep the move/up events coming to this element even if the finger
+      // leaves it — without capture they retarget and the drop is lost.
+      try { el.setPointerCapture?.(e.pointerId); } catch { /* not supported */ }
       holdRef.current = {
-        x: e.clientX, y: e.clientY, engaged: false,
+        x: e.clientX, y: e.clientY, engaged: false, el, pointerId: e.pointerId,
+        from: i, over: null,
         timer: setTimeout(() => {
           if (!holdRef.current) return;
           holdRef.current.engaged = true;
@@ -127,35 +154,44 @@ export function StructureRibbon({
     };
     const onMove = (e) => {
       const h = holdRef.current;
-      if (h && !h.engaged) {
+      if (!h) return;
+      if (!h.engaged) {
         // Moved before the hold fired — that was a scroll or a swipe.
         if (Math.abs(e.clientX - h.x) > 8 || Math.abs(e.clientY - h.y) > 8) clearHold();
         return;
       }
-      if (!h) return;
       e.preventDefault();
+      const { runs: liveRuns } = liveRef.current;
+      // With pointer capture the target is always the chip we started on, so
+      // hit-test by coordinates instead of by `e.target`.
       const hit = document.elementFromPoint(e.clientX, e.clientY);
-      // `runs.length` is the END sentinel — dropping past the last chip. Without
-      // it a chip can only ever land ON another chip, so nothing can be moved
-      // to the end of the order (owner, 2026-08-04: "yes, it matters").
+      // `runs.length` is the END sentinel — dropping past the last chip.
       const endZone = hit?.closest?.('[data-drop-end]');
       const el = hit?.closest?.('[data-run]');
-      const over = endZone ? runs.length : (el ? Number(el.getAttribute('data-run')) : null);
-      setDrag(d => (d && over != null && d.over !== over ? { ...d, over } : d));
+      const over = endZone ? liveRuns.length : (el ? Number(el.getAttribute('data-run')) : null);
+      if (over == null) return;
+      // The drop target lives on the HOLD, written synchronously, because the
+      // gesture cannot wait for a render. Reading it back out of React state in
+      // `onUp` meant the target lagged one render behind the finger — and if
+      // the pointer went up before that render committed, the drop was silently
+      // the one from the previous move. State here is for PAINT only.
+      h.over = over;
+      setDrag(d => (d && d.over !== over ? { ...d, over } : d));
     };
     const onUp = () => {
       const h = holdRef.current;
-      const d = drag;
+      const { runs: liveRuns, onReorder: reorder, total } = liveRef.current;
+      if (h?.el && h.pointerId != null) {
+        try { h.el.releasePointerCapture?.(h.pointerId); } catch { /* already gone */ }
+      }
       clearHold();
       if (h?.engaged) {
         // Letting go of a drag must not also fire the chip's jump.
         suppressRef.current = true;
-        if (d && d.over != null && d.over !== d.from) {
-          const run = runs[d.from];
-          // The end sentinel lands after every slot; any other target lands at
-          // that run's first slot.
-          const to = d.over >= runs.length ? structure.length : runs[d.over]?.index;
-          if (run && to != null) onReorder(run.index, run.count, to);
+        if (h.over != null && h.over !== h.from) {
+          const run = liveRuns[h.from];
+          const to = h.over >= liveRuns.length ? total : liveRuns[h.over]?.index;
+          if (run && to != null) reorder?.(run.index, run.count, to);
         }
       }
       setDrag(null);
@@ -170,21 +206,20 @@ export function StructureRibbon({
       e.preventDefault();
       e.stopPropagation();
     };
-    const scroller = scrollerRef.current;
-    scroller?.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointerdown', onDown);
     window.addEventListener('pointermove', onMove, { passive: false });
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
     window.addEventListener('click', onClickCapture, true);
     return () => {
-      scroller?.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointerdown', onDown);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('click', onClickCapture, true);
       clearHold();
     };
-  }, [onReorder, drag, runs, structure.length]);
+  }, []);
 
   // `cloneElement` rather than rebuilding each chip: there are four style
   // branches, and injecting the same handful of props into whatever each one
@@ -196,6 +231,12 @@ export function StructureRibbon({
         'data-run': i,
         style: {
           ...node.props.style,
+          // The browser decides `touch-action` when the gesture STARTS, so it
+          // cannot be switched on mid-drag. Claiming the horizontal axis here
+          // is what stops the scroller swallowing the gesture — and it costs
+          // nothing, because a reorderable ribbon WRAPS instead of scrolling
+          // (see `rowClass`). `pan-y` keeps the page itself scrollable.
+          touchAction: 'pan-y',
           ...(drag?.from === i ? { opacity: 0.4 } : null),
           ...(drag && drag.over === i && drag.from !== i
             ? { outline: '2px dashed var(--color-brand)', outlineOffset: 2 }

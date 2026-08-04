@@ -102,8 +102,13 @@ export default function ChordAutocomplete({
         animation: 'pop-in 120ms ease-out',
       }}
     >
-      {/* Title + actions */}
-      <div className={`flex items-center justify-end px-2.5 ${compact ? 'pt-1.5' : 'pt-2 justify-between'}`}>
+      {/* Title + actions. COMPACT SKIPS THIS ROW ENTIRELY — with the caption
+          and the picker gone it held nothing but the ✕, so it was a whole row of
+          height for one 20px button (owner, 2026-08-04: "why do we have like an
+          empty line where the x is?"). Compact puts the ✕ at the end of the
+          input row instead. */}
+      {!compact && (
+      <div className="flex items-center justify-between px-2.5 pt-2">
         {/* Compact drops the caption AND the picker toggle (owner, 2026-08-04:
             "remove the 'replace chord' text, make the x smaller and remove the
             'picker' so we have a narrower chord bar... top-bottom not
@@ -132,10 +137,11 @@ export default function ChordAutocomplete({
               compact ? 'min-h-0 w-5 h-5' : 'w-7 h-7'
             }`}
           >
-            <svg width={compact ? 11 : 14} height={compact ? 11 : 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
           </button>
         </div>
       </div>
+      )}
 
       {/* Inline structured picker (optional) */}
       {showPicker && (
@@ -202,6 +208,16 @@ export default function ChordAutocomplete({
             </button>
           );
         })}
+        {compact && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close chord bar"
+            className="ml-auto shrink-0 min-h-0 w-5 h-5 inline-flex items-center justify-center rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] cursor-pointer"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </button>
+        )}
       </div>
     </div>
     </>
