@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { sectionIdentity, headingText, resolveSectionColors } from '@/lib/sectionIdentity';
 import SectionBlock from '@/features/chart/SectionBlock';
+import { serializeTabBlock } from '@/parser';
 
 /**
  * One section — elements 3, 4 and 5.
@@ -25,14 +27,99 @@ function EditHandle({ label, onClick, danger = false, children }) {
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="min-h-0 w-[22px] h-[22px] grid place-items-center rounded-md border cursor-pointer bg-transparent text-[13px] leading-none"
-      style={{
-        borderColor: 'var(--chart-rule, var(--ds-gray-400))',
-        color: danger ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--ds-gray-700))',
-      }}
+      // GHOST — no border (owner, 2026-08-04: "I don't know if I like the x to
+      // the sections to be like that, maybe we can add a trash can ghost
+      // button"). A bordered × beside a 12px heading read as a control competing
+      // with the section's own name; a bare glyph that only fills on hover sits
+      // under it instead.
+      className="min-h-0 w-[24px] h-[24px] grid place-items-center rounded-md border-none cursor-pointer bg-transparent hover:bg-[var(--ds-gray-200)]"
+      style={{ color: danger ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--ds-gray-700))' }}
     >
       {children}
     </button>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6h18" /><path d="M8 6V4h8v2" />
+      <path d="M6 6l1 14h10l1-14" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+/**
+ * A section's words, as the text they actually are.
+ *
+ * `.md` all the way down — `[C]` markers and all — because that is what the
+ * file holds and what the editor's Write tab shows. Anything smarter (a rich
+ * field, chords as objects) is a second representation to keep in sync with the
+ * first, and the reader is not the place to invent one.
+ *
+ * Committed on Save, not per keystroke: a song update per character would push
+ * a sync per character, and a half-typed `[Cm` is a chord the chart would try
+ * to render.
+ */
+function LyricEditor({ section, onSave, onCancel }) {
+  const [text, setText] = useState(() => (section.lines || [])
+    // A line can be a string, a tab object or a modulate marker — `.join()`
+    // alone renders "[object Object]", which is the oldest bug in this codebase.
+    .map(l => {
+      if (typeof l === 'string') return l;
+      if (l?.type === 'tab') return serializeTabBlock(l);
+      if (l?.type === 'modulate') return `{modulate: ${l.semitones > 0 ? '+' : ''}${l.semitones}}`;
+      return '';
+    })
+    .join('\n'));
+
+  return (
+    <div className="mt-1.5">
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        aria-label="Section lyrics and chords"
+        spellCheck={false}
+        rows={Math.min(16, Math.max(3, text.split('\n').length + 1))}
+        className="w-full rounded-lg border p-2 font-mono text-[13px] leading-[1.5] bg-transparent outline-none focus:border-[var(--color-brand)]"
+        style={{ borderColor: 'var(--chart-rule, var(--ds-gray-400))', color: 'var(--chart-text, var(--ds-gray-1000))' }}
+      />
+      <div className="mt-1.5 flex items-center gap-1.5">
+        <button
+          type="button" onClick={() => onSave(text)}
+          className="min-h-0 h-[26px] px-2.5 rounded-lg border-none cursor-pointer text-label-11 font-semibold"
+          style={{ background: 'var(--color-brand)', color: '#fff' }}
+        >
+          Save
+        </button>
+        {/* "Discard", not "Cancel". The edit row at the bottom already has a
+            Cancel that throws away the WHOLE session; two buttons reading
+            "Cancel" a few centimetres apart, meaning different amounts of lost
+            work, is the kind of ambiguity you only notice after losing some. */}
+        <button
+          type="button" onClick={onCancel}
+          className="min-h-0 h-[26px] px-2.5 rounded-lg border cursor-pointer text-label-11 font-semibold bg-transparent"
+          style={{ borderColor: 'var(--chart-rule, var(--ds-gray-400))', color: 'var(--chart-subtle, var(--ds-gray-700))' }}
+        >
+          Discard
+        </button>
+        <span className="text-label-10" style={{ color: 'var(--chart-subtle, var(--ds-gray-700))' }}>
+          Chords go in square brackets
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -45,8 +132,9 @@ export default function ReaderSection({
   // map got a `+` and drag (2026-08-04, "we don't need the ↑ ↓"). Removing
   // stays on the heading because you decide to cut a section while looking at
   // it, not while looking at its chip.
-  editing = false, onRemove = null,
+  editing = false, onRemove = null, onEditLines = null,
 }) {
+  const [writing, setWriting] = useState(false);
   const id = sectionIdentity(section.type, settings);
   const style = config.sectionStyle;
   const colour = id.color;
@@ -121,9 +209,18 @@ export default function ReaderSection({
 
   // Reordering moved to the song map — drag a chip there. What is left is the
   // one decision you make while looking at the section itself: cut it.
-  const handles = editing && onRemove ? (
+  const handles = editing && (onRemove || onEditLines) ? (
     <span className="inline-flex items-center gap-0.5 ml-2 align-middle">
-      <EditHandle label={`Take ${id.name} out of the play order`} onClick={onRemove} danger>×</EditHandle>
+      {onEditLines && (
+        <EditHandle label={`Edit ${id.name}`} onClick={() => setWriting(w => !w)}>
+          <PencilIcon />
+        </EditHandle>
+      )}
+      {onRemove && (
+        <EditHandle label={`Take ${id.name} out of the play order`} onClick={onRemove} danger>
+          <TrashIcon />
+        </EditHandle>
+      )}
     </span>
   ) : null;
 
@@ -209,6 +306,17 @@ export default function ReaderSection({
         )}
       </div>
 
+      {/* The words, as text. Replaces the rendered chart for this section only
+          while it is open, so you are never editing one thing and reading
+          another. */}
+      {writing && onEditLines ? (
+        <LyricEditor
+          section={section}
+          onSave={(text) => { onEditLines(text); setWriting(false); }}
+          onCancel={() => setWriting(false)}
+        />
+      ) : (
+      <>
       {/* Elements 5 + 6 */}
       <SectionBlock
         section={section}
@@ -238,6 +346,8 @@ export default function ReaderSection({
         tabTranspose={transpose}
         onChordTap={onChordTap}
       />
+      </>
+      )}
     </div>
   );
 }

@@ -591,6 +591,16 @@
     font-family: var(--font-sans);
   }
 
+  /* The reader sets `user-select: none` on its whole surface so a long press is
+     a drag and not a text selection (see `readerSurface.js`). Fields have to opt
+     back IN, or you cannot place a caret in the tempo box or the chord bar. */
+  input,
+  textarea,
+  [contenteditable] {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
   input {
     font-family: var(--font-sans);
   }

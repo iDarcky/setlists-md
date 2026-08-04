@@ -72,6 +72,8 @@ export default function SetlistReader({
   // navigating away would otherwise leave it hanging over the next song still
   // holding the break's anchor rect. Same shape as `Reader`'s `tempoSet`.
   const [menu, setMenu] = useState(null);
+  // Set by `Reader` while its edit mode is open — see `locked` below.
+  const [editingSong, setEditingSong] = useState(false);
   const wide = useMediaQuery('(min-width: 768px)');
   // Element 13. The ONLY thing tracked through a session: when it started.
   // Everything else the old views carried in refs — farthest index, transpose
@@ -107,6 +109,11 @@ export default function SetlistReader({
   }, [goNext, goPrev]);
 
   const cfg = resolveReaderConfig(settings, { wide, mode });
+
+  // The reader reports when it is mid-edit, and the setlist's own controls go
+  // inert — moving song, or opening the rail, would strand an applied change
+  // with no way back to Cancel it. The reader holds the ✕ for the same reason.
+  const locked = editingSong;
 
   // `SetlistList` keys each row off the song's own key plus a transpose, so
   // give it the key actually being read rather than the one on the song.
@@ -153,6 +160,7 @@ export default function SetlistReader({
   // its own bar with the exit stranded inside it.
   const footer = cfg.nav === 'footer' ? (
     <ReaderFooter
+      locked={locked}
       index={idx}
       total={total}
       style={cfg.footer}
@@ -241,6 +249,9 @@ export default function SetlistReader({
     <IconButton
       size="sm"
       className={BAR_BUTTON}
+      // Inert while the song is being edited: opening the rail is one tap from
+      // leaving the song with the edit applied and Cancel out of reach.
+      disabled={locked}
       // NOT "Open setlist" — that is the footer counter's name, and two
       // controls answering to one name is a screen reader reading the same
       // label twice for two different things. This one is a toggle and says so
@@ -314,6 +325,7 @@ export default function SetlistReader({
       underBar={underBar}
       railButton={railButton}
       progress={progress}
+      onEditingChange={setEditingSong}
       {...swipe}
     />
   );

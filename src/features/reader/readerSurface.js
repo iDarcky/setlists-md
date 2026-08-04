@@ -25,6 +25,15 @@
  * dark pills on white paper.
  */
 export const chartSurface = {
+  // No text selection anywhere in the reader (owner, 2026-08-04: "being a PWA,
+  // when you drag, it wants to select a text"). A long press is now a real
+  // gesture here — the song map's drag — and on iOS a long press on text raises
+  // the selection handles and the callout menu, which fight it and win. Nobody
+  // selects lyrics off a chart mid-service; the gesture is worth more than the
+  // selection. Inputs opt back in (see `index.css`).
+  userSelect: 'none',
+  WebkitUserSelect: 'none',
+  WebkitTouchCallout: 'none',
   background: 'var(--chart-bg, var(--ds-background-100))',
   color: 'var(--chart-text, var(--ds-gray-1000))',
   '--bg-1': 'var(--chart-bg, #ffffff)',

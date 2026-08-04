@@ -27,6 +27,7 @@ import {
 } from '@/lib/editStructure';
 import ChordAutocomplete from '@/features/editor/ChordAutocomplete';
 import { transposeChord } from '@/music';
+import { parseSectionLines } from '@/parser';
 
 const EMPTY = [];
 
@@ -130,6 +131,9 @@ export default function Reader({
   // Edit mode's fork. Only the host can build it: it needs the REAL v2 song
   // from state, not this resolved single-arrangement view.
   onSaveAsArrangement = null,
+  // Lets the host lock ITS controls while an edit is open (the setlist's nav
+  // and rail). Same reason the reader holds its own ✕.
+  onEditingChange = null,
 }) {
   const scrollRef = useRef(null);
   const touchRef = useRef(null);
@@ -240,6 +244,11 @@ export default function Reader({
   const canEdit = !embedded && config.can.editSong && !!onUpdateSong;
   const editing = canEdit && editSession?.id === songId;
   const editBase = editing ? editSession.base : null;
+
+  // Report the mode outward, so the HOST can lock its own controls (the
+  // setlist's nav and rail). An effect, because it synchronises an external
+  // system rather than deriving anything of ours.
+  useEffect(() => { onEditingChange?.(editing); }, [editing, onEditingChange]);
 
   // The ☰ → "The screen" row. Only where the reader owns the screen: embedded
   // in the hub it is a card in a page, and holding a wake lock for a card is
@@ -367,12 +376,32 @@ export default function Reader({
     writeSong({ sections });
   }, [chordEdit, song, writeSong]);
 
+  // A section's words, edited as text. `parseSectionLines` is the same helper
+  // the editor's section drawer uses — hand-rolling a `split('\n')` here would
+  // flatten tab blocks and modulate markers into plain strings that vanish on
+  // the next parse, which is exactly the bug that helper exists to prevent.
+  const editSectionLines = useCallback((section, text) => {
+    if (!song) return;
+    const si = (song.sections || []).indexOf(section);
+    if (si < 0) return;
+    const lines = parseSectionLines(text);
+    const sections = (song.sections || []).map((sec, i) => (i === si ? { ...sec, lines } : sec));
+    writeSong({ sections });
+  }, [song, writeSong]);
+
   const toggleEdit = useCallback(() => {
     setChordEdit(null);
-    setEditSession(prev => (prev?.id === songId
-      ? null
-      : { id: songId, base: snapshotEditable(song), history: [] }));
-  }, [songId, song]);
+    setEditSession(prev => {
+      if (prev?.id === songId) return null;
+      // Editing takes the screen over, so it closes what it is taking it from
+      // (owner, 2026-08-04: "it should close everything else, like the practice
+      // strip"). Two bars at the bottom edge, never three — element 12's rule,
+      // and edit mode is the third bar if the practice row stays open.
+      setPracticeOpen(false);
+      stopClick();
+      return { id: songId, base: snapshotEditable(song), history: [] };
+    });
+  }, [songId, song, stopClick]);
 
   // Leaving a song leaves its edit session behind. `editing` is derived from
   // the stamp rather than cleared by an effect, so this needs no cleanup — the
@@ -416,10 +445,19 @@ export default function Reader({
     <StructureRibbon
       structure={ordered.map(s => s.type)}
       activeIndex={activeSection}
-      onSelect={jumpTo}
+      // No jumping while editing (owner, 2026-08-04). A chip is a drag handle
+      // now, and a gesture that both moves the section AND throws the page
+      // somewhere else is a gesture nobody can aim.
+      onSelect={editing ? null : jumpTo}
       style={settings?.ribbonStyle || 'codes'}
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
-      collapse
+      // EXPANDED while editing (owner: "I imagine that when the user presses
+      // the edit the cx3 expands to c c c"). Right — a collapsed `C ×3` is one
+      // chip standing for three slots, so dragging it is dragging three things
+      // at once and dropping "between the second and third" cannot be
+      // expressed. Expanded, every chip is exactly one slot and the drag means
+      // what it looks like.
+      collapse={!editing}
       activeFill
       sectionColors={resolveSectionColors(settings)}
       sectionLabels={settings?.sectionLabels}
@@ -458,7 +496,7 @@ export default function Reader({
           aboveBar={underBar}
           leading={railButton}
           title={song.title}
-          onMenu={(rect) => setOwnAaAnchor(a => (a ? null : rect))}
+          onMenu={editing ? null : (rect) => setOwnAaAnchor(a => (a ? null : rect))}
           onExit={onExit}
           editing={editing}
           exitDisabled={editing}
@@ -471,6 +509,11 @@ export default function Reader({
                   className={BAR_BUTTON}
                   aria-label={practiceOpen ? 'Close practice tools' : 'Practice tools'}
                   aria-pressed={practiceOpen}
+                  // Inert while editing, along with the ☰, the rail and the
+                  // song nav: an edit is a mode you leave deliberately, and
+                  // every one of these is a way to wander out of it with the
+                  // change applied and Cancel out of reach.
+                  disabled={editing}
                   onClick={togglePractice}
                   style={practiceOpen ? { color: 'var(--chord)' } : undefined}
                 >
@@ -650,6 +693,7 @@ export default function Reader({
               showChords={showChords}
               editing={editing}
               onRemove={editing ? () => editStructure(st => removeSlot(st, idx)) : null}
+              onEditLines={editing ? (text) => editSectionLines(section, text) : null}
             />
           ))}
           </div>

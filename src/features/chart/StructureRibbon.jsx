@@ -134,8 +134,13 @@ export function StructureRibbon({
       }
       if (!h) return;
       e.preventDefault();
-      const el = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('[data-run]');
-      const over = el ? Number(el.getAttribute('data-run')) : null;
+      const hit = document.elementFromPoint(e.clientX, e.clientY);
+      // `runs.length` is the END sentinel — dropping past the last chip. Without
+      // it a chip can only ever land ON another chip, so nothing can be moved
+      // to the end of the order (owner, 2026-08-04: "yes, it matters").
+      const endZone = hit?.closest?.('[data-drop-end]');
+      const el = hit?.closest?.('[data-run]');
+      const over = endZone ? runs.length : (el ? Number(el.getAttribute('data-run')) : null);
       setDrag(d => (d && over != null && d.over !== over ? { ...d, over } : d));
     };
     const onUp = () => {
@@ -147,8 +152,10 @@ export function StructureRibbon({
         suppressRef.current = true;
         if (d && d.over != null && d.over !== d.from) {
           const run = runs[d.from];
-          const target = runs[d.over];
-          if (run && target) onReorder(run.index, run.count, target.index);
+          // The end sentinel lands after every slot; any other target lands at
+          // that run's first slot.
+          const to = d.over >= runs.length ? structure.length : runs[d.over]?.index;
+          if (run && to != null) onReorder(run.index, run.count, to);
         }
       }
       setDrag(null);
@@ -177,7 +184,7 @@ export function StructureRibbon({
       window.removeEventListener('click', onClickCapture, true);
       clearHold();
     };
-  }, [onReorder, drag, runs]);
+  }, [onReorder, drag, runs, structure.length]);
 
   // `cloneElement` rather than rebuilding each chip: there are four style
   // branches, and injecting the same handful of props into whatever each one
@@ -196,8 +203,28 @@ export function StructureRibbon({
         },
       }));
     }
-    if (!onAddSection || !addOptions?.length) return out;
-    return [...out, <AddSection key="add" options={addOptions} onPick={onAddSection} />];
+    const tail = [];
+    // Only while dragging: an always-present gap at the end would read as a
+    // missing chip.
+    if (onReorder && drag) {
+      tail.push(
+        <span
+          key="end"
+          data-drop-end="true"
+          className="shrink-0 self-stretch w-6 rounded-[5px]"
+          style={drag.over >= runs.length
+            ? { outline: '2px dashed var(--color-brand)', outlineOffset: 2 }
+            : { border: '1px dashed var(--border-2)' }}
+        />
+      );
+    }
+    if (onAddSection && addOptions?.length) {
+      tail.push(
+        <AddSection key="add" options={addOptions} onPick={onAddSection}
+          sectionColors={sectionColors} customSectionTypes={customSectionTypes} />
+      );
+    }
+    return tail.length ? [...out, ...tail] : out;
   };
 
   if (style === 'dots' || style === 'dotlabel') {
@@ -382,7 +409,7 @@ export function StructureRibbon({
  * Portalled: the ribbon is an `overflow-x-auto` strip, so a menu rendered
  * inside it would be clipped by its own scroller.
  */
-function AddSection({ options, onPick }) {
+function AddSection({ options, onPick, sectionColors, customSectionTypes }) {
   const [at, setAt] = useState(null);
   return (
     <>
@@ -410,22 +437,29 @@ function AddSection({ options, onPick }) {
           />
           <div
             role="menu" aria-label="Add a section"
-            className="fixed z-[120] min-w-[150px] max-h-[46vh] overflow-y-auto rounded-xl border bg-[var(--ds-background-100)] border-[var(--ds-gray-400)] py-1"
+            className="fixed z-[120] w-[124px] max-h-[46vh] overflow-y-auto rounded-xl border bg-[var(--ds-background-100)] border-[var(--ds-gray-400)] py-1"
             style={{
               top: Math.min(at.bottom + 6, (typeof window !== 'undefined' ? window.innerHeight : 800) - 220),
-              left: Math.max(8, Math.min(at.left, (typeof document !== 'undefined' ? document.documentElement.clientWidth : 400) - 166)),
+              left: Math.max(8, Math.min(at.left, (typeof document !== 'undefined' ? document.documentElement.clientWidth : 400) - 132)),
               boxShadow: '0 14px 40px rgba(0,0,0,0.45)',
             }}
           >
-            {options.map((name) => (
-              <button
-                key={name} type="button" role="menuitem"
-                onClick={() => { onPick(name); setAt(null); }}
-                className="w-full min-h-0 px-3 py-2 text-left text-label-12 bg-transparent border-none cursor-pointer text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)]"
-              >
-                {name}
-              </button>
-            ))}
+            {/* Coloured, because the map they are being added to is coloured
+                (owner, 2026-08-04) — a plain list makes you translate a name
+                back into the chip you are about to see. */}
+            {options.map((name) => {
+              const c = sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
+              return (
+                <button
+                  key={name} type="button" role="menuitem"
+                  onClick={() => { onPick(name); setAt(null); }}
+                  className="w-full min-h-0 flex items-center gap-2 px-2.5 py-1.5 text-left bg-transparent border-none cursor-pointer hover:bg-[var(--ds-gray-200)]"
+                >
+                  <span className="shrink-0 w-1.5 h-4 rounded-full" style={{ background: c.b }} />
+                  <span className="truncate text-label-11" style={{ color: c.b }}>{name}</span>
+                </button>
+              );
+            })}
           </div>
         </>
       ), document.body)}

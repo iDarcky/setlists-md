@@ -430,8 +430,11 @@ describe('edit mode — chords', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'F chord shape' })[0]);
     // `ChordAutocomplete`, not `ChordPicker` — it takes any chord by name and
     // docks properly on a phone.
-    expect(screen.getByText('Replace chord')).toBeTruthy();
     expect(screen.getByPlaceholderText('Type…')).toBeTruthy();
+    // Compact: no caption, no picker toggle. Both were height for nothing on a
+    // bar that only appears because you tapped a chord.
+    expect(screen.queryByText('Replace chord')).toBeNull();
+    expect(screen.queryByText('Picker')).toBeNull();
   });
 
   it('takes a chord the old grid could not reach', () => {
@@ -543,5 +546,83 @@ describe('edit mode — the + on the song map', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add a section to the play order' }));
     expect(screen.getByRole('menuitem', { name: 'Verse 1' })).toBeTruthy();
     expect(screen.getByRole('menuitem', { name: 'Chorus' })).toBeTruthy();
+  });
+});
+
+// Round 3 of edit mode — the owner's corrections, 2026-08-04.
+describe('edit mode — locking and the section controls', () => {
+  const multi = songFromFlat({
+    id: 'm3', title: 'Cornerstone', key: 'C',
+    sections: [
+      { type: 'Verse 1', lines: ['[C]my hope'] },
+      { type: 'Chorus', lines: ['[F]on Christ'] },
+    ],
+  });
+  const open = (over = {}) => {
+    render(
+      <SetlistReader
+        setlist={{ id: 'sl6', items: [{ songId: 'm3' }, { songId: 'm3' }] }} songs={[multi]}
+        settings={{}} mode="practice" onBack={() => {}} onFinish={() => {}}
+        onUpdateSong={vi.fn()} {...over}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+  };
+
+  it('makes every other way out of the song inert', () => {
+    open();
+    // Each of these is one tap from leaving the song with the change applied
+    // and Cancel out of reach.
+    expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Next song' }).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Display options' }).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Practice tools' }).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Setlist' }).disabled).toBe(true);
+  });
+
+  it('closes the practice strip when the editor opens', () => {
+    render(
+      <SetlistReader
+        setlist={{ id: 'sl6', items: [{ songId: 'm3' }] }} songs={[multi]}
+        settings={{}} mode="practice" onBack={() => {}} onFinish={() => {}}
+        onUpdateSong={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Practice tools' }));
+    expect(screen.getByLabelText('Click tempo up')).toBeTruthy();
+    // Two bars at the bottom edge, never three — element 12's rule, and the
+    // edit row is the third if the practice row stays open.
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+    expect(screen.queryByLabelText('Click tempo up')).toBeNull();
+  });
+
+  it('gives each section a pencil and a trash, and edits the words as text', () => {
+    const onUpdateSong = vi.fn();
+    open({ onUpdateSong });
+    expect(screen.getByRole('button', { name: 'Take Verse 1 out of the play order' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Verse 1' }));
+    const box = screen.getByLabelText('Section lyrics and chords');
+    // The .md itself, brackets and all — the same text the editor's Write tab
+    // shows, rather than a second representation to keep in sync.
+    expect(box.value).toBe('[C]my hope');
+
+    fireEvent.change(box, { target: { value: '[Am]my hope is built' } });
+    // Not per keystroke: a song update per character is a sync per character.
+    expect(onUpdateSong).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText('Save'));
+    expect(onUpdateSong.mock.calls[0][0].sections[0].lines).toEqual(['[Am]my hope is built']);
+  });
+
+  it('leaves the song alone when the lyric edit is cancelled', () => {
+    const onUpdateSong = vi.fn();
+    open({ onUpdateSong });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Verse 1' }));
+    fireEvent.change(screen.getByLabelText('Section lyrics and chords'), { target: { value: 'nope' } });
+    // "Discard", not "Cancel" — the edit row's Cancel throws away the whole
+    // session, and two buttons a few centimetres apart both reading "Cancel"
+    // is an ambiguity you notice only after losing work.
+    fireEvent.click(screen.getByText('Discard'));
+    expect(onUpdateSong).not.toHaveBeenCalled();
   });
 });

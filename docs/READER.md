@@ -1098,6 +1098,25 @@ Two things had to be carried that did not exist before:
 > strip of chips hides most of its own options, which is the opposite of what a
 > suggestion list is for. Opt-in, so the editor's own uses are untouched.
 
+#### Edit mode, round 3 — 2026-08-04
+
+| | |
+|---|---|
+| **No text selection in the reader** | `chartSurface` sets `user-select: none` + `-webkit-touch-callout: none`. A long press is a real gesture now (the map's drag), and on iOS a long press on text raises the selection handles and wins. Nobody selects lyrics off a chart mid-service. **Inputs/textareas opt back in** via `@layer base` in `index.css`, or you cannot place a caret in the tempo box. |
+| **Edit mode locks every other way out** | ☰, practice, the rail, prev/next and ✕ all go inert; the practice strip **closes** on entry. Each was one tap from leaving the song with the change applied and Cancel out of reach. The ☰ is **disabled, not removed** — dropping it would change the bar's shape the moment you press edit. The reader reports `onEditingChange` so the *setlist* can lock its own controls. |
+| **The ribbon EXPANDS while editing** | `collapse={!editing}`, so `C ×3` becomes `C C C`. A collapsed run is one chip standing for three slots: dragging it drags three things at once, and "between the second and third" cannot be expressed. This is why the drag felt broken. |
+| **Chips don't jump while editing** | `onSelect={null}`. A chip is a drag handle now, and a gesture that both moves the section *and* throws the page elsewhere is one nobody can aim. |
+| **Drag to the END** | A drop zone appears after the last chip **only while dragging** (an always-present gap reads as a missing chip). `runs.length` is the sentinel; it lands at `structure.length`. |
+| **The add menu is coloured and narrow** | 124px, each row a bar of its section's colour. The map is coloured, so a plain list makes you translate a name back into the chip you're about to see. |
+| **A ghost trash, and a pencil** | The bordered `×` competed with the 12px heading beside it. Both handles are now bare glyphs that fill only on hover. |
+| **Per-section lyric editing** | The pencil swaps the rendered section for a **textarea of its `.md`** — brackets and all, the same text the editor's Write tab shows. Saved through **`parseSectionLines`**, the helper the editor's section drawer already uses: hand-rolling a `split('\n')` flattens tab blocks and modulate markers into plain strings that vanish on the next parse. |
+| **"Discard", not "Cancel"** | The edit row's Cancel throws away the whole session. Two buttons a few centimetres apart both reading "Cancel", meaning different amounts of lost work, is an ambiguity you notice only after losing some. |
+
+> **The compact chord bar drops its caption and its picker toggle** (owner:
+> *"top-bottom not left-right"*). The caption labels a bar that only ever
+> appears because you tapped a chord, and the structured picker duplicates what
+> typing already does — between them they were most of its height.
+
 #### The song map is where the structure is edited — 2026-08-04 (round 2)
 
 Owner, after round 1: *"the problem with the + is that I was imagining only one

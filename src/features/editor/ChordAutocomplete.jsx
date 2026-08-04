@@ -103,14 +103,24 @@ export default function ChordAutocomplete({
       }}
     >
       {/* Title + actions */}
-      <div className="flex items-center justify-between px-3 pt-2">
-        <span className="text-label-11 font-semibold text-[var(--ds-gray-600)]">
-          {editing ? 'Replace chord' : 'Add chord'}
-        </span>
+      <div className={`flex items-center justify-end px-2.5 ${compact ? 'pt-1.5' : 'pt-2 justify-between'}`}>
+        {/* Compact drops the caption AND the picker toggle (owner, 2026-08-04:
+            "remove the 'replace chord' text, make the x smaller and remove the
+            'picker' so we have a narrower chord bar... top-bottom not
+            left-right"). The caption labels a bar that only appears because you
+            tapped a chord, and the structured picker duplicates what typing
+            already does — between them they were most of the bar's height. */}
+        {!compact && (
+          <span className="text-label-11 font-semibold text-[var(--ds-gray-600)]">
+            {editing ? 'Replace chord' : 'Add chord'}
+          </span>
+        )}
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => { setShowPicker(v => !v); setPickRoot(null); setPickAcc(''); }} className="text-label-11 font-semibold text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">
-            {showPicker ? 'Hide picker' : 'Picker'}
-          </button>
+          {!compact && (
+            <button type="button" onClick={() => { setShowPicker(v => !v); setPickRoot(null); setPickAcc(''); }} className="text-label-11 font-semibold text-[var(--ds-gray-700)] hover:text-[var(--ds-gray-1000)] bg-transparent border-none cursor-pointer">
+              {showPicker ? 'Hide picker' : 'Picker'}
+            </button>
+          )}
           {onRemove && (
             <button type="button" onClick={() => { onRemove(); onClose(); }} className="text-label-11 font-semibold text-[var(--ds-error-600)] bg-transparent border-none cursor-pointer">Remove</button>
           )}
@@ -118,9 +128,11 @@ export default function ChordAutocomplete({
             type="button"
             onClick={onClose}
             aria-label="Close chord bar"
-            className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] cursor-pointer"
+            className={`inline-flex items-center justify-center rounded-md border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)] hover:bg-[var(--ds-gray-200)] hover:text-[var(--ds-gray-1000)] cursor-pointer ${
+              compact ? 'min-h-0 w-5 h-5' : 'w-7 h-7'
+            }`}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            <svg width={compact ? 11 : 14} height={compact ? 11 : 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
           </button>
         </div>
       </div>

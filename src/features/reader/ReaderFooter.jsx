@@ -29,6 +29,9 @@ export default function ReaderFooter({
   index, total, style = 'next',
   nextLabel = null, nextKey = null,
   onPrev, onNext, onFinish, onOpenSetlist,
+  // Edit mode. Moving to the next song mid-edit strands the change: it is
+  // already applied, and Cancel only exists while the session is open.
+  locked = false,
 }) {
   const atStart = index <= 0;
   const atEnd = index >= total - 1;
@@ -40,7 +43,7 @@ export default function ReaderFooter({
         size="sm"
         className={NAV_BUTTON}
         aria-label="Previous song"
-        disabled={atStart}
+        disabled={atStart || locked}
         onClick={onPrev}
       >
         <Chevron dir="left" />
@@ -50,7 +53,7 @@ export default function ReaderFooter({
           instead of pushing the arrows off a phone. It is also the way into
           the setlist — prev/next is for the running order, the rail is for the
           closing song they just cut. */}
-      <Centre onClick={onOpenSetlist}>
+      <Centre onClick={locked ? null : onOpenSetlist}>
         <span className="shrink-0 text-label-11 font-mono tabular-nums" style={{ color: muted }}>
           {index + 1} / {total}
         </span>
@@ -83,7 +86,7 @@ export default function ReaderFooter({
           size="sm"
           className={NAV_BUTTON}
           aria-label="Next song"
-          disabled={atEnd}
+          disabled={atEnd || locked}
           onClick={onNext}
         >
           <Chevron dir="right" />

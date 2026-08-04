@@ -115,15 +115,19 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
             an 8px gap they read as three unrelated controls; 32px with a 2px
             gap reads as one group of tools, and gives 24px back to the title. */}
         <span className="shrink-0 flex items-center gap-0.5">
-          {onMenu && (
+          {(onMenu || editing) && (
             <IconButton
               size="sm"
               className={BAR_BUTTON}
               aria-label="Display options"
+              // Dead, not GONE. Dropping the button while editing would change
+              // the bar's shape the moment you press edit and everything else
+              // would jump left.
+              disabled={!onMenu}
               onClick={(e) => {
                 // Read the rect synchronously: React nulls currentTarget once
                 // the handler returns, so a lazy state updater would see null.
-                onMenu(e.currentTarget.getBoundingClientRect());
+                onMenu?.(e.currentTarget.getBoundingClientRect());
               }}
             >
               <MenuIcon />
