@@ -1,12 +1,13 @@
-# Next session — the Reader
+# Next session — the Reader, element 28 (the ☰)
 
-> **Short-lived handoff.** Delete it when the Reader graduates from Labs.
-> It exists because a new chat session starts with **no memory of previous
-> conversations** — only this repo.
+> **Short-lived handoff.** It exists because a new chat session starts with **no
+> memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-01. State: `0.17.0-beta.42` on `beta`, branch
-> `claude/reader-element-12-practice-ax9bk5`. 798 tests, 0 lint errors
-> (8 pre-existing warnings)._
+> _Rewritten 2026-08-04. State: `0.17.0-beta.59` on
+> `claude/reader-element-12-practice-ax9bk5`. `beta` is at **beta.44** — the
+> owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
+> can compare against `beta`. 871 tests, 0 lint errors (8 pre-existing
+> warnings)._
 
 ---
 
@@ -19,40 +20,10 @@
 3. `CLAUDE.md` — how the app works.
 4. `docs/PLAN.md` §1 — what is parked and in what order.
 
-**Do not raise graduating the `unifiedReader` flag.** The owner has asked twice
-to stop mentioning it. It is his call and it is not close.
+Ignore `docs/views-vision.md` and `docs/views_questions.md` — scrapped design.
 
----
-
-## Read this before anything else: three fixes were claimed and did not work
-
-On 2026-08-01 three fixes were reported as done. The owner, on beta.41, found
-that none of them worked. He was right, and the code **was** on `beta` — they
-were wrong, not missing. Two root causes, now fixed, now in `READER.md`'s trap
-list:
-
-1. **Two `sticky bottom-0` siblings do not stack.** The bottom structure ribbon
-   got its own sticky block at `z-10`, "above" the nav block at `z-20`. They
-   both pin to the same 0px and the higher z simply covers the other — it was
-   there, pinned, and painted underneath the nav bar. → **one block, several
-   rows**, which is what elements 12 + 10 already did.
-2. **`Math.ceil` on a measured sticky offset creates the gap it was meant to
-   close.** `headH` was rounded up so the pinned heading "could not overlap the
-   divider". Backwards: on a fractional-DPR phone the header is 73.33px, ceil
-   gives 74, and the heading pins 0.67px *below* it — a sliver of scrolling
-   chart, which is precisely the hairline the owner reported. → measure raw, and
-   **overlap by a pixel** (`top: stickyTop - 1` + matching padding).
-
-The third — the ribbon changing at the moment the heading pins — was a real fix
-(`useActiveSection` takes an exact `linePx` instead of a viewport fraction; the
-reader passes `headH`) and may simply have been masked by the other two. **Check
-it on a phone before touching it.** If it is still wrong the next suspects are
-`readerSticky` off, or testing on a tablet, where `config.sticky` is false by
-design and nothing pins at all.
-
-**The lesson:** when the owner says something looks wrong, go and measure it in
-the code. Do not explain why it should be fine. Most of what cost rounds this
-session was explaining instead of measuring.
+**Do not raise graduating the `unifiedReader` flag.** The owner has asked three
+times to stop mentioning it. It is his call and it is not close.
 
 ---
 
@@ -60,75 +31,99 @@ session was explaining instead of measuring.
 
 - **One element at a time. Ask the questions and let him decide BEFORE
   building.**
-- Build exactly what is asked. No adjacent settings, no knobs nobody requested.
-- **Ship every round to `beta`** via the "finish" workflow in `CLAUDE.md` — he
-  tests on his phone. A description of a change is not a change.
+- Build exactly what is asked. **No adjacent settings, no knobs nobody
+  requested.**
+- **Ship every round** — he tests on his phone. A description of a change is not
+  a change. Push the **feature branch only** for now.
 - Batch the **questions** (4–6 at a time; he answers them all in one go).
   Serialise the **builds** — anything visual goes one at a time, because "it
   doesn't feel right" only surfaces on the device.
+- > **If he says something looks wrong, IT IS WRONG.** Go and measure it in the
+  > code before explaining why it should be fine. Sessions have lost three
+  > rounds each to explaining instead of measuring, and shipped "fixes" that did
+  > nothing. Every root cause is in `READER.md`'s trap list.
 
 ---
 
-## Just shipped (beta.42) — all of it needs testing on a phone
+## Where the walk got to
+
+**Element 1 (the top bar) is CLOSED** — 2026-08-04, after eleven rounds. It
+turned out to contain all of **edit mode**, so that is what most of those rounds
+were. Shipped in it: an orange edit chrome, structure editing by dragging the
+song map, per-section lyric/source editing, chord replacement, undo + an undo
+toast, "New version", pull-down-to-finish, the set-bar progress line, and a
+persistent setlist rail.
+
+Two surfaces were **split out of it as elements of their own** rather than
+polished inside it a twelfth time:
+
+| # | Element | State |
+|---|---|---|
+| **28** | **The ☰ menu** | **NEXT — this session.** |
+| **29** | The setlist rail | Shipped as a persistent strip; owner: *"it will require some work in the future. Not quite now."* |
+
+Then: element 2 (the ribbon, mostly settled by edit mode), then the 14–27 table
+in `READER.md` with the owner's answers already recorded verbatim.
+
+---
+
+## Element 28 — the ☰. What is actually there today
+
+Read `READER.md` → **"The ☰ menu — what actually belongs in it"** first; it is
+the brief, and it already carries the owner's constraint (*"there would be more
+options than just the visual"*) plus a candidate list.
+
+The facts to check before designing anything:
+
+- **The glyph opens two different menus.** Standalone → `ReaderMenu.jsx` (the
+  reader's own four-row menu). **Embedded** (the Song Hub, the side peek) → the
+  host owns the button, passes a rect down, and it opens **`AaMenu.jsx`**
+  instead. That is deliberate (`READER.md` → "The hub view"): the hub is a
+  browsing surface with a fixed look and giving it the reader's menu would
+  reconnect two surfaces that were deliberately disconnected. **Do not
+  "unify" it without asking.**
+- The ☰ is **disabled, not removed, in edit mode** — dropping the button would
+  change the bar's shape the moment you press edit and everything else would
+  jump left.
+- `resolveReaderConfig(settings, { embedded: true })` **ignores `settings`
+  entirely** and returns `HUB_VIEW`. Deliberate — the hub view is the Reader
+  with the settings wire cut. Do not reconnect it.
+- What a view may *do* lives in the `VIEW` table in `src/lib/readerConfig.js`
+  (`can.transpose`, `can.saveKey`, `can.practiceTools`, `can.editSong`,
+  `can.switchArrangement`, `can.writeNotes`). If a menu row belongs to some
+  views and not others, that is where it is expressed — not in the menu.
+- Any new reader setting must be added to `PORTABLE_PREF_KEYS` or it will not
+  follow the user across devices.
+
+---
+
+## Just shipped (beta.59) — needs testing on a phone
 
 | What | Where |
 |---|---|
-| Bottom ribbon moved into the nav's sticky block | `Reader.jsx` |
-| Pinned heading overlaps the divider by 1px | `ReaderSection.jsx` |
-| `headH` measured raw from the border box (no ceil) | `Reader.jsx` |
-| Ribbon reads the pin line in px (`linePx`) | `useActiveSection.js` |
-| Inactive chips: outline + section colour, no fill, no opacity | `StructureRibbon.jsx` |
-| Left/right ribbon floats, transparent, now allowed on phones | `Reader.jsx`, `readerConfig.js` |
-| **SET / HEADER / STRUCTURE** — the set bar sits above the title row | `ReaderTopBar.jsx` (`aboveBar` prop) |
-| Repeats gain a third value, `hide` — nothing drawn, ribbon still lists it | `readerConfig.js`, `ReaderSection.jsx` |
-| Tap tempo (4 taps) · type an exact tempo · **Save to song** | `metronome.js`, `ReaderPracticeRow.jsx` |
-| 1/2 columns hidden on phones | `ReaderMenu.jsx` |
+| **The WHOLE sticky block goes orange in edit mode** — set bar, title row, ribbon, progress line | `readerChrome.js` (`EDIT_CHROME`), `ReaderTopBar.jsx` |
+| Ribbon chips **invert** on the orange: filled in the section colour + white hairline; `+`/drop marks white; the bin keeps red on a white pill | `StructureRibbon.jsx` (`accent` prop) |
+| Editing forces the ribbon style to `codes` (a dot is not a drag handle) | `Reader.jsx` |
+| **Pull down to finish** — at `scrollTop === 0`, ~98px of drag exits edit mode | `Reader.jsx` |
+| The `scrollTop += delta` compensation **actually removed** (beta.58 documented it and left it running) | `Reader.jsx` |
+| The practice test's YouTube mock fires `onReady` synchronously; the helper flushes instead of polling | `reader-practice.test.jsx` |
 
 ---
 
-## The views — the map, agreed
+## Known-open, carried out of element 1
 
-A view is a **template of the Reader**: one renderer, different defaults and
-different chrome. Never a different chart.
-
-| # | View | Opens from, and only from |
-|---|---|---|
-| 1 | Song hub full screen | the hub's full-screen button. From the side peek it expands **within the peek** |
-| 2 | Campfire | the Campfire button. Needs recommended-next at the bottom |
-| 3 | Live | Play in the setlist hub |
-| 4 | Practice | Practice in the setlist hub. Needs a rework |
-| 5 | The hub view | the Chart/Lyrics tab, the peek at rest, the editor preview. **No settings at all** |
-| 6 | Shared setlist viewer | a public link. ❓ view or separate renderer — undecided |
-| 7 | Print / PDF | a genuinely different renderer. Stays that way |
-
-`setlist-play` and `setlist-performance` are **two routes into view 3** with
-identical props, differing only in which finale they land on. One should go.
-
----
-
-## Where the element walk got to
-
-Elements 1–14 are built. The owner's answers to 15–27 are in `READER.md`,
-verbatim. His stated order from here:
-
-1. **Element 12** — the tap-tempo work above landed but has not been reviewed.
-   Ask before changing anything else in the row.
-2. **Element 8b (setlist bar)** — still marked "needs a rework", and the new
-   SET/HEADER/STRUCTURE stack is unreviewed.
-3. Batch **15 · 17 · 18 · 27** — all behaviour, no visuals.
-4. Batch **16 · 19 · 21 · 22** to decide; build one at a time.
-5. **24** (stage view) and **25** (follow the leader) last, each on its own.
-
----
-
-## Parked, in `PLAN.md`
-
-- 🔴 **§1.2b prio 1 — rethink the colours across every theme.** Two piecemeal
-  fixes (the dark ramp's hue fighting its own ground; Midnight tinting only half
-  its scale) are evidence the themes were never designed as a set.
-- 🟡 Separate volumes for the click and the backing track.
-- 🟡 Custom chord shapes, for chords with no shape in the library.
-- ⏭️ Auto-scroll — deferred until sections carry lengths in the `.md`.
+- **§7 #13 — two chord pickers, and underneath them two chord MODELS.**
+  `ArrangeTabV2` uses `{ plainText, chords: [{ pos, chord }] }`; the reader and
+  the `.md` use `[C]inline` strings. This is why the reader can replace a chord
+  but cannot yet *add* one to a word that has none, and why "just do it like the
+  editor does" does not transfer. Unify the model first.
+- **§7 #14 (prio 2) — draggable song sections on the page**, with a `+ section`
+  at the end. Parked deliberately: the map's drag may turn out to be enough, and
+  two drag systems on one screen is a cost.
+- **Element 13 note:** the owner asked that the post-practice screen show a
+  summary of what was changed in the session. Do it when 13 comes round.
+- **Follow-the-leader indicator:** option (b) — the chrome carries the state, no
+  new element in the bar. Build it with the follow-the-leader slice (element 25).
 
 ---
 
@@ -137,17 +132,20 @@ verbatim. His stated order from here:
 - **The Song Hub renders `Reader`, not `ChartView`,** when the flag is on. Three
   places can cause a "hub theme bug": the reader, the chart, and the hub's own
   card. `PLAN.md` §1.2 has the warning box.
-- **`min-h-0` on every small control.** `button { min-height: 44px }` on phones
-  lives in `@layer base` and beats every padding utility. Four rounds lost.
+- **`min-h-0` on every small control.** `button { min-height: 36px }` (44px on
+  phones) lives in `@layer base` and beats every `height` utility. Four rounds
+  lost to it, in three different places.
 - **CSS custom-property cycles** are invalid at computed-value time and unset
   the whole subtree. Every fallback must be a literal or name a *different*
   property.
-- **`resolveReaderConfig(settings, { embedded: true })` ignores `settings`
-  entirely** and returns `HUB_VIEW`. Deliberate — the hub view is the Reader
-  with the settings wire cut. Do not reconnect it.
+- **React's synthetic touch listeners are passive** — `preventDefault()` in an
+  `onTouchMove` prop is a no-op. Native listener, `{ passive: false }`, in an
+  effect.
+- **An effect that owns a gesture must not depend on anything that changes**, or
+  its cleanup tears down the gesture mid-drag. Mount once, read the moving parts
+  from a ref. (`StructureRibbon`'s drag; `Reader`'s pull-to-finish.)
 - **Tempo cannot come from a YouTube link.** No BPM in the IFrame API, and the
-  audio can't be analysed from a cross-origin embed (`createMediaElementSource`
-  needs same-origin). Spotify's `audio-features` carries tempo but is closed to
-  new apps. Tapping is the answer, and it is built.
+  audio can't be analysed from a cross-origin embed. Tapping is the answer, and
+  it is built.
 - **`applyKeyHistories` is reference-preserving on purpose.** A map that
   re-mints every object reintroduces whole-library IndexedDB rewrites on launch.

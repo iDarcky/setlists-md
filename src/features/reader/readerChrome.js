@@ -48,40 +48,56 @@ export const BAR_BUTTON = 'min-h-0 h-9 w-9 sm:h-8 sm:w-8 text-[var(--chart-text,
  */
 export const EDIT_ACCENT = '#f97316';
 
+/** Edit mode's ink — the one foreground that is legible on `EDIT_ACCENT`. */
+export const EDIT_INK = '#1a1004';
+
 /**
- * Edit mode's TITLE ROW — a real orange header, not a tint (owner, 2026-08-04:
- * *"I don't know if just a line is enough for it. Let's create a special orange
- * header for editing"*).
+ * Edit mode's CHROME — the whole sticky block, not a stripe and not one row
+ * (owner, 2026-08-04: *"everything should be made orange, the song map and the
+ * set as well, right now it looks strange only the header"*).
  *
- * The earlier attempts both failed for the same reason: a `color-mix` wash is a
+ * Right, and the intermediate version was worse than either end: an orange
+ * title row between a chart-coloured set bar and a chart-coloured ribbon reads
+ * as a band that has landed on the header rather than as the header being in a
+ * different mode. Chrome in a mode is chrome in a mode all the way down.
+ *
+ * The earlier attempts failed for a different reason: a `color-mix` wash is a
  * blend of orange with **whatever the chart theme's background is**, so it lands
  * differently on every theme and drags the foreground's contrast with it. This
  * pins BOTH sides — a fixed orange ground and fixed near-black ink — so the
  * contrast ratio is a constant (about 8:1) that no theme can touch.
  *
- * The tokens are re-pointed for the row's subtree, so the title, the icons, the
- * meta and the key chip all read from them without knowing about edit mode. As
- * everywhere else in this file: **every fallback is a literal**, because a
+ * The tokens are re-pointed for the block's subtree, so the title, the icons,
+ * the meta, the key chip AND the set bar all read from them without knowing
+ * about edit mode — the set bar was already written entirely in `--chart-*`, so
+ * it turns orange for free and its current song stays a dark pill.
+ *
+ * The one thing that does NOT come free is the structure ribbon: its chips
+ * carry per-section colours as TEXT on a transparent ground, which is mud on
+ * orange. That is handled where the colours are, by `StructureRibbon`'s
+ * `accent` prop — the chips fill and take a white hairline instead. It is the
+ * reason this was one row for a round.
+ *
+ * As everywhere else in this file: **every fallback is a literal**, because a
  * custom property inside its own fallback is a cycle and a cyclic property is
  * unset for the whole subtree (`docs/READER.md`).
- *
- * Only the TITLE ROW. The progress line, the set bar and the structure ribbon
- * keep the chart's own background — the ribbon's chips carry section colours
- * that would be mud on orange, and the map is the one thing you are looking at
- * while you edit.
  */
-export const EDIT_ROW = {
+export const EDIT_CHROME = {
   background: EDIT_ACCENT,
-  '--chart-text': '#1a1004',
+  '--chart-text': EDIT_INK,
   '--chart-subtle': 'rgba(26,16,4,0.72)',
   '--chart-rule': 'rgba(26,16,4,0.30)',
   '--chart-bg': EDIT_ACCENT,
-  '--ds-gray-1000': '#1a1004',
+  '--ds-gray-1000': EDIT_INK,
+  '--ds-gray-900': EDIT_INK,
   '--ds-gray-700': 'rgba(26,16,4,0.72)',
+  '--ds-gray-600': 'rgba(26,16,4,0.72)',
+  '--ds-gray-500': 'rgba(26,16,4,0.60)',
   '--ds-gray-400': 'rgba(26,16,4,0.30)',
+  '--ds-gray-300': 'rgba(26,16,4,0.30)',
   '--ds-gray-200': 'rgba(26,16,4,0.14)',
   // The key chip fills with `--chord`. Gold on orange is illegible, so in this
-  // row it becomes white — the chip keeps its near-black text and reads as a
+  // block it becomes white — the chip keeps its near-black text and reads as a
   // white pill on orange.
   '--chord': '#ffffff',
 };

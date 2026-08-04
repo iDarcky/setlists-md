@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import { IconButton } from '@/ui/IconButton';
-import { BAR_BUTTON, EDIT_ACCENT, EDIT_ROW } from './readerChrome';
+import { BAR_BUTTON, EDIT_INK, EDIT_CHROME } from './readerChrome';
 
 /**
  * Element 1 — the top bar. ONE component, so a song and a break cannot drift
@@ -24,7 +24,7 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
   return (
     <div
       ref={ref}
-      className="reader-head sticky top-0 z-20 shrink-0 flex flex-col border-b"
+      className="reader-head sticky top-0 z-20 shrink-0 flex flex-col border-b transition-colors"
       // The brand-tinted divider closes the WHOLE sticky block — bar plus
       // whatever is pinned under it — rather than sitting between the two.
       // Element 2's decision is that the bar and the ribbon are ONE piece of
@@ -32,25 +32,25 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
       // and it landed as an underline for the song title. The boundary that
       // actually exists is chrome ↔ chart, and this is it. (2026-08-01, after
       // one round with the line in the other place.)
-      // Edit mode colours the CHROME rather than adding an element to it: the
-      // divider and the wash go ORANGE (see EDIT_ACCENT). Element 1 is fixed
-      // and takes no additions, so a mode it can be in has to be a STATE of the
-      // bar, not a new thing in it. (Same principle the owner picked for the
-      // follow-the-leader indicator, 2026-08-03.)
-      style={{
-        borderColor: editing
-          ? EDIT_ACCENT
-          : 'var(--chart-divider, var(--chart-rule, var(--ds-gray-300)))',
-        // The BACKGROUND stays the chart's own, in every mode. A tint mixed
-        // into it lands differently on every chart theme — 9% orange over cream
-        // is nearly invisible and over near-black is muddy — and it drags the
-        // title's contrast with it (owner, 2026-08-04: "if we use this opacity
-        // it will look different for each theme and some might not be
-        // readable"). The mode is carried by SOLID marks instead: the stripe
-        // below and the divider, both `EDIT_ACCENT` at full strength, which
-        // read identically against every theme because nothing is mixed in.
-        background: 'var(--chart-bg, var(--ds-background-100))',
-      }}
+      // Edit mode colours the CHROME rather than adding an element to it, and
+      // it colours ALL of it — bar, set bar, ribbon, the lot (owner,
+      // 2026-08-04). Element 1 is fixed and takes no additions, so a mode it
+      // can be in has to be a STATE of the bar, not a new thing in it. (Same
+      // principle the owner picked for the follow-the-leader indicator,
+      // 2026-08-03.)
+      //
+      // A SOLID ground, never a tint: 9% orange mixed into the chart's own
+      // background is nearly invisible over cream and muddy over near-black,
+      // and it drags the title's contrast with it (owner: "if we use this
+      // opacity it will look different for each theme and some might not be
+      // readable"). `EDIT_CHROME` pins the ground AND the ink, so the block
+      // reads identically on every chart theme.
+      style={editing
+        ? { ...EDIT_CHROME, borderColor: 'rgba(26,16,4,0.35)' }
+        : {
+          borderColor: 'var(--chart-divider, var(--chart-rule, var(--ds-gray-300)))',
+          background: 'var(--chart-bg, var(--ds-background-100))',
+        }}
     >
       {/* How far through the SET you are. It used to belong to
           `ReaderSetlistBar`, so turning the set bar off took the progress with
@@ -62,7 +62,10 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
         <div className="h-0.5 w-full shrink-0" style={{ background: 'var(--chart-rule, var(--ds-gray-300))' }}>
           <div
             className="h-full transition-[width] duration-300"
-            style={{ width: `${progress}%`, background: editing ? EDIT_ACCENT : 'var(--color-brand)' }}
+            // Orange on orange is nothing, so on the edit ground the filled
+            // part of the line becomes the ink — the same swap the key chip
+            // makes.
+            style={{ width: `${progress}%`, background: editing ? EDIT_INK : 'var(--color-brand)' }}
           />
         </div>
       )}
@@ -73,11 +76,6 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
 
       {/* py-1, not py-1.5 — see BAR_BUTTON on where the height actually comes
           from. */}
-      {/* The title row, and ONLY the title row, turns orange in edit mode. */}
-      <div
-        className="flex items-center transition-colors"
-        style={editing ? EDIT_ROW : undefined}
-      >
       <div className="wide-container flex items-center gap-1.5 py-1.5 sm:py-1">
         {/* ONE cluster, not three separate buttons (owner, 2026-08-03: the
             icons "are a bit too big and they are too separate"). At 36px with
@@ -152,7 +150,6 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
             <CloseIcon />
           </IconButton>
         )}
-      </div>
       </div>
 
       {children}

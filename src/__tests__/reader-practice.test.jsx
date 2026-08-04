@@ -4,7 +4,7 @@
 // no wake lock. The click and the backing track slow down INDEPENDENTLY — they
 // are not locked to one another.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import Reader from '@/features/reader/Reader';
 import { songFromFlat } from '@/arrangements';
 
@@ -29,7 +29,18 @@ vi.mock('@/lib/embedPlayers', () => ({
         this.pauseVideo = () => {};
         this.seekTo = () => {};
         this.destroy = () => {};
-        setTimeout(() => opts.events.onReady({ target: this }), 0);
+        // SYNCHRONOUS, not `setTimeout(…, 0)`. A real embed signals ready on a
+        // later task, but reproducing that here bought nothing and cost a
+        // flake: `trackReady` had to POLL for it, and under 56 test files in
+        // parallel the timer was occasionally serviced late enough that a test
+        // about playback rates failed for reasons that had nothing to do with
+        // playback rates. Firing in the constructor makes readiness arrive at a
+        // known point — the resolution of `ensureYouTubeApi` — so the test can
+        // flush exactly one microtask and assert, with no clock in the loop.
+        // Safe because the hook's `onReady` only touches `e.target`; the
+        // `player` binding it doesn't have yet is used solely by
+        // `onStateChange`, which fires later.
+        opts.events.onReady({ target: this });
       }
     },
   }),
@@ -93,15 +104,17 @@ const startClick = () => fireEvent.click(screen.getByRole('button', { name: 'Sta
 // The play button is in the DOM (disabled) from the first frame, so its mere
 // presence is NOT readiness — the rate list only arrives with the player's
 // onReady, and pressing before that steps against a stale one-entry list.
-// 3s, not the 1s default: this waits on a MOCKED player's onReady, so the
-// timeout is not testing anything — but under a full parallel suite run the
-// default occasionally expired and failed a test about playback rates for
-// reasons that had nothing to do with playback rates. Raising it removes a
-// flake without weakening the assertion that follows.
-const trackReady = () => waitFor(
-  () => expect(screen.getByRole('button', { name: 'Play backing track' }).disabled).toBe(false),
-  { timeout: 3000 },
-);
+//
+// Readiness is exactly ONE microtask away: the hook builds the player inside
+// `ensureYouTubeApi().then(...)` and the mock signals ready in the constructor.
+// So this FLUSHES rather than polls. `waitFor` with a raised timeout was the
+// previous shape and it was the wrong tool — a longer timeout makes a flake
+// rarer, it does not remove the race. Nothing here waits on a clock, so a
+// loaded event loop cannot change the outcome.
+const trackReady = async () => {
+  await act(async () => {});
+  expect(screen.getByRole('button', { name: 'Play backing track' }).disabled).toBe(false);
+};
 
 describe('element 12 — getting to the tools', () => {
   it('is one icon beside the menu, and nothing until you tap it', () => {

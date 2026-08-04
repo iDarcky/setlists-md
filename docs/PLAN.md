@@ -53,8 +53,23 @@ any of it. Also landed: the component-architecture foundation (§3.1, all ✅).
 
 ### 1.1 Finish the Reader
 
-The last four items. None is a new design round; each is a correction or a
-promise already made.
+> **The element-by-element pass is what "finish the reader" now means**
+> (owner, 2026-08-03: *"I want to go through every element one by one and
+> improve it"*). One element per session-ish, questions batched and answered
+> **before** anything is built, every round shipped to the feature branch and
+> tested on a phone. `docs/READER.md` is the log.
+>
+> | | |
+> |---|---|
+> | **Closed** | **1 — top bar** ✅ 2026-08-04, after eleven rounds. It turned out to contain all of **edit mode** (orange chrome, structure editing from the song map, per-section lyric editing, chord replacement, undo, New version, pull-to-finish), the set bar's progress line, the chrome's real height, and the rail's toggle. |
+> | **Next** | **28 — the ☰ menu** (owner: *"don't you think that ☰ should be an element in its own right?"*). Brief: `READER.md` → "The ☰ menu — what actually belongs in it". |
+> | **Then** | **29 — the setlist rail** (*"it will require some work in the future. Not quite now."*) · **2** — the structure ribbon, mostly settled by edit mode · then the 14–27 table. |
+>
+> Two things carried out of element 1 and are NOT part of it: the **chord-model
+> unification** (§7 #13) and **draggable song sections** (§7 #14, prio 2).
+
+The four items below predate the element pass. None is a new design round; each
+is a correction or a promise already made.
 
 1. 🔴 **The metronome must not start on tap** (element 12). The icon should open
    the practice row; the row's own play button starts the click. Shipped wrong in
@@ -807,7 +822,7 @@ Everything marked ❓ above, collected. These block or reshape real work.
 | 11 | **How many reading modes are there really?** Live / rehearsal / practice / campfire / full-screen are five *names* for one viewer — the preset idea coming back through the door. What actually differs is three flags: practice tools on?, cues shown?, screen kept awake? Recommend deleting the vocabulary and keeping the flags. | A design round after §1.3 |
 | 14 | 🟡 **prio 2 — draggable song SECTIONS on the page, and a `+ section` at the end.** The song map's drag now works, so the second half of the owner's idea (2026-08-04) is parked rather than blocked: reordering by dragging the section on the page itself, where your eyes already are, with the map kept as the overview. Wait until the map's drag has had real use — it may turn out one is enough, and two drag systems on one screen is a cost. | Nothing; parked deliberately |
 | 13 | **Two chord pickers, and underneath them two chord MODELS.** `features/editor/ChordPicker.jsx` (a fixed 290px root × suffix popover, no text entry) and `ChordAutocomplete.jsx` (types any chord, docks on touch, suggests from the key) both exist and do the same job; the reader was wired to the wrong one for a build. Merging the two components is the easy half. The hard half is that they sit on **different representations**: `ArrangeTabV2` works on `{ plainText, chords: [{ pos, chord }] }` — lyrics as text plus chords at character positions — while the reader and the `.md` work on `[C]inline` strings. That difference is why "just do it like the editor does" does not transfer, and why the reader cannot yet place a chord on a word that has none. Unify the model first; the picker follows. | A design round with §7 #12 |
-| 12 | **Editing from the reader** — structure, notes, and a fast chord fix. The hard part is not the editor, it is *"is this a correction or a new arrangement?"*, which is a question about whether a chart is mutable or versioned. The owner's month-old note raises this four separate ways (items 6, 7, 14, "Rehearsal mode"). **Biggest item in the backlog.** | A design round after §1.3 |
+| 12 | ✅ **Editing from the reader — ANSWERED and shipped 2026-08-04**, inside element 1. *"Is this a correction or a new arrangement?"* is settled: **the edit changes the song**, immediately, and **"New version"** is the escape hatch that forks it instead — so nobody has to answer the question *before* making the change, which is why it was unanswerable. **Practice only** (`can.editSong` in the view table), **editor role or higher** (already enforced — App nulls `onUpdateSong`), Cancel restores the entry snapshot. Decision log: `READER.md` → "Edit mode", rounds 1–8. What is still open is downstream: §7 #13 (the chord model) and §7 #14 (draggable sections). | — |
 
 ---
 

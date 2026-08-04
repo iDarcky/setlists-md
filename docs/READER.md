@@ -81,8 +81,16 @@ original surfaces render untouched.
 
 ## The elements
 
-### 1 — Top bar
-**Fixed. No customization at all.** One row: ☰ · title · key · ♩tempo · time · ✕.
+### 1 — Top bar ✅ closed 2026-08-04
+**Fixed. No customization at all.** One row: ☰ · practice · edit · title · key ·
+♩tempo · time · ✕.
+
+> **Closed after eleven rounds** (2026-08-03 → 08-04). The full log is "The
+> header pass" below; the short version is that element 1 turned out to contain
+> **all of edit mode**, the set bar's progress line, the chrome's real height,
+> and the rail's toggle. Two of those were split back out as elements 28 (☰) and
+> 29 (the rail) rather than being polished here a twelfth time. Reopen it only
+> for a bug.
 
 - The title is **always** shown. A three-state density knob was built after the
   owner said element 1 takes no customization; its `min` value hid the title
@@ -498,6 +506,17 @@ remembers. Numbered from 14 so they can be worked the same way as the rest.
 it. That is what tomorrow's pass is for — most of these are cheap if decided,
 expensive if discovered on a Sunday.
 
+#### Two more, promoted to elements — 2026-08-04
+
+Both already exist and both were being polished as *part of* element 1, which is
+how element 1 took eleven rounds. They are surfaces with their own decisions, so
+they get their own numbers and their own passes.
+
+| # | Element | Why it is its own element | Cost |
+|---|---------|---------------------------|------|
+| 28 | **The ☰ menu** | Owner: *"we go the ☰ menu and we make it look and work properly? Don't you think that ☰ should be an element in its own right?"* — yes. It is the reader's only settings surface, it is `ReaderMenu` standalone but `AaMenu` embedded (two menus behind one glyph), and "The ☰ menu — what actually belongs in it" below is a whole section of undecided content with no pass to land in. **Next.** | M |
+| 29 | **The setlist rail** | Shipped as a persistent strip on 2026-08-04 (below) and that is where it stops for now — owner: *"it will require some work in the future. Not quite now."* Open: what it looks like on a phone beyond the bottom sheet, whether it shows keys/durations/who-plays-what, what it does in a break, and whether it is the same object as element 8b's set bar or a rival to it. | M |
+
 #### What the owner decided, 2026-07-31
 
 Answers to the table above, in the owner's words, with what each one means for
@@ -697,6 +716,8 @@ outside it and a click anywhere dismisses. (This is the same note as the
 about height, it's about the pointer never being captured.)
 
 ### The ☰ menu — what actually belongs in it
+*(This is **element 28**'s brief — see "Two more, promoted to elements". It is
+the next pass.)*
 
 The owner's constraint: *"there would be more options than just the visual."*
 So it is not an Aa menu with a new coat of paint; it is **the reader's one
@@ -1125,24 +1146,58 @@ Two things had to be carried that did not exist before:
 > `src/__tests__/structure-ribbon.test.jsx` now drives a whole gesture end to
 > end, so a regression in the effect's lifetime fails there and not on a phone.
 
-#### Edit mode, round 7 — 2026-08-04
+#### Edit mode, round 8 — 2026-08-04 · **element 1 closed**
 
-**A real orange header**, not a tint and not a stripe (owner: *"I don't know if
-just a line is enough for it. Let's create a special orange header for
-editing"*). `EDIT_ROW` in `readerChrome.js` paints the **title row only** solid
-`EDIT_ACCENT` and re-points the foreground tokens for its subtree to fixed
-near-black ink.
+Owner: *"everything should be made orange, the song map and the set as well,
+right now it looks strange only the header."* Right, and the half-way version
+was worse than either end — an orange title row between a chart-coloured set bar
+and a chart-coloured ribbon reads as a **band that has landed on** the header
+rather than as the header being in a different mode. Chrome in a mode is chrome
+in a mode all the way down.
 
-> **Why the two earlier attempts failed, and this cannot.** A `color-mix` wash
-> blends orange with *whatever the chart theme's background is*, so it lands
-> differently on every theme and drags the foreground's contrast with it. Pinning
-> **both** sides — fixed ground, fixed ink — makes the contrast a constant
-> (~8:1) that no theme can touch. `--chord` becomes white in that row, because
-> the key chip's gold on orange is illegible.
->
-> **Only the title row.** The progress line, the set bar and the ribbon keep the
-> chart's own background: the ribbon's chips carry section colours that would be
-> mud on orange, and the map is the thing you are looking at while you edit.
+`EDIT_ROW` became **`EDIT_CHROME`** and moved from the title row to the whole
+sticky block. Three things fell out of that:
+
+| | |
+|---|---|
+| **The set bar came for free** | `ReaderSetlistBar` was already written entirely in `--chart-*`, so re-pointing the tokens turns it orange with no edit at all: its current song stays a dark pill, its edge fades keep matching the ground. This is the payoff for the surface objects in `readerSurface.js` — a component that names no colours of its own can be moved onto a new ground. |
+| **The progress line inverts** | Orange on orange is nothing, so the filled part becomes the ink (`EDIT_INK`) — the same swap the key chip already makes with `--chord`. |
+| **The ribbon does NOT come free** | Its chips carry `s.b`, the **section's** identity (pink chorus, teal bridge) — not a token of the surface, and it has to survive or the map stops being a map. Coloured text on orange is mud. |
+
+**So the chips invert** (`StructureRibbon accent`): each one **fills** with its
+own section colour, takes a **white hairline** — which separates it from the
+ground whatever colour that ground is — and labels in white; the active chip
+keeps its ring, in white. The `+`, the drop outlines and the end-zone go white
+for the same reason (brand teal on orange is the hardest thing on the row to
+find). The bin **stays red** (owner, round 5) but gets a white pill to be red
+*on*, and fills solid red when you are over it.
+
+> **Editing also forces the ribbon style to `codes`**, alongside forcing the map
+> on. Same reason twice: a chip has to be a *drag handle* now, and `dots` is a
+> 10px circle while `numbered` is bare text with no box — nothing to grab, and
+> nothing to paint a drop outline on. An inverted chip also needs a chip.
+
+**Pull down to finish.** Owner: *"drag down to exit mode"* → *"what if it's an
+installed pwa? Then we have no drag to refresh, and I was thinking that you drag
+after you cannot scroll anymore… that's my idea of pull to exit."*
+
+- Armed **only at `scrollTop === 0`** — the "cannot scroll anymore" the owner
+  named. It takes the gesture with `preventDefault` once engaged; the scroller
+  is already `overscroll-contain`, so an installed PWA has no browser refresh to
+  fight and a tab's pull never reaches the document.
+- **~98px of finger travel**, damped to 0.45 so the header follows at half speed
+  and the gesture feels like it is resisting. Under a thumb-length, over
+  anything you could do by accident.
+- The label rides **under the sticky block as its child**, so the header's
+  transform carries it — the hint arrives from behind the chrome rather than
+  appearing in the middle of the chart.
+- Everything runs **outside React**: a non-passive native `touchmove` (React's
+  synthetic touch listeners are passive and `preventDefault` on them is a no-op),
+  the header moved by writing `transform` on the node, and the effect
+  **mounted once** reading its moving parts from a ref. A finger produces ~120
+  moves; 120 renders of a chart would visibly lag the thumb — and the ribbon's
+  drag was already broken for two rounds by an effect that re-ran and cleaned up
+  its own gesture mid-drag.
 
 > ### ⚠ Do NOT "compensate" `scrollTop` when the sticky header changes height
 > beta.57 added `scrollTop += delta` for the report that a pinned heading hides
@@ -1157,10 +1212,40 @@ near-black ink.
 >
 > Grow the header to `H + Δ`: the item reflows to `H + Δ + k` and the header
 > covers `[0, H + Δ]`, so hidden ⟺ `k < scrollTop` — **the same condition**. The
-> reflow and the taller header cancel exactly. Removed in beta.58. **The real
-> cause is still unmeasured**; it needs a repro, not a third guess.
+> reflow and the taller header cancel exactly.
+>
+> **beta.58 wrote this warning and did not take the line out.** The `scrollTop
+> += delta` was still inside the ResizeObserver, so the third round of "not 100%
+> fixed" was the original bug still running — the doc and the code disagreed and
+> the doc was believed. Removed for real in beta.59.
+>
+> **And it was the cause, not a failed fix.** Scrolling down by Δ pushes the
+> section you are in Δ further past, and a sticky heading **releases at the
+> bottom of its own section** — so a short section's heading slides up under the
+> header and stays there until you scroll back. Exactly the report. If a heading
+> ever hides again: measure `headH`, `scrollTop` and the heading's
+> `getBoundingClientRect().top` across the transition before touching anything.
 
-### The rail is a persistent strip — 2026-08-04
+#### Edit mode, round 7 — 2026-08-04 · superseded by round 8
+
+**A real orange header**, not a tint and not a stripe (owner: *"I don't know if
+just a line is enough for it. Let's create a special orange header for
+editing"*). `EDIT_ROW` painted the **title row only** solid `EDIT_ACCENT` and
+re-pointed the foreground tokens for its subtree to fixed near-black ink.
+
+> **Why the two earlier attempts failed, and this cannot.** A `color-mix` wash
+> blends orange with *whatever the chart theme's background is*, so it lands
+> differently on every theme and drags the foreground's contrast with it. Pinning
+> **both** sides — fixed ground, fixed ink — makes the contrast a constant
+> (~8:1) that no theme can touch. `--chord` becomes white, because the key
+> chip's gold on orange is illegible. **This part survives**; round 8 only
+> widened where it is applied.
+>
+> **Only the title row** — held back because the ribbon's chips carry section
+> colours that would be mud on orange. Round 8 solved that at the chips instead
+> of stopping at the row.
+
+### The rail is a persistent strip — 2026-08-04 · now **element 29**
 
 Owner: *"on live, we have a full right side bar for the rail… look at how the old
 chart is doing and replicate that."* `PerformanceView` already had it, and it is
@@ -1378,6 +1463,15 @@ being routes into `live`.
    inline style combinations — workarounds live in `vitest.setup.js`.
 7. **Any new reader setting must be added to `PORTABLE_PREF_KEYS`**
    (`src/app/usePreferenceSync.js`) or it won't follow the user across devices.
+8. **React's synthetic touch listeners are passive.** `onTouchMove` +
+   `preventDefault()` is a silent no-op (a console warning at best). Any gesture
+   that must take the scroll — pull-to-finish, the ribbon's drag — registers a
+   **native** listener with `{ passive: false }` in an effect.
+9. **A doc that says "removed" is not a removal.** beta.58 wrote the
+   `scrollTop`-compensation warning above into both the code and this file and
+   left the line itself running; the next round then read the comment, believed
+   it, and looked elsewhere. When retiring something, `grep` for it after
+   writing the note.
 
 ## Tests
 
@@ -1388,6 +1482,17 @@ being routes into `live`.
 - `src/__tests__/setlist-reader.test.jsx` — element 10, breaks, nav modes
 - `src/__tests__/structure-ribbon.test.jsx` — chip geometry + the `min-h-0` trap
 - `src/__tests__/reader-config.test.js` — one case per knob
+- `src/__tests__/edit-structure.test.js` — edit mode's arithmetic, all of it pure
 - `src/__tests__/my-instrument.test.js`, `tab-transpose.test.js`
 
 `.test.js` = node/logic · `.test.jsx` = jsdom/render.
+
+> **No timer may decide a test's outcome.** `reader-practice` waited on a
+> `setTimeout(…, 0)` in the YouTube mock via `waitFor`, and under 56 parallel
+> files the callback was occasionally serviced late enough to fail a test about
+> playback rates for reasons unrelated to playback rates. Raising the timeout to
+> 3s made it rarer, not correct. The fix: the mock signals `onReady`
+> **synchronously in the constructor**, so readiness is exactly one microtask
+> away and the helper flushes (`await act(async () => {})`) instead of polling.
+> Do the same for any new async mock — a mock has no reason to reproduce real
+> latency, and every millisecond it invents is a race the suite has to win.

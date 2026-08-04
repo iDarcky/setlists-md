@@ -11,7 +11,7 @@ import { useActiveSection } from '@/hooks/useActiveSection';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import ReaderSection from './ReaderSection';
 import ReaderTopBar from './ReaderTopBar';
-import { BAR_BUTTON } from './readerChrome';
+import { BAR_BUTTON, EDIT_ACCENT } from './readerChrome';
 import { chartSurface, hubSurface } from './readerSurface';
 import ReaderPracticeRow, { MetronomeIcon } from './ReaderPracticeRow';
 import AaMenu from '@/features/chart/AaMenu';
@@ -297,27 +297,21 @@ export default function Reader({
       // fixing it. Abutting sticky edges must OVERLAP, never abut — the
       // heading pins one pixel high (see `ReaderSection`) and paints over the
       // seam.
-      setHeadH(prev => {
-        if (Math.abs(prev - h) <= 0.5) return prev;
-        // The header GREW (pressing edit turns the song map back on), so
-        // everything below it just moved down by the difference — including the
-        // heading that was pinned, which is now behind the map until you scroll
-        // (owner, 2026-08-04). Push the scroller by the same amount and the
-        // page does not appear to move at all. Only when already scrolled:
-        // at the top there is nothing behind the header to rescue.
-        const sc = scrollRef.current;
-        if (sc && prev > 0 && sc.scrollTop > 0) sc.scrollTop += (h - prev);
-        return h;
-      });
+      // Measure and store. NOTHING else — see the trap note below the effect.
+      setHeadH(prev => (Math.abs(prev - h) <= 0.5 ? prev : h));
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, [embedded]);
 
   // ⚠ DO NOT "compensate" scrollTop when the sticky header changes height.
-  // beta.57 added `scrollTop += delta` for the report that a pinned heading
-  // hides behind the map when edit turns the ribbon on. The geometry says it
-  // cannot help, and it actively hurt:
+  // beta.57 added `scrollTop += delta` inside the observer above for the report
+  // that a pinned heading hides behind the map when edit turns the ribbon on,
+  // and beta.58 wrote this warning WITHOUT actually taking the line out — so
+  // the third round of "not 100% fixed" was the original bug, still running.
+  // (Owner, 2026-08-04. Removed for real in beta.59; the rule stands.)
+  //
+  // The geometry says it cannot help, and it actively hurt:
   //
   //   item at document offset H + k  →  viewport y = H + k - scrollTop
   //   sticky header covers            [0, H]
@@ -329,7 +323,15 @@ export default function Reader({
   // therefore hides a further Δ of the song, which is the reported symptom made
   // worse by the amount the header grew.
   //
-  // The real cause is elsewhere and is not yet measured. Do not re-add this.
+  // Which is why the symptom outlived the "fix": scrolling down by Δ pushes the
+  // section you are in Δ further past, and a sticky heading RELEASES at the
+  // bottom of its own section — so a short section's heading slides up under
+  // the header and stays there until you scroll back, exactly as reported. The
+  // compensation was not a failed fix, it was the bug.
+  //
+  // Do not re-add it. If a heading ever hides again, measure `headH`,
+  // `scrollTop` and the heading's `getBoundingClientRect().top` across the
+  // transition before touching anything.
 
   const jumpTo = useCallback((idx) => {
     const el = document.getElementById(`section-${idx}`);
@@ -456,6 +458,95 @@ export default function Reader({
   // the stamp rather than cleared by an effect, so this needs no cleanup — the
   // session simply stops matching.
 
+  // ── Pull down to finish ──────────────────────────────────────────────────
+  // Owner, 2026-08-04: *"one cool feature that I would like to implement for
+  // mobile is drag down to exit mode"* — and, when the pull-to-refresh clash
+  // was raised: *"what if it's an installed pwa? Then we have no drag to
+  // refresh, and I was thinking that you drag after you cannot scroll anymore.
+  // ... that's my idea of pull to exit"*.
+  //
+  // So it is armed ONLY at `scrollTop === 0`, which is the "cannot scroll
+  // anymore" the owner named, and it takes the gesture with `preventDefault`
+  // once engaged — the scroller is already `overscroll-contain`, so in an
+  // installed PWA there is no browser refresh to fight, and in a tab the
+  // contain keeps the pull from reaching the document.
+  //
+  // Everything below runs OUTSIDE React on purpose:
+  //
+  //   · non-passive `touchmove`, because React's synthetic touch listeners are
+  //     passive and `preventDefault` on them is a no-op that logs a warning;
+  //   · the header is moved by writing `transform` on the node, not by state.
+  //     A finger produces ~120 moves; 120 renders of a whole chart would drop
+  //     the frame rate to where the pull visibly lags the thumb;
+  //   · MOUNT-ONCE, reading the moving parts out of a ref — the ribbon's drag
+  //     was broken for two rounds by an effect that re-ran and cleaned up its
+  //     own gesture mid-drag (`StructureRibbon`). Same rule here.
+  const pullRef = useRef(null);
+  const hintRef = useRef(null);
+  const pullLiveRef = useRef({});
+  useEffect(() => { pullLiveRef.current = { editing, done: toggleEdit }; });
+
+  useEffect(() => {
+    const sc = scrollRef.current;
+    if (!sc) return undefined;
+    // Damped, so the header follows the thumb at roughly half speed and the
+    // gesture feels like it is resisting rather than sliding.
+    const DAMP = 0.45;
+    // On the DAMPED distance: ~98px of actual finger travel. Under a full
+    // thumb-length, over anything you could do by accident while scrolling.
+    const TRIGGER = 44;
+    const paint = (d) => {
+      const head = headRef.current;
+      if (head) head.style.transform = d ? `translateY(${d}px)` : '';
+      const hint = hintRef.current;
+      if (!hint) return;
+      hint.style.opacity = String(Math.min(1, d / 28));
+      hint.textContent = d >= TRIGGER ? 'Release to finish' : 'Pull down to finish';
+    };
+    const cancel = () => { pullRef.current = null; paint(0); };
+    const onStart = (e) => {
+      if (!pullLiveRef.current.editing || sc.scrollTop > 0 || e.touches?.length !== 1) return;
+      const t = e.touches[0];
+      pullRef.current = { y: t.clientY, d: 0 };
+    };
+    const onMove = (e) => {
+      const p = pullRef.current;
+      if (!p) return;
+      if (!pullLiveRef.current.editing) { cancel(); return; }
+      const t = e.touches?.[0];
+      if (!t) return;
+      const dy = t.clientY - p.y;
+      // Upward, or the finger already scrolled the chart: this was a scroll.
+      // Give it up rather than arbitrating it for the rest of the gesture.
+      if (dy <= 0 || sc.scrollTop > 0) { cancel(); return; }
+      e.preventDefault();
+      p.d = Math.min(dy * DAMP, 120);
+      paint(p.d);
+    };
+    const onEnd = () => {
+      const p = pullRef.current;
+      pullRef.current = null;
+      if (!p) return;
+      const head = headRef.current;
+      // Animate the snap back, then take the transition off again so the next
+      // pull tracks the thumb instead of easing behind it.
+      if (head) head.style.transition = 'transform 180ms ease-out';
+      paint(0);
+      setTimeout(() => { if (head) head.style.transition = ''; }, 200);
+      if (p.d >= TRIGGER) pullLiveRef.current.done?.();
+    };
+    sc.addEventListener('touchstart', onStart, { passive: true });
+    sc.addEventListener('touchmove', onMove, { passive: false });
+    sc.addEventListener('touchend', onEnd);
+    sc.addEventListener('touchcancel', onEnd);
+    return () => {
+      sc.removeEventListener('touchstart', onStart);
+      sc.removeEventListener('touchmove', onMove);
+      sc.removeEventListener('touchend', onEnd);
+      sc.removeEventListener('touchcancel', onEnd);
+    };
+  }, []);
+
   const saveAsArrangement = useCallback(() => {
     if (!editBase || !onSaveAsArrangement) return;
     onSaveAsArrangement({
@@ -506,7 +597,16 @@ export default function Reader({
       // now, and a gesture that both moves the section AND throws the page
       // somewhere else is a gesture nobody can aim.
       onSelect={editing ? null : jumpTo}
-      style={settings?.ribbonStyle || 'codes'}
+      // Editing forces 'codes' as well as forcing the map on. Two reasons, and
+      // they are the same reason: a chip has to be a DRAG HANDLE now, and
+      // 'dots' is a 10px circle and 'numbered' is bare text with no box — there
+      // is nothing there to grab, and nothing to paint a drop outline on. The
+      // boxed map is also the only one that survives the orange ground, because
+      // an inverted chip needs a chip.
+      style={editing ? 'codes' : (settings?.ribbonStyle || 'codes')}
+      // The map sits on edit mode's solid orange now, so its chips invert
+      // rather than carrying section colour as text on it. See `accent`.
+      accent={editing}
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
       // EXPANDED while editing (owner: "I imagine that when the user presses
       // the edit the cx3 expands to c c c"). Right — a collapsed `C ×3` is one
@@ -672,6 +772,25 @@ export default function Reader({
             // the whole sticky block instead — see `ReaderTopBar`.
             <div className="wide-container overflow-hidden pt-0.5 pb-1" style={{ fontSize: '0.85em' }}>
               {ribbonNode}
+            </div>
+          )}
+
+          {/* Pull-to-finish's label. A CHILD of the sticky block, absolutely
+              positioned just below it, so the header's transform carries it
+              down as one piece — the hint arrives from behind the chrome
+              rather than appearing in the middle of the chart. `aria-hidden`
+              and pointer-transparent: it is feedback for a gesture in
+              progress, not a control, and Done/Cancel are the reachable way to
+              do the same thing. Its text is written by the touch handler
+              directly (see the effect) — nothing here re-renders mid-pull. */}
+          {editing && (
+            <div
+              ref={hintRef}
+              aria-hidden="true"
+              className="absolute left-0 right-0 top-full pt-2 flex justify-center pointer-events-none text-label-11 font-semibold"
+              style={{ opacity: 0, color: EDIT_ACCENT }}
+            >
+              Pull down to finish
             </div>
           )}
         </ReaderTopBar>

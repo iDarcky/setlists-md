@@ -51,6 +51,17 @@ export function StructureRibbon({
   // and a permanent × on every chip is the control-between-every-pair shape
   // that the `+` was already cut for.
   onRemoveSlot = null,
+  // The ribbon is sitting on a SOLID ACCENT rather than on the chart's own
+  // paper — today that means edit mode's orange header (`EDIT_CHROME`).
+  //
+  // It cannot be handled by re-pointing tokens the way the rest of the chrome
+  // is, because the chips' colours are not tokens of the surface: `s.b` is the
+  // SECTION's identity (pink chorus, teal bridge) and it has to survive, or the
+  // map stops being a map. Coloured text on orange is mud, so the chips invert
+  // — each one FILLS with its own colour and takes a white hairline, which
+  // separates it from the ground whatever colour it is, and the label goes
+  // white. The active chip keeps its ring, in white.
+  accent = false,
 }) {
   // Collapse consecutive duplicates: "C1, C1, C1" → one entry "C1 ×3".
   // Memoised because the drag effect depends on it — a fresh array every render
@@ -96,6 +107,11 @@ export function StructureRibbon({
       : ((wrap || onReorder) ? 'flex-wrap' : 'flex-nowrap overflow-x-auto no-scrollbar'),
   );
   const colorOf = (name) => sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
+  // The drop outline, the bin and the `+` are drawn in the brand colour, which
+  // is a teal — invisible enough on the orange ground to make the one control
+  // you are aiming at the hardest thing on the row. On an accent surface they
+  // all go white.
+  const mark = accent ? '#ffffff' : 'var(--color-brand)';
   const labelOf = (name) => (compact ? compactLabel(name) : sectionLabel(name, sectionLabels));
 
   // ── Drag to reorder, long-press to engage ────────────────────────────────
@@ -251,7 +267,7 @@ export function StructureRibbon({
           touchAction: 'pan-y',
           ...(drag?.from === i ? { opacity: 0.4 } : null),
           ...(drag && drag.over === i && drag.from !== i
-            ? { outline: '2px dashed var(--color-brand)', outlineOffset: 2 }
+            ? { outline: `2px dashed ${mark}`, outlineOffset: 2 }
             : null),
         },
       }));
@@ -266,8 +282,8 @@ export function StructureRibbon({
           data-drop-end="true"
           className="shrink-0 self-stretch w-6 rounded-[5px]"
           style={drag.over >= runs.length
-            ? { outline: '2px dashed var(--color-brand)', outlineOffset: 2 }
-            : { border: '1px dashed var(--border-2)' }}
+            ? { outline: `2px dashed ${mark}`, outlineOffset: 2 }
+            : { border: `1px dashed ${accent ? 'rgba(255,255,255,0.55)' : 'var(--border-2)'}` }}
         />
       );
     }
@@ -279,9 +295,16 @@ export function StructureRibbon({
           key="bin"
           data-drop-bin="true"
           className="shrink-0 inline-flex items-center justify-center w-7 h-[19px] rounded-[5px] border border-dashed"
+          // Still red (owner, 2026-08-04) on both grounds — but red on orange is
+          // barely a colour, so on the accent surface the bin gets a white pill
+          // to be red ON, and fills solid red when you are over it.
           style={drag.over === -1
-            ? { borderColor: 'var(--ds-red-900)', background: 'color-mix(in srgb, var(--ds-red-900) 18%, transparent)', color: 'var(--ds-red-900)' }
-            : { borderColor: 'var(--ds-red-900)', color: 'var(--ds-red-900)' }}
+            ? (accent
+              ? { borderColor: '#ffffff', background: 'var(--ds-red-900)', color: '#ffffff' }
+              : { borderColor: 'var(--ds-red-900)', background: 'color-mix(in srgb, var(--ds-red-900) 18%, transparent)', color: 'var(--ds-red-900)' })
+            : (accent
+              ? { borderColor: 'rgba(255,255,255,0.7)', background: '#ffffff', color: 'var(--ds-red-900)' }
+              : { borderColor: 'var(--ds-red-900)', color: 'var(--ds-red-900)' })}
           aria-hidden="true"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -292,7 +315,7 @@ export function StructureRibbon({
     }
     if (onAddSection && addOptions?.length) {
       tail.push(
-        <AddSection key="add" options={addOptions} onPick={onAddSection}
+        <AddSection key="add" options={addOptions} onPick={onAddSection} mark={mark}
           sectionColors={sectionColors} customSectionTypes={customSectionTypes} />
       );
     }
@@ -364,18 +387,31 @@ export function StructureRibbon({
                 active && 'font-bold',
                 onSelect && 'cursor-pointer hover:opacity-80',
               )}
-              style={activeFill
-                ? (active
-                  // The one filled chip. Its colour is the section's, so the
-                  // chip and the heading it points at are the same object.
-                  ? { color: 'var(--chart-bg, var(--bg-1))', background: s.b, borderColor: s.b }
-                  : {
-                    // Every code keeps its section's colour — you read the
-                    // shape of the song off the row without reading it.
-                    color: s.b,
-                    borderColor: 'var(--chart-rule, var(--border-1))',
-                    background: 'transparent',
-                  })
+              style={accent
+                // On a solid accent (edit mode's orange header) the chips
+                // INVERT: each one fills with its own section colour, takes a
+                // white hairline so it separates from the ground no matter what
+                // colour that ground is, and labels in white. The section
+                // identity survives — which is the whole reason the map is
+                // coloured — while nothing depends on the chart theme.
+                ? {
+                  color: '#ffffff',
+                  background: s.b,
+                  borderColor: 'rgba(255,255,255,0.55)',
+                  ...(active ? { boxShadow: '0 0 0 2px #ffffff' } : {}),
+                }
+                : activeFill
+                  ? (active
+                    // The one filled chip. Its colour is the section's, so the
+                    // chip and the heading it points at are the same object.
+                    ? { color: 'var(--chart-bg, var(--bg-1))', background: s.b, borderColor: s.b }
+                    : {
+                      // Every code keeps its section's colour — you read the
+                      // shape of the song off the row without reading it.
+                      color: s.b,
+                      borderColor: 'var(--chart-rule, var(--border-1))',
+                      background: 'transparent',
+                    })
                 // Without `activeFill` this is the pre-reader chart's ribbon:
                 // every code carries its own section colour, current one ringed.
                 : {
@@ -481,7 +517,7 @@ export function StructureRibbon({
  * Portalled: the ribbon is an `overflow-x-auto` strip, so a menu rendered
  * inside it would be clipped by its own scroller.
  */
-function AddSection({ options, onPick, sectionColors, customSectionTypes }) {
+function AddSection({ options, onPick, sectionColors, customSectionTypes, mark = 'var(--color-brand)' }) {
   const [at, setAt] = useState(null);
   return (
     <>
@@ -497,7 +533,7 @@ function AddSection({ options, onPick, sectionColors, customSectionTypes }) {
           setAt(prev => (prev ? null : r));
         }}
         className="shrink-0 min-h-0 w-[19px] h-[19px] grid place-items-center rounded-[5px] border border-dashed bg-transparent cursor-pointer text-[12px] leading-none font-bold"
-        style={{ borderColor: 'var(--color-brand)', color: 'var(--color-brand)' }}
+        style={{ borderColor: mark, color: mark }}
       >
         +
       </button>
