@@ -962,6 +962,67 @@ inline notes on/off, `ReaderSection.jsx:367,409`) and `readerFooter` (`count` �
 Both wired, both in `PORTABLE_PREF_KEYS`, both permanently at their defaults.
 Open: do they get rows, or does the default become the answer and the knob go?
 
+#### Element 28, round 2 — tabs, and the panel stops covering the song, 2026-08-04
+
+**Three tabs: Style · Layout · Music.** Owner: *"let's go with the tabs"*. This
+supersedes round 3's "Look and Layout are top-level ROWS" — the argument for
+that was one tap instead of two, and tabs are **zero**: the ☰ opens straight
+into a panel. Round 1's row cleanup had also left the root a full phone-width
+row with ~330px of nothing in the middle of it (*"a bit too wide now?"*), and
+tabs delete that page rather than narrowing it. `AaMenu` already ships the
+control, so it is the app's pattern and not a new one.
+
+**"Look" → "Style"**, at the owner's request (*"Look (again, a better name
+here)"*). It pairs with Layout — Style is how the page is PAINTED, Layout is
+where things ARE — and matches Settings → Chart Style, the same concept one
+level up.
+
+**Notes left the ☰.** Owner: *"The notes will go in the rail, we will make a
+space there for notes… maybe we have a switch there between order/notes"* →
+element 29, with the notes rework at 5/6/22. ⚠ **Two things this costs, both
+deliberate and both open:** `song.notes` now appears NOWHERE in the reader (that
+panel was its only appearance), and the rail only exists inside a setlist — so
+full screen from the hub has no home for notes at all.
+
+**The phone shape: a PUSH-DOWN panel, not a sheet.** Owner: *"is a sheet the
+best option we have for mobile? We already hide half of the screen with it"* and
+*"do the best and let's experiment"*. The sheet was mockup geometry, never a
+decision, and its 58vh cap was written up as being "for exactly the reason" of
+keeping the chart visible — a cap that admits the shape was fighting the panel
+rule rather than serving it. The panel now renders **inside the reader's sticky
+header block** (`ReaderTopBar`'s new `panel` prop), below the song map:
+
+- The chart is displaced, never covered. No scrim, no modal, scroll position
+  untouched.
+- **No backdrop, deliberately** — a full-screen catcher would swallow element
+  11's chord taps on a chart that is still visible and still meant to work.
+  Closing is the ☰ again, Escape, or the handle.
+- The handle is on the **bottom** edge and drags **up**: the panel came down
+  from the top bar, so the way out is back the way it came.
+- Capped at 46vh, not fixed — Style is ten fields and Music is four.
+- The threshold is 700px (popover above), the same number and for the same
+  reason as before: 640–700 is where the popover was wider than the room beside
+  the ☰.
+
+**The detents went with the sheet**, and so did the round-1 gesture. Owner on
+it: *"it really drags, and it feels strange because it blocks and drags a bit"*
+— correct, and the cause was the rubber band: the panel moved at half thumb
+speed, hard-stopped at 80px, then jumped to a detent on release. Four behaviours
+in one gesture. The push-down handle tracks 1:1 in the direction that closes it
+and cannot block.
+
+**One node, two mount points.** `Reader` builds the menu once and mounts it
+either into `ReaderTopBar`'s `panel` (phone) or through the portal (desktop), so
+the two shapes cannot drift into two menus. `SetlistReader` does the same for
+the break and missing-song screens via a `menuPanel` prop.
+
+> **The test width mock was lying.** `reader.test.jsx`'s `mockWidth` returned
+> ONE boolean for every media query. That was fine while the reader asked a
+> single question ("am I wide?") and became wrong the moment this round added a
+> second — a desktop mock answered `true` to `(max-width: 699.98px)` too, so the
+> desktop tests were exercising the phone shape. It answers per-query against a
+> real width now. Any new breakpoint needs the same check.
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the

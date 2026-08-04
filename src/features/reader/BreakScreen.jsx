@@ -21,6 +21,10 @@ import { chartSurface } from './readerSurface';
  */
 export default function BreakScreen({
   label, duration, note, onExit, onMenu, aboveBar = null, leading = null, progress = null, footer,
+  // Element 28's ☰ panel, when it is the phone's inline push-down shape.
+  // `SetlistReader` owns the menu (it is mounted a level above these screens),
+  // so it hands the node down to be rendered inside the sticky header.
+  menuPanel = null,
 }) {
   const rule = { borderColor: 'var(--chart-rule, var(--ds-gray-300))' };
   const muted = 'var(--chart-subtle, var(--ds-gray-700))';
@@ -31,7 +35,7 @@ export default function BreakScreen({
 
   return (
     <div className="h-full flex flex-col overflow-hidden" style={chartSurface}>
-      <ReaderTopBar title={title} onExit={onExit} onMenu={onMenu} aboveBar={aboveBar} leading={leading} progress={progress} />
+      <ReaderTopBar title={title} onExit={onExit} onMenu={onMenu} aboveBar={aboveBar} leading={leading} progress={progress} panel={menuPanel} />
 
       {/* Centred when the break is just a length — a lone "5 min" belongs in
           the middle of the screen. TOP-aligned as soon as there is a note

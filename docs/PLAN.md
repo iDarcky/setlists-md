@@ -151,6 +151,18 @@ serious thing in this document; the last two are blocked on you.
    "Element 28, round 1". **The fix is to cut the menu down to what works, NOT
    to reconnect `HUB_VIEW` to `settings`** — that is the bug that turned the
    hub's Chart tab into a second Lyrics tab.
+3c. 🔴 **You cannot type a space into a band cue, or an inline note.** Reported
+   by the owner 2026-08-04; root cause found by reading, not yet fixed (he asked
+   for it to be noted, prio 1). The cue field is `ArrangeTabV2.jsx:1332`; every
+   keystroke calls `emitSong`, which does `songToMd()` → `onChange(md)` → the
+   editor re-parses → **`parser.js:96` runs `.trim()` on the cue**. The trailing
+   space is deleted before it can become a word boundary, so you can type one
+   word and no more. `parser.js:540` does the same to `{!inline notes}`, so #2
+   is almost certainly the identical bug. Fix at the parse boundary, not in the
+   input — trimming on parse is right for a file, wrong for a keystroke.
+3d. 🟡 **Add a band cue / inline note from the SONG HUB**, without opening the
+   editor (owner, 2026-08-04, prio 1). Pairs with 3c: the field you would be
+   typing into is the one that eats spaces.
 4. 🔴 **The active-section highlight is wrong when the song fits on screen.**
    Confirmed, one line. `src/hooks/useActiveSection.js` has a "near the bottom,
    snap to the last section" rule:

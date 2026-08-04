@@ -17,10 +17,21 @@ vi.mock('@/hooks/useEntitlement', () => ({
 }));
 
 // jsdom has no matchMedia; the reader uses it for the wide/narrow split.
-function mockWidth(wide) {
-  window.matchMedia = vi.fn().mockImplementation(query => ({
-    matches: wide, media: query, addEventListener: () => {}, removeEventListener: () => {},
-  }));
+//
+// It answers PER QUERY, against a real width. The old version returned one
+// boolean for every query, which was fine while the reader asked exactly one
+// question ("am I wide?") and became wrong the moment element 28 added a second
+// ('(max-width: 699.98px)' — the ☰'s popover/push-down split): a desktop mock
+// answered `true` to both, so the desktop tests were exercising the phone shape.
+function mockWidth(px) {
+  const w = px === true ? 1024 : px === false ? 390 : px;
+  window.innerWidth = w;
+  window.matchMedia = vi.fn().mockImplementation(query => {
+    const min = /min-width:\s*([\d.]+)px/.exec(query);
+    const max = /max-width:\s*([\d.]+)px/.exec(query);
+    const matches = (!min || w >= parseFloat(min[1])) && (!max || w <= parseFloat(max[1]));
+    return { matches, media: query, addEventListener: () => {}, removeEventListener: () => {} };
+  });
 }
 beforeEach(() => { mockWidth(true); });
 
@@ -257,34 +268,35 @@ describe('the ☰ menu', () => {
     expect(document.querySelectorAll('[data-section-index]').length).toBe(4);
   });
 
-  it('is four rows and no more — the cut that kept one tap from becoming three', () => {
+  it('is three tabs and no more, and Notes is not one of them', () => {
     renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    // Look and Layout are top-level, not tabs inside a Display panel: the two
-    // most-opened panels are one tap, not two.
-    ['Look', 'Layout', 'The music', 'Notes'].forEach(label => {
-      expect(screen.getByText(label)).toBeTruthy();
+    ['Style', 'Layout', 'Music'].forEach(label => {
+      expect(screen.getByRole('button', { name: label })).toBeTruthy();
     });
     // Cut rows, each for a recorded reason (READER.md → "Cut down to three").
     expect(screen.queryByText('Jump to')).toBeNull();
     expect(screen.queryByText('Practice')).toBeNull();
     expect(screen.queryByText('Fix it')).toBeNull();
     expect(screen.queryByText('Share')).toBeNull();
-    // The screen went too: keep-awake already lives in Settings, and a row
-    // holding one switch is a row holding nothing.
     expect(screen.queryByText('The screen')).toBeNull();
+    // Notes went to the setlist rail (owner, 2026-08-04) — element 29.
+    expect(screen.queryByRole('button', { name: 'Notes' })).toBeNull();
   });
 
-  it('drills one level into Layout, and comes back', () => {
+  it('opens straight into a panel, with no root list and nothing to go back to', () => {
     renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    fireEvent.click(screen.getByText('Layout'));
+    // Zero taps to the first panel, not one. Style is open on arrival.
+    expect(screen.getByText('Theme')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
 
+    // And every other panel is one tap from it, in either direction.
+    fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
     expect(screen.getByRole('button', { name: 'Boxes' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'ALL CAPS' })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    expect(screen.getByText('The music')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Style' }));
+    expect(screen.getByText('Theme')).toBeTruthy();
   });
 
   it('does not put the song title in the menu — the top bar already says it', () => {
@@ -296,16 +308,6 @@ describe('the ☰ menu', () => {
   });
 
   // ── Element 28, round 1 — the shell ───────────────────────────────────────
-
-  it('carries no current-value column on its rows', () => {
-    renderReader({ settings: { defaultColumns: 2, displayRole: 'vocalist' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    // The rows used to be `label … value ›`. Four unrelated kinds of thing in
-    // one column, and Layout's could never change on a phone (columns are
-    // forced to 1 below 768). A value comes back per-row when a row earns one.
-    expect(screen.queryByText(/\d col$/)).toBeNull();
-    expect(screen.queryByText('Vocals')).toBeNull();
-  });
 
   it('wears the READER theme, not the app theme', () => {
     renderReader();
@@ -342,7 +344,7 @@ describe('the ☰ menu', () => {
     const onUpdateSettings = vi.fn();
     renderReader({ onUpdateSettings });
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    fireEvent.click(screen.getByText('The music'));
+    fireEvent.click(screen.getByRole('button', { name: 'Music' }));
     fireEvent.click(screen.getByRole('button', { name: 'Vocals' }));
 
     // A role that silently overrode the display panel is the bug that turned
@@ -352,23 +354,21 @@ describe('the ☰ menu', () => {
   });
 });
 
-// The phone sheet's gesture. The handle was drawn for two releases and wired to
-// nothing — it advertised a drag that did not exist. These assert the drag, not
-// the handle: a decorative handle passing a "handle renders" test is exactly the
-// failure this replaces.
-describe('the ☰ sheet drags — element 28', () => {
-  const PHONE = 390;
-  let realWidth;
-  beforeEach(() => { realWidth = window.innerWidth; window.innerWidth = PHONE; });
-  afterEach(() => { window.innerWidth = realWidth; });
+// The phone shape — element 28, round 2.
+//
+// It is a PUSH-DOWN panel now, not a bottom sheet: it renders inside the
+// reader's own sticky header so the chart is displaced rather than covered, and
+// the handle on its bottom edge drags it back up. The round-1 sheet is gone,
+// and so are its detents — the owner on that gesture: "it really drags, and it
+// feels strange because it blocks and drags a bit".
+describe('the ☰ on a phone — element 28', () => {
+  beforeEach(() => { mockWidth(390); });
 
-  // jsdom's clientWidth is 0, so the menu falls back to innerWidth for the
-  // sheet/popover split. Below 700 it is a sheet.
-  const openSheet = (props = {}) => {
+  const openPanel = (props = {}) => {
     renderReader(props);
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
     const panel = screen.getByRole('dialog', { name: 'Reader menu' });
-    return { panel, grab: panel.firstChild };
+    return { panel, handle: panel.lastChild };
   };
   const drag = (from, dy) => {
     fireEvent.touchStart(from, { touches: [{ clientX: 100, clientY: 400 }] });
@@ -376,47 +376,46 @@ describe('the ☰ sheet drags — element 28', () => {
     fireEvent.touchEnd(from, { changedTouches: [{ clientX: 100, clientY: 400 + dy }] });
   };
 
-  it('opens at the short detent, so the chart stays visible above it', () => {
-    const { panel } = openSheet();
-    expect(panel.style.maxHeight).toBe('58vh');
+  it('lives INSIDE the sticky header, so the chart is pushed down not covered', () => {
+    const { panel } = openPanel();
+    // Portaled to document.body it would cover the chart; this is the whole
+    // difference between the sheet and the push-down.
+    expect(panel.closest('.reader-head')).toBeTruthy();
+    expect(panel.parentElement).not.toBe(document.body);
+    // And the chart is all still there, under it.
+    expect(document.querySelectorAll('[data-section-index]').length).toBe(4);
   });
 
-  it('drags up to the tall detent', () => {
-    const { panel, grab } = openSheet();
-    drag(grab, -140);   // damped 0.5 → 70px, past the 36 trigger
-    expect(panel.style.maxHeight).toBe('90vh');
+  it('puts no scrim over the chart', () => {
+    openPanel();
+    // A full-screen catcher would swallow the chord taps (element 11) on a
+    // chart that is still visible and still meant to work.
+    expect(screen.queryByRole('button', { name: 'Close menu' })).toBeNull();
   });
 
-  it('drags down one detent at a time, and only then closes', () => {
-    const { panel, grab } = openSheet();
-    drag(grab, -140);
-    expect(panel.style.maxHeight).toBe('90vh');
-    drag(grab, 120);
-    // Tall gives up a detent first — it does not skip straight out.
-    expect(panel.style.maxHeight).toBe('58vh');
-    expect(screen.getByRole('dialog', { name: 'Reader menu' })).toBeTruthy();
-  });
-
-  it('closes on a drag down from the short detent', () => {
-    const { grab } = openSheet();
-    // Fake timers span the WHOLE gesture, because the close is scheduled during
-    // it. No real clock decides this test — the sheet animates out, then
-    // unmounts. (READER.md: no timer may decide a test's outcome.)
+  it('drags UP to close — the direction it came from', () => {
+    const { handle } = openPanel();
     vi.useFakeTimers();
-    drag(grab, 120);
+    drag(handle, -120);
     act(() => { vi.advanceTimersByTime(300); });
     vi.useRealTimers();
     expect(screen.queryByRole('dialog', { name: 'Reader menu' })).toBeNull();
   });
 
-  it('hands an upward drag in the BODY back to the scroller', () => {
-    const { panel } = openSheet();
-    const body = panel.lastChild;
-    fireEvent.touchStart(body, { touches: [{ clientX: 100, clientY: 400 }] });
-    fireEvent.touchMove(body, { touches: [{ clientX: 100, clientY: 260 }] });
-    fireEvent.touchEnd(body, { changedTouches: [{ clientX: 100, clientY: 260 }] });
-    // Scrolling a long panel must never expand it. Only the handle does that.
-    expect(panel.style.maxHeight).toBe('58vh');
+  it('stays put on a short drag, or a drag the wrong way', () => {
+    const { handle } = openPanel();
+    drag(handle, -20);
+    expect(screen.getByRole('dialog', { name: 'Reader menu' })).toBeTruthy();
+    drag(handle, 200);
+    expect(screen.getByRole('dialog', { name: 'Reader menu' })).toBeTruthy();
+  });
+
+  it('is a popover on a desktop, portaled clear of the header', () => {
+    mockWidth(1024);
+    openPanel();
+    const panel = screen.getByRole('dialog', { name: 'Reader menu' });
+    expect(panel.closest('.reader-head')).toBeNull();
+    expect(panel.style.position).toBe('');   // `fixed` comes from the class
   });
 });
 

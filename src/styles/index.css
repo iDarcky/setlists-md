@@ -894,6 +894,21 @@
   }
 }
 
+/* The reader's ☰ as a phone PUSH-DOWN panel — it grows out of the top bar and
+   moves the chart down rather than covering it. `max-height` rather than a
+   transform, because the point is that everything below it really is displaced;
+   a transform would slide the panel over a chart that never moved. */
+@keyframes reader-panel-down {
+  0% { max-height: 0; opacity: 0.4; }
+  100% { max-height: 46vh; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes reader-panel-down {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+}
+
 /* Light-mode override for modes variant */
 [data-theme="light"] [data-theme-variant="modes"] {
   --modes-surface: rgba(0, 0, 0, 0.035);

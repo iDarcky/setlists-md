@@ -39,27 +39,42 @@ import {
  * over a row of segmented pills. Colours are ours (`--color-brand`, `--chord`,
  * the `--ds-*` greys); the geometry is the mockup's.
  *
- * ## Two shapes
+ * ## Element 28, round 2 — tabs, and the panel stops covering the song
  *
- * Sheet on a phone, popover anchored to ☰ on a desktop. Both obey the panel
- * rule (`docs/READER.md`): the chart stays visible, so a change can be seen as
- * it is made. The sheet's short detent is 58vh for exactly that reason.
+ * Round 1 was the shell: the READER theme (`chartOverlaySurface`), and rows cut
+ * back to glyph · label · chevron. Round 2 removed the thing those rows were
+ * on.
  *
- * ## Element 28, round 1 — the shell (2026-08-04)
+ * **Three tabs, no root page, no drill-in.** Owner, 2026-08-04: *"let's go with
+ * the tabs"*. The root list was one tap to reach anything and, with the value
+ * column gone, a full phone-width row with ~330px of nothing in the middle of
+ * it (*"a bit too wide now?"*). Tabs make it **zero** taps — the ☰ opens
+ * straight into a panel — which is the same argument that cut the menu from
+ * nine rows to four. It is also the pattern the app already ships in `AaMenu`.
  *
- * Three decisions, all the owner's:
+ * **Notes is gone from here.** It goes in the setlist rail (owner: *"maybe we
+ * have a switch there between order/notes"*) — element 29, with the notes
+ * rework at 5/6/22. ⚠ Until that lands, `song.notes` (the arrangement note)
+ * has NO appearance anywhere in the reader; this panel was its only one.
  *
- *  - **It wears the READER theme**, not the app's — `chartOverlaySurface`. A
- *    Theme strip previewing on app-coloured paper is previewing the wrong
- *    paper, and the panel rule is about seeing the change you are making.
- *  - **No value column.** The rows carried their current setting right-aligned
- *    in mono (`Charcoal · 18px`, `1 col`, `Leading`, `3`). Four unrelated kinds
- *    of thing in one column, and one of them — Layout's — was permanently
- *    `1 col` on a phone, because columns are forced to 1 below 768. A value
- *    comes back per-row, when that row earns one.
- *  - **The sheet drags.** The mockup's grab handle was drawn and nothing was
- *    wired to it; the only ways out were the backdrop and Escape. It now has
- *    two detents and follows the thumb.
+ * **"Look" became "Style"** — the owner asked for a better name and this pairs
+ * with Layout: Style is how the page is painted, Layout is where things are.
+ *
+ * ## Two shapes, and the phone one no longer covers the chart
+ *
+ * **Desktop** — a popover anchored to the ☰, unchanged.
+ *
+ * **Phone — an INLINE panel that pushes the chart down**, rendered into the
+ * reader's own sticky header block rather than portaled over it. Owner:
+ * *"is a sheet the best option we have for mobile? We already hide half of the
+ * screen with it"*. The bottom sheet was mockup geometry, not a decision, and
+ * it was capped at 58vh to stop it covering the chart — a cap that admits the
+ * shape was fighting the panel rule instead of serving it. Pushing down obeys
+ * the rule by construction: no scrim, no modal, the chart's scroll position is
+ * untouched, and the controls sit against the chart they change.
+ *
+ * The detents went with the sheet. A push-down panel is as tall as it needs to
+ * be, up to a cap, and the handle at its bottom edge drags UP to close.
  */
 
 const NOTATIONS = [['letters', 'Letters'], ['nashville', 'Numbers'], ['solfege', 'Do-Re-Mi']];
@@ -79,31 +94,14 @@ const ROLES = [
 
 // The mockup's row glyphs: a single character each, not an icon set. At 19px in
 // a 13.5px row, a drawn icon is noise — the label is doing the work.
-const GLYPH = { look: 'Aa', layout: '▤', music: '♪', notes: '✉' };
+// "Look" became "Style" at the owner's request (2026-08-04: *"Look (again, a
+// better name here)"*). It pairs with Layout — Style is how the page is
+// PAINTED, Layout is where things ARE — and it matches Settings → Chart Style,
+// which is the same concept one level up.
+const TABS = [['style', 'Style'], ['layout', 'Layout'], ['music', 'Music']];
 
 // ── Mockup primitives ───────────────────────────────────────────────────────
 // Geometry copied from the concept; every colour is one of ours.
-
-// Glyph · label · chevron. NO right-aligned current value — see the round-1
-// note above; it was four different kinds of thing in one column and one of
-// them could never change.
-function Row({ glyph, label, onClick }) {
-  return (
-    <button
-      type="button" onClick={onClick}
-      // min-h-0: the global `button { min-height: 44px }` on phones turns a
-      // 9px-padded row into a slab. See READER.md's min-h-0 box.
-      className="w-full min-h-0 flex items-center gap-[11px] px-4 py-[9px] bg-transparent border-none cursor-pointer text-left text-[13.5px] text-[var(--text-1)] hover:bg-[var(--bg-2)] transition-colors"
-    >
-      <span className="w-[19px] shrink-0 grid place-items-center font-mono text-[12px] font-bold text-[var(--text-2)]">{glyph}</span>
-      <span className="flex-1 min-w-0 truncate">{label}</span>
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
-        strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--ds-gray-600)]" aria-hidden="true">
-        <polyline points="9 18 15 12 9 6" />
-      </svg>
-    </button>
-  );
-}
 
 function Field({ label, children }) {
   return (
@@ -193,14 +191,13 @@ export default function ReaderMenu({
   anchorRect, onClose, settings, onUpdateSettings,
   song, config,
   lyricSize, onLyricSize, chordSize, onChordSize,
-  // Practice-only surfaces (elements 21/22 attach here when they land).
-  mode = 'live',
+  // Phone: rendered INTO the reader's sticky header block, so it pushes the
+  // chart down instead of covering it. Desktop: a portaled popover anchored to
+  // the ☰. The host decides which, because only the host has a header to
+  // render into.
+  inline = false,
 }) {
-  const [panel, setPanel] = useState('root');
-  // The sheet's two detents. 'short' keeps the chart visible above it (the
-  // panel rule); 'tall' is for the panels that are genuinely a list — Look is
-  // ten fields and reading it through a 58vh window is a chore.
-  const [detent, setDetent] = useState('short');
+  const [tab, setTab] = useState('style');
   const { allowed: styleAllowed } = useEntitlement('chart-style');
   // Two columns only APPLY at ≥768 (`Reader`'s `wide`), so that is where the
   // control appears. It used to hide below 700 — the sheet/popover threshold —
@@ -212,17 +209,16 @@ export default function ReaderMenu({
 
   const set = (key, value) => onUpdateSettings?.(key, value);
 
-  // Escape backs out one level, then closes. Jumping straight to closed from
-  // inside a panel loses your place for no reason.
+  // Escape closes. With tabs there is no level to back out of first.
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== 'Escape') return;
       e.stopPropagation();
-      if (panel !== 'root') setPanel('root'); else onClose?.();
+      onClose?.();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [panel, onClose]);
+  }, [onClose]);
 
   // Let the wheel scroll the theme strip horizontally while hovering it.
   const themesRef = useRef(null);
@@ -236,20 +232,21 @@ export default function ReaderMenu({
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [panel]);
+  }, [tab]);
 
-  // ── The sheet drags ────────────────────────────────────────────────────────
-  // The grab handle was drawn and wired to nothing: it advertised a gesture
-  // that did not exist, and the only ways out were the backdrop and Escape.
+  // ── The handle drags it away ───────────────────────────────────────────────
+  // Round 1 gave the sheet two detents and a rubber band on the up-drag. The
+  // owner: *"it really drags, and it feels strange because it blocks and drags
+  // a bit"* — correct, and it was the rubber band: the panel moved at half
+  // thumb speed, hard-stopped at 80px, then jumped to a detent on release.
+  // Four behaviours in one gesture.
   //
-  // Two places start a drag, and they behave differently on purpose:
-  //   · the HANDLE zone (handle + panel header) — both directions, always;
-  //   · the BODY, but only downward and only at `scrollTop === 0`. Same rule
-  //     as the reader's pull-to-finish: "you drag after you cannot scroll
-  //     anymore". Upward from the body is a scroll and is handed straight back.
+  // The push-down panel does not need any of that. It has one height, and the
+  // handle at its BOTTOM edge drags it back up out of the way — the direction
+  // it would go anyway. Tracks the thumb 1:1, so it cannot block.
   //
-  // Everything here runs OUTSIDE React, for the reasons written on
-  // `Reader`'s pull-to-finish: React's synthetic touch listeners are passive so
+  // Everything here runs OUTSIDE React, for the reasons written on `Reader`'s
+  // pull-to-finish: React's synthetic touch listeners are passive so
   // `preventDefault` is a no-op on them (trap 8); a finger makes ~120 moves and
   // 120 renders of this panel would lag the thumb; and the effect MOUNTS ONCE,
   // reading the moving parts from a ref, because an effect that owns a gesture
@@ -268,73 +265,56 @@ export default function ReaderMenu({
 
   useEffect(() => {
     const el = panelRef.current;
-    if (!el) return undefined;
-    // Past this much travel the sheet changes detent (or closes). Downward is
-    // measured on RAW finger travel; upward on the damped distance, so 36 here
-    // is ~72px of thumb. Both are under a thumb-length and over anything you
-    // could do by accident. UP must stay below the rubber-band clamp in
-    // `onMove` or the gesture can never reach its own trigger.
-    const DOWN = 76;
-    const UP = 36;
+    const grab = grabRef.current;
+    if (!el || !grab) return undefined;
+    // Damped travel at which it lets go. ~110px of thumb, well under a
+    // thumb-length and far past anything accidental.
+    const TRIGGER = 56;
     const paint = (d) => { el.style.transform = d ? `translateY(${d}px)` : ''; };
-    const ease = (on) => { el.style.transition = on ? 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1)' : ''; };
-    const cancel = () => { dragRef.current = null; ease(true); paint(0); setTimeout(() => ease(false), 220); };
+    const ease = (on) => { el.style.transition = on ? 'transform 190ms cubic-bezier(0.32, 0.72, 0, 1)' : ''; };
+    const cancel = () => { dragRef.current = null; ease(true); paint(0); setTimeout(() => ease(false), 210); };
 
     const onStart = (e) => {
-      if (!live.current.phone || e.touches?.length !== 1) return;
-      const t = e.touches[0];
-      const fromGrab = !!grabRef.current?.contains(e.target);
-      const body = bodyRef.current;
-      // Mid-scroll in the body: not a sheet gesture. Only the top of the
-      // scroller arms the pull-down.
-      if (!fromGrab && (body?.scrollTop ?? 0) > 0) return;
-      dragRef.current = { y: t.clientY, d: 0, fromGrab };
+      if (!live.current.inline || e.touches?.length !== 1) return;
+      dragRef.current = { y: e.touches[0].clientY, d: 0 };
     };
     const onMove = (e) => {
       const p = dragRef.current;
       if (!p) return;
       const t = e.touches?.[0];
       if (!t) return;
-      const dy = t.clientY - p.y;
-      // From the body: upward, or the body started scrolling under the finger,
-      // means this was a scroll. Give it up rather than arbitrating the rest
-      // of the gesture.
-      if (!p.fromGrab && (dy <= 0 || (bodyRef.current?.scrollTop ?? 0) > 0)) { cancel(); return; }
       e.preventDefault();
-      // Down tracks the thumb 1:1 — a sheet that lags its own drag reads as
-      // broken. Up is a rubber band: there is no live resize, so the panel
-      // only hints that there is another detent up there.
-      p.d = dy >= 0 ? dy : Math.max(dy * 0.5, live.current.detent === 'tall' ? -20 : -80);
+      const dy = t.clientY - p.y;
+      // Up is the way out and tracks 1:1. Down is a short rubber band — there
+      // is nowhere further down for it to go, and a handle that gives nothing
+      // in one direction reads as broken rather than as a limit.
+      p.d = dy <= 0 ? dy : Math.min(dy * 0.3, 22);
       paint(p.d);
     };
     const onEnd = () => {
       const p = dragRef.current;
       dragRef.current = null;
       if (!p) return;
-      const { detent: at, onClose: close } = live.current;
-      if (p.d >= DOWN) {
-        // Tall gives up a detent first. Short is the last step before out.
-        if (at === 'tall') { setDetent('short'); cancel(); return; }
+      if (p.d <= -TRIGGER) {
         // Animate OUT rather than vanishing under the thumb.
         ease(true);
-        paint(el.getBoundingClientRect().height || 400);
-        closeTimer.current = setTimeout(() => close?.(), 170);
+        paint(-(el.getBoundingClientRect().height || 320));
+        closeTimer.current = setTimeout(() => live.current.onClose?.(), 160);
         return;
       }
-      if (p.d <= -UP && at !== 'tall') setDetent('tall');
       cancel();
     };
 
-    el.addEventListener('touchstart', onStart, { passive: true });
-    el.addEventListener('touchmove', onMove, { passive: false });
-    el.addEventListener('touchend', onEnd);
-    el.addEventListener('touchcancel', onEnd);
+    grab.addEventListener('touchstart', onStart, { passive: true });
+    grab.addEventListener('touchmove', onMove, { passive: false });
+    grab.addEventListener('touchend', onEnd);
+    grab.addEventListener('touchcancel', onEnd);
     return () => {
       clearTimeout(closeTimer.current);
-      el.removeEventListener('touchstart', onStart);
-      el.removeEventListener('touchmove', onMove);
-      el.removeEventListener('touchend', onEnd);
-      el.removeEventListener('touchcancel', onEnd);
+      grab.removeEventListener('touchstart', onStart);
+      grab.removeEventListener('touchmove', onMove);
+      grab.removeEventListener('touchend', onEnd);
+      grab.removeEventListener('touchcancel', onEnd);
     };
   }, []);
 
@@ -347,9 +327,6 @@ export default function ReaderMenu({
     ? (document.documentElement?.clientWidth || window.innerWidth)
     : 1024;
   const winH = typeof window !== 'undefined' ? window.innerHeight : 768;
-  // A sheet below 700px, not 640: at 640–700 the popover was wider than the
-  // room beside the ☰, which is the other half of the same report.
-  const phone = winW < 700;
   const W = Math.min(296, winW - 16);   // the mockup's popover width
   // Align to whichever edge of the ☰ keeps the panel on screen. The reader's ☰
   // is top-LEFT, so a right-aligned popover pushed it off the edge.
@@ -361,39 +338,33 @@ export default function ReaderMenu({
   // Deliberately no dependency array — it re-runs on every render, which is the
   // point: the mount-once gesture must always see the current values without
   // ever being torn down and rebuilt (which is what breaks a drag mid-gesture).
-  // `setDetent` is NOT in here: a state setter is stable across renders, so the
-  // mount-once effect can close over it directly. Putting it in the ref only
-  // earned an exhaustive-deps warning about a call that never happens.
-  useEffect(() => { live.current = { phone, detent, onClose }; });
-
+  useEffect(() => { live.current = { inline, onClose }; });
 
   const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
   const visibleThemes = styleAllowed ? CHART_THEMES : CHART_THEMES.filter(t => FREE_CHART_THEME_IDS.has(t.id));
 
   const roleId = settings?.displayRole || 'leader';
   const capo = song?.capo ? Number(song.capo) : 0;
-  const arrangementNote = (song?.notes || '').trim();
-  const cues = (song?.sections || [])
-    .map(s => ({ section: s.type, note: (s.note || '').trim() }))
-    .filter(c => c.note);
-  const noteCount = cues.length + (arrangementNote ? 1 : 0);
 
-  const title = panel === 'look' ? 'Look'
-    : panel === 'layout' ? 'Layout'
-      : panel === 'music' ? 'The music'
-        : panel === 'notes' ? 'Notes' : '';
-
-  // The ROOT has no header — the mockup's doesn't, and the song's name was
-  // already in the top bar two rows up (owner: "why do we have the song name in
-  // the title?"). A panel gets back + its own name; closing is the backdrop,
-  // Escape, the ☰ again, or (on a phone) dragging it down.
-  const head = panel === 'root' ? null : (
-    <div className="shrink-0 flex items-center gap-[9px] px-3.5 pt-2 pb-2.5 border-b border-[var(--border-1)]">
-      <button type="button" onClick={() => setPanel('root')} aria-label="Back"
-        className="w-6 h-6 min-h-0 shrink-0 grid place-items-center rounded-[7px] border border-[var(--border-2)] bg-transparent text-[var(--text-1)] cursor-pointer hover:bg-[var(--bg-2)]">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-      </button>
-      <h4 className="m-0 flex-1 min-w-0 text-[13px] font-semibold text-[var(--text-1)] truncate">{title}</h4>
+  // The tab strip. Three, and no more: nine rows became four, four became
+  // three, and each cut came from the same objection — a menu is aimed at, not
+  // read. `AaMenu` already ships this exact control, so it is the app's
+  // pattern rather than a new one.
+  const head = (
+    <div className="shrink-0 flex gap-1 p-1.5 border-b border-[var(--border-1)]">
+      {TABS.map(([id, label]) => (
+        <button
+          key={id} type="button" onClick={() => setTab(id)}
+          aria-pressed={tab === id}
+          className={`flex-1 min-h-0 h-8 rounded-lg text-[12.5px] font-semibold cursor-pointer transition-colors border ${
+            tab === id
+              ? 'text-white border-transparent'
+              : 'text-[var(--text-2)] border-transparent bg-transparent hover:text-[var(--text-1)] hover:bg-[var(--bg-2)]'}`}
+          style={tab === id ? { background: 'var(--color-brand)' } : undefined}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 
@@ -401,21 +372,13 @@ export default function ReaderMenu({
     // overflow-x-hidden: a wrapping seg row or the theme strip must never widen
     // the panel itself.
     <div ref={bodyRef} className="overflow-y-auto overflow-x-hidden py-1.5">
-      {panel === 'root' && (
-        <>
-          <Row glyph={GLYPH.look} label="Look" onClick={() => setPanel('look')} />
-          <Row glyph={GLYPH.layout} label="Layout" onClick={() => setPanel('layout')} />
-          <Row glyph={GLYPH.music} label="The music" onClick={() => setPanel('music')} />
-          <Row glyph={GLYPH.notes} label="Notes" onClick={() => setPanel('notes')} />
-        </>
-      )}
 
       {/* ── Look ───────────────────────────────────────────────────────────
           How the page is PAINTED. Its own root row rather than a tab inside a
           Display panel (owner, 2026-08-01: "because we have space, maybe we can
           do look and layout as different outside tabs?") — the two most-opened
           panels are now one tap, not two. */}
-      {panel === 'look' && (
+      {tab === 'style' && (
         <>
               <Field label="Theme">
                 <div ref={themesRef} className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
@@ -521,7 +484,7 @@ export default function ReaderMenu({
 
       {/* ── Layout ─────────────────────────────────────────────────────────
           Where things ARE. */}
-      {panel === 'layout' && (
+      {tab === 'layout' && (
         <>
               {/* Columns are a fact about the SPACE, not a taste, and a phone
                   has room for one. `resolveReaderConfig` forces 1 below 768, so
@@ -570,7 +533,7 @@ export default function ReaderMenu({
           looks — which is why accidentals live here and not in Display. No key
           change: element 1's key pill owns transpose, and a second control for
           it is a second answer. */}
-      {panel === 'music' && (
+      {tab === 'music' && (
         <>
           <Segs label="You're playing" value={roleId}
             options={ROLES.map(r => [r.id, r.label])}
@@ -610,88 +573,77 @@ export default function ReaderMenu({
         </>
       )}
 
-      {/* ── Notes ──────────────────────────────────────────────────────────
-          Every note on this song in one place, which is what "see them all in
-          a place" asked for. Read-only: WRITING one is element 22, practice. */}
-      {panel === 'notes' && (
-        <>
-          {arrangementNote && (
-            <Field label="This arrangement">
-              <p className="m-0 text-[12.5px] text-[var(--text-1)] whitespace-pre-wrap">{arrangementNote}</p>
-            </Field>
-          )}
-          {cues.map((c, i) => (
-            <Field key={i} label={c.section}>
-              <p className="m-0 text-[12.5px] text-[var(--text-1)]">{c.note}</p>
-            </Field>
-          ))}
-          {noteCount === 0 && (
-            <div className="px-4 py-5 text-center">
-              <ProNote>Nothing written on this song yet.</ProNote>
-            </div>
-          )}
-          {mode === 'practice' && noteCount > 0 && (
-            <div className="px-4 pt-3">
-              <ProNote>Writing one from here is coming to practice.</ProNote>
-            </div>
-          )}
-        </>
-      )}
-
       <div className="h-1.5" />
     </div>
   );
 
-  return createPortal((
-    <>
-      <button type="button" aria-label="Close menu" tabIndex={-1} onClick={onClose}
-        className={`fixed inset-0 z-[119] border-none cursor-default ${phone ? 'bg-black/30' : 'bg-transparent'}`} />
+  // ── Inline: the phone's push-down panel ───────────────────────────────────
+  // NOT a portal. It renders inside the reader's sticky header block, so the
+  // chart below it is pushed down rather than covered — no scrim, no modal, and
+  // the chart's scroll position is untouched. The ☰ toggles it; Escape closes
+  // it; the handle at the bottom edge drags it away.
+  //
+  // No backdrop, deliberately. A full-screen invisible catcher would eat the
+  // chord taps (element 11) on the chart that is still right there and still
+  // meant to be usable.
+  if (inline) {
+    return (
       <div
         ref={panelRef}
         role="dialog" aria-label="Reader menu"
-        className={
-          'fixed z-[120] overflow-hidden flex flex-col '
-          + (phone
-            ? 'left-0 right-0 bottom-0 rounded-t-[18px] border-t border-[var(--border-2)]'
-            : 'rounded-[14px] border border-[var(--border-2)]')
-        }
+        className="shrink-0 overflow-hidden flex flex-col border-t border-[var(--border-1)]"
+        // Same remap as the popover. It is NOT portaled here, so it would
+        // inherit `chartSurface` from the reader anyway — but the three panel
+        // tokens (`--border-2`, `--ds-gray-600`, and `--bg-2` as a wash) are
+        // not in `chartSurface`, so it still needs the overlay set.
+        style={{
+          ...chartOverlaySurface,
+          // Capped, not fixed: Style is ten fields and Music is four. A panel
+          // that is always the tallest thing it might need to be steals the
+          // chart's room on the tab that doesn't need it.
+          maxHeight: '46vh',
+          animation: 'reader-panel-down 190ms cubic-bezier(0.32, 0.72, 0, 1)',
+        }}
+      >
+        {head}
+        {body}
+        {/* The handle is at the BOTTOM here — the panel came down from the top
+            bar, so the way out is back up, and the affordance belongs on the
+            edge you pull. */}
+        <div
+          ref={grabRef}
+          className="shrink-0 py-1.5 grid place-items-center cursor-grab"
+          style={{ touchAction: 'none' }}
+          aria-hidden="true"
+        >
+          <div className="w-[34px] h-1 rounded-full bg-[var(--border-2)]" />
+        </div>
+      </div>
+    );
+  }
+
+  return createPortal((
+    <>
+      <button type="button" aria-label="Close menu" tabIndex={-1} onClick={onClose}
+        className="fixed inset-0 z-[119] bg-transparent border-none cursor-default" />
+      <div
+        ref={panelRef}
+        role="dialog" aria-label="Reader menu"
+        className="fixed z-[120] overflow-hidden flex flex-col rounded-[14px] border border-[var(--border-2)]"
         // The READER's theme, not the app's (owner, 2026-08-04). The panel is
         // portaled to `document.body`, so it inherits nothing from the reader's
         // own subtree and has to carry the remap itself — see
         // `chartOverlaySurface`. `background` comes from the surface, which is
-        // why the `--ds-background-100` class is gone from the line above.
+        // why there is no `--ds-background-100` class on the line above.
         style={{
           ...chartOverlaySurface,
-          ...(phone
-            ? {
-              maxWidth: '100vw',
-              // Two detents. Short keeps the chart visible above the sheet;
-              // tall is one drag up, for the panels that are really a list.
-              maxHeight: detent === 'tall' ? '90vh' : '58vh',
-              transition: 'max-height 240ms cubic-bezier(0.32, 0.72, 0, 1)',
-              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-              boxShadow: '0 -12px 44px rgba(0,0,0,0.35)',
-              animation: 'sheet-up 200ms cubic-bezier(0.32, 0.72, 0, 1)',
-            }
-            : {
-              top, ...(left != null ? { left } : { right }),
-              width: W, maxWidth: 'calc(100vw - 16px)', maxHeight: '74vh',
-              boxShadow: '0 18px 44px rgba(0,0,0,0.45)',
-              animation: 'pop-in 120ms ease-out',
-            }),
+          top, ...(left != null ? { left } : { right }),
+          width: W, maxWidth: 'calc(100vw - 16px)', maxHeight: '74vh',
+          boxShadow: '0 18px 44px rgba(0,0,0,0.45)',
+          animation: 'pop-in 120ms ease-out',
         }}
       >
-        {/* The grab zone: the handle, and the panel header when there is one.
-            `touch-action: none` so the browser doesn't claim the gesture before
-            the listener sees it. The handle is the affordance that says "this
-            drags and dismisses" — and since this round it is telling the
-            truth. */}
-        {phone ? (
-          <div ref={grabRef} className="shrink-0" style={{ touchAction: 'none' }}>
-            <div className="w-[34px] h-1 rounded-full mx-auto mt-1.5 mb-0.5 bg-[var(--border-2)]" />
-            {head}
-          </div>
-        ) : head}
+        {head}
         {body}
       </div>
     </>

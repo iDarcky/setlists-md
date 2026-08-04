@@ -3,10 +3,10 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.61` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.62` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
-> can compare against `beta`. 879 tests, 0 lint errors (8 pre-existing
+> can compare against `beta`. 878 tests, 0 lint errors (8 pre-existing
 > warnings)._
 
 ---
@@ -100,18 +100,21 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.61) — element 28, round 1: the shell
+## Just shipped (beta.62) — element 28, rounds 1 + 2
 
 | What | Where |
 |---|---|
-| **The ☰ wears the reader theme.** It portals to `document.body`, so it inherited nothing and came out app-coloured with `--chord`/`--chart-text` leaking in. `chartOverlaySurface` — `chartSurface` **plus** the three tokens a panel reads and the chart body doesn't, plus `--bg-2` as a wash or every hover is invisible | `readerSurface.js`, `ReaderMenu.jsx` |
-| **No value column on the rows** — glyph · label · chevron | `ReaderMenu.jsx` |
-| **The sheet drags**, two detents (58vh ↔ 90vh). Handle zone = both ways; body = down only, at `scrollTop === 0` | `ReaderMenu.jsx` |
+| **Three tabs — Style · Layout · Music.** No root list, no drill-in, no back. Opening the ☰ lands you IN a panel. "Look" → "Style" at the owner's request | `ReaderMenu.jsx` |
+| **Notes left the ☰** — it goes in the setlist rail (element 29). ⚠ `song.notes` now appears NOWHERE in the reader, and the rail only exists inside a setlist | `ReaderMenu.jsx` |
+| **The phone shape is a PUSH-DOWN panel, not a sheet.** It renders inside the reader's sticky header (`ReaderTopBar`'s new `panel` prop) so the chart is displaced, not covered. No scrim — a catcher would eat element 11's chord taps. Handle on the bottom edge, drags up | `ReaderMenu.jsx`, `ReaderTopBar.jsx`, `Reader.jsx`, `SetlistReader.jsx`, `BreakScreen`/`MissingSongScreen` |
+| **The ☰ wears the reader theme** — `chartOverlaySurface` = `chartSurface` + the three tokens a panel reads and the chart body doesn't + `--bg-2` as a wash, or every hover is invisible | `readerSurface.js` |
 | **Columns gated at 768, not 700** — 700–767 (iPad mini portrait, 744) showed a switch `resolveReaderConfig` forced back to 1 | `ReaderMenu.jsx` |
 
-**Next in element 28: the first row — Look.** Then Layout, The music, Notes, one
-at a time. `READER.md` → "Element 28, round 1" carries the measurements; the
-notes inventory beneath it is what the Notes row has to answer to.
+**Next in element 28: the Style tab**, field by field, then Layout, then Music.
+
+> **`mockWidth` in `reader.test.jsx` used to answer one boolean for every media
+> query.** It answers per-query against a real width now. Any new breakpoint
+> needs the same check, or the desktop tests silently exercise the phone shape.
 
 ---
 

@@ -130,10 +130,10 @@ describe('the break screen', () => {
   it('opens the ☰ from the break, with no song to read', () => {
     atBreak({}, { label: 'Offering' });
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    // Look and Layout are settings, so they work with no song at all.
+    // Style and Layout are settings, so they work with no song at all.
     expect(screen.getByRole('dialog', { name: 'Reader menu' })).toBeTruthy();
-    expect(screen.getByText('Look')).toBeTruthy();
-    expect(screen.getByText('Layout')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Style' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Layout' })).toBeTruthy();
   });
 });
 
