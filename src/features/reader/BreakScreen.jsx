@@ -21,6 +21,10 @@ import { chartSurface } from './readerSurface';
  */
 export default function BreakScreen({
   label, duration, note, onExit, onMenu, aboveBar = null, leading = null, progress = null, footer,
+  // Element 28's ☰, docked. `SetlistReader` owns the menu (it is mounted a
+  // level above these screens), so it hands the node down to sit in the same
+  // 70/30 split the reader has.
+  menuDock = null, menuOpen = false,
 }) {
   const rule = { borderColor: 'var(--chart-rule, var(--ds-gray-300))' };
   const muted = 'var(--chart-subtle, var(--ds-gray-700))';
@@ -31,7 +35,7 @@ export default function BreakScreen({
 
   return (
     <div className="h-full flex flex-col overflow-hidden" style={chartSurface}>
-      <ReaderTopBar title={title} onExit={onExit} onMenu={onMenu} aboveBar={aboveBar} leading={leading} progress={progress} />
+      <ReaderTopBar title={title} onExit={onExit} onMenu={onMenu} aboveBar={aboveBar} leading={leading} progress={progress} menuOpen={menuOpen} />
 
       {/* Centred when the break is just a length — a lone "5 min" belongs in
           the middle of the screen. TOP-aligned as soon as there is a note
@@ -71,6 +75,12 @@ export default function BreakScreen({
         >
           <div className="wide-container flex items-center gap-2 py-1">{footer}</div>
         </div>
+      )}
+
+      {/* Element 28's docked ☰ — the same 70/30 split the reader has, so the
+          menu does not change shape on a break. */}
+      {menuDock && (
+        <div className="shrink-0 min-h-0" style={{ flex: '0 0 30%' }}>{menuDock}</div>
       )}
     </div>
   );

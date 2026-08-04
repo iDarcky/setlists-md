@@ -67,6 +67,10 @@ export default function SetlistReader({
   // Set by `Reader` while its edit mode is open — see `locked` below.
   const [editingSong, setEditingSong] = useState(false);
   const wide = useMediaQuery('(min-width: 768px)');
+  // Element 28: below 700 the ☰ DOCKS under the reader rather than opening a
+  // popover. Declared up here with the other hooks — there is an early return
+  // for an empty setlist below, and a hook after it is called conditionally.
+  const menuDocks = useMediaQuery('(max-width: 699.98px)');
   // Element 13. The ONLY thing tracked through a session: when it started.
   // Everything else the old views carried in refs — farthest index, transpose
   // count, cue count, touched-song set — was tracking maintained all session
@@ -268,6 +272,7 @@ export default function SetlistReader({
   const openMenu = (rect) => setMenu(m => (m?.idx === idx ? null : { idx, rect }));
   const menuNode = menuAnchor ? (
     <ReaderMenu
+      dock={menuDocks}
       anchorRect={menuAnchor}
       onClose={() => setMenu(null)}
       settings={settings}
@@ -280,12 +285,15 @@ export default function SetlistReader({
       onChordSize={(v) => onUpdateSettings?.('chordFontSize', v)}
     />
   ) : null;
+  const menuDock = menuDocks ? menuNode : null;
 
   const body = cur?.isMissing ? (
     <MissingSongScreen
       title={cur.songTitle || recoverable?.song?.title}
       onExit={onBack}
       onMenu={openMenu}
+      menuDock={menuDock}
+      menuOpen={!!menuAnchor}
       aboveBar={underBar}
       leading={railButton}
       progress={progress}
@@ -301,6 +309,8 @@ export default function SetlistReader({
       note={cur.note}
       onExit={onBack}
       onMenu={openMenu}
+      menuDock={menuDock}
+      menuOpen={!!menuAnchor}
       aboveBar={underBar}
       leading={railButton}
       progress={progress}
@@ -334,7 +344,9 @@ export default function SetlistReader({
     <div className="h-full flex">
       <div className="flex-1 min-w-0 h-full">{body}</div>
       {overlay}
-      {menuNode}
+      {/* Desktop only — on a phone the same node is docked inside the screen's
+          own 70/30 column (see `menuDock`). */}
+      {!menuDocks && menuNode}
     </div>
   );
 }

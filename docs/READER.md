@@ -1068,6 +1068,47 @@ at arm's length on a phone. Now: the app's sans at **12px/600, sentence case,
 > Mono in this app means *a number you compare* (keys, tempo, counters) — not
 > "small print".
 
+#### Element 28, round 4 — the dock. Three shapes tried, this is the one, 2026-08-04
+
+Owner: *"Crazy idea, what if instead of the sheet we do something strange. We
+split the screen in two sections, the reader above and the setting below… 30-70
+settings-reader? and there we give the 3 tabs but without the drag, ☰ transforms
+into an x?"*
+
+**It is the right answer, and it is worth recording WHY**, because three shapes
+were built and tried on the device before this one:
+
+| Shape | Round | What was wrong |
+|---|---|---|
+| Bottom sheet | 1, 3 | **Covers** the chart, so it had to be capped (58vh, then 44vh) to limit the damage. A cap that exists to stop a panel hiding what it changes is the shape arguing with the panel rule. |
+| Push-down panel | 2 | Obeyed the rule — the chart was displaced from the top, not covered — but it put the controls at the far end of the screen from the thumb. |
+| **Dock, 70/30** | **4** | Displaces the chart from the BOTTOM. Chart genuinely shorter, never hidden, scroll position kept, controls where the hand is. |
+
+**The structural change that makes it real:** `Reader`'s root USED TO BE the
+scroller. It is now an `h-full flex flex-col` with the scroller as a
+`flex-1 min-h-0` child, and the dock as a `flex: 0 0 30%` sibling. That is the
+difference between a 70% that is true and an overlay pretending — and with no
+dock, a lone `flex-1` child of an `h-full` column is exactly the box `h-full`
+was, so nothing else moved. `BreakScreen` and `MissingSongScreen` already had
+that shape and take the dock through a `menuDock` prop.
+
+**Three things the dock deliberately is NOT:**
+- **Not modal — no scrim.** The chart above stays live: element 11's chord taps
+  still work while you are changing the type size.
+- **Not draggable.** One size, so there is no gesture to learn and nothing that
+  can feel "blocked" (round 1's complaint).
+- **Not portaled.** See above — the split has to be real.
+
+**The ☰ becomes a ✕** (`ReaderTopBar`'s `menuOpen`), which is the way out now
+that there is no scrim and no drag.
+
+> ⚠ **There are now two ✕ in the top bar** — the menu's on the left, Exit on the
+> right. Element 1's rule is "nothing goes near the ✕: a mis-tap on the
+> right-hand edge leaves the service", and this puts the same glyph at the other
+> end meaning something entirely different. Flagged to the owner on delivery;
+> the alternatives if it reads wrong are a chevron-down (collapse) or keeping
+> the ☰ and lighting it up the way the practice icon does.
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the

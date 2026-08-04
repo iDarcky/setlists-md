@@ -19,6 +19,10 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
   {
     title, meta = null, onMenu, onExit, tools = null, leading = null,
     aboveBar = null, editing = false, exitDisabled = false, progress = null, children,
+    // Element 28: the ☰ becomes a ✕ while its menu is open (owner, 2026-08-04:
+    // *"☰ transforms into an x"*). The docked menu has no drag and no scrim, so
+    // this button IS the way out of it.
+    menuOpen = false,
   }, ref,
 ) {
   return (
@@ -103,7 +107,8 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
             <IconButton
               size="sm"
               className={BAR_BUTTON}
-              aria-label="Display options"
+              aria-label={menuOpen ? 'Close display options' : 'Display options'}
+              aria-expanded={menuOpen}
               // Dead, not GONE. Dropping the button while editing would change
               // the bar's shape the moment you press edit and everything else
               // would jump left.
@@ -114,7 +119,7 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
                 onMenu?.(e.currentTarget.getBoundingClientRect());
               }}
             >
-              <MenuIcon />
+              {menuOpen ? <CloseIcon /> : <MenuIcon />}
             </IconButton>
           )}
           {tools}

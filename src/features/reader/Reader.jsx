@@ -169,6 +169,11 @@ export default function Reader({
   // it the reader's menu would reconnect the two surfaces that were
   // deliberately disconnected (`docs/READER.md` → "The hub view").
   const [ownAaAnchor, setOwnAaAnchor] = useState(null);
+  // Element 28: which shape the ☰ takes. Below 700 it DOCKS under the reader
+  // (the screen splits 70/30); above it is a popover anchored to the button.
+  // 700 and not 768 for the reason it always was — between 640 and 700 the
+  // popover is wider than the room beside the ☰.
+  const menuDocks = useMediaQuery('(max-width: 699.98px)');
   // Element 11 — the chord you tapped, and where it was.
   const [tappedChord, setTappedChord] = useState(null);
   const { allowed: canSeeShapes } = useEntitlement('chord-diagrams');
@@ -631,6 +636,7 @@ export default function Reader({
 
   const menuNode = ownAaAnchor ? (
     <ReaderMenu
+      dock={menuDocks}
       anchorRect={ownAaAnchor}
       onClose={() => setOwnAaAnchor(null)}
       settings={settings}
@@ -648,8 +654,15 @@ export default function Reader({
   const bottomRibbon = ribbonPlace === 'bottom' && !!ribbonNode;
 
   return (
+    // ── The 70/30 split ──────────────────────────────────────────────────────
+    // The scroller used to BE the root. It is a flex CHILD now, so the docked
+    // ☰ can take a real 30% off the bottom: the chart gets shorter rather than
+    // being covered, and it keeps its scroll position. Nothing changes when the
+    // dock is absent — a lone `flex-1` child of an `h-full` column is the same
+    // box `h-full` was.
+    <div className="h-full flex flex-col">
     <div
-      className="h-full flex flex-col overflow-y-auto overflow-x-hidden no-scrollbar"
+      className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden no-scrollbar"
       ref={scrollRef}
       onTouchStart={onSwipeLeft || onSwipeRight ? onTouchStart : undefined}
       onTouchEnd={onSwipeLeft || onSwipeRight ? onTouchEnd : undefined}
@@ -667,6 +680,7 @@ export default function Reader({
           leading={railButton}
           title={song.title}
           onMenu={editing ? null : (rect) => setOwnAaAnchor(a => (a ? null : rect))}
+          menuOpen={!!ownAaAnchor}
           onExit={onExit}
           editing={editing}
           exitDisabled={editing}
@@ -991,7 +1005,9 @@ export default function Reader({
         />
       )}
 
-      {menuNode}
+      {/* Desktop: the popover, portaled. On a phone this is null and the same
+          node is mounted in the dock below instead. */}
+      {!menuDocks && menuNode}
 
       {/* The hub's Aa button, unchanged. See the note on `ownAaAnchor`. */}
       {hostAaAnchor && (
@@ -1009,6 +1025,13 @@ export default function Reader({
           notation={config.display.notation}
           onNotation={(v) => onUpdateSettings?.('notation', v)}
         />
+      )}
+    </div>
+
+      {/* The dock. `flex: 0 0 30%` — a fixed share of the READER, not of the
+          viewport, so it is the same 30% whatever chrome sits above it. */}
+      {menuDocks && menuNode && (
+        <div className="shrink-0 min-h-0" style={{ flex: '0 0 30%' }}>{menuNode}</div>
       )}
     </div>
   );

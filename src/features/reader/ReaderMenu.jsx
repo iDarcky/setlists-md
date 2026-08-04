@@ -64,19 +64,28 @@ import {
  *
  * **Desktop** — a popover anchored to the ☰.
  *
- * **Phone — a sheet, at a FIXED 44vh.** Round 2 tried the push-down panel
- * instead; the owner tried both and picked the sheet (*"I think I like the
- * sheet more, but maybe not that big?"*), so the push-down is gone rather than
- * kept as a second shape nobody chose.
+ * **Phone — a DOCK. The screen splits 70/30, reader over settings.** Owner,
+ * 2026-08-04: *"what if instead of the sheet we do something strange. We split
+ * the screen in two sections, the reader above and the setting below… 30-70
+ * settings-reader? and there we give the 3 tabs but without the drag, ☰
+ * transforms into an x?"*
  *
- * Fixed height, not `max-height`, at the owner's request (*"let's make the menu
- * not that long, like fixed length and scroll inside"*). Two things that buys:
- * the chart above it never moves when you switch tabs, and Style's ten fields
- * and Music's four occupy the same box instead of the sheet jumping between
- * them. The body scrolls inside it.
+ * This is the third shape tried and it is the one that finally answers the
+ * panel rule properly. The sheet (rounds 1 and 3) covered the chart and was
+ * capped to limit the damage; the push-down (round 2) displaced it from the
+ * top, which worked but put the controls at the far end of the screen from the
+ * thumb. A bottom dock displaces it from the BOTTOM: the chart is genuinely
+ * shorter, never hidden, and it keeps its scroll position — and the controls
+ * are where the hand is.
  *
- * The detents are gone with the push-down. One height, and the handle drags
- * DOWN to dismiss — the direction the sheet came from.
+ * What the dock is NOT, and each one is deliberate:
+ *  - **Not modal.** No scrim. The chart above stays live — element 11's chord
+ *    taps still work while you are changing the type size.
+ *  - **Not draggable.** It has one size. The ☰ became a ✕ and that is the way
+ *    out, so there is no gesture to learn and nothing to feel "blocked".
+ *  - **Not portaled.** It is a sibling of the reader's scroller inside the
+ *    reader's own flex column, which is what makes the 70% real rather than
+ *    an overlay pretending.
  */
 
 const NOTATIONS = [['letters', 'Letters'], ['nashville', 'Numbers'], ['solfege', 'Do-Re-Mi']];
@@ -204,6 +213,10 @@ export default function ReaderMenu({
   anchorRect, onClose, settings, onUpdateSettings,
   song, config,
   lyricSize, onLyricSize, chordSize, onChordSize,
+  // The phone's shape: docked under the reader, filling the box the host
+  // reserved for it. Only the host can offer that — it owns the flex column
+  // the 70/30 split lives in.
+  dock = false,
 }) {
   const [tab, setTab] = useState('style');
   const { allowed: styleAllowed } = useEntitlement('chart-style');
@@ -601,6 +614,25 @@ export default function ReaderMenu({
       <div className="h-1.5" />
     </div>
   );
+
+  // ── Docked: the bottom 30% of the reader ─────────────────────────────────
+  // No portal, no scrim, no handle. It fills the box the host gave it, and the
+  // ✕ in the top bar is the way out.
+  if (dock) {
+    return (
+      <div
+        ref={panelRef}
+        role="dialog" aria-label="Reader menu"
+        className="h-full min-h-0 overflow-hidden flex flex-col border-t border-[var(--border-2)]"
+        // It is a SIBLING of the reader's scroller, not a child, so it does not
+        // inherit `chartSurface` and carries the remap itself.
+        style={chartOverlaySurface}
+      >
+        {head}
+        {body}
+      </div>
+    );
+  }
 
   return createPortal((
     <>

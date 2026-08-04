@@ -3,10 +3,10 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.63` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.64` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
-> can compare against `beta`. 878 tests, 0 lint errors (8 pre-existing
+> can compare against `beta`. 879 tests, 0 lint errors (8 pre-existing
 > warnings)._
 
 ---
@@ -100,23 +100,30 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.63) — element 28, rounds 1–3
+## Just shipped (beta.64) — element 28, rounds 1–4
 
 | What | Where |
 |---|---|
 | **Three tabs — Style · Layout · Music.** No root list, no drill-in, no back. "Look" → "Style" | `ReaderMenu.jsx` |
 | **Notes left the ☰** for the setlist rail (element 29). ⚠ `song.notes` now appears NOWHERE in the reader, and the rail only exists inside a setlist | `ReaderMenu.jsx` |
-| **The phone sheet is FIXED `height: 44vh`** — smaller, same size on every tab, body scrolls inside (`flex-1 min-h-0`). The round-2 push-down panel was tried and **deleted** | `ReaderMenu.jsx` |
-| **The theme swatch ring** was two rings of one colour at two radii — now one, matching the colour swatches | `ReaderMenu.jsx` |
-| **Field labels**: Geist Mono 10px ALL CAPS wide-tracked muted → sans 12px/600 sentence case | `ReaderMenu.jsx` |
-| **The ☰ wears the reader theme** — `chartOverlaySurface` | `readerSurface.js` |
-| **Columns gated at 768, not 700** | `ReaderMenu.jsx` |
+| **The phone shape is a DOCK — the screen splits 70/30.** `Reader`'s root was the scroller; it is now a flex column with the scroller as a `flex-1 min-h-0` child and the dock as a `flex: 0 0 30%` sibling. No scrim, no drag, not portaled. The sheet (r1/r3) and push-down (r2) were both built, tried and deleted | `Reader.jsx`, `ReaderMenu.jsx`, `SetlistReader.jsx`, `BreakScreen`/`MissingSongScreen` |
+| **The ☰ becomes a ✕** while open. ⚠ Two ✕ in one bar now — flagged, see READER.md | `ReaderTopBar.jsx` |
+| **Field labels** Geist Mono 10px ALL CAPS wide-tracked muted → sans 12px/600 sentence case · **theme ring** was two rings at two radii, now one | `ReaderMenu.jsx` |
+| **The ☰ wears the reader theme** (`chartOverlaySurface`) · **Columns gated at 768** | `readerSurface.js`, `ReaderMenu.jsx` |
 
-**Next in element 28: the Style tab**, field by field, then Layout, then Music.
+**Next in element 28 — the Style tab's contents**, all three asked for and none
+built yet:
+1. **Themes as a carousel with left/right arrows**, so it reads as scrollable.
+2. **Group the tab**: Lyrics (size/font/colour) · Chords (size/font/colour) ·
+   Spacing (line spacing, section gap) · Tabs (size, grid, colours).
+3. **Reuse `AaMenu`'s control design** for the buttons and steppers, two per row.
 
-> **`mockWidth` in `reader.test.jsx` used to answer one boolean for every media
-> query.** It answers per-query against a real width now. Any new breakpoint
-> needs the same check, or the desktop tests silently exercise the phone shape.
+**And an open decision: what is free and what is Pro.** The owner
+(2026-08-04): *"for the settings we need to decide what we allow for free and
+what we lock behind Pro. For example for the themes we would need a CTA upgrade
+for more themes."* Today `chart-style` (= Sync tier) gates fonts, colours and
+the non-`FREE_CHART_THEME_IDS` themes, and the locked state is a line of text
+(`ProNote`), not a CTA.
 
 ---
 

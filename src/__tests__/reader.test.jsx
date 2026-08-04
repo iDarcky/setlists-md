@@ -5,7 +5,7 @@
 // which buried the decisions that HAD been made. These tests cover exactly the
 // six elements that are designed, so the next one has a clean floor to build on.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import Reader from '@/features/reader/Reader';
 import { songFromFlat } from '@/arrangements';
 
@@ -354,37 +354,50 @@ describe('the ☰ menu', () => {
   });
 });
 
-// The phone shape — element 28, round 3.
+// The phone shape — element 28, round 4.
 //
-// Round 2 tried a push-down panel inside the sticky header; the owner tried both
-// and kept the SHEET ("I think I like the sheet more, but maybe not that big?"),
-// at a FIXED height with the body scrolling inside it. The detents stayed dead —
-// on those: "it really drags, and it feels strange because it blocks and drags
-// a bit".
+// Three shapes were tried on the device: a bottom sheet (covers the chart, so
+// it had to be capped), a push-down panel under the top bar (works, but puts
+// the controls at the far end of the screen from the thumb), and this — a DOCK
+// that splits the screen 70/30, reader over settings. Owner: "we split the
+// screen in two sections, the reader above and the setting below… and there we
+// give the 3 tabs but without the drag, ☰ transforms into an x?"
 describe('the ☰ on a phone — element 28', () => {
   beforeEach(() => { mockWidth(390); });
 
   const openPanel = (props = {}) => {
     renderReader(props);
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    const panel = screen.getByRole('dialog', { name: 'Reader menu' });
-    return { panel, handle: panel.firstChild };
-  };
-  const drag = (from, dy) => {
-    fireEvent.touchStart(from, { touches: [{ clientX: 100, clientY: 400 }] });
-    fireEvent.touchMove(from, { touches: [{ clientX: 100, clientY: 400 + dy }] });
-    fireEvent.touchEnd(from, { changedTouches: [{ clientX: 100, clientY: 400 + dy }] });
+    return { panel: screen.getByRole('dialog', { name: 'Reader menu' }) };
   };
 
-  it('is a FIXED height, so switching tabs never resizes it', () => {
+  it('DOCKS under the reader — a real 70/30 split, not an overlay', () => {
     const { panel } = openPanel();
-    // `height`, not `maxHeight` (owner: "fixed length and scroll inside").
-    // Style is ten fields and Music is four; the sheet must not jump between
-    // them, and the chart above it must not move.
-    expect(panel.style.height).toBe('44vh');
-    expect(panel.style.maxHeight).toBe('');
+    // Not portaled: it is a sibling of the reader's scroller inside the
+    // reader's own flex column, which is what makes the 30% real. An overlay
+    // would leave the chart full height and hidden underneath it.
+    expect(panel.parentElement).not.toBe(document.body);
+    expect(panel.parentElement.style.flex).toBe('0 0 30%');
+    // ...and the box it sits in is a sibling of the reader's scroller, which is
+    // what makes the 70% real rather than an overlay pretending.
+    expect(panel.parentElement.previousElementSibling.className).toContain('overflow-y-auto');
+    // The chart above is all still there, and still live.
+    expect(document.querySelectorAll('[data-section-index]').length).toBe(4);
+  });
+
+  it('is the same box on every tab, and scrolls inside itself', () => {
+    const { panel } = openPanel();
+    const box = panel.parentElement.style.flex;
     fireEvent.click(screen.getByRole('button', { name: 'Music' }));
-    expect(panel.style.height).toBe('44vh');
+    // Style is ten fields and Music is four; the split must not move under the
+    // chart when you switch between them.
+    expect(panel.parentElement.style.flex).toBe(box);
+    // Without `min-h-0` a flex child refuses to shrink below its content, and
+    // the body grows past the dock instead of scrolling.
+    const body = panel.lastChild;
+    expect(body.className).toContain('flex-1');
+    expect(body.className).toContain('min-h-0');
+    expect(body.className).toContain('overflow-y-auto');
   });
 
   it('scrolls the fields inside itself rather than growing', () => {
@@ -397,28 +410,30 @@ describe('the ☰ on a phone — element 28', () => {
     expect(body.className).toContain('overflow-y-auto');
   });
 
-  it('drags DOWN to close — the direction it came from', () => {
-    const { handle } = openPanel();
-    vi.useFakeTimers();
-    drag(handle, 120);
-    act(() => { vi.advanceTimersByTime(300); });
-    vi.useRealTimers();
+  it('has no drag and no scrim — the ☰ became the ✕ instead', () => {
+    const { panel } = openPanel();
+    // No scrim: the chart above stays live, so element 11's chord taps still
+    // work while you are changing the type size.
+    expect(screen.queryByRole('button', { name: 'Close menu' })).toBeNull();
+    // No handle: a dock has one size, so there is no gesture to learn and
+    // nothing that can feel blocked.
+    expect(panel.querySelector('[style*="touch-action"]')).toBeNull();
+    // The button that opened it now says it closes it.
+    expect(screen.getByRole('button', { name: 'Close display options' })).toBeTruthy();
+  });
+
+  it('closes from the ✕ the ☰ turned into', () => {
+    openPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Close display options' }));
     expect(screen.queryByRole('dialog', { name: 'Reader menu' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Display options' })).toBeTruthy();
   });
 
-  it('stays put on a short drag, or a drag the wrong way', () => {
-    const { handle } = openPanel();
-    drag(handle, 30);
-    expect(screen.getByRole('dialog', { name: 'Reader menu' })).toBeTruthy();
-    drag(handle, -200);
-    expect(screen.getByRole('dialog', { name: 'Reader menu' })).toBeTruthy();
-  });
-
-  it('is a popover with no fixed height on a desktop', () => {
+  it('is a portaled popover on a desktop, not a dock', () => {
     mockWidth(1024);
     openPanel();
     const panel = screen.getByRole('dialog', { name: 'Reader menu' });
-    expect(panel.style.height).toBe('');
+    expect(panel.parentElement).toBe(document.body);
     expect(panel.style.maxHeight).toBe('74vh');
   });
 });
@@ -493,7 +508,9 @@ describe('embedded in the Song Hub', () => {
     const { container } = render(
       <Reader song={makeSong()} settings={{}} embedded onExit={() => {}} />
     );
-    const root = container.firstChild;
+    // `container.firstChild` is the 70/30 split column now; the surface lives
+    // on the SCROLLER inside it (element 28's dock).
+    const root = container.firstChild.firstChild;
     expect(root.style.getPropertyValue('--chart-bg')).toBe('var(--ds-background-100)');
     expect(root.style.getPropertyValue('--chart-text')).toBe('var(--ds-gray-1000)');
   });
@@ -502,7 +519,7 @@ describe('embedded in the Song Hub', () => {
     // Standalone it must NOT override --chart-*: those come from :root, where
     // useChartTheme writes the stage palette. Overriding here would kill themes.
     const { container } = render(<Reader song={makeSong()} settings={{}} onExit={() => {}} />);
-    expect(container.firstChild.style.getPropertyValue('--chart-bg')).toBe('');
+    expect(container.firstChild.firstChild.style.getPropertyValue('--chart-bg')).toBe('');
     expect(container.firstChild.style.getPropertyValue('--chart-text')).toBe('');
   });
 });
