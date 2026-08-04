@@ -183,6 +183,13 @@ export default function SectionBlock({
 
     const effectiveTranspose = transpose + lineOffsets[idx];
 
+    // What a tap needs to identify the chord in the STORED song, not on screen.
+    // `transpose` travels with it because the chart shows a transposed chord
+    // and the `.md` holds the written one — the caller has to invert exactly
+    // this number, and composing it again at the other end (user transpose +
+    // section modulate + mid-section modulate) is three chances to be wrong.
+    const tapMeta = (ordinal) => ({ line: idx, chord: ordinal, transpose: effectiveTranspose });
+
     // Extract inline notes {!...}
     const noteMatch = line.match(/\{!(.*?)\}/);
     const inlineNote = noteMatch ? noteMatch[1] : null;
@@ -229,7 +236,17 @@ export default function SectionBlock({
     // So: a chord keeps a real gap whenever ANY chord follows it later on the
     // line, and only overhangs (contributing no width) when it is the last
     // chord there — where nothing on the chord row can collide with it.
-    const renderChord = (rawChord, padded) => {
+    // `ordinal` is the chord's index among the chords ON THIS LINE, counted in
+    // document order. Edit mode needs it: `onChordTap` used to hand back only
+    // the DISPLAYED chord name, which cannot say *which* G was tapped when a
+    // line has three of them.
+    //
+    // It is computed explicitly from `pairs`, never from the order these
+    // callbacks happen to fire in — a counter incremented inside this function
+    // would be correct today and wrong the moment anything renders a line twice
+    // or out of order, and a chord edit landing on the wrong occurrence is
+    // invisible until somebody plays it.
+    const renderChord = (rawChord, padded, ordinal = -1) => {
       let chord = notateChord(rawChord, { key: songKey, notation: notationMode, transpose: effectiveTranspose, accidentals });
       // Bass "root emphasis": collapse each chord to the note a bassist plays —
       // the slash bass if present, otherwise the chord root.
@@ -247,11 +264,11 @@ export default function SectionBlock({
           role: 'button',
           tabIndex: 0,
           'aria-label': `${shapeName} chord shape`,
-          onClick: (e) => onChordTap(shapeName, e.currentTarget.getBoundingClientRect()),
+          onClick: (e) => onChordTap(shapeName, e.currentTarget.getBoundingClientRect(), tapMeta(ordinal)),
           onKeyDown: (e) => {
             if (e.key !== 'Enter' && e.key !== ' ') return;
             e.preventDefault();
-            onChordTap(shapeName, e.currentTarget.getBoundingClientRect());
+            onChordTap(shapeName, e.currentTarget.getBoundingClientRect(), tapMeta(ordinal));
           },
         }
         : {};
@@ -305,6 +322,11 @@ export default function SectionBlock({
                   const at = flat.findIndex(f => f.wi === wi && f.si === si);
                   return flat.slice(at + 1).some(f => f.chord);
                 };
+                // `groupChordWords` regroups pairs into words but preserves
+                // their order, so counting chords across `flat` gives the same
+                // ordinal as counting `[...]` tokens in the source line.
+                const chordsInOrder = flat.filter(f => f.chord);
+                const ordinalOf = (wi, si) => chordsInOrder.findIndex(f => f.wi === wi && f.si === si);
                 return words.map((w, wi) => (
                 w.space ? (
                   <span key={wi} style={{ whiteSpace: 'pre' }}>{w.space}</span>
@@ -312,7 +334,7 @@ export default function SectionBlock({
                   <span key={wi} className="inline-flex items-end" style={{ whiteSpace: 'nowrap' }}>
                     {w.segments.map((seg, si) => (
                       <span key={si} className="inline-flex flex-col justify-end">
-                        {seg.chord && renderChord(seg.chord, chordFollows(wi, si))}
+                        {seg.chord && renderChord(seg.chord, chordFollows(wi, si), ordinalOf(wi, si))}
                         <span
                           className="whitespace-pre"
                           style={{
@@ -329,7 +351,7 @@ export default function SectionBlock({
               )); })()
             : pairs.map((p, i) => (
                 <span key={i} className="inline-flex flex-col justify-end">
-                  {p.chord && renderChord(p.chord, true)}
+                  {p.chord && renderChord(p.chord, true, pairs.slice(0, i).filter(q => q.chord).length)}
                 </span>
               ))}
           {inlineNotes && inlineNote && notePlacement === 'inline' && (

@@ -144,6 +144,11 @@ export default function SetlistReader({
 
   const openRail = () => setRailOpen(o => !o);
 
+  // Where you are in the SET, as a percentage. Drawn by `ReaderTopBar` so it
+  // survives the set bar being off — it used to belong to `ReaderSetlistBar`,
+  // which meant turning that off took the progress with it.
+  const progress = total > 1 ? (idx / (total - 1)) * 100 : 100;
+
   // ONE footer, built once, handed to both surfaces — a break must not draw
   // its own bar with the exit stranded inside it.
   const footer = cfg.nav === 'footer' ? (
@@ -275,6 +280,7 @@ export default function SetlistReader({
       onMenu={openMenu}
       aboveBar={underBar}
       leading={railButton}
+      progress={progress}
       onRestore={recoverable ? () => onRestoreSong(cur.songId) : null}
       onSkip={goNext}
       hasNext={idx < total - 1}
@@ -289,6 +295,7 @@ export default function SetlistReader({
       onMenu={openMenu}
       aboveBar={underBar}
       leading={railButton}
+      progress={progress}
       footer={footer}
     />
   ) : (
@@ -306,6 +313,7 @@ export default function SetlistReader({
       footer={footer}
       underBar={underBar}
       railButton={railButton}
+      progress={progress}
       {...swipe}
     />
   );

@@ -20,7 +20,7 @@ import { chartSurface } from './readerSurface';
  * does NOT get: it has no sections to map.
  */
 export default function BreakScreen({
-  label, duration, note, onExit, onMenu, aboveBar = null, leading = null, footer,
+  label, duration, note, onExit, onMenu, aboveBar = null, leading = null, progress = null, footer,
 }) {
   const rule = { borderColor: 'var(--chart-rule, var(--ds-gray-300))' };
   const muted = 'var(--chart-subtle, var(--ds-gray-700))';
@@ -31,7 +31,7 @@ export default function BreakScreen({
 
   return (
     <div className="h-full flex flex-col overflow-hidden" style={chartSurface}>
-      <ReaderTopBar title={title} onExit={onExit} onMenu={onMenu} aboveBar={aboveBar} leading={leading} />
+      <ReaderTopBar title={title} onExit={onExit} onMenu={onMenu} aboveBar={aboveBar} leading={leading} progress={progress} />
 
       {/* Centred when the break is just a length — a lone "5 min" belongs in
           the middle of the screen. TOP-aligned as soon as there is a note

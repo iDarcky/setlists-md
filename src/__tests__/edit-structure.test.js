@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   materialiseStructure, moveSlot, removeSlot, snapshotEditable, isDirty, entryName,
+  replaceChordInLine, withEditedLine,
 } from '@/lib/editStructure';
 
 const sections = [
@@ -117,5 +118,75 @@ describe('entryName', () => {
     expect(entryName('Chorus')).toBe('Chorus');
     expect(entryName({ type: 'Chorus' })).toBe('Chorus');
     expect(entryName(null)).toBe('');
+  });
+});
+
+// ── Chord editing ───────────────────────────────────────────────────────────
+// Same reason as the play order: an edit that lands on the wrong chord is
+// invisible until somebody plays it.
+describe('replaceChordInLine', () => {
+  it('replaces the Nth chord and nothing else', () => {
+    const line = '[G]Amazing [C]grace how [G]sweet';
+    expect(replaceChordInLine(line, 1, 'Am')).toBe('[G]Amazing [Am]grace how [G]sweet');
+  });
+
+  it('picks the RIGHT one when the same chord appears three times', () => {
+    // The whole point of carrying an ordinal: "which G did you tap?"
+    const line = '[G]a [G]b [G]c';
+    expect(replaceChordInLine(line, 0, 'D')).toBe('[D]a [G]b [G]c');
+    expect(replaceChordInLine(line, 2, 'D')).toBe('[G]a [G]b [D]c');
+  });
+
+  it('leaves lyrics and spacing byte-exact', () => {
+    // The .md line is the source of truth, not a re-serialised parse: a chart
+    // that reflows because someone fixed one chord is a chart nobody trusts.
+    const line = '[G]Amazing   grace,   how [C]sweet   the sound';
+    expect(replaceChordInLine(line, 0, 'G/B')).toBe('[G/B]Amazing   grace,   how [C]sweet   the sound');
+  });
+
+  it('does not mistake an inline note for a chord', () => {
+    // Notes are {!…}, chords are […] — but this is the kind of thing that goes
+    // wrong quietly.
+    const line = '[G]sing {!softly} [C]now';
+    expect(replaceChordInLine(line, 1, 'F')).toBe('[G]sing {!softly} [F]now');
+  });
+
+  it('returns the ORIGINAL string when the index is out of range', () => {
+    // Identity, so the caller can tell nothing happened and skip the write.
+    const line = '[G]a';
+    expect(replaceChordInLine(line, 4, 'D')).toBe(line);
+    expect(replaceChordInLine(line, -1, 'D')).toBe(line);
+    expect(replaceChordInLine(null, 0, 'D')).toBe(null);
+  });
+});
+
+describe('withEditedLine', () => {
+  const sections = [
+    { type: 'Verse 1', lines: ['[G]a', '[C]b'] },
+    { type: 'Chorus', lines: ['[D]c'] },
+  ];
+
+  it('writes one line of one section and leaves the rest alone', () => {
+    const next = withEditedLine(sections, 0, 1, '[Am]b');
+    expect(next[0].lines).toEqual(['[G]a', '[Am]b']);
+    expect(next[1]).toBe(sections[1]);          // untouched section keeps identity
+    expect(sections[0].lines[1]).toBe('[C]b');  // and the input is not mutated
+  });
+
+  it('returns the same array when nothing would change', () => {
+    // So a no-op never dirties the song or pushes an undo step.
+    expect(withEditedLine(sections, 0, 0, '[G]a')).toBe(sections);
+  });
+
+  it('is indexed into song.sections, not the play order', () => {
+    // A section sung three times is ONE body. Editing it changes every repeat,
+    // which is correct — and is why the index must be into `sections`.
+    const next = withEditedLine(sections, 1, 0, '[Bm]c');
+    expect(next[1].lines).toEqual(['[Bm]c']);
+  });
+
+  it('shrugs off an out-of-range section or line', () => {
+    expect(withEditedLine(sections, 9, 0, 'x')).toBe(sections);
+    expect(withEditedLine(null, 0, 0, 'x')).toBe(null);
   });
 });

@@ -87,3 +87,46 @@ export function isDirty(base, song) {
   if (!base || !song) return false;
   return EDITABLE_FIELDS.some(k => JSON.stringify(base[k]) !== JSON.stringify(song[k]));
 }
+
+/**
+ * Replace the Nth chord on a line, in place, leaving everything else byte-exact.
+ *
+ * The `.md` line is the source of truth — NOT the parsed pairs — so this edits
+ * the text rather than re-serialising a parse. A round-trip through
+ * parse→serialise would quietly normalise spacing on every chord change, and a
+ * chart that reflows because someone fixed one chord is a chart nobody trusts.
+ *
+ * Inline notes are `{!…}`, not `[…]`, so they cannot be mistaken for a chord.
+ */
+export function replaceChordInLine(line, index, chord) {
+  if (typeof line !== 'string' || index < 0) return line;
+  let n = -1;
+  let replaced = false;
+  const out = line.replace(/\[([^\]]+)\]/g, (match) => {
+    n += 1;
+    if (n !== index) return match;
+    replaced = true;
+    return `[${chord}]`;
+  });
+  // Out of range — return the ORIGINAL reference so a caller can tell nothing
+  // happened and skip the write.
+  return replaced ? out : line;
+}
+
+/**
+ * Write one edited line back into a song's sections.
+ *
+ * `sectionIndex` is an index into `song.sections`, NOT into the play order:
+ * a section repeated three times is ONE body, so editing it correctly changes
+ * every repeat. Looking it up by play-order position instead would edit
+ * whichever section happened to sit at that slot.
+ */
+export function withEditedLine(sections, sectionIndex, lineIndex, nextLine) {
+  if (!Array.isArray(sections)) return sections;
+  const section = sections[sectionIndex];
+  if (!section || !Array.isArray(section.lines)) return sections;
+  if (section.lines[lineIndex] === nextLine) return sections;
+  return sections.map((s, i) => (i === sectionIndex
+    ? { ...s, lines: s.lines.map((l, j) => (j === lineIndex ? nextLine : l)) }
+    : s));
+}

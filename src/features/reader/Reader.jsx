@@ -21,7 +21,12 @@ import { useEntitlement } from '@/hooks/useEntitlement';
 import { useMetronome } from '@/hooks/useMetronome';
 import { clampTempo } from '@/lib/metronome';
 import ReaderEditBar, { EditIcon } from './ReaderEditBar';
-import { materialiseStructure, moveSlot, removeSlot, snapshotEditable, isDirty } from '@/lib/editStructure';
+import {
+  materialiseStructure, moveSlot, removeSlot, snapshotEditable, isDirty,
+  replaceChordInLine, withEditedLine,
+} from '@/lib/editStructure';
+import ChordPicker from '@/features/editor/ChordPicker';
+import { transposeChord } from '@/music';
 
 const EMPTY = [];
 
@@ -113,7 +118,7 @@ export default function Reader({
   underBar = null,
   // The rail opener, for the same reason: only the host knows there IS a set.
   // Sits beside ☰ in the bar's left cluster.
-  railButton = null,
+  railButton = null, progress = null,
   // 'live' | 'practice'. Until now the reader had ONE behaviour and three route
   // names (`setlist-play`, `setlist-performance`, `setlist-practice`), which is
   // why every practice-only decision — writing a note, switching arrangement —
@@ -226,6 +231,12 @@ export default function Reader({
   // back. Stamped with the song id like `tempoSet`, so arriving at a different
   // song can never restore this one's fields over it.
   const [editSession, setEditSession] = useState(null);
+  // Element 11 vs edit mode: the SAME gesture, two meanings, separated by the
+  // mode. Tapping a chord shows its shape while reading, and opens the editor's
+  // own `ChordPicker` while editing. That is the point of having a mode, and
+  // the owner signed it off knowing so. Declared HERE, above every callback
+  // that clears it — the compiler lint rejects reaching a setter defined below.
+  const [chordEdit, setChordEdit] = useState(null);
   const canEdit = !embedded && config.can.editSong && !!onUpdateSong;
   const editing = canEdit && editSession?.id === songId;
   const editBase = editing ? editSession.base : null;
@@ -319,6 +330,7 @@ export default function Reader({
   // Cancel puts EVERYTHING back and leaves. It can exist at all only because
   // edit mode snapshots on entry — the same snapshot the fork uses.
   const cancelEdit = useCallback(() => {
+    setChordEdit(null);
     if (editBase && song) onUpdateSong?.({ ...song, ...editBase });
     setEditSession(null);
   }, [editBase, song, onUpdateSong]);
@@ -334,7 +346,29 @@ export default function Reader({
     writeSong({ structure: next, structureMode: 'custom' });
   }, [song, ordered, writeSong]);
 
+  const applyChord = useCallback((picked) => {
+    const meta = chordEdit?.meta;
+    setChordEdit(null);
+    if (!meta || !song) return;
+    // `song.sections`, NOT the play order: a section sung three times is ONE
+    // body, so this correctly changes every repeat of it.
+    const si = (song.sections || []).indexOf(meta.section);
+    const raw = meta.section?.lines?.[meta.line];
+    if (si < 0 || typeof raw !== 'string') return;
+    // The chart shows a TRANSPOSED chord; the .md holds the written one. Invert
+    // exactly the number SectionBlock used — recomposing it here (user
+    // transpose + section modulate + mid-section modulate) is three chances to
+    // write the wrong chord into somebody's song.
+    const stored = meta.transpose ? transposeChord(picked, -meta.transpose) : picked;
+    const nextLine = replaceChordInLine(raw, meta.chord, stored);
+    if (nextLine === raw) return;              // out of range — write nothing
+    const sections = withEditedLine(song.sections, si, meta.line, nextLine);
+    if (sections === song.sections) return;
+    writeSong({ sections });
+  }, [chordEdit, song, writeSong]);
+
   const toggleEdit = useCallback(() => {
+    setChordEdit(null);
     setEditSession(prev => (prev?.id === songId
       ? null
       : { id: songId, base: snapshotEditable(song), history: [] }));
@@ -419,6 +453,7 @@ export default function Reader({
           onExit={onExit}
           editing={editing}
           exitDisabled={editing}
+          progress={progress}
           tools={(
             <>
               {config.can.practiceTools && (
@@ -600,7 +635,9 @@ export default function Reader({
               onJumpToFirst={() => jumpTo(repeats[idx])}
               tabColors={tabColors}
               stickyTop={headH}
-              onChordTap={canSeeShapes ? onChordTap : null}
+              onChordTap={editing
+                ? (chord, rect, meta) => setChordEdit({ rect, meta: { ...meta, section } })
+                : (canSeeShapes ? onChordTap : null)}
               showChords={showChords}
               editing={editing}
               onMove={editing ? (d) => editStructure(st => moveSlot(st, idx, d)) : null}
@@ -674,6 +711,15 @@ export default function Reader({
           )}
           {footer && <div className="wide-container flex items-center gap-2 py-1">{footer}</div>}
         </div>
+      )}
+
+      {chordEdit && (
+        <ChordPicker
+          anchorRect={chordEdit.rect}
+          onSelect={applyChord}
+          onClose={() => setChordEdit(null)}
+          recentChords={[]}
+        />
       )}
 
       {tappedChord && (

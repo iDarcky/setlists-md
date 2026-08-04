@@ -1054,14 +1054,37 @@ song-level field gets dropped on the floor.
 > if the stored structure doesn't fully resolve — `orderSections` is ignoring
 > it, so the indices being edited refer to a list nobody reads.
 
-**Not in this round: chord editing.** `SectionBlock`'s `onChordTap(chord, rect)`
-hands back the **displayed** chord — already transposed, possibly Nashville —
-and does **not** say which occurrence was tapped. Editing one needs section +
-line + chord index carried through, and the picked chord un-transposed back into
-the song's own key before writing. That is real plumbing in `SectionBlock` with
-an off-by-one that would silently edit the wrong chord, so it is its own round.
-The decision itself is made: **(a) tap the chord in the chart**, opening the
-song editor's `ChordPicker`.
+#### Chord editing — 2026-08-04
+
+**Tap the chord in the chart; the song editor's own `ChordPicker` opens.** Same
+gesture as element 11, two meanings, separated by the mode: reading shows you
+the shape, editing changes the chord.
+
+Two things had to be carried that did not exist before:
+
+1. **Which occurrence.** `onChordTap` handed back only the displayed chord name,
+   which cannot say *which* G was tapped on a line with three. `SectionBlock`
+   now passes `{ line, chord, transpose }`. The ordinal is computed
+   **explicitly from `pairs`**, never from the order the callbacks happen to
+   fire in — a counter incremented inside `renderChord` would be right today and
+   wrong the moment a line renders twice or out of order.
+2. **Which key.** The chart shows a **transposed** chord; the `.md` holds the
+   **written** one. `SectionBlock` sends its own `effectiveTranspose` and the
+   reader inverts exactly that. Recomposing it at the other end (user transpose
+   + section modulate + mid-section modulate) is three chances to write the
+   wrong chord into somebody's song.
+
+> **The line is edited as TEXT, not re-serialised from a parse.**
+> `replaceChordInLine` swaps the Nth `[…]` and leaves every other byte alone. A
+> parse→serialise round trip would normalise spacing on every chord change, and
+> a chart that reflows because someone fixed one chord is a chart nobody trusts.
+> `withEditedLine` indexes into **`song.sections`**, not the play order: a
+> section sung three times is one body, so editing it correctly changes every
+> repeat.
+
+**Superseded, not in this round:** the ↑/↓ handles on section headings. The owner's
+faster route is **a `+` on the structure ribbon** that adds a repeat of that
+section to the play order — editing the map rather than the page. Queued.
 
 ## The view table — where "each view does something else" lives
 

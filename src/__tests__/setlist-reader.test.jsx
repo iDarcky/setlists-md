@@ -402,3 +402,77 @@ describe('edit mode', () => {
     expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(false);
   });
 });
+
+// ── Editing a chord ─────────────────────────────────────────────────────────
+// The end-to-end case that nothing else guards: the chart shows a TRANSPOSED
+// chord and the .md stores the written one, so a picked chord has to be
+// inverted by exactly the amount SectionBlock displayed it with.
+describe('edit mode — chords', () => {
+  const chordSong = songFromFlat({
+    id: 'c1', title: 'Cornerstone', key: 'C',
+    sections: [{ type: 'Verse 1', lines: ['[C]my [F]hope is [C]built'] }],
+  });
+  const chordSet = { id: 'sl3', items: [{ songId: 'c1' }] };
+
+  const openEditor = (over = {}) => {
+    const r = render(
+      <SetlistReader
+        setlist={chordSet} songs={[chordSong]} settings={{}} mode="practice"
+        onBack={() => {}} onFinish={() => {}} onUpdateSong={vi.fn()} {...over}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+    return r;
+  };
+
+  it('opens the chord picker instead of the shape, while editing', () => {
+    openEditor();
+    // Same gesture, two meanings, separated by the mode.
+    fireEvent.click(screen.getAllByRole('button', { name: 'F chord shape' })[0]);
+    expect(screen.getByText('sus4')).toBeTruthy();   // the editor's own picker
+  });
+
+  it('writes the chord you picked, in the key the song is WRITTEN in', () => {
+    const onUpdateSong = vi.fn();
+    openEditor({ onUpdateSong });
+    fireEvent.click(screen.getAllByRole('button', { name: 'F chord shape' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'G' }));
+    fireEvent.click(screen.getByText('maj'));
+    expect(onUpdateSong).toHaveBeenCalledWith(expect.objectContaining({
+      sections: [expect.objectContaining({ lines: ['[C]my [G]hope is [C]built'] })],
+    }));
+  });
+
+  // THE test for this feature. Everything above runs at transpose 0, where the
+  // inversion is a no-op and a broken one would still pass.
+  it('inverts the transpose — the .md keeps the written key, not the read one', () => {
+    const onUpdateSong = vi.fn();
+    // Song written in C, this setlist item reads it in D. So the chart shows
+    // D · G · D for a line written [C] · [F] · [C].
+    render(
+      <SetlistReader
+        setlist={{ id: 'sl4', items: [{ songId: 'c1', key: 'D' }] }}
+        songs={[chordSong]} settings={{}} mode="practice"
+        onBack={() => {}} onFinish={() => {}} onUpdateSong={onUpdateSong}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+    expect(screen.getAllByRole('button', { name: 'G chord shape' })).toHaveLength(1);
+
+    // Tap the G (written F) and pick A. Displayed A at +2 is written G.
+    fireEvent.click(screen.getByRole('button', { name: 'G chord shape' }));
+    fireEvent.click(screen.getByRole('button', { name: 'A' }));
+    fireEvent.click(screen.getByText('maj'));
+    expect(onUpdateSong.mock.calls[0][0].sections[0].lines[0]).toBe('[C]my [G]hope is [C]built');
+  });
+
+  it('edits the chord you TAPPED when the same chord appears twice', () => {
+    const onUpdateSong = vi.fn();
+    openEditor({ onUpdateSong });
+    // Two Cs on this line — the second one.
+    fireEvent.click(screen.getAllByRole('button', { name: 'C chord shape' })[1]);
+    fireEvent.click(screen.getByRole('button', { name: 'A' }));
+    fireEvent.click(screen.getByText('m'));
+    expect(onUpdateSong.mock.calls[0][0].sections[0].lines[0]).toBe('[C]my [F]hope is [Am]built');
+  });
+});

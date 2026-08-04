@@ -56,7 +56,7 @@ export const EDIT_ACCENT = '#f97316';
 const ReaderTopBar = forwardRef(function ReaderTopBar(
   {
     title, meta = null, onMenu, onExit, tools = null, leading = null,
-    aboveBar = null, editing = false, exitDisabled = false, children,
+    aboveBar = null, editing = false, exitDisabled = false, progress = null, children,
   }, ref,
 ) {
   return (
@@ -84,6 +84,21 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
           : 'var(--chart-bg, var(--ds-background-100))',
       }}
     >
+      {/* How far through the SET you are. It used to belong to
+          `ReaderSetlistBar`, so turning the set bar off took the progress with
+          it (owner, 2026-08-03). It lives here now — top of the sticky block,
+          exactly where it always appeared — so it survives every combination.
+          The top, not the bottom nav: two of the four nav styles (pill, swipe)
+          have no bottom bar to put it on. */}
+      {progress != null && (
+        <div className="h-0.5 w-full shrink-0" style={{ background: 'var(--chart-rule, var(--ds-gray-300))' }}>
+          <div
+            className="h-full transition-[width] duration-300"
+            style={{ width: `${progress}%`, background: editing ? EDIT_ACCENT : 'var(--color-brand)' }}
+          />
+        </div>
+      )}
+
       {/* Element 8b's setlist bar, when it's on. ABOVE the title row, inside
           the same sticky block: SET / HEADER / STRUCTURE. */}
       {aboveBar}

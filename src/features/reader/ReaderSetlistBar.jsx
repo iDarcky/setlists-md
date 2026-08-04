@@ -72,23 +72,14 @@ export default function ReaderSetlistBar({ items, idx, onSelect }) {
     return () => ro.disconnect();
   }, [syncEdges, items, idx]);
 
-  const total = items.length;
-  const progress = total > 1 ? (idx / (total - 1)) * 100 : 100;
   const fade = (dir) => ({
     background: `linear-gradient(to ${dir}, var(--chart-bg, var(--ds-background-100)), transparent)`,
   });
 
   return (
     <div className="shrink-0">
-      {/* Progress across the whole set — the one thing the chips can't show at
-          a glance once the list scrolls. */}
-      <div className="h-0.5 w-full" style={{ background: 'var(--chart-rule, var(--ds-gray-300))' }}>
-        <div
-          className="h-full transition-[width] duration-300"
-          style={{ width: `${progress}%`, background: 'var(--color-brand)' }}
-        />
-      </div>
-
+      {/* The progress line moved to `ReaderTopBar`: living here meant turning
+          the set bar off took the progress with it. */}
       {/* `relative` so the fades can sit over the ends of the scroller. */}
       <div className="relative">
       <div

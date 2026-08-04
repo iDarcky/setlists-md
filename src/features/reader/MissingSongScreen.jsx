@@ -21,7 +21,7 @@ import { chartSurface } from './readerSurface';
  * afterwards.
  */
 export default function MissingSongScreen({
-  title, onExit, onMenu, aboveBar = null, leading = null, onRestore, onSkip, footer, hasNext = false,
+  title, onExit, onMenu, aboveBar = null, leading = null, progress = null, onRestore, onSkip, footer, hasNext = false,
 }) {
   const rule = { borderColor: 'var(--chart-rule, var(--ds-gray-300))' };
   const muted = 'var(--chart-subtle, var(--ds-gray-700))';
@@ -37,7 +37,7 @@ export default function MissingSongScreen({
           The title is the one from the SETLIST ITEM, not the song — the song is
           what's missing. A bar reading "Song not available" tells you nothing;
           the name tells you whether it matters. */}
-      <ReaderTopBar title={title || 'Missing song'} onExit={onExit} onMenu={onMenu} aboveBar={aboveBar} leading={leading} />
+      <ReaderTopBar title={title || 'Missing song'} onExit={onExit} onMenu={onMenu} aboveBar={aboveBar} leading={leading} progress={progress} />
 
       <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex items-center justify-center px-6">
         <div className="w-full max-w-sm text-center">
