@@ -4,8 +4,8 @@
 // a note column before the element-by-element design had settled any of them,
 // which buried the decisions that HAD been made. These tests cover exactly the
 // six elements that are designed, so the next one has a clean floor to build on.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import Reader from '@/features/reader/Reader';
 import { songFromFlat } from '@/arrangements';
 
@@ -295,6 +295,49 @@ describe('the ☰ menu', () => {
     expect(screen.getAllByText('Amazing Grace').length).toBe(1);
   });
 
+  // ── Element 28, round 1 — the shell ───────────────────────────────────────
+
+  it('carries no current-value column on its rows', () => {
+    renderReader({ settings: { defaultColumns: 2, displayRole: 'vocalist' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    // The rows used to be `label … value ›`. Four unrelated kinds of thing in
+    // one column, and Layout's could never change on a phone (columns are
+    // forced to 1 below 768). A value comes back per-row when a row earns one.
+    expect(screen.queryByText(/\d col$/)).toBeNull();
+    expect(screen.queryByText('Vocals')).toBeNull();
+  });
+
+  it('wears the READER theme, not the app theme', () => {
+    renderReader();
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    const panel = screen.getByRole('dialog', { name: 'Reader menu' });
+    // It portals to document.body, so it inherits nothing from the reader's
+    // subtree and has to carry the remap itself. Without this it was an
+    // app-coloured panel with `--chord` and `--chart-text` leaking into it.
+    expect(panel.style.getPropertyValue('--ds-background-100')).toBe('var(--chart-bg, #ffffff)');
+    expect(panel.style.getPropertyValue('--text-1')).toBe('var(--chart-text, #111111)');
+    // Hover must NOT collapse onto the panel's own colour, which is what
+    // chartSurface's --bg-2 would have done.
+    expect(panel.style.getPropertyValue('--bg-2')).toContain('color-mix');
+  });
+
+  it('shows Columns at 768 and not below — the control matches where it applies', () => {
+    mockWidth(false);
+    const { unmount } = renderReader();
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    fireEvent.click(screen.getByText('Layout'));
+    // 700–767 (iPad mini portrait is 744) used to show a switch that wrote a
+    // setting resolveReaderConfig then forced back to 1.
+    expect(screen.queryByText('Columns')).toBeNull();
+    unmount();
+
+    mockWidth(true);
+    renderReader();
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    fireEvent.click(screen.getByText('Layout'));
+    expect(screen.getByText('Columns')).toBeTruthy();
+  });
+
   it('applies a role as VISIBLE settings, never as a hidden override', () => {
     const onUpdateSettings = vi.fn();
     renderReader({ onUpdateSettings });
@@ -306,6 +349,74 @@ describe('the ☰ menu', () => {
     // the hub's Chart tab into a second Lyrics tab. It writes real settings.
     expect(onUpdateSettings).toHaveBeenCalledWith('displayRole', 'vocalist');
     expect(onUpdateSettings).toHaveBeenCalledWith('displayMode', 'lyrics');
+  });
+});
+
+// The phone sheet's gesture. The handle was drawn for two releases and wired to
+// nothing — it advertised a drag that did not exist. These assert the drag, not
+// the handle: a decorative handle passing a "handle renders" test is exactly the
+// failure this replaces.
+describe('the ☰ sheet drags — element 28', () => {
+  const PHONE = 390;
+  let realWidth;
+  beforeEach(() => { realWidth = window.innerWidth; window.innerWidth = PHONE; });
+  afterEach(() => { window.innerWidth = realWidth; });
+
+  // jsdom's clientWidth is 0, so the menu falls back to innerWidth for the
+  // sheet/popover split. Below 700 it is a sheet.
+  const openSheet = (props = {}) => {
+    renderReader(props);
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    const panel = screen.getByRole('dialog', { name: 'Reader menu' });
+    return { panel, grab: panel.firstChild };
+  };
+  const drag = (from, dy) => {
+    fireEvent.touchStart(from, { touches: [{ clientX: 100, clientY: 400 }] });
+    fireEvent.touchMove(from, { touches: [{ clientX: 100, clientY: 400 + dy }] });
+    fireEvent.touchEnd(from, { changedTouches: [{ clientX: 100, clientY: 400 + dy }] });
+  };
+
+  it('opens at the short detent, so the chart stays visible above it', () => {
+    const { panel } = openSheet();
+    expect(panel.style.maxHeight).toBe('58vh');
+  });
+
+  it('drags up to the tall detent', () => {
+    const { panel, grab } = openSheet();
+    drag(grab, -140);   // damped 0.5 → 70px, past the 36 trigger
+    expect(panel.style.maxHeight).toBe('90vh');
+  });
+
+  it('drags down one detent at a time, and only then closes', () => {
+    const { panel, grab } = openSheet();
+    drag(grab, -140);
+    expect(panel.style.maxHeight).toBe('90vh');
+    drag(grab, 120);
+    // Tall gives up a detent first — it does not skip straight out.
+    expect(panel.style.maxHeight).toBe('58vh');
+    expect(screen.getByRole('dialog', { name: 'Reader menu' })).toBeTruthy();
+  });
+
+  it('closes on a drag down from the short detent', () => {
+    const { grab } = openSheet();
+    // Fake timers span the WHOLE gesture, because the close is scheduled during
+    // it. No real clock decides this test — the sheet animates out, then
+    // unmounts. (READER.md: no timer may decide a test's outcome.)
+    vi.useFakeTimers();
+    drag(grab, 120);
+    act(() => { vi.advanceTimersByTime(300); });
+    vi.useRealTimers();
+    expect(screen.queryByRole('dialog', { name: 'Reader menu' })).toBeNull();
+  });
+
+  it('hands an upward drag in the BODY back to the scroller', () => {
+    const { panel } = openSheet();
+    const body = panel.lastChild;
+    fireEvent.touchStart(body, { touches: [{ clientX: 100, clientY: 400 }] });
+    fireEvent.touchMove(body, { touches: [{ clientX: 100, clientY: 260 }] });
+    fireEvent.touchEnd(body, { changedTouches: [{ clientX: 100, clientY: 260 }] });
+    // Scrolling a long panel must never expand it. Only the handle does that.
+    expect(panel.style.maxHeight).toBe('58vh');
   });
 });
 

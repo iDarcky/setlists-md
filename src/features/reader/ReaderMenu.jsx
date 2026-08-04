@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useEntitlement } from '@/hooks/useEntitlement';
+import { useMediaQuery } from '@/lib/useMediaQuery';
+import { chartOverlaySurface } from './readerSurface';
 import {
   CHART_THEMES,
   CHART_FONTS,
@@ -41,7 +43,23 @@ import {
  *
  * Sheet on a phone, popover anchored to ☰ on a desktop. Both obey the panel
  * rule (`docs/READER.md`): the chart stays visible, so a change can be seen as
- * it is made. The sheet is capped at 58vh for exactly that reason.
+ * it is made. The sheet's short detent is 58vh for exactly that reason.
+ *
+ * ## Element 28, round 1 — the shell (2026-08-04)
+ *
+ * Three decisions, all the owner's:
+ *
+ *  - **It wears the READER theme**, not the app's — `chartOverlaySurface`. A
+ *    Theme strip previewing on app-coloured paper is previewing the wrong
+ *    paper, and the panel rule is about seeing the change you are making.
+ *  - **No value column.** The rows carried their current setting right-aligned
+ *    in mono (`Charcoal · 18px`, `1 col`, `Leading`, `3`). Four unrelated kinds
+ *    of thing in one column, and one of them — Layout's — was permanently
+ *    `1 col` on a phone, because columns are forced to 1 below 768. A value
+ *    comes back per-row, when that row earns one.
+ *  - **The sheet drags.** The mockup's grab handle was drawn and nothing was
+ *    wired to it; the only ways out were the backdrop and Escape. It now has
+ *    two detents and follows the thumb.
  */
 
 const NOTATIONS = [['letters', 'Letters'], ['nashville', 'Numbers'], ['solfege', 'Do-Re-Mi']];
@@ -66,7 +84,10 @@ const GLYPH = { look: 'Aa', layout: '▤', music: '♪', notes: '✉' };
 // ── Mockup primitives ───────────────────────────────────────────────────────
 // Geometry copied from the concept; every colour is one of ours.
 
-function Row({ glyph, label, value, onClick }) {
+// Glyph · label · chevron. NO right-aligned current value — see the round-1
+// note above; it was four different kinds of thing in one column and one of
+// them could never change.
+function Row({ glyph, label, onClick }) {
   return (
     <button
       type="button" onClick={onClick}
@@ -75,10 +96,9 @@ function Row({ glyph, label, value, onClick }) {
       className="w-full min-h-0 flex items-center gap-[11px] px-4 py-[9px] bg-transparent border-none cursor-pointer text-left text-[13.5px] text-[var(--text-1)] hover:bg-[var(--bg-2)] transition-colors"
     >
       <span className="w-[19px] shrink-0 grid place-items-center font-mono text-[12px] font-bold text-[var(--text-2)]">{glyph}</span>
-      <span className="truncate">{label}</span>
-      <span className="ml-auto shrink-0 font-mono text-[11.5px] text-[var(--ds-gray-600)] whitespace-nowrap">{value}</span>
+      <span className="flex-1 min-w-0 truncate">{label}</span>
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
-        strokeLinecap="round" strokeLinejoin="round" className="shrink-0 ml-1.5 text-[var(--ds-gray-600)]" aria-hidden="true">
+        strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--ds-gray-600)]" aria-hidden="true">
         <polyline points="9 18 15 12 9 6" />
       </svg>
     </button>
@@ -177,7 +197,18 @@ export default function ReaderMenu({
   mode = 'live',
 }) {
   const [panel, setPanel] = useState('root');
+  // The sheet's two detents. 'short' keeps the chart visible above it (the
+  // panel rule); 'tall' is for the panels that are genuinely a list — Look is
+  // ten fields and reading it through a 58vh window is a chore.
+  const [detent, setDetent] = useState('short');
   const { allowed: styleAllowed } = useEntitlement('chart-style');
+  // Two columns only APPLY at ≥768 (`Reader`'s `wide`), so that is where the
+  // control appears. It used to hide below 700 — the sheet/popover threshold —
+  // which left 700–767 (iPad mini portrait is 744) showing a switch that wrote
+  // a setting `resolveReaderConfig` then overrode back to 1. Owner, 2026-08-04:
+  // "the hard cut is 768 then". Lowering `wide` instead was the wrong lever: it
+  // also turns pinned headings off and moves band cues out to the margin.
+  const wideEnoughForColumns = useMediaQuery('(min-width: 768px)');
 
   const set = (key, value) => onUpdateSettings?.(key, value);
 
@@ -207,6 +238,106 @@ export default function ReaderMenu({
     return () => el.removeEventListener('wheel', onWheel);
   }, [panel]);
 
+  // ── The sheet drags ────────────────────────────────────────────────────────
+  // The grab handle was drawn and wired to nothing: it advertised a gesture
+  // that did not exist, and the only ways out were the backdrop and Escape.
+  //
+  // Two places start a drag, and they behave differently on purpose:
+  //   · the HANDLE zone (handle + panel header) — both directions, always;
+  //   · the BODY, but only downward and only at `scrollTop === 0`. Same rule
+  //     as the reader's pull-to-finish: "you drag after you cannot scroll
+  //     anymore". Upward from the body is a scroll and is handed straight back.
+  //
+  // Everything here runs OUTSIDE React, for the reasons written on
+  // `Reader`'s pull-to-finish: React's synthetic touch listeners are passive so
+  // `preventDefault` is a no-op on them (trap 8); a finger makes ~120 moves and
+  // 120 renders of this panel would lag the thumb; and the effect MOUNTS ONCE,
+  // reading the moving parts from a ref, because an effect that owns a gesture
+  // and depends on changing values tears its own gesture down mid-drag.
+  const panelRef = useRef(null);
+  const grabRef = useRef(null);
+  const bodyRef = useRef(null);
+  const dragRef = useRef(null);
+  const closeTimer = useRef(null);
+  // Refreshed by a no-dep effect, NOT written during render: the compiler lint
+  // rejects a ref write in the render body ("Cannot update ref during render"),
+  // and `Reader`'s pull-to-finish already uses this exact shape. The gesture
+  // effect below is mount-once and reads this on every touch, so it only has to
+  // be current by the time a finger lands.
+  const live = useRef({});
+
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return undefined;
+    // Past this much travel the sheet changes detent (or closes). Downward is
+    // measured on RAW finger travel; upward on the damped distance, so 36 here
+    // is ~72px of thumb. Both are under a thumb-length and over anything you
+    // could do by accident. UP must stay below the rubber-band clamp in
+    // `onMove` or the gesture can never reach its own trigger.
+    const DOWN = 76;
+    const UP = 36;
+    const paint = (d) => { el.style.transform = d ? `translateY(${d}px)` : ''; };
+    const ease = (on) => { el.style.transition = on ? 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1)' : ''; };
+    const cancel = () => { dragRef.current = null; ease(true); paint(0); setTimeout(() => ease(false), 220); };
+
+    const onStart = (e) => {
+      if (!live.current.phone || e.touches?.length !== 1) return;
+      const t = e.touches[0];
+      const fromGrab = !!grabRef.current?.contains(e.target);
+      const body = bodyRef.current;
+      // Mid-scroll in the body: not a sheet gesture. Only the top of the
+      // scroller arms the pull-down.
+      if (!fromGrab && (body?.scrollTop ?? 0) > 0) return;
+      dragRef.current = { y: t.clientY, d: 0, fromGrab };
+    };
+    const onMove = (e) => {
+      const p = dragRef.current;
+      if (!p) return;
+      const t = e.touches?.[0];
+      if (!t) return;
+      const dy = t.clientY - p.y;
+      // From the body: upward, or the body started scrolling under the finger,
+      // means this was a scroll. Give it up rather than arbitrating the rest
+      // of the gesture.
+      if (!p.fromGrab && (dy <= 0 || (bodyRef.current?.scrollTop ?? 0) > 0)) { cancel(); return; }
+      e.preventDefault();
+      // Down tracks the thumb 1:1 — a sheet that lags its own drag reads as
+      // broken. Up is a rubber band: there is no live resize, so the panel
+      // only hints that there is another detent up there.
+      p.d = dy >= 0 ? dy : Math.max(dy * 0.5, live.current.detent === 'tall' ? -20 : -80);
+      paint(p.d);
+    };
+    const onEnd = () => {
+      const p = dragRef.current;
+      dragRef.current = null;
+      if (!p) return;
+      const { detent: at, onClose: close } = live.current;
+      if (p.d >= DOWN) {
+        // Tall gives up a detent first. Short is the last step before out.
+        if (at === 'tall') { setDetent('short'); cancel(); return; }
+        // Animate OUT rather than vanishing under the thumb.
+        ease(true);
+        paint(el.getBoundingClientRect().height || 400);
+        closeTimer.current = setTimeout(() => close?.(), 170);
+        return;
+      }
+      if (p.d <= -UP && at !== 'tall') setDetent('tall');
+      cancel();
+    };
+
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd);
+    el.addEventListener('touchcancel', onEnd);
+    return () => {
+      clearTimeout(closeTimer.current);
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onEnd);
+    };
+  }, []);
+
   // ── Geometry ───────────────────────────────────────────────────────────────
   // `clientWidth`, NOT `innerWidth`: innerWidth includes the scrollbar, so
   // clamping against it let the popover sit partly under (and past) the
@@ -227,13 +358,19 @@ export default function ReaderMenu({
   const right = anchorsLeft ? null : Math.max(8, winW - (anchorRect?.right ?? winW));
   const top = anchorRect ? Math.min(anchorRect.bottom + 6, winH - 120) : 60;
 
+  // Deliberately no dependency array — it re-runs on every render, which is the
+  // point: the mount-once gesture must always see the current values without
+  // ever being torn down and rebuilt (which is what breaks a drag mid-gesture).
+  // `setDetent` is NOT in here: a state setter is stable across renders, so the
+  // mount-once effect can close over it directly. Putting it in the ref only
+  // earned an exhaustive-deps warning about a call that never happens.
+  useEffect(() => { live.current = { phone, detent, onClose }; });
+
+
   const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
   const visibleThemes = styleAllowed ? CHART_THEMES : CHART_THEMES.filter(t => FREE_CHART_THEME_IDS.has(t.id));
-  const themeName = CHART_THEMES.find(t => t.id === themeId)?.name || 'Theme';
 
-  // ── Row values: what it's set to, not what it does ──────────────────────────
   const roleId = settings?.displayRole || 'leader';
-  const roleLabel = ROLES.find(r => r.id === roleId)?.label || 'Leading';
   const capo = song?.capo ? Number(song.capo) : 0;
   const arrangementNote = (song?.notes || '').trim();
   const cues = (song?.sections || [])
@@ -249,7 +386,7 @@ export default function ReaderMenu({
   // The ROOT has no header — the mockup's doesn't, and the song's name was
   // already in the top bar two rows up (owner: "why do we have the song name in
   // the title?"). A panel gets back + its own name; closing is the backdrop,
-  // Escape, or the ☰ again.
+  // Escape, the ☰ again, or (on a phone) dragging it down.
   const head = panel === 'root' ? null : (
     <div className="shrink-0 flex items-center gap-[9px] px-3.5 pt-2 pb-2.5 border-b border-[var(--border-1)]">
       <button type="button" onClick={() => setPanel('root')} aria-label="Back"
@@ -263,17 +400,13 @@ export default function ReaderMenu({
   const body = (
     // overflow-x-hidden: a wrapping seg row or the theme strip must never widen
     // the panel itself.
-    <div className="overflow-y-auto overflow-x-hidden py-1.5">
+    <div ref={bodyRef} className="overflow-y-auto overflow-x-hidden py-1.5">
       {panel === 'root' && (
         <>
-          <Row glyph={GLYPH.look} label="Look" onClick={() => setPanel('look')}
-            value={`${themeName} · ${lyricSize}px`} />
-          <Row glyph={GLYPH.layout} label="Layout" onClick={() => setPanel('layout')}
-            value={config?.columns === 2 ? '2 col' : '1 col'} />
-          <Row glyph={GLYPH.music} label="The music" onClick={() => setPanel('music')}
-            value={capo ? `${roleLabel} · capo ${capo}` : roleLabel} />
-          <Row glyph={GLYPH.notes} label="Notes" onClick={() => setPanel('notes')}
-            value={noteCount ? String(noteCount) : '—'} />
+          <Row glyph={GLYPH.look} label="Look" onClick={() => setPanel('look')} />
+          <Row glyph={GLYPH.layout} label="Layout" onClick={() => setPanel('layout')} />
+          <Row glyph={GLYPH.music} label="The music" onClick={() => setPanel('music')} />
+          <Row glyph={GLYPH.notes} label="Notes" onClick={() => setPanel('notes')} />
         </>
       )}
 
@@ -391,10 +524,11 @@ export default function ReaderMenu({
       {panel === 'layout' && (
         <>
               {/* Columns are a fact about the SPACE, not a taste, and a phone
-                  has room for one. `resolveReaderConfig` already forces 1 when
-                  the viewport is narrow, so the control was a switch that did
-                  nothing there — worse than absent. (Owner, 2026-08-01.) */}
-              {!phone && (
+                  has room for one. `resolveReaderConfig` forces 1 below 768, so
+                  below 768 the control is a switch that does nothing — worse
+                  than absent. (Owner, 2026-08-01; threshold corrected from 700
+                  to 768, 2026-08-04 — see `wideEnoughForColumns`.) */}
+              {wideEnoughForColumns && (
                 <Segs label="Columns" value={settings?.defaultColumns === 2 ? 2 : 1}
                   options={[[1, '1'], [2, '2']]} onChange={(v) => set('defaultColumns', v)} />
               )}
@@ -513,32 +647,51 @@ export default function ReaderMenu({
       <button type="button" aria-label="Close menu" tabIndex={-1} onClick={onClose}
         className={`fixed inset-0 z-[119] border-none cursor-default ${phone ? 'bg-black/30' : 'bg-transparent'}`} />
       <div
+        ref={panelRef}
         role="dialog" aria-label="Reader menu"
         className={
-          'fixed z-[120] bg-[var(--ds-background-100)] overflow-hidden flex flex-col '
+          'fixed z-[120] overflow-hidden flex flex-col '
           + (phone
             ? 'left-0 right-0 bottom-0 rounded-t-[18px] border-t border-[var(--border-2)]'
             : 'rounded-[14px] border border-[var(--border-2)]')
         }
-        style={phone
-          ? {
-            maxWidth: '100vw',
-            maxHeight: '58vh',
-            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-            boxShadow: '0 -12px 44px rgba(0,0,0,0.35)',
-            animation: 'sheet-up 200ms cubic-bezier(0.32, 0.72, 0, 1)',
-          }
-          : {
-            top, ...(left != null ? { left } : { right }),
-            width: W, maxWidth: 'calc(100vw - 16px)', maxHeight: '74vh',
-            boxShadow: '0 18px 44px rgba(0,0,0,0.45)',
-            animation: 'pop-in 120ms ease-out',
-          }}
+        // The READER's theme, not the app's (owner, 2026-08-04). The panel is
+        // portaled to `document.body`, so it inherits nothing from the reader's
+        // own subtree and has to carry the remap itself — see
+        // `chartOverlaySurface`. `background` comes from the surface, which is
+        // why the `--ds-background-100` class is gone from the line above.
+        style={{
+          ...chartOverlaySurface,
+          ...(phone
+            ? {
+              maxWidth: '100vw',
+              // Two detents. Short keeps the chart visible above the sheet;
+              // tall is one drag up, for the panels that are really a list.
+              maxHeight: detent === 'tall' ? '90vh' : '58vh',
+              transition: 'max-height 240ms cubic-bezier(0.32, 0.72, 0, 1)',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+              boxShadow: '0 -12px 44px rgba(0,0,0,0.35)',
+              animation: 'sheet-up 200ms cubic-bezier(0.32, 0.72, 0, 1)',
+            }
+            : {
+              top, ...(left != null ? { left } : { right }),
+              width: W, maxWidth: 'calc(100vw - 16px)', maxHeight: '74vh',
+              boxShadow: '0 18px 44px rgba(0,0,0,0.45)',
+              animation: 'pop-in 120ms ease-out',
+            }),
+        }}
       >
-        {/* The mockup's grab handle. It is the affordance that says "this drags
-            and dismisses" before anyone tries it. */}
-        {phone && <div className="shrink-0 w-[34px] h-1 rounded-full mx-auto mt-1.5 mb-0.5 bg-[var(--border-2)]" />}
-        {head}
+        {/* The grab zone: the handle, and the panel header when there is one.
+            `touch-action: none` so the browser doesn't claim the gesture before
+            the listener sees it. The handle is the affordance that says "this
+            drags and dismisses" — and since this round it is telling the
+            truth. */}
+        {phone ? (
+          <div ref={grabRef} className="shrink-0" style={{ touchAction: 'none' }}>
+            <div className="w-[34px] h-1 rounded-full mx-auto mt-1.5 mb-0.5 bg-[var(--border-2)]" />
+            {head}
+          </div>
+        ) : head}
         {body}
       </div>
     </>

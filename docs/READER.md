@@ -872,6 +872,96 @@ Shipped as designed above. Notes worth keeping:
 - Shared controls moved to `src/ui/PanelControls.jsx`; `AaMenu` imports the
   same ones, so the two panels cannot drift.
 
+#### Element 28, round 1 — the shell, 2026-08-04
+
+**What the ☰ actually was, measured before anything was designed.** The earlier
+note here said "two menus behind one glyph". Not quite: standalone it is a
+three-line **☰**, top-**left**, opening `ReaderMenu`; embedded it is the literal
+text **"Aa"**, top-**right** of the hub's tab header, opening `AaMenu`. Two
+glyphs, opposite corners, the **same `aria-label`** ("Display options"), and two
+menus whose contents barely overlap.
+
+**And with the flag on, most of the hub's Aa is dead.** `resolveReaderConfig`
+returns `HUB_VIEW` with `display: resolveChartDisplay(null)`, and `hubSurface`
+re-points `--chart-bg/-text/-subtle/-rule` back at the app tokens. All twelve
+controls, checked:
+
+| Dead | Alive |
+|---|---|
+| Show (the hub passes `displayMode` as a prop, it wins) · Notation · Columns · Lyric size · Chord size (both **visibly stuck** — the stepper reads the fixed 18/17 and the number doesn't move) · Lyric colour · Theme's bg + text | Lyric font · Chord font · Chord colour · the theme's **chord** colour · Sharps/flats |
+
+Plus `Reader` passes neither `onReset` nor `onAdvanced`, so the hub's Aa also
+lost the per-tab Reset and the Advanced dialog that `ChartView` still has.
+
+**Owner's call: leave it.** *"right now we are trying to improve the reader
+views not the hub, so note it for later in the plan."* → `PLAN.md` §1.2. **Do
+not** fix it by reconnecting `HUB_VIEW` to `settings` — that is the bug that
+turned the hub's Chart tab into a second Lyrics tab.
+
+**Three shell decisions, all the owner's, all shipped in `0.17.0-beta.61`:**
+
+1. **The ☰ wears the READER theme.** It portals to `document.body`, so it
+   inherits nothing from the reader's subtree and came out app-coloured with
+   `--chord` and `--chart-text` (both set on `:root` by `useChartTheme`) leaking
+   into it — a dark panel with cream details, or the reverse. It carries the
+   remap itself now: **`chartOverlaySurface`** in `readerSurface.js`.
+   `chartSurface` alone is not enough — a panel reads three tokens the chart
+   body never does (`--ds-background-100`, `--border-2` via `--ds-gray-500`,
+   `--ds-gray-600`) and needs `--bg-2` to be a **wash** rather than the chart's
+   own background, or every hover is invisible.
+2. **No value column on the rows.** They carried the current setting
+   right-aligned in mono — `Charcoal · 18px`, `1 col`, `Leading`, `3`. Four
+   unrelated kinds of thing in one column, and Layout's was permanently `1 col`
+   on a phone because columns are forced to 1 below 768. Owner: *"let's go with
+   option (a)"*. A value comes back **per row, when that row earns one**.
+3. **The sheet drags, with two detents** (58vh → 90vh). The mockup's grab handle
+   had been drawn for two releases and wired to nothing. Two entry points, and
+   the difference is deliberate: the **handle zone** drags both ways always; the
+   **body** drags only downward and only at `scrollTop === 0` — the same
+   "you drag after you cannot scroll anymore" rule as pull-to-finish, so
+   scrolling a long panel can never expand it.
+
+**And the Columns dead band, fixed.** The control hid below **700** (the
+sheet/popover threshold); two columns only apply at **768** (`Reader`'s `wide`).
+700–767 — iPad mini portrait is 744 — showed a switch that wrote a setting
+`resolveReaderConfig` then forced back to 1. Owner: *"the hard cut is 768
+then."* Lowering `wide` to 744 instead was the wrong lever: it also turns pinned
+headings off and moves band cues out to the margin. Three things changed to fix
+one.
+
+#### The notes inventory, measured 2026-08-04
+
+The owner on the Notes row: *"I don't really know what does the notes option
+really does there because it feels empty."* It is, and here is why. **Six note
+levels; the reader shows two.**
+
+| Level | Lives on | In the reader | Edited from |
+|---|---|---|---|
+| Band cue (`> text`) | `section.note` | ✅ under the heading | Write tab; the reader's edit mode |
+| Inline note (`{!…}`) | mid-line | ✅ inline | Write tab only |
+| **Arrangement note** | `song.notes`, 200 ch | ❌ **only in the ☰ Notes panel** | Editor → Metadata; hub → Details |
+| **Setlist item cue** | `items[i].note`, 100 ch | ❌ **nowhere** — `SetlistReader` passes `note` to `BreakScreen` only | Setlist builder |
+| Break note | `items[i].note`, 500 ch | ✅ on the break screen | Setlist builder |
+| **Private note** (`team_notes`) | per-user | ❌ **no UI at all** — `NotesStack`/`usePrivateNotes` are imported only by `PerformanceView`/`PracticeView`, which the flag deletes | nowhere |
+
+So the panel's content is: the one thing with no other home (the arrangement
+note, one paragraph, two taps deep) plus a re-listing of the band cues that are
+**already on the chart**. The editor's own hint for that field — *"Shown to the
+band on the chart and in live view"* — is currently false.
+
+**Owner's direction:** *"My whole idea with notes its to have them in the reader
+so users could read them"*, and the write affordances *"next to the lyrics and
+next to the section header for the band cue"*. That is element 22's substance,
+and it will change what the Notes ROW becomes — probably a jump-list, not a
+reader. Decide it when the Notes row comes round.
+
+**Two live knobs with no control anywhere** (owner: *"where do we have these
+buttons, because I cannot see them"* — nowhere): `readerNotes` (band cues +
+inline notes on/off, `ReaderSection.jsx:367,409`) and `readerFooter` (`count` →
+`← 3/9 →` vs `next` → `← 3/9 · Next Song (G) →`, `SetlistReader.jsx:160,178`).
+Both wired, both in `PORTABLE_PREF_KEYS`, both permanently at their defaults.
+Open: do they get rows, or does the default become the answer and the knob go?
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the

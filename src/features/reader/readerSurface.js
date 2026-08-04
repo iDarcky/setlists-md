@@ -64,6 +64,47 @@ export const chartSurface = {
 };
 
 /**
+ * The reader's chrome when it is PORTALED — the ☰ menu, and anything else that
+ * renders into `document.body` rather than inside the reader's scroller.
+ *
+ * Owner, 2026-08-04: the ☰ wears the READER theme, not the app's. A portal
+ * escapes the reader's subtree, so it inherits nothing from `chartSurface` and
+ * came out app-coloured with two chart-coloured details leaking through it
+ * (`--chord` and `--chart-text`, both set on `:root` by `useChartTheme`) — a
+ * dark panel with cream details on it, or the reverse.
+ *
+ * `chartSurface` alone is not enough, because it re-points the tokens the CHART
+ * body uses and a panel uses three more. Each addition below is a token the
+ * chart never reads and a panel cannot do without.
+ *
+ * ⚠ Same literal-fallback rule as above. Note also that `hubSurface` points
+ * `--chart-bg` back at `--ds-background-100`: applying that and this to the
+ * same subtree would be a cycle. It cannot happen — the hub's reader is
+ * `embedded`, and `embedded` has no ☰ — but do not "simplify" them together.
+ */
+export const chartOverlaySurface = {
+  ...chartSurface,
+  // The panel's own paper. Every panel in the app paints itself
+  // `--ds-background-100`, which `chartSurface` does not remap — so the menu
+  // stayed app-coloured while everything inside it went chart-coloured.
+  '--ds-background-100': 'var(--chart-bg, #ffffff)',
+  // `--border-2` resolves through `--ds-gray-500`, and `chartSurface` remaps
+  // 100–400 only. Both are set: the raw one so anything reading it follows,
+  // the semantic one so the substitution can't be missed.
+  '--ds-gray-500': 'color-mix(in srgb, var(--chart-text, #111111) 26%, transparent)',
+  '--border-2': 'color-mix(in srgb, var(--chart-text, #111111) 26%, transparent)',
+  // Field labels and the muted small print.
+  '--ds-gray-600': 'var(--chart-subtle, #6b6b6b)',
+  // HOVER, and it is not optional. `chartSurface` maps `--bg-2` onto the
+  // chart's own background so the chart body carries no stray fills; inside a
+  // panel that makes every hover invisible, because the hover colour and the
+  // panel colour become the same value. A faint wash of the chart's own
+  // foreground is correct on every theme by construction — the same derivation
+  // `--ds-gray-100/200` already use above.
+  '--bg-2': 'color-mix(in srgb, var(--chart-text, #111111) 8%, transparent)',
+};
+
+/**
  * Embedded (the Song Hub's chart tab, the side peek, the editor preview) the
  * reader wears the APP theme instead — `docs/READER.md`: "a white chart card
  * sitting inside a dark app reads as broken rather than as a stage."

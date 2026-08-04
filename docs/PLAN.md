@@ -141,6 +141,16 @@ serious thing in this document; the last two are blocked on you.
      looks correct. Suspect the `showChords` setting (`ChartView.jsx:840`) being
      off, which would make the Chart tab lyrics-only. Needs a repro on a fresh
      profile.
+3b. 🟡 **The hub's Aa menu is mostly dead with the flag on.** Found while
+   measuring for element 28 (2026-08-04) and **deliberately parked** — owner:
+   *"right now we are trying to improve the reader views not the hub, so note it
+   for later in the plan."* Seven of its twelve controls do nothing in the hub,
+   two of them showing a number that will not move when you press `+`, and it
+   also lost the per-tab Reset and the Advanced dialog that `ChartView` still
+   passes it. The full control-by-control table is in `docs/READER.md` →
+   "Element 28, round 1". **The fix is to cut the menu down to what works, NOT
+   to reconnect `HUB_VIEW` to `settings`** — that is the bug that turned the
+   hub's Chart tab into a second Lyrics tab.
 4. 🔴 **The active-section highlight is wrong when the song fits on screen.**
    Confirmed, one line. `src/hooks/useActiveSection.js` has a "near the bottom,
    snap to the last section" rule:

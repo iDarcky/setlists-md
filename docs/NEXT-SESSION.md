@@ -3,10 +3,10 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.59` on
-> `claude/reader-element-12-practice-ax9bk5`. `beta` is at **beta.44** — the
+> _Rewritten 2026-08-04. State: `0.17.0-beta.61` on
+> `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
-> can compare against `beta`. 871 tests, 0 lint errors (8 pre-existing
+> can compare against `beta`. 879 tests, 0 lint errors (8 pre-existing
 > warnings)._
 
 ---
@@ -75,10 +75,13 @@ options than just the visual"*) plus a candidate list.
 
 The facts to check before designing anything:
 
-- **The glyph opens two different menus.** Standalone → `ReaderMenu.jsx` (the
-  reader's own four-row menu). **Embedded** (the Song Hub, the side peek) → the
-  host owns the button, passes a rect down, and it opens **`AaMenu.jsx`**
-  instead. That is deliberate (`READER.md` → "The hub view"): the hub is a
+- **Two menus, and NOT behind one glyph** (measured 2026-08-04). Standalone it
+  is a three-line **☰**, top-LEFT → `ReaderMenu.jsx`. **Embedded** (the Song
+  Hub, the side peek) it is the literal text **"Aa"**, top-RIGHT of the hub's
+  tab header → **`AaMenu.jsx`**. Two glyphs, opposite corners, the SAME
+  `aria-label` ("Display options"). And with the flag on, seven of `AaMenu`'s
+  twelve controls do nothing in the hub — parked by the owner, `PLAN.md` §1.2
+  #3b. That is deliberate (`READER.md` → "The hub view"): the hub is a
   browsing surface with a fixed look and giving it the reader's menu would
   reconnect two surfaces that were deliberately disconnected. **Do not
   "unify" it without asking.**
@@ -97,15 +100,18 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.59) — needs testing on a phone
+## Just shipped (beta.61) — element 28, round 1: the shell
 
 | What | Where |
 |---|---|
-| **The set bar + title row + progress line go orange in edit mode** — one wrapper, one piece. The **song map stays on the chart's own paper** (owner: *"leave it just for the header and the set"*) | `readerChrome.js` (`EDIT_CHROME`), `ReaderTopBar.jsx` |
-| Editing forces the ribbon style to `codes` (a dot is not a drag handle) | `Reader.jsx` |
-| **Pull down to finish** — at `scrollTop === 0`, ~98px of drag exits edit mode | `Reader.jsx` |
-| The `scrollTop += delta` compensation **actually removed** (beta.58 documented it and left it running) | `Reader.jsx` |
-| The practice test's YouTube mock fires `onReady` synchronously; the helper flushes instead of polling | `reader-practice.test.jsx` |
+| **The ☰ wears the reader theme.** It portals to `document.body`, so it inherited nothing and came out app-coloured with `--chord`/`--chart-text` leaking in. `chartOverlaySurface` — `chartSurface` **plus** the three tokens a panel reads and the chart body doesn't, plus `--bg-2` as a wash or every hover is invisible | `readerSurface.js`, `ReaderMenu.jsx` |
+| **No value column on the rows** — glyph · label · chevron | `ReaderMenu.jsx` |
+| **The sheet drags**, two detents (58vh ↔ 90vh). Handle zone = both ways; body = down only, at `scrollTop === 0` | `ReaderMenu.jsx` |
+| **Columns gated at 768, not 700** — 700–767 (iPad mini portrait, 744) showed a switch `resolveReaderConfig` forced back to 1 | `ReaderMenu.jsx` |
+
+**Next in element 28: the first row — Look.** Then Layout, The music, Notes, one
+at a time. `READER.md` → "Element 28, round 1" carries the measurements; the
+notes inventory beneath it is what the Notes row has to answer to.
 
 ---
 
