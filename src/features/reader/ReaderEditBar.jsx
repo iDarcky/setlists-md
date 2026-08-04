@@ -1,5 +1,5 @@
 import { IconButton } from '@/ui/IconButton';
-import { BAR_BUTTON, EDIT_ACCENT } from './ReaderTopBar';
+import { BAR_BUTTON, EDIT_ACCENT } from './readerChrome';
 
 /**
  * Edit mode's own row — the only chrome the mode adds.

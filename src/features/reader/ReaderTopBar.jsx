@@ -1,48 +1,6 @@
 import { forwardRef } from 'react';
 import { IconButton } from '@/ui/IconButton';
-
-/**
- * The chrome's icon buttons, sized honestly — the `min-h-0` trap again
- * (`docs/READER.md`), this time in the bar itself rather than in the ribbon.
- *
- * `IconButton size="sm"` says `h-8` (32px), but `styles/index.css` carries in
- * `@layer base`:
- *
- *     button                          { min-height: 36px }
- *     @media (max-width: 639px) button { min-height: 44px }
- *
- * `min-height` beats `height`, so the ☰ and ✕ were **44px tall on a phone** and
- * the bar was `6 + 44 + 6 = 56px` — not the 44px the classes read like. That is
- * where the reader's chrome height was actually going; the padding was never
- * the problem. Owner, 2026-08-03, asking whether the header was aligned by
- * height and whether the bottom bar could be smaller: it is centred (every row
- * is `items-center`), it was just taller than it looked.
- *
- * Opting out of the phone floor, but NOT all the way down: **36px on a phone,
- * 32px from `sm:` up** (owner, 2026-08-04: "make the header with everything a
- * couple pixels bigger on mobile"). The two corrections are not in conflict —
- * "too big and too separate" was about the 8px GAPS between three 36px buttons,
- * which is why they went into a 2px cluster. Tightening the cluster is what
- * bought the room to keep the targets comfortable on the device you actually
- * hold. The ☰ and ✕ are still reached between songs, not mid-song — unlike the
- * footer's prev/next, which keep a bigger target because they are hit in the
- * dark (see `ReaderFooter`).
- */
-export const BAR_BUTTON = 'min-h-0 h-9 w-9 sm:h-8 sm:w-8 text-[var(--chart-text,var(--ds-gray-1000))]';
-
-/**
- * Edit mode's colour. ORANGE, not the brand (owner, 2026-08-03: *"maybe we can
- * use an orange color for the header, so we know we're doing something"*) —
- * and that is the right instinct: the brand colour is what the app looks like
- * normally, so tinting the chrome with it says "this app" rather than "you are
- * changing something". Orange is not used anywhere else in the reader, which is
- * the whole job.
- *
- * A literal, deliberately: it must read the same against every chart theme, and
- * a token that follows the theme would be washed out by exactly the pale papers
- * where the warning matters most.
- */
-export const EDIT_ACCENT = '#f97316';
+import { BAR_BUTTON, EDIT_ACCENT, EDIT_ROW } from './readerChrome';
 
 /**
  * Element 1 — the top bar. ONE component, so a song and a break cannot drift
@@ -94,10 +52,6 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
         background: 'var(--chart-bg, var(--ds-background-100))',
       }}
     >
-      {/* Edit mode's mark: solid, full-strength, and it cannot fail a contrast
-          check because it sits ON the background rather than IN it. */}
-      {editing && <div className="h-[3px] w-full shrink-0" style={{ background: EDIT_ACCENT }} />}
-
       {/* How far through the SET you are. It used to belong to
           `ReaderSetlistBar`, so turning the set bar off took the progress with
           it (owner, 2026-08-03). It lives here now — top of the sticky block,
@@ -119,6 +73,11 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
 
       {/* py-1, not py-1.5 — see BAR_BUTTON on where the height actually comes
           from. */}
+      {/* The title row, and ONLY the title row, turns orange in edit mode. */}
+      <div
+        className="flex items-center transition-colors"
+        style={editing ? EDIT_ROW : undefined}
+      >
       <div className="wide-container flex items-center gap-1.5 py-1.5 sm:py-1">
         {/* ONE cluster, not three separate buttons (owner, 2026-08-03: the
             icons "are a bit too big and they are too separate"). At 36px with
@@ -193,6 +152,7 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
             <CloseIcon />
           </IconButton>
         )}
+      </div>
       </div>
 
       {children}

@@ -10,6 +10,9 @@ vi.mock('@/hooks/useEntitlement', () => ({
 }));
 
 beforeEach(() => {
+  // The rail remembers whether it was left open, per device — so without this
+  // one test's click leaks into the next through jsdom's localStorage.
+  try { localStorage.clear(); } catch { /* private mode */ }
   window.matchMedia = vi.fn().mockImplementation(query => ({
     matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {},
   }));
@@ -163,36 +166,48 @@ describe('element 10 — the other nav styles', () => {
   });
 });
 
-// The rail from the top bar (owner, 2026-08-03) — BESIDE the footer counter,
-// never instead of it.
-describe('the rail button in the top bar', () => {
-  it('is a second way in, not a replacement for the counter', () => {
+// The rail is a PERSISTENT strip on a wide screen (owner, 2026-08-04: "look at
+// how the old chart is doing and replicate that") — 264px open, 44px closed,
+// with its own toggle. The chart never reflows when you open it, so the words
+// do not jump mid-song.
+describe('the setlist rail', () => {
+  it('is always there on a wide screen, collapsed to a strip', () => {
     renderIt();
-    expect(screen.getByRole('button', { name: 'Setlist' })).toBeTruthy();
+    const rail = screen.getByRole('complementary', { name: 'Setlist' });
+    expect(rail).toBeTruthy();
+    expect(rail.style.width).toBe('44px');
+    // Collapsed shows no list — a 44px strip cannot, and a mounted one would
+    // leave a clipped column of titles behind the strip.
+    expect(screen.getByRole('button', { name: 'Expand setlist' })).toBeTruthy();
+  });
+
+  it('expands from its own toggle, and the footer counter still opens it', () => {
+    renderIt();
+    fireEvent.click(screen.getByRole('button', { name: 'Expand setlist' }));
+    const rail = screen.getByRole('complementary', { name: 'Setlist' });
+    expect(rail.style.width).toBe('264px');
+    expect(screen.getAllByText('Goodness of God').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Collapse setlist' })).toBeTruthy();
+  });
+
+  it('remembers being left open, per device', () => {
+    renderIt();
+    fireEvent.click(screen.getByRole('button', { name: 'Expand setlist' }));
+    expect(localStorage.getItem('setlists-md:reader-rail-open')).toBe('1');
+  });
+
+  it('takes NO room in the top bar — the toggle belongs to the panel', () => {
+    renderIt();
+    expect(screen.queryByRole('button', { name: 'Setlist' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Open setlist' })).toBeTruthy();
   });
 
-  it('opens the rail', () => {
-    renderIt();
-    fireEvent.click(screen.getByRole('button', { name: 'Setlist' }));
-    expect(screen.getByRole('button', { name: 'Setlist' }).getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getAllByText('Goodness of God').length).toBeGreaterThan(0);
-  });
-
-  it('is on the break and the missing-song screen too', () => {
-    renderIt();
-    fireEvent.click(screen.getByRole('button', { name: 'Next song' }));
-    expect(screen.getByRole('button', { name: 'Setlist' })).toBeTruthy();
-  });
-
-  it('is absent on a phone, where the footer counter is already at the thumb', () => {
-    // `wide` is false — the rail is a bottom sheet there, and a second opener
-    // at the TOP of the screen is element 26's reachability problem, not a fix.
+  it('is a bottom sheet on a phone, with no resting strip', () => {
     window.matchMedia = vi.fn().mockImplementation(query => ({
       matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {},
     }));
     renderIt();
-    expect(screen.queryByRole('button', { name: 'Setlist' })).toBeNull();
+    expect(screen.queryByRole('complementary', { name: 'Setlist' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Open setlist' })).toBeTruthy();
   });
 });
@@ -579,7 +594,7 @@ describe('edit mode — locking and the section controls', () => {
     expect(screen.queryByRole('button', { name: 'Next song' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Display options' }).disabled).toBe(true);
     expect(screen.getByRole('button', { name: 'Practice tools' }).disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Setlist' }).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Expand setlist' }).disabled).toBe(true);
   });
 
   it('closes the practice strip when the editor opens', () => {

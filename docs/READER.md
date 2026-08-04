@@ -1125,6 +1125,61 @@ Two things had to be carried that did not exist before:
 > `src/__tests__/structure-ribbon.test.jsx` now drives a whole gesture end to
 > end, so a regression in the effect's lifetime fails there and not on a phone.
 
+#### Edit mode, round 7 — 2026-08-04
+
+**A real orange header**, not a tint and not a stripe (owner: *"I don't know if
+just a line is enough for it. Let's create a special orange header for
+editing"*). `EDIT_ROW` in `readerChrome.js` paints the **title row only** solid
+`EDIT_ACCENT` and re-points the foreground tokens for its subtree to fixed
+near-black ink.
+
+> **Why the two earlier attempts failed, and this cannot.** A `color-mix` wash
+> blends orange with *whatever the chart theme's background is*, so it lands
+> differently on every theme and drags the foreground's contrast with it. Pinning
+> **both** sides — fixed ground, fixed ink — makes the contrast a constant
+> (~8:1) that no theme can touch. `--chord` becomes white in that row, because
+> the key chip's gold on orange is illegible.
+>
+> **Only the title row.** The progress line, the set bar and the ribbon keep the
+> chart's own background: the ribbon's chips carry section colours that would be
+> mud on orange, and the map is the thing you are looking at while you edit.
+
+> ### ⚠ Do NOT "compensate" `scrollTop` when the sticky header changes height
+> beta.57 added `scrollTop += delta` for the report that a pinned heading hides
+> behind the map when edit turns the ribbon on. **The geometry says it cannot
+> help, and it made the bug worse by exactly Δ:**
+>
+> ```
+> item at document offset H + k  →  viewport y = H + k − scrollTop
+> sticky header covers              [0, H]
+> hidden  ⟺  H + k − scrollTop < H  ⟺  k < scrollTop
+> ```
+>
+> Grow the header to `H + Δ`: the item reflows to `H + Δ + k` and the header
+> covers `[0, H + Δ]`, so hidden ⟺ `k < scrollTop` — **the same condition**. The
+> reflow and the taller header cancel exactly. Removed in beta.58. **The real
+> cause is still unmeasured**; it needs a repro, not a third guess.
+
+### The rail is a persistent strip — 2026-08-04
+
+Owner: *"on live, we have a full right side bar for the rail… look at how the old
+chart is doing and replicate that."* `PerformanceView` already had it, and it is
+better than an overlay for a reason worth writing down: **the chart never
+reflows when you open it**, so the words do not jump mid-song.
+
+- `<aside>` **always mounted** on `wide`: **264px open, 44px collapsed**.
+- **The toggle lives ON the rail**, which settles where the chevron goes — it is
+  neither the outermost button nor beside the ✕. The control that opens a panel
+  belongs to the panel, and element 1's right edge goes back to the ✕ alone: the
+  one control whose position must never move, because it is the one reached
+  without looking.
+- **The list renders only when open.** A 44px strip cannot show it, and leaving
+  it mounted leaves a clipped column of titles behind the strip.
+- **Open state is remembered per DEVICE** (`setlists-md:reader-rail-open`), not
+  synced: whether you want the running order beside the chart is a fact about
+  the screen you are on. ⚠ Tests must `localStorage.clear()` — one test's click
+  otherwise leaks into the next.
+
 #### Edit mode, round 6 — 2026-08-04
 
 | | |

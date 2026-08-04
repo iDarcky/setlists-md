@@ -12,27 +12,10 @@ import MissingSongScreen from './MissingSongScreen';
 import SetlistRail from './SetlistRail';
 import ReaderSetlistBar from './ReaderSetlistBar';
 import ReaderMenu from './ReaderMenu';
-import { BAR_BUTTON } from './ReaderTopBar';
+import { BAR_BUTTON } from './readerChrome';
 import { IconButton } from '@/ui/IconButton';
 
-/**
- * A double chevron, pointing the way the rail will MOVE: `«` pulls it out from
- * the right edge, `»` pushes it back. Owner asked for "the 2 or 3 chevrons that
- * we currently use" — there is no such icon anywhere in the app (the reader's
- * other chevrons are all single: the footer arrows, the ☰'s row disclosure,
- * `PageHeader`'s back). This is the panel-toggle idiom it most likely meant;
- * say the word and it becomes three.
- */
-function RailChevrons({ open }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
-      style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 160ms ease-out' }}>
-      <polyline points="15 18 9 12 15 6" />
-      <polyline points="20 18 14 12 20 6" />
-    </svg>
-  );
-}
+const RAIL_OPEN_KEY = 'setlists-md:reader-rail-open';
 
 /**
  * A setlist read through the reader — element 10, and nothing more.
@@ -65,7 +48,16 @@ export default function SetlistReader({
     return Number.isInteger(startIndex) && startIndex > 0 && startIndex < n ? startIndex : 0;
   });
   const [keys, setKeys] = useState({});
-  const [railOpen, setRailOpen] = useState(false);
+  // Remembered per DEVICE, not synced: whether you want the running order
+  // beside the chart is a fact about the screen you are on, not a preference
+  // that should follow you from a tablet to a phone. Same key idea as
+  // `PerformanceView`'s RAIL_OPEN_KEY, which this rail is modelled on.
+  const [railOpen, setRailOpen] = useState(() => {
+    try { return localStorage.getItem(RAIL_OPEN_KEY) === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(RAIL_OPEN_KEY, railOpen ? '1' : '0'); } catch { /* private mode */ }
+  }, [railOpen]);
   // The ☰ for the break / missing-song screens — see `openMenu` below. STAMPED
   // with the item it was opened on, and derived rather than cleared by an
   // effect: this menu is mounted a level above the screen it belongs to, so
@@ -231,7 +223,9 @@ export default function SetlistReader({
       <SetlistRail
         open={railOpen}
         wide={wide}
+        onOpen={() => setRailOpen(true)}
         onClose={() => setRailOpen(false)}
+        locked={locked}
         title={setlist?.name}
         items={railItems}
         idx={idx}
@@ -246,30 +240,12 @@ export default function SetlistReader({
     <ReaderSetlistBar items={railItems} idx={idx} onSelect={go} />
   ) : null;
 
-  // The rail, from the top bar (owner, 2026-08-03) — BESIDE the footer's
-  // counter, never instead of it: no existing way in is removed.
-  //
-  // Wide screens only. On a phone the rail is a bottom sheet and the footer
-  // counter is already where the thumb is, so a second opener at the top of the
-  // screen is the reachability problem element 26 describes, not a fix for it.
-  const railButton = wide ? (
-    <IconButton
-      size="sm"
-      className={BAR_BUTTON}
-      // Inert while the song is being edited: opening the rail is one tap from
-      // leaving the song with the edit applied and Cancel out of reach.
-      disabled={locked}
-      // NOT "Open setlist" — that is the footer counter's name, and two
-      // controls answering to one name is a screen reader reading the same
-      // label twice for two different things. This one is a toggle and says so
-      // (`aria-pressed`); the counter opens.
-      aria-label="Setlist"
-      aria-pressed={railOpen}
-      onClick={openRail}
-    >
-      <RailChevrons open={railOpen} />
-    </IconButton>
-  ) : null;
+  // NO rail button in the top bar any more. The toggle lives ON the rail (see
+  // `SetlistRail`): the control that opens a panel belongs to the panel, and it
+  // gives element 1's right edge back to the ✕ alone — the one control whose
+  // position must never move, because it is the one reached without looking.
+  const railButton = null;
+
 
   const swipe = cfg.nav === 'swipe'
     ? { onSwipeLeft: goNext, onSwipeRight: goPrev }

@@ -10,7 +10,8 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useActiveSection } from '@/hooks/useActiveSection';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import ReaderSection from './ReaderSection';
-import ReaderTopBar, { BAR_BUTTON } from './ReaderTopBar';
+import ReaderTopBar from './ReaderTopBar';
+import { BAR_BUTTON } from './readerChrome';
 import { chartSurface, hubSurface } from './readerSurface';
 import ReaderPracticeRow, { MetronomeIcon } from './ReaderPracticeRow';
 import AaMenu from '@/features/chart/AaMenu';
@@ -313,27 +314,22 @@ export default function Reader({
     return () => ro.disconnect();
   }, [embedded]);
 
-  // When the sticky header CHANGES HEIGHT, the content under it has to move by
-  // the same amount or it ends up behind the header — which is exactly what
-  // pressing edit did with the structure hidden (owner, 2026-08-04: "the section
-  // heading if it's pinned is going underneath the song map and you need to
-  // scroll to bring it back up"). Forcing the map on grows the header by its
-  // whole height, and nothing was compensating.
+  // ⚠ DO NOT "compensate" scrollTop when the sticky header changes height.
+  // beta.57 added `scrollTop += delta` for the report that a pinned heading
+  // hides behind the map when edit turns the ribbon on. The geometry says it
+  // cannot help, and it actively hurt:
   //
-  // A ref, not state: this reads the PREVIOUS measurement to compute a delta,
-  // and it must not itself cause a render.
-  const lastHeadH = useRef(0);
-  useEffect(() => {
-    const prev = lastHeadH.current;
-    lastHeadH.current = headH;
-    const delta = headH - prev;
-    const sc = scrollRef.current;
-    // Only while actually scrolled: at the top there is nothing behind the
-    // header to rescue, and nudging there would scroll the song away from a
-    // reader who had not moved.
-    if (!sc || !prev || Math.abs(delta) < 1 || sc.scrollTop <= 0) return;
-    sc.scrollTop += delta;
-  }, [headH]);
+  //   item at document offset H + k  →  viewport y = H + k - scrollTop
+  //   sticky header covers            [0, H]
+  //   hidden  ⟺  H + k - scrollTop < H  ⟺  k < scrollTop
+  //
+  // Grow the header to H + Δ: the item reflows to H + Δ + k and the header
+  // covers [0, H + Δ], so hidden ⟺ k < scrollTop — THE SAME CONDITION. The
+  // reflow and the taller header cancel exactly. Adding Δ to scrollTop
+  // therefore hides a further Δ of the song, which is the reported symptom made
+  // worse by the amount the header grew.
+  //
+  // The real cause is elsewhere and is not yet measured. Do not re-add this.
 
   const jumpTo = useCallback((idx) => {
     const el = document.getElementById(`section-${idx}`);
