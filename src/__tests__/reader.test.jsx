@@ -340,6 +340,25 @@ describe('the ☰ menu', () => {
     expect(screen.getByText('Columns')).toBeTruthy();
   });
 
+  it('groups the Style tab, and pairs two controls to a row', () => {
+    renderReader();
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    // Eleven fields in one column was a list you read rather than a panel you
+    // aim at — the same objection that cut the root menu from nine rows.
+    ['Lyrics', 'Chords', 'Spacing', 'Tabs'].forEach(g => {
+      expect(screen.getByText(g)).toBeTruthy();
+    });
+  });
+
+  it('gives the themes arrows, so it reads as scrollable', () => {
+    renderReader();
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    // A bare overflow strip with the scrollbar hidden gives no sign there is
+    // more than the three themes you can see.
+    expect(screen.getByRole('button', { name: 'More themes' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Previous themes' })).toBeTruthy();
+  });
+
   it('applies a role as VISIBLE settings, never as a hidden override', () => {
     const onUpdateSettings = vi.fn();
     renderReader({ onUpdateSettings });
@@ -362,6 +381,54 @@ describe('the ☰ menu', () => {
 // that splits the screen 70/30, reader over settings. Owner: "we split the
 // screen in two sections, the reader above and the setting below… and there we
 // give the 3 tabs but without the drag, ☰ transforms into an x?"
+// What a free plan can and cannot reach in the ☰. The split, agreed 2026-08-04:
+// anything that makes the chart READABLE is free — it is an accessibility
+// floor, not a feature to sell — and taste is Pro.
+describe('the ☰ — free and Pro', () => {
+  // The suite's global mock says "allowed" to everything; this one says no.
+  const asFree = () => {
+    vi.doMock('@/hooks/useEntitlement', () => ({
+      useEntitlement: () => ({ allowed: false, requiredPlan: 'sync', currentPlan: 'free' }),
+      checkEntitlement: () => false,
+    }));
+  };
+
+  it('never charges for legibility — sizes and spacing are free', async () => {
+    vi.resetModules();
+    asFree();
+    const { default: FreeReader } = await import('@/features/reader/Reader');
+    render(<FreeReader song={makeSong()} settings={{}} onExit={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+
+    // Both steppers, and both spacing steppers, all live.
+    expect(screen.getByRole('button', { name: 'Increase lyric size' }).disabled).toBe(false);
+    expect(screen.getByRole('button', { name: 'Increase chord size' }).disabled).toBe(false);
+    expect(screen.getByRole('button', { name: 'Increase line height' }).disabled).toBe(false);
+    expect(screen.getByRole('button', { name: 'Increase section gap' }).disabled).toBe(false);
+    vi.resetModules();
+  });
+
+  it('SHOWS the locked themes rather than hiding them, and offers a way in', async () => {
+    vi.resetModules();
+    asFree();
+    const { default: FreeReader } = await import('@/features/reader/Reader');
+    const onUpgrade = vi.fn();
+    render(<FreeReader song={makeSong()} settings={{}} onExit={() => {}} onUpgrade={onUpgrade} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+
+    // It used to FILTER them out: only the free themes existed on a free plan
+    // and the rest did not, so there was nothing to want. Seeing them is the
+    // pitch. Counted from the data so the number cannot rot.
+    const { CHART_THEMES, FREE_CHART_THEME_IDS } = await import('@/data/chartThemes');
+    const n = CHART_THEMES.filter(t => !FREE_CHART_THEME_IDS.has(t.id)).length;
+    expect(screen.getAllByRole('button', { name: /upgrade to use$/ }).length).toBe(n);
+    // And the CTA is a button, not a sentence telling you what you can't do.
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`Unlock ${n} more themes`) }));
+    expect(onUpgrade).toHaveBeenCalled();
+    vi.resetModules();
+  });
+});
+
 describe('the ☰ on a phone — element 28', () => {
   beforeEach(() => { mockWidth(390); });
 

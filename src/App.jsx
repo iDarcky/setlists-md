@@ -2313,6 +2313,7 @@ export default function App() {
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               onOpenAdvancedStyle={() => goToMainView('settings', { settingsPanel: 'chart-style' })}
+              onUpgrade={() => navigate('upgrade')}
               defaultColumns={settings?.defaultColumns}
               defaultFontSize={settings?.defaultFontSize}
               showInlineNotes={settings?.showInlineNotes !== false}
@@ -2420,6 +2421,7 @@ export default function App() {
               onSaveAsArrangement={isTeamReadOnly ? null : handleSaveAsArrangement}
               trash={trash}
               onRestoreSong={isTeamReadOnly ? null : handleRestoreSong}
+              onUpgrade={() => navigate('upgrade')}
               onBack={goBack}
               onFinish={(stats) => (view === 'setlist-practice'
                 ? goPracticeFinale(currentSetlist, stats)

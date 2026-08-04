@@ -3,10 +3,10 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.64` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.65` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
-> can compare against `beta`. 879 tests, 0 lint errors (8 pre-existing
+> can compare against `beta`. 883 tests, 0 lint errors (8 pre-existing
 > warnings)._
 
 ---
@@ -100,30 +100,22 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.64) — element 28, rounds 1–4
+## Just shipped (beta.65) — element 28, rounds 1–5
 
 | What | Where |
 |---|---|
-| **Three tabs — Style · Layout · Music.** No root list, no drill-in, no back. "Look" → "Style" | `ReaderMenu.jsx` |
+| **Three tabs — Style · Layout · Music.** No root list, no drill-in, no back | `ReaderMenu.jsx` |
 | **Notes left the ☰** for the setlist rail (element 29). ⚠ `song.notes` now appears NOWHERE in the reader, and the rail only exists inside a setlist | `ReaderMenu.jsx` |
-| **The phone shape is a DOCK — the screen splits 70/30.** `Reader`'s root was the scroller; it is now a flex column with the scroller as a `flex-1 min-h-0` child and the dock as a `flex: 0 0 30%` sibling. No scrim, no drag, not portaled. The sheet (r1/r3) and push-down (r2) were both built, tried and deleted | `Reader.jsx`, `ReaderMenu.jsx`, `SetlistReader.jsx`, `BreakScreen`/`MissingSongScreen` |
-| **The ☰ becomes a ✕** while open. ⚠ Two ✕ in one bar now — flagged, see READER.md | `ReaderTopBar.jsx` |
-| **Field labels** Geist Mono 10px ALL CAPS wide-tracked muted → sans 12px/600 sentence case · **theme ring** was two rings at two radii, now one | `ReaderMenu.jsx` |
-| **The ☰ wears the reader theme** (`chartOverlaySurface`) · **Columns gated at 768** | `readerSurface.js`, `ReaderMenu.jsx` |
+| **The phone shape is a DOCK — the screen splits 70/30.** `Reader`'s root was the scroller; it is now a flex column with the scroller as `flex-1 min-h-0` and the dock as `flex: 0 0 30%`. No scrim, no drag, not portaled. The sheet and the push-down were both built, tried and deleted | `Reader.jsx`, `ReaderMenu.jsx`, `SetlistReader.jsx` |
+| **The ☰ lights up while open** (`--chord`, like the practice icon). It was a ✕ for one round — two ✕ in one bar — and the owner reversed it. **Edit closes the ☰** | `ReaderTopBar.jsx`, `Reader.jsx` |
+| **Style tab grouped** — Lyrics · Chords · Spacing · Tabs, two controls to a row, using **`AaMenu`'s** controls (`PanelControls`). The mockup's `MiniStepper`/`Seg` are gone | `ReaderMenu.jsx` |
+| **Themes are a carousel with arrows**, and **locked themes are SHOWN dimmed with a padlock** + "Unlock N more themes". They used to be filtered out entirely | `ReaderMenu.jsx` |
+| **Free vs Pro decided** — legibility is free (all sizes, all spacing, tab size/grid), taste is Pro (full themes, fonts, colours, tab colours). `onUpgrade` threaded App → reader | `ReaderMenu.jsx`, `App.jsx` |
+| **Field labels** Geist Mono 10px ALL CAPS → sans 12px/600 sentence case · **theme ring** was two rings, now one · **reader theme** (`chartOverlaySurface`) · **Columns gated at 768** | `ReaderMenu.jsx`, `readerSurface.js` |
 
-**Next in element 28 — the Style tab's contents**, all three asked for and none
-built yet:
-1. **Themes as a carousel with left/right arrows**, so it reads as scrollable.
-2. **Group the tab**: Lyrics (size/font/colour) · Chords (size/font/colour) ·
-   Spacing (line spacing, section gap) · Tabs (size, grid, colours).
-3. **Reuse `AaMenu`'s control design** for the buttons and steppers, two per row.
-
-**And an open decision: what is free and what is Pro.** The owner
-(2026-08-04): *"for the settings we need to decide what we allow for free and
-what we lock behind Pro. For example for the themes we would need a CTA upgrade
-for more themes."* Today `chart-style` (= Sync tier) gates fonts, colours and
-the non-`FREE_CHART_THEME_IDS` themes, and the locked state is a line of text
-(`ProNote`), not a CTA.
+**Next in element 28: the Layout tab, then Music.** Layout is still nine
+`Segs` in a column with the old geometry — it has not had the grouping or the
+`PanelControls` pass the Style tab just got.
 
 ---
 

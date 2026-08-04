@@ -62,6 +62,9 @@ export default function SongHub({
   duplicateSections = 'full',
   chartLayout = 'columns',
   onTransposed,
+  // Element 28 — where a locked control in the full-screen reader's ☰ sends
+  // you. The hub itself has no gated controls; it just forwards.
+  onUpgrade = null,
 }) {
   const [activeTab, setActiveTab] = useState('chart');
   const [activeArrId, setActiveArrId] = useState(
@@ -434,6 +437,7 @@ export default function SongHub({
           song={song}
           settings={settings}
           onUpdateSettings={onUpdateSettings}
+          onUpgrade={onUpgrade}
           displayMode={fsMode === 'lyrics' ? 'lyrics' : displayMode}
           selectedKey={selectedKey}
           onSelectKey={setSelectedKey}

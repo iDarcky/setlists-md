@@ -1109,6 +1109,70 @@ that there is no scrim and no drag.
 > the alternatives if it reads wrong are a chevron-down (collapse) or keeping
 > the ☰ and lighting it up the way the practice icon does.
 
+#### Element 28, round 5 — the Style tab, and what is free, 2026-08-04
+
+**The ☰ is a ☰ again, and it lights up.** Round 4's ✕ was the owner's first
+idea and he reversed it on seeing it: *"let's do the lighting up like the
+practice icon"*. Two ✕ in one bar — the menu's on the left, Exit on the right —
+put the same glyph at both ends of a bar whose rule is *"nothing goes near the
+✕: a mis-tap on the right-hand edge leaves the service"*. It now takes element
+12's treatment: `color: var(--chord)` while open. The dock still has no scrim
+and no drag, so the button is still the way out; it just no longer pretends to
+be an exit.
+
+**Edit closes the ☰** (owner: *"the edit button should overwrite the settings
+and close it"*). It already closed the practice strip for element 12's
+two-bars-never-three rule. The sharper reason here: the ☰ is **disabled** while
+editing, so a dock left open would hold 30% of the screen with no way to shut
+it.
+
+**The Style tab, grouped.** Four groups — **Lyrics** (size · font · colour),
+**Chords** (size · font · colour), **Spacing** (line spacing · between
+sections), **Tabs** (size · grid · colours) — with two controls to a row
+(`Pair`). Eleven fields in one column was a list you read rather than a panel
+you aim at, which is the objection that cut the root menu from nine rows.
+
+**The controls are `AaMenu`'s** (owner: *"can we use the one from the Aa for the
+buttons and +/- and stuff? i think that those look nice"*). `PanelControls`'
+own docstring used to say the reader deliberately did NOT use them, because
+`ReaderMenu` followed the concept mockup's tighter geometry. The owner looked at
+both on a device and picked these; one set of controls for both panels was the
+better end state anyway, and the mockup's `MiniStepper`/`Seg` are gone.
+
+**The themes are a carousel with arrows** (owner: *"so users know to scroll"*).
+A bare overflow strip with the scrollbar hidden gives no sign there is more than
+the three visible.
+
+##### What is free, and what is Pro — agreed 2026-08-04
+
+Owner: *"for the settings we need to decide what we allow for free and what we
+lock behind Pro… for the themes we would need a CTA upgrade for more themes"* →
+*"i agree with you, do it"*.
+
+| Free | Pro (`chart-style`, = Sync tier) |
+|---|---|
+| Every **size**: lyric, chord | Full theme set (7 of the 10) |
+| Every **spacing**: line height, section gap | Custom **fonts** |
+| Tab **size** and **grid** | Per-element **colours** |
+| The 3 `FREE_CHART_THEME_IDS` themes | **Tab colours** |
+
+**The principle, and it is the whole reason the line falls there: anything that
+makes the chart READABLE is free.** Text size and spacing are an accessibility
+floor, not a feature to sell — a musician who cannot read the chart from a
+stand is not a conversion opportunity. Taste is Pro.
+
+**The locked state is a CTA now, not a sentence.** Locked themes are **shown,
+dimmed, with a padlock**, and the strip ends in an "Unlock N more themes"
+button. It used to `filter()` them out entirely: 3 of 10 themes existed on a
+free plan and the other 7 did not, so there was nothing to want. Seeing them is
+most of the pitch. Tapping a locked one goes to the upgrade screen rather than
+silently doing nothing, and each locked field carries an inline **Upgrade** link
+(`LockedNote`) instead of `ProNote`'s dead end.
+
+`onUpgrade` is threaded App → `SetlistReader`/`SongHub` → `FullscreenReader` →
+`Reader` → `ReaderMenu`. Absent → the lock is stated but not sellable, which is
+what every locked control here used to be.
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the

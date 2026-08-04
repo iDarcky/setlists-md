@@ -42,6 +42,8 @@ export default function SetlistReader({
   // HERE", and until now the reader ignored it and always opened song 1 — the
   // old `PracticeView` honoured it, the reader that replaced it did not.
   startIndex = 0,
+  // Element 28 — where a locked control in the ☰ sends you.
+  onUpgrade = null,
 }) {
   const [idx, setIdx] = useState(() => {
     const n = (setlist?.items || []).length;
@@ -273,6 +275,7 @@ export default function SetlistReader({
   const menuNode = menuAnchor ? (
     <ReaderMenu
       dock={menuDocks}
+      onUpgrade={onUpgrade}
       anchorRect={menuAnchor}
       onClose={() => setMenu(null)}
       settings={settings}
@@ -325,6 +328,7 @@ export default function SetlistReader({
       mode={mode}
       onUpdateSong={onUpdateSong}
       onSaveAsArrangement={onSaveAsArrangement}
+      onUpgrade={onUpgrade}
       onExit={onBack}
       selectedKey={keys[cur.song.id] || cur.key || cur.song.key}
       onSelectKey={(k) => setKeys(prev => ({ ...prev, [cur.song.id]: k }))}

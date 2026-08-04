@@ -138,6 +138,9 @@ export default function Reader({
   // Lets the host lock ITS controls while an edit is open (the setlist's nav
   // and rail). Same reason the reader holds its own ✕.
   onEditingChange = null,
+  // Element 28: where a locked control in the ☰ sends you. Absent → the lock
+  // is stated but not sellable.
+  onUpgrade = null,
 }) {
   const scrollRef = useRef(null);
   const touchRef = useRef(null);
@@ -454,6 +457,11 @@ export default function Reader({
       // strip"). Two bars at the bottom edge, never three — element 12's rule,
       // and edit mode is the third bar if the practice row stays open.
       setPracticeOpen(false);
+      // ...and the ☰, for the same reason plus a sharper one: the ☰ is DISABLED
+      // while editing, so a dock left open would hold 30% of the screen with no
+      // way to shut it (owner, 2026-08-04: "the edit button should overwrite the
+      // settings and close it").
+      setOwnAaAnchor(null);
       stopClick();
       return { id: songId, base: snapshotEditable(song), history: [] };
     });
@@ -637,6 +645,7 @@ export default function Reader({
   const menuNode = ownAaAnchor ? (
     <ReaderMenu
       dock={menuDocks}
+      onUpgrade={onUpgrade}
       anchorRect={ownAaAnchor}
       onClose={() => setOwnAaAnchor(null)}
       settings={settings}

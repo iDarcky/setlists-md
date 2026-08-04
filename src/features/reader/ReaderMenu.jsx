@@ -1,8 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useEntitlement } from '@/hooks/useEntitlement';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { chartOverlaySurface } from './readerSurface';
+// The Aa menu's own controls (owner, 2026-08-04: *"can we use the one from the
+// Aa for the buttons and +/- and stuff? i think that those look nice"*). The
+// note in `PanelControls` used to say the reader deliberately did NOT use
+// these, because it followed the concept mockup's tighter geometry. The owner
+// looked at both on a device and picked these; one set of controls for both
+// panels is the better end state anyway.
+import { Stepper, Pick, Swatches } from '@/ui/PanelControls';
 import {
   CHART_THEMES,
   CHART_FONTS,
@@ -184,29 +191,197 @@ function MiniStepper({ value, min, max, onChange, label, unit = '', step = 1, on
   );
 }
 
-function Swatches({ activeValue, onPick }) {
+function ProNote({ children }) {
+  return <p className="m-0 text-[12px] text-[var(--ds-gray-600)]">{children}</p>;
+}
+
+/** The heading over a group of fields — Lyrics · Chords · Spacing · Tabs. */
+function GroupTitle({ children }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {CHART_COLOR_PALETTE.map(c => {
-        const on = (c.value || null) === (activeValue || null);
-        return (
-          <button key={c.id} type="button" onClick={() => onPick(c.value)} title={c.name} aria-label={c.name}
-            className="w-[22px] h-[22px] min-h-0 rounded-full cursor-pointer"
-            style={{
-              background: c.value === null
-                ? 'linear-gradient(135deg, var(--chart-text, #888) 50%, var(--chord, #e0b341) 50%)'
-                : c.value,
-              border: '2px solid ' + (on ? 'var(--text-1)' : 'transparent'),
-              boxShadow: on ? '0 0 0 2px var(--bg-1), 0 0 0 3px var(--color-brand)' : 'inset 0 0 0 1px var(--border-2)',
-            }} />
-        );
-      })}
+    <div className="px-4 pt-4 pb-0.5 first:pt-1">
+      <div className="text-[13px] font-semibold text-[var(--text-1)]">{children}</div>
+      <div className="mt-1.5 h-px" style={{ background: 'var(--border-1)' }} />
     </div>
   );
 }
 
-function ProNote({ children }) {
-  return <p className="m-0 text-[12px] text-[var(--ds-gray-600)]">{children}</p>;
+/**
+ * Two fields side by side (owner: *"maybe can we make like 2 on one row?"*).
+ * `[&>div]:px-0` because `Field` carries the panel's own horizontal padding and
+ * a nested pair would double it; the grid supplies it once instead.
+ */
+function Pair({ children }) {
+  return <div className="grid grid-cols-2 gap-x-3 px-4 [&>div]:px-0">{children}</div>;
+}
+
+/** `Pick`s bound to one setting — the Aa menu's pill, in a row. */
+function Picks({ value, options, onChange }) {
+  return (
+    <div className="flex gap-1.5 flex-wrap">
+      {options.map(([v, l]) => (
+        <Pick key={String(v)} active={value === v} onClick={() => onChange(v)}>{l}</Pick>
+      ))}
+    </div>
+  );
+}
+
+/** Fonts as pills. The bordered list was 44px per font and a page on its own. */
+function FontPills({ activeId, onPick }) {
+  return (
+    <div className="flex gap-1.5 flex-wrap">
+      {CHART_FONTS.map(f => (
+        <Pick key={f.id} active={activeId === f.id} onClick={() => onPick(f.id)}>
+          <span style={{ fontFamily: f.stack }}>{f.name}</span>
+        </Pick>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * A locked control. A SENTENCE and a way out, not just a sentence — the old
+ * `ProNote` told you what you couldn't do and left you there.
+ */
+function LockedNote({ children, onUpgrade }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <ProNote>{children}</ProNote>
+      {onUpgrade && (
+        <button type="button" onClick={onUpgrade}
+          className="min-h-0 text-[12px] font-semibold cursor-pointer bg-transparent border-none p-0 underline underline-offset-2"
+          style={{ color: 'var(--color-brand)' }}>
+          Upgrade
+        </button>
+      )}
+    </div>
+  );
+}
+
+function LockGlyph() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
+function Arrow({ dir, onClick, disabled }) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled}
+      aria-label={dir === 'left' ? 'Previous themes' : 'More themes'}
+      className="shrink-0 w-6 h-[30px] min-h-0 grid place-items-center rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-[var(--text-1)] cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed hover:bg-[var(--bg-2)]">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points={dir === 'left' ? '15 18 9 12 15 6' : '9 18 15 12 9 6'} />
+      </svg>
+    </button>
+  );
+}
+
+/**
+ * The themes, as a carousel with arrows (owner, 2026-08-04: *"the themes should
+ * be a carousel with arrows left/right so users know to scroll"*). A bare
+ * overflow strip with the scrollbar hidden gives no sign there is more.
+ *
+ * The locked ones are SHOWN, dimmed, with a padlock — not filtered out, which
+ * is what it used to do. 3 of 31 themes were visible on a free plan and the
+ * other 28 simply did not exist, so there was nothing to want. Seeing them is
+ * most of the pitch; tapping one goes to the upgrade screen rather than
+ * silently doing nothing.
+ */
+function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
+  const ref = useRef(null);
+  const [edge, setEdge] = useState({ start: true, end: false });
+
+  const measure = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    setEdge({ start: el.scrollLeft <= 1, end: el.scrollLeft >= max - 1 });
+  }, []);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    measure();
+    el.addEventListener('scroll', measure, { passive: true });
+    return () => el.removeEventListener('scroll', measure);
+  }, [measure]);
+
+  // The wheel scrolls it sideways while the pointer is over it — a vertical
+  // wheel on a horizontal strip otherwise scrolls the panel behind it.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const onWheel = (e) => {
+      if (!e.deltaY || el.scrollWidth <= el.clientWidth) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  const page = (dir) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.max(120, el.clientWidth * 0.8), behavior: 'smooth' });
+  };
+
+  const lockedCount = allowed ? 0 : themes.filter(t => !FREE_CHART_THEME_IDS.has(t.id)).length;
+
+  return (
+    <>
+      <div className="flex items-center gap-1.5">
+        <Arrow dir="left" onClick={() => page(-1)} disabled={edge.start} />
+        {/* py/-my: the selected ring is drawn OUTSIDE the swatch's box, so
+            without room it is clipped by the scroller at both ends. */}
+        <div ref={ref} className="flex-1 min-w-0 flex gap-2.5 overflow-x-auto no-scrollbar px-1 py-1 -mx-1">
+          {themes.map(t => {
+            const locked = !allowed && !FREE_CHART_THEME_IDS.has(t.id);
+            const on = activeId === t.id;
+            return (
+              <button
+                key={t.id} type="button"
+                onClick={() => (locked ? onUpgrade?.() : onPick(t.id))}
+                className="relative shrink-0 min-h-0 h-[30px] w-[54px] rounded-lg overflow-hidden border border-transparent cursor-pointer flex items-end justify-end px-1.5 py-1"
+                style={{
+                  background: t.bg, color: t.chord, fontFamily: 'var(--font-mono)',
+                  opacity: locked ? 0.45 : 1,
+                  boxShadow: on
+                    ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
+                    : 'inset 0 0 0 1px var(--border-2)',
+                }}
+                aria-label={locked ? `${t.name} — upgrade to use` : `Theme: ${t.name}`}
+                aria-pressed={on} title={t.name}
+              >
+                <span className="text-[10px] font-bold">Am</span>
+                {locked && (
+                  <span className="absolute inset-0 grid place-items-center" style={{ color: t.text || t.chord }}>
+                    <LockGlyph />
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <Arrow dir="right" onClick={() => page(1)} disabled={edge.end} />
+      </div>
+
+      {lockedCount > 0 && onUpgrade && (
+        <button type="button" onClick={onUpgrade}
+          className="mt-2 w-full min-h-0 h-8 rounded-lg border text-[12px] font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
+          style={{
+            borderColor: 'var(--color-brand)',
+            color: 'var(--color-brand)',
+            background: 'var(--color-brand-soft)',
+          }}>
+          <LockGlyph />
+          Unlock {lockedCount} more themes
+        </button>
+      )}
+    </>
+  );
 }
 
 export default function ReaderMenu({
@@ -217,6 +392,9 @@ export default function ReaderMenu({
   // reserved for it. Only the host can offer that — it owns the flex column
   // the 70/30 split lives in.
   dock = false,
+  // Where a locked control sends you. Absent → the lock is stated but not
+  // sellable, which is what every locked control here used to be.
+  onUpgrade = null,
 }) {
   const [tab, setTab] = useState('style');
   const { allowed: styleAllowed } = useEntitlement('chart-style');
@@ -364,7 +542,6 @@ export default function ReaderMenu({
   useEffect(() => { live.current = { phone, onClose }; });
 
   const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
-  const visibleThemes = styleAllowed ? CHART_THEMES : CHART_THEMES.filter(t => FREE_CHART_THEME_IDS.has(t.id));
 
   const roleId = settings?.displayRole || 'leader';
   const capo = song?.capo ? Number(song.capo) : 0;
@@ -399,124 +576,115 @@ export default function ReaderMenu({
     // content and the sheet grows past its own height instead of scrolling.
     <div ref={bodyRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-1.5">
 
-      {/* ── Look ───────────────────────────────────────────────────────────
-          How the page is PAINTED. Its own root row rather than a tab inside a
-          Display panel (owner, 2026-08-01: "because we have space, maybe we can
-          do look and layout as different outside tabs?") — the two most-opened
-          panels are now one tap, not two. */}
+      {/* ── Style ──────────────────────────────────────────────────────────
+          How the page is PAINTED, in four groups (owner, 2026-08-04): the
+          themes, then Lyrics, Chords, Spacing and Tabs. Ungrouped it was
+          eleven fields in a column and you had to read it to find anything —
+          the same objection that cut the root menu from nine rows. */}
       {tab === 'style' && (
         <>
-              <Field label="Theme">
-                {/* px/py: the selected ring is drawn outside the swatch's box,
-                    so without padding it is clipped by the scroller on the
-                    first and last swatch. */}
-                <div ref={themesRef} className="flex gap-2.5 overflow-x-auto no-scrollbar px-1 py-1 -mx-1">
-                  {visibleThemes.map(t => (
-                    // The selected ring is ONE ring. It used to be a 1px brand
-                    // border AND a 1.5px brand box-shadow on top of it — 2.5px
-                    // of the same colour, at two different corner radii
-                    // (the shadow's is the border-box's, the border's is
-                    // inset), which is what made the selected swatch's edge
-                    // look furred rather than crisp. This is the same ring the
-                    // colour `Swatches` below already use: a gap in the panel's
-                    // own colour, then the brand line.
-                    <button key={t.id} type="button" onClick={() => set('chartTheme', t.id)}
-                      className="shrink-0 min-h-0 h-[30px] w-[54px] rounded-lg overflow-hidden border border-transparent cursor-pointer flex items-end justify-end px-1.5 py-1"
-                      style={{
-                        background: t.bg, color: t.chord, fontFamily: 'var(--font-mono)',
-                        boxShadow: themeId === t.id
-                          ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
-                          : 'inset 0 0 0 1px var(--border-2)',
-                      }}
-                      aria-label={`Theme: ${t.name}`} aria-pressed={themeId === t.id} title={t.name}>
-                      <span className="text-[10px] font-bold">Am</span>
-                    </button>
-                  ))}
-                </div>
-              </Field>
+          <Field label="Theme">
+            <ThemeCarousel
+              themes={CHART_THEMES}
+              activeId={themeId}
+              allowed={styleAllowed}
+              onPick={(id) => set('chartTheme', id)}
+              onUpgrade={onUpgrade}
+            />
+          </Field>
 
-              <Field label={`Lyrics — ${lyricSize}px`}>
-                <MiniStepper value={lyricSize} min={10} max={40} unit="px" label="lyric size" onChange={onLyricSize} />
-              </Field>
-              <Field label={`Chords — ${chordSize}px`}>
-                <MiniStepper value={chordSize} min={8} max={40} unit="px" label="chord size" onChange={onChordSize} />
-              </Field>
+          {/* ── Lyrics ───────────────────────────────────────────────────── */}
+          <GroupTitle>Lyrics</GroupTitle>
+          <Field label="Size">
+            <Stepper value={lyricSize} min={10} max={40} onChange={onLyricSize} label="lyric size" />
+          </Field>
+          <Pair>
+            <Field label="Font">
+              {styleAllowed
+                ? <FontPills activeId={settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID}
+                    onPick={(id) => set('chartLyricFont', id)} />
+                : <LockedNote onUpgrade={onUpgrade}>Fonts are part of Pro.</LockedNote>}
+            </Field>
+            <Field label="Colour">
+              {styleAllowed
+                ? <Swatches activeValue={settings?.chartLyricColor}
+                    onPick={(v) => set('chartLyricColor', v || undefined)} />
+                : <LockedNote onUpgrade={onUpgrade}>Colours are part of Pro.</LockedNote>}
+            </Field>
+          </Pair>
 
-              <Field label="Line spacing">
-                <MiniStepper
-                  value={Math.round((settings?.lyricLineHeight ?? 1.35) * 100)} min={100} max={240} step={5}
-                  unit="%" label="line height"
-                  onChange={(v) => set('lyricLineHeight', Math.round(v) / 100)}
-                  onReset={settings?.lyricLineHeight != null ? () => set('lyricLineHeight', undefined) : null}
-                />
-              </Field>
-              <Field label="Gap between sections">
-                <MiniStepper
-                  value={settings?.sectionSpacing ?? 24} min={8} max={64} step={2} unit="px" label="section gap"
-                  onChange={(v) => set('sectionSpacing', v)}
-                  onReset={settings?.sectionSpacing != null ? () => set('sectionSpacing', undefined) : null}
-                />
-              </Field>
+          {/* ── Chords ───────────────────────────────────────────────────── */}
+          <GroupTitle>Chords</GroupTitle>
+          <Field label="Size">
+            <Stepper value={chordSize} min={8} max={40} onChange={onChordSize} label="chord size" />
+          </Field>
+          <Pair>
+            <Field label="Font">
+              {styleAllowed
+                ? <FontPills activeId={settings?.chartChordFont || DEFAULT_CHORD_FONT_ID}
+                    onPick={(id) => set('chartChordFont', id)} />
+                : <LockedNote onUpgrade={onUpgrade}>Fonts are part of Pro.</LockedNote>}
+            </Field>
+            <Field label="Colour">
+              {styleAllowed
+                ? <Swatches activeValue={settings?.chartChordColor}
+                    onPick={(v) => set('chartChordColor', v || undefined)} />
+                : <LockedNote onUpgrade={onUpgrade}>Colours are part of Pro.</LockedNote>}
+            </Field>
+          </Pair>
 
-              {/* Fonts as pills rather than the old bordered list: the list was
-                  44px per font and made this tab a page you scroll. */}
-              {styleAllowed ? (
-                <>
-                  <Field label="Lyric font">
-                    <div className="flex gap-[5px] flex-wrap">
-                      {CHART_FONTS.map(f => (
-                        <Seg key={f.id} active={(settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID) === f.id}
-                          onClick={() => set('chartLyricFont', f.id)}>
-                          <span style={{ fontFamily: f.stack }}>{f.name}</span>
-                        </Seg>
-                      ))}
-                    </div>
-                  </Field>
-                  <Field label="Lyric colour">
-                    <Swatches activeValue={settings?.chartLyricColor} onPick={(v) => set('chartLyricColor', v || undefined)} />
-                  </Field>
-                  <Field label="Chord font">
-                    <div className="flex gap-[5px] flex-wrap">
-                      {CHART_FONTS.map(f => (
-                        <Seg key={f.id} active={(settings?.chartChordFont || DEFAULT_CHORD_FONT_ID) === f.id}
-                          onClick={() => set('chartChordFont', f.id)}>
-                          <span style={{ fontFamily: f.stack }}>{f.name}</span>
-                        </Seg>
-                      ))}
-                    </div>
-                  </Field>
-                  <Field label="Chord colour">
-                    <Swatches activeValue={settings?.chartChordColor} onPick={(v) => set('chartChordColor', v || undefined)} />
-                  </Field>
-                </>
-              ) : (
-                <Field label="Fonts &amp; colours">
-                  <ProNote>Upgrade to change the chart&rsquo;s fonts and colours.</ProNote>
-                </Field>
-              )}
+          {/* ── Spacing ──────────────────────────────────────────────────────
+              Free, like every size above it. Anything that makes the chart
+              READABLE is an accessibility floor, not a feature to sell
+              (agreed with the owner, 2026-08-04). */}
+          <GroupTitle>Spacing</GroupTitle>
+          <Pair>
+            <Field label="Line spacing">
+              <Stepper
+                value={Math.round((settings?.lyricLineHeight ?? 1.35) * 100)} min={100} max={240}
+                step={5} unit="%" label="line height"
+                onChange={(v) => set('lyricLineHeight', Math.round(v) / 100)}
+              />
+            </Field>
+            <Field label="Between sections">
+              <Stepper
+                value={settings?.sectionSpacing ?? 24} min={8} max={64} step={2}
+                unit="px" label="section gap"
+                onChange={(v) => set('sectionSpacing', v)}
+              />
+            </Field>
+          </Pair>
 
-              {/* Tabs are a LOOK concern — every one of these is about how a tab
-                  is painted. (Owner: "I think tab controls live here, right?") */}
-              <Segs label="Tab size" value={settings?.tabSize || 1}
-                options={[[0.85, 'S'], [1, 'M'], [1.25, 'L']]} onChange={(v) => set('tabSize', v)} />
-              <Segs label="Tab grid" value={settings?.tabSubdivision || 1}
-                options={[[1, '1/4'], [2, '1/8'], [4, '1/16']]} onChange={(v) => set('tabSubdivision', v)} />
-              <Field label="Tab colours">
-                <div className="flex items-center gap-2">
-                  {[
-                    ['tabStringColor', 'Strings', '#9b9b9b'],
-                    ['tabNumberColor', 'Numbers', '#e0a82e'],
-                    ['tabBg', 'Background', '#101010'],
-                  ].map(([key, label, fallback]) => (
-                    <input
-                      key={key} type="color" aria-label={`Tab ${label.toLowerCase()} colour`} title={label}
-                      value={settings?.[key] || fallback}
-                      onChange={(e) => set(key, e.target.value)}
-                      className="w-[27px] h-[27px] min-h-0 rounded-lg border border-[var(--border-2)] bg-transparent cursor-pointer p-0"
-                    />
-                  ))}
-                </div>
-              </Field>
+          {/* ── Tabs ─────────────────────────────────────────────────────── */}
+          <GroupTitle>Tabs</GroupTitle>
+          <Pair>
+            <Field label="Size">
+              <Picks value={settings?.tabSize || 1} options={[[0.85, 'S'], [1, 'M'], [1.25, 'L']]}
+                onChange={(v) => set('tabSize', v)} />
+            </Field>
+            <Field label="Grid">
+              <Picks value={settings?.tabSubdivision || 1} options={[[1, '1/4'], [2, '1/8'], [4, '1/16']]}
+                onChange={(v) => set('tabSubdivision', v)} />
+            </Field>
+          </Pair>
+          <Field label="Colours">
+            {styleAllowed ? (
+              <div className="flex items-center gap-2">
+                {[
+                  ['tabStringColor', 'Strings', '#9b9b9b'],
+                  ['tabNumberColor', 'Numbers', '#e0a82e'],
+                  ['tabBg', 'Background', '#101010'],
+                ].map(([key, label, fallback]) => (
+                  <input
+                    key={key} type="color" aria-label={`Tab ${label.toLowerCase()} colour`} title={label}
+                    value={settings?.[key] || fallback}
+                    onChange={(e) => set(key, e.target.value)}
+                    className="w-8 h-8 min-h-0 rounded-lg border border-[var(--border-1)] bg-transparent cursor-pointer p-0"
+                  />
+                ))}
+              </div>
+            ) : <LockedNote onUpgrade={onUpgrade}>Tab colours are part of Pro.</LockedNote>}
+          </Field>
         </>
       )}
 

@@ -19,9 +19,14 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
   {
     title, meta = null, onMenu, onExit, tools = null, leading = null,
     aboveBar = null, editing = false, exitDisabled = false, progress = null, children,
-    // Element 28: the ☰ becomes a ✕ while its menu is open (owner, 2026-08-04:
-    // *"☰ transforms into an x"*). The docked menu has no drag and no scrim, so
-    // this button IS the way out of it.
+    // Element 28: the ☰ LIGHTS UP while its menu is open — the same treatment
+    // element 12's practice icon uses. It was briefly a ✕ (the owner's first
+    // idea), which put two ✕ in one bar: the menu's on the left and Exit on
+    // the right, same glyph, opposite meanings, next to a control whose whole
+    // rule is "a mis-tap on the right-hand edge leaves the service". Owner,
+    // 2026-08-04, on seeing that: *"let's do the lighting up like the practice
+    // icon"*. The docked menu has no drag and no scrim, so this button is
+    // still the way out of it — it just doesn't pretend to be an exit.
     menuOpen = false,
   }, ref,
 ) {
@@ -109,6 +114,7 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
               className={BAR_BUTTON}
               aria-label={menuOpen ? 'Close display options' : 'Display options'}
               aria-expanded={menuOpen}
+              style={menuOpen ? { color: 'var(--chord)' } : undefined}
               // Dead, not GONE. Dropping the button while editing would change
               // the bar's shape the moment you press edit and everything else
               // would jump left.
@@ -119,7 +125,7 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
                 onMenu?.(e.currentTarget.getBoundingClientRect());
               }}
             >
-              {menuOpen ? <CloseIcon /> : <MenuIcon />}
+              <MenuIcon />
             </IconButton>
           )}
           {tools}
