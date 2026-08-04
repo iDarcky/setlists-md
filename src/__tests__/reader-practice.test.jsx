@@ -93,8 +93,15 @@ const startClick = () => fireEvent.click(screen.getByRole('button', { name: 'Sta
 // The play button is in the DOM (disabled) from the first frame, so its mere
 // presence is NOT readiness — the rate list only arrives with the player's
 // onReady, and pressing before that steps against a stale one-entry list.
-const trackReady = () => waitFor(() =>
-  expect(screen.getByRole('button', { name: 'Play backing track' }).disabled).toBe(false));
+// 3s, not the 1s default: this waits on a MOCKED player's onReady, so the
+// timeout is not testing anything — but under a full parallel suite run the
+// default occasionally expired and failed a test about playback rates for
+// reasons that had nothing to do with playback rates. Raising it removes a
+// flake without weakening the assertion that follows.
+const trackReady = () => waitFor(
+  () => expect(screen.getByRole('button', { name: 'Play backing track' }).disabled).toBe(false),
+  { timeout: 3000 },
+);
 
 describe('element 12 — getting to the tools', () => {
   it('is one icon beside the menu, and nothing until you tap it', () => {

@@ -74,6 +74,36 @@ export function removeSlot(structure, idx) {
 }
 
 /**
+ * Move a whole RUN of consecutive identical slots to a new position.
+ *
+ * The ribbon collapses `C C C` into one `C ×3` chip, so dragging that chip has
+ * to move all three — moving one slot out of a run would silently split it into
+ * two chips, which is not what the thing under your finger looked like.
+ *
+ * `fromIndex` is the run's first slot, `count` its length, `toIndex` the slot
+ * position to land at (before removal).
+ */
+export function moveRun(structure, fromIndex, count, toIndex) {
+  if (!Array.isArray(structure)) return structure;
+  if (fromIndex < 0 || count < 1 || fromIndex + count > structure.length) return structure;
+  if (toIndex < 0 || toIndex > structure.length) return structure;
+  // Landing inside itself is a no-op; return the same reference so the caller
+  // skips the write and no undo step is pushed.
+  if (toIndex >= fromIndex && toIndex <= fromIndex + count - 1) return structure;
+  const moved = structure.slice(fromIndex, fromIndex + count);
+  const rest = [...structure.slice(0, fromIndex), ...structure.slice(fromIndex + count)];
+  // Removing the run first shifts every later index down by `count`.
+  const at = toIndex > fromIndex ? toIndex - count : toIndex;
+  return [...rest.slice(0, at), ...moved, ...rest.slice(at)];
+}
+
+/** Add a section to the END of the play order. */
+export function appendSection(structure, name) {
+  if (!Array.isArray(structure) || !name) return structure;
+  return [...structure, name];
+}
+
+/**
  * Play the slot at `afterIndex` once more, immediately after itself.
  *
  * The ribbon collapses consecutive duplicates, so inserting a copy right after

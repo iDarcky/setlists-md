@@ -1,4 +1,5 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState, useMemo, cloneElement } from 'react';
+import { createPortal } from 'react-dom';
 import { sectionStyle, sectionLabel, compactLabel } from '@/music';
 import { cn } from '@/lib/utils';
 
@@ -31,23 +32,32 @@ export function StructureRibbon({
   // Fill the active chip solid in its section colour rather than ringing a
   // neutral pill. Opt-in so the existing chart keeps its current look.
   activeFill = false,
-  // EDIT MODE ONLY — `onAdd(afterIndex)` plays that section once more, right
-  // after itself. The owner's route to a faster structure edit (2026-08-04:
-  // "a better way to edit the structure faster, not moving sections up/down
-  // but adding sections in the song map... we can add a plus icon there?").
+  // ── EDIT MODE ONLY ───────────────────────────────────────────────────────
+  // The owner's shape, 2026-08-04: *"only one + at the end with a drop down and
+  // select what you want and then you drag and replace in the song map"*.
   //
-  // It works because the ribbon ALREADY collapses consecutive duplicates: with
-  // `collapse`, adding after the run merges into it, so `C ×2` simply becomes
-  // `C ×3`. The map is edited in the map's own language.
-  onAdd = null,
+  // A `+` per chip (the first cut) put one control between every pair of chips
+  // and still only ever added the section it sat on. One `+` at the end that
+  // asks WHICH section is both smaller and more capable.
+  //
+  // `addOptions` — the section names this song has. `onAddSection(name)`
+  // appends it. `onReorder(fromIndex, count, toIndex)` moves a whole run.
+  addOptions = null,
+  onAddSection = null,
+  onReorder = null,
 }) {
   // Collapse consecutive duplicates: "C1, C1, C1" → one entry "C1 ×3".
-  const runs = [];
-  structure.forEach((name, i) => {
-    const last = runs[runs.length - 1];
-    if (collapse && last && last.name === name) last.count += 1;
-    else runs.push({ name, count: 1, index: i });
-  });
+  // Memoised because the drag effect depends on it — a fresh array every render
+  // would tear down and re-add the pointer listeners mid-gesture.
+  const runs = useMemo(() => {
+    const out = [];
+    structure.forEach((name, i) => {
+      const last = out[out.length - 1];
+      if (collapse && last && last.name === name) last.count += 1;
+      else out.push({ name, count: 1, index: i });
+    });
+    return out;
+  }, [structure, collapse]);
 
   const scrollerRef = useRef(null);
   const activeRef = useRef(null);
@@ -76,32 +86,119 @@ export function StructureRibbon({
       : (wrap ? 'flex-wrap' : 'flex-nowrap overflow-x-auto no-scrollbar'),
   );
   const colorOf = (name) => sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
-
-  // Interleaved AFTER each chip rather than nested inside it: a chip is a
-  // <button> when it is tappable, and a button inside a button is invalid HTML
-  // that browsers resolve by dropping one of them.
-  const decorate = (nodes) => (!onAdd ? nodes : nodes.flatMap((node, i) => {
-    const run = runs[i];
-    const s2 = colorOf(run.name);
-    return [node, (
-      <button
-        key={`add-${i}`}
-        type="button"
-        // min-h-0: the phone's 44px floor would make this one control taller
-        // than the whole ribbon. See READER.md's min-h-0 box.
-        className="shrink-0 min-h-0 w-[17px] h-[17px] grid place-items-center rounded-[5px] border bg-transparent cursor-pointer text-[11px] leading-none font-bold"
-        style={{ borderColor: s2.br, color: s2.b }}
-        aria-label={`Play ${labelOf(run.name)} once more`}
-        title={`Play ${labelOf(run.name)} once more`}
-        // The LAST slot of the run, so the copy lands inside it and the chip's
-        // ×N ticks up instead of a second chip appearing beside it.
-        onClick={() => onAdd(run.index + run.count - 1)}
-      >
-        +
-      </button>
-    )];
-  }));
   const labelOf = (name) => (compact ? compactLabel(name) : sectionLabel(name, sectionLabels));
+
+  // ── Drag to reorder, long-press to engage ────────────────────────────────
+  // A plain pointerdown-drag cannot work here: the ribbon is a horizontally
+  // scrolling strip, so the same gesture already means "scroll". `touch-action:
+  // none` would win the fight and cost the ability to reach a chip off-screen
+  // in a long song, which is worse.
+  //
+  // So the drag engages on a 250ms HOLD, the way every mobile reorder does. Tap
+  // still jumps, swipe still scrolls, and nothing changes until you have
+  // deliberately held still on one chip.
+  const [drag, setDrag] = useState(null);      // { from, over }
+  const holdRef = useRef(null);
+  // Set when a drag ends, consumed by the capture-phase click listener below.
+  const suppressRef = useRef(false);
+
+  useEffect(() => {
+    if (!onReorder) return undefined;
+    const clearHold = () => {
+      if (holdRef.current?.timer) clearTimeout(holdRef.current.timer);
+      holdRef.current = null;
+    };
+    // Attached HERE, not built in render: a handler created during render that
+    // touches `holdRef.current` counts as a ref read during render. All of the
+    // gesture's bookkeeping lives in this effect, and `decorate` only labels the
+    // chips with `data-run` so the listeners can find them.
+    const onDown = (e) => {
+      const el = e.target?.closest?.('[data-run]');
+      if (!el) return;
+      const i = Number(el.getAttribute('data-run'));
+      holdRef.current = {
+        x: e.clientX, y: e.clientY, engaged: false,
+        timer: setTimeout(() => {
+          if (!holdRef.current) return;
+          holdRef.current.engaged = true;
+          setDrag({ from: i, over: i });
+        }, 250),
+      };
+    };
+    const onMove = (e) => {
+      const h = holdRef.current;
+      if (h && !h.engaged) {
+        // Moved before the hold fired — that was a scroll or a swipe.
+        if (Math.abs(e.clientX - h.x) > 8 || Math.abs(e.clientY - h.y) > 8) clearHold();
+        return;
+      }
+      if (!h) return;
+      e.preventDefault();
+      const el = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('[data-run]');
+      const over = el ? Number(el.getAttribute('data-run')) : null;
+      setDrag(d => (d && over != null && d.over !== over ? { ...d, over } : d));
+    };
+    const onUp = () => {
+      const h = holdRef.current;
+      const d = drag;
+      clearHold();
+      if (h?.engaged) {
+        // Letting go of a drag must not also fire the chip's jump.
+        suppressRef.current = true;
+        if (d && d.over != null && d.over !== d.from) {
+          const run = runs[d.from];
+          const target = runs[d.over];
+          if (run && target) onReorder(run.index, run.count, target.index);
+        }
+      }
+      setDrag(null);
+    };
+    // Capture phase, and registered HERE rather than as an onClick built during
+    // render: an `onClick` that reads `holdRef.current` is a ref read during
+    // render, which the compiler rejects — and it is right to, because a prop
+    // computed from a ref does not re-render when the ref changes.
+    const onClickCapture = (e) => {
+      if (!suppressRef.current) return;
+      suppressRef.current = false;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    const scroller = scrollerRef.current;
+    scroller?.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove, { passive: false });
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('click', onClickCapture, true);
+    return () => {
+      scroller?.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('click', onClickCapture, true);
+      clearHold();
+    };
+  }, [onReorder, drag, runs]);
+
+  // `cloneElement` rather than rebuilding each chip: there are four style
+  // branches, and injecting the same handful of props into whatever each one
+  // produced keeps them from drifting apart.
+  const decorate = (nodes) => {
+    let out = nodes;
+    if (onReorder) {
+      out = nodes.map((node, i) => cloneElement(node, {
+        'data-run': i,
+        style: {
+          ...node.props.style,
+          ...(drag?.from === i ? { opacity: 0.4 } : null),
+          ...(drag && drag.over === i && drag.from !== i
+            ? { outline: '2px dashed var(--color-brand)', outlineOffset: 2 }
+            : null),
+        },
+      }));
+    }
+    if (!onAddSection || !addOptions?.length) return out;
+    return [...out, <AddSection key="add" options={addOptions} onPick={onAddSection} />];
+  };
 
   if (style === 'dots' || style === 'dotlabel') {
     const showLabels = style === 'dotlabel';
@@ -276,6 +373,63 @@ export function StructureRibbon({
         );
       }))}
     </div>
+  );
+}
+
+/**
+ * The one `+` at the end of the map, and the list of sections it opens.
+ *
+ * Portalled: the ribbon is an `overflow-x-auto` strip, so a menu rendered
+ * inside it would be clipped by its own scroller.
+ */
+function AddSection({ options, onPick }) {
+  const [at, setAt] = useState(null);
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Add a section to the play order"
+        title="Add a section"
+        aria-expanded={!!at}
+        onClick={(e) => {
+          // Read the rect synchronously — React nulls currentTarget once the
+          // handler returns.
+          const r = e.currentTarget.getBoundingClientRect();
+          setAt(prev => (prev ? null : r));
+        }}
+        className="shrink-0 min-h-0 w-[19px] h-[19px] grid place-items-center rounded-[5px] border border-dashed bg-transparent cursor-pointer text-[12px] leading-none font-bold"
+        style={{ borderColor: 'var(--color-brand)', color: 'var(--color-brand)' }}
+      >
+        +
+      </button>
+      {at && createPortal((
+        <>
+          <button
+            type="button" aria-label="Close" tabIndex={-1} onClick={() => setAt(null)}
+            className="fixed inset-0 z-[119] bg-transparent border-none cursor-default"
+          />
+          <div
+            role="menu" aria-label="Add a section"
+            className="fixed z-[120] min-w-[150px] max-h-[46vh] overflow-y-auto rounded-xl border bg-[var(--ds-background-100)] border-[var(--ds-gray-400)] py-1"
+            style={{
+              top: Math.min(at.bottom + 6, (typeof window !== 'undefined' ? window.innerHeight : 800) - 220),
+              left: Math.max(8, Math.min(at.left, (typeof document !== 'undefined' ? document.documentElement.clientWidth : 400) - 166)),
+              boxShadow: '0 14px 40px rgba(0,0,0,0.45)',
+            }}
+          >
+            {options.map((name) => (
+              <button
+                key={name} type="button" role="menuitem"
+                onClick={() => { onPick(name); setAt(null); }}
+                className="w-full min-h-0 px-3 py-2 text-left text-label-12 bg-transparent border-none cursor-pointer text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)]"
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </>
+      ), document.body)}
+    </>
   );
 }
 

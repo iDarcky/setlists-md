@@ -13,6 +13,13 @@ const SUFFIXES = ['', 'm', '7', 'm7', 'maj7', 'sus4', 'sus2', 'add9', 'dim', 'au
 export default function ChordAutocomplete({
   initial = '', songKey = 'C', recents = [],
   editing = false, dock = 'bottom', anchorRect = null, onCommit, onRemove, onClose,
+  // The READER's edit mode uses this (owner, 2026-08-04: "rework the
+  // chordautocomplete to make it a bit smaller, I don't like the scroll").
+  // Fewer suggestions so they WRAP onto two short rows instead of scrolling
+  // sideways, and tighter padding — a horizontally scrolling strip of chips
+  // hides most of its own options, which is the opposite of what a suggestion
+  // list is for. The editor's own uses are untouched: this is opt-in.
+  compact = false,
 }) {
   const [value, setValue] = useState(initial);
   const [active, setActive] = useState(0);
@@ -39,8 +46,8 @@ export default function ChordAutocomplete({
 
   const suggestions = useMemo(() => {
     const q = value.trim().toLowerCase();
-    return (q ? base.filter(c => c.toLowerCase().startsWith(q)) : base).slice(0, 14);
-  }, [base, value]);
+    return (q ? base.filter(c => c.toLowerCase().startsWith(q)) : base).slice(0, compact ? 7 : 14);
+  }, [base, value, compact]);
 
   const canCreate = value.trim() && isChordToken(value.trim()) && !suggestions.includes(value.trim());
   const options = canCreate ? [value.trim(), ...suggestions] : suggestions;
@@ -146,7 +153,9 @@ export default function ChordAutocomplete({
       )}
 
       {/* Input + suggestion chips */}
-      <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto">
+      <div className={compact
+        ? 'flex flex-wrap items-center gap-1.5 px-2.5 py-1.5'
+        : 'flex items-center gap-2 px-3 py-2 overflow-x-auto'}>
         <input
           ref={inputRef}
           value={value}
@@ -154,7 +163,9 @@ export default function ChordAutocomplete({
           onKeyDown={handleKeyDown}
           spellCheck={false}
           placeholder="Type…"
-          className="shrink-0 w-[92px] px-3 py-2 bg-[var(--ds-gray-100)] border border-[var(--chord)] rounded-lg text-label-13 font-mono text-[var(--ds-gray-1000)] outline-none"
+          className={`shrink-0 bg-[var(--ds-gray-100)] border border-[var(--chord)] rounded-lg font-mono text-[var(--ds-gray-1000)] outline-none ${
+            compact ? 'w-[76px] px-2 py-1 text-label-12' : 'w-[92px] px-3 py-2 text-label-13'
+          }`}
           style={{ caretColor: 'var(--chord)' }}
         />
         {options.map((c, i) => {
@@ -165,7 +176,9 @@ export default function ChordAutocomplete({
               type="button"
               onMouseEnter={() => setActive(i)}
               onClick={() => commit(c)}
-              className={`shrink-0 px-3 py-2 rounded-lg font-mono text-label-13 font-bold cursor-pointer border ${
+              className={`shrink-0 min-h-0 rounded-lg font-mono font-bold cursor-pointer border ${
+                compact ? 'px-2 py-1 text-label-12' : 'px-3 py-2 text-label-13'
+              } ${
                 i === active
                   ? 'bg-[var(--chord)] text-black border-[var(--chord)]'
                   : isCreate

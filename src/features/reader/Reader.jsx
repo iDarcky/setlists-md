@@ -22,7 +22,7 @@ import { useMetronome } from '@/hooks/useMetronome';
 import { clampTempo } from '@/lib/metronome';
 import ReaderEditBar, { EditIcon } from './ReaderEditBar';
 import {
-  materialiseStructure, moveSlot, removeSlot, addSlotAfter, snapshotEditable, isDirty,
+  materialiseStructure, removeSlot, moveRun, appendSection, snapshotEditable, isDirty,
   replaceChordInLine, withEditedLine,
 } from '@/lib/editStructure';
 import ChordAutocomplete from '@/features/editor/ChordAutocomplete';
@@ -424,10 +424,15 @@ export default function Reader({
       sectionColors={resolveSectionColors(settings)}
       sectionLabels={settings?.sectionLabels}
       customSectionTypes={settings?.customSectionTypes}
-      // Edit mode's fast route through the structure: the map is already a
-      // list of the play order, so editing it there beats walking down the
-      // page moving headings one at a time.
-      onAdd={editing ? (afterIndex) => editStructure(st => addSlotAfter(st, afterIndex)) : null}
+      // Edit mode's route through the structure: the map is already a list of
+      // the play order, so editing it there beats walking down the page. ONE
+      // `+` that asks which section (owner, 2026-08-04), and drag to reorder —
+      // which is what retired the ↑/↓ handles on the headings.
+      addOptions={editing ? (song.sections || []).map(sec => sec.type) : null}
+      onAddSection={editing ? (name) => editStructure(st => appendSection(st, name)) : null}
+      onReorder={editing
+        ? (from, count, to) => editStructure(st => moveRun(st, from, count, to))
+        : null}
     />
   ) : null;
 
@@ -496,7 +501,7 @@ export default function Reader({
                       near-black text, mono bold. */}
                   <SelectTrigger
                     aria-label="Key (transpose)"
-                    className="!border-0 gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90 !h-[20px] !min-h-[20px] !w-auto !pl-2 !pr-1.5 !py-0 !rounded-lg text-[13px] leading-none [&>svg]:w-[10px] [&>svg]:h-[10px] [&>svg]:shrink-0 [&>svg]:opacity-100 [&>svg]:translate-y-[1px]"
+                    className="!border-0 gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90 !h-[23px] !min-h-[23px] sm:!h-[20px] sm:!min-h-[20px] !w-auto !pl-2 !pr-1.5 !py-0 !rounded-lg text-[13px] leading-none [&>svg]:w-[11px] [&>svg]:h-[11px] sm:[&>svg]:w-[10px] sm:[&>svg]:h-[10px] [&>svg]:shrink-0 [&>svg]:opacity-100 [&>svg]:translate-y-[1px]"
                     style={{ background: 'var(--chord)', color: '#0a0a0a' }}
                   >
                     <span>{displayKey}</span>
@@ -509,7 +514,7 @@ export default function Reader({
                 </Select>
               ) : (
                 <span
-                  className="font-mono font-bold text-[13px] rounded-lg px-2 h-[20px] inline-flex items-center"
+                  className="font-mono font-bold text-[13px] rounded-lg px-2 h-[23px] sm:h-[20px] inline-flex items-center"
                   style={{ background: 'var(--chord)', color: '#0a0a0a' }}
                 >
                   {displayKey}
@@ -644,10 +649,7 @@ export default function Reader({
                 : (canSeeShapes ? onChordTap : null)}
               showChords={showChords}
               editing={editing}
-              onMove={editing ? (d) => editStructure(st => moveSlot(st, idx, d)) : null}
               onRemove={editing ? () => editStructure(st => removeSlot(st, idx)) : null}
-              canMoveUp={idx > 0}
-              canMoveDown={idx < ordered.length - 1}
             />
           ))}
           </div>
@@ -741,6 +743,7 @@ export default function Reader({
           initial={chordEdit.chord || ''}
           songKey={displayKey}
           anchorRect={chordEdit.rect}
+          compact
           editing
           onCommit={applyChord}
           onClose={() => setChordEdit(null)}

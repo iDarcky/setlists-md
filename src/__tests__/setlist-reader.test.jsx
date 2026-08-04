@@ -311,21 +311,13 @@ describe('edit mode', () => {
     expect(onUpdateSong).toHaveBeenCalledWith(expect.objectContaining({ tempo: 96 }));
   });
 
-  it('gives each section a play-order handle, and reorders the STRUCTURE', () => {
-    const onUpdateSong = vi.fn();
-    renderMode('practice', { onUpdateSong });
+  it('retired the up/down handles — reordering is a drag on the song map', () => {
+    renderMode('practice');
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
-    // At the ends the handles are disabled — there is nowhere to go.
-    expect(screen.getByRole('button', { name: 'Move Verse 1 earlier' }).disabled).toBe(true);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Move Verse 1 later' }));
-    // The play order is written down and marked custom, and the section BODIES
-    // are untouched — reordering must never rewrite the words.
-    expect(onUpdateSong).toHaveBeenCalledWith(expect.objectContaining({
-      structure: ['Chorus', 'Verse 1', 'Verse 2'],
-      structureMode: 'custom',
-    }));
-    expect(onUpdateSong.mock.calls[0][0].sections).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: /Move Verse 1/ })).toBeNull();
+    // Removing stays on the heading: you decide to cut a section while looking
+    // at it, not while looking at its chip.
+    expect(screen.getByRole('button', { name: 'Take Verse 1 out of the play order' })).toBeTruthy();
   });
 
   it('takes a section out of the play order without deleting it', () => {
@@ -354,7 +346,7 @@ describe('edit mode', () => {
     expect(screen.queryByText('New version')).toBeNull();
 
     // Once the song really differs from the snapshot, it appears.
-    fireEvent.click(screen.getByRole('button', { name: 'Move Verse 1 later' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Take Chorus out of the play order' }));
     const edited = { ...onUpdateSong.mock.calls[0][0] };
     const nextSong = { ...multi, arrangements: [{ ...multi.arrangements[0], structure: edited.structure, structureMode: 'custom' }] };
     rerender(
@@ -383,7 +375,7 @@ describe('edit mode', () => {
     renderMode('practice');
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     expect(screen.getByRole('button', { name: 'Undo the last change' }).disabled).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Move Verse 1 later' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Take Chorus out of the play order' }));
     expect(screen.getByRole('button', { name: 'Undo the last change' }).disabled).toBe(false);
   });
 
@@ -391,7 +383,7 @@ describe('edit mode', () => {
     const onUpdateSong = vi.fn();
     renderMode('practice', { onUpdateSong });
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Move Verse 1 later' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Take Chorus out of the play order' }));
     onUpdateSong.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     // Restored from the snapshot taken on entry — the same one the fork uses.
@@ -524,18 +516,32 @@ describe('edit mode — the + on the song map', () => {
         onUpdateSong={vi.fn()}
       />
     );
-    expect(screen.queryByRole('button', { name: /once more/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add a section to the play order' })).toBeNull();
   });
 
-  it('plays that section once more, in the play order', () => {
+  // ONE + at the end that asks WHICH section (owner, 2026-08-04) — not a + per
+  // chip, which put a control between every pair and still only ever added the
+  // section it sat on.
+  it('is one + that asks which section, and appends the one you pick', () => {
     const onUpdateSong = vi.fn();
     openEditor(onUpdateSong);
-    fireEvent.click(screen.getByRole('button', { name: 'Play Chorus once more' }));
+    expect(screen.getAllByRole('button', { name: 'Add a section to the play order' })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add a section to the play order' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Chorus' }));
+
     expect(onUpdateSong).toHaveBeenCalledWith(expect.objectContaining({
       structure: ['Verse 1', 'Chorus', 'Chorus'],
       structureMode: 'custom',
     }));
     // The section BODIES are untouched — this is the play order, not the words.
     expect(onUpdateSong.mock.calls[0][0].sections).toHaveLength(2);
+  });
+
+  it('offers every section the song has, not just the ones already played', () => {
+    openEditor(vi.fn());
+    fireEvent.click(screen.getByRole('button', { name: 'Add a section to the play order' }));
+    expect(screen.getByRole('menuitem', { name: 'Verse 1' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Chorus' })).toBeTruthy();
   });
 });

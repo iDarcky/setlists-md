@@ -1091,8 +1091,40 @@ Two things had to be carried that did not exist before:
 > |---|---|
 > | `ChordPicker` | A fixed **290px** popover of root × suffix buttons. **No text entry**, so a slash chord or anything past its nine suffixes is unreachable — and at a hard 290px anchored to a tapped chord it hangs off the side or the bottom of a phone. |
 > | `ChordAutocomplete` | Types **any** chord (`isChordToken` validates; slash and extended included), suggests the song's diatonic chords first, and **docks full-width at the bottom on touch** instead of floating. It also leaves the input unfocused on touch on purpose, so the keyboard doesn't cover the bar you're tapping chips in. |
+>
+> The reader passes **`compact`** (owner, 2026-08-04: *"a bit smaller, I don't
+> like the scroll"*): 7 suggestions instead of 14, **wrapped onto two short rows
+> rather than scrolled sideways**, tighter padding. A horizontally scrolling
+> strip of chips hides most of its own options, which is the opposite of what a
+> suggestion list is for. Opt-in, so the editor's own uses are untouched.
 
-#### The `+` on the song map — 2026-08-04
+#### The song map is where the structure is edited — 2026-08-04 (round 2)
+
+Owner, after round 1: *"the problem with the + is that I was imagining only one
++ at the end with a drop down and select what you want and then you drag and
+replace in the song map and we don't need the ↑ ↓."*
+
+| | |
+|---|---|
+| **One `+`, at the end** | It opens a menu of **every section the song has** and appends the one you pick. A `+` per chip put a control between every pair and still only ever added the section it sat on — smaller *and* less capable. Portalled, because the ribbon is an `overflow-x-auto` strip that would clip its own menu. |
+| **Drag a chip to reorder** | Whole **runs** move: `C ×3` is one chip, so `moveRun` moves all three. Moving one slot out of a run would silently split it into two chips — not what was under your finger. |
+| **`↑ ↓` retired** | Reordering lives on the map now. **`×` stays on the heading**: you decide to cut a section while looking at it, not while looking at its chip. |
+
+> **The drag engages on a 250ms HOLD, and it has to.** The ribbon is a
+> horizontally scrolling strip, so a plain pointer-drag means "scroll" already.
+> `touch-action: none` would win that fight and cost the ability to reach a chip
+> off-screen in a long song. A hold is what every mobile reorder uses, and it
+> keeps tap-to-jump and swipe-to-scroll intact.
+>
+> **All the gesture's bookkeeping lives in the effect**, not in props built
+> during render. An `onPointerDown` created in render that touches
+> `holdRef.current` is a ref read during render, and the compiler rejects it —
+> correctly, because a prop computed from a ref doesn't re-render when the ref
+> changes. `decorate` only labels chips with `data-run`; the listeners find them.
+> The post-drag click is swallowed by a **capture-phase** listener registered in
+> the same effect, for the same reason.
+
+#### Superseded: the `+` per chip — 2026-08-04 (round 1)
 
 Owner: *"a better way to edit the structure faster, not moving sections up/down
 but adding sections in the song map… we can add a plus icon there?"*
@@ -1103,11 +1135,10 @@ and it works so cleanly because the ribbon *already* collapses consecutive
 duplicates: the copy lands inside the run, so `C ×2` simply becomes `C ×3`. The
 map is edited in the map's own language.
 
-- The `+` is **interleaved after each chip, never nested inside it**: a chip is
-  a `<button>` when tappable, and a button inside a button is invalid HTML that
-  browsers resolve by dropping one.
-- The heading `↑ ↓ ×` handles **stay**. `+` adds; they reorder and remove, and
-  reordering still needs a home.
+- Kept from it: **a `+` is interleaved after a chip, never nested inside it** —
+  a chip is a `<button>` when tappable, and a button inside a button is invalid
+  HTML that browsers resolve by dropping one.
+- `addSlotAfter` survives in `editStructure.js`, unused by the UI.
 
 **Superseded, not in this round:** nothing — the `+` above shipped alongside the
 ↑/↓ handles rather than replacing them.

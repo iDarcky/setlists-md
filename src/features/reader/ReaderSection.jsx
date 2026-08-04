@@ -18,15 +18,14 @@ import SectionBlock from '@/features/chart/SectionBlock';
  * READER.md's min-h-0 box, and the reason this is not a plain <button>'s
  * default size.
  */
-function EditHandle({ label, onClick, disabled = false, danger = false, children }) {
+function EditHandle({ label, onClick, danger = false, children }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
       aria-label={label}
       title={label}
-      className="min-h-0 w-[22px] h-[22px] grid place-items-center rounded-md border cursor-pointer bg-transparent text-[13px] leading-none disabled:opacity-25 disabled:cursor-not-allowed"
+      className="min-h-0 w-[22px] h-[22px] grid place-items-center rounded-md border cursor-pointer bg-transparent text-[13px] leading-none"
       style={{
         borderColor: 'var(--chart-rule, var(--ds-gray-400))',
         color: danger ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--ds-gray-700))',
@@ -42,9 +41,11 @@ export default function ReaderSection({
   repeatOf = -1, onJumpToFirst, tabColors, stickyTop = 0, onChordTap = null,
   // Resolved by the Reader: the host's tab choice beats the global setting.
   showChords,
-  // Edit mode — the structure handles ride on the heading, so the play order is
-  // edited where the play order IS rather than in a list that re-describes it.
-  editing = false, onMove = null, onRemove = null, canMoveUp = false, canMoveDown = false,
+  // Edit mode. Only REMOVE lives here now: the owner retired ↑/↓ once the song
+  // map got a `+` and drag (2026-08-04, "we don't need the ↑ ↓"). Removing
+  // stays on the heading because you decide to cut a section while looking at
+  // it, not while looking at its chip.
+  editing = false, onRemove = null,
 }) {
   const id = sectionIdentity(section.type, settings);
   const style = config.sectionStyle;
@@ -118,22 +119,11 @@ export default function ReaderSection({
     marginLeft: heavy ? '0.85rem' : undefined,
   };
 
-  // The play-order handles. Deliberately ↑/↓ rather than drag: on a phone the
-  // chart is inside a scroll container and (in a setlist) can be inside a swipe
-  // gesture, so a long-press-drag has two things to fight before it starts —
-  // and losing a section to a mis-drag mid-rehearsal is a much worse failure
-  // than two taps being slower than one.
-  const handles = editing && (onMove || onRemove) ? (
+  // Reordering moved to the song map — drag a chip there. What is left is the
+  // one decision you make while looking at the section itself: cut it.
+  const handles = editing && onRemove ? (
     <span className="inline-flex items-center gap-0.5 ml-2 align-middle">
-      {onMove && (
-        <>
-          <EditHandle label={`Move ${id.name} earlier`} disabled={!canMoveUp} onClick={() => onMove(-1)}>↑</EditHandle>
-          <EditHandle label={`Move ${id.name} later`} disabled={!canMoveDown} onClick={() => onMove(1)}>↓</EditHandle>
-        </>
-      )}
-      {onRemove && (
-        <EditHandle label={`Take ${id.name} out of the play order`} onClick={onRemove} danger>×</EditHandle>
-      )}
+      <EditHandle label={`Take ${id.name} out of the play order`} onClick={onRemove} danger>×</EditHandle>
     </span>
   ) : null;
 

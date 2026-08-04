@@ -18,13 +18,17 @@ import { IconButton } from '@/ui/IconButton';
  * height and whether the bottom bar could be smaller: it is centred (every row
  * is `items-center`), it was just taller than it looked.
  *
- * 32px here, opting out of the phone floor. The ☰ and ✕ are reached between
- * songs, not mid-song — unlike the footer's prev/next, which keep a bigger
- * target because they are hit in the dark (see `ReaderFooter`). It was 36px
- * until the owner said the three read "too big and too separate"; at 32px in a
- * 2px cluster they are one group of tools rather than three loose buttons.
+ * Opting out of the phone floor, but NOT all the way down: **36px on a phone,
+ * 32px from `sm:` up** (owner, 2026-08-04: "make the header with everything a
+ * couple pixels bigger on mobile"). The two corrections are not in conflict —
+ * "too big and too separate" was about the 8px GAPS between three 36px buttons,
+ * which is why they went into a 2px cluster. Tightening the cluster is what
+ * bought the room to keep the targets comfortable on the device you actually
+ * hold. The ☰ and ✕ are still reached between songs, not mid-song — unlike the
+ * footer's prev/next, which keep a bigger target because they are hit in the
+ * dark (see `ReaderFooter`).
  */
-export const BAR_BUTTON = 'min-h-0 h-8 w-8 text-[var(--chart-text,var(--ds-gray-1000))]';
+export const BAR_BUTTON = 'min-h-0 h-9 w-9 sm:h-8 sm:w-8 text-[var(--chart-text,var(--ds-gray-1000))]';
 
 /**
  * Edit mode's colour. ORANGE, not the brand (owner, 2026-08-03: *"maybe we can
@@ -105,7 +109,7 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
 
       {/* py-1, not py-1.5 — see BAR_BUTTON on where the height actually comes
           from. */}
-      <div className="wide-container flex items-center gap-1.5 py-1">
+      <div className="wide-container flex items-center gap-1.5 py-1.5 sm:py-1">
         {/* ONE cluster, not three separate buttons (owner, 2026-08-03: the
             icons "are a bit too big and they are too separate"). At 36px with
             an 8px gap they read as three unrelated controls; 32px with a 2px

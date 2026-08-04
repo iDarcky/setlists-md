@@ -5,7 +5,8 @@
 // they play it.
 import { describe, it, expect } from 'vitest';
 import {
-  materialiseStructure, moveSlot, removeSlot, addSlotAfter, snapshotEditable, isDirty, entryName,
+  materialiseStructure, moveSlot, removeSlot, addSlotAfter, moveRun, appendSection,
+  snapshotEditable, isDirty, entryName,
   replaceChordInLine, withEditedLine,
 } from '@/lib/editStructure';
 
@@ -214,5 +215,47 @@ describe('addSlotAfter', () => {
     expect(addSlotAfter(st, 3)).toBe(st);
     expect(addSlotAfter(st, -1)).toBe(st);
     expect(addSlotAfter(null, 0)).toBe(null);
+  });
+});
+
+describe('moveRun', () => {
+  it('moves a whole run, not one slot out of it', () => {
+    // The ribbon shows `C ×3` as ONE chip, so dragging it must move all three —
+    // moving one would split the chip in two, which is not what was dragged.
+    const st = ['Verse 1', 'Chorus', 'Chorus', 'Chorus', 'Verse 2'];
+    expect(moveRun(st, 1, 3, 0)).toEqual(['Chorus', 'Chorus', 'Chorus', 'Verse 1', 'Verse 2']);
+  });
+
+  it('accounts for its own removal when moving later', () => {
+    // Removing the run first shifts every later index down by `count`; getting
+    // this wrong lands it one slot short of where it was dropped.
+    const st = ['A', 'B', 'C', 'D'];
+    expect(moveRun(st, 0, 1, 3)).toEqual(['B', 'C', 'A', 'D']);
+    expect(moveRun(st, 0, 1, 4)).toEqual(['B', 'C', 'D', 'A']);
+  });
+
+  it('is a no-op when dropped on itself', () => {
+    const st = ['A', 'B', 'B', 'C'];
+    expect(moveRun(st, 1, 2, 1)).toBe(st);
+    expect(moveRun(st, 1, 2, 2)).toBe(st);
+  });
+
+  it('shrugs off nonsense', () => {
+    const st = ['A', 'B'];
+    expect(moveRun(st, 5, 1, 0)).toBe(st);
+    expect(moveRun(st, 0, 1, 9)).toBe(st);
+    expect(moveRun(null, 0, 1, 0)).toBe(null);
+  });
+});
+
+describe('appendSection', () => {
+  it('adds to the end of the play order', () => {
+    expect(appendSection(['A', 'B'], 'Bridge')).toEqual(['A', 'B', 'Bridge']);
+  });
+
+  it('ignores an empty name', () => {
+    const st = ['A'];
+    expect(appendSection(st, '')).toBe(st);
+    expect(appendSection(null, 'B')).toBe(null);
   });
 });
