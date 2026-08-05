@@ -941,3 +941,59 @@ describe('element 3 — repeats can be hidden outright', () => {
     expect(repeat.textContent).toBe('');  // and draws nothing at all
   });
 });
+
+// ── Element 3 — a repeat you asked to see ───────────────────────────────────
+//
+// Owner, 2026-08-05, option B. The rejected option was "send them back to the
+// first full play", which is what the ribbon chip did: you tap chip six and
+// land at chip two, and the highlight walks backwards with you. On stage that
+// reads as the app losing your place.
+describe('element 3 — tapping a Tag opens it where it stands', () => {
+  const song = () => makeSong();
+
+  it('a tag opens in place, and only the one you tapped', () => {
+    mockWidth(true);
+    const { container } = render(
+      <Reader song={song()} settings={{ duplicateSections: 'condensed' }} onExit={() => {}} />,
+    );
+    // V1 C V2 C — slot 3 is the repeated chorus, drawn as the pill.
+    const slot = () => container.querySelector('[data-section-index="3"]');
+    const pill = slot().querySelector('button');
+    expect(pill.getAttribute('aria-label')).toContain('show it here');
+
+    fireEvent.click(pill);
+
+    // It is the section now, with its words — not a pill, and not a jump.
+    expect(slot().textContent).toContain('Praise the');
+    // The first chorus is untouched: opening the third chorus must never open
+    // the second, which is why the state is a set of play-order SLOTS.
+    expect(container.querySelector('[data-section-index="1"]')).toBeTruthy();
+  });
+
+  it('the ribbon chip opens the tag too, instead of walking you backwards', () => {
+    mockWidth(true);
+    const { container } = render(
+      <Reader song={song()} settings={{ duplicateSections: 'condensed' }} onExit={() => {}} />,
+    );
+    // The ribbon collapses nothing here — V1 C V2 C are four distinct runs.
+    const chips = container.querySelectorAll('.reader-head [data-section-index], .reader-head button');
+    const chip = [...chips].filter(b => b.textContent.trim() === 'C')[1];
+    expect(chip).toBeTruthy();
+    fireEvent.click(chip);
+    expect(container.querySelector('[data-section-index="3"]').textContent).toContain('Praise the');
+  });
+
+  it('a HIDDEN repeat still goes to the first play — there is nothing to open', () => {
+    mockWidth(true);
+    const { container } = render(
+      <Reader song={song()} settings={{ duplicateSections: 'hide' }} onExit={() => {}} />,
+    );
+    const chip = [...container.querySelectorAll('.reader-head button')]
+      .filter(b => b.textContent.trim() === 'C')[1];
+    fireEvent.click(chip);
+    // Hidden draws nothing at all, so opening it in place would open an empty
+    // box. The slot stays empty and the jump goes to the one place those words
+    // are on the page (owner, Q2).
+    expect(container.querySelector('[data-section-index="3"]').textContent).toBe('');
+  });
+});

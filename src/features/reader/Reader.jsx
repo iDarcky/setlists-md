@@ -405,6 +405,57 @@ export default function Reader({
     sc.scrollTo({ top: Math.max(0, top - headH - 8), behavior: 'smooth' });
   }, [headH]);
 
+  // ── A repeat you asked to see ────────────────────────────────────────────
+  // Owner, 2026-08-05, option B: **tapping a Tag opens it in place.**
+  //
+  // The rejected option was "send them to the first full play", which is what
+  // the ribbon did: you tap chip six and land at chip two, and the highlight
+  // walks backwards with you. On stage that reads as the app losing your place.
+  // Opening it where it stands answers the actual question — "what are the
+  // words here" — without moving anyone.
+  //
+  // A set of PLAY-ORDER SLOTS, not sections: opening the third chorus must not
+  // open the second. It is a fact about this reading of this song, so it is
+  // dropped when the song changes.
+  const [openRepeats, setOpenRepeats] = useState(() => new Set());
+  // Dropped on the way IN to a new song, adjusted during render rather than in
+  // an effect — the documented pattern for "reset state when a prop changes",
+  // and the one `BarField` above already uses. In an effect it is a cascading
+  // render, and for one frame the new song would inherit the old song's opened
+  // slots.
+  const [openFor, setOpenFor] = useState(songId);
+  if (openFor !== songId) {
+    setOpenFor(songId);
+    setOpenRepeats(new Set());
+  }
+  // The jump has to wait for the section to exist at its new height — expanding
+  // a tag into a full section moves everything below it, so a jump measured in
+  // the same tick lands at the pre-expansion offset.
+  const pendingJumpRef = useRef(null);
+  const openRepeat = useCallback((idx, thenJump = false) => {
+    if (thenJump) pendingJumpRef.current = idx;
+    setOpenRepeats(prev => (prev.has(idx) ? prev : new Set(prev).add(idx)));
+  }, []);
+  useEffect(() => {
+    const idx = pendingJumpRef.current;
+    if (idx == null) return;
+    pendingJumpRef.current = null;
+    jumpTo(idx);
+  }, [openRepeats, jumpTo]);
+
+  // What a ribbon chip does. Everything that is not a repeat — and every repeat
+  // already drawn in full — is a plain jump.
+  const jumpToSlot = useCallback((idx) => {
+    const first = repeats[idx];
+    const isRepeat = first != null && first >= 0 && !openRepeats.has(idx);
+    // Hidden draws nothing at all, so there is nowhere to open: the only
+    // honest destination is the one place those words are on the page (owner,
+    // Q2, 2026-08-05).
+    if (isRepeat && config.repeats === 'hide') { jumpTo(first); return; }
+    if (isRepeat && config.repeats === 'condensed') { openRepeat(idx, true); return; }
+    jumpTo(idx);
+  }, [repeats, openRepeats, config.repeats, jumpTo, openRepeat]);
+
   // ── Edit mode's operations ───────────────────────────────────────────────
   // Every edit pushes the state BEFORE it onto the session's history, which is
   // what Undo pops (owner, 2026-08-03: "we also need like undo buttons for when
@@ -680,7 +731,7 @@ export default function Reader({
       // No jumping while editing (owner, 2026-08-04). A chip is a drag handle
       // now, and a gesture that both moves the section AND throws the page
       // somewhere else is a gesture nobody can aim.
-      onSelect={editing ? null : jumpTo}
+      onSelect={editing ? null : jumpToSlot}
       // Editing forces 'codes' as well as forcing the map on: a chip has to be
       // a DRAG HANDLE now, and 'dots' is a 10px circle while 'numbered' is bare
       // text with no box — nothing there to grab, and nothing to paint a drop
@@ -1040,7 +1091,9 @@ export default function Reader({
               transpose={transpose}
               modOffset={offsets[idx]}
               repeatOf={repeats[idx]}
-              onJumpToFirst={() => jumpTo(repeats[idx])}
+              // The tag opens where it stands (owner, option B, 2026-08-05).
+              onOpenHere={() => openRepeat(idx)}
+              expanded={openRepeats.has(idx)}
               tabColors={tabColors}
               stickyTop={headH}
               onChordTap={editing

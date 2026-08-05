@@ -197,7 +197,11 @@ function clampChords(chords, plainText) {
 
 export default function ReaderSection({
   section, index, config, songKey, settings, transpose, modOffset,
-  repeatOf = -1, onJumpToFirst, tabColors, stickyTop = 0, onChordTap = null,
+  repeatOf = -1, onOpenHere, tabColors, stickyTop = 0, onChordTap = null,
+  // Element 3, 2026-08-05: a Tag you have tapped is OPEN, right where it is.
+  // The Reader owns the set of opened slots — it is a fact about this reading
+  // of this song, not about the song.
+  expanded = false,
   // Resolved by the Reader: the host's tab choice beats the global setting.
   showChords, showLyrics,
   // Edit mode. Only REMOVE lives here now: the owner retired ↑/↓ once the song
@@ -222,11 +226,11 @@ export default function ReaderSection({
   const cue = rawCue.length > CUE_MAX ? `${rawCue.slice(0, CUE_MAX).trimEnd()}…` : rawCue;
   // One repeat treatment, one name. 'ref' and 'condensed' had converged on
   // the same pill, so 'ref' is gone from the knob entirely.
-  const condensed = repeatOf >= 0 && config.repeats === 'condensed';
+  const condensed = repeatOf >= 0 && config.repeats === 'condensed' && !expanded;
   // 'hide' — the repeat isn't drawn at all. The div stays so the ribbon's
   // scroll-spy still has something to point at (it keeps the chip); it just
   // has no height of its own.
-  const hidden = repeatOf >= 0 && config.repeats === 'hide';
+  const hidden = repeatOf >= 0 && config.repeats === 'hide' && !expanded;
 
   const frame = {
     bar: { borderLeft: `${heavy ? 5 : 3}px solid ${colour}`, paddingLeft: '0.75rem' },
@@ -301,8 +305,14 @@ export default function ReaderSection({
   // than reinvented: the reader used to hand `condensed` down to SectionBlock,
   // which drew a full-width bordered box that outweighed the sections it was
   // standing in for. The pill says "this again" without taking a section's worth
-  // of space to say it. Still tappable — element 3's decision is that a repeat
-  // jumps you to the first one.
+  // of space to say it.
+  //
+  // Tapping it OPENS IT HERE (owner, 2026-08-05, option B). It used to throw
+  // you back to the first time the section was played, which reads on stage as
+  // the app losing your place: you tap chip six and land at chip two, and the
+  // ribbon's highlight follows you backwards. You asked to see the chorus where
+  // you are singing it, so you get it where you are singing it — the page does
+  // not move, and every other repeat stays a tag.
   if (hidden && !editing) {
     return <div id={`section-${index}`} data-section-index={index} aria-hidden="true" />;
   }
@@ -314,8 +324,8 @@ export default function ReaderSection({
       <div id={`section-${index}`} data-section-index={index} style={outer}>
         <button
           type="button"
-          onClick={editing ? undefined : onJumpToFirst}
-          aria-label={`${id.name} — same as before, go to the first one`}
+          onClick={editing ? undefined : onOpenHere}
+          aria-label={`${id.name} — same as before, show it here`}
           className="min-h-0 inline-flex items-center gap-1.5 bg-transparent cursor-pointer"
           style={{
             fontSize: '0.72em',
@@ -397,9 +407,10 @@ export default function ReaderSection({
         notation={config.display.notation}
         songKey={songKey}
         accidentals={settings?.accidentals}
-        // `condensed` is handled by the repeat pill above; never reaches here.
+        // `condensed` is handled by the repeat pill above; never reaches here,
+        // which is also why SectionBlock's own jump-to-first is dead weight in
+        // the reader — the pill opens the repeat in place instead.
         condensed={false}
-        onJumpToFirst={onJumpToFirst}
         showChords={showChords ?? config.display.showChords}
         showLyrics={showLyrics ?? true}
         showTabs
