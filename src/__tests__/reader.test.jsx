@@ -653,6 +653,26 @@ describe('the reader scrolls once', () => {
     }
     expect(capped).toEqual([]);
   });
+
+  // The second double scroll, measured in Chromium at 1280×900 (2026-08-05):
+  // menu closed, the column was 74 + 777 + 49 = 900 in a 900px scroller and
+  // nothing scrolled. Menu open, the panel claimed `viewH - headH` = 826 and
+  // the column became 949 — the reader scrolled by 49px, which is EXACTLY the
+  // nav bar. The bottom block is `sticky bottom-0`, and sticky is still in
+  // flow, so it takes real height under the row the panel sits in.
+  //
+  // jsdom has no layout, so this reads the arithmetic at the source. That is
+  // the point: a render test cannot see a height nobody computes.
+  it('sizes the desktop ☰ panel with the bottom bar taken off', async () => {
+    const src = await import('node:fs').then(fs =>
+      fs.readFileSync('src/features/reader/Reader.jsx', 'utf8'));
+    expect(src).toContain('height: viewH ? Math.max(0, viewH - headH - footH) : undefined');
+    // …and `footH` has to be MEASURED off the block, not guessed: the row is
+    // taller with the practice tools open, and taller again with a bottom
+    // ribbon.
+    expect(src).toContain('ref={footRef}');
+    expect(src).toContain('setFootH');
+  });
 });
 
 describe('the ☰ on a phone — element 28', () => {

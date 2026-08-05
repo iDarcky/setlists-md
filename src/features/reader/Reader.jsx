@@ -174,6 +174,18 @@ export default function Reader({
   // panel (owner, 2026-08-04: *"We have a double scroll problem now"*). The
   // honest number is the scroller's own client height.
   const [viewH, setViewH] = useState(0);
+  // …MINUS the bottom block. Measured, for the same reason `headH` is.
+  //
+  // The scroller is a flex COLUMN of three children: the header, the row that
+  // holds the chart (and the ☰ panel), and the sticky bottom block — nav bar,
+  // practice row, bottom ribbon. `sticky bottom-0` is still IN FLOW, so that
+  // block takes real height in the column. A panel sized `viewH - headH`
+  // therefore makes the column `headH + (viewH - headH) + footH` tall and the
+  // reader overflows by exactly the height of the nav bar. Measured in
+  // Chromium at 1280×900: 74 + 826 + 49 = 949 against a 900px scroller — 49px
+  // of chart scroll that only exists while the ☰ is open, on top of the
+  // panel's own scroll. That is the second scrollbar.
+  const [footH, setFootH] = useState(0);
   // The ☰ menu, anchored to its button. Standalone this opens `ReaderMenu` —
   // the reader's own four-row menu. EMBEDDED (the Song Hub, the side peek) the
   // host owns the Aa button and passes a rect down, and that still opens
@@ -250,6 +262,25 @@ export default function Reader({
     });
     ro.observe(el);
     return () => ro.disconnect();
+  }, []);
+
+  // The bottom block's height. A CALLBACK ref, not `useRef` + an effect: the
+  // block is conditional (no nav bar in the hub, none on a single song) and it
+  // grows when the practice row opens, so the observer has to follow the node
+  // in and out of the tree rather than being bound once on mount. React 19
+  // runs the returned cleanup when the node detaches.
+  const footRef = useCallback((el) => {
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(entries => {
+      // BORDER box — the block carries a top border and the safe-area inset,
+      // and both are height the chart doesn't get. Raw, never rounded: see the
+      // note on `headH`.
+      const box = entries[0]?.borderBoxSize?.[0]?.blockSize;
+      const h = box ?? el.getBoundingClientRect().height ?? 0;
+      setFootH(prev => (Math.abs(prev - h) <= 0.5 ? prev : h));
+    });
+    ro.observe(el);
+    return () => { ro.disconnect(); setFootH(0); };
   }, []);
 
   const config = useMemo(
@@ -921,8 +952,12 @@ export default function Reader({
               width: 'min(320px, 30vw)',
               position: 'sticky',
               top: headH || 0,
-              // Measured, not `100vh` — see `viewH`.
-              height: viewH ? viewH - headH : undefined,
+              // Measured, not `100vh` — see `viewH`. And the bottom block comes
+              // off it too (`footH`): it is in flow below this row, so a panel
+              // that claims everything under the header pushes the column past
+              // the scroller by exactly the nav bar's height. That was the
+              // second scrollbar.
+              height: viewH ? Math.max(0, viewH - headH - footH) : undefined,
               animation: 'reader-side-in 200ms cubic-bezier(0.32, 0.72, 0, 1)',
             }}
           >
@@ -1044,6 +1079,7 @@ export default function Reader({
           want the same 0px. */}
       {(bottomRibbon || footer || (showChrome && practiceOpen) || editing) && (
         <div
+          ref={footRef}
           className="sticky bottom-0 z-20 shrink-0 border-t"
           style={{
             ...rule,

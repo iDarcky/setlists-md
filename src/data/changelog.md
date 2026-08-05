@@ -152,6 +152,7 @@ A running log of what's new in setlists.md. Newest releases first.
 
 ### Fixed
 - **The reader scrolled twice (Labs)** — the song was being laid out inside a box locked to the height of one screen, so the page and the song disagreed about how long the song was. It affected phones as well as desktops.
+- **The ☰ panel was taller than the space it had (Labs)** — on a desktop the settings panel claimed everything under the top bar and ignored the bar at the bottom of the screen, so opening it added a second scroll to the song exactly as tall as that bar. Two scrollbars for one panel; now the panel stops where the bar starts.
 - **Reset appeared when there was nothing to reset (Labs)** — choosing the option a setting was already on counted as a change, so a Reset showed up that would have done nothing.
 - **Resetting "Show" could take the chords away (Labs)** — putting it back to default handed the decision to an older setting left behind by the previous player screens, which could be set to "no chords". Changing or resetting Show now retires that old setting for good.
 - **The reading-direction setting was invisible (Labs)** — it only appeared if you'd manually pressed "2 columns", even though two columns is the default on a wide screen.
