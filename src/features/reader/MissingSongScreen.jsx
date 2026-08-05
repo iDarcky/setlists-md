@@ -95,7 +95,7 @@ export default function MissingSongScreen({
       {/* Element 28's docked ☰ — the same 70/30 split the reader has, so the
           menu does not change shape on a break. */}
       {menuDock && (
-        <div className="shrink-0 min-h-0" style={{ flex: '0 0 30%' }}>{menuDock}</div>
+        <div className="shrink-0 min-h-0" style={{ flex: '0 0 40%' }}>{menuDock}</div>
       )}
     </div>
   );

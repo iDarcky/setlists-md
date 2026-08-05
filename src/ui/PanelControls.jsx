@@ -74,15 +74,21 @@ export function FontList({ activeId, onPick }) {
   );
 }
 
-export function Swatches({ activeValue, onPick, size = 'md' }) {
+/**
+ * `wrap={false}` puts the palette on ONE scrolling line instead of letting it
+ * reflow into three rows. In the reader's ☰ a wrapping palette was the tallest
+ * thing on the Style tab (owner, 2026-08-04: *"we need a way to make colors not
+ * take that much place"*).
+ */
+export function Swatches({ activeValue, onPick, size = 'md', wrap = true }) {
   return (
-    <div className={`flex flex-wrap ${size === 'lg' ? 'gap-2.5' : 'gap-2'}`}>
+    <div className={`flex ${wrap ? 'flex-wrap' : 'flex-nowrap overflow-x-auto no-scrollbar py-1 -my-1'} ${size === 'lg' ? 'gap-2.5' : 'gap-2'}`}>
       {CHART_COLOR_PALETTE.map(c => {
         const on = (c.value || null) === (activeValue || null);
         const isTheme = c.value === null;
         return (
           <button key={c.id} type="button" onClick={() => onPick(c.value)} title={c.name} aria-label={c.name}
-            className={`${size === 'lg' ? 'w-10 h-10' : 'w-8 h-8'} min-h-0 rounded-full cursor-pointer`}
+            className={`shrink-0 ${size === 'lg' ? 'w-10 h-10' : 'w-8 h-8'} min-h-0 rounded-full cursor-pointer`}
             style={{
               background: isTheme
                 ? 'linear-gradient(135deg, var(--chart-text, #888) 50%, var(--chord, #e0b341) 50%)'

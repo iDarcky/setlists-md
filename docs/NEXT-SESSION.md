@@ -3,10 +3,10 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.66` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.67` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
-> can compare against `beta`. 884 tests, 0 lint errors (8 pre-existing
+> can compare against `beta`. 888 tests, 0 lint errors (8 pre-existing
 > warnings)._
 
 ---
@@ -100,7 +100,7 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.66) — element 28, rounds 1–6
+## Just shipped (beta.67) — element 28, rounds 1–7
 
 | What | Where |
 |---|---|
@@ -114,6 +114,9 @@ The facts to check before designing anything:
 | **Field labels** Geist Mono 10px ALL CAPS → sans 12px/600 sentence case · **theme ring** was two rings, now one · **reader theme** (`chartOverlaySurface`) · **Columns gated at 768** | `ReaderMenu.jsx`, `readerSurface.js` |
 
 | **Everything is at the reader's size** — `PanelControls` takes `size`: `md` (the hub's Aa, unchanged) and `lg` (the ☰). The mockup's `Seg`/`MiniStepper` are deleted, so there is ONE pill style in the menu now | `PanelControls.jsx`, `ReaderMenu.jsx` |
+| **BUG: the lyric colour was the chart's INK.** It wrote `--chart-text`, which paints the top bar, the headings and every control via `chartSurface`. Split into `--chart-lyric` | `useChartTheme.js`, `SectionBlock.jsx`, `readerSurface.js` |
+| **BUG: the lyric font never applied in the Reader.** `ChartView` set it on its own wrapper; the Reader has no wrapper. It is on the lyric span now, where the chord font already was | `SectionBlock.jsx` |
+| **Dock 30%→40%** · **tab strip smaller** · **the dock has its own ✕ beside the tabs** · fonts are a `Select` · colours are one scrolling line · tab colours use the app palette instead of the OS picker · **a red ghost Reset per group** (clears to `undefined`, appears only when there is an override) | `ReaderMenu.jsx`, `Reader.jsx`, `PanelControls.jsx` |
 
 **Next in element 28: the Layout tab, then Music** — the owner is doing Layout
 "in the morning". Layout is nine controls in a flat column: it now has the right

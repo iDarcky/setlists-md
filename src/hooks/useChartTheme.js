@@ -50,9 +50,19 @@ export function useChartTheme(settings) {
     // the preset. Custom themes carry their bg/text/chord on the record
     // itself, which the user edits via Chart Style → Customise.
     const bg = theme.bg;
-    // Per-element colour overrides from the Aa menu (fixed palette). When set
-    // they win over the theme's text/chord; cleared (falsy) → follow the theme.
-    const text = settings?.chartLyricColor || theme.text;
+    // Per-element colour overrides from the display menus (fixed palette). When
+    // set they win over the theme's; cleared (falsy) → follow the theme.
+    //
+    // ⚠ `chartLyricColor` writes `--chart-lyric`, NOT `--chart-text`. It used to
+    // write `--chart-text`, which is the chart's INK — the top bar's title, the
+    // section headings, and (through `chartSurface`) `--text-1`,
+    // `--ds-gray-1000` and every control in the reader's chrome. So picking a
+    // lyric colour repainted the entire reader UI (owner, 2026-08-04: "lyrics
+    // color selections is changing the reader ui, not only the songs lyrics, it
+    // should be separate"). `--chart-text` is the theme's, always; only the
+    // lyrics themselves follow the picker.
+    const text = theme.text;
+    const lyric = settings?.chartLyricColor || theme.text;
     const chord = settings?.chartChordColor || theme.chord;
     const subtle = theme.subtle;
 
@@ -64,6 +74,7 @@ export function useChartTheme(settings) {
     const root = document.documentElement;
     root.style.setProperty('--chart-bg', bg);
     root.style.setProperty('--chart-text', text);
+    root.style.setProperty('--chart-lyric', lyric);
     root.style.setProperty('--chart-subtle', subtle);
     root.style.setProperty('--chord', chord);
     // Make the sticky stage header match the chart theme rather than the app

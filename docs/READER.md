@@ -1198,6 +1198,62 @@ built on `Pick` now; the mockup's `Seg` and `MiniStepper` are **deleted**.
 > changed — but if the Layout pass finds it cramped, the dial is the dock's
 > `flex: 0 0 30%` in `Reader.jsx`, and 40% is the obvious next stop.
 
+#### Element 28, round 7 — two colour bugs, and the Style tab's shape, 2026-08-04
+
+##### The two bugs, both in the per-element colours and fonts
+
+**1. The lyric colour was the chart's INK.** Owner: *"lyrics color selections is
+changing the reader ui, not only the songs lyrics, it should be separate."*
+Exactly right. `useChartTheme` did `const text = settings?.chartLyricColor ||
+theme.text` and wrote it to **`--chart-text`** — which is not "the lyric
+colour", it is the chart's foreground: the top bar's title, the section
+headings, and through `chartSurface` `--text-1`, `--ds-gray-1000` and every
+control in the reader's chrome and its ☰.
+
+Fixed by splitting the token. **`--chart-text` is the theme's, always**;
+**`--chart-lyric`** is the picker's, defaulting to the theme's text, and only
+the lyric spans read it. `hubSurface` re-points it too — a new wire into the hub
+is a new wire to cut.
+
+**2. The lyric font never applied in the Reader.** Owner: *"Fonts are not
+working right now or at least for the lyrics, for the chords it looks like it
+works."* Also exactly right, and the asymmetry is the clue. `SectionBlock` sets
+the chord font **on the chord span**, so chords work on every surface. The lyric
+font was set on `ChartView`'s own wrapper (`CHART_THEME_STYLE`) — and the Reader
+has no such wrapper, so lyrics inherited the app sans and the picker wrote a
+setting nobody read. It is on the lyric spans now, where the chord one already
+was.
+
+> Both are guarded by tests that read the source, because both are "a value that
+> is never consumed" — the kind of bug a render test cannot see.
+
+##### The Style tab's shape
+
+- **The dock is 40%**, up from 30% — round 6 made every control bigger and 30%
+  then held about 2½ rows.
+- **The tab strip is smaller** (44→36px, 15→13.5px). Owner: *"make the tab
+  buttons smaller, they don't need to be that big."* They are pressed once to
+  get somewhere, not adjusted, and their height was coming out of the settings.
+- **The dock carries its own ✕**, beside the tabs. Owner: *"do we need like an x
+  to close the dock… rather than the top one?"* — yes: the dock is at the bottom
+  and the ☰ that opened it is at the top, a phone's height from the thumb using
+  the panel. The ☰ still toggles; this is the near one. (Note this is NOT the
+  round-4 ✕ that was rejected — that one replaced the ☰ in the top bar, opposite
+  Exit. This one is inside the panel it closes.)
+- **Fonts are a `Select`**, not pills — one row per two fonts was the widest
+  block on the tab.
+- **Colours are one scrolling line** (`Swatches wrap={false}`) — wrapping, the
+  palette was the tallest thing on the tab.
+- **Tab colours use the app's palette.** They were `<input type="color">`, which
+  opens the OS picker: a different set of colours, a different gesture, and on
+  iOS a full-screen sheet over the chart being adjusted.
+- **A red ghost Reset per group** — Theme · Lyrics · Chords · Spacing · Tabs.
+  Per group rather than per tab, so undoing a font does not throw away a size.
+  It clears the keys to **`undefined`** rather than writing a default, because
+  every one of them reads `settings?.x ?? default` at the point of use — there
+  is only ever one copy of what the default is. It only appears when the group
+  holds an override, so the button always does something.
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the

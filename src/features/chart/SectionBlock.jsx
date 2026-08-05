@@ -207,7 +207,15 @@ export default function SectionBlock({
           <div
             className={notePlacement === 'leader' ? 'min-h-[1.3em] flex items-baseline opacity-90' : 'min-h-[1.3em] whitespace-pre-wrap opacity-90'}
             style={{
-              color: 'var(--chart-text, var(--text-1))',
+              // `--chart-lyric`, not `--chart-text`: the ink token paints the
+              // reader's chrome too. See `useChartTheme`.
+              color: 'var(--chart-lyric, var(--chart-text, var(--text-1)))',
+              // The FONT has to be here, not on an ancestor. `ChartView` put it
+              // on its own wrapper (`CHART_THEME_STYLE`), so the lyric font
+              // worked there and silently did nothing in the Reader, which has
+              // no such wrapper — the picker wrote a setting nobody read. Chords
+              // always worked because their font is set on the chord span below.
+              fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
               lineHeight: 'var(--chart-line-height-lyric, 1.35)',
             }}
           >
@@ -338,7 +346,8 @@ export default function SectionBlock({
                         <span
                           className="whitespace-pre"
                           style={{
-                            color: 'var(--chart-text, var(--text-1))',
+                            color: 'var(--chart-lyric, var(--chart-text, var(--text-1)))',
+                            fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
                             lineHeight: 'var(--chart-line-height-lyric, 1.25)',
                           }}
                         >

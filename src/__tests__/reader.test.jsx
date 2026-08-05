@@ -367,6 +367,27 @@ describe('the ☰ menu', () => {
     expect(screen.getByRole('button', { name: 'Increase lyric size' }).className).toContain('h-11');
   });
 
+  it('offers a Reset per group, and only where there is something to reset', () => {
+    const { unmount } = renderReader();
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    // Pristine: no clutter, and no button that would do nothing.
+    expect(screen.queryAllByRole('button', { name: 'Reset' }).length).toBe(0);
+    unmount();
+
+    const onUpdateSettings = vi.fn();
+    render(<Reader song={makeSong()} onExit={() => {}}
+      settings={{ chartLyricFont: 'serif', sectionSpacing: 40 }} onUpdateSettings={onUpdateSettings} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    // One for Lyrics, one for Spacing — not one for the whole tab: undoing a
+    // font should not throw away a size you spent a minute getting right.
+    const resets = screen.getAllByRole('button', { name: 'Reset' });
+    expect(resets.length).toBe(2);
+    fireEvent.click(resets[0]);
+    // Cleared, not set to a copy of the default — the default lives at the
+    // point of use, in one place.
+    expect(onUpdateSettings).toHaveBeenCalledWith('chartLyricFont', undefined);
+  });
+
   it('gives the themes arrows, so it reads as scrollable', () => {
     renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
@@ -401,6 +422,40 @@ describe('the ☰ menu', () => {
 // What a free plan can and cannot reach in the ☰. The split, agreed 2026-08-04:
 // anything that makes the chart READABLE is free — it is an accessibility
 // floor, not a feature to sell — and taste is Pro.
+// The two bugs the owner found in beta.66, both in the same place: the chart's
+// per-element colours and fonts.
+describe('the lyric colour and font belong to the LYRICS', () => {
+  it('paints the lyrics from --chart-lyric, never the ink token', async () => {
+    const { default: SectionBlock } = await import('@/features/chart/SectionBlock');
+    const src = await import('node:fs').then(fs =>
+      fs.readFileSync('src/features/chart/SectionBlock.jsx', 'utf8'));
+    expect(SectionBlock).toBeTruthy();
+    // `--chart-text` is the chart's INK — the top bar's title, the section
+    // headings, and through `chartSurface` every control in the reader's
+    // chrome. Writing the lyric colour into it repainted the whole reader UI.
+    expect(src).toContain('var(--chart-lyric, var(--chart-text, var(--text-1)))');
+    // And the lyric FONT has to be set on the lyric itself. `ChartView` put it
+    // on its own wrapper, so it worked there and did nothing in the Reader,
+    // which has no such wrapper.
+    expect(src).toContain("fontFamily: 'var(--chart-font-lyric, var(--font-sans))'");
+  });
+
+  it('keeps the chart ink separate from the lyric colour at the source', async () => {
+    const src = await import('node:fs').then(fs =>
+      fs.readFileSync('src/hooks/useChartTheme.js', 'utf8'));
+    // The regression to guard: `const text = settings?.chartLyricColor || …`.
+    expect(src).toContain('const text = theme.text;');
+    expect(src).toContain("root.style.setProperty('--chart-lyric', lyric)");
+  });
+
+  it('does not let the lyric colour reach the hub', async () => {
+    const { hubSurface } = await import('@/features/reader/readerSurface');
+    // The hub is the Reader with the settings wire cut; --chart-lyric is a new
+    // wire and needed cutting too.
+    expect(hubSurface['--chart-lyric']).toBe('var(--ds-gray-1000)');
+  });
+});
+
 describe('the ☰ — free and Pro', () => {
   // The suite's global mock says "allowed" to everything; this one says no.
   const asFree = () => {
@@ -455,13 +510,13 @@ describe('the ☰ on a phone — element 28', () => {
     return { panel: screen.getByRole('dialog', { name: 'Reader menu' }) };
   };
 
-  it('DOCKS under the reader — a real 70/30 split, not an overlay', () => {
+  it('DOCKS under the reader — a real split, not an overlay', () => {
     const { panel } = openPanel();
     // Not portaled: it is a sibling of the reader's scroller inside the
     // reader's own flex column, which is what makes the 30% real. An overlay
     // would leave the chart full height and hidden underneath it.
     expect(panel.parentElement).not.toBe(document.body);
-    expect(panel.parentElement.style.flex).toBe('0 0 30%');
+    expect(panel.parentElement.style.flex).toBe('0 0 40%');
     // ...and the box it sits in is a sibling of the reader's scroller, which is
     // what makes the 70% real rather than an overlay pretending.
     expect(panel.parentElement.previousElementSibling.className).toContain('overflow-y-auto');
@@ -494,7 +549,7 @@ describe('the ☰ on a phone — element 28', () => {
     expect(body.className).toContain('overflow-y-auto');
   });
 
-  it('has no drag and no scrim — the ☰ became the ✕ instead', () => {
+  it('has no drag and no scrim', () => {
     const { panel } = openPanel();
     // No scrim: the chart above stays live, so element 11's chord taps still
     // work while you are changing the type size.
@@ -502,13 +557,16 @@ describe('the ☰ on a phone — element 28', () => {
     // No handle: a dock has one size, so there is no gesture to learn and
     // nothing that can feel blocked.
     expect(panel.querySelector('[style*="touch-action"]')).toBeNull();
-    // The button that opened it now says it closes it.
-    expect(screen.getByRole('button', { name: 'Close display options' })).toBeTruthy();
   });
 
-  it('closes from the ✕ the ☰ turned into', () => {
-    openPanel();
-    fireEvent.click(screen.getByRole('button', { name: 'Close display options' }));
+  it('carries its OWN close, beside the tabs', () => {
+    const { panel } = openPanel();
+    // The ☰ that opened it is at the top of the screen and the dock is at the
+    // bottom — a phone's height away from the thumb using the panel. Both work;
+    // this is the near one.
+    const closers = screen.getAllByRole('button', { name: 'Close display options' });
+    expect(closers.some(b => panel.contains(b))).toBe(true);
+    fireEvent.click(closers.find(b => panel.contains(b)));
     expect(screen.queryByRole('dialog', { name: 'Reader menu' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Display options' })).toBeTruthy();
   });

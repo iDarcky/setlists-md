@@ -118,6 +118,10 @@ export const hubSurface = {
   color: 'var(--ds-gray-1000)',
   '--chart-bg': 'var(--ds-background-100)',
   '--chart-text': 'var(--ds-gray-1000)',
+  // `--chart-lyric` too, or the lyric-colour picker would reach into the hub —
+  // the one surface whose whole point is that the reader's settings do not
+  // touch it (`resolveReaderConfig`'s HUB_VIEW).
+  '--chart-lyric': 'var(--ds-gray-1000)',
   '--chart-subtle': 'var(--ds-gray-700)',
   '--chart-rule': 'var(--ds-gray-300)',
 };

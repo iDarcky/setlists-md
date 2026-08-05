@@ -10,6 +10,7 @@ import { chartOverlaySurface } from './readerSurface';
 // looked at both on a device and picked these; one set of controls for both
 // panels is the better end state anyway.
 import { Stepper, Pick, Swatches } from '@/ui/PanelControls';
+import { Select, SelectTrigger, SelectContent, SelectItem } from '@/ui/Select';
 import {
   CHART_THEMES,
   CHART_FONTS,
@@ -161,13 +162,69 @@ function ProNote({ children }) {
   return <p className="m-0 text-[13px] text-[var(--ds-gray-600)]">{children}</p>;
 }
 
-/** The heading over a group of fields — Lyrics · Chords · Spacing · Tabs. */
-function GroupTitle({ children }) {
+/**
+ * The heading over a group of fields — Theme · Lyrics · Chords · Spacing · Tabs.
+ *
+ * `onReset` puts a red ghost **Reset** at the end of the rule (owner,
+ * 2026-08-04: *"each section requires a red ghost button that revert to
+ * default"*). Per GROUP rather than one for the whole tab: undoing a font you
+ * disliked should not also throw away the size you spent a minute getting
+ * right. It only appears when the group actually holds an override, so a
+ * pristine panel carries no clutter and the button always does something.
+ */
+function GroupTitle({ children, onReset }) {
   return (
     <div className="px-4 pt-4 pb-0.5 first:pt-1">
-      <div className="text-[15px] font-semibold text-[var(--text-1)]">{children}</div>
+      <div className="flex items-baseline gap-2">
+        <div className="text-[15px] font-semibold text-[var(--text-1)]">{children}</div>
+        {onReset && (
+          <button type="button" onClick={onReset}
+            className="ml-auto min-h-0 text-[12.5px] font-medium cursor-pointer bg-transparent border-none p-0"
+            style={{ color: 'var(--ds-red-900)' }}>
+            Reset
+          </button>
+        )}
+      </div>
       <div className="mt-2 h-px" style={{ background: 'var(--border-1)' }} />
     </div>
+  );
+}
+
+/**
+ * A font picker as a DROPDOWN (owner, 2026-08-04: *"Font should be a
+ * drop-down"*). As pills it was one row per two fonts and the widest block on
+ * the tab; the names are long and there is no reason to see all of them at once.
+ */
+function FontSelect({ value, onChange, label }) {
+  const active = CHART_FONTS.find(f => f.id === value);
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger aria-label={label} className="!h-11 !min-h-0 w-full !rounded-lg">
+        <span className="truncate" style={{ fontFamily: active?.stack }}>{active?.name || 'Font'}</span>
+      </SelectTrigger>
+      <SelectContent>
+        {CHART_FONTS.map(f => (
+          <SelectItem key={f.id} value={f.id}>
+            <span style={{ fontFamily: f.stack }}>{f.name}</span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/**
+ * The palette on one scrolling line. The tab colours used a native
+ * `<input type="color">`, which opens the OS picker instead of the palette the
+ * rest of the panel uses (owner: *"Tab colors don't open the color selection
+ * that we already have"*) — a different set of colours, a different gesture,
+ * and on iOS a full-screen sheet over the chart you were adjusting.
+ */
+function ColorRow({ label, value, onPick }) {
+  return (
+    <Field label={label}>
+      <Swatches size="lg" wrap={false} activeValue={value} onPick={onPick} />
+    </Field>
   );
 }
 
@@ -186,19 +243,6 @@ function Picks({ value, options, onChange }) {
     <div className="flex gap-2 flex-wrap">
       {options.map(([v, l]) => (
         <Pick key={String(v)} size="lg" active={value === v} onClick={() => onChange(v)}>{l}</Pick>
-      ))}
-    </div>
-  );
-}
-
-/** Fonts as pills. The bordered list was 44px per font and a page on its own. */
-function FontPills({ activeId, onPick }) {
-  return (
-    <div className="flex gap-2 flex-wrap">
-      {CHART_FONTS.map(f => (
-        <Pick key={f.id} size="lg" active={activeId === f.id} onClick={() => onPick(f.id)}>
-          <span style={{ fontFamily: f.stack }}>{f.name}</span>
-        </Pick>
       ))}
     </div>
   );
@@ -512,17 +556,49 @@ export default function ReaderMenu({
   const roleId = settings?.displayRole || 'leader';
   const capo = song?.capo ? Number(song.capo) : 0;
 
+  // ── Reset, per group ──────────────────────────────────────────────────────
+  // `undefined` rather than a hard-coded value: every one of these reads
+  // `settings?.x ?? default` at the point of use, so clearing the key IS the
+  // default and there is only ever one copy of what the default is.
+  //
+  // A group's button is offered only when that group actually holds an
+  // override, so a pristine panel carries no clutter and the button always
+  // does something.
+  const RESET_KEYS = {
+    theme: ['chartTheme'],
+    lyrics: ['defaultFontSize', 'chartLyricFont', 'chartLyricColor'],
+    chords: ['chordFontSize', 'chartChordFont', 'chartChordColor'],
+    spacing: ['lyricLineHeight', 'sectionSpacing'],
+    tabs: ['tabSize', 'tabSubdivision', 'tabStringColor', 'tabNumberColor', 'tabBg'],
+  };
+  const resets = {};
+  for (const [group, keys] of Object.entries(RESET_KEYS)) {
+    resets[group] = keys.some(k => settings?.[k] !== undefined)
+      ? () => keys.forEach(k => set(k, undefined))
+      : null;
+  }
+
   // The tab strip. Three, and no more: nine rows became four, four became
   // three, and each cut came from the same objection — a menu is aimed at, not
   // read. `AaMenu` already ships this exact control, so it is the app's
   // pattern rather than a new one.
+  // The tab strip. Smaller than the controls under it, deliberately (owner,
+  // 2026-08-04: *"make the tab buttons smaller, they don't need to be that
+  // big"*) — they are pressed once to get somewhere, not adjusted, and the
+  // height they were taking came out of the settings themselves.
+  //
+  // The ✕ lives HERE rather than only in the top bar. The dock is at the
+  // bottom of the screen and the ☰ that opened it is at the top, which is the
+  // full height of the phone away from the thumb that is using the panel
+  // (owner: *"do we need like an x to close the dock… rather than the top
+  // one?"*). The ☰ still toggles; this is the near one.
   const head = (
-    <div className="shrink-0 flex gap-1 p-1.5 border-b border-[var(--border-1)]">
+    <div className="shrink-0 flex items-center gap-1 p-1.5 border-b border-[var(--border-1)]">
       {TABS.map(([id, label]) => (
         <button
           key={id} type="button" onClick={() => setTab(id)}
           aria-pressed={tab === id}
-          className={`flex-1 min-h-0 h-11 rounded-lg text-[15px] font-semibold cursor-pointer transition-colors border ${
+          className={`flex-1 min-h-0 h-9 rounded-lg text-[13.5px] font-semibold cursor-pointer transition-colors border ${
             tab === id
               ? 'text-white border-transparent'
               : 'text-[var(--text-2)] border-transparent bg-transparent hover:text-[var(--text-1)] hover:bg-[var(--bg-2)]'}`}
@@ -531,6 +607,15 @@ export default function ReaderMenu({
           {label}
         </button>
       ))}
+      {dock && (
+        <button type="button" onClick={onClose} aria-label="Close display options"
+          className="shrink-0 ml-1 w-9 h-9 min-h-0 grid place-items-center rounded-lg bg-transparent border-none text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--bg-2)] cursor-pointer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+            <line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 
@@ -549,7 +634,8 @@ export default function ReaderMenu({
           the same objection that cut the root menu from nine rows. */}
       {tab === 'style' && (
         <>
-          <Field label="Theme">
+          <GroupTitle onReset={resets.theme}>Theme</GroupTitle>
+          <Field label="Chart theme">
             <ThemeCarousel
               themes={CHART_THEMES}
               activeId={themeId}
@@ -560,50 +646,46 @@ export default function ReaderMenu({
           </Field>
 
           {/* ── Lyrics ───────────────────────────────────────────────────── */}
-          <GroupTitle>Lyrics</GroupTitle>
-          <Field label="Size">
-            <Stepper size="lg" value={lyricSize} min={10} max={40} onChange={onLyricSize} label="lyric size" />
-          </Field>
+          <GroupTitle onReset={resets.lyrics}>Lyrics</GroupTitle>
           <Pair>
+            <Field label="Size">
+              <Stepper size="lg" value={lyricSize} min={10} max={40} onChange={onLyricSize} label="lyric size" />
+            </Field>
             <Field label="Font">
               {styleAllowed
-                ? <FontPills activeId={settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID}
-                    onPick={(id) => set('chartLyricFont', id)} />
+                ? <FontSelect label="Lyric font" value={settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID}
+                    onChange={(id) => set('chartLyricFont', id)} />
                 : <LockedNote onUpgrade={onUpgrade}>Fonts are part of Pro.</LockedNote>}
             </Field>
-            <Field label="Colour">
-              {styleAllowed
-                ? <Swatches size="lg" activeValue={settings?.chartLyricColor}
-                    onPick={(v) => set('chartLyricColor', v || undefined)} />
-                : <LockedNote onUpgrade={onUpgrade}>Colours are part of Pro.</LockedNote>}
-            </Field>
           </Pair>
+          {styleAllowed
+            ? <ColorRow label="Colour" value={settings?.chartLyricColor}
+                onPick={(v) => set('chartLyricColor', v || undefined)} />
+            : <Field label="Colour"><LockedNote onUpgrade={onUpgrade}>Colours are part of Pro.</LockedNote></Field>}
 
           {/* ── Chords ───────────────────────────────────────────────────── */}
-          <GroupTitle>Chords</GroupTitle>
-          <Field label="Size">
-            <Stepper size="lg" value={chordSize} min={8} max={40} onChange={onChordSize} label="chord size" />
-          </Field>
+          <GroupTitle onReset={resets.chords}>Chords</GroupTitle>
           <Pair>
+            <Field label="Size">
+              <Stepper size="lg" value={chordSize} min={8} max={40} onChange={onChordSize} label="chord size" />
+            </Field>
             <Field label="Font">
               {styleAllowed
-                ? <FontPills activeId={settings?.chartChordFont || DEFAULT_CHORD_FONT_ID}
-                    onPick={(id) => set('chartChordFont', id)} />
+                ? <FontSelect label="Chord font" value={settings?.chartChordFont || DEFAULT_CHORD_FONT_ID}
+                    onChange={(id) => set('chartChordFont', id)} />
                 : <LockedNote onUpgrade={onUpgrade}>Fonts are part of Pro.</LockedNote>}
             </Field>
-            <Field label="Colour">
-              {styleAllowed
-                ? <Swatches size="lg" activeValue={settings?.chartChordColor}
-                    onPick={(v) => set('chartChordColor', v || undefined)} />
-                : <LockedNote onUpgrade={onUpgrade}>Colours are part of Pro.</LockedNote>}
-            </Field>
           </Pair>
+          {styleAllowed
+            ? <ColorRow label="Colour" value={settings?.chartChordColor}
+                onPick={(v) => set('chartChordColor', v || undefined)} />
+            : <Field label="Colour"><LockedNote onUpgrade={onUpgrade}>Colours are part of Pro.</LockedNote></Field>}
 
           {/* ── Spacing ──────────────────────────────────────────────────────
               Free, like every size above it. Anything that makes the chart
               READABLE is an accessibility floor, not a feature to sell
               (agreed with the owner, 2026-08-04). */}
-          <GroupTitle>Spacing</GroupTitle>
+          <GroupTitle onReset={resets.spacing}>Spacing</GroupTitle>
           <Pair>
             <Field label="Line spacing">
               <Stepper
@@ -624,7 +706,7 @@ export default function ReaderMenu({
           </Pair>
 
           {/* ── Tabs ─────────────────────────────────────────────────────── */}
-          <GroupTitle>Tabs</GroupTitle>
+          <GroupTitle onReset={resets.tabs}>Tabs</GroupTitle>
           <Pair>
             <Field label="Size">
               <Picks value={settings?.tabSize || 1} options={[[0.85, 'S'], [1, 'M'], [1.25, 'L']]}
@@ -635,24 +717,20 @@ export default function ReaderMenu({
                 onChange={(v) => set('tabSubdivision', v)} />
             </Field>
           </Pair>
-          <Field label="Colours">
-            {styleAllowed ? (
-              <div className="flex items-center gap-2">
-                {[
-                  ['tabStringColor', 'Strings', '#9b9b9b'],
-                  ['tabNumberColor', 'Numbers', '#e0a82e'],
-                  ['tabBg', 'Background', '#101010'],
-                ].map(([key, label, fallback]) => (
-                  <input
-                    key={key} type="color" aria-label={`Tab ${label.toLowerCase()} colour`} title={label}
-                    value={settings?.[key] || fallback}
-                    onChange={(e) => set(key, e.target.value)}
-                    className="w-10 h-10 min-h-0 rounded-lg border border-[var(--border-1)] bg-transparent cursor-pointer p-0"
-                  />
-                ))}
-              </div>
-            ) : <LockedNote onUpgrade={onUpgrade}>Tab colours are part of Pro.</LockedNote>}
-          </Field>
+          {styleAllowed ? (
+            <>
+              <ColorRow label="Tab strings" value={settings?.tabStringColor}
+                onPick={(v) => set('tabStringColor', v || undefined)} />
+              <ColorRow label="Tab numbers" value={settings?.tabNumberColor}
+                onPick={(v) => set('tabNumberColor', v || undefined)} />
+              <ColorRow label="Tab background" value={settings?.tabBg}
+                onPick={(v) => set('tabBg', v || undefined)} />
+            </>
+          ) : (
+            <Field label="Tab colours">
+              <LockedNote onUpgrade={onUpgrade}>Tab colours are part of Pro.</LockedNote>
+            </Field>
+          )}
         </>
       )}
 

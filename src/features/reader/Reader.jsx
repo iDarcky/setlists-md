@@ -1037,10 +1037,12 @@ export default function Reader({
       )}
     </div>
 
-      {/* The dock. `flex: 0 0 30%` — a fixed share of the READER, not of the
-          viewport, so it is the same 30% whatever chrome sits above it. */}
+      {/* The dock. A fixed share of the READER, not of the viewport, so it is
+          the same share whatever chrome sits above it. 40%, up from the 30%
+          round 4 shipped: round 6 made every control bigger and 30% then held
+          about two and a half rows before it had to scroll. */}
       {menuDocks && menuNode && (
-        <div className="shrink-0 min-h-0" style={{ flex: '0 0 30%' }}>{menuNode}</div>
+        <div className="shrink-0 min-h-0" style={{ flex: '0 0 40%' }}>{menuNode}</div>
       )}
     </div>
   );
