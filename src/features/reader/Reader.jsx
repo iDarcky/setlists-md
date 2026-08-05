@@ -695,6 +695,11 @@ export default function Reader({
       // what it looks like.
       collapse={!editing}
       activeFill
+      // The ends fade when there is more song off either side (owner,
+      // 2026-08-05). The reader is the one caller that can promise what colour
+      // the strip sits on — `--chart-bg`, the same token the sticky block and
+      // the bottom block paint themselves with.
+      edgeFade
       sectionColors={resolveSectionColors(settings)}
       sectionLabels={settings?.sectionLabels}
       customSectionTypes={settings?.customSectionTypes}

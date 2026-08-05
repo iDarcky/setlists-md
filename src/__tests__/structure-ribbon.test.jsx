@@ -120,3 +120,66 @@ describe('the song map — drag to reorder', () => {
     expect(chip.parentElement.className).not.toContain('overflow-x-auto');
   });
 });
+
+// ── The ends of a long strip ────────────────────────────────────────────────
+//
+// Owner, 2026-08-05: "Let's do a fade I think." A twelve-section song on a
+// 390px phone shows eleven chips and clips the twelfth flush against the
+// header's `overflow-hidden` — with the scrollbar hidden (`no-scrollbar`) that
+// looks exactly like a song with eleven sections.
+describe('the edges say there is more', () => {
+  const withOverflow = (fn) => {
+    // jsdom reports 0 for both, so nothing ever overflows. Fake the one fact
+    // the component reads.
+    // The descriptors live on Element, not HTMLElement.
+    const saved = ['scrollWidth', 'clientWidth'].map(
+      k => [k, Object.getOwnPropertyDescriptor(Element.prototype, k)]);
+    Object.defineProperty(Element.prototype, 'scrollWidth', { configurable: true, value: 600 });
+    Object.defineProperty(Element.prototype, 'clientWidth', { configurable: true, value: 300 });
+    try { fn(); } finally {
+      for (const [k, d] of saved) {
+        if (d) Object.defineProperty(Element.prototype, k, d);
+        else delete Element.prototype[k];
+      }
+    }
+  };
+  const fades = (container) => container.querySelectorAll('span[aria-hidden="true"][class*="absolute"]');
+
+  it('fades the end you have not reached, and only that one', () => {
+    withOverflow(() => {
+      const { container } = render(
+        <StructureRibbon structure={structure} style="codes" activeIndex={0} activeFill edgeFade onSelect={() => {}} />
+      );
+      const marks = fades(container);
+      // At rest the strip is scrolled to 0: there is more to the RIGHT and
+      // nothing to the left. A fade on an end you have already reached is the
+      // same lie in the other direction.
+      expect(marks).toHaveLength(1);
+      expect(marks[0].className).toContain('right-0');
+      // It fades to the paper the ribbon sits on, and it is a longhand:
+      // jsdom's shorthand parser throws on some gradients inside `cloneNode`,
+      // which Testing Library does for every role query.
+      expect(marks[0].style.backgroundImage).toContain('var(--chart-bg');
+      expect(marks[0].style.background).toBe('');
+    });
+  });
+
+  it('is opt-in — a setlist card would fade to the wrong colour', () => {
+    withOverflow(() => {
+      const { container } = render(
+        <StructureRibbon structure={structure} style="codes" activeIndex={0} onSelect={() => {}} />
+      );
+      expect(fades(container)).toHaveLength(0);
+    });
+  });
+
+  it('never fades the wrapping ribbon — edit mode has no ends to run off', () => {
+    withOverflow(() => {
+      const { container } = render(
+        <StructureRibbon structure={structure} style="codes" activeIndex={0} edgeFade
+          onSelect={null} onReorder={() => {}} />
+      );
+      expect(fades(container)).toHaveLength(0);
+    });
+  });
+});

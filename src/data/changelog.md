@@ -152,6 +152,7 @@ A running log of what's new in setlists.md. Newest releases first.
 
 ### Fixed
 - **The reader scrolled twice (Labs)** — the song was being laid out inside a box locked to the height of one screen, so the page and the song disagreed about how long the song was. It affected phones as well as desktops.
+- **The song structure fades at the ends when there's more of it (Labs)** — a song with more sections than fit showed no sign of it: the strip scrolls, but the scrollbar is hidden and the last chip was cut off flush against the edge, so twelve sections looked exactly like eleven. Each end now fades out while there's more song that way.
 - **The columns setting was telling you the wrong number (Labs)** — on a wide screen the reader lays a chart out in two columns until you say otherwise, but the setting showed "One" and its Reset moved the highlight without moving the chart. It now shows the columns you're actually reading, and the Reset is gone: there was nothing for it to put back.
 - **One name for a repeated section** — "Condensed" and "As a tag" were the same thing. It's **Full · Tag · Hidden** everywhere now.
 - **The ☰ panel was taller than the space it had (Labs)** — on a desktop the settings panel claimed everything under the top bar and ignored the bar at the bottom of the screen, so opening it added a second scroll to the song exactly as tall as that bar. Two scrollbars for one panel; now the panel stops where the bar starts.

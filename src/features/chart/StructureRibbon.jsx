@@ -32,6 +32,11 @@ export function StructureRibbon({
   // Fill the active chip solid in its section colour rather than ringing a
   // neutral pill. Opt-in so the existing chart keeps its current look.
   activeFill = false,
+  // Fade the ends of the strip when it has more chips than fit. Opt-in: the
+  // gradient has to be the colour of whatever the ribbon sits on, and only the
+  // reader can promise that (`--chart-bg`). A setlist card would fade to the
+  // wrong colour.
+  edgeFade = false,
   // ── EDIT MODE ONLY ───────────────────────────────────────────────────────
   // The owner's shape, 2026-08-04: *"only one + at the end with a drop down and
   // select what you want and then you drag and replace in the song map"*.
@@ -97,6 +102,64 @@ export function StructureRibbon({
   );
   const colorOf = (name) => sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
   const labelOf = (name) => (compact ? compactLabel(name) : sectionLabel(name, sectionLabels));
+
+  // ── The edges ────────────────────────────────────────────────────────────
+  // A long song runs off both ends of the strip with nothing to say so: the
+  // scrollbar is hidden (`no-scrollbar`) and the last chip is clipped flush by
+  // the header's `overflow-hidden`, so twelve sections on a 390px phone look
+  // exactly like eleven. Owner, 2026-08-05: *"Let's do a fade I think"*.
+  //
+  // Per side, and only when that side actually has more — a fade sitting on an
+  // end you have already reached is the same lie in the other direction.
+  const scrolls = !vertical && !wrap && !onReorder;
+  const [edges, setEdges] = useState({ l: false, r: false });
+  useEffect(() => {
+    const sc = scrollerRef.current;
+    // No reset here — `framed` already gates on `scrolls`, and clearing state
+    // synchronously in an effect is a cascading render for a value nothing can
+    // read.
+    if (!sc || !scrolls) return undefined;
+    const read = () => {
+      const max = sc.scrollWidth - sc.clientWidth;
+      const l = sc.scrollLeft > 1;
+      const r = sc.scrollLeft < max - 1;
+      setEdges(prev => (prev.l === l && prev.r === r ? prev : { l, r }));
+    };
+    read();
+    sc.addEventListener('scroll', read, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(read) : null;
+    ro?.observe(sc);
+    return () => { sc.removeEventListener('scroll', read); ro?.disconnect(); };
+    // `runs.length`, never `runs` — `structure` is a fresh array every render in
+    // the reader, so the array itself would re-bind these listeners on every
+    // frame. Same rule as the drag effect below, for a smaller reason.
+  }, [scrolls, runs.length]);
+
+  // Wraps whichever style branch rendered, so all four get the same edges.
+  // `backgroundImage`, not the `background` shorthand: jsdom's parser throws on
+  // some shorthand values inside `cloneNode`, which Testing Library does for
+  // every role query — one bad inline style takes out every `getByRole` on the
+  // page.
+  const framed = (row) => {
+    if (!edgeFade || !scrolls) return row;
+    const fade = (side) => (
+      <span
+        key={side}
+        aria-hidden="true"
+        className={cn('pointer-events-none absolute inset-y-0 w-6', side === 'l' ? 'left-0' : 'right-0')}
+        style={{
+          backgroundImage: `linear-gradient(to ${side === 'l' ? 'right' : 'left'}, var(--chart-bg, var(--ds-background-100)), transparent)`,
+        }}
+      />
+    );
+    return (
+      <div className="relative min-w-0">
+        {row}
+        {edges.l && fade('l')}
+        {edges.r && fade('r')}
+      </div>
+    );
+  };
 
   // ── Drag to reorder, long-press to engage ────────────────────────────────
   // A plain pointerdown-drag cannot work here: the ribbon is a horizontally
@@ -301,7 +364,7 @@ export function StructureRibbon({
 
   if (style === 'dots' || style === 'dotlabel') {
     const showLabels = style === 'dotlabel';
-    return (
+    return framed(
       <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-1.5')}>
         {decorate(runs.map((run, i) => {
           const s = colorOf(run.name);
@@ -342,7 +405,7 @@ export function StructureRibbon({
   // reads as the shape of the song, and the current chip and the heading it
   // points at are visibly the same object.
   if (style === 'codes') {
-    return (
+    return framed(
       <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-[5px]')}>
         {decorate(runs.map((run, i) => {
           const s = colorOf(run.name);
@@ -395,7 +458,7 @@ export function StructureRibbon({
   }
 
   if (style === 'numbered') {
-    return (
+    return framed(
       <div ref={scrollerRef} className={cn(rowClass, 'items-baseline')}>
         {decorate(runs.map((run, i) => {
           const s = colorOf(run.name);
@@ -434,7 +497,7 @@ export function StructureRibbon({
   }
 
   // Default: chips.
-  return (
+  return framed(
     <div ref={scrollerRef} className={rowClass}>
       {decorate(runs.map((run, i) => {
         const s = colorOf(run.name);
