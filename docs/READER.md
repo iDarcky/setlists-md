@@ -209,6 +209,38 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
   840px of chart in a 1236px scroller at 1280, left-aligned, ~400px of dead
   window. The WIDTH twin of the `flex-1 min-h-0` trap, with the opposite lesson —
   **on the cross axis of a scroller, `flex-1` is what you want.**
+- **The side rail spells repeats out** (no `×2`) — a column has the room a row
+  does not. The top ribbon still collapses.
+- **The side rail is GLASS, not a fade.** Round 1 dimmed the strip to 0.72 and
+  the owner's read was *"the transparency feels strange"*. Fading the chips
+  attacks the wrong layer — the ink goes down with the surface, the one filled
+  chip goes pale, the outlines go muddy over the lyric behind them. Seeing
+  through is a property of the **ground**: full-strength chips on a translucent,
+  blurred plate.
+- ⚠ **A new song starts at the top** (prio 0, 2026-08-05). The reader is NOT
+  remounted between songs — same component, same slot, different `song`, which
+  is what keeps the chrome and the metronome alive across a set — so the
+  scroller is the same DOM node and a DOM node keeps its `scrollTop`. Layout
+  effect, direct assignment, no smooth scroll: arriving at a song is not a jump
+  you asked for.
+- **Trailing space is MEASURED** (`tailPad`), not a flat `60vh` on phones only.
+  The owner's *"clicking on a chip won't fully scroll to that item"* was not the
+  header — a jump lands 8px under it with the set bar on or off. The last
+  sections had nothing below them to scroll into: desktop, last chip, the
+  section sat **536px** below the header at maximum scroll. Now: enough for the
+  last section's top to reach the pin line, and **zero when the song already
+  fits**, because a flat pad invents a scroll on a song that almost fits.
+
+**Open, carried out of the pass:**
+- **Moving between sections in the left/right rail** — the owner is undecided
+  about the whole interaction (*"I'll have to think about it"*). The window and
+  the glass are round 1 of an answer, not the answer.
+- **Tap-a-Tag-to-open-it-in-place** is shipped but NOT settled — he asked to
+  revisit it *at the repeats element* and to be reminded there.
+- **"The dots have a line inside them"** — not reproduced. Measured at 4×
+  zoom in Chromium, top and side, active and inactive: clean circles, no rule,
+  no ring (the active dot's `ring-*` classes are dead — the inline `boxShadow`
+  overrides them). Needs a screenshot or a device.
 - **The set bar does NOT share the ribbon's row**, and any comment saying so is
   a fossil of the pre-8b rule. Owner, 2026-08-05: *"We moved the Setlist bar on
   top of the header so they don't share anything."* Fixed in the ☰'s own copy,
