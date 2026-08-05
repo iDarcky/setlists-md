@@ -402,15 +402,20 @@ describe('the ☰ menu', () => {
     expect(screen.getAllByRole('button', { name: 'Previous colours' }).length).toBe(5);
   });
 
-  it('offers any colour as the LAST stop, after the palette', () => {
+  it('offers any colour as the LAST stop, through the app\'s OWN picker', () => {
     renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    // The fixed palette is the fast path; the OS picker is the escape hatch,
-    // and it is last because it is a different set of colours and, on a phone,
-    // a full-screen sheet over the chart being adjusted.
-    const wells = screen.getAllByLabelText('Any colour');
-    expect(wells.length).toBeGreaterThan(0);
-    expect(wells[0].getAttribute('type')).toBe('color');
+    // NOT a native `<input type="color">`, which opens the OS picker: a
+    // different set of colours, and on iOS a full-screen sheet over the chart
+    // being adjusted. It opens the same picker Settings → Chart Style uses.
+    const wells = screen.getAllByRole('button', { name: 'Any colour' });
+    expect(wells.length).toBe(5);
+    expect(document.querySelector('input[type="color"]')).toBeNull();
+
+    // Closed until asked, so it costs no height on a 40% dock until it is used.
+    expect(screen.queryByLabelText('Hex colour')).toBeNull();
+    fireEvent.click(wells[0]);
+    expect(screen.getByLabelText('Hex colour')).toBeTruthy();
   });
 
   it('applies a role as VISIBLE settings, never as a hidden override', () => {
@@ -454,6 +459,17 @@ describe('the lyric colour and font belong to the LYRICS', () => {
     // on its own wrapper, so it worked there and did nothing in the Reader,
     // which has no such wrapper.
     expect(src).toContain("fontFamily: 'var(--chart-font-lyric, var(--font-sans))'");
+  });
+
+  it('keeps the section gap out of the space between LINES', async () => {
+    const src = await import('node:fs').then(fs =>
+      fs.readFileSync('src/features/chart/SectionBlock.jsx', 'utf8'));
+    // A line's margin used to be `calc(var(--chart-section-gap) / 3)`, so
+    // "Between sections" quietly moved the lyrics apart too: 24→48 took every
+    // line inside every section from 8px to 16px. 8px IS 24/3, so the default
+    // is unchanged — they are simply not wired together any more.
+    expect(src).toContain("marginBottom: hasLyrics ? 'var(--chart-line-gap, 8px)' : 0");
+    expect(src).not.toContain('var(--chart-section-gap, 24px) / 3');
   });
 
   it('keeps the chart ink separate from the lyric colour at the source', async () => {

@@ -1309,6 +1309,34 @@ in it you reach for repeatedly, so it belongs on the edge nearest the thumb.
 the ☰ that opened it — there the nearest edge to the pointer is the top, and the
 strip stays there. One `head`, two positions.
 
+#### Element 28, round 9 — the Style tab closes, 2026-08-04
+
+**"Between sections" was moving the lyrics apart too.** Owner: *"I think that
+between sections also increases the distance between lyrics, can you make sure
+it only does for the sections?"* Measured, `SectionBlock.jsx`: a **line's**
+bottom margin was `calc(var(--chart-section-gap, 24px) / 3)`. So taking the
+section gap from 24 to 48 took every line inside every section from 8px to 16px.
+It has its own token now, `--chart-line-gap`, default **8px** — which *is* 24/3,
+so the default look is byte-identical and the two are simply no longer wired
+together. (If a line-gap control is ever wanted, the token is already there.)
+
+**The dropdown's list was app-grey.** `SelectItem` paints its text
+`--ds-gray-900`, and `chartSurface` remaps 100–400, 700 and 1000 — not 900. So
+the list arrived in the app's mid-grey inside a chart-coloured panel. Added to
+`chartOverlaySurface` → the ink. **The lesson generalises: every time this panel
+adopts a shared component, check which `--ds-gray-*` steps it reads.** That is
+three rounds in a row where the answer was a step nobody had remapped.
+
+**The custom colour opens OUR picker.** It was a native `<input type="color">`
+for one round; the app already has `HexColorPicker` (react-colorful) in
+`ChartStylePanel`, and that is what the well opens now — inline, closed until
+asked, at 132px rather than Settings' 180px because it lives inside a 40% dock
+with the chart above it.
+
+**Fonts are alphabetical**, and **switching tabs scrolls to the top** — the
+scroller kept its offset, so you could arrive at Layout half way down with no
+idea what was above you.
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the

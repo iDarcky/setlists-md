@@ -11,6 +11,11 @@ import { chartOverlaySurface } from './readerSurface';
 // panels is the better end state anyway.
 import { Stepper, Pick } from '@/ui/PanelControls';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/ui/Select';
+// The app's real colour picker — the same one Settings → Chart Style uses to
+// edit a custom theme. The custom well was a native `<input type="color">` for
+// one round, which opens the OS picker: a different set of colours, and on iOS
+// a full-screen sheet over the chart being adjusted.
+import { HexColorPicker } from 'react-colorful';
 import {
   CHART_THEMES,
   CHART_FONTS,
@@ -229,7 +234,11 @@ function Dropdown({ value, options, onChange, label, styleOf }) {
   );
 }
 
-const FONT_OPTIONS = CHART_FONTS.map(f => [f.id, f.name]);
+// Alphabetical (owner, 2026-08-04). The declaration order in `chartThemes.js`
+// is the order they were added, which means nothing to anyone reading the list.
+const FONT_OPTIONS = CHART_FONTS
+  .map(f => [f.id, f.name])
+  .sort((a, b) => a[1].localeCompare(b[1]));
 const fontStyle = (id) => ({ fontFamily: CHART_FONTS.find(f => f.id === id)?.stack });
 
 /**
@@ -438,49 +447,74 @@ function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
  */
 function ColorCarousel({ value, onPick }) {
   const custom = !!value && !CHART_COLOR_PALETTE.some(c => c.value === value);
+  const [picking, setPicking] = useState(false);
   return (
-    <Carousel what="colours">
-      {CHART_COLOR_PALETTE.map(c => {
-        const on = (c.value || null) === (value || null);
-        return (
-          <button key={c.id} type="button" onClick={() => onPick(c.value)} title={c.name} aria-label={c.name}
-            className="shrink-0 w-10 h-10 min-h-0 rounded-full cursor-pointer"
-            style={{
-              background: c.value === null
-                ? 'linear-gradient(135deg, var(--chart-lyric, var(--chart-text, #888)) 50%, var(--chord, #e0b341) 50%)'
-                : c.value,
-              boxShadow: on
-                ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
-                : 'inset 0 0 0 1px var(--border-2)',
-            }} />
-        );
-      })}
+    <>
+      <Carousel what="colours">
+        {CHART_COLOR_PALETTE.map(c => {
+          const on = (c.value || null) === (value || null);
+          return (
+            <button key={c.id} type="button"
+              onClick={() => { setPicking(false); onPick(c.value); }}
+              title={c.name} aria-label={c.name}
+              className="shrink-0 w-10 h-10 min-h-0 rounded-full cursor-pointer"
+              style={{
+                background: c.value === null
+                  ? 'linear-gradient(135deg, var(--chart-lyric, var(--chart-text, #888)) 50%, var(--chord, #e0b341) 50%)'
+                  : c.value,
+                boxShadow: on
+                  ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
+                  : 'inset 0 0 0 1px var(--border-2)',
+              }} />
+          );
+        })}
 
-      {/* A label, not a button: the input IS the control, and wrapping it means
-          the whole circle is the hit target without a click being forwarded. */}
-      <label
-        className="relative shrink-0 w-10 h-10 min-h-0 rounded-full cursor-pointer grid place-items-center"
-        title="Any colour"
-        style={{
-          background: custom
-            ? value
-            : 'conic-gradient(#f43f5e, #f59e0b, #22c55e, #06b6d4, #6366f1, #d946ef, #f43f5e)',
-          boxShadow: custom
-            ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
-            : 'inset 0 0 0 1px var(--border-2)',
-        }}
-      >
-        <span className="sr-only">Any colour</span>
-        <input type="color" aria-label="Any colour"
-          value={value || '#ffffff'}
-          onChange={(e) => onPick(e.target.value)}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-        {!custom && (
-          <span className="pointer-events-none text-[15px] font-bold leading-none"
-            style={{ color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.55)' }}>+</span>
-        )}
-      </label>
-    </Carousel>
+        {/* Any colour — LAST, because it costs a panel to use. The palette
+            above it is a dozen colours known to work on the chart themes; this
+            is for when you need an exact one. */}
+        <button type="button" onClick={() => setPicking(p => !p)}
+          aria-label="Any colour" aria-expanded={picking} title="Any colour"
+          className="relative shrink-0 w-10 h-10 min-h-0 rounded-full cursor-pointer grid place-items-center"
+          style={{
+            background: custom
+              ? value
+              : 'conic-gradient(#f43f5e, #f59e0b, #22c55e, #06b6d4, #6366f1, #d946ef, #f43f5e)',
+            boxShadow: custom || picking
+              ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
+              : 'inset 0 0 0 1px var(--border-2)',
+          }}>
+          {!custom && (
+            <span className="pointer-events-none text-[15px] font-bold leading-none"
+              style={{ color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.55)' }}>+</span>
+          )}
+        </button>
+      </Carousel>
+
+      {picking && (
+        <div className="mt-2.5 flex flex-col gap-2">
+          {/* 132px, not the 180px Settings uses: this opens inside a 40% dock
+              with the chart above it, and the picker must not become the whole
+              panel. */}
+          <HexColorPicker color={value || '#888888'} onChange={onPick}
+            style={{ width: '100%', height: 132 }} />
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] text-[var(--ds-gray-600)] uppercase tracking-wider">Hex</span>
+            <input
+              type="text" aria-label="Hex colour" value={value || ''} placeholder="#000000"
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                if (/^#?[0-9a-fA-F]{6}$/.test(v)) onPick(v.startsWith('#') ? v : `#${v}`);
+              }}
+              className="flex-1 min-w-0 h-9 px-2 rounded-lg font-mono text-[13px] text-[var(--text-1)] bg-[var(--bg-1)] border border-[var(--border-1)]"
+            />
+            <button type="button" onClick={() => setPicking(false)}
+              className="min-h-0 h-9 px-3 rounded-lg text-[13px] font-semibold cursor-pointer bg-transparent border border-[var(--border-1)] text-[var(--text-1)]">
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -532,6 +566,13 @@ export default function ReaderMenu({
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, [tab]);
+
+  // Switching tabs puts you at the TOP of the new one. Without this the
+  // scroller keeps its offset, so arriving at Layout half way down — with no
+  // idea what is above you — is the first thing that happens (owner,
+  // 2026-08-04: "make sure that when we change tabs we are always at the top of
+  // the page, right now we aren't").
+  useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [tab]);
 
   // ── The handle drags it away ───────────────────────────────────────────────
   // Round 1 gave the sheet two detents and a rubber band on the up-drag. The

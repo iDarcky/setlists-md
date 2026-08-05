@@ -307,7 +307,16 @@ export default function SectionBlock({
         key={idx}
         className="last:mb-0"
         style={{
-          marginBottom: hasLyrics ? 'calc(var(--chart-section-gap, 24px) / 3)' : 0,
+          // The gap between LINES, and it is its own number.
+          //
+          // It used to be `calc(var(--chart-section-gap) / 3)`, so "Between
+          // sections" quietly moved the lyrics apart too — take the section gap
+          // from 24 to 48 and every line inside every section went from 8px to
+          // 16px (owner, 2026-08-04: "I think that between sections also
+          // increases the distance between lyrics, can you make sure it only
+          // does for the sections?"). 8px IS 24/3, so the default look is
+          // unchanged; the two are simply no longer wired together.
+          marginBottom: hasLyrics ? 'var(--chart-line-gap, 8px)' : 0,
           lineHeight: 1,
         }}
       >

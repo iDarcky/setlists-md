@@ -3,10 +3,10 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.68` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.69` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
-> can compare against `beta`. 889 tests, 0 lint errors (8 pre-existing
+> can compare against `beta`. 890 tests, 0 lint errors (8 pre-existing
 > warnings)._
 
 ---
@@ -100,7 +100,7 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.68) — element 28, rounds 1–8
+## Just shipped (beta.69) — element 28, rounds 1–9 · **the Style tab is CLOSED**
 
 | What | Where |
 |---|---|
@@ -120,6 +120,13 @@ The facts to check before designing anything:
 | **One `Carousel`** for the theme strip AND all five colour rows · **any colour** as the last stop after the palette · the swatch ring was a 2px transparent border + an INSET hairline, i.e. a ring floating 2px inside the circle | `ReaderMenu.jsx`, `PanelControls.jsx` |
 | **Dropdowns** for font and tab grid — `SelectContent` portals to `document.body` so it carries `chartOverlaySurface`; trigger toned to `--border-1`; **54px** to match a `Stepper` exactly (44 + 4+4 padding + 1+1 border) | `ReaderMenu.jsx` |
 | **Reset is per OPTION, not per group** — on the `Field` label, only when that key holds an override, clearing to `undefined` | `ReaderMenu.jsx` |
+| **BUG: "Between sections" also spaced out the LYRICS.** A line's margin was `calc(var(--chart-section-gap)/3)`. Own token now, `--chart-line-gap`, default 8px = the old 24/3 | `SectionBlock.jsx` |
+| The custom colour opens the app's own `HexColorPicker`, not the OS picker · fonts alphabetical · **switching tabs scrolls to the top** · `--ds-gray-900` remapped (the dropdown list was app-grey) | `ReaderMenu.jsx`, `readerSurface.js` |
+
+> **Three rounds in a row, the same root cause:** this panel adopts a shared
+> component, and that component reads a `--ds-gray-*` step nobody remapped
+> (`--ds-gray-500`/`--border-2`, then `--ds-gray-600`, then `--ds-gray-900`).
+> Check the steps whenever the ☰ takes on another shared control.
 
 **Next in element 28: the Layout tab, then Music** — the owner is doing Layout
 "in the morning". Layout is nine controls in a flat column: it now has the right

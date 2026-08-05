@@ -59,7 +59,8 @@ A running log of what's new in setlists.md. Newest releases first.
 - **The Style tab is grouped, with two controls to a row (Labs)** — Lyrics, Chords, Spacing and Tabs each get their own heading instead of eleven settings in one column, and the buttons and ± steppers are the same ones the song page's Aa menu uses.
 - **The ☰ dock is taller, and its tabs are smaller (Labs)** — the settings get 40% of the screen instead of 30%, and the tab buttons stopped taking height from the controls underneath them. It also has its own ✕ beside the tabs, so you can close it without reaching to the top of the screen.
 - **Fonts and the tab grid are drop-downs (Labs)** — the pills were the widest thing on the tab; both are compact now, in the chart's own colours and exactly as tall as the ± control beside them.
-- **Colours are a carousel too (Labs)** — the same arrows the themes have, on one line instead of reflowing into three rows, and **any colour you like** is the last stop after the palette.
+- **Colours are a carousel too (Labs)** — the same arrows the themes have, on one line instead of reflowing into three rows, and **any colour you like** is the last stop after the palette, using the app's own colour picker.
+- **The ☰ opens each tab at the top (Labs)** — switching tabs used to keep the scroll position from the last one, so you could land halfway down a panel.
 - **Every setting in the ☰ has its own Reset (Labs)** — not one per group, so putting back a font you didn't like doesn't also throw away the size you'd spent a minute getting right. It only appears when there's actually something to put back.
 - **The ☰'s tabs sit at the bottom on a phone (Labs)** — the settings panel is already at the bottom of the screen, so the strip you keep reaching for is now on the edge nearest your thumb.
 - **The colour circles have a clean edge (Labs)** — the outline was sitting *inside* each circle rather than around it, which was most obvious on the split "follow the theme" swatch where it cut across the diagonal.
@@ -130,6 +131,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **A song with no chart yet says so** rather than showing an empty page.
 
 ### Fixed
+- **"Between sections" was also spacing out the lyrics (Labs)** — the gap between lines was worked out as a third of the section gap, so widening the space between sections pushed every line of every song apart with it. The default spacing is unchanged; the two just aren't tied together any more.
 - **The lyric colour changed the whole reader, not the lyrics (Labs)** — picking one repainted the top bar, the section headings and every button in the reader with it. The colour you pick now applies to the lyrics and nothing else.
 - **The lyric font did nothing in the reader (Labs)** — choosing one changed nothing on screen, while the chord font worked. The lyrics were never told to use it.
 - **The reader's Columns switch no longer appears where it does nothing (Labs)** — between 700 and 768 pixels wide (an iPad mini held upright is 744) the display menu offered 1 or 2 columns, but the reader forces a single column below 768, so picking 2 changed nothing. It now appears exactly where two columns are possible.

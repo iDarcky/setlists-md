@@ -95,6 +95,12 @@ export const chartOverlaySurface = {
   '--border-2': 'color-mix(in srgb, var(--chart-text, #111111) 26%, transparent)',
   // Field labels and the muted small print.
   '--ds-gray-600': 'var(--chart-subtle, #6b6b6b)',
+  // `SelectItem` paints its text `--ds-gray-900`, which `chartSurface` does not
+  // remap (it does 100–400, 700 and 1000). So the font dropdown's list arrived
+  // in the APP's mid-grey inside a chart-coloured panel — owner, 2026-08-04:
+  // "the drop-down text color is a bit too gray". A list item is a thing you
+  // read, so it gets the ink.
+  '--ds-gray-900': 'var(--chart-text, #111111)',
   // HOVER, and it is not optional. `chartSurface` maps `--bg-2` onto the
   // chart's own background so the chart body carries no stray fills; inside a
   // panel that makes every hover invisible, because the hover colour and the
