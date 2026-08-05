@@ -3,11 +3,13 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.77` on
-> `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the owner
-> asked for rounds to go to the **feature branch only** so he can compare
-> against `beta`. **He has not yet said to merge this branch into `beta`; ask
-> before you do.** 913 tests, 0 lint errors (8 pre-existing warnings)._
+> _Rewritten 2026-08-04. State: `0.17.0-beta.77`, and **`beta` is now at the
+> same commit** — elements 1 and 2 were promoted onto it when element 2 closed.
+> Start element 3 on a fresh branch off `beta`.
+>
+> The owner tests on his phone and compares against `beta`, so during an element
+> ship each round to the **feature branch only** and promote at the close.
+> 913 tests, 0 lint errors (8 pre-existing warnings)._
 
 ---
 
@@ -31,7 +33,8 @@ Ignore `docs/views-vision.md` and `docs/views_questions.md` — scrapped design.
 - Build exactly what is asked. **No adjacent settings, no knobs nobody
   requested.**
 - **Ship every round** — he tests on his phone. A description of a change is not
-  a change. Push the **feature branch only** for now.
+  a change. Push the **feature branch only** while an element is in flight;
+  promote to `beta` when he says the element is done.
 - Batch the **questions** (4–6 at a time; he answers them all in one go).
   Serialise the **builds** — anything visual goes one at a time, because "it
   doesn't feel right" only surfaces on the device.
