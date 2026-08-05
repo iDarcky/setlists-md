@@ -112,3 +112,30 @@ describe('view capabilities', () => {
     expect(Object.values(can).every(v => v === false)).toBe(true);
   });
 });
+
+// Element 28, round 11 — three knobs that had no control, and one new one.
+describe('the knobs that reached the renderer but not the user', () => {
+  it('resolves the rail, the flow and the two orphans', () => {
+    const cfg = resolveReaderConfig({}, { wide: true });
+    // Defaults are today's behaviour, so adding the controls changed nothing.
+    expect(cfg.rail).toBe(true);
+    expect(cfg.flow).toBe('down');
+    expect(cfg.notes).toBe(true);
+    expect(cfg.footer).toBe('next');
+
+    const off = resolveReaderConfig(
+      { readerRail: 'off', readerFlow: 'across', readerNotes: 'off', readerFooter: 'count' },
+      { wide: true },
+    );
+    expect(off.rail).toBe(false);
+    expect(off.flow).toBe('across');
+    expect(off.notes).toBe(false);
+    expect(off.footer).toBe('count');
+  });
+
+  it('falls back to the default for a value that is not on the list', () => {
+    const cfg = resolveReaderConfig({ readerFlow: 'sideways', readerRail: 'maybe' }, { wide: true });
+    expect(cfg.flow).toBe('down');
+    expect(cfg.rail).toBe(true);
+  });
+});

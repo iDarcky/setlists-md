@@ -1371,6 +1371,56 @@ down inside a ~230px dock and was then clipped by the scroller — the picker is
 **above** it when there is room, because the well is near the bottom of the
 screen and a panel below it lands under the thumb that opened it.
 
+#### Element 28, round 11 — the chords bug, and three more orphans, 2026-08-04
+
+**"I've lost the chords, why?"** — and the answer is a key mismatch that has
+been there the whole time.
+
+**The reader read `settings.showChords`. Every control writes `displayMode`.**
+The ☰'s Show control, the old "In a pinch", `AaMenu`'s Page tab and the **role
+picker** all write `displayMode` (`chords` | `lyrics` | `chordsonly`).
+`Reader.jsx` resolved `showChords` from `config.display.showChords`, which is
+`settings.showChords` — a *different key*, written only by `PerformanceView` and
+`PracticeView`. Consequences, both real:
+- Choosing "Chords + lyrics" did nothing.
+- Once `showChords` was false — set by either old view, and they are still on
+  the flag-off path — the reader had **no way back to chords at all**.
+
+`displayMode` is now the source, with `showChords` kept as the fallback for a
+profile that only ever set the old boolean. The host's tab still beats both;
+the hub's Lyrics tab is not a preference.
+
+**And `'chordsonly'` was impossible to render.** `ReaderSection` passed a bare
+`showLyrics` — i.e. always `true` — so the third state was offered by every Show
+control in the app and silently did nothing. Wired through now.
+
+**A fourth orphan: `showDiagrams`.** Synced, and read by the reader nowhere —
+element 11 made diagrams tap-to-see with no way to switch off. Now a Music
+toggle, default ON, because element 11's argument is that a diagram you ask for
+costs nothing until you ask.
+
+> **That is FIVE settings in three rounds that were wired at one end only**
+> (`readerNotes`, `readerFooter`, the rail, `showDiagrams`, and `displayMode`
+> from the other direction). The pattern is always the same: a value written by
+> a control nobody read, or read by a renderer nobody could write. **When adding
+> a reader setting, grep for BOTH ends before believing it works.**
+
+**Roman numerals**, the fourth notation (`getRomanNumeral` in `music.js`). It
+shares Nashville's degree arithmetic and differs in the thing that matters:
+**case carries the quality** — I/IV/V major, ii/iii/vi minor, vii° diminished —
+so the minor suffix is *consumed* into the case rather than printed twice
+("vi", never "vim"). The `m(?!aj)` test is deliberately narrow so `maj7` stays
+major.
+
+**Reading direction, prototyped.** Owner asked for top→bottom vs left→right.
+`columnCount` (multicol) fills column 1 then column 2 and **balances** them, so
+they end level — that is `flow: 'down'`, the default, and it is why multicol is
+right for a chart. `flow: 'across'` is a **grid**, laid left→right, and the
+trade-off is structural: a grid row is as tall as its tallest section, so a
+short verse beside a long chorus leaves a hole. **Nothing balances it away and
+no amount of CSS will** — it is worth it only when sections are of similar
+length. Offered only at two columns, and only where two columns are possible.
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the

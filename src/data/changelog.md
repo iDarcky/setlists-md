@@ -62,6 +62,9 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Colours are a carousel too (Labs)** — the same arrows the themes have, on one line instead of reflowing into three rows, and **any colour you like** is the last stop after the palette, using the app's own colour picker.
 - **The ☰ opens each tab at the top (Labs)** — switching tabs used to keep the scroll position from the last one, so you could land halfway down a panel.
 - **Every setting in the ☰ has its own Reset (Labs)** — not one per group, so putting back a font you didn't like doesn't also throw away the size you'd spent a minute getting right. It only appears when there's actually something to put back.
+- **Roman numerals for chord names (Labs)** — I, IV, V, vi, and so on, beside letters, Nashville numbers and Do-Re-Mi. Unlike the numbers, the numeral itself tells you whether the chord is major or minor.
+- **Chord shapes can be turned off (Labs)** — tapping a chord to see how it's played is on by default and now has a switch, under Music.
+- **Two columns can be read left to right (Labs)** — sections laid across the page instead of filling the first column and then the second. Worth knowing: read down-then-across, the two columns end level; read left to right, a short section beside a long one leaves a gap, because nothing can even them up.
 - **The Layout tab is grouped (Labs)** — The page, Sections, The map and Getting around, instead of ten settings in one column.
 - **Three settings that existed but had no switch (Labs)** — band cues and inline notes could never be turned off, the bottom bar could never be reduced to just the song count, and the setlist rail could never be hidden. All three are in Layout now.
 - **"In a pinch" is called "Show", and lives with the music (Labs)** — nobody could tell what the name meant, and it isn't a layout choice: it's whether you see chords, lyrics or both, so it sits beside the instrument picker that sets it.
@@ -135,6 +138,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **A song with no chart yet says so** rather than showing an empty page.
 
 ### Fixed
+- **The chords could disappear with no way to bring them back (Labs)** — the reader was reading one setting for "show chords" while every control that could change it wrote a different one, so choosing "Chords + lyrics" did nothing. "Chords only" never worked either — the lyrics were shown regardless of what you picked.
 - **"Between sections" was also spacing out the lyrics (Labs)** — the gap between lines was worked out as a third of the section gap, so widening the space between sections pushed every line of every song apart with it. The default spacing is unchanged; the two just aren't tied together any more.
 - **The lyric colour changed the whole reader, not the lyrics (Labs)** — picking one repainted the top bar, the section headings and every button in the reader with it. The colour you pick now applies to the lyrics and nothing else.
 - **The lyric font did nothing in the reader (Labs)** — choosing one changed nothing on screen, while the chord font worked. The lyrics were never told to use it.

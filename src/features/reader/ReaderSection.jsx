@@ -199,7 +199,7 @@ export default function ReaderSection({
   section, index, config, songKey, settings, transpose, modOffset,
   repeatOf = -1, onJumpToFirst, tabColors, stickyTop = 0, onChordTap = null,
   // Resolved by the Reader: the host's tab choice beats the global setting.
-  showChords,
+  showChords, showLyrics,
   // Edit mode. Only REMOVE lives here now: the owner retired ↑/↓ once the song
   // map got a `+` and drag (2026-08-04, "we don't need the ↑ ↓"). Removing
   // stays on the heading because you decide to cut a section while looking at
@@ -401,7 +401,7 @@ export default function ReaderSection({
         condensed={false}
         onJumpToFirst={onJumpToFirst}
         showChords={showChords ?? config.display.showChords}
-        showLyrics
+        showLyrics={showLyrics ?? true}
         showTabs
         tabInstrument="all"
         // The sticky heading above already renders the name and cue.

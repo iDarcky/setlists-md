@@ -40,6 +40,10 @@ export const READER_KNOBS = {
   // there. Owner, 2026-08-04: "the only one that we don't have is the setlist
   // rail but we can add that easy here."
   rail: ['on', 'off'],
+  // Which way two columns are READ. 'down' is multicol (fill column 1, then
+  // column 2, balanced); 'across' is a grid laid left→right. See the note in
+  // `Reader` — 'across' cannot be balanced, by construction.
+  flow: ['down', 'across'],
 };
 
 const DEFAULTS = {
@@ -53,6 +57,7 @@ const DEFAULTS = {
   nav: 'footer',
   topBar: 'ribbon',
   rail: 'on',
+  flow: 'down',
 };
 
 // Stored under these settings keys. `structurePosition` and
@@ -69,6 +74,7 @@ const KEY = {
   nav: 'readerNav',
   topBar: 'readerTopBar',
   rail: 'readerRail',
+  flow: 'readerFlow',
 };
 
 export function readerSettingKey(knob) {
@@ -232,6 +238,7 @@ export function resolveReaderConfig(settings, ctx = {}) {
     nav: pick('nav', settings?.[KEY.nav]),
     topBar: pick('topBar', settings?.[KEY.topBar]),
     rail: pick('rail', settings?.[KEY.rail]) === 'on',
+    flow: pick('flow', settings?.[KEY.flow]),
     columns: resolveColumns(settings?.defaultColumns, wide),
     display: resolveChartDisplay(settings),
     // Element 9: tabs for other instruments collapse. A manual override in

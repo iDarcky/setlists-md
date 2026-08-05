@@ -3,10 +3,10 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.70` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.71` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
-> can compare against `beta`. 893 tests, 0 lint errors (8 pre-existing
+> can compare against `beta`. 904 tests, 0 lint errors (8 pre-existing
 > warnings)._
 
 ---
@@ -100,7 +100,7 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.70) — element 28, rounds 1–10 · Style CLOSED, Layout grouped
+## Just shipped (beta.71) — element 28, rounds 1–11 · Style CLOSED, Layout grouped
 
 | What | Where |
 |---|---|
@@ -126,6 +126,15 @@ The facts to check before designing anything:
 | **Layout grouped** — The page · Sections · The map · Getting around. **Three settings that were wired but unreachable now have switches**: `readerNotes`, `readerFooter`, and `readerRail` (new — the rail had no on/off at all, only a per-device open/closed in localStorage) | `ReaderMenu.jsx`, `readerConfig.js`, `SetlistReader.jsx` |
 | **"In a pinch" → "Show", moved to Music.** It and the owner's separate "do we need show chords on/off?" are the SAME control (`displayMode`) | `ReaderMenu.jsx` |
 | **The colour picker floats** — inline it was clipped by a ~230px dock | `ReaderMenu.jsx` |
+
+| **BUG: "I've lost the chords."** The reader read `settings.showChords`; every control (Show, the role picker, `AaMenu`) writes `displayMode`. Different keys — so Show did nothing, and once `showChords` was false there was no way back. `displayMode` is the source now. **`'chordsonly'` was also impossible**: `ReaderSection` passed a bare `showLyrics` | `Reader.jsx`, `ReaderSection.jsx` |
+| **Roman numerals** (`getRomanNumeral`) — case carries the quality, so the minor suffix is consumed, not printed twice · **diagrams toggle** (`showDiagrams` was a fourth orphan) · **reading direction prototype** (`readerFlow`: multicol `down` vs grid `across`) | `music.js`, `Reader.jsx`, `readerConfig.js` |
+
+> ### ⚠ FIVE settings in three rounds were wired at ONE END ONLY
+> `readerNotes`, `readerFooter`, the rail, `showDiagrams` (written, never read)
+> and `displayMode` (read by nobody standalone). **When adding or touching a
+> reader setting, grep for BOTH ends before believing it works.** A render test
+> cannot see a value nobody consumes.
 
 > **Three rounds in a row, the same root cause:** this panel adopts a shared
 > component, and that component reads a `--ds-gray-*` step nobody remapped

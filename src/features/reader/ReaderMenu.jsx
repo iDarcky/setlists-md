@@ -101,7 +101,15 @@ import {
  *    an overlay pretending.
  */
 
-const NOTATIONS = [['letters', 'Letters'], ['nashville', 'Numbers'], ['solfege', 'Do-Re-Mi']];
+const NOTATIONS = [
+  ['letters', 'Letters'],
+  ['nashville', 'Numbers'],
+  // Roman numerals carry the chord's QUALITY in their case — I/IV/V major,
+  // ii/iii/vi minor, vii° diminished — which is why players who read them
+  // prefer them to Nashville's bare degree. See `getRomanNumeral`.
+  ['roman', 'Numerals'],
+  ['solfege', 'Do-Re-Mi'],
+];
 
 // "You're playing" — a PRESET, not a hidden layer. Picking one writes the
 // settings it implies, visibly, so there is never a second source of truth
@@ -933,6 +941,16 @@ export default function ReaderMenu({
                 options={[[1, '1'], [2, '2']]} onChange={(v) => set('defaultColumns', v)} />
             </Field>
           )}
+          {/* Only with two columns, and only where two columns are possible —
+              a reading direction for one column is a control that does
+              nothing, which this panel has produced four times already. */}
+          {wideEnoughForColumns && settings?.defaultColumns === 2 && (
+            <Field label="Read them" onReset={reset('readerFlow')}>
+              <Picks value={settings?.readerFlow || 'down'}
+                options={[['down', 'Down, then across'], ['across', 'Left to right']]}
+                onChange={(v) => set('readerFlow', v)} />
+            </Field>
+          )}
           <Field label="Repeated sections" onReset={reset('duplicateSections')}>
             <Picks value={settings?.duplicateSections || 'condensed'}
               options={[['full', 'Full'], ['condensed', 'Condensed'], ['hide', 'Hidden']]}
@@ -1046,6 +1064,13 @@ export default function ReaderMenu({
           <Segs label="Sharps or flats" value={settings?.accidentals || 'auto'}
             options={[['auto', 'Follow key'], ['sharps', '♯'], ['flats', '♭']]}
             onChange={(v) => set('accidentals', v)} />
+
+          {/* Element 11. The setting existed and the reader read it NOWHERE —
+              tapping a chord always offered its shape. Default on: a diagram
+              you have to ask for costs nothing until you ask. */}
+          <Segs label="Tap a chord for its shape" value={settings?.showDiagrams === false ? 'off' : 'on'}
+            options={[['on', 'On'], ['off', 'Off']]}
+            onChange={(v) => set('showDiagrams', v === 'on' ? undefined : false)} />
 
           <Field label="Capo">
             {capo ? (

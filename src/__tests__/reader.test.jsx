@@ -448,6 +448,41 @@ describe('the ☰ menu', () => {
     expect(screen.getByLabelText('Hex colour')).toBeTruthy();
   });
 
+  it('reads displayMode, so Show can actually bring the chords back', () => {
+    // The bug: the ☰'s Show control and the role picker both write
+    // `displayMode`, and the reader read `settings.showChords` — a different
+    // key. So "Chords + lyrics" did nothing, and once `showChords` had been set
+    // false anywhere (the old Performance/Practice views both write it) there
+    // was no way back to chords at all.
+    const { unmount } = render(
+      <Reader song={makeSong()} onExit={() => {}} settings={{ showChords: false, displayMode: 'chords' }} />
+    );
+    expect(screen.getAllByText('G').length).toBeGreaterThan(0);
+    unmount();
+
+    render(<Reader song={makeSong()} onExit={() => {}} settings={{ displayMode: 'lyrics' }} />);
+    expect(screen.queryByText('G7')).toBeNull();
+  });
+
+  it('can render chords ONLY — the third state was impossible before', () => {
+    // `ReaderSection` passed a bare `showLyrics`, i.e. always true, so
+    // 'chordsonly' was offered by every Show control and never worked.
+    render(<Reader song={makeSong()} onExit={() => {}} settings={{ displayMode: 'chordsonly' }} />);
+    expect(screen.queryByText(/Amazing grace, how/)).toBeNull();
+    expect(screen.getAllByText('G7').length).toBeGreaterThan(0);
+  });
+
+  it('lets the chord diagrams be switched off', () => {
+    // `showDiagrams` was a fourth orphan: synced, and read by the reader
+    // nowhere. Default on — a diagram you ask for costs nothing until you ask.
+    const { unmount } = renderReader();
+    expect(screen.getAllByRole('button', { name: 'G chord shape' }).length).toBeGreaterThan(0);
+    unmount();
+
+    render(<Reader song={makeSong()} onExit={() => {}} settings={{ showDiagrams: false }} />);
+    expect(screen.queryByRole('button', { name: 'G chord shape' })).toBeNull();
+  });
+
   it('applies a role as VISIBLE settings, never as a hidden override', () => {
     const onUpdateSettings = vi.fn();
     renderReader({ onUpdateSettings });

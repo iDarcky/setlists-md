@@ -284,6 +284,44 @@ export function getNashvilleNumber(chord, key) {
   const map = { 0: '1', 1: 'b2', 2: '2', 3: 'b3', 4: '3', 5: '4', 6: 'b5', 7: '5', 8: 'b6', 9: '6', 10: 'b7', 11: '7' };
   return (map[semitones] || '?') + suffix;
 }
+
+// Roman numerals — the classical analysis notation, and the fourth `notation`
+// mode beside letters, Nashville numbers and solfège.
+//
+// It shares Nashville's arithmetic (the scale degree above the key) and differs
+// in one thing that matters: **case carries the quality**. I / IV / V for major,
+// ii / iii / vi for minor, vii° for diminished. Nashville prints "6" whether the
+// chord is major or minor and lets the suffix say so; Roman numerals put it in
+// the numeral itself, which is the whole reason musicians who read this notation
+// prefer it. So the minor/dim suffix is CONSUMED into the case, not printed
+// twice — "vi", never "vim".
+const ROMAN = ['I', 'bII', 'II', 'bIII', 'III', 'IV', 'bV', 'V', 'bVI', 'VI', 'bVII', 'VII'];
+
+export function getRomanNumeral(chord, key) {
+  if (!chord || !key) return chord;
+  if (chord.includes('/')) {
+    const [main, bass] = chord.split('/');
+    return getRomanNumeral(main, key) + '/' + getRomanNumeral(bass, key);
+  }
+  const { root, suffix } = parseRoot(chord);
+  const keyRoot = parseRoot(key).root;
+  const fi = CHROMATIC.indexOf(keyRoot);
+  const ti = CHROMATIC.indexOf(root);
+  if (fi === -1 || ti === -1) return chord;
+
+  const numeral = ROMAN[(ti - fi + 12) % 12];
+  if (!numeral) return chord;
+
+  // Minor and diminished lower the case; everything else keeps it upper. The
+  // test is deliberately narrow — `m` not followed by `aj` — so maj7 stays
+  // major and m7/m9/m11 do not.
+  const minor = /^(m(?!aj)|min)/.test(suffix);
+  const dim = /^(dim|°|o(?![a-z]))/.test(suffix);
+  const rest = minor ? suffix.replace(/^(m(?!aj)|min)/, '')
+    : dim ? suffix.replace(/^(dim|°|o(?![a-z]))/, '') : suffix;
+
+  return (minor || dim ? numeral.toLowerCase() : numeral) + (dim ? '°' : '') + rest;
+}
  
 // Convert a chord to fixed-Do solfège (the Latin/Romanian convention):
 // absolute pitch naming — C=Do, D=Re, E=Mi, F=Fa, G=Sol, A=La, B=Si — with the
@@ -309,6 +347,7 @@ export function getSolfege(chord) {
 //   'solfege'  → fixed-Do solfège of the transposed chord (tracks pitch like letters)
 export function notateChord(chord, { key, notation = 'letters', transpose = 0, accidentals = 'auto' } = {}) {
   if (notation === 'nashville') return getNashvilleNumber(chord, key);
+  if (notation === 'roman') return getRomanNumeral(chord, key);
   if (notation === 'solfege') return getSolfege(transposeChord(chord, transpose));
   // Letters: choose sharp/flat spelling. 'auto' follows the key the chord is
   // sounding in (the song key shifted by the current transpose).

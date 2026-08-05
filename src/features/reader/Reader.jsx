@@ -574,8 +574,27 @@ export default function Reader({
     setEditSession(null);
   }, [editBase, onSaveAsArrangement, songId, song]);
 
-  // The host's tab choice beats the global setting; standalone, the setting rules.
-  const showChords = displayMode ? displayMode !== 'lyrics' : config.display.showChords;
+  // ── What the chart SHOWS ─────────────────────────────────────────────────
+  // One mode with three states, not a boolean, and it reads `displayMode`.
+  //
+  // The bug this replaces (owner, 2026-08-04: *"I've lost the chords, why?"*):
+  // the ☰'s Show control and the role picker both write **`displayMode`**, and
+  // standalone this line read **`config.display.showChords`** — which is
+  // `settings.showChords`, a different key entirely. So picking "Chords +
+  // lyrics" did nothing, and once `showChords` had been set false anywhere
+  // (`PerformanceView`/`PracticeView` both write it) the reader had no way back
+  // to chords at all. `displayMode` is the richer of the two and the one every
+  // control writes, so it wins; `showChords` stays as the fallback for a
+  // profile that only ever set the old boolean.
+  //
+  // The host's tab still beats both — the hub's Lyrics tab is not a preference.
+  const shows = displayMode
+    || settings?.displayMode
+    || (config.display.showChords === false ? 'lyrics' : 'chords');
+  const showChords = shows !== 'lyrics';
+  // 'chordsonly' was offered by every Show control and was impossible to
+  // render: `ReaderSection` passed a bare `showLyrics`, i.e. always true.
+  const showLyrics = shows !== 'chordsonly';
 
   const transpose = (!selectedKey || !song?.key) ? 0 : semitonesBetween(song.key, selectedKey);
 
@@ -861,8 +880,29 @@ export default function Reader({
               ['--chart-font-size-chord']: `${config.display.chordFontSize}px`,
               ['--chart-line-height-lyric']: settings?.lyricLineHeight ?? 1.35,
               ['--chart-section-gap']: `${settings?.sectionSpacing ?? 24}px`,
+              // ── Two columns, and which way you READ them ────────────────
+              // `columnCount` (multicol) fills column 1 to the bottom, then
+              // column 2 — you read DOWN, then across. That is the default and
+              // it is the right one for a chart: the browser BALANCES the two
+              // columns, so they end level.
+              //
+              // 'across' is the prototype the owner asked for (2026-08-04):
+              // sections laid left→right, wrapping to the next row. It is a
+              // GRID, not multicol, and the trade-off is the reason multicol
+              // exists — a grid row is as tall as its tallest section, so a
+              // short verse beside a long chorus leaves a visible hole. Worth
+              // it when sections are of similar length; not otherwise. Nothing
+              // balances it away, and no amount of CSS will.
               ...(config.columns === 2
-                ? { columnCount: 2, columnGap: '1.75rem', columnRule: '1px solid var(--chart-rule, var(--ds-gray-300))' }
+                ? (config.flow === 'across'
+                  ? {
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gridAutoFlow: 'row',
+                    columnGap: '1.75rem',
+                    alignItems: 'start',
+                  }
+                  : { columnCount: 2, columnGap: '1.75rem', columnRule: '1px solid var(--chart-rule, var(--ds-gray-300))' })
                 : null),
               // Trailing space so the LAST section can still scroll up far
               // enough to pin. Without it the song stops moving as soon as its
@@ -901,8 +941,15 @@ export default function Reader({
               stickyTop={headH}
               onChordTap={editing
                 ? (chord, rect, meta) => setChordEdit({ chord, rect, meta: { ...meta, section } })
-                : (canSeeShapes ? onChordTap : null)}
+                // `showDiagrams` was a fourth orphan: the setting existed, was
+                // synced, and the reader read it nowhere — element 11 made
+                // diagrams tap-to-see with no way to switch off (owner,
+                // 2026-08-04: "maybe we can have an option to turn them off").
+                // Default ON, because element 11's whole argument is that a
+                // diagram you ask for costs nothing until you ask.
+                : (canSeeShapes && settings?.showDiagrams !== false ? onChordTap : null)}
               showChords={showChords}
+              showLyrics={showLyrics}
               editing={editing}
               onRemove={editing ? () => removeSection(idx, section) : null}
               onEditLines={editing ? (text) => editSectionLines(section, text) : null}
