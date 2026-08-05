@@ -1177,12 +1177,15 @@ export default function ReaderMenu({
               options={[['codes', 'Boxes'], ['chips', 'Chips'], ['numbered', 'Inline'], ['dots', 'Dots'], ['dotlabel', 'Dots + label']]}
               onChange={(v) => set('ribbonStyle', v)} />
           </Field>
-          {/* Was "Under the top bar", a two-way between the structure and the
-              set. It reads as an on/off for the set, so that is what it is now
-              (owner, 2026-08-04) — but the two really do share one slot, which
-              is why turning the setlist bar on takes the structure's place. */}
+          {/* An on/off for the set bar, and nothing else. It is NOT a two-way
+              with the structure — element 8b moved the set bar ABOVE the title
+              row on 2026-08-01, so the two stack (SET / HEADER / STRUCTURE) and
+              neither takes the other's place. The copy said they shared a row
+              until 2026-08-05, when the owner corrected it: *"We moved the
+              Setlist bar on top of the header so they don't share anything."*
+              The ribbon is still turned off through Structure location. */}
           <Field label="Setlist bar" inline
-            info="The whole service across the top, in place of this song's structure. They share the row under the title.">
+            info="The whole service across the top of the screen, above the song's title. The song's own structure keeps its place below it.">
             <Switch label="Setlist bar"
               on={settings?.readerTopBar === 'setlist'}
               onChange={(v) => set('readerTopBar', v ? 'setlist' : 'ribbon')} />

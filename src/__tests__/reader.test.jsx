@@ -997,3 +997,25 @@ describe('element 3 — tapping a Tag opens it where it stands', () => {
     expect(container.querySelector('[data-section-index="3"]').textContent).toBe('');
   });
 });
+
+describe('element 3 — edit mode takes the map to the top', () => {
+  it('moves a bottom ribbon up to edit, and puts it back after', () => {
+    mockWidth(true);
+    const { container } = render(
+      <Reader song={makeSong()} settings={{ structurePosition: 'bottom' }} onExit={() => {}}
+        onUpdateSong={() => {}} mode="practice" />,
+    );
+    const inHead = () => container.querySelectorAll('.reader-head button')
+      .length;
+    const before = inHead();
+
+    fireEvent.click(screen.getByRole('button', { name: /^edit/i }));
+    // Owner, 2026-08-05: "move to the top, when exits edit everything goes back
+    // to normal". It used to rescue 'off', 'left' and 'right' only — a bottom
+    // ribbon stayed under the nav bar, which is the furthest possible place
+    // from the change you are making.
+    expect(inHead()).toBeGreaterThan(before);
+    // The `+` that only edit mode has is up there with it.
+    expect(screen.getByRole('button', { name: /add a section/i })).toBeTruthy();
+  });
+});

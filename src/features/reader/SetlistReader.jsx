@@ -249,7 +249,9 @@ export default function SetlistReader({
 
   // Element 8 — the app's original player bar as a top-bar option. Only the
   // setlist can build it: the reader knows one song, this maps the whole set.
-  const underBar = cfg.topBar === 'setlist' ? (
+  // ABOVE the title row, not under it (element 8b, 2026-08-01) — it takes
+  // nothing from the song's own structure ribbon, which keeps its place below.
+  const aboveBar = cfg.topBar === 'setlist' ? (
     <ReaderSetlistBar items={railItems} idx={idx} onSelect={go} />
   ) : null;
 
@@ -304,7 +306,7 @@ export default function SetlistReader({
       onMenu={openMenu}
       menuDock={menuDock}
       menuOpen={!!menuAnchor}
-      aboveBar={underBar}
+      aboveBar={aboveBar}
       leading={railButton}
       progress={progress}
       onRestore={recoverable ? () => onRestoreSong(cur.songId) : null}
@@ -321,7 +323,7 @@ export default function SetlistReader({
       onMenu={openMenu}
       menuDock={menuDock}
       menuOpen={!!menuAnchor}
-      aboveBar={underBar}
+      aboveBar={aboveBar}
       leading={railButton}
       progress={progress}
       footer={footer}
@@ -340,7 +342,7 @@ export default function SetlistReader({
       selectedKey={keys[cur.song.id] || cur.key || cur.song.key}
       onSelectKey={(k) => setKeys(prev => ({ ...prev, [cur.song.id]: k }))}
       footer={footer}
-      underBar={underBar}
+      aboveBar={aboveBar}
       railButton={railButton}
       progress={progress}
       onEditingChange={setEditingSong}

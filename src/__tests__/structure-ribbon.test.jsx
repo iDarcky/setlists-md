@@ -30,6 +30,29 @@ describe('ribbon chips vs the global button min-height', () => {
     });
   }
 
+  // The target and the chip are two different boxes (owner asked to try it,
+  // 2026-08-05). 29x21px is the right SIZE for chrome and a poor TARGET for a
+  // thumb in the dark, so the `::after` grows what the browser hit-tests
+  // without moving a pixel of what you see.
+  it('every tappable chip carries a hit area bigger than itself', () => {
+    for (const style of ['codes', 'chips', 'numbered', 'dots', 'dotlabel']) {
+      const { container, unmount } = render(
+        <StructureRibbon structure={structure} style={style} activeIndex={0} activeFill onSelect={() => {}} />
+      );
+      for (const b of container.querySelectorAll('button')) {
+        expect(b.className).toContain('after:absolute');
+        // `relative`, or the pseudo-element positions against the page.
+        expect(b.className).toContain('relative');
+      }
+      unmount();
+    }
+  });
+
+  it('a chip that does nothing has no hit area to grow', () => {
+    const { container } = render(<StructureRibbon structure={structure} style="codes" />);
+    expect(container.innerHTML).not.toContain('after:absolute');
+  });
+
   it('codes: the chip is the Score mockup — 10px mono, 2px/7px, 5px radius', () => {
     const { container } = render(
       <StructureRibbon structure={structure} style="codes" activeIndex={0} activeFill onSelect={() => {}} />

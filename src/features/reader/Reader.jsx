@@ -33,8 +33,6 @@ import { showUndoToast } from '@/lib/undoToast';
 
 const EMPTY = [];
 
-const ribbonSideOf = (pos) => pos === 'left' || pos === 'right';
-
 /**
  * The chart reader — elements 1–6 only.
  *
@@ -118,9 +116,11 @@ export default function Reader({
   // down, exactly as it did to ChartView.
   aaAnchor: hostAaAnchor,
   onAaClose,
-  // Element 8: what hangs under the top bar in place of the ribbon. The setlist
-  // knows the set; the reader only knows one song, so the host supplies it.
-  underBar = null,
+  // Element 8b's set bar. It renders ABOVE the title row — `ReaderTopBar` takes
+  // it as `aboveBar` — and it replaces nothing: the song's ribbon keeps its
+  // place below (SET / HEADER / STRUCTURE). Only the setlist can build it; the
+  // reader knows one song.
+  aboveBar = null,
   // The rail opener, for the same reason: only the host knows there IS a set.
   // Sits beside ☰ in the bar's left cluster.
   railButton = null, progress = null,
@@ -719,9 +719,14 @@ export default function Reader({
   // handles' retirement a dead end — there would be no way to reorder at all.
   // Forced to 'top' rather than restored to whatever it was: a floating side
   // rail is 48px wide, which is not somewhere you drag chips.
-  const ribbonPlace = editing && (config.ribbon === 'off' || ribbonSideOf(config.ribbon))
-    ? 'top'
-    : config.ribbon;
+  // Editing puts the map at the TOP, wherever it normally lives, and gives it
+  // back when you leave (owner, 2026-08-05: *"move to the top, when exits edit
+  // everything goes back to normal"*). It used to rescue only 'off' and the two
+  // floating sides, so a bottom ribbon stayed at the bottom — the one place
+  // where the thing you are dragging sits under the nav bar, furthest from
+  // where you are reading the change. A 48px floating rail was never somewhere
+  // you drag chips either.
+  const ribbonPlace = editing ? 'top' : config.ribbon;
   const ribbonSide = ribbonPlace === 'left' || ribbonPlace === 'right';
 
   const ribbonNode = ribbonPlace !== 'off' && ordered.length > 0 ? (
@@ -815,7 +820,7 @@ export default function Reader({
       {showChrome && (
         <ReaderTopBar
           ref={headRef}
-          aboveBar={underBar}
+          aboveBar={aboveBar}
           leading={railButton}
           title={song.title}
           onMenu={editing ? null : (rect) => setOwnAaAnchor(a => (a ? null : rect))}

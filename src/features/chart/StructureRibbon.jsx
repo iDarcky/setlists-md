@@ -103,6 +103,24 @@ export function StructureRibbon({
   const colorOf = (name) => sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
   const labelOf = (name) => (compact ? compactLabel(name) : sectionLabel(name, sectionLabels));
 
+  // ── The hit area, which is not the chip ──────────────────────────────────
+  // A `codes` chip measures 29 × 21px on a phone. That is the right SIZE — the
+  // row is chrome and every pixel of it is chart you don't get — but it is a
+  // poor TARGET for a thumb, in the dark, between two verses.
+  //
+  // So the target grows and the chip does not: a transparent `::after` on the
+  // button itself, which extends what the browser hit-tests without moving a
+  // pixel of what you see. It also feeds `elementFromPoint` in the drag
+  // gesture, which reports the HOST element for a pseudo-element, so edit mode
+  // gets the bigger grab area for free.
+  //
+  // ⚠ The ceiling is the wrapper's `overflow-hidden` (Reader draws the strip
+  // inside one): hit-testing follows the CLIPPED box, so growing past the row's
+  // own padding buys nothing at all. 6px is what the padding affords — 33px of
+  // target, not the 44px guideline. A real 44 costs ~16px of permanent chrome
+  // height, which is element 1's most expensive currency.
+  const TAP_AREA = "relative after:content-[''] after:absolute after:-inset-x-[3px] after:-inset-y-[6px]";
+
   // ── The edges ────────────────────────────────────────────────────────────
   // A long song runs off both ends of the strip with nothing to say so: the
   // scrollbar is hidden (`no-scrollbar`) and the last chip is clipped flush by
@@ -375,7 +393,7 @@ export function StructureRibbon({
               key={i}
               ref={active ? activeRef : null}
               {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index), title: labelOf(run.name) } : {})}
-              className={cn('shrink-0 inline-flex items-center gap-1 min-h-0', onSelect && 'cursor-pointer hover:opacity-80')}
+              className={cn('shrink-0 inline-flex items-center gap-1 min-h-0', onSelect && `cursor-pointer hover:opacity-80 ${TAP_AREA}`)}
             >
               {/* The dot uses the section's base colour (`s.b`) so it matches the
                   in-chart section titles, not a washed-out border tint. */}
@@ -425,7 +443,7 @@ export function StructureRibbon({
                 'min-h-0',
                 'tracking-[0.06em] px-[7px] py-[2px] rounded-[5px] border transition-all',
                 active && 'font-bold',
-                onSelect && 'cursor-pointer hover:opacity-80',
+                onSelect && `cursor-pointer hover:opacity-80 ${TAP_AREA}`,
               )}
               style={activeFill
                 ? (active
@@ -478,7 +496,7 @@ export function StructureRibbon({
                   active && !activeFill && 'underline underline-offset-4',
                   // The filled chip is the `codes` chip exactly, borderless.
                   activeFill && active && 'inline-flex items-center px-[7px] py-[2px] rounded-[5px]',
-                  onSelect && 'cursor-pointer hover:opacity-80',
+                  onSelect && `cursor-pointer hover:opacity-80 ${TAP_AREA}`,
                 )}
                 style={activeFill
                   ? (active
@@ -511,7 +529,7 @@ export function StructureRibbon({
             className={cn(
               "inline-flex shrink-0 items-center gap-1 rounded-full border font-medium transition-all min-h-0",
               compact ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-[12px]",
-              onSelect && "cursor-pointer hover:opacity-80",
+              onSelect && `cursor-pointer hover:opacity-80 ${TAP_AREA}`,
               active && "ring-2 ring-offset-1 ring-offset-transparent"
             )}
             // Option (a), owner 2026-08-01: an inactive chip is an OUTLINE with

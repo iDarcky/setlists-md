@@ -160,6 +160,41 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
   viewport. `useActiveSection` takes `linePx`; the reader passes `headH`. With
   the fraction the chip changed 60–80px of scrolling before the heading pinned.
 
+#### The element-3 pass — decisions, 2026-08-05
+
+- **A Tag opens where it stands.** Tapping the `↩ Chorus` pill, or its chip in
+  the ribbon, renders that repeat in full **in place**, for the rest of the song.
+  The rejected option was "go to the first full play" (which is what the chip
+  did): you tap chip six, land at chip two, and the highlight walks backwards
+  with you — on stage that reads as the app losing your place. State is a set of
+  play-order **slots**, so opening the third chorus never opens the second, and
+  it is dropped when the song changes.
+  **Hidden is unchanged**: it draws nothing, so there is nothing to open in
+  place, and its chip goes to the one place those words exist.
+- **The ends of the strip fade** when there is more song that way — per side,
+  only where there actually is more. Twelve sections on a 390px phone looked
+  exactly like eleven: hidden scrollbar, chip clipped flush.
+- **The song fits ⇒ nothing lights up.** Offered "light the first chip", "fill
+  them all softly", "tint the strip"; owner rejected all three (*"I don't like
+  any ideas"*). Left as it is.
+- **The hit area is not the chip.** A transparent `::after` grows what the
+  browser hit-tests without moving a pixel. ⚠ Its ceiling is the wrapper's
+  `overflow-hidden` — hit-testing follows the clipped box, so the target cannot
+  exceed the row's own padding (≈33px). A real 44px costs ~16px of permanent
+  chrome.
+- **Editing takes the map to the top from EVERY position**, and gives it back on
+  exit (owner: *"boxes are for editing… when exits edit everything goes back to
+  normal"*). It used to rescue `off`/`left`/`right` only, so a bottom ribbon
+  stayed under the nav bar — the furthest place from the change being made.
+- **`C ×3` stays one chip and still jumps to the first of the run** (owner).
+- **A collapsed run, a break with no ribbon** — a break's chrome is one row
+  shorter and that is fine: *"more space for the break items"* (owner).
+- **The set bar does NOT share the ribbon's row**, and any comment saying so is
+  a fossil of the pre-8b rule. Owner, 2026-08-05: *"We moved the Setlist bar on
+  top of the header so they don't share anything."* Fixed in the ☰'s own copy,
+  `readerConfig`'s knob comment, the changelog entry, and the `underBar` prop
+  name (now `aboveBar`, which is where it renders).
+
 > ### ⚠ The `min-h-0` trap — read this before touching any small control
 > `styles/index.css` carries, in `@layer base`:
 > ```css

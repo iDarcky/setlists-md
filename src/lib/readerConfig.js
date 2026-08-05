@@ -37,9 +37,12 @@ export const READER_KNOBS = {
   inlineNotes: ['on', 'off'],
   footer: ['count', 'next'],               // 10
   nav: ['footer', 'pill', 'edge', 'swipe'],// 10
-  // 8 — what hangs under the top bar. 'ribbon' maps the SONG, 'setlist' maps
-  // the SET (the app's original player bar). Never both: two maps competing for
-  // one glance.
+  // 8 — the set bar's visibility. 'ribbon' means "no set bar"; 'setlist' shows
+  // it ABOVE the title row (element 8b, 2026-08-01), with the song's ribbon
+  // keeping its own place below: SET / HEADER / STRUCTURE.
+  //
+  // It was an either/or once — "never both: two maps competing for one glance"
+  // — and the owner overruled that. The name is the fossil of the old rule.
   topBar: ['ribbon', 'setlist'],
   // 29 — the setlist rail. It existed with no way to turn it off: open/closed
   // was remembered per device in localStorage, but the strip itself was always
