@@ -3,7 +3,7 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.71` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.72` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
 > can compare against `beta`. 904 tests, 0 lint errors (8 pre-existing
@@ -100,7 +100,7 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.71) — element 28, rounds 1–11 · Style CLOSED, Layout grouped
+## Just shipped (beta.72) — element 28, rounds 1–12 · Style + Layout + Music all grouped
 
 | What | Where |
 |---|---|
@@ -130,6 +130,16 @@ The facts to check before designing anything:
 | **BUG: "I've lost the chords."** The reader read `settings.showChords`; every control (Show, the role picker, `AaMenu`) writes `displayMode`. Different keys — so Show did nothing, and once `showChords` was false there was no way back. `displayMode` is the source now. **`'chordsonly'` was also impossible**: `ReaderSection` passed a bare `showLyrics` | `Reader.jsx`, `ReaderSection.jsx` |
 | **Roman numerals** (`getRomanNumeral`) — case carries the quality, so the minor suffix is consumed, not printed twice · **diagrams toggle** (`showDiagrams` was a fourth orphan) · **reading direction prototype** (`readerFlow`: multicol `down` vs grid `across`) | `music.js`, `Reader.jsx`, `readerConfig.js` |
 
+| **The desktop ☰ is a 320px panel down the LEFT**, not a popover — `Reader`'s root is a ROW now (panel · column). `dock` took a third value, `'side'` | `Reader.jsx`, `SetlistReader.jsx`, `ReaderMenu.jsx` |
+| **Dropdowns by rule: 4+ options → dropdown, 2–3 → pills** · **Music grouped** (Who's reading · The chords · This song), "You're playing" → **Your instrument**, explanations behind an **(i)** (`Field`'s `info`) | `ReaderMenu.jsx` |
+| **Reading direction was invisible** — gated on `settings.defaultColumns === 2` (the explicit setting) when two columns is the resolved default on a wide screen. `config.columns` now | `ReaderMenu.jsx` |
+
+> **jsdom trap, new:** its CSS shorthand parser throws on `conic-gradient` and
+> some `var()` inside the **`background` shorthand**, during `cloneNode` — which
+> Testing Library does for every role query. One bad inline style takes out
+> every `getByRole` on the page with a `TypeError` naming none of it. Use
+> `backgroundColor`/`backgroundImage` longhands inline.
+
 > ### ⚠ FIVE settings in three rounds were wired at ONE END ONLY
 > `readerNotes`, `readerFooter`, the rail, `showDiagrams` (written, never read)
 > and `displayMode` (read by nobody standalone). **When adding or touching a
@@ -141,7 +151,24 @@ The facts to check before designing anything:
 > (`--ds-gray-500`/`--border-2`, then `--ds-gray-600`, then `--ds-gray-900`).
 > Check the steps whenever the ☰ takes on another shared control.
 
-**Next in element 28: the Layout tab, then Music** — the owner is doing Layout
+**Element 28 is essentially done — Style, Layout and Music are all grouped and
+built.** What is left is the owner's, not the panel's:
+
+1. **Graduate the flag and delete the old surfaces** — agreed for the NEXT
+   session, on its own (`PLAN.md` §1.1 #4). ~2,800 lines across `SetlistPlayer`,
+   `PerformanceView`, `PracticeView`, `LiveFinale`, `PracticeFinale`, plus
+   Settings → Chart Style, which the owner wants gone because the ☰ replaces it.
+   ⚠ **Those two old views are the only writers of `showChords`**, which is now
+   only a fallback — deleting them is the moment to drop the fallback too.
+2. **`View` in the Music tab** — needs the reading-modes overhaul first
+   (`PLAN.md` §7 #11). Leave a place, do not build it in.
+3. **An (i) on every setting** — noted by the owner, explicitly "not now".
+4. **Custom chord diagrams** — the owner's idea, prio 4.
+5. **Whether to reset defaults for everyone** — the owner will decide once the
+   elements are finished. Nothing resets today: every setting reads
+   `settings?.x ?? default` and all of them are in `PORTABLE_PREF_KEYS`.
+
+**Old next-step note (superseded):** — the owner is doing Layout
 "in the morning". Layout is nine controls in a flat column: it now has the right
 pill and the right size, but NOT the grouping the Style tab got. Its nine do not
 fall into obvious buckets the way Style's did, so bring a grouping proposal

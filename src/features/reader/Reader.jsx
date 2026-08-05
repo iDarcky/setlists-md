@@ -663,7 +663,7 @@ export default function Reader({
 
   const menuNode = ownAaAnchor ? (
     <ReaderMenu
-      dock={menuDocks}
+      dock={menuDocks ? 'bottom' : 'side'}
       onUpgrade={onUpgrade}
       anchorRect={ownAaAnchor}
       onClose={() => setOwnAaAnchor(null)}
@@ -682,13 +682,22 @@ export default function Reader({
   const bottomRibbon = ribbonPlace === 'bottom' && !!ribbonNode;
 
   return (
-    // ── The 70/30 split ──────────────────────────────────────────────────────
+    // ── The split ────────────────────────────────────────────────────────────
     // The scroller used to BE the root. It is a flex CHILD now, so the docked
-    // ☰ can take a real 30% off the bottom: the chart gets shorter rather than
+    // ☰ can take a real share of the screen: the chart gets smaller rather than
     // being covered, and it keeps its scroll position. Nothing changes when the
-    // dock is absent — a lone `flex-1` child of an `h-full` column is the same
-    // box `h-full` was.
-    <div className="h-full flex flex-col">
+    // dock is absent — a lone `flex-1` child is the same box `h-full` was.
+    //
+    // A phone splits VERTICALLY (chart over settings, 60/40) and a desktop
+    // HORIZONTALLY (settings down the left, chart beside them) — the outer row
+    // here, the inner column below.
+    <div className="h-full flex">
+      {/* The desktop panel. On the LEFT, under the ☰ that opens it and
+          mirroring the setlist rail on the other edge. */}
+      {!menuDocks && menuNode && (
+        <div className="shrink-0 h-full" style={{ width: 320 }}>{menuNode}</div>
+      )}
+    <div className="flex-1 min-w-0 h-full flex flex-col">
     <div
       className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden no-scrollbar"
       ref={scrollRef}
@@ -1061,10 +1070,6 @@ export default function Reader({
         />
       )}
 
-      {/* Desktop: the popover, portaled. On a phone this is null and the same
-          node is mounted in the dock below instead. */}
-      {!menuDocks && menuNode}
-
       {/* The hub's Aa button, unchanged. See the note on `ownAaAnchor`. */}
       {hostAaAnchor && (
         <AaMenu
@@ -1091,6 +1096,7 @@ export default function Reader({
       {menuDocks && menuNode && (
         <div className="shrink-0 min-h-0" style={{ flex: '0 0 40%' }}>{menuNode}</div>
       )}
+    </div>
     </div>
   );
 }

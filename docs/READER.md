@@ -1421,6 +1421,49 @@ short verse beside a long chorus leaves a hole. **Nothing balances it away and
 no amount of CSS will** — it is worth it only when sections are of similar
 length. Offered only at two columns, and only where two columns are possible.
 
+#### Element 28, round 12 — the desktop side panel, and Music, 2026-08-04
+
+**The reading direction was invisible, and the gate was the bug.** Owner:
+*"Where did you put the reading direction? i cannot find it."* It was gated on
+`settings.defaultColumns === 2` — the **explicit** setting. But `resolveColumns`
+returns 2 whenever `defaultColumns` is unset on a wide screen, so two columns is
+the resolved DEFAULT and the control was hidden from everyone who had never
+pressed "2". Gated on `config.columns === 2` now — the honest number. **Same
+class of mistake as the five one-ended settings: a control keyed to what was
+*stored* rather than what is *in effect*.**
+
+**The desktop ☰ is a panel down the LEFT.** Owner: *"On desktop, could the ☰
+open as a hamburger from the left side? because right now it sits over half of
+the screen. Something like the rail."* Right, and it is the same argument the
+phone dock already won: a popover anchored to a top-left button covers the chart
+it is changing. `Reader`'s root is a **row** now — the 320px panel, then the
+column holding the scroller and the phone dock — so the chart is pushed across
+rather than overlaid, mirroring the setlist rail on the other edge. `dock` took
+a third value (`'side'`), and the tab strip goes back on TOP there: a full-height
+panel is read top-down, while the phone dock's strip belongs on the edge nearest
+the thumb.
+
+**Dropdowns by a rule, not case by case:** **4+ options → dropdown, 2–3 →
+pills.** That is Structure-where (5), Structure-style (5), Section style (4),
+Song to song (4), Show (3, but it reads as a menu) and Chord names (4).
+
+**Music, grouped and renamed.** *Who's reading* (**Your instrument** — owner
+didn't like "You're playing"; this is the concrete thing and it is the word the
+team schema already uses for `team_members.instruments`) · *The chords* (Show ·
+Chord names · Sharps or flats · Tap for shapes) · *This song* (Capo).
+
+**Explanations moved into an (i).** Owner: *"the explanations should be inside a
+i button not random there. Maybe all the settings should have an i — but not
+now."* `Field` takes `info`; two use it so far. **The "every setting gets one"
+version is noted and NOT built.**
+
+> **jsdom trap, new:** its CSS shorthand parser throws on `conic-gradient` (and
+> some `var()` combinations) inside the **`background` shorthand** — and it
+> throws during `cloneNode`, which Testing Library does for every role query. So
+> one bad inline style takes out every `getByRole` on the page with a
+> `TypeError` that names none of it. Use `backgroundColor` / `backgroundImage`
+> longhands in inline styles.
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the

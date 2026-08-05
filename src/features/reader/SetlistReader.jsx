@@ -277,7 +277,7 @@ export default function SetlistReader({
   const openMenu = (rect) => setMenu(m => (m?.idx === idx ? null : { idx, rect }));
   const menuNode = menuAnchor ? (
     <ReaderMenu
-      dock={menuDocks}
+      dock={menuDocks ? 'bottom' : 'side'}
       onUpgrade={onUpgrade}
       anchorRect={menuAnchor}
       onClose={() => setMenu(null)}
@@ -349,11 +349,15 @@ export default function SetlistReader({
   // arrows and the phone sheet are all `fixed`, so they ignore this box.
   return (
     <div className="h-full flex">
+      {/* The desktop ☰, docked down the LEFT — first in the row, so it pushes
+          the chart across rather than covering it. The setlist rail is the
+          mirror of this on the other edge. */}
+      {!menuDocks && menuNode && (
+        <div className="shrink-0 h-full" style={{ width: 320 }}>{menuNode}</div>
+      )}
       <div className="flex-1 min-w-0 h-full">{body}</div>
       {overlay}
-      {/* Desktop only — on a phone the same node is docked inside the screen's
-          own 70/30 column (see `menuDock`). */}
-      {!menuDocks && menuNode}
+
     </div>
   );
 }

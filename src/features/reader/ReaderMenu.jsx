@@ -146,11 +146,27 @@ const TABS = [['style', 'Style'], ['layout', 'Layout'], ['music', 'Music']];
  * Now: the app's own sans at 12px/600, sentence case, on the chart's ordinary
  * secondary ink. Same job, one signal, legible.
  */
-function Field({ label, children, onReset }) {
+function Field({ label, children, onReset, info }) {
+  const [showInfo, setShowInfo] = useState(false);
   return (
     <div className="px-4 pt-3.5 pb-0.5">
       <div className="flex items-baseline gap-2 mb-2">
         <div className="text-[13.5px] font-semibold text-[var(--text-2)]">{label}</div>
+        {/* The explanation, behind an (i) — it used to sit under the control as
+            a loose paragraph (owner, 2026-08-04: *"the explanations should be
+            inside a i button not random there"*). He also wants this on every
+            setting eventually; noted, not built. */}
+        {info && (
+          <button type="button" onClick={() => setShowInfo(v => !v)}
+            aria-label={`About ${label}`} aria-expanded={showInfo}
+            className="min-h-0 w-[17px] h-[17px] shrink-0 grid place-items-center rounded-full text-[11px] font-bold cursor-pointer bg-transparent"
+            style={{
+              color: showInfo ? 'var(--color-brand)' : 'var(--ds-gray-600)',
+              boxShadow: `inset 0 0 0 1.2px ${showInfo ? 'var(--color-brand)' : 'var(--border-2)'}`,
+            }}>
+            i
+          </button>
+        )}
         {onReset && (
           <button type="button" onClick={onReset} aria-label={`Reset ${label}`}
             className="ml-auto min-h-0 text-[12px] font-medium cursor-pointer bg-transparent border-none p-0"
@@ -159,6 +175,9 @@ function Field({ label, children, onReset }) {
           </button>
         )}
       </div>
+      {showInfo && info && (
+        <p className="m-0 mb-2 text-[12.5px] leading-snug text-[var(--ds-gray-600)]">{info}</p>
+      )}
       {children}
     </div>
   );
@@ -196,7 +215,7 @@ function GroupTitle({ children }) {
   return (
     <div className="px-4 pt-4 pb-0.5 first:pt-1">
       <div className="text-[15px] font-semibold text-[var(--text-1)]">{children}</div>
-      <div className="mt-2 h-px" style={{ background: 'var(--border-1)' }} />
+      <div className="mt-2 h-px" style={{ backgroundColor: 'var(--border-1)' }} />
     </div>
   );
 }
@@ -406,7 +425,7 @@ function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
               onClick={() => (locked ? onUpgrade?.() : onPick(t.id))}
               className="relative shrink-0 min-h-0 h-[40px] w-[70px] rounded-lg overflow-hidden cursor-pointer flex items-end justify-end px-2 py-1.5"
               style={{
-                background: t.bg, color: t.chord, fontFamily: 'var(--font-mono)',
+                backgroundColor: t.bg, color: t.chord, fontFamily: 'var(--font-mono)',
                 opacity: locked ? 0.45 : 1,
                 boxShadow: on
                   ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
@@ -432,7 +451,7 @@ function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
           style={{
             borderColor: 'var(--color-brand)',
             color: 'var(--color-brand)',
-            background: 'var(--color-brand-soft)',
+            backgroundColor: 'var(--color-brand-soft)',
           }}>
           <LockGlyph />
           Unlock {lockedCount} more themes
@@ -475,9 +494,9 @@ function ColorCarousel({ value, onPick }) {
               title={c.name} aria-label={c.name}
               className="shrink-0 w-10 h-10 min-h-0 rounded-full cursor-pointer"
               style={{
-                background: c.value === null
-                  ? 'linear-gradient(135deg, var(--chart-lyric, var(--chart-text, #888)) 50%, var(--chord, #e0b341) 50%)'
-                  : c.value,
+                ...(c.value === null
+                  ? { backgroundImage: 'linear-gradient(135deg, var(--chart-lyric, var(--chart-text, #888)) 50%, var(--chord, #e0b341) 50%)' }
+                  : { backgroundColor: c.value }),
                 boxShadow: on
                   ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
                   : 'inset 0 0 0 1px var(--border-2)',
@@ -492,10 +511,15 @@ function ColorCarousel({ value, onPick }) {
           onClick={(e) => setAt(a => (a ? null : e.currentTarget.getBoundingClientRect()))}
           aria-label="Any colour" aria-expanded={!!at} title="Any colour"
           className="relative shrink-0 w-10 h-10 min-h-0 rounded-full cursor-pointer grid place-items-center"
+          // `backgroundImage`/`backgroundColor`, not the `background`
+          // shorthand: jsdom's shorthand parser throws on a `conic-gradient`
+          // when Testing Library clones the node for a role query, which takes
+          // out any test that so much as looks for a button. Longhands are the
+          // more accurate property here anyway.
           style={{
-            background: custom
-              ? value
-              : 'conic-gradient(#f43f5e, #f59e0b, #22c55e, #06b6d4, #6366f1, #d946ef, #f43f5e)',
+            ...(custom
+              ? { backgroundColor: value }
+              : { backgroundImage: 'conic-gradient(#f43f5e, #f59e0b, #22c55e, #06b6d4, #6366f1, #d946ef, #f43f5e)' }),
             boxShadow: custom || at
               ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
               : 'inset 0 0 0 1px var(--border-2)',
@@ -567,9 +591,10 @@ export default function ReaderMenu({
   anchorRect, onClose, settings, onUpdateSettings,
   song, config,
   lyricSize, onLyricSize, chordSize, onChordSize,
-  // The phone's shape: docked under the reader, filling the box the host
-  // reserved for it. Only the host can offer that — it owns the flex column
-  // the 70/30 split lives in.
+  // The shape the host is offering, and only the host can offer either:
+  //   'bottom' — a phone dock, filling the 40% box under the reader;
+  //   'side'   — a desktop panel down the LEFT, pushing the chart across;
+  //   false    — a popover anchored to the ☰ (the fallback; nothing left).
   dock = false,
   // Where a locked control sends you. Absent → the lock is stated but not
   // sellable, which is what every locked control here used to be.
@@ -771,7 +796,8 @@ export default function ReaderMenu({
   // like an x to close the dock… rather than the top one?"*). The ☰ still
   // toggles; this is the near one.
   const head = (
-    <div className={`shrink-0 flex items-center gap-1 p-1.5 ${dock ? 'border-t' : 'border-b'} border-[var(--border-1)]`}>
+    <div className={`shrink-0 flex items-center gap-1 p-1.5 ${
+      dock === 'bottom' ? 'border-t' : 'border-b'} border-[var(--border-1)]`}>
       {TABS.map(([id, label]) => (
         <button
           key={id} type="button" onClick={() => setTab(id)}
@@ -780,7 +806,11 @@ export default function ReaderMenu({
             tab === id
               ? 'text-white border-transparent'
               : 'text-[var(--text-2)] border-transparent bg-transparent hover:text-[var(--text-1)] hover:bg-[var(--bg-2)]'}`}
-          style={tab === id ? { background: 'var(--color-brand)' } : undefined}
+          // `backgroundColor`, not the `background` shorthand: jsdom's parser
+          // throws on a `var()` inside the shorthand when Testing Library
+          // clones the node for a role query, which takes out every test that
+          // looks for a button anywhere on the page.
+          style={tab === id ? { backgroundColor: 'var(--color-brand)' } : undefined}
         >
           {label}
         </button>
@@ -941,10 +971,15 @@ export default function ReaderMenu({
                 options={[[1, '1'], [2, '2']]} onChange={(v) => set('defaultColumns', v)} />
             </Field>
           )}
-          {/* Only with two columns, and only where two columns are possible —
-              a reading direction for one column is a control that does
-              nothing, which this panel has produced four times already. */}
-          {wideEnoughForColumns && settings?.defaultColumns === 2 && (
+          {/* Only where two columns are actually IN EFFECT — a reading
+              direction for one column is a control that does nothing, which
+              this panel has produced five times already.
+              `config.columns`, NOT `settings.defaultColumns`: two columns is
+              the resolved DEFAULT on a wide screen, so gating on the explicit
+              setting hid this from everyone who had never pressed "2" (owner,
+              2026-08-04: "Where did you put the reading direction? i cannot
+              find it"). `resolveColumns` is the honest number. */}
+          {config?.columns === 2 && (
             <Field label="Read them" onReset={reset('readerFlow')}>
               <Picks value={settings?.readerFlow || 'down'}
                 options={[['down', 'Down, then across'], ['across', 'Left to right']]}
@@ -965,7 +1000,7 @@ export default function ReaderMenu({
               onChange={(v) => set('readerHeading', v)} />
           </Field>
           <Field label="Style" onReset={reset('readerSectionStyle')}>
-            <Picks value={settings?.readerSectionStyle || 'bar'}
+            <Dropdown label="Section style" value={settings?.readerSectionStyle || 'bar'}
               options={[['bar', 'Bar'], ['plain', 'No line'], ['block', 'Block'], ['card', 'Card']]}
               onChange={(v) => set('readerSectionStyle', v)} />
           </Field>
@@ -993,20 +1028,20 @@ export default function ReaderMenu({
               onChange={(v) => set('readerTopBar', v)} />
           </Field>
           <Field label="Structure — where" onReset={reset('structurePosition')}>
-            <Picks value={settings?.structurePosition || 'top'}
+            <Dropdown label="Where the structure sits" value={settings?.structurePosition || 'top'}
               options={[['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['off', 'Hidden']]}
               onChange={(v) => set('structurePosition', v)} />
           </Field>
           <Field label="Structure — style" onReset={reset('ribbonStyle')}>
-            <Picks value={settings?.ribbonStyle || 'codes'}
-              options={[['codes', 'Boxes'], ['chips', 'Chips'], ['numbered', 'Inline'], ['dots', 'Dots'], ['dotlabel', 'Dots+label']]}
+            <Dropdown label="Structure style" value={settings?.ribbonStyle || 'codes'}
+              options={[['codes', 'Boxes'], ['chips', 'Chips'], ['numbered', 'Inline'], ['dots', 'Dots'], ['dotlabel', 'Dots + label']]}
               onChange={(v) => set('ribbonStyle', v)} />
           </Field>
 
           {/* ── Getting around ───────────────────────────────────────────── */}
           <GroupTitle>Getting around</GroupTitle>
           <Field label="Song to song" onReset={reset('readerNav')}>
-            <Picks value={settings?.readerNav || 'footer'}
+            <Dropdown label="Song to song" value={settings?.readerNav || 'footer'}
               options={[['footer', 'Bottom bar'], ['pill', 'Pill'], ['edge', 'Edge arrows'], ['swipe', 'Swipe']]}
               onChange={(v) => set('readerNav', v)} />
           </Field>
@@ -1027,51 +1062,64 @@ export default function ReaderMenu({
         </>
       )}
 
-      {/* ── The music ──────────────────────────────────────────────────────
-          Named for what it holds: how the music is SPELLED, not how the page
-          looks — which is why accidentals live here and not in Display. No key
-          change: element 1's key pill owns transpose, and a second control for
-          it is a second answer. */}
+      {/* ── Music ──────────────────────────────────────────────────────────
+          Named for what it holds: how the music is SPELLED and who is reading
+          it — not how the page looks, which is why accidentals live here and
+          not in Style. No key change: element 1's key pill owns transpose, and
+          a second control for it is a second answer. */}
       {tab === 'music' && (
         <>
-          <Segs label="You're playing" value={roleId}
-            options={ROLES.map(r => [r.id, r.label])}
-            onChange={(id) => {
-              // Applies its settings VISIBLY. A role that silently overrode the
-              // display panel is the exact bug that turned the hub's Chart tab
-              // into a second Lyrics tab.
-              const r = ROLES.find(x => x.id === id);
-              set('displayRole', id);
-              Object.entries(r?.applies || {}).forEach(([k, v]) => set(k, v));
-            }} />
-          <div className="px-4 pt-1 pb-0.5">
-            <p className="m-0 text-[13px] text-[var(--ds-gray-600)]">
-              Vocals and Drums drop the chords; Guitar and Bass open their own tabs. All still changeable under Display.
-            </p>
-          </div>
+          {/* ── Who's reading ────────────────────────────────────────────── */}
+          <GroupTitle>Who&rsquo;s reading</GroupTitle>
+          {/* Was "You're playing" (owner, 2026-08-04: *"I don't like the you're
+              playing name"*). "Your instrument" is the concrete thing, and it
+              is the same word the team schema uses (`team_members.instruments`)
+              — one day this row and the roster will be the same fact. */}
+          <Field label="Your instrument" onReset={reset('displayRole', 'tabInstrument')}
+            info="Vocals and Drums drop the chords; Guitar and Bass open their own tabs. Everything here stays changeable on its own afterwards.">
+            <Picks value={roleId} options={ROLES.map(r => [r.id, r.label])}
+              onChange={(id) => {
+                // Applies its settings VISIBLY. A role that silently overrode
+                // the display panel is the exact bug that turned the hub's
+                // Chart tab into a second Lyrics tab.
+                const r = ROLES.find(x => x.id === id);
+                set('displayRole', id);
+                Object.entries(r?.applies || {}).forEach(([k, v]) => set(k, v));
+              }} />
+          </Field>
 
-          {/* Was "In a pinch", in Layout, and nobody could tell what it did
-              (owner, 2026-08-04: "What is in a pinch? I don't really know what
-              it does"). It is `displayMode` — the same setting as "show chords"
-              — so it belongs beside the role picker that sets it, under a name
+          {/* ── The chords ───────────────────────────────────────────────── */}
+          <GroupTitle>The chords</GroupTitle>
+          {/* Was "In a pinch", in Layout, and nobody could tell what it did.
+              It is `displayMode` — the same setting as "show chords" — so it
+              belongs beside the instrument picker that writes it, under a name
               that says what it is. */}
-          <Segs label="Show" value={settings?.displayMode || 'chords'}
-            options={[['chords', 'Chords + lyrics'], ['lyrics', 'Lyrics only'], ['chordsonly', 'Chords only']]}
-            onChange={(v) => set('displayMode', v)} />
-
-          <Segs label="Chord names" value={config?.display?.notation || 'letters'}
-            options={NOTATIONS} onChange={(v) => set('notation', v)} />
-          <Segs label="Sharps or flats" value={settings?.accidentals || 'auto'}
-            options={[['auto', 'Follow key'], ['sharps', '♯'], ['flats', '♭']]}
-            onChange={(v) => set('accidentals', v)} />
-
+          <Field label="Show" onReset={reset('displayMode')}>
+            <Dropdown label="What the chart shows" value={settings?.displayMode || 'chords'}
+              options={[['chords', 'Chords + lyrics'], ['lyrics', 'Lyrics only'], ['chordsonly', 'Chords only']]}
+              onChange={(v) => set('displayMode', v)} />
+          </Field>
+          <Field label="Chord names" onReset={reset('notation')}
+            info="Numbers are Nashville (1, 4, 5). Numerals are Roman, and the numeral itself says major or minor — I, IV, V against ii, iii, vi.">
+            <Dropdown label="Chord names" value={config?.display?.notation || 'letters'}
+              options={NOTATIONS} onChange={(v) => set('notation', v)} />
+          </Field>
+          <Field label="Sharps or flats" onReset={reset('accidentals')}>
+            <Picks value={settings?.accidentals || 'auto'}
+              options={[['auto', 'Follow key'], ['sharps', '♯'], ['flats', '♭']]}
+              onChange={(v) => set('accidentals', v)} />
+          </Field>
           {/* Element 11. The setting existed and the reader read it NOWHERE —
               tapping a chord always offered its shape. Default on: a diagram
               you have to ask for costs nothing until you ask. */}
-          <Segs label="Tap a chord for its shape" value={settings?.showDiagrams === false ? 'off' : 'on'}
-            options={[['on', 'On'], ['off', 'Off']]}
-            onChange={(v) => set('showDiagrams', v === 'on' ? undefined : false)} />
+          <Field label="Tap a chord for its shape" onReset={reset('showDiagrams')}>
+            <Picks value={settings?.showDiagrams === false ? 'off' : 'on'}
+              options={[['on', 'On'], ['off', 'Off']]}
+              onChange={(v) => set('showDiagrams', v === 'on' ? undefined : false)} />
+          </Field>
 
+          {/* ── This song ────────────────────────────────────────────────── */}
+          <GroupTitle>This song</GroupTitle>
           <Field label="Capo">
             {capo ? (
               // Truthful rather than a knob that does nothing: the chart shows
@@ -1092,21 +1140,33 @@ export default function ReaderMenu({
     </div>
   );
 
-  // ── Docked: the bottom 30% of the reader ─────────────────────────────────
+  // ── Docked ───────────────────────────────────────────────────────────────
   // No portal, no scrim, no handle. It fills the box the host gave it, and the
-  // ✕ in the top bar is the way out.
+  // ✕ in the tab strip is the way out.
+  //
+  // 'side' is the desktop's answer to the same complaint the phone dock fixed
+  // (owner, 2026-08-04: *"On desktop, could the ☰ open as a hamburger from the
+  // left side? because right now it sits over half of the screen. Something
+  // like the rail"*). A popover anchored to a top-LEFT button covers the chart
+  // it is changing; a panel down the left pushes it across instead, exactly as
+  // the setlist rail does on the other edge.
   if (dock) {
+    const side = dock === 'side';
     return (
       <div
         ref={panelRef}
         role="dialog" aria-label="Reader menu"
-        className="h-full min-h-0 overflow-hidden flex flex-col border-t border-[var(--border-2)]"
+        className={`h-full min-h-0 overflow-hidden flex flex-col ${
+          side ? 'border-r' : 'border-t'} border-[var(--border-2)]`}
         // It is a SIBLING of the reader's scroller, not a child, so it does not
         // inherit `chartSurface` and carries the remap itself.
         style={chartOverlaySurface}
       >
-        {body}
-        {head}
+        {/* Tabs at the BOTTOM in the phone dock — it is already the bottom of
+            the screen and the strip is what you reach for repeatedly, so it
+            belongs on the edge nearest the thumb. A side panel is full height
+            and read top-down, so there the strip goes back on top. */}
+        {side ? <>{head}{body}</> : <>{body}{head}</>}
       </div>
     );
   }

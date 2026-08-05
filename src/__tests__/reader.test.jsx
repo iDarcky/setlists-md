@@ -288,15 +288,16 @@ describe('the ☰ menu', () => {
     renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
     // Zero taps to the first panel, not one. Style is open on arrival.
-    expect(screen.getByText('Theme')).toBeTruthy();
+    expect(screen.getAllByText('Theme').length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
 
     // And every other panel is one tap from it, in either direction.
     fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
-    expect(screen.getByRole('button', { name: 'Boxes' })).toBeTruthy();
+    // 4+ options are dropdowns now; 2–3 stay as pills.
+    expect(screen.getByLabelText('Structure style')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'ALL CAPS' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Style' }));
-    expect(screen.getByText('Theme')).toBeTruthy();
+    expect(screen.getAllByText('Theme').length).toBeGreaterThan(0);
   });
 
   it('does not put the song title in the menu — the top bar already says it', () => {
@@ -359,7 +360,7 @@ describe('the ☰ menu', () => {
     // 2026-08-04: "everything is way too small").
     const stylePill = screen.getByRole('button', { name: 'S' });
     fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
-    const layoutPill = screen.getByRole('button', { name: 'Boxes' });
+    const layoutPill = screen.getAllByRole('button', { name: 'Shown' })[0];
     expect(stylePill.className).toContain('h-11');
     expect(layoutPill.className).toContain('h-11');
     // The steppers take the same size.
@@ -392,9 +393,9 @@ describe('the ☰ menu', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Music' }));
     // It is `displayMode` — the same setting as "show chords" — so it sits
-    // beside the role picker that writes it.
+    // beside the instrument picker that writes it.
     expect(screen.getByText('Show')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Chords + lyrics' })).toBeTruthy();
+    expect(screen.getByLabelText('What the chart shows')).toBeTruthy();
   });
 
   it('offers a Reset per OPTION, and only where there is something to reset', () => {
@@ -670,12 +671,20 @@ describe('the ☰ on a phone — element 28', () => {
     expect(screen.getByRole('button', { name: 'Display options' })).toBeTruthy();
   });
 
-  it('is a portaled popover on a desktop, not a dock', () => {
+  it('docks down the LEFT on a desktop, rather than covering the chart', () => {
     mockWidth(1024);
     openPanel();
     const panel = screen.getByRole('dialog', { name: 'Reader menu' });
-    expect(panel.parentElement).toBe(document.body);
-    expect(panel.style.maxHeight).toBe('74vh');
+    // A popover anchored to a top-LEFT button covers the chart it is changing.
+    // A panel down the left pushes it across, like the setlist rail does on
+    // the other edge.
+    expect(panel.parentElement).not.toBe(document.body);
+    expect(panel.parentElement.style.width).toBe('320px');
+    // FIRST in the row, so the chart moves right rather than being overlaid.
+    expect(panel.parentElement.previousElementSibling).toBeNull();
+    // Tabs on top here: a full-height panel is read top-down. (On the phone
+    // dock they sit at the bottom, nearest the thumb.)
+    expect(panel.firstChild.className).toContain('border-b');
   });
 });
 
@@ -749,9 +758,9 @@ describe('embedded in the Song Hub', () => {
     const { container } = render(
       <Reader song={makeSong()} settings={{}} embedded onExit={() => {}} />
     );
-    // `container.firstChild` is the 70/30 split column now; the surface lives
-    // on the SCROLLER inside it (element 28's dock).
-    const root = container.firstChild.firstChild;
+    // The reader is a ROW (desktop ☰ | column) whose column holds the
+    // scroller; the surface lives on the scroller.
+    const root = container.firstChild.firstChild.firstChild;
     expect(root.style.getPropertyValue('--chart-bg')).toBe('var(--ds-background-100)');
     expect(root.style.getPropertyValue('--chart-text')).toBe('var(--ds-gray-1000)');
   });
@@ -760,7 +769,7 @@ describe('embedded in the Song Hub', () => {
     // Standalone it must NOT override --chart-*: those come from :root, where
     // useChartTheme writes the stage palette. Overriding here would kill themes.
     const { container } = render(<Reader song={makeSong()} settings={{}} onExit={() => {}} />);
-    expect(container.firstChild.firstChild.style.getPropertyValue('--chart-bg')).toBe('');
+    expect(container.firstChild.firstChild.firstChild.style.getPropertyValue('--chart-bg')).toBe('');
     expect(container.firstChild.style.getPropertyValue('--chart-text')).toBe('');
   });
 });
