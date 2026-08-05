@@ -89,12 +89,25 @@ export function Swatches({ activeValue, onPick, size = 'md', wrap = true }) {
         return (
           <button key={c.id} type="button" onClick={() => onPick(c.value)} title={c.name} aria-label={c.name}
             className={`shrink-0 ${size === 'lg' ? 'w-10 h-10' : 'w-8 h-8'} min-h-0 rounded-full cursor-pointer`}
+            // ONE ring, on the edge, and no border.
+            //
+            // It used to carry a 2px TRANSPARENT border plus a 1px INSET
+            // shadow. Backgrounds paint under a transparent border, so the
+            // colour filled the whole circle and the hairline landed 2px inside
+            // its edge — a ring floating within the swatch rather than around
+            // it. Worst on the split "follow the theme" swatch, where the
+            // floating ring also cut across the diagonal (owner, 2026-08-04:
+            // "every circle has a strange outline, and it is especially evident
+            // at the default color that is split"). Same ring language as the
+            // theme tiles now: hairline on the edge, or a gap in the panel's own
+            // colour and then the brand line.
             style={{
               background: isTheme
-                ? 'linear-gradient(135deg, var(--chart-text, #888) 50%, var(--chord, #e0b341) 50%)'
+                ? 'linear-gradient(135deg, var(--chart-lyric, var(--chart-text, #888)) 50%, var(--chord, #e0b341) 50%)'
                 : c.value,
-              border: '2px solid ' + (on ? 'var(--text-1)' : 'transparent'),
-              boxShadow: on ? '0 0 0 2px var(--bg-1), 0 0 0 3px var(--color-brand)' : 'inset 0 0 0 1px var(--border-2)',
+              boxShadow: on
+                ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
+                : 'inset 0 0 0 1px var(--border-2)',
             }} />
         );
       })}

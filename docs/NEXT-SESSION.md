@@ -3,10 +3,10 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.67` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.68` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
-> can compare against `beta`. 888 tests, 0 lint errors (8 pre-existing
+> can compare against `beta`. 889 tests, 0 lint errors (8 pre-existing
 > warnings)._
 
 ---
@@ -100,7 +100,7 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.67) — element 28, rounds 1–7
+## Just shipped (beta.68) — element 28, rounds 1–8
 
 | What | Where |
 |---|---|
@@ -116,7 +116,10 @@ The facts to check before designing anything:
 | **Everything is at the reader's size** — `PanelControls` takes `size`: `md` (the hub's Aa, unchanged) and `lg` (the ☰). The mockup's `Seg`/`MiniStepper` are deleted, so there is ONE pill style in the menu now | `PanelControls.jsx`, `ReaderMenu.jsx` |
 | **BUG: the lyric colour was the chart's INK.** It wrote `--chart-text`, which paints the top bar, the headings and every control via `chartSurface`. Split into `--chart-lyric` | `useChartTheme.js`, `SectionBlock.jsx`, `readerSurface.js` |
 | **BUG: the lyric font never applied in the Reader.** `ChartView` set it on its own wrapper; the Reader has no wrapper. It is on the lyric span now, where the chord font already was | `SectionBlock.jsx` |
-| **Dock 30%→40%** · **tab strip smaller** · **the dock has its own ✕ beside the tabs** · fonts are a `Select` · colours are one scrolling line · tab colours use the app palette instead of the OS picker · **a red ghost Reset per group** (clears to `undefined`, appears only when there is an override) | `ReaderMenu.jsx`, `Reader.jsx`, `PanelControls.jsx` |
+| **Dock 30%→40%** · **tab strip smaller, and at the BOTTOM in the dock** (top in the popover — the nearest edge differs) · **its own ✕ beside the tabs** | `ReaderMenu.jsx`, `Reader.jsx` |
+| **One `Carousel`** for the theme strip AND all five colour rows · **any colour** as the last stop after the palette · the swatch ring was a 2px transparent border + an INSET hairline, i.e. a ring floating 2px inside the circle | `ReaderMenu.jsx`, `PanelControls.jsx` |
+| **Dropdowns** for font and tab grid — `SelectContent` portals to `document.body` so it carries `chartOverlaySurface`; trigger toned to `--border-1`; **54px** to match a `Stepper` exactly (44 + 4+4 padding + 1+1 border) | `ReaderMenu.jsx` |
+| **Reset is per OPTION, not per group** — on the `Field` label, only when that key holds an override, clearing to `undefined` | `ReaderMenu.jsx` |
 
 **Next in element 28: the Layout tab, then Music** — the owner is doing Layout
 "in the morning". Layout is nine controls in a flat column: it now has the right

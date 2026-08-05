@@ -367,34 +367,50 @@ describe('the ☰ menu', () => {
     expect(screen.getByRole('button', { name: 'Increase lyric size' }).className).toContain('h-11');
   });
 
-  it('offers a Reset per group, and only where there is something to reset', () => {
+  it('offers a Reset per OPTION, and only where there is something to reset', () => {
     const { unmount } = renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
     // Pristine: no clutter, and no button that would do nothing.
-    expect(screen.queryAllByRole('button', { name: 'Reset' }).length).toBe(0);
+    expect(screen.queryAllByRole('button', { name: /^Reset / }).length).toBe(0);
     unmount();
 
     const onUpdateSettings = vi.fn();
     render(<Reader song={makeSong()} onExit={() => {}}
       settings={{ chartLyricFont: 'serif', sectionSpacing: 40 }} onUpdateSettings={onUpdateSettings} />);
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    // One for Lyrics, one for Spacing — not one for the whole tab: undoing a
-    // font should not throw away a size you spent a minute getting right.
-    const resets = screen.getAllByRole('button', { name: 'Reset' });
-    expect(resets.length).toBe(2);
-    fireEvent.click(resets[0]);
+    // Per option, not per group: resetting the font must not also throw away
+    // the size you spent a minute getting right.
+    expect(screen.getByRole('button', { name: 'Reset Font' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reset Between sections' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Reset Size' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reset Line spacing' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset Font' }));
     // Cleared, not set to a copy of the default — the default lives at the
     // point of use, in one place.
     expect(onUpdateSettings).toHaveBeenCalledWith('chartLyricFont', undefined);
   });
 
-  it('gives the themes arrows, so it reads as scrollable', () => {
+  it('gives the themes AND the colours arrows, so they read as scrollable', () => {
     renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
     // A bare overflow strip with the scrollbar hidden gives no sign there is
-    // more than the three themes you can see.
-    expect(screen.getByRole('button', { name: 'More themes' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Previous themes' })).toBeTruthy();
+    // more than what you can see — as true of ten swatches as of ten themes.
+    expect(screen.getAllByRole('button', { name: 'More themes' }).length).toBe(1);
+    // Lyric colour, chord colour, and the three tab colours.
+    expect(screen.getAllByRole('button', { name: 'More colours' }).length).toBe(5);
+    expect(screen.getAllByRole('button', { name: 'Previous colours' }).length).toBe(5);
+  });
+
+  it('offers any colour as the LAST stop, after the palette', () => {
+    renderReader();
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    // The fixed palette is the fast path; the OS picker is the escape hatch,
+    // and it is last because it is a different set of colours and, on a phone,
+    // a full-screen sheet over the chart being adjusted.
+    const wells = screen.getAllByLabelText('Any colour');
+    expect(wells.length).toBeGreaterThan(0);
+    expect(wells[0].getAttribute('type')).toBe('color');
   });
 
   it('applies a role as VISIBLE settings, never as a hidden override', () => {
@@ -533,7 +549,8 @@ describe('the ☰ on a phone — element 28', () => {
     expect(panel.parentElement.style.flex).toBe(box);
     // Without `min-h-0` a flex child refuses to shrink below its content, and
     // the body grows past the dock instead of scrolling.
-    const body = panel.lastChild;
+    // firstChild, not last: in the dock the tab strip sits at the BOTTOM.
+    const body = panel.firstChild;
     expect(body.className).toContain('flex-1');
     expect(body.className).toContain('min-h-0');
     expect(body.className).toContain('overflow-y-auto');
@@ -543,7 +560,8 @@ describe('the ☰ on a phone — element 28', () => {
     const { panel } = openPanel();
     // Without `min-h-0` a flex child refuses to shrink below its content and
     // the sheet grows past its own height instead of scrolling.
-    const body = panel.lastChild;
+    // firstChild, not last: in the dock the tab strip sits at the BOTTOM.
+    const body = panel.firstChild;
     expect(body.className).toContain('flex-1');
     expect(body.className).toContain('min-h-0');
     expect(body.className).toContain('overflow-y-auto');

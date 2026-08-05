@@ -1254,6 +1254,61 @@ was.
   is only ever one copy of what the default is. It only appears when the group
   holds an override, so the button always does something.
 
+#### Element 28, round 8 — the Style tab, finished, 2026-08-04
+
+**The swatch outline was inside the circle.** Owner: *"every circle has a
+strange outline, and it is especially evident at the default color that is
+split."* Measured: `Swatches` carried `border: 2px solid transparent` **plus**
+`inset 0 0 0 1px`. A background paints under a transparent border, so the colour
+filled the whole circle and the hairline landed **2px inside its edge** — a ring
+floating within the swatch rather than around it, and on the split "follow the
+theme" swatch it also cut across the diagonal. No border now: hairline on the
+edge, or the gap-and-brand ring outside. Same ring language as the theme tiles.
+
+**Carousels everywhere, not just the themes** (owner: *"colors require a
+carousel as well"*). The arrows are extracted into one `Carousel`, so the theme
+strip and all five colour rows use the same control. A bare overflow strip with
+the scrollbar hidden gives no sign there is more, and that is as true of ten
+swatches as of ten themes.
+
+**Any colour, as the LAST stop** (owner: *"do you think we could allow custom
+color as the last option?"*). The fixed palette is the fast path — colours known
+to work on the chart themes — and the native well is the escape hatch. Last on
+purpose: it opens the OS picker, which is a different set of colours and, on
+iOS, a full-screen sheet over the chart being adjusted. Worth it when you need
+an exact colour; not worth putting in front of the twelve that already fit.
+
+**The dropdown, three fixes** (owner: *"it opens the default drop-down even if
+the rest of the menu is chart colored… the outline of the button is strange…
+it should be the exact same size as the size"*):
+1. `SelectContent` **portals to `document.body`**, so it inherited the APP
+   palette and dropped a dark app-coloured list out of a cream chart-coloured
+   panel. It carries `chartOverlaySurface` now — which re-points exactly the
+   tokens it reads.
+2. The trigger's border was `--ds-gray-400` (the chart's *subtle*, far too
+   strong for a field) plus a 2px focus ring. Both toned to `--border-1`.
+3. **54px**, which is not a round number: it is what a `Stepper` measures —
+   44px buttons + 4px padding each side + 1px border each side. They sit side
+   by side in a `Pair`. Change one and change the other.
+
+**The tab grid is a dropdown too** — `1/4 · 1/8 · 1/16` needs ~220px as pills
+and has half a phone-width column.
+
+**Reset moved from per-group to per-OPTION.** Owner: *"do you think that we do
+the reset per section or per option? maybe the user just wants to reset the size
+not the font and color."* Right — a group reset charges you for the settings you
+were happy with. It lives on the `Field` label, appears only when that one key
+holds an override, and clears to `undefined` so the default stays defined in
+exactly one place (the `settings?.x ?? default` at the point of use).
+
+**The tabs moved to the BOTTOM — in the dock only.** Owner: *"what do you think
+about moving the tabs at the bottom and making them even smaller?"* On a phone,
+yes: the dock is already the bottom of the screen and the strip is the one thing
+in it you reach for repeatedly, so it belongs on the edge nearest the thumb.
+**That reasoning does not transfer to the desktop popover**, which hangs UNDER
+the ☰ that opened it — there the nearest edge to the pointer is the top, and the
+strip stays there. One `head`, two positions.
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the

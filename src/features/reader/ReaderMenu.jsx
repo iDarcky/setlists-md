@@ -9,7 +9,7 @@ import { chartOverlaySurface } from './readerSurface';
 // these, because it followed the concept mockup's tighter geometry. The owner
 // looked at both on a device and picked these; one set of controls for both
 // panels is the better end state anyway.
-import { Stepper, Pick, Swatches } from '@/ui/PanelControls';
+import { Stepper, Pick } from '@/ui/PanelControls';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/ui/Select';
 import {
   CHART_THEMES,
@@ -133,10 +133,19 @@ const TABS = [['style', 'Style'], ['layout', 'Layout'], ['music', 'Music']];
  * Now: the app's own sans at 12px/600, sentence case, on the chart's ordinary
  * secondary ink. Same job, one signal, legible.
  */
-function Field({ label, children }) {
+function Field({ label, children, onReset }) {
   return (
     <div className="px-4 pt-3.5 pb-0.5">
-      <div className="text-[13.5px] font-semibold text-[var(--text-2)] mb-2">{label}</div>
+      <div className="flex items-baseline gap-2 mb-2">
+        <div className="text-[13.5px] font-semibold text-[var(--text-2)]">{label}</div>
+        {onReset && (
+          <button type="button" onClick={onReset} aria-label={`Reset ${label}`}
+            className="ml-auto min-h-0 text-[12px] font-medium cursor-pointer bg-transparent border-none p-0"
+            style={{ color: 'var(--ds-red-900)' }}>
+            Reset
+          </button>
+        )}
+      </div>
       {children}
     </div>
   );
@@ -165,53 +174,63 @@ function ProNote({ children }) {
 /**
  * The heading over a group of fields — Theme · Lyrics · Chords · Spacing · Tabs.
  *
- * `onReset` puts a red ghost **Reset** at the end of the rule (owner,
- * 2026-08-04: *"each section requires a red ghost button that revert to
- * default"*). Per GROUP rather than one for the whole tab: undoing a font you
- * disliked should not also throw away the size you spent a minute getting
- * right. It only appears when the group actually holds an override, so a
- * pristine panel carries no clutter and the button always does something.
+ * The reset moved OFF this and onto each `Field` (owner, 2026-08-04: *"do you
+ * think that we do the reset per section or per option? maybe the user just
+ * wants to reset the size not the font and color"* — per option, and he is
+ * right: a group reset makes you pay for the settings you were happy with).
  */
-function GroupTitle({ children, onReset }) {
+function GroupTitle({ children }) {
   return (
     <div className="px-4 pt-4 pb-0.5 first:pt-1">
-      <div className="flex items-baseline gap-2">
-        <div className="text-[15px] font-semibold text-[var(--text-1)]">{children}</div>
-        {onReset && (
-          <button type="button" onClick={onReset}
-            className="ml-auto min-h-0 text-[12.5px] font-medium cursor-pointer bg-transparent border-none p-0"
-            style={{ color: 'var(--ds-red-900)' }}>
-            Reset
-          </button>
-        )}
-      </div>
+      <div className="text-[15px] font-semibold text-[var(--text-1)]">{children}</div>
       <div className="mt-2 h-px" style={{ background: 'var(--border-1)' }} />
     </div>
   );
 }
 
 /**
- * A font picker as a DROPDOWN (owner, 2026-08-04: *"Font should be a
- * drop-down"*). As pills it was one row per two fonts and the widest block on
- * the tab; the names are long and there is no reason to see all of them at once.
+ * A dropdown, in the reader's own colours and at the steppers' height.
+ *
+ * Three things it fixes over a bare `Select` (owner, 2026-08-04): the list
+ * **portals to `document.body`**, so it inherited the APP palette and dropped a
+ * dark app-coloured list out of a cream chart-coloured panel — `SelectContent`
+ * carries `chartOverlaySurface`, which re-points exactly the tokens it reads.
+ * The trigger's border came from `--ds-gray-400` (the chart's *subtle*, far too
+ * strong for a field) and it kept a 2px focus ring; both are toned to
+ * `--border-1`.
+ *
+ * And **54px**, which is not a round number by accident: it is what a `Stepper`
+ * measures — 44px buttons + 4px padding each side + 1px border each side. They
+ * sit side by side in a `Pair`, and the owner asked for the font to be *"the
+ * exact same size as the size"*. Change one and change the other.
  */
-function FontSelect({ value, onChange, label }) {
-  const active = CHART_FONTS.find(f => f.id === value);
+// NOTE the class below is written out, not interpolated: Tailwind scans the
+// SOURCE, so a class assembled at runtime is never generated.
+function Dropdown({ value, options, onChange, label, styleOf }) {
+  const active = options.find(o => o[0] === value);
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger aria-label={label} className="!h-11 !min-h-0 w-full !rounded-lg">
-        <span className="truncate" style={{ fontFamily: active?.stack }}>{active?.name || 'Font'}</span>
+    <Select value={String(value)} onValueChange={(v) => onChange(options.find(o => String(o[0]) === v)?.[0])}>
+      <SelectTrigger
+        aria-label={label}
+        className="!h-[54px] !min-h-0 w-full !rounded-lg !px-3 !border-[var(--border-1)] hover:!border-[var(--border-3)] focus:!ring-0"
+      >
+        <span className="truncate text-label-13" style={styleOf?.(active?.[0])}>{active?.[1] ?? '—'}</span>
       </SelectTrigger>
-      <SelectContent>
-        {CHART_FONTS.map(f => (
-          <SelectItem key={f.id} value={f.id}>
-            <span style={{ fontFamily: f.stack }}>{f.name}</span>
+      {/* Portaled to document.body — it inherits nothing from the panel, so it
+          carries the panel's own token remap. */}
+      <SelectContent style={chartOverlaySurface}>
+        {options.map(([v, l]) => (
+          <SelectItem key={String(v)} value={String(v)}>
+            <span style={styleOf?.(v)}>{l}</span>
           </SelectItem>
         ))}
       </SelectContent>
     </Select>
   );
 }
+
+const FONT_OPTIONS = CHART_FONTS.map(f => [f.id, f.name]);
+const fontStyle = (id) => ({ fontFamily: CHART_FONTS.find(f => f.id === id)?.stack });
 
 /**
  * The palette on one scrolling line. The tab colours used a native
@@ -220,10 +239,10 @@ function FontSelect({ value, onChange, label }) {
  * that we already have"*) — a different set of colours, a different gesture,
  * and on iOS a full-screen sheet over the chart you were adjusting.
  */
-function ColorRow({ label, value, onPick }) {
+function ColorRow({ label, value, onPick, onReset }) {
   return (
-    <Field label={label}>
-      <Swatches size="lg" wrap={false} activeValue={value} onPick={onPick} />
+    <Field label={label} onReset={onReset}>
+      <ColorCarousel value={value} onPick={onPick} />
     </Field>
   );
 }
@@ -276,10 +295,10 @@ function LockGlyph() {
   );
 }
 
-function Arrow({ dir, onClick, disabled }) {
+function Arrow({ dir, onClick, disabled, what }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled}
-      aria-label={dir === 'left' ? 'Previous themes' : 'More themes'}
+      aria-label={`${dir === 'left' ? 'Previous' : 'More'} ${what}`}
       className="shrink-0 w-8 h-[40px] min-h-0 grid place-items-center rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-[var(--text-1)] cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed hover:bg-[var(--bg-2)]">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
@@ -290,17 +309,13 @@ function Arrow({ dir, onClick, disabled }) {
 }
 
 /**
- * The themes, as a carousel with arrows (owner, 2026-08-04: *"the themes should
- * be a carousel with arrows left/right so users know to scroll"*). A bare
- * overflow strip with the scrollbar hidden gives no sign there is more.
- *
- * The locked ones are SHOWN, dimmed, with a padlock — not filtered out, which
- * is what it used to do. 3 of 31 themes were visible on a free plan and the
- * other 28 simply did not exist, so there was nothing to want. Seeing them is
- * most of the pitch; tapping one goes to the upgrade screen rather than
- * silently doing nothing.
+ * Arrows + a horizontally scrolling row. Extracted from the theme strip so the
+ * colour palettes get the SAME control (owner, 2026-08-04: *"colors require a
+ * carousel as well"*). A bare overflow strip with the scrollbar hidden gives no
+ * sign there is more than what you can see, and that is as true of ten swatches
+ * as it is of ten themes.
  */
-function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
+function Carousel({ children, what = 'options' }) {
   const ref = useRef(null);
   const [edge, setEdge] = useState({ start: true, end: false });
 
@@ -308,7 +323,9 @@ function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
     const el = ref.current;
     if (!el) return;
     const max = el.scrollWidth - el.clientWidth;
-    setEdge({ start: el.scrollLeft <= 1, end: el.scrollLeft >= max - 1 });
+    // `max < 2` = it all fits. Both arrows go dead rather than one pretending
+    // there is somewhere to go.
+    setEdge({ start: el.scrollLeft <= 1, end: max < 2 || el.scrollLeft >= max - 1 });
   }, []);
   useEffect(() => {
     const el = ref.current;
@@ -316,7 +333,7 @@ function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
     measure();
     el.addEventListener('scroll', measure, { passive: true });
     return () => el.removeEventListener('scroll', measure);
-  }, [measure]);
+  }, [measure, children]);
 
   // The wheel scrolls it sideways while the pointer is over it — a vertical
   // wheel on a horizontal strip otherwise scrolls the panel behind it.
@@ -338,45 +355,59 @@ function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
     el.scrollBy({ left: dir * Math.max(120, el.clientWidth * 0.8), behavior: 'smooth' });
   };
 
-  const lockedCount = allowed ? 0 : themes.filter(t => !FREE_CHART_THEME_IDS.has(t.id)).length;
+  return (
+    <div className="flex items-center gap-1.5">
+      <Arrow dir="left" what={what} onClick={() => page(-1)} disabled={edge.start} />
+      {/* py/-my: selection rings are drawn OUTSIDE their box, so without room
+          they are clipped by the scroller at both ends. */}
+      <div ref={ref} className="flex-1 min-w-0 flex gap-2.5 overflow-x-auto no-scrollbar px-1 py-1 -mx-1">
+        {children}
+      </div>
+      <Arrow dir="right" what={what} onClick={() => page(1)} disabled={edge.end} />
+    </div>
+  );
+}
 
+/**
+ * The themes. The locked ones are SHOWN, dimmed, with a padlock — not filtered
+ * out, which is what it used to do: 3 of 10 themes existed on a free plan and
+ * the other 7 did not, so there was nothing to want. Seeing them is most of the
+ * pitch; tapping one goes to the upgrade screen rather than silently doing
+ * nothing.
+ */
+function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
+  const lockedCount = allowed ? 0 : themes.filter(t => !FREE_CHART_THEME_IDS.has(t.id)).length;
   return (
     <>
-      <div className="flex items-center gap-1.5">
-        <Arrow dir="left" onClick={() => page(-1)} disabled={edge.start} />
-        {/* py/-my: the selected ring is drawn OUTSIDE the swatch's box, so
-            without room it is clipped by the scroller at both ends. */}
-        <div ref={ref} className="flex-1 min-w-0 flex gap-2.5 overflow-x-auto no-scrollbar px-1 py-1 -mx-1">
-          {themes.map(t => {
-            const locked = !allowed && !FREE_CHART_THEME_IDS.has(t.id);
-            const on = activeId === t.id;
-            return (
-              <button
-                key={t.id} type="button"
-                onClick={() => (locked ? onUpgrade?.() : onPick(t.id))}
-                className="relative shrink-0 min-h-0 h-[40px] w-[70px] rounded-lg overflow-hidden border border-transparent cursor-pointer flex items-end justify-end px-2 py-1.5"
-                style={{
-                  background: t.bg, color: t.chord, fontFamily: 'var(--font-mono)',
-                  opacity: locked ? 0.45 : 1,
-                  boxShadow: on
-                    ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
-                    : 'inset 0 0 0 1px var(--border-2)',
-                }}
-                aria-label={locked ? `${t.name} — upgrade to use` : `Theme: ${t.name}`}
-                aria-pressed={on} title={t.name}
-              >
-                <span className="text-[12px] font-bold">Am</span>
-                {locked && (
-                  <span className="absolute inset-0 grid place-items-center" style={{ color: t.text || t.chord }}>
-                    <LockGlyph />
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <Arrow dir="right" onClick={() => page(1)} disabled={edge.end} />
-      </div>
+      <Carousel what="themes">
+        {themes.map(t => {
+          const locked = !allowed && !FREE_CHART_THEME_IDS.has(t.id);
+          const on = activeId === t.id;
+          return (
+            <button
+              key={t.id} type="button"
+              onClick={() => (locked ? onUpgrade?.() : onPick(t.id))}
+              className="relative shrink-0 min-h-0 h-[40px] w-[70px] rounded-lg overflow-hidden cursor-pointer flex items-end justify-end px-2 py-1.5"
+              style={{
+                background: t.bg, color: t.chord, fontFamily: 'var(--font-mono)',
+                opacity: locked ? 0.45 : 1,
+                boxShadow: on
+                  ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
+                  : 'inset 0 0 0 1px var(--border-2)',
+              }}
+              aria-label={locked ? `${t.name} — upgrade to use` : `Theme: ${t.name}`}
+              aria-pressed={on} title={t.name}
+            >
+              <span className="text-[12px] font-bold">Am</span>
+              {locked && (
+                <span className="absolute inset-0 grid place-items-center" style={{ color: t.text || t.chord }}>
+                  <LockGlyph />
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </Carousel>
 
       {lockedCount > 0 && onUpgrade && (
         <button type="button" onClick={onUpgrade}
@@ -391,6 +422,65 @@ function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
         </button>
       )}
     </>
+  );
+}
+
+/**
+ * The palette, as a carousel, with **any colour** as the last stop.
+ *
+ * The fixed palette is the fast path — a dozen colours that are known to work
+ * on the chart themes. The custom well is the escape hatch the owner asked for
+ * (2026-08-04: *"do you think we could allow custom color as the last
+ * option?"*), and it is last on purpose: a native colour input opens the OS
+ * picker, which is a different set of colours and, on iOS, a full-screen sheet
+ * over the chart you are adjusting. Worth it when you need an exact colour;
+ * not worth putting in front of the twelve that already fit.
+ */
+function ColorCarousel({ value, onPick }) {
+  const custom = !!value && !CHART_COLOR_PALETTE.some(c => c.value === value);
+  return (
+    <Carousel what="colours">
+      {CHART_COLOR_PALETTE.map(c => {
+        const on = (c.value || null) === (value || null);
+        return (
+          <button key={c.id} type="button" onClick={() => onPick(c.value)} title={c.name} aria-label={c.name}
+            className="shrink-0 w-10 h-10 min-h-0 rounded-full cursor-pointer"
+            style={{
+              background: c.value === null
+                ? 'linear-gradient(135deg, var(--chart-lyric, var(--chart-text, #888)) 50%, var(--chord, #e0b341) 50%)'
+                : c.value,
+              boxShadow: on
+                ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
+                : 'inset 0 0 0 1px var(--border-2)',
+            }} />
+        );
+      })}
+
+      {/* A label, not a button: the input IS the control, and wrapping it means
+          the whole circle is the hit target without a click being forwarded. */}
+      <label
+        className="relative shrink-0 w-10 h-10 min-h-0 rounded-full cursor-pointer grid place-items-center"
+        title="Any colour"
+        style={{
+          background: custom
+            ? value
+            : 'conic-gradient(#f43f5e, #f59e0b, #22c55e, #06b6d4, #6366f1, #d946ef, #f43f5e)',
+          boxShadow: custom
+            ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
+            : 'inset 0 0 0 1px var(--border-2)',
+        }}
+      >
+        <span className="sr-only">Any colour</span>
+        <input type="color" aria-label="Any colour"
+          value={value || '#ffffff'}
+          onChange={(e) => onPick(e.target.value)}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+        {!custom && (
+          <span className="pointer-events-none text-[15px] font-bold leading-none"
+            style={{ color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.55)' }}>+</span>
+        )}
+      </label>
+    </Carousel>
   );
 }
 
@@ -556,44 +646,46 @@ export default function ReaderMenu({
   const roleId = settings?.displayRole || 'leader';
   const capo = song?.capo ? Number(song.capo) : 0;
 
-  // ── Reset, per group ──────────────────────────────────────────────────────
-  // `undefined` rather than a hard-coded value: every one of these reads
-  // `settings?.x ?? default` at the point of use, so clearing the key IS the
-  // default and there is only ever one copy of what the default is.
+  // ── Reset, per OPTION ────────────────────────────────────────────────────
+  // Not per group (owner, 2026-08-04: *"maybe the user just wants to reset the
+  // size not the font and color"*). A group reset charges you for the settings
+  // you were happy with.
   //
-  // A group's button is offered only when that group actually holds an
-  // override, so a pristine panel carries no clutter and the button always
-  // does something.
-  const RESET_KEYS = {
-    theme: ['chartTheme'],
-    lyrics: ['defaultFontSize', 'chartLyricFont', 'chartLyricColor'],
-    chords: ['chordFontSize', 'chartChordFont', 'chartChordColor'],
-    spacing: ['lyricLineHeight', 'sectionSpacing'],
-    tabs: ['tabSize', 'tabSubdivision', 'tabStringColor', 'tabNumberColor', 'tabBg'],
-  };
-  const resets = {};
-  for (const [group, keys] of Object.entries(RESET_KEYS)) {
-    resets[group] = keys.some(k => settings?.[k] !== undefined)
+  // It clears to `undefined` rather than writing a default value: every one of
+  // these reads `settings?.x ?? default` at the point of use, so clearing the
+  // key IS the default and there is only ever one copy of what the default is.
+  //
+  // Returns null when there is nothing to clear, so a pristine panel carries no
+  // clutter and the button always does something.
+  const reset = (...keys) => (
+    keys.some(k => settings?.[k] !== undefined)
       ? () => keys.forEach(k => set(k, undefined))
-      : null;
-  }
+      : null
+  );
 
   // The tab strip. Three, and no more: nine rows became four, four became
   // three, and each cut came from the same objection — a menu is aimed at, not
   // read. `AaMenu` already ships this exact control, so it is the app's
   // pattern rather than a new one.
-  // The tab strip. Smaller than the controls under it, deliberately (owner,
-  // 2026-08-04: *"make the tab buttons smaller, they don't need to be that
-  // big"*) — they are pressed once to get somewhere, not adjusted, and the
+  // The tab strip. Smaller than the controls it switches between, deliberately
+  // (owner, 2026-08-04: *"make the tab buttons smaller, they don't need to be
+  // that big"*) — they are pressed once to get somewhere, not adjusted, and the
   // height they were taking came out of the settings themselves.
   //
-  // The ✕ lives HERE rather than only in the top bar. The dock is at the
-  // bottom of the screen and the ☰ that opened it is at the top, which is the
-  // full height of the phone away from the thumb that is using the panel
-  // (owner: *"do we need like an x to close the dock… rather than the top
-  // one?"*). The ☰ still toggles; this is the near one.
+  // **At the BOTTOM in the dock, at the top in the popover.** Owner: *"what do
+  // you think about moving the tabs at the bottom?"* — on a phone, yes: the
+  // dock is already the bottom of the screen and the strip is the one thing in
+  // it you reach for repeatedly, so it belongs on the edge nearest the thumb.
+  // That reasoning does not transfer to the desktop popover, which hangs UNDER
+  // the ☰ that opened it: there the nearest edge to the pointer is the top.
+  //
+  // The ✕ lives in the strip rather than only in the top bar. The dock is at
+  // the bottom of the screen and the ☰ that opened it is at the top — the full
+  // height of the phone from the thumb using the panel (owner: *"do we need
+  // like an x to close the dock… rather than the top one?"*). The ☰ still
+  // toggles; this is the near one.
   const head = (
-    <div className="shrink-0 flex items-center gap-1 p-1.5 border-b border-[var(--border-1)]">
+    <div className={`shrink-0 flex items-center gap-1 p-1.5 ${dock ? 'border-t' : 'border-b'} border-[var(--border-1)]`}>
       {TABS.map(([id, label]) => (
         <button
           key={id} type="button" onClick={() => setTab(id)}
@@ -634,8 +726,8 @@ export default function ReaderMenu({
           the same objection that cut the root menu from nine rows. */}
       {tab === 'style' && (
         <>
-          <GroupTitle onReset={resets.theme}>Theme</GroupTitle>
-          <Field label="Chart theme">
+          <GroupTitle>Theme</GroupTitle>
+          <Field label="Chart theme" onReset={reset('chartTheme')}>
             <ThemeCarousel
               themes={CHART_THEMES}
               activeId={themeId}
@@ -646,38 +738,42 @@ export default function ReaderMenu({
           </Field>
 
           {/* ── Lyrics ───────────────────────────────────────────────────── */}
-          <GroupTitle onReset={resets.lyrics}>Lyrics</GroupTitle>
+          <GroupTitle>Lyrics</GroupTitle>
           <Pair>
-            <Field label="Size">
+            <Field label="Size" onReset={reset('defaultFontSize')}>
               <Stepper size="lg" value={lyricSize} min={10} max={40} onChange={onLyricSize} label="lyric size" />
             </Field>
-            <Field label="Font">
+            <Field label="Font" onReset={styleAllowed ? reset('chartLyricFont') : null}>
               {styleAllowed
-                ? <FontSelect label="Lyric font" value={settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID}
+                ? <Dropdown label="Lyric font" options={FONT_OPTIONS} styleOf={fontStyle}
+                    value={settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID}
                     onChange={(id) => set('chartLyricFont', id)} />
                 : <LockedNote onUpgrade={onUpgrade}>Fonts are part of Pro.</LockedNote>}
             </Field>
           </Pair>
           {styleAllowed
             ? <ColorRow label="Colour" value={settings?.chartLyricColor}
+                onReset={reset('chartLyricColor')}
                 onPick={(v) => set('chartLyricColor', v || undefined)} />
             : <Field label="Colour"><LockedNote onUpgrade={onUpgrade}>Colours are part of Pro.</LockedNote></Field>}
 
           {/* ── Chords ───────────────────────────────────────────────────── */}
-          <GroupTitle onReset={resets.chords}>Chords</GroupTitle>
+          <GroupTitle>Chords</GroupTitle>
           <Pair>
-            <Field label="Size">
+            <Field label="Size" onReset={reset('chordFontSize')}>
               <Stepper size="lg" value={chordSize} min={8} max={40} onChange={onChordSize} label="chord size" />
             </Field>
-            <Field label="Font">
+            <Field label="Font" onReset={styleAllowed ? reset('chartChordFont') : null}>
               {styleAllowed
-                ? <FontSelect label="Chord font" value={settings?.chartChordFont || DEFAULT_CHORD_FONT_ID}
+                ? <Dropdown label="Chord font" options={FONT_OPTIONS} styleOf={fontStyle}
+                    value={settings?.chartChordFont || DEFAULT_CHORD_FONT_ID}
                     onChange={(id) => set('chartChordFont', id)} />
                 : <LockedNote onUpgrade={onUpgrade}>Fonts are part of Pro.</LockedNote>}
             </Field>
           </Pair>
           {styleAllowed
             ? <ColorRow label="Colour" value={settings?.chartChordColor}
+                onReset={reset('chartChordColor')}
                 onPick={(v) => set('chartChordColor', v || undefined)} />
             : <Field label="Colour"><LockedNote onUpgrade={onUpgrade}>Colours are part of Pro.</LockedNote></Field>}
 
@@ -685,9 +781,9 @@ export default function ReaderMenu({
               Free, like every size above it. Anything that makes the chart
               READABLE is an accessibility floor, not a feature to sell
               (agreed with the owner, 2026-08-04). */}
-          <GroupTitle onReset={resets.spacing}>Spacing</GroupTitle>
+          <GroupTitle>Spacing</GroupTitle>
           <Pair>
-            <Field label="Line spacing">
+            <Field label="Line spacing" onReset={reset('lyricLineHeight')}>
               <Stepper
                 size="lg"
                 value={Math.round((settings?.lyricLineHeight ?? 1.35) * 100)} min={100} max={240}
@@ -695,7 +791,7 @@ export default function ReaderMenu({
                 onChange={(v) => set('lyricLineHeight', Math.round(v) / 100)}
               />
             </Field>
-            <Field label="Between sections">
+            <Field label="Between sections" onReset={reset('sectionSpacing')}>
               <Stepper
                 size="lg"
                 value={settings?.sectionSpacing ?? 24} min={8} max={64} step={2}
@@ -706,24 +802,31 @@ export default function ReaderMenu({
           </Pair>
 
           {/* ── Tabs ─────────────────────────────────────────────────────── */}
-          <GroupTitle onReset={resets.tabs}>Tabs</GroupTitle>
+          <GroupTitle>Tabs</GroupTitle>
           <Pair>
-            <Field label="Size">
+            <Field label="Size" onReset={reset('tabSize')}>
               <Picks value={settings?.tabSize || 1} options={[[0.85, 'S'], [1, 'M'], [1.25, 'L']]}
                 onChange={(v) => set('tabSize', v)} />
             </Field>
-            <Field label="Grid">
-              <Picks value={settings?.tabSubdivision || 1} options={[[1, '1/4'], [2, '1/8'], [4, '1/16']]}
+            {/* A dropdown, not pills: "1/4 · 1/8 · 1/16" needs ~220px and it
+                has half a phone-width column (owner: "Can we make the tab grid
+                options to fit on a single line? Maybe we do a drop-down?"). */}
+            <Field label="Grid" onReset={reset('tabSubdivision')}>
+              <Dropdown label="Tab grid" value={settings?.tabSubdivision || 1}
+                options={[[1, '1/4 notes'], [2, '1/8 notes'], [4, '1/16 notes']]}
                 onChange={(v) => set('tabSubdivision', v)} />
             </Field>
           </Pair>
           {styleAllowed ? (
             <>
               <ColorRow label="Tab strings" value={settings?.tabStringColor}
+                onReset={reset('tabStringColor')}
                 onPick={(v) => set('tabStringColor', v || undefined)} />
               <ColorRow label="Tab numbers" value={settings?.tabNumberColor}
+                onReset={reset('tabNumberColor')}
                 onPick={(v) => set('tabNumberColor', v || undefined)} />
               <ColorRow label="Tab background" value={settings?.tabBg}
+                onReset={reset('tabBg')}
                 onPick={(v) => set('tabBg', v || undefined)} />
             </>
           ) : (
@@ -842,8 +945,8 @@ export default function ReaderMenu({
         // inherit `chartSurface` and carries the remap itself.
         style={chartOverlaySurface}
       >
-        {head}
         {body}
+        {head}
       </div>
     );
   }
