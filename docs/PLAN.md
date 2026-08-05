@@ -59,11 +59,16 @@ any of it. Also landed: the component-architecture foundation (§3.1, all ✅).
 > **before** anything is built, every round shipped to the feature branch and
 > tested on a phone. `docs/READER.md` is the log.
 >
+> **The ☰ was renumbered 28 → 2 on 2026-08-04**, and the structure ribbon 2 → 3.
+> It got 28 by being promoted mid-walk out of element 1; it is not a late
+> addition but the reader's second surface. Later numbers are untouched.
+>
 > | | |
 > |---|---|
-> | **Closed** | **1 — top bar** ✅ 2026-08-04, after eleven rounds. It turned out to contain all of **edit mode** (orange chrome, structure editing from the song map, per-section lyric editing, chord replacement, undo, New version, pull-to-finish), the set bar's progress line, the chrome's real height, and the rail's toggle. |
-> | **Next** | **28 — the ☰ menu** (owner: *"don't you think that ☰ should be an element in its own right?"*). Brief: `READER.md` → "The ☰ menu — what actually belongs in it". |
-> | **Then** | **29 — the setlist rail** (*"it will require some work in the future. Not quite now."*) · **2** — the structure ribbon, mostly settled by edit mode · then the 14–27 table. |
+> | **Closed** | **1 — top bar** ✅ 2026-08-04, eleven rounds. It turned out to contain all of **edit mode** (orange chrome, structure editing from the song map, per-section lyric editing, chord replacement, undo, New version, pull-to-finish), the set bar's progress line, the chrome's real height, and the rail's toggle. |
+> | **Closed** | **2 — the ☰, the reader's settings menu** ✅ 2026-08-04, fifteen rounds. Three tabs (Style · Layout · Music), three shapes (phone dock · desktop side panel · popover), free-vs-Pro decided, and **seven settings that were wired at one end only**. `READER.md` → "Element 28 → 2, CLOSED". |
+> | **Next** | **3 — the structure ribbon** (was 2). Partly settled by edit mode: it already forces the `codes` style while editing and its chips are the drag handles for the play order. |
+> | **Then** | **29 — the setlist rail** (*"it will require some work in the future. Not quite now."*) · then the 14–27 table. |
 >
 > Two things carried out of element 1 and are NOT part of it: the **chord-model
 > unification** (§7 #13) and **draggable song sections** (§7 #14, prio 2).
@@ -80,7 +85,11 @@ is a correction or a promise already made.
 3. 🟡 **A divider between the top bar and the structure ribbon** — a hairline,
    lighter than the Score mockup's, which is the mockup element 2's geometry
    already came from.
-4. 🔴 **Graduate the flag, then delete.** Wire `FullscreenChartViewer` as a thin
+4. 🔴 **Graduate the flag, then delete.** ⚠ **`PerformanceView` and
+   `PracticeView` are the only writers of `showChords`**, which the reader now
+   keeps only as a migration fallback (see `READER.md`, element 2). Deleting
+   them is the moment to drop the fallback and the key. Settings → Chart Style
+   goes with them (§1.2 #3a). Wire `FullscreenChartViewer` as a thin
    wrapper over `Reader` (**not** a fork), flip `unifiedReader` on by default,
    then delete `SetlistPlayer`, `PerformanceView`, `PracticeView`, `LiveFinale`
    and `PracticeFinale` — ~2,800 lines of triplicated state. `ChartView` stays;
@@ -141,6 +150,13 @@ serious thing in this document; the last two are blocked on you.
      looks correct. Suspect the `showChords` setting (`ChartView.jsx:840`) being
      off, which would make the Chart tab lyrics-only. Needs a repro on a fresh
      profile.
+3a. 🟡 **Settings → Chart Style duplicates the ☰ and should go.** Owner,
+   2026-08-04: *"the chart defaults settings could be deleted because we have
+   the settings here now, we don't need to double them."* Agreed — but it still
+   serves the **flag-OFF** path (`ChartView`, `SetlistPlayer`,
+   `PerformanceView`, `PracticeView`), so it dies WITH those in §1.1 #4, not
+   before. The rail, its one unique setting, is already in the ☰ as
+   `readerRail`.
 3b. 🟡 **The hub's Aa menu is mostly dead with the flag on.** Found while
    measuring for element 28 (2026-08-04) and **deliberately parked** — owner:
    *"right now we are trying to improve the reader views not the hub, so note it

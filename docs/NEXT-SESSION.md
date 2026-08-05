@@ -1,13 +1,13 @@
-# Next session — the Reader, element 28 (the ☰)
+# Next session — the Reader, element 3 (the structure ribbon)
 
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.75` on
-> `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
-> owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
-> can compare against `beta`. 912 tests, 0 lint errors (8 pre-existing
-> warnings)._
+> _Rewritten 2026-08-04. State: `0.17.0-beta.76` on
+> `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the owner
+> asked for rounds to go to the **feature branch only** so he can compare
+> against `beta`. **He has not yet said to merge this branch into `beta`; ask
+> before you do.** 912 tests, 0 lint errors (8 pre-existing warnings)._
 
 ---
 
@@ -21,9 +21,6 @@
 4. `docs/PLAN.md` §1 — what is parked and in what order.
 
 Ignore `docs/views-vision.md` and `docs/views_questions.md` — scrapped design.
-
-**Do not raise graduating the `unifiedReader` flag.** The owner has asked three
-times to stop mentioning it. It is his call and it is not close.
 
 ---
 
@@ -39,191 +36,147 @@ times to stop mentioning it. It is his call and it is not close.
   Serialise the **builds** — anything visual goes one at a time, because "it
   doesn't feel right" only surfaces on the device.
 - > **If he says something looks wrong, IT IS WRONG.** Go and measure it in the
-  > code before explaining why it should be fine. Sessions have lost three
-  > rounds each to explaining instead of measuring, and shipped "fixes" that did
-  > nothing. Every root cause is in `READER.md`'s trap list.
+  > code before explaining why it should be fine. Every root cause is in
+  > `READER.md`'s trap list.
 
 ---
 
 ## Where the walk got to
 
-**Element 1 (the top bar) is CLOSED** — 2026-08-04, after eleven rounds. It
-turned out to contain all of **edit mode**, so that is what most of those rounds
-were. Shipped in it: an orange edit chrome, structure editing by dragging the
-song map, per-section lyric/source editing, chord replacement, undo + an undo
-toast, "New version", pull-down-to-finish, the set-bar progress line, and a
-persistent setlist rail.
-
-Two surfaces were **split out of it as elements of their own** rather than
-polished inside it a twelfth time:
+**The numbering changed on 2026-08-04.** The ☰ was element 28 (it got that
+number by being promoted mid-walk out of element 1). It is the reader's second
+surface, so it is **element 2**, and the structure ribbon moved **2 → 3**. Later
+numbers are untouched.
 
 | # | Element | State |
-|---|---|---|
-| **28** | **The ☰ menu** | **NEXT — this session.** |
-| **29** | The setlist rail | Shipped as a persistent strip; owner: *"it will require some work in the future. Not quite now."* |
+|---|---------|-------|
+| **1** | Top bar | ✅ closed — it turned out to contain all of **edit mode** |
+| **2** | The ☰ — the reader's settings menu | ✅ closed, **15 rounds** |
+| **3** | **Structure ribbon** | **NEXT — this session** |
+| 29 | The setlist rail | shipped as a strip; *"some work in the future. Not quite now."* |
 
-Then: element 2 (the ribbon, mostly settled by edit mode), then the 14–27 table
-in `READER.md` with the owner's answers already recorded verbatim.
-
----
-
-## Element 28 — the ☰. What is actually there today
-
-Read `READER.md` → **"The ☰ menu — what actually belongs in it"** first; it is
-the brief, and it already carries the owner's constraint (*"there would be more
-options than just the visual"*) plus a candidate list.
-
-The facts to check before designing anything:
-
-- **Two menus, and NOT behind one glyph** (measured 2026-08-04). Standalone it
-  is a three-line **☰**, top-LEFT → `ReaderMenu.jsx`. **Embedded** (the Song
-  Hub, the side peek) it is the literal text **"Aa"**, top-RIGHT of the hub's
-  tab header → **`AaMenu.jsx`**. Two glyphs, opposite corners, the SAME
-  `aria-label` ("Display options"). And with the flag on, seven of `AaMenu`'s
-  twelve controls do nothing in the hub — parked by the owner, `PLAN.md` §1.2
-  #3b. That is deliberate (`READER.md` → "The hub view"): the hub is a
-  browsing surface with a fixed look and giving it the reader's menu would
-  reconnect two surfaces that were deliberately disconnected. **Do not
-  "unify" it without asking.**
-- The ☰ is **disabled, not removed, in edit mode** — dropping the button would
-  change the bar's shape the moment you press edit and everything else would
-  jump left.
-- `resolveReaderConfig(settings, { embedded: true })` **ignores `settings`
-  entirely** and returns `HUB_VIEW`. Deliberate — the hub view is the Reader
-  with the settings wire cut. Do not reconnect it.
-- What a view may *do* lives in the `VIEW` table in `src/lib/readerConfig.js`
-  (`can.transpose`, `can.saveKey`, `can.practiceTools`, `can.editSong`,
-  `can.switchArrangement`, `can.writeNotes`). If a menu row belongs to some
-  views and not others, that is where it is expressed — not in the menu.
-- Any new reader setting must be added to `PORTABLE_PREF_KEYS` or it will not
-  follow the user across devices.
+Then the 14–27 table in `READER.md`, with the owner's answers already recorded
+verbatim.
 
 ---
 
-## Just shipped (beta.75) — element 28, rounds 1–15 · Style + Layout + Music all grouped
+## Element 3 — the structure ribbon. What is actually there
 
-| What | Where |
+`src/features/chart/StructureRibbon.jsx`, rendered by `Reader.jsx`. **Measure
+before designing**; these are the facts that will shape it.
+
+- **Five styles** (`ribbonStyle`): `codes` (boxes, default) · `chips` ·
+  `numbered` (inline) · `dots` · `dotlabel`. Five positions
+  (`structurePosition`): `top` · `bottom` · `left` · `right` · `off`.
+- **Left/right FLOAT** — a transparent 48px strip over the chart with
+  `pointer-events-none`, the chips re-enabling. They used to collapse to `top`
+  on a phone; they don't any more, because floating costs no layout width.
+- **Edit mode forces `codes`** and turns the chips into the **drag handles for
+  the play order** (element 1's decision — a dot is not a drag handle). So the
+  ribbon already has a second job, and any redesign has to keep it.
+- **The active chip is whichever heading is PINNED**, not a scroll fraction —
+  `useActiveSection` is given `headH` so the ribbon changes at the same moment
+  the heading does. Get this wrong and the ribbon points at one section while
+  the pinned heading names another.
+- ⚠ **`useActiveSection` has a known bug** (`PLAN.md` §1.2 #4): its
+  "near the bottom, snap to the last section" rule is true on the first frame
+  when the content doesn't scroll, so the LAST chip lights up immediately. It
+  hits the ribbon and the song map both.
+- **A `hide`d repeat still appears in the ribbon**, by decision: the ribbon is
+  the map of the song, and a section missing from the map breaks the one job.
+  Tapping it jumps to the first time that section is played.
+- Tests: `src/__tests__/structure-ribbon.test.jsx` (chip geometry + the
+  `min-h-0` trap).
+
+**Open questions worth asking him first:** does the ribbon show the *written*
+sections or the *played* order (it shows played)? What does it do when a song
+has twenty sections? Should a key change (`{modulate}`) show on it? Is
+`dotlabel` earning its place beside `dots` and `chips`?
+
+---
+
+## Just closed — element 2, the ☰ (15 rounds)
+
+Three tabs — **Style · Layout · Music**. Three shapes, one node: a **dock**
+taking 40% under the chart on a phone (tabs at the bottom, chevron-down to
+close); a **sticky panel** down the left *inside the scroller* on a desktop
+(tabs on top, ✕, `min(320px, 30vw)`, closed by default, never a strip); a
+popover as the fallback. All obey the panel rule — the chart is displaced,
+never covered, never dimmed.
+
+Also: the reader's theme (`chartOverlaySurface`), Reset per option against a
+pinned defaults table, free-vs-Pro decided (legibility free, taste Pro), Roman
+numerals, a reading-direction prototype, and the app's own colour picker.
+
+Full account: `READER.md` → "Element 28 → 2, CLOSED".
+
+### ⚠ The one lesson to carry into element 3
+
+**Every bug in element 2 was a value connected at ONE END.** Seven of them:
+
+| Setting | Which end was missing |
 |---|---|
-| **Three tabs — Style · Layout · Music.** No root list, no drill-in, no back | `ReaderMenu.jsx` |
-| **Notes left the ☰** for the setlist rail (element 29). ⚠ `song.notes` now appears NOWHERE in the reader, and the rail only exists inside a setlist | `ReaderMenu.jsx` |
-| **The phone shape is a DOCK — the screen splits 70/30.** `Reader`'s root was the scroller; it is now a flex column with the scroller as `flex-1 min-h-0` and the dock as `flex: 0 0 30%`. No scrim, no drag, not portaled. The sheet and the push-down were both built, tried and deleted | `Reader.jsx`, `ReaderMenu.jsx`, `SetlistReader.jsx` |
-| **The ☰ lights up while open** (`--chord`, like the practice icon). It was a ✕ for one round — two ✕ in one bar — and the owner reversed it. **Edit closes the ☰** | `ReaderTopBar.jsx`, `Reader.jsx` |
-| **Style tab grouped** — Lyrics · Chords · Spacing · Tabs, two controls to a row, using **`AaMenu`'s** controls (`PanelControls`). The mockup's `MiniStepper`/`Seg` are gone | `ReaderMenu.jsx` |
-| **Themes are a carousel with arrows**, and **locked themes are SHOWN dimmed with a padlock** + "Unlock N more themes". They used to be filtered out entirely | `ReaderMenu.jsx` |
-| **Free vs Pro decided** — legibility is free (all sizes, all spacing, tab size/grid), taste is Pro (full themes, fonts, colours, tab colours). `onUpgrade` threaded App → reader | `ReaderMenu.jsx`, `App.jsx` |
-| **Field labels** Geist Mono 10px ALL CAPS → sans 12px/600 sentence case · **theme ring** was two rings, now one · **reader theme** (`chartOverlaySurface`) · **Columns gated at 768** | `ReaderMenu.jsx`, `readerSurface.js` |
+| `readerNotes`, `readerFooter`, the rail | read by the renderer, no control anywhere |
+| `showDiagrams` | written and synced, read by nobody |
+| `displayMode` | written by every control, read by nobody standalone — **"I've lost the chords"** |
+| `chartLyricColor` | written into `--chart-text`, the chart's **ink**, so it repainted the whole UI |
+| the lyric font | set on `ChartView`'s wrapper, which the Reader does not have |
 
-| **Everything is at the reader's size** — `PanelControls` takes `size`: `md` (the hub's Aa, unchanged) and `lg` (the ☰). The mockup's `Seg`/`MiniStepper` are deleted, so there is ONE pill style in the menu now | `PanelControls.jsx`, `ReaderMenu.jsx` |
-| **BUG: the lyric colour was the chart's INK.** It wrote `--chart-text`, which paints the top bar, the headings and every control via `chartSurface`. Split into `--chart-lyric` | `useChartTheme.js`, `SectionBlock.jsx`, `readerSurface.js` |
-| **BUG: the lyric font never applied in the Reader.** `ChartView` set it on its own wrapper; the Reader has no wrapper. It is on the lyric span now, where the chord font already was | `SectionBlock.jsx` |
-| **Dock 30%→40%** · **tab strip smaller, and at the BOTTOM in the dock** (top in the popover — the nearest edge differs) · **its own ✕ beside the tabs** | `ReaderMenu.jsx`, `Reader.jsx` |
-| **One `Carousel`** for the theme strip AND all five colour rows · **any colour** as the last stop after the palette · the swatch ring was a 2px transparent border + an INSET hairline, i.e. a ring floating 2px inside the circle | `ReaderMenu.jsx`, `PanelControls.jsx` |
-| **Dropdowns** for font and tab grid — `SelectContent` portals to `document.body` so it carries `chartOverlaySurface`; trigger toned to `--border-1`; **54px** to match a `Stepper` exactly (44 + 4+4 padding + 1+1 border) | `ReaderMenu.jsx` |
-| **Reset is per OPTION, not per group** — on the `Field` label, only when that key holds an override, clearing to `undefined` | `ReaderMenu.jsx` |
-| **BUG: "Between sections" also spaced out the LYRICS.** A line's margin was `calc(var(--chart-section-gap)/3)`. Own token now, `--chart-line-gap`, default 8px = the old 24/3 | `SectionBlock.jsx` |
-| The custom colour opens the app's own `HexColorPicker`, not the OS picker · fonts alphabetical · **switching tabs scrolls to the top** · `--ds-gray-900` remapped (the dropdown list was app-grey) | `ReaderMenu.jsx`, `readerSurface.js` |
+Plus `sectionSpacing` leaking into the gap between lyric *lines*, and **twice** a
+style applied to the wrong element while a comment asserted otherwise.
 
-| **Layout grouped** — The page · Sections · The map · Getting around. **Three settings that were wired but unreachable now have switches**: `readerNotes`, `readerFooter`, and `readerRail` (new — the rail had no on/off at all, only a per-device open/closed in localStorage) | `ReaderMenu.jsx`, `readerConfig.js`, `SetlistReader.jsx` |
-| **"In a pinch" → "Show", moved to Music.** It and the owner's separate "do we need show chords on/off?" are the SAME control (`displayMode`) | `ReaderMenu.jsx` |
-| **The colour picker floats** — inline it was clipped by a ~230px dock | `ReaderMenu.jsx` |
-
-| **BUG: "I've lost the chords."** The reader read `settings.showChords`; every control (Show, the role picker, `AaMenu`) writes `displayMode`. Different keys — so Show did nothing, and once `showChords` was false there was no way back. `displayMode` is the source now. **`'chordsonly'` was also impossible**: `ReaderSection` passed a bare `showLyrics` | `Reader.jsx`, `ReaderSection.jsx` |
-| **Roman numerals** (`getRomanNumeral`) — case carries the quality, so the minor suffix is consumed, not printed twice · **diagrams toggle** (`showDiagrams` was a fourth orphan) · **reading direction prototype** (`readerFlow`: multicol `down` vs grid `across`) | `music.js`, `Reader.jsx`, `readerConfig.js` |
-
-| **The desktop ☰ is a 320px panel down the LEFT**, not a popover — `Reader`'s root is a ROW now (panel · column). `dock` took a third value, `'side'` | `Reader.jsx`, `SetlistReader.jsx`, `ReaderMenu.jsx` |
-| **Dropdowns by rule: 4+ options → dropdown, 2–3 → pills** · **Music grouped** (Who's reading · The chords · This song), "You're playing" → **Your instrument**, explanations behind an **(i)** (`Field`'s `info`) | `ReaderMenu.jsx` |
-| **Reading direction was invisible** — gated on `settings.defaultColumns === 2` (the explicit setting) when two columns is the resolved default on a wide screen. `config.columns` now | `ReaderMenu.jsx` |
-
-| **Reset bugs, two.** It fired for a value that WAS the default (picking the default still writes the key) → `MENU_DEFAULTS` + `reader-menu-defaults.test.js`, which reads the table out of the source and checks it against the real definitions. And **resetting Show lost the chords**: clearing `displayMode` falls back to `settings.showChords`, which the old views set `false`. Writing or resetting Show now CLEARS the legacy key — **consume a legacy fallback, don't just outrank it** | `ReaderMenu.jsx` |
-
-| **Layout renamed end to end** (Page · Sections · Structure · Navigation) — the old names described the design, not the setting. **Band cues and inline notes are two knobs now** (`readerInlineNotes` is new; elements 4 and 5 each have one at last). **Plain is the default section style.** **Yes/no settings are a `Switch`** | `ReaderMenu.jsx`, `readerConfig.js`, `ReaderSection.jsx` |
-| **The desktop panel keeps the ☰ still** — offset by the measured `headH` so the top bar does not move, `min(320px, 30vw)`, slides in, closed by default, not a strip | `Reader.jsx`, `index.css` |
-
-| **CORRECTION to r14:** the `headH` offset did not keep the ☰ still — the header is INSIDE the column the panel was shrinking, so it shrank too and the ☰ moved anyway; the offset only left an empty band. The panel lives INSIDE the scroller now, `sticky` at `headH`, so the header is full-width and unmovable. **A comment asserting an effect is not the effect** | `Reader.jsx` |
-| **Switches sit on their label's line and take no Reset** · **`Pair` is `auto-fit`/`minmax(150px,1fr)`**, not two fixed columns · phone dock closes with a **chevron down** · **progress line on/off** (`readerProgress`) | `ReaderMenu.jsx`, `readerConfig.js`, `SetlistReader.jsx` |
-
-> **jsdom trap, new:** its CSS shorthand parser throws on `conic-gradient` and
-> some `var()` inside the **`background` shorthand**, during `cloneNode` — which
-> Testing Library does for every role query. One bad inline style takes out
-> every `getByRole` on the page with a `TypeError` naming none of it. Use
-> `backgroundColor`/`backgroundImage` longhands inline.
-
-> ### ⚠ FIVE settings in three rounds were wired at ONE END ONLY
-> `readerNotes`, `readerFooter`, the rail, `showDiagrams` (written, never read)
-> and `displayMode` (read by nobody standalone). **When adding or touching a
-> reader setting, grep for BOTH ends before believing it works.** A render test
-> cannot see a value nobody consumes.
-
-> **Three rounds in a row, the same root cause:** this panel adopts a shared
-> component, and that component reads a `--ds-gray-*` step nobody remapped
-> (`--ds-gray-500`/`--border-2`, then `--ds-gray-600`, then `--ds-gray-900`).
-> Check the steps whenever the ☰ takes on another shared control.
-
-**Element 28 is essentially done — Style, Layout and Music are all grouped and
-built.** What is left is the owner's, not the panel's:
-
-1. **Graduate the flag and delete the old surfaces** — agreed for the NEXT
-   session, on its own (`PLAN.md` §1.1 #4). ~2,800 lines across `SetlistPlayer`,
-   `PerformanceView`, `PracticeView`, `LiveFinale`, `PracticeFinale`, plus
-   Settings → Chart Style, which the owner wants gone because the ☰ replaces it.
-   ⚠ **Those two old views are the only writers of `showChords`**, which is now
-   only a fallback — deleting them is the moment to drop the fallback too.
-2. **`View` in the Music tab** — needs the reading-modes overhaul first
-   (`PLAN.md` §7 #11). Leave a place, do not build it in.
-3. **An (i) on every setting** — noted by the owner, explicitly "not now".
-4. **Custom chord diagrams** — the owner's idea, prio 4.
-5. **Whether to reset defaults for everyone** — the owner will decide once the
-   elements are finished. Nothing resets today: every setting reads
-   `settings?.x ?? default` and all of them are in `PORTABLE_PREF_KEYS`.
-
-**Old next-step note (superseded):** — the owner is doing Layout
-"in the morning". Layout is nine controls in a flat column: it now has the right
-pill and the right size, but NOT the grouping the Style tab got. Its nine do not
-fall into obvious buckets the way Style's did, so bring a grouping proposal
-before building.
-
-⚠ **The dock is 30% and the controls are now bigger** — roughly 2½ rows visible
-on an 800px phone. The owner chose 70/30, so it was left alone; if Layout feels
-cramped the dial is `flex: 0 0 30%` in `Reader.jsx`.
+> **Grep both ends before believing a setting works.** A render test cannot see
+> a value nobody consumes — the guards that caught these read the source.
 
 ---
 
-## Known-open, carried out of element 1
+## Known-open, carried forward
 
 - **§7 #13 — two chord pickers, and underneath them two chord MODELS.**
   `ArrangeTabV2` uses `{ plainText, chords: [{ pos, chord }] }`; the reader and
   the `.md` use `[C]inline` strings. This is why the reader can replace a chord
-  but cannot yet *add* one to a word that has none, and why "just do it like the
-  editor does" does not transfer. Unify the model first.
-- **§7 #14 (prio 2) — draggable song sections on the page**, with a `+ section`
-  at the end. Parked deliberately: the map's drag may turn out to be enough, and
-  two drag systems on one screen is a cost.
-- **Element 13 note:** the owner asked that the post-practice screen show a
-  summary of what was changed in the session. Do it when 13 comes round.
-- **Follow-the-leader indicator:** option (b) — the chrome carries the state, no
-  new element in the bar. Build it with the follow-the-leader slice (element 25).
+  but cannot yet *add* one. Unify the model first.
+- **§7 #14 (prio 2) — draggable song sections on the page.**
+- **§1.2 #3c — you cannot type a space into a band cue or an inline note.**
+  Root-caused, not fixed, owner's prio 1: every keystroke round-trips through
+  `songToMd`/parse and `parser.js` trims it.
+- **§1.2 #3d — add a cue/inline note from the SONG HUB**, without the editor.
+- **§1.1 #4 — graduate the flag and delete the old surfaces.** Owner agreed for
+  a session of its own. ⚠ `PerformanceView`/`PracticeView` are the **only**
+  writers of `showChords`, now just a migration fallback — deleting them is the
+  moment to drop it. Settings → Chart Style goes with them (§1.2 #3a).
+- **Whether to reset defaults for everyone** — the owner will decide once the
+  elements are finished. Nothing resets today.
+- **Element 13:** the post-practice screen should summarise what changed.
+- **Follow-the-leader:** option (b) — the chrome carries the state.
 
 ---
 
 ## True, and easy to get wrong
 
-- **The Song Hub renders `Reader`, not `ChartView`,** when the flag is on. Three
-  places can cause a "hub theme bug": the reader, the chart, and the hub's own
-  card. `PLAN.md` §1.2 has the warning box.
+- **The Song Hub renders `Reader`, not `ChartView`,** when the flag is on.
+  Three places can cause a "hub theme bug": the reader, the chart, and the hub's
+  own card. `PLAN.md` §1.2 has the warning box.
 - **`min-h-0` on every small control.** `button { min-height: 36px }` (44px on
   phones) lives in `@layer base` and beats every `height` utility. Four rounds
-  lost to it, in three different places.
+  lost to it, in three places.
 - **CSS custom-property cycles** are invalid at computed-value time and unset
   the whole subtree. Every fallback must be a literal or name a *different*
   property.
+- **`chartSurface` remaps `--ds-gray-` 100–400, 700 and 1000 only.** Three
+  rounds in a row broke on a step nobody had remapped (500/`--border-2`, 600,
+  900). Check the steps whenever the reader adopts another shared component.
+- **jsdom's CSS shorthand parser throws on `conic-gradient`** (and some `var()`)
+  inside the **`background` shorthand**, during `cloneNode` — which Testing
+  Library does for every role query. One bad inline style takes out every
+  `getByRole` on the page with a `TypeError` naming none of it. Use
+  `backgroundColor`/`backgroundImage` longhands inline.
+- **`mockWidth` in `reader.test.jsx` answers per query**, against a real width.
+  Any new breakpoint needs the same check, or the desktop tests silently
+  exercise the phone shape.
 - **React's synthetic touch listeners are passive** — `preventDefault()` in an
   `onTouchMove` prop is a no-op. Native listener, `{ passive: false }`, in an
   effect.
 - **An effect that owns a gesture must not depend on anything that changes**, or
-  its cleanup tears down the gesture mid-drag. Mount once, read the moving parts
-  from a ref. (`StructureRibbon`'s drag; `Reader`'s pull-to-finish.)
-- **Tempo cannot come from a YouTube link.** No BPM in the IFrame API, and the
-  audio can't be analysed from a cross-origin embed. Tapping is the answer, and
-  it is built.
-- **`applyKeyHistories` is reference-preserving on purpose.** A map that
-  re-mints every object reintroduces whole-library IndexedDB rewrites on launch.
+  its cleanup tears down the gesture mid-drag.
+- **`applyKeyHistories` is reference-preserving on purpose.**

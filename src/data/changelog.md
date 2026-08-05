@@ -76,6 +76,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Switches sit on their own label's line (Labs)** — three of them stacked used to take up half the panel.
 - **Settings pair up only when they fit (Labs)** — two side by side in a wide panel, stacked in a narrow one, instead of always squeezing into two columns.
 - **The settings panel closes with a chevron on a phone (Labs)** — it slides down, so the arrow says which way it goes.
+- **Smaller switches (Labs)**, now that they sit on their label's line.
 - **Layout's settings are renamed throughout (Labs)** — Page, Sections, Structure and Navigation, with names that say what each one does instead of where it sits.
 - **The Layout tab is grouped (Labs)** — The page, Sections, The map and Getting around, instead of ten settings in one column.
 - **Three settings that existed but had no switch (Labs)** — band cues and inline notes could never be turned off, the bottom bar could never be reduced to just the song count, and the setlist rail could never be hidden. All three are in Layout now.
@@ -150,6 +151,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **A song with no chart yet says so** rather than showing an empty page.
 
 ### Fixed
+- **The desktop settings panel made the page scroll twice (Labs)** — it was sized to the whole window rather than to the space it actually had, so its bottom fell below the fold and you had to scroll the song to reach it.
 - **Reset appeared when there was nothing to reset (Labs)** — choosing the option a setting was already on counted as a change, so a Reset showed up that would have done nothing.
 - **Resetting "Show" could take the chords away (Labs)** — putting it back to default handed the decision to an older setting left behind by the previous player screens, which could be set to "no chords". Changing or resetting Show now retires that old setting for good.
 - **The reading-direction setting was invisible (Labs)** — it only appeared if you'd manually pressed "2 columns", even though two columns is the default on a wide screen.

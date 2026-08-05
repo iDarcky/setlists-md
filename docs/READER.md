@@ -81,6 +81,23 @@ original surfaces render untouched.
 
 ## The elements
 
+> ## The numbering changed, 2026-08-04
+>
+> The ☰ was **element 28** — a number it got by being promoted mid-walk, out of
+> element 1, alongside the setlist rail (29). It is not a late addition to the
+> reader; it is the reader's second surface, and it holds every decision the
+> first one does not. It is **element 2** now, and the structure ribbon moves
+> from 2 to **3**. Later numbers are unchanged: they were never in an order that
+> meant anything, and renumbering them would break every reference in this file
+> for nothing.
+>
+> | # | Element | State |
+> |---|---------|-------|
+> | **1** | **Top bar** | ✅ closed 2026-08-04 (it turned out to contain edit mode) |
+> | **2** | **The ☰ — the reader's settings menu** | ✅ closed 2026-08-04, 15 rounds |
+> | **3** | **Structure ribbon** | **NEXT** |
+> | 29 | The setlist rail | shipped as a strip; *"it will require some work in the future"* |
+
 ### 1 — Top bar ✅ closed 2026-08-04
 **Fixed. No customization at all.** One row: ☰ · practice · edit · title · key ·
 ♩tempo · time · ✕.
@@ -116,7 +133,7 @@ original surfaces render untouched.
   drummer and other players"* (owner). Making ♩ the way into the practice row
   was rejected — the metronome icon is the switch and it stays the only one.
 
-### 2 — Structure ribbon
+### 3 — Structure ribbon *(was element 2)*
 Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
 
 - Position: top (default) / bottom / left / right / off — `structurePosition`.
@@ -1583,6 +1600,63 @@ dock slides down and the chevron says which way it goes.
 
 **Progress line on/off** (`readerProgress`) — `null` already hid it in
 `ReaderTopBar`, so the knob needed no new branch.
+
+#### Element 28 → 2, CLOSED 2026-08-04
+
+**Fifteen rounds.** What it is, in one place:
+
+- **Three tabs — Style · Layout · Music.** No root list, no drill-in, no back.
+- **Three shapes, one node**: a **dock** taking 40% under the chart on a phone
+  (tabs at the bottom, nearest the thumb, chevron-down to close); a **sticky
+  panel** down the left inside the scroller on a desktop (tabs on top, ✕ to
+  close, `min(320px, 30vw)`, closed by default, never a strip); and a popover as
+  the fallback. All three obey the panel rule: the chart is displaced, never
+  covered, and never dimmed — element 11's chord taps still work while you
+  adjust the type.
+- **It wears the reader's theme** (`chartOverlaySurface`).
+- **Reset per option**, only when that key differs from its default
+  (`MENU_DEFAULTS`, pinned by `reader-menu-defaults.test.js`). Switches have
+  none: they show their own state.
+- **Free vs Pro**: legibility is free — every size and spacing — and taste is
+  Pro. Locked themes are shown, dimmed, with a way in.
+
+**Seven settings were wired at ONE END ONLY and are fixed**: `readerNotes`,
+`readerFooter`, the rail, `showDiagrams`, `displayMode` (read by nobody
+standalone — the "I've lost the chords" bug), `chartLyricColor` (it was the
+chart's *ink*), and the lyric font (never applied). Plus `sectionSpacing`
+leaking into the space between lyric lines.
+
+> **The one lesson worth carrying to element 3:** every bug in this element was
+> a value connected at one end. Written by a control nobody read, read by a
+> renderer nobody could write, or — twice — applied to the wrong element while a
+> comment asserted otherwise. **Grep both ends. A render test cannot see a value
+> nobody consumes.**
+
+**Left open, deliberately:**
+- **`View` in Music = the STAGE VIEW** (element 24: chrome stripped to nothing,
+  pedal-driven), **not** a picker for the four view templates. Owner,
+  2026-08-04: *"the view map is different and the users should not be able to
+  choose here between them."* The templates are a fact about the route you took,
+  not a preference.
+- **Arrangement switching** (element 21, practice-only) — it does NOT fit the
+  top bar any more. Owner asked where; the answer is Music → *This song*, beside
+  Capo, which is the group for facts about the song in front of you.
+- **Transpose default**: the setlist's key, and no per-song memory here. Owner:
+  *"I want it setlist and not necessary remember, the remember part is for the
+  setlist editor not for this view."* That is what it already does — the reader
+  starts from `item.key || song.key`; the session-local memory only lasts until
+  you leave the setlist.
+- **Custom theme as the last carousel stop**, opening the theme maker.
+- Section colours → the sections rework · title-bar position · page-turn mode ·
+  capo per instrument · Nashville minor style · tuning · custom diagrams.
+
+**Rejected, with reasons** (owner, 2026-08-04, on a list of thirty): chord
+position, chord/lyric weight, page margins, relative chord size, caps chords,
+brightness, tab string labels, auto-fit, section order, blank lines between
+verses, empty sections, ribbon current-only, left/right-handed, simplify chords,
+slash chords on/off. **The panel holds 8–10 fields a tab before it becomes a
+list you read rather than a menu you aim at — so a new setting has to displace
+one, not join it.**
 
 ### The four views — the map, agreed 2026-08-01
 

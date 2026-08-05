@@ -165,6 +165,15 @@ export default function Reader({
   // changes with the ribbon style and with the phone/desktop padding.
   const headRef = useRef(null);
   const [headH, setHeadH] = useState(0);
+  // The scroller's VISIBLE height, for the desktop ☰ panel.
+  //
+  // It was `calc(100vh - headH)`, and `100vh` is the whole window — but the
+  // reader sits inside the app shell, so the scroller is shorter than that.
+  // The panel came out taller than the space it had, its bottom fell below the
+  // fold, and reaching it meant scrolling the CHART: two scrollbars for one
+  // panel (owner, 2026-08-04: *"We have a double scroll problem now"*). The
+  // honest number is the scroller's own client height.
+  const [viewH, setViewH] = useState(0);
   // The ☰ menu, anchored to its button. Standalone this opens `ReaderMenu` —
   // the reader's own four-row menu. EMBEDDED (the Song Hub, the side peek) the
   // host owns the Aa button and passes a rect down, and that still opens
@@ -230,6 +239,18 @@ export default function Reader({
   // sync, so it IS an effect — unlike the tempo, which is derived above.
   const stopClick = metronome.stop;
   useEffect(() => { stopClick(); }, [songId, stopClick]);
+
+  // The scroller's visible height, for the desktop ☰ panel's sticky box.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => {
+      const h = el.clientHeight || 0;
+      setViewH(prev => (Math.abs(prev - h) <= 0.5 ? prev : h));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const config = useMemo(
     () => resolveReaderConfig(settings, { wide, embedded, myInstrument, mode }),
@@ -890,7 +911,8 @@ export default function Reader({
               width: 'min(320px, 30vw)',
               position: 'sticky',
               top: headH || 0,
-              height: `calc(100vh - ${headH || 0}px)`,
+              // Measured, not `100vh` — see `viewH`.
+              height: viewH ? viewH - headH : undefined,
               animation: 'reader-side-in 200ms cubic-bezier(0.32, 0.72, 0, 1)',
             }}
           >

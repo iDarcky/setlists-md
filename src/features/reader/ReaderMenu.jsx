@@ -381,12 +381,15 @@ function Switch({ on, onChange, label }) {
     <button
       type="button" role="switch" aria-checked={!!on} aria-label={label}
       onClick={() => onChange(!on)}
-      className="min-h-0 w-[52px] h-[30px] rounded-full cursor-pointer border-none p-0 relative transition-colors"
+      // 42×24, down from 52×30. On its label's line it no longer has to carry
+      // the row on its own, so it can be the size of a switch rather than the
+      // size of a button (owner, 2026-08-04: "make the switches smaller").
+      className="min-h-0 w-[42px] h-6 rounded-full cursor-pointer border-none p-0 relative transition-colors"
       style={{ backgroundColor: on ? 'var(--color-brand)' : 'var(--ds-gray-300)' }}
     >
       <span
-        className="absolute top-[3px] w-6 h-6 rounded-full transition-[left] duration-150"
-        style={{ left: on ? 25 : 3, backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
+        className="absolute top-[3px] w-[18px] h-[18px] rounded-full transition-[left] duration-150"
+        style={{ left: on ? 21 : 3, backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
       />
     </button>
   );
