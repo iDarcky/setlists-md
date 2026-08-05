@@ -1464,6 +1464,36 @@ version is noted and NOT built.**
 > `TypeError` that names none of it. Use `backgroundColor` / `backgroundImage`
 > longhands in inline styles.
 
+#### Element 28, round 13 — the Reset bugs, 2026-08-04
+
+**Two, and the second is nastier than it looks.**
+
+**1. Reset appeared for changes nobody made.** Owner: *"even if I select the
+current option I still get the reset."* `reset()` tested
+`settings?.[k] !== undefined`, and **picking the option that IS the default
+still writes the key** — so the key became defined, nothing differed from the
+default, and a red Reset appeared that would have changed nothing. There is a
+`MENU_DEFAULTS` table now: a key counts as reset-able only when it is set AND
+differs from its default. `reader-menu-defaults.test.js` reads that table out of
+the source and checks every entry against the place that really defines it
+(`readerConfig`'s `DEFAULTS`, `resolveChartDisplay`, the theme/font constants),
+so the second copy cannot drift.
+
+**2. Resetting Show took the chords away.** Owner: *"the show gets the reset and
+if I press it it will lose the chords even if the chords + lyrics is present."*
+`displayMode` cleared → the resolver falls back to
+`settings.showChords === false ? 'lyrics' : 'chords'` — and `showChords` is
+`false` in any profile that ever turned chords off in the old
+Performance/Practice views, which still write it. So *"put it back to default"*
+produced lyrics-only.
+
+**The fallback was right and its lifetime was wrong.** It exists to migrate a
+profile that only ever set the old boolean, so it must apply **once** and never
+again. Writing Show now clears `showChords`, and Reset clears both — after which
+the legacy key can only ever speak for someone who has never touched this
+control. That is the general shape of the fix for any legacy-key fallback:
+**consume it, don't just outrank it.**
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the

@@ -398,6 +398,34 @@ describe('the ☰ menu', () => {
     expect(screen.getByLabelText('What the chart shows')).toBeTruthy();
   });
 
+  it('does not offer a Reset for a value that IS the default', () => {
+    // Picking the option that is already the default still writes the key, so
+    // comparing against `undefined` alone put a Reset on a change nobody made
+    // (owner: "even if I select the current option I still get the reset").
+    render(<Reader song={makeSong()} onExit={() => {}}
+      settings={{ readerHeading: 'name', duplicateSections: 'condensed', displayMode: 'chords' }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
+    expect(screen.queryAllByRole('button', { name: /^Reset / }).length).toBe(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Music' }));
+    expect(screen.queryByRole('button', { name: 'Reset Show' })).toBeNull();
+  });
+
+  it('resetting Show retires the legacy showChords rather than falling into it', () => {
+    const onUpdateSettings = vi.fn();
+    render(<Reader song={makeSong()} onExit={() => {}} onUpdateSettings={onUpdateSettings}
+      settings={{ displayMode: 'lyrics', showChords: false }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Music' }));
+
+    // Clearing `displayMode` alone hands the decision back to `showChords`,
+    // which the old Performance/Practice views write — so "put it back to
+    // default" produced lyrics-only, with the chords gone.
+    fireEvent.click(screen.getByRole('button', { name: 'Reset Show' }));
+    expect(onUpdateSettings).toHaveBeenCalledWith('displayMode', undefined);
+    expect(onUpdateSettings).toHaveBeenCalledWith('showChords', undefined);
+  });
+
   it('offers a Reset per OPTION, and only where there is something to reset', () => {
     const { unmount } = renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));

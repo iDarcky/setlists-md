@@ -3,10 +3,10 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.72` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.73` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
-> can compare against `beta`. 904 tests, 0 lint errors (8 pre-existing
+> can compare against `beta`. 910 tests, 0 lint errors (8 pre-existing
 > warnings)._
 
 ---
@@ -100,7 +100,7 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.72) — element 28, rounds 1–12 · Style + Layout + Music all grouped
+## Just shipped (beta.73) — element 28, rounds 1–13 · Style + Layout + Music all grouped
 
 | What | Where |
 |---|---|
@@ -133,6 +133,8 @@ The facts to check before designing anything:
 | **The desktop ☰ is a 320px panel down the LEFT**, not a popover — `Reader`'s root is a ROW now (panel · column). `dock` took a third value, `'side'` | `Reader.jsx`, `SetlistReader.jsx`, `ReaderMenu.jsx` |
 | **Dropdowns by rule: 4+ options → dropdown, 2–3 → pills** · **Music grouped** (Who's reading · The chords · This song), "You're playing" → **Your instrument**, explanations behind an **(i)** (`Field`'s `info`) | `ReaderMenu.jsx` |
 | **Reading direction was invisible** — gated on `settings.defaultColumns === 2` (the explicit setting) when two columns is the resolved default on a wide screen. `config.columns` now | `ReaderMenu.jsx` |
+
+| **Reset bugs, two.** It fired for a value that WAS the default (picking the default still writes the key) → `MENU_DEFAULTS` + `reader-menu-defaults.test.js`, which reads the table out of the source and checks it against the real definitions. And **resetting Show lost the chords**: clearing `displayMode` falls back to `settings.showChords`, which the old views set `false`. Writing or resetting Show now CLEARS the legacy key — **consume a legacy fallback, don't just outrank it** | `ReaderMenu.jsx` |
 
 > **jsdom trap, new:** its CSS shorthand parser throws on `conic-gradient` and
 > some `var()` inside the **`background` shorthand**, during `cloneNode` — which

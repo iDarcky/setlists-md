@@ -132,6 +132,48 @@ const ROLES = [
 // which is the same concept one level up.
 const TABS = [['style', 'Style'], ['layout', 'Layout'], ['music', 'Music']];
 
+/**
+ * What each setting falls back to when it is unset — i.e. what "Reset" means.
+ *
+ * It exists so the red **Reset** only appears when there is genuinely something
+ * to undo. Picking the option that IS the default still writes the key, and
+ * without this the button showed up for a change that had not been made.
+ *
+ * ⚠ Every value here MUST match the fallback where the control reads it
+ * (`settings?.x ?? <default>`). `reader-menu-defaults.test.js` asserts the ones
+ * that have a single source; keep them in step by hand for the rest.
+ */
+const MENU_DEFAULTS = {
+  chartTheme: DEFAULT_CHART_THEME_ID,
+  defaultFontSize: 18,          // resolveChartDisplay's stage default
+  chordFontSize: 17,
+  chartLyricFont: DEFAULT_LYRIC_FONT_ID,
+  chartChordFont: DEFAULT_CHORD_FONT_ID,
+  lyricLineHeight: 1.35,
+  sectionSpacing: 24,
+  tabSize: 1,
+  tabSubdivision: 1,
+  readerFlow: 'down',
+  duplicateSections: 'condensed',
+  readerHeading: 'name',
+  readerSectionStyle: 'bar',
+  readerSticky: 'on',
+  readerNotes: 'on',
+  readerTopBar: 'ribbon',
+  structurePosition: 'top',
+  ribbonStyle: 'codes',
+  readerNav: 'footer',
+  readerFooter: 'next',
+  readerRail: 'on',
+  displayMode: 'chords',
+  notation: 'letters',
+  accidentals: 'auto',
+  displayRole: 'leader',
+  tabInstrument: 'all',
+  // Colours and `showDiagrams` have no default VALUE — unset is the default —
+  // so `settings?.x === undefined` already answers for them.
+};
+
 // ── Mockup primitives ───────────────────────────────────────────────────────
 // Geometry copied from the concept; every colour is one of ours.
 
@@ -768,10 +810,22 @@ export default function ReaderMenu({
   //
   // Returns null when there is nothing to clear, so a pristine panel carries no
   // clutter and the button always does something.
+  // A key is "at its default" when it is unset OR holds the default value.
+  //
+  // Comparing against `undefined` alone was the bug (owner, 2026-08-04: *"even
+  // if I select the current option I still get the reset"*): picking the option
+  // that IS the default still writes the key, so the key became defined,
+  // nothing differed from default, and a Reset appeared that would change
+  // nothing. This map is the one place the menu states what "default" means —
+  // and every value in it must match the fallback at the control's point of
+  // use, which `reader-menu-defaults.test.js` asserts.
+  const isDefault = (k) => settings?.[k] === undefined
+    || (k in MENU_DEFAULTS && settings[k] === MENU_DEFAULTS[k]);
+
   const reset = (...keys) => (
-    keys.some(k => settings?.[k] !== undefined)
-      ? () => keys.forEach(k => set(k, undefined))
-      : null
+    keys.every(isDefault)
+      ? null
+      : () => keys.forEach(k => set(k, undefined))
   );
 
   // The tab strip. Three, and no more: nine rows became four, four became
@@ -1094,10 +1148,21 @@ export default function ReaderMenu({
               It is `displayMode` — the same setting as "show chords" — so it
               belongs beside the instrument picker that writes it, under a name
               that says what it is. */}
-          <Field label="Show" onReset={reset('displayMode')}>
+          {/* Writing Show also RETIRES the legacy `showChords` boolean, and
+              Reset clears both.
+              Without that, resetting Show walked straight into a landmine
+              (owner, 2026-08-04: *"the show gets the reset and if I press it it
+              will lose the chords even if the chords + lyrics is present"*):
+              clearing `displayMode` hands the decision back to
+              `settings.showChords`, which the old Performance/Practice views
+              write and which is `false` in any profile that ever turned chords
+              off there. So "put it back to default" produced lyrics-only.
+              Clearing both means the fallback can only ever apply to a profile
+              that has never touched this control — which is its whole job. */}
+          <Field label="Show" onReset={reset('displayMode', 'showChords')}>
             <Dropdown label="What the chart shows" value={settings?.displayMode || 'chords'}
               options={[['chords', 'Chords + lyrics'], ['lyrics', 'Lyrics only'], ['chordsonly', 'Chords only']]}
-              onChange={(v) => set('displayMode', v)} />
+              onChange={(v) => { set('displayMode', v); set('showChords', undefined); }} />
           </Field>
           <Field label="Chord names" onReset={reset('notation')}
             info="Numbers are Nashville (1, 4, 5). Numerals are Roman, and the numeral itself says major or minor — I, IV, V against ii, iii, vi.">

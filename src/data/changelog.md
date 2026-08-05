@@ -141,6 +141,8 @@ A running log of what's new in setlists.md. Newest releases first.
 - **A song with no chart yet says so** rather than showing an empty page.
 
 ### Fixed
+- **Reset appeared when there was nothing to reset (Labs)** — choosing the option a setting was already on counted as a change, so a Reset showed up that would have done nothing.
+- **Resetting "Show" could take the chords away (Labs)** — putting it back to default handed the decision to an older setting left behind by the previous player screens, which could be set to "no chords". Changing or resetting Show now retires that old setting for good.
 - **The reading-direction setting was invisible (Labs)** — it only appeared if you'd manually pressed "2 columns", even though two columns is the default on a wide screen.
 - **The chords could disappear with no way to bring them back (Labs)** — the reader was reading one setting for "show chords" while every control that could change it wrote a different one, so choosing "Chords + lyrics" did nothing. "Chords only" never worked either — the lyrics were shown regardless of what you picked.
 - **"Between sections" was also spacing out the lyrics (Labs)** — the gap between lines was worked out as a third of the section gap, so widening the space between sections pushed every line of every song apart with it. The default spacing is unchanged; the two just aren't tied together any more.
