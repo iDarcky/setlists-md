@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
+import { useMemo, useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
 import { semitonesBetween, keysInQualityOf, notateChord } from '@/music';
 import { resolveSongView } from '@/arrangements';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/ui/Select';
@@ -252,6 +252,26 @@ export default function Reader({
   const stopClick = metronome.stop;
   useEffect(() => { stopClick(); }, [songId, stopClick]);
 
+  // ── A new song starts at the top ─────────────────────────────────────────
+  // Owner, 2026-08-05, prio 0: *"when I click next to the next song, it won't
+  // go back to the top"*. Nothing ever reset it.
+  //
+  // The reader is not remounted between songs — `SetlistReader` renders the
+  // same component in the same slot with a different `song`, which is what
+  // keeps the chrome, the ☰ and the metronome alive across a set. The scroller
+  // is therefore the same DOM node, and a DOM node keeps its `scrollTop`. So
+  // song two opened wherever song one was left: three verses down, mid-chorus,
+  // or past its own end if it was shorter.
+  //
+  // LAYOUT effect, and a direct assignment rather than `scrollTo({ behavior:
+  // 'smooth' })`: this must land before the browser paints the new song, or the
+  // band sees the wrong part of it and a scroll animation chasing it. Smooth
+  // scrolling is for a jump you asked for; arriving at a song is not one.
+  useLayoutEffect(() => {
+    const sc = scrollRef.current;
+    if (sc) sc.scrollTop = 0;
+  }, [songId]);
+
   // The scroller's visible height, for the desktop ☰ panel's sticky box.
   useEffect(() => {
     const el = scrollRef.current;
@@ -263,6 +283,28 @@ export default function Reader({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // ── Trailing space, measured ─────────────────────────────────────────────
+  // Owner, 2026-08-05: *"clicking on a chip at the song map won't fully scroll
+  // to that item"*. His guess was the header's height; the header is innocent —
+  // measured in Chromium, a jump lands the section exactly 8px under it whether
+  // the set bar is on or off. What actually happens is that the LAST sections
+  // have nothing below them to scroll into: the chart used to carry a flat
+  // `60vh` of trailing space, and only where headings pin, which is phones. On
+  // a desktop, clicking the final chip left the section **536px** below the
+  // header with the scroller already at its maximum.
+  //
+  // A flat pad on every device is not the answer either — it would be a screen
+  // of blank paper on a desktop, and on a song that ALMOST fits it invents a
+  // scroll where there was none, which is the "mini scroll" complaint from the
+  // other direction. So it is measured, and it is exactly what the promise
+  // costs: enough that the last section's top can reach the pin line, and
+  // nothing when the song already fits.
+  const chartRef = useRef(null);
+  const [tailPad, setTailPad] = useState(0);
+  // What we last applied, so the natural height can be recovered from a
+  // measurement that includes it. Read inside a ResizeObserver, never in render.
+  const tailPadRef = useRef(0);
 
   // The bottom block's height. A CALLBACK ref, not `useRef` + an effect: the
   // block is conditional (no nav bar in the hub, none on a single song) and it
@@ -287,6 +329,33 @@ export default function Reader({
     () => resolveReaderConfig(settings, { wide, embedded, myInstrument, mode }),
     [settings, wide, embedded, myInstrument, mode]
   );
+
+  useEffect(() => {
+    const el = chartRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const measure = () => {
+      const applied = tailPadRef.current;
+      // The song's own height, with our own padding taken back off.
+      const natural = el.getBoundingClientRect().height - applied;
+      const band = Math.max(0, viewH - headH - footH);
+      const last = el.querySelector('[data-section-index]:last-child');
+      const lastH = last ? last.getBoundingClientRect().height : 0;
+      // `+ 4` of hysteresis: a song that lands within a few pixels of the band
+      // must not flip the padding on and off as the two measurements chase
+      // each other.
+      const want = natural > band + 4 ? Math.max(0, band - lastH - 8) : 0;
+      if (Math.abs(want - applied) <= 2) return;
+      tailPadRef.current = want;
+      setTailPad(want);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // `songId` and the layout knobs, because a shorter song, one column instead
+    // of two, or the ☰ opening all change what "the last section" is and how
+    // tall it is.
+  }, [viewH, headH, footH, songId, config.columns, config.flow, config.repeats, menuDocks, ownAaAnchor]);
 
   // ── Edit mode ────────────────────────────────────────────────────────────
   // Not a panel. The owner's shape: press edit and the CHART becomes editable —
@@ -783,7 +852,13 @@ export default function Reader({
       // at once and dropping "between the second and third" cannot be
       // expressed. Expanded, every chip is exactly one slot and the drag means
       // what it looks like.
-      collapse={!editing}
+      // Owner, 2026-08-05: *"I don't think we should allow x2 for the side
+      // left/right, because they are already long enough, maybe we repeat in
+      // the song map if left/right."* A column already has the room a row does
+      // not, and `×2` on a chip you are reading one-per-line is a second thing
+      // to decode. Spelled out, each chip is one slot — which is also what edit
+      // mode does, for the same reason.
+      collapse={!editing && !ribbonSide}
       activeFill
       // The ends fade when there is more song off either side (owner,
       // 2026-08-05). The reader is the one caller that can promise what colour
@@ -1096,16 +1171,31 @@ export default function Reader({
               style={{ top: headH || 0 }}
               aria-hidden={false}
             >
+              {/* ── Why this is glass and not a faded ribbon ─────────────
+                  Round 1 dimmed the whole strip to 0.72 and the owner's read
+                  was *"the transparency feels strange"*. He is right, and the
+                  reason is that fading the CHIPS attacks the wrong layer: it
+                  takes the ink down with the surface, so the one filled chip —
+                  the entire point of the row — goes pale, the outlines go muddy
+                  against whatever lyric happens to be behind them, and the
+                  result reads as a rendering fault rather than as a choice.
+                  What the request actually asks for is to see THROUGH it, and
+                  that is a property of the ground, not of the marks: full-
+                  strength chips on a translucent, slightly blurred plate. The
+                  lyrics still show through, and the map stays crisp. */}
               <div
-                className={`absolute ${ribbonPlace === 'left' ? 'left-0 items-start' : 'right-0 items-end'} flex flex-col [&_button]:pointer-events-auto`}
+                className={`absolute ${ribbonPlace === 'left' ? 'left-0 items-start' : 'right-0 items-end'} flex flex-col [&_button]:pointer-events-auto rounded-xl`}
                 style={{
                   top: Math.max(0, (viewH - headH - footH) / 2),
                   transform: 'translateY(-50%)',
-                  // Not `opacity` on each chip: one value on the strip keeps the
-                  // active chip's fill and the outlines in the same relationship
-                  // they have at the top, only quieter.
-                  opacity: 0.72,
-                  padding: '0 4px',
+                  // `backgroundColor` longhand, never the `background`
+                  // shorthand: jsdom's parser throws on `color-mix` inside the
+                  // shorthand during `cloneNode`, which Testing Library does for
+                  // every role query.
+                  backgroundColor: 'color-mix(in srgb, var(--chart-bg, var(--ds-background-100)) 62%, transparent)',
+                  backdropFilter: 'blur(3px)',
+                  WebkitBackdropFilter: 'blur(3px)',
+                  padding: '3px 2px',
                 }}
               >
                 {ribbonNode}
@@ -1118,6 +1208,7 @@ export default function Reader({
               spanned the whole window while the header stayed at 1600px —
               which is why the body never lined up with the bar above it. */}
           <div
+            ref={chartRef}
             className="wide-container py-3"
             style={{
               fontSize: config.display.lyricFontSize,
@@ -1150,14 +1241,11 @@ export default function Reader({
                   }
                   : { columnCount: 2, columnGap: '1.75rem', columnRule: '1px solid var(--chart-rule, var(--ds-gray-300))' })
                 : null),
-              // Trailing space so the LAST section can still scroll up far
-              // enough to pin. Without it the song stops moving as soon as its
-              // bottom meets the viewport, so the final section's heading never
-              // reaches the sticky position and the ribbon never catches up to
-              // it. Only where headings actually pin — `config.sticky` is
-              // phone-only by element 3's decision, and on a desktop this would
-              // just be a screen of blank paper.
-              ...(config.sticky ? { paddingBottom: '60vh' } : null),
+              // Trailing space, MEASURED — see `tailPad`. It used to be a flat
+              // `60vh`, and only where headings pin (phones), which is why
+              // clicking the last chip on a desktop moved nothing: there was
+              // nothing below the song to scroll into.
+              paddingBottom: tailPad,
             }}
           >
           {/* Element 14, the other half: a real song with nothing in it. A

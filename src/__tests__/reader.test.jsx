@@ -1063,10 +1063,19 @@ describe('element 3 — the floating side rail', () => {
     // The class, not `getComputedStyle` — jsdom loads no stylesheet, so every
     // Tailwind utility computes to its initial value here.
     expect(rail().className).toContain('sticky');
-    // ...and it is translucent, so the lyrics read through it (owner).
+    // ...and you see THROUGH it, which is a property of the ground, not of the
+    // marks. Round 1 faded the whole strip to 0.72 and the owner's read was
+    // "the transparency feels strange": dimming the chips takes the ink down
+    // with the surface, so the one filled chip goes pale and the outlines go
+    // muddy over whatever lyric is behind them. Translucent PLATE, full-
+    // strength chips.
     const strip = rail().firstElementChild;
-    expect(Number(strip.style.opacity)).toBeGreaterThan(0);
-    expect(Number(strip.style.opacity)).toBeLessThan(1);
+    expect(strip.style.opacity).toBe('');
+    expect(strip.style.backgroundColor).toContain('color-mix');
+    expect(strip.style.backdropFilter).toContain('blur');
+    // The longhand, never the `background` shorthand — jsdom's parser throws on
+    // `color-mix` inside it during the `cloneNode` every role query does.
+    expect(strip.style.background).toBe('');
   });
 
   it('gives the chart the whole width — the row is a flex ITEM', () => {
@@ -1118,5 +1127,51 @@ describe('the ribbon marks a key change', () => {
     mockWidth(true);
     const { container } = render(<Reader song={makeSong()} settings={{}} onExit={() => {}} />);
     expect(container.querySelectorAll('[aria-label^="Key change"]').length).toBe(0);
+  });
+});
+
+describe('element 3 — what the side rail does differently', () => {
+  const repeated = () => makeSong({ structure: ['Verse 1', 'Chorus', 'Chorus', 'Verse 2'] });
+
+  it('spells repeats out instead of collapsing them to ×2', () => {
+    mockWidth(true);
+    const { container, unmount } = render(
+      <Reader song={repeated()} settings={{ structurePosition: 'left' }} onExit={() => {}} />,
+    );
+    // Owner, 2026-08-05: "I don't think we should allow x2 for the side
+    // left/right, because they are already long enough." A column has the room
+    // a row does not, and ×2 on a chip you read one-per-line is a second thing
+    // to decode.
+    const rail = container.querySelector('.sticky.h-0');
+    expect(rail.querySelectorAll('button').length).toBe(4);
+    expect(rail.textContent).not.toContain('×2');
+    unmount();
+
+    // The top ribbon still collapses — a row is short of width, not of height.
+    const top = render(
+      <Reader song={repeated()} settings={{ structurePosition: 'top' }} onExit={() => {}} />,
+    );
+    expect(top.container.querySelector('.reader-head').textContent).toContain('×2');
+  });
+});
+
+// ── The trailing space, measured — 2026-08-05 ──────────────────────────────
+describe('a chip can reach the last section on every device', () => {
+  it('measures the tail instead of hard-coding 60vh on phones only', async () => {
+    const src = await import('node:fs').then(fs =>
+      fs.readFileSync('src/features/reader/Reader.jsx', 'utf8'));
+    // Owner: "clicking on a chip at the song map won't fully scroll to that
+    // item". The header was innocent — measured in Chromium, a jump lands the
+    // section exactly 8px under it with the set bar on OR off. The last
+    // sections simply had nothing below them to scroll into: the trailing
+    // space was a flat `60vh`, and only where headings pin, which is phones.
+    // Desktop, last chip, before: the section sat 536px below the header with
+    // the scroller already at its maximum. After: 8px.
+    expect(src).not.toContain("paddingBottom: '60vh'");
+    expect(src).toContain('paddingBottom: tailPad');
+    // And it is nothing when the song already fits — a flat pad on every
+    // device would invent a scroll on a song that almost fits, which is the
+    // "mini scroll" complaint from the other side.
+    expect(src).toContain('natural > band + 4');
   });
 });
