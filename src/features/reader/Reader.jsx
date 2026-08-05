@@ -691,36 +691,7 @@ export default function Reader({
     // A phone splits VERTICALLY (chart over settings, 60/40) and a desktop
     // HORIZONTALLY (settings down the left, chart beside them) — the outer row
     // here, the inner column below.
-    <div className="h-full flex">
-      {/* ── The desktop panel ───────────────────────────────────────────────
-          On the LEFT, and it starts BELOW the top bar. Owner, 2026-08-04:
-          *"Maybe we can still do it in a way that the ☰ is still in the same
-          place when we open somehow? We move everything lower?"* — right: a
-          full-height panel pushed the whole reader across, so the ☰ you had
-          just pressed jumped 320px sideways and you lost the thing you were
-          aiming at. Offsetting by the MEASURED header height (`headH`, which
-          the reader already tracks for the sticky headings) leaves the bar —
-          and the ☰ in it — exactly where it was.
-
-          Width is responsive: a fixed 320 is a third of a 1024px laptop and a
-          sliver of a big display. It also slides, so the layout arrives rather
-          than jumping. It is NOT a permanent strip (owner: *"I don't know if I
-          want to have another strip always there… the settings are not that
-          needed, like the rail"*) — it does not exist until the ☰ opens it. */}
-      {!menuDocks && menuNode && (
-        <div
-          className="shrink-0 overflow-hidden"
-          style={{
-            width: 'min(320px, 30vw)',
-            marginTop: headH || undefined,
-            height: headH ? `calc(100% - ${headH}px)` : '100%',
-            animation: 'reader-side-in 200ms cubic-bezier(0.32, 0.72, 0, 1)',
-          }}
-        >
-          {menuNode}
-        </div>
-      )}
-    <div className="flex-1 min-w-0 h-full flex flex-col">
+    <div className="h-full flex flex-col">
     <div
       className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden no-scrollbar"
       ref={scrollRef}
@@ -897,6 +868,35 @@ export default function Reader({
         )}
 
         {/* ── Elements 3–6 — the song ──────────────────────────────────── */}
+        {/* ── The desktop panel, and the chart beside it ──────────────────
+            The panel lives INSIDE the scroller, below the top bar, and that is
+            the whole point. A previous round made it a sibling of the scroller
+            and offset it by `headH` to keep the ☰ still — which did not work:
+            the header is INSIDE this column, so shrinking the column shrinks
+            the header, the ☰ moved sideways anyway, and all the offset bought
+            was an empty band above the panel (owner, 2026-08-04: *"there's an
+            empty space in the top on desktop now"*). Here the header is the
+            scroller's own full-width child, so it never moves at all, and the
+            band is gone because there is nothing above the panel to leave
+            empty.
+
+            `sticky` at the header's height, with `align-self: flex-start`, so
+            it stays put while the chart scrolls past it. */}
+        <div className="flex-1 min-h-0 flex">
+        {!menuDocks && menuNode && (
+          <div
+            className="shrink-0 self-start overflow-hidden"
+            style={{
+              width: 'min(320px, 30vw)',
+              position: 'sticky',
+              top: headH || 0,
+              height: `calc(100vh - ${headH || 0}px)`,
+              animation: 'reader-side-in 200ms cubic-bezier(0.32, 0.72, 0, 1)',
+            }}
+          >
+            {menuNode}
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           {/* The multi-column context MUST be established on the same element
               that carries the width constraint. With `columnCount` on the
@@ -988,6 +988,7 @@ export default function Reader({
             />
           ))}
           </div>
+        </div>
         </div>
 
         {ribbonPlace === 'right' && ribbonNode && (
@@ -1119,7 +1120,6 @@ export default function Reader({
       {menuDocks && menuNode && (
         <div className="shrink-0 min-h-0" style={{ flex: '0 0 40%' }}>{menuNode}</div>
       )}
-    </div>
     </div>
   );
 }

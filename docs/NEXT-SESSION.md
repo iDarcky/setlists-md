@@ -3,10 +3,10 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.74` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.75` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
-> can compare against `beta`. 911 tests, 0 lint errors (8 pre-existing
+> can compare against `beta`. 912 tests, 0 lint errors (8 pre-existing
 > warnings)._
 
 ---
@@ -100,7 +100,7 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.74) — element 28, rounds 1–14 · Style + Layout + Music all grouped
+## Just shipped (beta.75) — element 28, rounds 1–15 · Style + Layout + Music all grouped
 
 | What | Where |
 |---|---|
@@ -138,6 +138,9 @@ The facts to check before designing anything:
 
 | **Layout renamed end to end** (Page · Sections · Structure · Navigation) — the old names described the design, not the setting. **Band cues and inline notes are two knobs now** (`readerInlineNotes` is new; elements 4 and 5 each have one at last). **Plain is the default section style.** **Yes/no settings are a `Switch`** | `ReaderMenu.jsx`, `readerConfig.js`, `ReaderSection.jsx` |
 | **The desktop panel keeps the ☰ still** — offset by the measured `headH` so the top bar does not move, `min(320px, 30vw)`, slides in, closed by default, not a strip | `Reader.jsx`, `index.css` |
+
+| **CORRECTION to r14:** the `headH` offset did not keep the ☰ still — the header is INSIDE the column the panel was shrinking, so it shrank too and the ☰ moved anyway; the offset only left an empty band. The panel lives INSIDE the scroller now, `sticky` at `headH`, so the header is full-width and unmovable. **A comment asserting an effect is not the effect** | `Reader.jsx` |
+| **Switches sit on their label's line and take no Reset** · **`Pair` is `auto-fit`/`minmax(150px,1fr)`**, not two fixed columns · phone dock closes with a **chevron down** · **progress line on/off** (`readerProgress`) | `ReaderMenu.jsx`, `readerConfig.js`, `SetlistReader.jsx` |
 
 > **jsdom trap, new:** its CSS shorthand parser throws on `conic-gradient` and
 > some `var()` inside the **`background` shorthand**, during `cloneNode` — which

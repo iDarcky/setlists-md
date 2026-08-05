@@ -166,6 +166,7 @@ const MENU_DEFAULTS = {
   readerNav: 'footer',
   readerFooter: 'next',
   readerRail: 'on',
+  readerProgress: 'on',
   displayMode: 'chords',
   notation: 'letters',
   accidentals: 'auto',
@@ -189,12 +190,26 @@ const MENU_DEFAULTS = {
  * Now: the app's own sans at 12px/600, sentence case, on the chart's ordinary
  * secondary ink. Same job, one signal, legible.
  */
-function Field({ label, children, onReset, info }) {
+/**
+ * `inline` puts the control on the LABEL'S OWN LINE, right-aligned.
+ *
+ * A switch under its label costs the height of a whole field to say one bit
+ * (owner, 2026-08-04, on three of them stacked: *"Doesn't it take too much
+ * space?"*). Beside the label it costs nothing extra, and a switch is the one
+ * control narrow enough to do that.
+ *
+ * Switches also take **no Reset** (owner: *"the switches don't really need
+ * reset, do they?"* — they don't). Reset earns its place when a control has
+ * several values and you cannot tell which one was the default; a switch has
+ * two and shows you which one it is on. Tapping it back IS the reset.
+ */
+function Field({ label, children, onReset, info, inline = false }) {
   const [showInfo, setShowInfo] = useState(false);
   return (
     <div className="px-4 pt-3.5 pb-0.5">
-      <div className="flex items-baseline gap-2 mb-2">
+      <div className={`flex items-center gap-2 ${inline ? 'mb-0' : 'items-baseline mb-2'}`}>
         <div className="text-[13.5px] font-semibold text-[var(--text-2)]">{label}</div>
+        {!inline && <span className="flex-1" />}
         {/* The explanation, behind an (i) — it used to sit under the control as
             a loose paragraph (owner, 2026-08-04: *"the explanations should be
             inside a i button not random there"*). He also wants this on every
@@ -212,16 +227,17 @@ function Field({ label, children, onReset, info }) {
         )}
         {onReset && (
           <button type="button" onClick={onReset} aria-label={`Reset ${label}`}
-            className="ml-auto min-h-0 text-[12px] font-medium cursor-pointer bg-transparent border-none p-0"
+            className="min-h-0 text-[12px] font-medium cursor-pointer bg-transparent border-none p-0"
             style={{ color: 'var(--ds-red-900)' }}>
             Reset
           </button>
         )}
+        {inline && <span className="ml-auto shrink-0">{children}</span>}
       </div>
       {showInfo && info && (
-        <p className="m-0 mb-2 text-[12.5px] leading-snug text-[var(--ds-gray-600)]">{info}</p>
+        <p className="m-0 mb-2 mt-1.5 text-[12.5px] leading-snug text-[var(--ds-gray-600)]">{info}</p>
       )}
-      {children}
+      {!inline && children}
     </div>
   );
 }
@@ -332,7 +348,20 @@ function ColorRow({ label, value, onPick, onReset }) {
  * a nested pair would double it; the grid supplies it once instead.
  */
 function Pair({ children }) {
-  return <div className="grid grid-cols-2 gap-x-3 px-4 [&>div]:px-0">{children}</div>;
+  return (
+    // `auto-fit` + `minmax`, not `grid-cols-2`: two fixed columns squeeze a
+    // stepper and a dropdown into ~130px each inside a 290px panel, and the
+    // labels wrap mid-word (owner, 2026-08-04: *"let's not force items to be
+    // one next to the other if there's no space, make them dynamic"*). This
+    // pairs them when they fit and stacks them when they don't — the panel is a
+    // resizable side dock and a phone dock, so "fits" is not one number.
+    <div
+      className="grid gap-x-3 px-4 [&>div]:px-0"
+      style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}
+    >
+      {children}
+    </div>
+  );
 }
 
 /**
@@ -901,10 +930,21 @@ export default function ReaderMenu({
       {dock && (
         <button type="button" onClick={onClose} aria-label="Close display options"
           className="shrink-0 ml-1 w-9 h-9 min-h-0 grid place-items-center rounded-lg bg-transparent border-none text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--bg-2)] cursor-pointer">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-            <line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" />
-          </svg>
+          {/* A chevron DOWN on the phone dock, a ✕ on the desktop panel (owner,
+              2026-08-04). The dock slides down out of the way and the chevron
+              says which way it goes; the side panel does not go down, and there
+              is no ✕ anywhere near it to be confused with. */}
+          {dock === 'bottom' ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
+          )}
         </button>
       )}
     </div>
@@ -1085,7 +1125,7 @@ export default function ReaderMenu({
               options={[['plain', 'Plain'], ['bar', 'Bar'], ['block', 'Block'], ['card', 'Card']]}
               onChange={(v) => set('readerSectionStyle', v)} />
           </Field>
-          <Field label="Pin heading while scrolling" onReset={reset('readerSticky')}>
+          <Field label="Pin heading while scrolling" inline>
             <Switch label="Pin heading while scrolling"
               on={(settings?.readerSticky || 'on') === 'on'}
               onChange={(v) => set('readerSticky', v ? 'on' : 'off')} />
@@ -1093,13 +1133,13 @@ export default function ReaderMenu({
           {/* Split in two on 2026-08-04. They were one knob, and they are
               different marks: a band cue is written under a heading for
               everyone, an inline note is dropped mid-line for a moment. */}
-          <Field label="Band cues" onReset={reset('readerNotes')}
+          <Field label="Band cues" inline
             info="The line under a section heading, for the whole band.">
             <Switch label="Band cues"
               on={(settings?.readerNotes || 'on') === 'on'}
               onChange={(v) => set('readerNotes', v ? 'on' : 'off')} />
           </Field>
-          <Field label="Inline notes" onReset={reset('readerInlineNotes')}
+          <Field label="Inline notes" inline
             info="The small notes written into a line, for one moment in the song.">
             <Switch label="Inline notes"
               on={(settings?.readerInlineNotes || 'on') === 'on'}
@@ -1122,7 +1162,7 @@ export default function ReaderMenu({
               set. It reads as an on/off for the set, so that is what it is now
               (owner, 2026-08-04) — but the two really do share one slot, which
               is why turning the setlist bar on takes the structure's place. */}
-          <Field label="Setlist bar" onReset={reset('readerTopBar')}
+          <Field label="Setlist bar" inline
             info="The whole service across the top, in place of this song's structure. They share the row under the title.">
             <Switch label="Setlist bar"
               on={settings?.readerTopBar === 'setlist'}
@@ -1147,7 +1187,13 @@ export default function ReaderMenu({
                 onChange={(v) => set('readerFooter', v)} />
             </Field>
           )}
-          <Field label="Setlist rail" onReset={reset('readerRail')}
+          <Field label="Progress line" inline
+            info="The hairline at the very top showing how far through the service you are.">
+            <Switch label="Progress line"
+              on={(settings?.readerProgress || 'on') === 'on'}
+              onChange={(v) => set('readerProgress', v ? 'on' : 'off')} />
+          </Field>
+          <Field label="Setlist rail" inline
             info="The strip down the side listing the whole service.">
             <Switch label="Setlist rail"
               on={(settings?.readerRail || 'on') === 'on'}
@@ -1217,7 +1263,7 @@ export default function ReaderMenu({
           {/* Element 11. The setting existed and the reader read it NOWHERE —
               tapping a chord always offered its shape. Default on: a diagram
               you have to ask for costs nothing until you ask. */}
-          <Field label="Tap a chord for its shape" onReset={reset('showDiagrams')}>
+          <Field label="Tap a chord for its shape" inline>
             <Switch label="Tap a chord for its shape"
               on={settings?.showDiagrams !== false}
               onChange={(v) => set('showDiagrams', v ? undefined : false)} />

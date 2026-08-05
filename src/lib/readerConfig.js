@@ -50,6 +50,9 @@ export const READER_KNOBS = {
   // column 2, balanced); 'across' is a grid laid left→right. See the note in
   // `Reader` — 'across' cannot be balanced, by construction.
   flow: ['down', 'across'],
+  // How far through the SET you are, as a hairline at the top of the chrome.
+  // Owner, 2026-08-04: "easy, do it".
+  progress: ['on', 'off'],
 };
 
 const DEFAULTS = {
@@ -69,6 +72,7 @@ const DEFAULTS = {
   topBar: 'ribbon',
   rail: 'on',
   flow: 'down',
+  progress: 'on',
 };
 
 // Stored under these settings keys. `structurePosition` and
@@ -87,6 +91,7 @@ const KEY = {
   topBar: 'readerTopBar',
   rail: 'readerRail',
   flow: 'readerFlow',
+  progress: 'readerProgress',
 };
 
 export function readerSettingKey(knob) {
@@ -253,6 +258,7 @@ export function resolveReaderConfig(settings, ctx = {}) {
     topBar: pick('topBar', settings?.[KEY.topBar]),
     rail: pick('rail', settings?.[KEY.rail]) === 'on',
     flow: pick('flow', settings?.[KEY.flow]),
+    progress: pick('progress', settings?.[KEY.progress]) === 'on',
     columns: resolveColumns(settings?.defaultColumns, wide),
     display: resolveChartDisplay(settings),
     // Element 9: tabs for other instruments collapse. A manual override in

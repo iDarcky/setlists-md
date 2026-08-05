@@ -1545,6 +1545,45 @@ slides in. **Not a permanent strip** (owner: *"I don't know if I want to have
 another strip always there… the settings are not that needed, like the rail"*)
 and closed by default: it does not exist until the ☰ opens it.
 
+#### Element 28, round 15 — density, and a correction, 2026-08-04
+
+**The `headH` offset did not do what its comment claimed.** Round 14 made the
+desktop panel a SIBLING of the scroller and offset it by the measured header
+height, on the reasoning that this would leave the ☰ where it was. It did not:
+the header is INSIDE the column the panel was shrinking, so the header shrank
+with it and the ☰ moved sideways anyway. All the offset bought was an empty band
+above the panel — which is what the owner saw (*"there's an empty space in the
+top on desktop now"*).
+
+The real fix is where the panel LIVES. It is inside the scroller now, below the
+top bar, `position: sticky` at `headH` with `align-self: flex-start`. The header
+is the scroller's own full-width child, so nothing can push it; the band is gone
+because there is no longer anything above the panel to leave empty.
+
+> **The lesson, and it is the same one as the five one-ended settings:** a
+> comment asserting an effect is not the effect. `headH` was measured, real, and
+> applied to the wrong element.
+
+**Switches sit on their label's line, and take no Reset.** Owner, on three
+stacked: *"Doesn't it take too much space? Also the switches don't really need
+reset, do they?"* — no on both counts. A switch under its label spends a whole
+field's height to say one bit; beside it, it costs nothing. And Reset earns its
+place when a control has several values and you cannot tell which was the
+default — a switch has two and shows you which one it is on. Tapping it back
+**is** the reset.
+
+**`Pair` is `auto-fit` / `minmax(150px, 1fr)`, not two fixed columns.** Owner:
+*"let's not force items to be one next to the other if there's no space, make
+them dynamic."* Two fixed columns squeezed a stepper and a dropdown into ~130px
+each inside a 290px panel and wrapped the labels mid-word. The panel is a
+resizable side dock AND a phone dock, so "fits" is not one number.
+
+**The phone dock closes with a chevron down**, the desktop panel with a ✕: the
+dock slides down and the chevron says which way it goes.
+
+**Progress line on/off** (`readerProgress`) — `null` already hid it in
+`ReaderTopBar`, so the knob needed no new branch.
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the

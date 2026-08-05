@@ -152,7 +152,11 @@ export default function SetlistReader({
   // Where you are in the SET, as a percentage. Drawn by `ReaderTopBar` so it
   // survives the set bar being off — it used to belong to `ReaderSetlistBar`,
   // which meant turning that off took the progress with it.
-  const progress = total > 1 ? (idx / (total - 1)) * 100 : 100;
+  // `null` hides the line entirely — `ReaderTopBar` already treats it that way,
+  // so the knob needs no new branch anywhere.
+  const progress = cfg.progress
+    ? (total > 1 ? (idx / (total - 1)) * 100 : 100)
+    : null;
 
   // ONE footer, built once, handed to both surfaces — a break must not draw
   // its own bar with the exit stranded inside it.
@@ -349,11 +353,12 @@ export default function SetlistReader({
   // arrows and the phone sheet are all `fixed`, so they ignore this box.
   return (
     <div className="h-full flex">
-      {/* The desktop ☰, docked down the LEFT — first in the row, so it pushes
-          the chart across rather than covering it. The setlist rail is the
-          mirror of this on the other edge. */}
-      {!menuDocks && menuNode && (
-        <div className="shrink-0 h-full" style={{ width: 320 }}>{menuNode}</div>
+      {/* On a phone the ☰ docks under the break/missing screen (`menuDock`);
+          on a desktop `Reader` places it inside its own scroller, below the
+          top bar. These two screens are not the reader, so they get the
+          simpler treatment: the panel beside them, full height. */}
+      {!menuDocks && menuNode && !cur?.song && (
+        <div className="shrink-0 h-full" style={{ width: 'min(320px, 30vw)' }}>{menuNode}</div>
       )}
       <div className="flex-1 min-w-0 h-full">{body}</div>
       {overlay}

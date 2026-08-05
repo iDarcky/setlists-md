@@ -714,8 +714,22 @@ describe('the ☰ on a phone — element 28', () => {
     // Responsive: a fixed 320 is a third of a 1024px laptop and a sliver of a
     // big display.
     expect(panel.parentElement.style.width).toBe('min(320px, 30vw)');
-    // FIRST in the row, so the chart moves right rather than being overlaid.
+    // FIRST in the row, so the chart moves right rather than being overlaid...
     expect(panel.parentElement.previousElementSibling).toBeNull();
+    // ...and INSIDE the scroller, below the top bar, which is what keeps the
+    // header — and the ☰ in it — from moving when the panel opens. An earlier
+    // round made the panel a SIBLING of the scroller: the header shrank with
+    // the column, the ☰ moved sideways anyway, and offsetting the panel by the
+    // header height only left an empty band above it.
+    const head = document.querySelector('.reader-head');
+    const scroller = head.parentElement;
+    expect(scroller.className).toContain('overflow-y-auto');
+    expect(scroller.contains(panel)).toBe(true);
+    // The header is the scroller's own child, so it spans the full width and
+    // the panel cannot push it.
+    expect(head.contains(panel)).toBe(false);
+    expect(head.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
     // Tabs on top here: a full-height panel is read top-down. (On the phone
     // dock they sit at the bottom, nearest the thumb.)
     expect(panel.firstChild.className).toContain('border-b');
@@ -792,9 +806,9 @@ describe('embedded in the Song Hub', () => {
     const { container } = render(
       <Reader song={makeSong()} settings={{}} embedded onExit={() => {}} />
     );
-    // The reader is a ROW (desktop ☰ | column) whose column holds the
-    // scroller; the surface lives on the scroller.
-    const root = container.firstChild.firstChild.firstChild;
+    // The reader is a column whose first child is the scroller; the desktop ☰
+    // lives INSIDE that scroller now, below the top bar.
+    const root = container.firstChild.firstChild;
     expect(root.style.getPropertyValue('--chart-bg')).toBe('var(--ds-background-100)');
     expect(root.style.getPropertyValue('--chart-text')).toBe('var(--ds-gray-1000)');
   });
@@ -803,7 +817,7 @@ describe('embedded in the Song Hub', () => {
     // Standalone it must NOT override --chart-*: those come from :root, where
     // useChartTheme writes the stage palette. Overriding here would kill themes.
     const { container } = render(<Reader song={makeSong()} settings={{}} onExit={() => {}} />);
-    expect(container.firstChild.firstChild.firstChild.style.getPropertyValue('--chart-bg')).toBe('');
+    expect(container.firstChild.firstChild.style.getPropertyValue('--chart-bg')).toBe('');
     expect(container.firstChild.style.getPropertyValue('--chart-text')).toBe('');
   });
 });

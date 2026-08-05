@@ -78,6 +78,7 @@ export const PORTABLE_PREF_KEYS = [
   'readerTopBar',
   'readerRail',
   'readerFlow',
+  'readerProgress',
   // The ☰ → "The music" row writes both: the role preset itself, and the tab
   // filter it implies. Without these two the picker looked like it worked and
   // then forgot itself on the next device.
