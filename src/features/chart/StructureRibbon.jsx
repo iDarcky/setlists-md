@@ -29,6 +29,15 @@ export function StructureRibbon({
   // 'horizontal' (default) or 'vertical' — the side floating rail stacks the
   // items in a column.
   orientation = 'horizontal',
+  // Show a WINDOW of the map rather than all of it: `{ before, after }` runs
+  // around the one you are in. The side rail's shape (owner, 2026-08-05: *"they
+  // should show maybe like 5-6 elements and they should scroll with the
+  // text"*) — a column down the middle of a phone cannot carry twenty chips,
+  // and scrolling it is a second scroll competing with the song's.
+  //
+  // The slice happens AFTER `runs` is built, so every `run.index` still points
+  // at the real play-order slot and `onSelect` keeps meaning what it means.
+  windowAround = null,
   // Fill the active chip solid in its section colour rather than ringing a
   // neutral pill. Opt-in so the existing chart keeps its current look.
   activeFill = false,
@@ -75,15 +84,37 @@ export function StructureRibbon({
 
   // Keep the active chip centred as the song scrolls (horizontal only — avoid
   // scrollIntoView so it never nudges the page vertically).
+  // HORIZONTAL only. A vertical rail shows a window that walks with you
+  // (`windowAround`) rather than a long column it has to scroll — this used to
+  // write `scrollTo({ left })` on a box that scrolls vertically, which is why
+  // the side rail never followed the song at all.
   useEffect(() => {
     const el = activeRef.current;
     const sc = scrollerRef.current;
-    if (!el || !sc) return;
+    if (!el || !sc || orientation === 'vertical') return;
     const left = el.offsetLeft - (sc.clientWidth - el.clientWidth) / 2;
     sc.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
-  }, [activeIndex]);
+  }, [activeIndex, orientation]);
 
   const isActiveRun = (run) => activeIndex != null && activeIndex >= run.index && activeIndex < run.index + run.count;
+
+  // The window, when there is one. Anchored so the run you are in keeps
+  // `before` chips above it — except at the two ends, where the window stops
+  // rather than showing empty space: at the start you get the first N, at the
+  // finish the last N, and in between it walks with you.
+  const shown = useMemo(() => {
+    if (!windowAround || onReorder) return runs;
+    const before = windowAround.before ?? 2;
+    const after = windowAround.after ?? 3;
+    const size = before + after + 1;
+    if (runs.length <= size) return runs;
+    const cur = runs.findIndex(r => (
+      activeIndex != null && activeIndex >= r.index && activeIndex < r.index + r.count
+    ));
+    const anchor = cur < 0 ? 0 : cur;
+    const start = Math.min(Math.max(0, anchor - before), runs.length - size);
+    return runs.slice(start, start + size);
+  }, [runs, windowAround, onReorder, activeIndex]);
   // px-1 keeps the first/last chip (and the active chip's ring) from being
   // clipped at the scroller's edges.
   const vertical = orientation === 'vertical';
@@ -384,7 +415,7 @@ export function StructureRibbon({
     const showLabels = style === 'dotlabel';
     return framed(
       <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-1.5')}>
-        {decorate(runs.map((run, i) => {
+        {decorate(shown.map((run, i) => {
           const s = colorOf(run.name);
           const active = isActiveRun(run);
           const Tag = onSelect ? 'button' : 'span';
@@ -425,7 +456,7 @@ export function StructureRibbon({
   if (style === 'codes') {
     return framed(
       <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-[5px]')}>
-        {decorate(runs.map((run, i) => {
+        {decorate(shown.map((run, i) => {
           const s = colorOf(run.name);
           const active = isActiveRun(run);
           const Tag = onSelect ? 'button' : 'span';
@@ -478,7 +509,7 @@ export function StructureRibbon({
   if (style === 'numbered') {
     return framed(
       <div ref={scrollerRef} className={cn(rowClass, 'items-baseline')}>
-        {decorate(runs.map((run, i) => {
+        {decorate(shown.map((run, i) => {
           const s = colorOf(run.name);
           const active = isActiveRun(run);
           const Tag = onSelect ? 'button' : 'span';
@@ -517,7 +548,7 @@ export function StructureRibbon({
   // Default: chips.
   return framed(
     <div ref={scrollerRef} className={rowClass}>
-      {decorate(runs.map((run, i) => {
+      {decorate(shown.map((run, i) => {
         const s = colorOf(run.name);
         const active = isActiveRun(run);
         const Tag = onSelect ? 'button' : 'span';

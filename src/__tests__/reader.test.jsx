@@ -1019,3 +1019,66 @@ describe('element 3 — edit mode takes the map to the top', () => {
     expect(screen.getByRole('button', { name: /add a section/i })).toBeTruthy();
   });
 });
+
+// ── Element 3 — the side rail, rebuilt 2026-08-05 ───────────────────────────
+//
+// Owner: "First thing they should be in the middle of the app not at the top
+// like now. The setting and the rail should push them not open behind them.
+// They should be a bit transparent. They should show maybe like 5-6 elements
+// and they should scroll with the text."
+describe('element 3 — the floating side rail', () => {
+  const longSong = () => makeSong({
+    structure: ['Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Verse 1', 'Chorus',
+      'Verse 2', 'Chorus', 'Verse 1', 'Chorus'],
+  });
+  const rail = () => document.querySelector('.sticky.h-0');
+
+  it('shows a window of six, not the whole map', () => {
+    mockWidth(true);
+    const { container } = render(
+      <Reader song={longSong()} settings={{ structurePosition: 'left' }} onExit={() => {}} />,
+    );
+    // Ten runs in the play order, six chips on the rail: two behind, the one
+    // you are in, three ahead. A column cannot carry a twenty-section map, and
+    // scrolling it would be a second scroll racing the song's.
+    expect(container.querySelectorAll('[data-section-index]').length).toBe(10);
+    expect(rail().querySelectorAll('button').length).toBe(6);
+  });
+
+  it('hangs off the CHART COLUMN, so the ☰ pushes it instead of covering it', () => {
+    mockWidth(true);
+    render(<Reader song={longSong()} settings={{ structurePosition: 'right' }} onExit={() => {}} />);
+    // Positioned against the row that also holds the ☰ panel, it simply sat
+    // underneath the panel when it opened. Its parent is the chart column.
+    expect(rail().parentElement.className).toContain('flex-1 min-w-0 relative');
+  });
+
+  it('takes no layout height and stays put while the song scrolls', () => {
+    mockWidth(true);
+    render(<Reader song={longSong()} settings={{ structurePosition: 'left' }} onExit={() => {}} />);
+    // A zero-height sticky box: it holds its place on screen without taking a
+    // pixel from the chart. `fixed` would have ignored the ☰ panel and the
+    // app's own sidebar, which is the bug this replaced.
+    expect(rail().className).toContain('h-0');
+    // The class, not `getComputedStyle` — jsdom loads no stylesheet, so every
+    // Tailwind utility computes to its initial value here.
+    expect(rail().className).toContain('sticky');
+    // ...and it is translucent, so the lyrics read through it (owner).
+    const strip = rail().firstElementChild;
+    expect(Number(strip.style.opacity)).toBeGreaterThan(0);
+    expect(Number(strip.style.opacity)).toBeLessThan(1);
+  });
+
+  it('gives the chart the whole width — the row is a flex ITEM', () => {
+    mockWidth(true);
+    render(<Reader song={longSong()} settings={{ structurePosition: 'off' }} onExit={() => {}} />);
+    // Without `flex-1` this row was shrink-to-fit: measured in Chromium at
+    // 1280, the chart came out 840px wide in a 1236px scroller, with 400px of
+    // dead window beside it. A narrower chart is still a correct chart, which
+    // is why nobody saw it — it just wraps more, and wrapping more is what
+    // makes an "almost fitting" song scroll.
+    const chart = document.querySelector('.wide-container.py-3');
+    expect(chart.parentElement.parentElement.className).toContain('flex-1');
+    expect(chart.parentElement.parentElement.className).toContain('min-w-0');
+  });
+});

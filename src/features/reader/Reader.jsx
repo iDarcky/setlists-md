@@ -743,6 +743,11 @@ export default function Reader({
       // outline on.
       style={editing ? 'codes' : config.ribbonStyle}
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
+      // The side rail shows a WINDOW that walks with the song — 2 behind, the
+      // one you are in, 3 ahead (owner, 2026-08-05). A column cannot carry a
+      // twenty-section map, and scrolling it would be a second scroll racing
+      // the song's.
+      windowAround={ribbonSide ? { before: 2, after: 3 } : null}
       // EXPANDED while editing (owner: "I imagine that when the user presses
       // the edit the cx3 expands to c c c"). Right — a collapsed `C ×3` is one
       // chip standing for three slots, so dragging it is dragging three things
@@ -971,15 +976,6 @@ export default function Reader({
             have it too — `pointer-events-none` on the strip with the chips
             themselves re-enabling, so the space around them still scrolls the
             chart underneath. */}
-        {ribbonPlace === 'left' && ribbonNode && (
-          <div
-            className="absolute left-0 top-0 bottom-0 z-10 w-12 overflow-y-auto no-scrollbar px-1 py-2 pointer-events-none [&_button]:pointer-events-auto"
-            style={{ background: 'transparent' }}
-          >
-            {ribbonNode}
-          </div>
-        )}
-
         {/* ── Elements 3–6 — the song ──────────────────────────────────── */}
         {/* ── The desktop panel, and the chart beside it ──────────────────
             The panel lives INSIDE the scroller, below the top bar, and that is
@@ -1005,7 +1001,18 @@ export default function Reader({
             unconditional, so it hit the phone too — where this row holds nothing
             but the chart. The panel keeps its own height and `position: sticky`;
             the row must not try to size it. */}
-        <div className="flex">
+        {/* `flex-1 min-w-0` — WIDTH, and this row had neither. It is a flex
+            ITEM of the row above, so without `flex-1` it was shrink-to-fit:
+            measured in Chromium at 1280, the chart came out **840px wide in a
+            1236px scroller**, left-aligned, with ~400px of dead window beside
+            it. Nobody had noticed because a narrower chart is still a correct
+            chart — it just wraps more, which also makes the song taller, which
+            is part of why an "almost fitting" song scrolls. `min-w-0` lets it
+            shrink again when the ☰ panel takes its 320px.
+            (This is the WIDTH twin of the `flex-1 min-h-0` trap above, and the
+            opposite lesson: on the cross axis of a scroller, `flex-1` is what
+            you want.) */}
+        <div className="flex flex-1 min-w-0">
         {!menuDocks && menuNode && (
           <div
             className="shrink-0 self-start overflow-hidden"
@@ -1025,7 +1032,57 @@ export default function Reader({
             {menuNode}
           </div>
         )}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 relative">
+          {/* ── The side rail — element 3, rebuilt 2026-08-05 ───────────────
+              Owner: *"First thing they should be in the middle of the app not
+              at the top like now. The setting and the rail should push them not
+              open behind them. They should be a bit transparent. They should
+              show maybe like 5-6 elements and they should scroll with the
+              text."* All four, in order:
+
+              **In the middle.** It was `top-0 bottom-0` on the row, so the
+              chips stacked from the top edge and a five-chip map floated up by
+              the title. Now it is centred in the VISIBLE band — the same
+              `viewH - headH - footH` the ☰ panel is measured with, so it sits
+              in the middle of what you can actually see rather than the middle
+              of the song.
+
+              **Pushed, not buried.** It hangs off the CHART COLUMN now, not off
+              the row that also holds the ☰ panel. When the panel opens the
+              column narrows and the rail moves with it; when the setlist rail
+              opens, `SetlistReader` has already narrowed the whole reader, so
+              this moves too. Absolutely positioned against the row, it simply
+              sat underneath both.
+
+              **Sticky with NO height.** A zero-height sticky box is what lets it
+              stay put while the song scrolls past without taking a pixel of
+              layout from the chart — `position: fixed` would have ignored both
+              the panel and the app's own sidebar, which is the bug we just
+              fixed.
+
+              **A bit transparent**, so the lyrics read through it. */}
+          {ribbonSide && ribbonNode && (
+            <div
+              className="sticky z-10 h-0 pointer-events-none"
+              style={{ top: headH || 0 }}
+              aria-hidden={false}
+            >
+              <div
+                className={`absolute ${ribbonPlace === 'left' ? 'left-0 items-start' : 'right-0 items-end'} flex flex-col [&_button]:pointer-events-auto`}
+                style={{
+                  top: Math.max(0, (viewH - headH - footH) / 2),
+                  transform: 'translateY(-50%)',
+                  // Not `opacity` on each chip: one value on the strip keeps the
+                  // active chip's fill and the outlines in the same relationship
+                  // they have at the top, only quieter.
+                  opacity: 0.72,
+                  padding: '0 4px',
+                }}
+              >
+                {ribbonNode}
+              </div>
+            </div>
+          )}
           {/* The multi-column context MUST be established on the same element
               that carries the width constraint. With `columnCount` on the
               full-width parent and `wide-container` on a child, the columns
@@ -1121,14 +1178,6 @@ export default function Reader({
         </div>
         </div>
 
-        {ribbonPlace === 'right' && ribbonNode && (
-          <div
-            className="absolute right-0 top-0 bottom-0 z-10 w-12 overflow-y-auto no-scrollbar px-1 py-2 pointer-events-none [&_button]:pointer-events-auto"
-            style={{ background: 'transparent' }}
-          >
-            {ribbonNode}
-          </div>
-        )}
       </div>
 
       {/* ── The bottom edge — ONE sticky block, three rows ────────────────
