@@ -1091,9 +1091,21 @@ export default function ReaderMenu({
           {/* Columns are a fact about the SPACE, not a taste, and a phone has
               room for one. `resolveReaderConfig` forces 1 below 768, so below
               768 the control is a switch that does nothing. */}
+          {/* The RESOLVED number, and no Reset (owner, 2026-08-05: *"the default
+              column is one and if I press the reset it goes from two → one but
+              it doesn't change. Remove the reset"*).
+              Both halves of that were the same lie. `defaultColumns` is 'auto'
+              until you touch it, and `resolveColumns('auto', wide)` is TWO on a
+              wide screen — but the control read `settings.defaultColumns === 2`,
+              so it said "One" over a chart that was visibly in two columns.
+              Reset then wrote 'auto' back, which is where it already was: the
+              button moved the highlight and could not, by construction, move
+              the chart. Reading `config.columns` is the honest end, and it also
+              retires the Reset — there is no state left for it to return to
+              that the control isn't already showing. */}
           {wideEnoughForColumns && (
-            <Field label="Columns" onReset={reset('defaultColumns')}>
-              <Picks value={settings?.defaultColumns === 2 ? 2 : 1}
+            <Field label="Columns">
+              <Picks value={config?.columns === 2 ? 2 : 1}
                 options={[[1, 'One'], [2, 'Two']]} onChange={(v) => set('defaultColumns', v)} />
             </Field>
           )}
@@ -1111,8 +1123,12 @@ export default function ReaderMenu({
           )}
           <Field label="Repeats" onReset={reset('duplicateSections')}
             info="A chorus played three times is written once. This is what the other two times look like.">
+            {/* Full · Tag · Hidden (owner, 2026-08-05). "Condensed" and "As a
+                tag" were two names for the same pill; the pill is what you see,
+                so the pill is what it is called. The stored value stays
+                `condensed` — renaming it would need a migration for a word. */}
             <Picks value={settings?.duplicateSections || 'condensed'}
-              options={[['full', 'In full'], ['condensed', 'As a tag'], ['hide', 'Hidden']]}
+              options={[['full', 'Full'], ['condensed', 'Tag'], ['hide', 'Hidden']]}
               onChange={(v) => set('duplicateSections', v)} />
           </Field>
 

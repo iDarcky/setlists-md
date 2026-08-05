@@ -721,7 +721,8 @@ export default function ChartView({
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     { id: 'full', label: 'Full' },
-                    { id: 'condensed', label: 'Condensed' },
+                    // One name for one thing, everywhere (owner, 2026-08-05).
+                    { id: 'condensed', label: 'Tag' },
                   ].map(b => (
                     <button
                       key={b.id}

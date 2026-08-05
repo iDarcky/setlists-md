@@ -341,6 +341,29 @@ describe('the ☰ menu', () => {
     expect(screen.getByText('Columns')).toBeTruthy();
   });
 
+  // Owner, 2026-08-05: "the default column is one and if I press the reset it
+  // goes from two → one but it doesn't change."
+  //
+  // Both halves were one lie. `defaultColumns` is 'auto' until you touch it and
+  // `resolveColumns('auto', wide)` is TWO, but the control compared against
+  // `settings.defaultColumns === 2` and so said One over a two-column chart.
+  // Reset then wrote 'auto' — where it already was — so the highlight moved and
+  // the chart could not.
+  it('shows the columns the chart is ACTUALLY in, and offers no reset', () => {
+    mockWidth(true);
+    // No stored value: 'auto' on a wide screen resolves to two.
+    renderReader({ settings: {} });
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    fireEvent.click(screen.getByText('Layout'));
+    expect(screen.getByRole('button', { name: 'Two' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'One' }).getAttribute('aria-pressed')).toBe('false');
+
+    // A Reset here could only ever put back the value the control is already
+    // showing, so there is nothing for it to do.
+    const row = screen.getByText('Columns').closest('div').parentElement;
+    expect(row.textContent).not.toContain('Reset');
+  });
+
   it('groups the Style tab, and pairs two controls to a row', () => {
     renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));

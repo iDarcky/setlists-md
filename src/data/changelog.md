@@ -152,6 +152,8 @@ A running log of what's new in setlists.md. Newest releases first.
 
 ### Fixed
 - **The reader scrolled twice (Labs)** — the song was being laid out inside a box locked to the height of one screen, so the page and the song disagreed about how long the song was. It affected phones as well as desktops.
+- **The columns setting was telling you the wrong number (Labs)** — on a wide screen the reader lays a chart out in two columns until you say otherwise, but the setting showed "One" and its Reset moved the highlight without moving the chart. It now shows the columns you're actually reading, and the Reset is gone: there was nothing for it to put back.
+- **One name for a repeated section** — "Condensed" and "As a tag" were the same thing. It's **Full · Tag · Hidden** everywhere now.
 - **The ☰ panel was taller than the space it had (Labs)** — on a desktop the settings panel claimed everything under the top bar and ignored the bar at the bottom of the screen, so opening it added a second scroll to the song exactly as tall as that bar. Two scrollbars for one panel; now the panel stops where the bar starts.
 - **Reset appeared when there was nothing to reset (Labs)** — choosing the option a setting was already on counted as a change, so a Reset showed up that would have done nothing.
 - **Resetting "Show" could take the chords away (Labs)** — putting it back to default handed the decision to an older setting left behind by the previous player screens, which could be set to "no chords". Changing or resetting Show now retires that old setting for good.
