@@ -1082,3 +1082,41 @@ describe('element 3 — the floating side rail', () => {
     expect(chart.parentElement.parentElement.className).toContain('min-w-0');
   });
 });
+
+// ── Elements 3 + 8 — a key change on the map, 2026-08-05 ────────────────────
+describe('the ribbon marks a key change', () => {
+  const modulated = () => makeSong({
+    structure: ['Verse 1', 'Chorus', 'Verse 2'],
+    sections: [
+      { type: 'Verse 1', lines: ['[G]one'] },
+      { type: 'Chorus', lines: [{ type: 'modulate', semitones: 2 }, '[A]two'] },
+      { type: 'Verse 2', lines: ['[A]three'] },
+    ],
+  });
+
+  it('names the key you ARRIVE in, not the interval', () => {
+    mockWidth(true);
+    render(<Reader song={modulated()} settings={{}} onExit={() => {}} />);
+    // Element 8's rule, reused: "we're in A now" beats "+2". G + 2 = A.
+    const mark = screen.getByLabelText('Key change to A');
+    expect(mark.textContent).toContain('A');
+    expect(mark.textContent).not.toContain('+2');
+  });
+
+  it('marks the boundary, not the middle of a section', () => {
+    mockWidth(true);
+    const { container } = render(<Reader song={modulated()} settings={{}} onExit={() => {}} />);
+    // The `{modulate}` is INSIDE the chorus, so the chorus itself starts in G
+    // and only Verse 2 plays wholly in A. The map has nowhere to put a mark
+    // mid-chip, and the chart's own key-change chip already carries that
+    // moment — so the map marks the first section that is entirely in the new
+    // key, and there is exactly one mark either way.
+    expect(container.querySelectorAll('[aria-label^="Key change"]').length).toBe(1);
+  });
+
+  it('says nothing at all about a song that never changes key', () => {
+    mockWidth(true);
+    const { container } = render(<Reader song={makeSong()} settings={{}} onExit={() => {}} />);
+    expect(container.querySelectorAll('[aria-label^="Key change"]').length).toBe(0);
+  });
+});

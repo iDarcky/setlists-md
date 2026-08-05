@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
-import { semitonesBetween, keysInQualityOf } from '@/music';
+import { semitonesBetween, keysInQualityOf, notateChord } from '@/music';
 import { resolveSongView } from '@/arrangements';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/ui/Select';
 import { IconButton } from '@/ui/IconButton';
@@ -707,6 +707,34 @@ export default function Reader({
     ...(settings?.tabBg ? { bg: settings.tabBg } : null),
   };
 
+  // ── Element 3 + 8 — key changes on the map ───────────────────────────────
+  // Owner, 2026-08-05: "I think I like the idea of key change, what do you
+  // think, should we do it?" — yes, and small.
+  //
+  // A mark sits BEFORE the first slot that plays in a new key, and it names the
+  // key you land in, never the interval: element 8's rule, "we're in B now"
+  // beats "+2". `notateChord` is the same call the chart's own key-change chip
+  // makes, so the two can never name the key differently.
+  //
+  // Boundaries only — a `{modulate}` in the MIDDLE of a section belongs to that
+  // section's own chip in the chart, and the map has no place between two
+  // sections to put it.
+  const keyChanges = (() => {
+    if (!song?.key || ordered.length < 2) return null;
+    const out = {};
+    const notation = config.display.notation === 'nashville' ? 'letters' : config.display.notation;
+    for (let i = 1; i < ordered.length; i += 1) {
+      if (offsets[i] === offsets[i - 1]) continue;
+      out[i] = notateChord(song.key, {
+        key: song.key,
+        notation,
+        transpose: transpose + offsets[i],
+        accidentals: settings?.accidentals,
+      });
+    }
+    return Object.keys(out).length ? out : null;
+  })();
+
   if (!song) return null;
 
   const displayKey = selectedKey || song.key;
@@ -748,6 +776,7 @@ export default function Reader({
       // twenty-section map, and scrolling it would be a second scroll racing
       // the song's.
       windowAround={ribbonSide ? { before: 2, after: 3 } : null}
+      keyChanges={keyChanges}
       // EXPANDED while editing (owner: "I imagine that when the user presses
       // the edit the cx3 expands to c c c"). Right — a collapsed `C ×3` is one
       // chip standing for three slots, so dragging it is dragging three things

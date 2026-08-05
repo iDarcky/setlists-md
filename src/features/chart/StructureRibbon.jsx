@@ -41,6 +41,15 @@ export function StructureRibbon({
   // Fill the active chip solid in its section colour rather than ringing a
   // neutral pill. Opt-in so the existing chart keeps its current look.
   activeFill = false,
+  // Element 3 + 8, 2026-08-05 (owner: *"I think I like the idea of key change,
+  // what do you think, should we do it?"*). `{ [slot]: 'B' }` — a key change
+  // ARRIVES at that play-order slot, and the mark names the key you land in,
+  // never the interval. Element 8's rule: "we're in B now" beats "+2".
+  //
+  // Marks are informational, never tappable, and never drawn while reordering:
+  // in edit mode a chip is a drag handle and everything between two chips is a
+  // drop target.
+  keyChanges = null,
   // Fade the ends of the strip when it has more chips than fit. Opt-in: the
   // gradient has to be the colour of whatever the ribbon sits on, and only the
   // reader can promise that (`--chart-bg`). A setlist card would fade to the
@@ -183,6 +192,36 @@ export function StructureRibbon({
     // the reader, so the array itself would re-bind these listeners on every
     // frame. Same rule as the drag effect below, for a smaller reason.
   }, [scrolls, runs.length]);
+
+  // The key-change marks, interleaved before the chip they arrive at. Built
+  // here rather than inside each style branch so the four cannot drift.
+  const withMarks = (nodes) => {
+    if (!keyChanges || onReorder) return nodes;
+    const out = [];
+    shown.forEach((run, i) => {
+      const arriveAt = keyChanges[run.index];
+      if (arriveAt) {
+        out.push(
+          <span
+            key={`mod-${run.index}`}
+            aria-label={`Key change to ${arriveAt}`}
+            className={cn(
+              'shrink-0 inline-flex items-center gap-[1px] font-mono font-bold whitespace-nowrap leading-none',
+              vertical ? 'text-[9px] py-[1px]' : 'text-[10px]',
+            )}
+            // `--chord` is the same gold the chart's own key-change chip uses,
+            // and the same one the chords are written in. Not a chip: this is
+            // a thing that HAPPENS between two sections, not a section.
+            style={{ color: 'var(--chord)' }}
+          >
+            <span aria-hidden="true">↗</span>{arriveAt}
+          </span>
+        );
+      }
+      out.push(nodes[i]);
+    });
+    return out;
+  };
 
   // Wraps whichever style branch rendered, so all four get the same edges.
   // `backgroundImage`, not the `background` shorthand: jsdom's parser throws on
@@ -415,7 +454,7 @@ export function StructureRibbon({
     const showLabels = style === 'dotlabel';
     return framed(
       <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-1.5')}>
-        {decorate(shown.map((run, i) => {
+        {decorate(withMarks(shown.map((run, i) => {
           const s = colorOf(run.name);
           const active = isActiveRun(run);
           const Tag = onSelect ? 'button' : 'span';
@@ -440,7 +479,7 @@ export function StructureRibbon({
               )}
             </Tag>
           );
-        }))}
+        })))}
       </div>
     );
   }
@@ -456,7 +495,7 @@ export function StructureRibbon({
   if (style === 'codes') {
     return framed(
       <div ref={scrollerRef} className={cn(rowClass, 'items-center gap-[5px]')}>
-        {decorate(shown.map((run, i) => {
+        {decorate(withMarks(shown.map((run, i) => {
           const s = colorOf(run.name);
           const active = isActiveRun(run);
           const Tag = onSelect ? 'button' : 'span';
@@ -501,7 +540,7 @@ export function StructureRibbon({
               {run.count > 1 && <span className="opacity-70">×{run.count}</span>}
             </Tag>
           );
-        }))}
+        })))}
       </div>
     );
   }
@@ -509,7 +548,7 @@ export function StructureRibbon({
   if (style === 'numbered') {
     return framed(
       <div ref={scrollerRef} className={cn(rowClass, 'items-baseline')}>
-        {decorate(shown.map((run, i) => {
+        {decorate(withMarks(shown.map((run, i) => {
           const s = colorOf(run.name);
           const active = isActiveRun(run);
           const Tag = onSelect ? 'button' : 'span';
@@ -540,7 +579,7 @@ export function StructureRibbon({
               </Tag>
             </span>
           );
-        }))}
+        })))}
       </div>
     );
   }
@@ -548,7 +587,7 @@ export function StructureRibbon({
   // Default: chips.
   return framed(
     <div ref={scrollerRef} className={rowClass}>
-      {decorate(shown.map((run, i) => {
+      {decorate(withMarks(shown.map((run, i) => {
         const s = colorOf(run.name);
         const active = isActiveRun(run);
         const Tag = onSelect ? 'button' : 'span';
@@ -582,7 +621,7 @@ export function StructureRibbon({
             )}
           </Tag>
         );
-      }))}
+      })))}
     </div>
   );
 }

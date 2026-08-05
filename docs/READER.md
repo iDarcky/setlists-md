@@ -189,6 +189,26 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
 - **`C ×3` stays one chip and still jumps to the first of the run** (owner).
 - **A collapsed run, a break with no ribbon** — a break's chrome is one row
   shorter and that is fine: *"more space for the break items"* (owner).
+- **Three styles, not five** — Boxes · Chips · Dots. Inline was the Boxes chip
+  without its box and Dots + label was Dots with that chip's text beside it.
+  `numbered → codes`, `dotlabel → dots` (a MAP, not `pick`'s fallback, which
+  would have sent a Dots + label user to boxes).
+- **The side rail, rebuilt.** Centred in the visible band, not stacked from the
+  top; a **window of six** (2 behind, 3 ahead) that walks with the song; hung off
+  the **chart column** so the ☰ and the setlist rail push it instead of opening
+  over it; translucent, so the lyrics read through. It never followed the song
+  before — the auto-centre effect wrote `scrollTo({ left })` on a box that
+  scrolls vertically. Sticky with **zero height**: `fixed` would ignore both the
+  ☰ and the app's own sidebar.
+- **A key change shows on the map** — a gold `↗B` between two chips, naming the
+  key you ARRIVE in (element 8's rule), from the same `notateChord` call the
+  chart's own chip makes. Boundaries only: a `{modulate}` mid-section belongs to
+  that section's chip, and the map has nowhere between two chips to put it.
+- ⚠ **The chart was never using the window's full width.** The row holding the ☰
+  panel and the chart is a flex ITEM with no `flex-1`, so it was shrink-to-fit:
+  840px of chart in a 1236px scroller at 1280, left-aligned, ~400px of dead
+  window. The WIDTH twin of the `flex-1 min-h-0` trap, with the opposite lesson —
+  **on the cross axis of a scroller, `flex-1` is what you want.**
 - **The set bar does NOT share the ribbon's row**, and any comment saying so is
   a fossil of the pre-8b rule. Owner, 2026-08-05: *"We moved the Setlist bar on
   top of the header so they don't share anything."* Fixed in the ☰'s own copy,
