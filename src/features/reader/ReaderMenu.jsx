@@ -156,9 +156,10 @@ const MENU_DEFAULTS = {
   readerFlow: 'down',
   duplicateSections: 'condensed',
   readerHeading: 'name',
-  readerSectionStyle: 'bar',
+  readerSectionStyle: 'plain',
   readerSticky: 'on',
   readerNotes: 'on',
+  readerInlineNotes: 'on',
   readerTopBar: 'ribbon',
   structurePosition: 'top',
   ribbonStyle: 'codes',
@@ -332,6 +333,34 @@ function ColorRow({ label, value, onPick, onReset }) {
  */
 function Pair({ children }) {
   return <div className="grid grid-cols-2 gap-x-3 px-4 [&>div]:px-0">{children}</div>;
+}
+
+/**
+ * A yes/no setting, as a switch rather than two pills.
+ *
+ * Owner, 2026-08-04: *"is there a better way to handle the 2 answers only
+ * settings?"* — yes, and the reason is that two pills ask you to READ both
+ * before you can tell which is on, while a switch shows its state in its
+ * position. It also stops a binary looking like a three-way that happens to
+ * have two options.
+ *
+ * The label stays on the `Field`; this is only the control, so it sits right
+ * where a row of pills would.
+ */
+function Switch({ on, onChange, label }) {
+  return (
+    <button
+      type="button" role="switch" aria-checked={!!on} aria-label={label}
+      onClick={() => onChange(!on)}
+      className="min-h-0 w-[52px] h-[30px] rounded-full cursor-pointer border-none p-0 relative transition-colors"
+      style={{ backgroundColor: on ? 'var(--color-brand)' : 'var(--ds-gray-300)' }}
+    >
+      <span
+        className="absolute top-[3px] w-6 h-6 rounded-full transition-[left] duration-150"
+        style={{ left: on ? 25 : 3, backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
+      />
+    </button>
+  );
 }
 
 /** `Pick`s bound to one setting — the Aa menu's pill, in a row. */
@@ -1008,41 +1037,39 @@ export default function ReaderMenu({
       )}
 
       {/* ── Layout ─────────────────────────────────────────────────────────
-          Where things ARE, in four groups (owner, 2026-08-04). Flat, it was
-          ten controls you had to read top to bottom to find anything — the
-          same objection that grouped the Style tab. */}
+          Where things ARE, in four groups. Every name in here was gone over
+          with the owner on 2026-08-04 — the old ones ("The map", "Getting
+          around", "Song to song", "Under the top bar") described the design
+          rather than the setting. */}
       {tab === 'layout' && (
         <>
-          {/* ── The page ─────────────────────────────────────────────────── */}
-          <GroupTitle>The page</GroupTitle>
+          {/* ── Page ─────────────────────────────────────────────────────── */}
+          <GroupTitle>Page</GroupTitle>
           {/* Columns are a fact about the SPACE, not a taste, and a phone has
               room for one. `resolveReaderConfig` forces 1 below 768, so below
-              768 the control is a switch that does nothing — worse than absent.
-              (Owner 2026-08-01; threshold corrected 700→768, 2026-08-04.) */}
+              768 the control is a switch that does nothing. */}
           {wideEnoughForColumns && (
             <Field label="Columns" onReset={reset('defaultColumns')}>
               <Picks value={settings?.defaultColumns === 2 ? 2 : 1}
-                options={[[1, '1'], [2, '2']]} onChange={(v) => set('defaultColumns', v)} />
+                options={[[1, 'One'], [2, 'Two']]} onChange={(v) => set('defaultColumns', v)} />
             </Field>
           )}
-          {/* Only where two columns are actually IN EFFECT — a reading
-              direction for one column is a control that does nothing, which
-              this panel has produced five times already.
-              `config.columns`, NOT `settings.defaultColumns`: two columns is
-              the resolved DEFAULT on a wide screen, so gating on the explicit
-              setting hid this from everyone who had never pressed "2" (owner,
-              2026-08-04: "Where did you put the reading direction? i cannot
-              find it"). `resolveColumns` is the honest number. */}
+          {/* Only where two columns are actually IN EFFECT. `config.columns`,
+              NOT `settings.defaultColumns`: two columns is the resolved default
+              on a wide screen, so gating on the explicit setting hid this from
+              everyone who had never pressed "2". */}
           {config?.columns === 2 && (
-            <Field label="Read them" onReset={reset('readerFlow')}>
+            <Field label="Reading order" onReset={reset('readerFlow')}
+              info="Down fills the first column to the bottom, then the second, and the two end level. Across lays sections left to right — nothing evens the rows up, so a short section beside a long one leaves a gap.">
               <Picks value={settings?.readerFlow || 'down'}
-                options={[['down', 'Down, then across'], ['across', 'Left to right']]}
+                options={[['down', 'Down'], ['across', 'Across']]}
                 onChange={(v) => set('readerFlow', v)} />
             </Field>
           )}
-          <Field label="Repeated sections" onReset={reset('duplicateSections')}>
+          <Field label="Repeats" onReset={reset('duplicateSections')}
+            info="A chorus played three times is written once. This is what the other two times look like.">
             <Picks value={settings?.duplicateSections || 'condensed'}
-              options={[['full', 'Full'], ['condensed', 'Condensed'], ['hide', 'Hidden']]}
+              options={[['full', 'In full'], ['condensed', 'As a tag'], ['hide', 'Hidden']]}
               onChange={(v) => set('duplicateSections', v)} />
           </Field>
 
@@ -1050,68 +1077,81 @@ export default function ReaderMenu({
           <GroupTitle>Sections</GroupTitle>
           <Field label="Heading" onReset={reset('readerHeading')}>
             <Picks value={settings?.readerHeading || 'name'}
-              options={[['name', 'Name'], ['code', 'Letters'], ['caps', 'ALL CAPS']]}
+              options={[['name', 'Name'], ['code', 'Short'], ['caps', 'Uppercase']]}
               onChange={(v) => set('readerHeading', v)} />
           </Field>
           <Field label="Style" onReset={reset('readerSectionStyle')}>
-            <Dropdown label="Section style" value={settings?.readerSectionStyle || 'bar'}
-              options={[['bar', 'Bar'], ['plain', 'No line'], ['block', 'Block'], ['card', 'Card']]}
+            <Dropdown label="Section style" value={settings?.readerSectionStyle || 'plain'}
+              options={[['plain', 'Plain'], ['bar', 'Bar'], ['block', 'Block'], ['card', 'Card']]}
               onChange={(v) => set('readerSectionStyle', v)} />
           </Field>
-          <Field label="Heading pins as you scroll" onReset={reset('readerSticky')}>
-            <Picks value={settings?.readerSticky || 'on'}
-              options={[['on', 'Pinned'], ['off', 'Not pinned']]}
-              onChange={(v) => set('readerSticky', v)} />
+          <Field label="Pin heading while scrolling" onReset={reset('readerSticky')}>
+            <Switch label="Pin heading while scrolling"
+              on={(settings?.readerSticky || 'on') === 'on'}
+              onChange={(v) => set('readerSticky', v ? 'on' : 'off')} />
           </Field>
-          {/* Element 4 + 5. It was WIRED and had no control anywhere in the app
-              — `config.notes` has always been read, so band cues and inline
-              notes were permanently on and nobody could say otherwise (owner,
-              2026-08-04: "where do we have these buttons, because I cannot see
-              them" — nowhere). */}
-          <Field label="Band cues &amp; notes" onReset={reset('readerNotes')}>
-            <Picks value={settings?.readerNotes || 'on'}
-              options={[['on', 'Shown'], ['off', 'Hidden']]}
-              onChange={(v) => set('readerNotes', v)} />
+          {/* Split in two on 2026-08-04. They were one knob, and they are
+              different marks: a band cue is written under a heading for
+              everyone, an inline note is dropped mid-line for a moment. */}
+          <Field label="Band cues" onReset={reset('readerNotes')}
+            info="The line under a section heading, for the whole band.">
+            <Switch label="Band cues"
+              on={(settings?.readerNotes || 'on') === 'on'}
+              onChange={(v) => set('readerNotes', v ? 'on' : 'off')} />
+          </Field>
+          <Field label="Inline notes" onReset={reset('readerInlineNotes')}
+            info="The small notes written into a line, for one moment in the song.">
+            <Switch label="Inline notes"
+              on={(settings?.readerInlineNotes || 'on') === 'on'}
+              onChange={(v) => set('readerInlineNotes', v ? 'on' : 'off')} />
           </Field>
 
-          {/* ── The map ──────────────────────────────────────────────────── */}
-          <GroupTitle>The map</GroupTitle>
-          <Field label="Under the top bar" onReset={reset('readerTopBar')}>
-            <Picks value={settings?.readerTopBar || 'ribbon'}
-              options={[['ribbon', 'Structure'], ['setlist', 'The set']]}
-              onChange={(v) => set('readerTopBar', v)} />
-          </Field>
-          <Field label="Structure — where" onReset={reset('structurePosition')}>
-            <Dropdown label="Where the structure sits" value={settings?.structurePosition || 'top'}
+          {/* ── Structure ────────────────────────────────────────────────── */}
+          <GroupTitle>Structure</GroupTitle>
+          <Field label="Structure location" onReset={reset('structurePosition')}>
+            <Dropdown label="Structure location" value={settings?.structurePosition || 'top'}
               options={[['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['off', 'Hidden']]}
               onChange={(v) => set('structurePosition', v)} />
           </Field>
-          <Field label="Structure — style" onReset={reset('ribbonStyle')}>
+          <Field label="Structure style" onReset={reset('ribbonStyle')}>
             <Dropdown label="Structure style" value={settings?.ribbonStyle || 'codes'}
               options={[['codes', 'Boxes'], ['chips', 'Chips'], ['numbered', 'Inline'], ['dots', 'Dots'], ['dotlabel', 'Dots + label']]}
               onChange={(v) => set('ribbonStyle', v)} />
           </Field>
+          {/* Was "Under the top bar", a two-way between the structure and the
+              set. It reads as an on/off for the set, so that is what it is now
+              (owner, 2026-08-04) — but the two really do share one slot, which
+              is why turning the setlist bar on takes the structure's place. */}
+          <Field label="Setlist bar" onReset={reset('readerTopBar')}
+            info="The whole service across the top, in place of this song's structure. They share the row under the title.">
+            <Switch label="Setlist bar"
+              on={settings?.readerTopBar === 'setlist'}
+              onChange={(v) => set('readerTopBar', v ? 'setlist' : 'ribbon')} />
+          </Field>
 
-          {/* ── Getting around ───────────────────────────────────────────── */}
-          <GroupTitle>Getting around</GroupTitle>
-          <Field label="Song to song" onReset={reset('readerNav')}>
-            <Dropdown label="Song to song" value={settings?.readerNav || 'footer'}
-              options={[['footer', 'Bottom bar'], ['pill', 'Pill'], ['edge', 'Edge arrows'], ['swipe', 'Swipe']]}
+          {/* ── Navigation ───────────────────────────────────────────────── */}
+          <GroupTitle>Navigation</GroupTitle>
+          <Field label="Controls" onReset={reset('readerNav')}>
+            <Dropdown label="Navigation controls" value={settings?.readerNav || 'footer'}
+              options={[['footer', 'Bottom bar'], ['pill', 'Floating pill'], ['edge', 'Edge arrows'], ['swipe', 'Swipe only']]}
               onChange={(v) => set('readerNav', v)} />
           </Field>
-          {/* The second orphan: `config.footer` has always been read, and there
-              was no control for it either. */}
-          <Field label="The bottom bar shows" onReset={reset('readerFooter')}>
-            <Picks value={settings?.readerFooter || 'next'}
-              options={[['next', 'Next song'], ['count', 'Just the count']]}
-              onChange={(v) => set('readerFooter', v)} />
-          </Field>
-          {/* Element 29. The strip existed with no way to turn it off — only
-              its open/closed state was remembered, per device. */}
-          <Field label="The setlist rail" onReset={reset('readerRail')}>
-            <Picks value={settings?.readerRail || 'on'}
-              options={[['on', 'Shown'], ['off', 'Hidden']]}
-              onChange={(v) => set('readerRail', v)} />
+          {/* Only with the bottom bar — it describes what that bar carries, so
+              with any other navigation style it is a control for something that
+              is not on screen (owner, 2026-08-04: "this one should be only for
+              the bottom bar"). */}
+          {(settings?.readerNav || 'footer') === 'footer' && (
+            <Field label="Bottom bar" onReset={reset('readerFooter')}>
+              <Picks value={settings?.readerFooter || 'next'}
+                options={[['next', 'Next song'], ['count', 'Count only']]}
+                onChange={(v) => set('readerFooter', v)} />
+            </Field>
+          )}
+          <Field label="Setlist rail" onReset={reset('readerRail')}
+            info="The strip down the side listing the whole service.">
+            <Switch label="Setlist rail"
+              on={(settings?.readerRail || 'on') === 'on'}
+              onChange={(v) => set('readerRail', v ? 'on' : 'off')} />
           </Field>
         </>
       )}
@@ -1178,9 +1218,9 @@ export default function ReaderMenu({
               tapping a chord always offered its shape. Default on: a diagram
               you have to ask for costs nothing until you ask. */}
           <Field label="Tap a chord for its shape" onReset={reset('showDiagrams')}>
-            <Picks value={settings?.showDiagrams === false ? 'off' : 'on'}
-              options={[['on', 'On'], ['off', 'Off']]}
-              onChange={(v) => set('showDiagrams', v === 'on' ? undefined : false)} />
+            <Switch label="Tap a chord for its shape"
+              on={settings?.showDiagrams !== false}
+              onChange={(v) => set('showDiagrams', v ? undefined : false)} />
           </Field>
 
           {/* ── This song ────────────────────────────────────────────────── */}

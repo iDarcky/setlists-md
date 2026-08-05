@@ -42,8 +42,8 @@ describe('the ☰ default table', () => {
     expect(cfg.ribbon).toBe('top');
     expect(table.readerHeading).toBe("'name'");
     expect(cfg.heading).toBe('name');
-    expect(table.readerSectionStyle).toBe("'bar'");
-    expect(cfg.sectionStyle).toBe('bar');
+    expect(table.readerSectionStyle).toBe("'plain'");
+    expect(cfg.sectionStyle).toBe('plain');
     expect(table.duplicateSections).toBe("'condensed'");
     expect(cfg.repeats).toBe('condensed');
     expect(table.readerNav).toBe("'footer'");
@@ -57,6 +57,8 @@ describe('the ☰ default table', () => {
     // These two are booleans in the config and 'on' in the settings.
     expect(table.readerNotes).toBe("'on'");
     expect(cfg.notes).toBe(true);
+    expect(table.readerInlineNotes).toBe("'on'");
+    expect(cfg.inlineNotes).toBe(true);
     expect(table.readerRail).toBe("'on'");
     expect(cfg.rail).toBe(true);
     expect(table.readerSticky).toBe("'on'");

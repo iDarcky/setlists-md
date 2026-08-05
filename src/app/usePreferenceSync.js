@@ -72,6 +72,7 @@ export const PORTABLE_PREF_KEYS = [
   'readerSectionStyle',
   'readerSticky',
   'readerNotes',
+  'readerInlineNotes',
   'readerFooter',
   'readerNav',
   'readerTopBar',

@@ -295,7 +295,7 @@ describe('the ☰ menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
     // 4+ options are dropdowns now; 2–3 stay as pills.
     expect(screen.getByLabelText('Structure style')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'ALL CAPS' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Uppercase' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Style' }));
     expect(screen.getAllByText('Theme').length).toBeGreaterThan(0);
   });
@@ -360,7 +360,7 @@ describe('the ☰ menu', () => {
     // 2026-08-04: "everything is way too small").
     const stylePill = screen.getByRole('button', { name: 'S' });
     fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
-    const layoutPill = screen.getAllByRole('button', { name: 'Shown' })[0];
+    const layoutPill = screen.getByRole('button', { name: 'Uppercase' });
     expect(stylePill.className).toContain('h-11');
     expect(layoutPill.className).toContain('h-11');
     // The steppers take the same size.
@@ -372,16 +372,20 @@ describe('the ☰ menu', () => {
     renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
     fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
-    ['The page', 'Sections', 'The map', 'Getting around'].forEach(g => {
+    ['Page', 'Sections', 'Structure', 'Navigation'].forEach(g => {
       expect(screen.getByText(g)).toBeTruthy();
     });
     // `readerNotes` and `readerFooter` were WIRED and read by the renderer, and
     // had no control anywhere in the app — permanently stuck at their defaults.
-    expect(screen.getByText('Band cues & notes')).toBeTruthy();
-    expect(screen.getByText('The bottom bar shows')).toBeTruthy();
+    // The cue and the inline note are two settings now, not one.
+    expect(screen.getByRole('switch', { name: 'Band cues' })).toBeTruthy();
+    expect(screen.getByRole('switch', { name: 'Inline notes' })).toBeTruthy();
+    // "Bottom bar" is both the Controls value and the field below it, which
+    // only exists while that value is chosen.
+    expect(screen.getAllByText('Bottom bar').length).toBe(2);
     // And the rail could not be turned off at all: only its open/closed state
     // was a preference, and that lived in localStorage.
-    expect(screen.getByText('The setlist rail')).toBeTruthy();
+    expect(screen.getByRole('switch', { name: 'Setlist rail' })).toBeTruthy();
   });
 
   it('moved "In a pinch" to Music, as what it actually is', () => {
@@ -707,7 +711,9 @@ describe('the ☰ on a phone — element 28', () => {
     // A panel down the left pushes it across, like the setlist rail does on
     // the other edge.
     expect(panel.parentElement).not.toBe(document.body);
-    expect(panel.parentElement.style.width).toBe('320px');
+    // Responsive: a fixed 320 is a third of a 1024px laptop and a sliver of a
+    // big display.
+    expect(panel.parentElement.style.width).toBe('min(320px, 30vw)');
     // FIRST in the row, so the chart moves right rather than being overlaid.
     expect(panel.parentElement.previousElementSibling).toBeNull();
     // Tabs on top here: a full-height panel is read top-down. (On the phone

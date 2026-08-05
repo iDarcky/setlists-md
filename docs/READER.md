@@ -1494,6 +1494,57 @@ the legacy key can only ever speak for someone who has never touched this
 control. That is the general shape of the fix for any legacy-key fallback:
 **consume it, don't just outrank it.**
 
+#### Element 28, round 14 — the names, and a switch, 2026-08-04
+
+**The whole Layout tab was renamed with the owner**, item by item. The old names
+described the DESIGN ("The map", "Getting around", "Under the top bar", "Song to
+song"); the new ones describe the setting. Groups: **Page · Sections ·
+Structure · Navigation**.
+
+| Was | Is | Why |
+|---|---|---|
+| The page | **Page** | shorter, and it is a noun not a phrase |
+| Read them / Down, then across | **Reading order** / Down · Across | the label was a verb with no subject |
+| Repeated sections / Full · Condensed | **Repeats** / In full · As a tag · Hidden | "condensed" described the code, not the pill you see |
+| Heading / ALL CAPS | Heading / **Uppercase** | shouting in a settings list |
+| Style / No line | Style / **Plain**, and it is the DEFAULT now | a chart is paper, and paper has no frames on it |
+| Heading pins as you scroll | **Pin heading while scrolling**, a switch | it is a yes/no and it read as a sentence |
+| Band cues & notes | **Band cues** + **Inline notes**, two switches | see below |
+| The map | **Structure** | it holds the structure controls; the map is what we call it, not what it is |
+| Under the top bar | **Setlist bar**, a switch | it reads as an on/off for the set |
+| Structure — where / — style | **Structure location** / **Structure style** | an em-dash is not a word |
+| Getting around | **Navigation** | |
+| Song to song | **Controls** | inside Navigation, "song to song" was the group's job |
+| The bottom bar shows | **Bottom bar**, and only with the bottom bar | it described something not on screen under the other three nav styles |
+| The setlist rail | **Setlist rail** | |
+
+**Band cues and inline notes split into two knobs.** Owner: *"can we split this
+into two options one for notes and one for cues?"* They had been one
+(`config.notes` drove both). They are different marks: a cue is written under a
+heading for the whole band, an inline note is dropped into a line for one
+moment, and wanting one is no reason to want the other. `readerInlineNotes` is
+new; elements 4 and 5 finally have a knob each.
+
+**Plain is the default section style.** Owner: *"maybe we can change the No line
+name and make it default."* It is the original chart's look.
+
+**Yes/no settings are a `Switch`.** Owner: *"is there a better way to handle the
+2 answers only settings?"* — two pills make you read both before you can tell
+which is on; a switch shows its state in its position. It also stops a binary
+looking like a three-way that happens to have two options. Applied to: pin
+heading, band cues, inline notes, setlist bar, setlist rail, tap-for-shapes.
+
+**The desktop panel keeps the ☰ still.** Owner: *"Maybe we can still do it in a
+way that the ☰ is still in the same place when we open somehow? We move
+everything lower?"* — a full-height panel pushed the whole reader across, so the
+button you had just pressed jumped sideways and you lost what you were aiming
+at. It starts below the top bar now, offset by the **measured** `headH` the
+reader already tracks for the sticky headings, so the bar and its ☰ do not move.
+Width is `min(320px, 30vw)` — a fixed 320 is a third of a 1024px laptop — and it
+slides in. **Not a permanent strip** (owner: *"I don't know if I want to have
+another strip always there… the settings are not that needed, like the rail"*)
+and closed by default: it does not exist until the ☰ opens it.
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the

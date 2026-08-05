@@ -3,10 +3,10 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.73` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.74` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
-> can compare against `beta`. 910 tests, 0 lint errors (8 pre-existing
+> can compare against `beta`. 911 tests, 0 lint errors (8 pre-existing
 > warnings)._
 
 ---
@@ -100,7 +100,7 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.73) — element 28, rounds 1–13 · Style + Layout + Music all grouped
+## Just shipped (beta.74) — element 28, rounds 1–14 · Style + Layout + Music all grouped
 
 | What | Where |
 |---|---|
@@ -135,6 +135,9 @@ The facts to check before designing anything:
 | **Reading direction was invisible** — gated on `settings.defaultColumns === 2` (the explicit setting) when two columns is the resolved default on a wide screen. `config.columns` now | `ReaderMenu.jsx` |
 
 | **Reset bugs, two.** It fired for a value that WAS the default (picking the default still writes the key) → `MENU_DEFAULTS` + `reader-menu-defaults.test.js`, which reads the table out of the source and checks it against the real definitions. And **resetting Show lost the chords**: clearing `displayMode` falls back to `settings.showChords`, which the old views set `false`. Writing or resetting Show now CLEARS the legacy key — **consume a legacy fallback, don't just outrank it** | `ReaderMenu.jsx` |
+
+| **Layout renamed end to end** (Page · Sections · Structure · Navigation) — the old names described the design, not the setting. **Band cues and inline notes are two knobs now** (`readerInlineNotes` is new; elements 4 and 5 each have one at last). **Plain is the default section style.** **Yes/no settings are a `Switch`** | `ReaderMenu.jsx`, `readerConfig.js`, `ReaderSection.jsx` |
+| **The desktop panel keeps the ☰ still** — offset by the measured `headH` so the top bar does not move, `min(320px, 30vw)`, slides in, closed by default, not a strip | `Reader.jsx`, `index.css` |
 
 > **jsdom trap, new:** its CSS shorthand parser throws on `conic-gradient` and
 > some `var()` inside the **`background` shorthand**, during `cloneNode` — which

@@ -692,10 +692,33 @@ export default function Reader({
     // HORIZONTALLY (settings down the left, chart beside them) — the outer row
     // here, the inner column below.
     <div className="h-full flex">
-      {/* The desktop panel. On the LEFT, under the ☰ that opens it and
-          mirroring the setlist rail on the other edge. */}
+      {/* ── The desktop panel ───────────────────────────────────────────────
+          On the LEFT, and it starts BELOW the top bar. Owner, 2026-08-04:
+          *"Maybe we can still do it in a way that the ☰ is still in the same
+          place when we open somehow? We move everything lower?"* — right: a
+          full-height panel pushed the whole reader across, so the ☰ you had
+          just pressed jumped 320px sideways and you lost the thing you were
+          aiming at. Offsetting by the MEASURED header height (`headH`, which
+          the reader already tracks for the sticky headings) leaves the bar —
+          and the ☰ in it — exactly where it was.
+
+          Width is responsive: a fixed 320 is a third of a 1024px laptop and a
+          sliver of a big display. It also slides, so the layout arrives rather
+          than jumping. It is NOT a permanent strip (owner: *"I don't know if I
+          want to have another strip always there… the settings are not that
+          needed, like the rail"*) — it does not exist until the ☰ opens it. */}
       {!menuDocks && menuNode && (
-        <div className="shrink-0 h-full" style={{ width: 320 }}>{menuNode}</div>
+        <div
+          className="shrink-0 overflow-hidden"
+          style={{
+            width: 'min(320px, 30vw)',
+            marginTop: headH || undefined,
+            height: headH ? `calc(100% - ${headH}px)` : '100%',
+            animation: 'reader-side-in 200ms cubic-bezier(0.32, 0.72, 0, 1)',
+          }}
+        >
+          {menuNode}
+        </div>
       )}
     <div className="flex-1 min-w-0 h-full flex flex-col">
     <div

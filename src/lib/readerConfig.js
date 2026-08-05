@@ -28,7 +28,13 @@ export const READER_KNOBS = {
   // the song, and a section missing from the map breaks the one job. Tapping
   // its chip jumps to the first time that section is played.
   repeats: ['full', 'condensed', 'hide'],  // 3
-  notes: ['on', 'off'],                    // 4 + 5
+  // 4 — the band cue under a section heading (`> text`).
+  notes: ['on', 'off'],
+  // 5 — the inline `{!…}` note mid-line. It was the SAME knob as the cue until
+  // 2026-08-04 (owner: *"can we split this into two options one for notes and
+  // one for cues?"*) — they are different marks, written by different people
+  // for different reasons, and wanting one is no reason to want the other.
+  inlineNotes: ['on', 'off'],
   footer: ['count', 'next'],               // 10
   nav: ['footer', 'pill', 'edge', 'swipe'],// 10
   // 8 — what hangs under the top bar. 'ribbon' maps the SONG, 'setlist' maps
@@ -49,10 +55,15 @@ export const READER_KNOBS = {
 const DEFAULTS = {
   ribbon: 'top',
   heading: 'name',
-  sectionStyle: 'bar',
+  // 'plain' — the original chart's look: the heading carries the section and
+  // there is no rule beside it. Promoted from 'bar' on 2026-08-04 (owner:
+  // *"maybe we can change the No line name and make it default"*): a chart is
+  // paper, and paper has no frames on it.
+  sectionStyle: 'plain',
   sticky: 'on',
   repeats: 'condensed',
   notes: 'on',
+  inlineNotes: 'on',
   footer: 'next',
   nav: 'footer',
   topBar: 'ribbon',
@@ -70,6 +81,7 @@ const KEY = {
   sticky: 'readerSticky',
   repeats: 'duplicateSections',
   notes: 'readerNotes',
+  inlineNotes: 'readerInlineNotes',
   footer: 'readerFooter',
   nav: 'readerNav',
   topBar: 'readerTopBar',
@@ -111,6 +123,7 @@ const HUB_VIEW = {
   sticky: false,        // nothing pins: the hub is browsed, not performed from
   repeats: 'full',      // reading a song, you want to see all of it
   notes: true,
+  inlineNotes: true,
   footer: 'next',
   nav: 'footer',
   columns: 1,
@@ -234,6 +247,7 @@ export function resolveReaderConfig(settings, ctx = {}) {
     sticky: !wide && pick('sticky', settings?.[KEY.sticky]) === 'on',
     repeats: pick('repeats', settings?.[KEY.repeats]),
     notes: pick('notes', settings?.[KEY.notes]) === 'on',
+    inlineNotes: pick('inlineNotes', settings?.[KEY.inlineNotes]) === 'on',
     footer: pick('footer', settings?.[KEY.footer]),
     nav: pick('nav', settings?.[KEY.nav]),
     topBar: pick('topBar', settings?.[KEY.topBar]),

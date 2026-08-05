@@ -68,6 +68,11 @@ A running log of what's new in setlists.md. Newest releases first.
 - **On a desktop the ☰ opens down the left (Labs)** — a panel beside the song, like the setlist rail on the other edge, instead of a popover sitting over half the chart.
 - **The longer Layout choices are drop-downs (Labs)** — anything with four or more options; two and three stay as buttons, so the quick things stay quick.
 - **"You're playing" is "Your instrument" (Labs)** — and the Music tab is grouped: Who's reading, The chords, This song. The explanation under the instrument picker moved into an (i) you can tap.
+- **Yes/no settings are switches (Labs)** — two buttons made you read both to see which was on; a switch shows its state by its position.
+- **Band cues and inline notes are separate settings (Labs)** — they were one. A cue is written under a heading for the whole band; an inline note is dropped into a line for one moment, and wanting one is no reason to want the other.
+- **Plainer sections by default (Labs)** — no rule beside the heading. A chart is paper, and paper has no frames on it. The bar, block and card looks are all still there.
+- **The desktop settings panel keeps the ☰ where it is (Labs)** — it opens below the top bar rather than shoving the whole screen sideways, sizes itself to the window, and slides in.
+- **Layout's settings are renamed throughout (Labs)** — Page, Sections, Structure and Navigation, with names that say what each one does instead of where it sits.
 - **The Layout tab is grouped (Labs)** — The page, Sections, The map and Getting around, instead of ten settings in one column.
 - **Three settings that existed but had no switch (Labs)** — band cues and inline notes could never be turned off, the bottom bar could never be reduced to just the song count, and the setlist rail could never be hidden. All three are in Layout now.
 - **"In a pinch" is called "Show", and lives with the music (Labs)** — nobody could tell what the name meant, and it isn't a layout choice: it's whether you see chords, lyrics or both, so it sits beside the instrument picker that sets it.

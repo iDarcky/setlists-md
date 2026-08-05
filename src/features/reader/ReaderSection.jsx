@@ -406,7 +406,7 @@ export default function ReaderSection({
         tabInstrument="all"
         // The sticky heading above already renders the name and cue.
         hideHeading
-        inlineNotes={config.notes}
+        inlineNotes={config.inlineNotes}
         notePlacement={config.notePlacement}
         noteStyle={settings?.inlineNoteStyle || 'dashes'}
         sectionColors={resolveSectionColors(settings)}

@@ -8,14 +8,14 @@ describe('defaults', () => {
   it('resolves a usable config from nothing', () => {
     const c = resolveReaderConfig(undefined, wide);
     expect(c.ribbon).toBe('top');
-    expect(c.sectionStyle).toBe('bar');
+    expect(c.sectionStyle).toBe('plain');
     expect(c.sticky).toBe(false);   // wide: pinning is a phone affordance
     expect(c.notes).toBe(true);
   });
 
   it('falls back to the default for a value this build does not understand', () => {
     const c = resolveReaderConfig({ readerSectionStyle: 'hologram' }, wide);
-    expect(c.sectionStyle).toBe('bar');
+    expect(c.sectionStyle).toBe('plain');
   });
 });
 

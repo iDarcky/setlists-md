@@ -894,6 +894,21 @@
   }
 }
 
+/* The reader's ☰ as a desktop side panel — it slides out from the left edge
+   rather than the layout jumping 320px sideways. `width`, not a transform: the
+   chart beside it really is being pushed, and a transform would slide the panel
+   over a chart that never moved. */
+@keyframes reader-side-in {
+  0% { width: 0; opacity: 0.4; }
+  100% { width: min(320px, 30vw); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes reader-side-in {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+}
+
 /* Light-mode override for modes variant */
 [data-theme="light"] [data-theme-variant="modes"] {
   --modes-surface: rgba(0, 0, 0, 0.035);
