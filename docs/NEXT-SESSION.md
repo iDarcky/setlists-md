@@ -3,11 +3,11 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.76` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.77` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the owner
 > asked for rounds to go to the **feature branch only** so he can compare
 > against `beta`. **He has not yet said to merge this branch into `beta`; ask
-> before you do.** 912 tests, 0 lint errors (8 pre-existing warnings)._
+> before you do.** 913 tests, 0 lint errors (8 pre-existing warnings)._
 
 ---
 
@@ -179,4 +179,10 @@ style applied to the wrong element while a comment asserted otherwise.
   effect.
 - **An effect that owns a gesture must not depend on anything that changes**, or
   its cleanup tears down the gesture mid-drag.
+- **Inside `overflow-y-auto`, a wrapper must GROW with its content.**
+  `flex-1 min-h-0` caps it at the visible height, so the chart lays out inside
+  one screen while its content runs past — the scroller's `scrollHeight` then
+  comes from the box, not the song, and you get two scrolls that disagree.
+  `min-h-0` is the fix *inside* a fixed-height panel and the bug on a wrapper
+  inside a scroller. `reader.test.jsx` walks the ancestor chain for it.
 - **`applyKeyHistories` is reference-preserving on purpose.**

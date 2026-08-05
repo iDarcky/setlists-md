@@ -631,6 +631,30 @@ describe('the ☰ — free and Pro', () => {
   });
 });
 
+// The chart's own scroll. One scroller, and the row the desktop ☰ sits in must
+// not cap it.
+describe('the reader scrolls once', () => {
+  it('lets nothing between the scroller and the chart cap its height', () => {
+    renderReader();
+    const scroller = document.querySelector('.reader-head').parentElement;
+    expect(scroller.className).toContain('overflow-y-auto');
+
+    // `min-h-0` on any wrapper between the two pins the chart to ONE screen:
+    // it lays itself out inside a box the height of the viewport while its
+    // content runs past it, so the scroller's scrollHeight comes from the box
+    // rather than the song and the two disagree about how long the song is.
+    // The row the desktop ☰ sits in had it, and it was unconditional — so it
+    // hit the phone too, where that row holds nothing but the chart.
+    let el = document.querySelector('[data-section-index]');
+    const capped = [];
+    while (el && el !== scroller) {
+      if (String(el.className || '').includes('min-h-0')) capped.push(el.className);
+      el = el.parentElement;
+    }
+    expect(capped).toEqual([]);
+  });
+});
+
 describe('the ☰ on a phone — element 28', () => {
   beforeEach(() => { mockWidth(390); });
 

@@ -903,7 +903,17 @@ export default function Reader({
 
             `sticky` at the header's height, with `align-self: flex-start`, so
             it stays put while the chart scrolls past it. */}
-        <div className="flex-1 min-h-0 flex">
+        {/* A plain row that GROWS with the chart — never `flex-1 min-h-0`.
+            That was the double scroll (owner, 2026-08-04): inside a scrolling
+            flex column, `flex-1 min-h-0` caps a child at the scroller's VISIBLE
+            height, so the chart laid itself out inside a box pinned to one
+            screen while its content ran far past it. The scroller's scrollHeight
+            then came from the capped box rather than the song, and the result
+            was two scrolls that disagreed about how long the song was. It was
+            unconditional, so it hit the phone too — where this row holds nothing
+            but the chart. The panel keeps its own height and `position: sticky`;
+            the row must not try to size it. */}
+        <div className="flex">
         {!menuDocks && menuNode && (
           <div
             className="shrink-0 self-start overflow-hidden"

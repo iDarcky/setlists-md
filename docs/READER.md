@@ -1601,6 +1601,31 @@ dock slides down and the chevron says which way it goes.
 **Progress line on/off** (`readerProgress`) — `null` already hid it in
 `ReaderTopBar`, so the knob needed no new branch.
 
+#### The double scroll — `flex-1 min-h-0` inside a scroller, 2026-08-04
+
+Owner, twice: *"We have a double scroll problem now"*, then *"I don't think you
+fixed the double scroll bug."* He was right both times, and the first fix was
+aimed at the wrong thing (the panel's `100vh` height — a real bug, but not
+this one).
+
+**The cause was the row wrapper the desktop ☰ sits in: `flex-1 min-h-0`.**
+Inside a scrolling flex column, that caps a child at the scroller's **visible**
+height. So the chart laid itself out inside a box pinned to one screen while its
+content ran far past it; the scroller's `scrollHeight` then came from the capped
+box rather than from the song, and the two disagreed about how long the song
+was. The row is unconditional, so **it hit the phone too**, where it holds
+nothing but the chart.
+
+`min-h-0` is normally the FIX (it is why a flex child can shrink and scroll —
+see the ☰'s own body). On a wrapper inside a scroller it is the opposite: there
+is nothing to shrink *to*, only content to cut off.
+
+> **The rule:** inside `overflow-y-auto`, a wrapper must grow with its content.
+> `flex-1` alone is harmless (a flex item's `min-height: auto` still refuses to
+> shrink below its content); `flex-1 min-h-0` is the one that caps. Guarded by
+> `reader.test.jsx` → *"lets nothing between the scroller and the chart cap its
+> height"*, which walks the ancestor chain.
+
 #### Element 28 → 2, CLOSED 2026-08-04
 
 **Fifteen rounds.** What it is, in one place:
