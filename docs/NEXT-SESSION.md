@@ -3,10 +3,10 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.69` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.70` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
-> can compare against `beta`. 890 tests, 0 lint errors (8 pre-existing
+> can compare against `beta`. 893 tests, 0 lint errors (8 pre-existing
 > warnings)._
 
 ---
@@ -100,7 +100,7 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.69) — element 28, rounds 1–9 · **the Style tab is CLOSED**
+## Just shipped (beta.70) — element 28, rounds 1–10 · Style CLOSED, Layout grouped
 
 | What | Where |
 |---|---|
@@ -122,6 +122,10 @@ The facts to check before designing anything:
 | **Reset is per OPTION, not per group** — on the `Field` label, only when that key holds an override, clearing to `undefined` | `ReaderMenu.jsx` |
 | **BUG: "Between sections" also spaced out the LYRICS.** A line's margin was `calc(var(--chart-section-gap)/3)`. Own token now, `--chart-line-gap`, default 8px = the old 24/3 | `SectionBlock.jsx` |
 | The custom colour opens the app's own `HexColorPicker`, not the OS picker · fonts alphabetical · **switching tabs scrolls to the top** · `--ds-gray-900` remapped (the dropdown list was app-grey) | `ReaderMenu.jsx`, `readerSurface.js` |
+
+| **Layout grouped** — The page · Sections · The map · Getting around. **Three settings that were wired but unreachable now have switches**: `readerNotes`, `readerFooter`, and `readerRail` (new — the rail had no on/off at all, only a per-device open/closed in localStorage) | `ReaderMenu.jsx`, `readerConfig.js`, `SetlistReader.jsx` |
+| **"In a pinch" → "Show", moved to Music.** It and the owner's separate "do we need show chords on/off?" are the SAME control (`displayMode`) | `ReaderMenu.jsx` |
+| **The colour picker floats** — inline it was clipped by a ~230px dock | `ReaderMenu.jsx` |
 
 > **Three rounds in a row, the same root cause:** this panel adopts a shared
 > component, and that component reads a `--ds-gray-*` step nobody remapped

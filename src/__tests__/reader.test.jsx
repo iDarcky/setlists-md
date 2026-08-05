@@ -367,6 +367,36 @@ describe('the ☰ menu', () => {
     expect(screen.getByRole('button', { name: 'Increase lyric size' }).className).toContain('h-11');
   });
 
+  it('groups Layout, and gives the two orphaned knobs a home at last', () => {
+    renderReader();
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
+    ['The page', 'Sections', 'The map', 'Getting around'].forEach(g => {
+      expect(screen.getByText(g)).toBeTruthy();
+    });
+    // `readerNotes` and `readerFooter` were WIRED and read by the renderer, and
+    // had no control anywhere in the app — permanently stuck at their defaults.
+    expect(screen.getByText('Band cues & notes')).toBeTruthy();
+    expect(screen.getByText('The bottom bar shows')).toBeTruthy();
+    // And the rail could not be turned off at all: only its open/closed state
+    // was a preference, and that lived in localStorage.
+    expect(screen.getByText('The setlist rail')).toBeTruthy();
+  });
+
+  it('moved "In a pinch" to Music, as what it actually is', () => {
+    renderReader();
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
+    // Nobody could tell what the name meant, and it is not a layout choice.
+    expect(screen.queryByText('In a pinch')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Music' }));
+    // It is `displayMode` — the same setting as "show chords" — so it sits
+    // beside the role picker that writes it.
+    expect(screen.getByText('Show')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Chords + lyrics' })).toBeTruthy();
+  });
+
   it('offers a Reset per OPTION, and only where there is something to reset', () => {
     const { unmount } = renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));

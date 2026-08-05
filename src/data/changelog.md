@@ -62,6 +62,10 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Colours are a carousel too (Labs)** — the same arrows the themes have, on one line instead of reflowing into three rows, and **any colour you like** is the last stop after the palette, using the app's own colour picker.
 - **The ☰ opens each tab at the top (Labs)** — switching tabs used to keep the scroll position from the last one, so you could land halfway down a panel.
 - **Every setting in the ☰ has its own Reset (Labs)** — not one per group, so putting back a font you didn't like doesn't also throw away the size you'd spent a minute getting right. It only appears when there's actually something to put back.
+- **The Layout tab is grouped (Labs)** — The page, Sections, The map and Getting around, instead of ten settings in one column.
+- **Three settings that existed but had no switch (Labs)** — band cues and inline notes could never be turned off, the bottom bar could never be reduced to just the song count, and the setlist rail could never be hidden. All three are in Layout now.
+- **"In a pinch" is called "Show", and lives with the music (Labs)** — nobody could tell what the name meant, and it isn't a layout choice: it's whether you see chords, lyrics or both, so it sits beside the instrument picker that sets it.
+- **The colour picker floats (Labs)** — it opened inside the settings panel, which pushed everything down and then cut it off. It opens over the song now.
 - **The ☰'s tabs sit at the bottom on a phone (Labs)** — the settings panel is already at the bottom of the screen, so the strip you keep reaching for is now on the edge nearest your thumb.
 - **The colour circles have a clean edge (Labs)** — the outline was sitting *inside* each circle rather than around it, which was most obvious on the split "follow the theme" swatch where it cut across the diagonal.
 - **Tab colours use the app's palette (Labs)** — they used to open the operating system's colour picker, which is a different set of colours, a different gesture, and on a phone a full-screen sheet over the chart you were adjusting.

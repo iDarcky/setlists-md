@@ -1337,6 +1337,40 @@ with the chart above it.
 scroller kept its offset, so you could arrive at Layout half way down with no
 idea what was above you.
 
+#### Element 28, round 10 — the Layout tab, 2026-08-04
+
+**Four groups**, the owner's, confirmed on delivery: **The page** (columns ·
+repeated sections) · **Sections** (heading · style · pinning · band cues) ·
+**The map** (under the top bar · where the ribbon sits · its style) ·
+**Getting around** (song to song · what the bottom bar shows · the rail).
+
+**The three settings that existed with no switch.** All wired, all read by the
+renderer, none reachable — so all three permanently at their defaults:
+- `readerNotes` — band cues + inline notes on/off (`config.notes`, read at
+  `ReaderSection.jsx:367,409`).
+- `readerFooter` — `next` (the next song's name and key) vs `count`
+  (`← 3/9 →` alone), read at `SetlistReader.jsx:160,178`.
+- **The rail had no on/off at all.** Only its *open/closed* state was a
+  preference, and that lived in `localStorage` per device; the strip itself was
+  unconditional. Now `readerRail`, a real knob in `READER_KNOBS` +
+  `PORTABLE_PREF_KEYS`, read as `cfg.rail`.
+
+**"In a pinch" → "Show", and it moved to Music.** Owner: *"What is in a pinch? I
+don't really know what it does."* Fair — and it is worth recording that the
+owner ALSO asked, separately, *"Show - chords on/off - do we need this?"*
+**They are the same control.** Both are `displayMode`
+(`chords` | `lyrics` | `chordsonly`). It was in Layout under a name chosen to
+signal "this is the emergency lever, the role picker is the real answer", and
+the name succeeded only in hiding what it did. It sits in Music now, directly
+under the role picker that writes it, called **Show**.
+
+**The colour picker floats.** Owner: *"One bug with the picker is that it opens
+under, should it be like a pop-up maybe?"* Inline it pushed the rest of the tab
+down inside a ~230px dock and was then clipped by the scroller — the picker is
+132px plus a hex row. It is portaled now, anchored to the well and placed
+**above** it when there is room, because the well is near the bottom of the
+screen and a panel below it lands under the thumb that opened it.
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the

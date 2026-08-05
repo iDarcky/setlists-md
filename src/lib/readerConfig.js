@@ -35,6 +35,11 @@ export const READER_KNOBS = {
   // the SET (the app's original player bar). Never both: two maps competing for
   // one glance.
   topBar: ['ribbon', 'setlist'],
+  // 29 — the setlist rail. It existed with no way to turn it off: open/closed
+  // was remembered per device in localStorage, but the strip itself was always
+  // there. Owner, 2026-08-04: "the only one that we don't have is the setlist
+  // rail but we can add that easy here."
+  rail: ['on', 'off'],
 };
 
 const DEFAULTS = {
@@ -47,6 +52,7 @@ const DEFAULTS = {
   footer: 'next',
   nav: 'footer',
   topBar: 'ribbon',
+  rail: 'on',
 };
 
 // Stored under these settings keys. `structurePosition` and
@@ -62,6 +68,7 @@ const KEY = {
   footer: 'readerFooter',
   nav: 'readerNav',
   topBar: 'readerTopBar',
+  rail: 'readerRail',
 };
 
 export function readerSettingKey(knob) {
@@ -224,6 +231,7 @@ export function resolveReaderConfig(settings, ctx = {}) {
     footer: pick('footer', settings?.[KEY.footer]),
     nav: pick('nav', settings?.[KEY.nav]),
     topBar: pick('topBar', settings?.[KEY.topBar]),
+    rail: pick('rail', settings?.[KEY.rail]) === 'on',
     columns: resolveColumns(settings?.defaultColumns, wide),
     display: resolveChartDisplay(settings),
     // Element 9: tabs for other instruments collapse. A manual override in

@@ -447,7 +447,15 @@ function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
  */
 function ColorCarousel({ value, onPick }) {
   const custom = !!value && !CHART_COLOR_PALETTE.some(c => c.value === value);
-  const [picking, setPicking] = useState(false);
+  // The picker floats, anchored to the well, rather than expanding inline.
+  //
+  // Inline it pushed the rest of the tab down inside a 40% dock and then got
+  // clipped by the scroller — the panel is ~230px tall and the picker is 132px
+  // plus a hex row (owner, 2026-08-04: *"One bug with the picker is that it
+  // opens under, should it be like a pop-up maybe?"*). A portal escapes the
+  // dock's box entirely, so it can use the chart's own space above.
+  const [at, setAt] = useState(null);
+
   return (
     <>
       <Carousel what="colours">
@@ -455,7 +463,7 @@ function ColorCarousel({ value, onPick }) {
           const on = (c.value || null) === (value || null);
           return (
             <button key={c.id} type="button"
-              onClick={() => { setPicking(false); onPick(c.value); }}
+              onClick={() => { setAt(null); onPick(c.value); }}
               title={c.name} aria-label={c.name}
               className="shrink-0 w-10 h-10 min-h-0 rounded-full cursor-pointer"
               style={{
@@ -472,14 +480,15 @@ function ColorCarousel({ value, onPick }) {
         {/* Any colour — LAST, because it costs a panel to use. The palette
             above it is a dozen colours known to work on the chart themes; this
             is for when you need an exact one. */}
-        <button type="button" onClick={() => setPicking(p => !p)}
-          aria-label="Any colour" aria-expanded={picking} title="Any colour"
+        <button type="button"
+          onClick={(e) => setAt(a => (a ? null : e.currentTarget.getBoundingClientRect()))}
+          aria-label="Any colour" aria-expanded={!!at} title="Any colour"
           className="relative shrink-0 w-10 h-10 min-h-0 rounded-full cursor-pointer grid place-items-center"
           style={{
             background: custom
               ? value
               : 'conic-gradient(#f43f5e, #f59e0b, #22c55e, #06b6d4, #6366f1, #d946ef, #f43f5e)',
-            boxShadow: custom || picking
+            boxShadow: custom || at
               ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
               : 'inset 0 0 0 1px var(--border-2)',
           }}>
@@ -490,32 +499,60 @@ function ColorCarousel({ value, onPick }) {
         </button>
       </Carousel>
 
-      {picking && (
-        <div className="mt-2.5 flex flex-col gap-2">
-          {/* 132px, not the 180px Settings uses: this opens inside a 40% dock
-              with the chart above it, and the picker must not become the whole
-              panel. */}
-          <HexColorPicker color={value || '#888888'} onChange={onPick}
-            style={{ width: '100%', height: 132 }} />
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] text-[var(--ds-gray-600)] uppercase tracking-wider">Hex</span>
-            <input
-              type="text" aria-label="Hex colour" value={value || ''} placeholder="#000000"
-              onChange={(e) => {
-                const v = e.target.value.trim();
-                if (/^#?[0-9a-fA-F]{6}$/.test(v)) onPick(v.startsWith('#') ? v : `#${v}`);
-              }}
-              className="flex-1 min-w-0 h-9 px-2 rounded-lg font-mono text-[13px] text-[var(--text-1)] bg-[var(--bg-1)] border border-[var(--border-1)]"
-            />
-            <button type="button" onClick={() => setPicking(false)}
-              className="min-h-0 h-9 px-3 rounded-lg text-[13px] font-semibold cursor-pointer bg-transparent border border-[var(--border-1)] text-[var(--text-1)]">
-              Done
-            </button>
-          </div>
-        </div>
-      )}
+      {at && <ColorPopover anchor={at} value={value} onPick={onPick} onClose={() => setAt(null)} />}
     </>
   );
+}
+
+/**
+ * The colour wheel, floating. Portaled, so the dock cannot clip it, and placed
+ * ABOVE its anchor whenever there is room — the anchor is near the bottom of
+ * the screen and a panel below it would be under the thumb that opened it.
+ */
+function ColorPopover({ anchor, value, onPick, onClose }) {
+  const W = 236;
+  const H = 210;
+  const winW = typeof document !== 'undefined'
+    ? (document.documentElement?.clientWidth || window.innerWidth) : 1024;
+  const winH = typeof window !== 'undefined' ? window.innerHeight : 768;
+  const left = Math.min(Math.max(8, (anchor.left ?? 0) - W / 2 + 20), winW - W - 8);
+  const above = (anchor.top ?? 0) > H + 16;
+  const top = above ? Math.max(8, anchor.top - H - 8) : Math.min(anchor.bottom + 8, winH - H - 8);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return createPortal((
+    <>
+      <button type="button" aria-label="Close colour picker" tabIndex={-1} onClick={onClose}
+        className="fixed inset-0 z-[130] bg-transparent border-none cursor-default" />
+      <div
+        role="dialog" aria-label="Any colour"
+        className="fixed z-[131] rounded-[14px] border border-[var(--border-2)] p-2.5 flex flex-col gap-2"
+        style={{ ...chartOverlaySurface, left, top, width: W, boxShadow: '0 18px 44px rgba(0,0,0,0.45)' }}
+      >
+        <HexColorPicker color={value || '#888888'} onChange={onPick}
+          style={{ width: '100%', height: 132 }} />
+        <div className="flex items-center gap-2">
+          <input
+            type="text" aria-label="Hex colour" value={value || ''} placeholder="#000000"
+            onChange={(e) => {
+              const v = e.target.value.trim();
+              if (/^#?[0-9a-fA-F]{6}$/.test(v)) onPick(v.startsWith('#') ? v : `#${v}`);
+            }}
+            className="flex-1 min-w-0 h-9 px-2 rounded-lg font-mono text-[13px] text-[var(--text-1)] bg-[var(--bg-1)] border border-[var(--border-1)]"
+          />
+          <button type="button" onClick={onClose}
+            className="min-h-0 h-9 px-3 rounded-lg text-[13px] font-semibold cursor-pointer bg-transparent border border-[var(--border-1)] text-[var(--text-1)]">
+            Done
+          </button>
+        </div>
+      </div>
+    </>
+  ), document.body);
 }
 
 export default function ReaderMenu({
@@ -879,48 +916,96 @@ export default function ReaderMenu({
       )}
 
       {/* ── Layout ─────────────────────────────────────────────────────────
-          Where things ARE. */}
+          Where things ARE, in four groups (owner, 2026-08-04). Flat, it was
+          ten controls you had to read top to bottom to find anything — the
+          same objection that grouped the Style tab. */}
       {tab === 'layout' && (
         <>
-              {/* Columns are a fact about the SPACE, not a taste, and a phone
-                  has room for one. `resolveReaderConfig` forces 1 below 768, so
-                  below 768 the control is a switch that does nothing — worse
-                  than absent. (Owner, 2026-08-01; threshold corrected from 700
-                  to 768, 2026-08-04 — see `wideEnoughForColumns`.) */}
-              {wideEnoughForColumns && (
-                <Segs label="Columns" value={settings?.defaultColumns === 2 ? 2 : 1}
-                  options={[[1, '1'], [2, '2']]} onChange={(v) => set('defaultColumns', v)} />
-              )}
-              <Segs label="Structure — where" value={settings?.structurePosition || 'top'}
-                options={[['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['off', 'Hidden']]}
-                onChange={(v) => set('structurePosition', v)} />
-              <Segs label="Structure — style" value={settings?.ribbonStyle || 'codes'}
-                options={[['codes', 'Boxes'], ['chips', 'Chips'], ['numbered', 'Inline'], ['dots', 'Dots'], ['dotlabel', 'Dots+label']]}
-                onChange={(v) => set('ribbonStyle', v)} />
-              <Segs label="Under the top bar" value={settings?.readerTopBar || 'ribbon'}
-                options={[['ribbon', 'Structure'], ['setlist', 'The set']]}
-                onChange={(v) => set('readerTopBar', v)} />
-              <Segs label="Section heading" value={settings?.readerHeading || 'name'}
-                options={[['name', 'Name'], ['code', 'Letters'], ['caps', 'ALL CAPS']]}
-                onChange={(v) => set('readerHeading', v)} />
-              <Segs label="Heading pins as you scroll" value={settings?.readerSticky || 'on'}
-                options={[['on', 'Pinned'], ['off', 'Not pinned']]}
-                onChange={(v) => set('readerSticky', v)} />
-              <Segs label="Section style" value={settings?.readerSectionStyle || 'bar'}
-                options={[['bar', 'Bar'], ['plain', 'No line'], ['block', 'Block'], ['card', 'Card']]}
-                onChange={(v) => set('readerSectionStyle', v)} />
-              <Segs label="Repeated sections" value={settings?.duplicateSections || 'condensed'}
-                options={[['full', 'Full'], ['condensed', 'Condensed'], ['hide', 'Hidden']]}
-                onChange={(v) => set('duplicateSections', v)} />
-              <Segs label="Song to song" value={settings?.readerNav || 'footer'}
-                options={[['footer', 'Bottom bar'], ['pill', 'Pill'], ['edge', 'Edge arrows'], ['swipe', 'Swipe']]}
-                onChange={(v) => set('readerNav', v)} />
-              {/* Last and small on purpose — the owner's words: "I don't think
-                  this is where it should be set, but it's ok to have it small in
-                  case of emergency." The real answer is the role picker. */}
-              <Segs label="In a pinch" value={settings?.displayMode || 'chords'}
-                options={[['chords', 'Both'], ['lyrics', 'Lyrics'], ['chordsonly', 'Chords']]}
-                onChange={(v) => set('displayMode', v)} />
+          {/* ── The page ─────────────────────────────────────────────────── */}
+          <GroupTitle>The page</GroupTitle>
+          {/* Columns are a fact about the SPACE, not a taste, and a phone has
+              room for one. `resolveReaderConfig` forces 1 below 768, so below
+              768 the control is a switch that does nothing — worse than absent.
+              (Owner 2026-08-01; threshold corrected 700→768, 2026-08-04.) */}
+          {wideEnoughForColumns && (
+            <Field label="Columns" onReset={reset('defaultColumns')}>
+              <Picks value={settings?.defaultColumns === 2 ? 2 : 1}
+                options={[[1, '1'], [2, '2']]} onChange={(v) => set('defaultColumns', v)} />
+            </Field>
+          )}
+          <Field label="Repeated sections" onReset={reset('duplicateSections')}>
+            <Picks value={settings?.duplicateSections || 'condensed'}
+              options={[['full', 'Full'], ['condensed', 'Condensed'], ['hide', 'Hidden']]}
+              onChange={(v) => set('duplicateSections', v)} />
+          </Field>
+
+          {/* ── Sections ─────────────────────────────────────────────────── */}
+          <GroupTitle>Sections</GroupTitle>
+          <Field label="Heading" onReset={reset('readerHeading')}>
+            <Picks value={settings?.readerHeading || 'name'}
+              options={[['name', 'Name'], ['code', 'Letters'], ['caps', 'ALL CAPS']]}
+              onChange={(v) => set('readerHeading', v)} />
+          </Field>
+          <Field label="Style" onReset={reset('readerSectionStyle')}>
+            <Picks value={settings?.readerSectionStyle || 'bar'}
+              options={[['bar', 'Bar'], ['plain', 'No line'], ['block', 'Block'], ['card', 'Card']]}
+              onChange={(v) => set('readerSectionStyle', v)} />
+          </Field>
+          <Field label="Heading pins as you scroll" onReset={reset('readerSticky')}>
+            <Picks value={settings?.readerSticky || 'on'}
+              options={[['on', 'Pinned'], ['off', 'Not pinned']]}
+              onChange={(v) => set('readerSticky', v)} />
+          </Field>
+          {/* Element 4 + 5. It was WIRED and had no control anywhere in the app
+              — `config.notes` has always been read, so band cues and inline
+              notes were permanently on and nobody could say otherwise (owner,
+              2026-08-04: "where do we have these buttons, because I cannot see
+              them" — nowhere). */}
+          <Field label="Band cues &amp; notes" onReset={reset('readerNotes')}>
+            <Picks value={settings?.readerNotes || 'on'}
+              options={[['on', 'Shown'], ['off', 'Hidden']]}
+              onChange={(v) => set('readerNotes', v)} />
+          </Field>
+
+          {/* ── The map ──────────────────────────────────────────────────── */}
+          <GroupTitle>The map</GroupTitle>
+          <Field label="Under the top bar" onReset={reset('readerTopBar')}>
+            <Picks value={settings?.readerTopBar || 'ribbon'}
+              options={[['ribbon', 'Structure'], ['setlist', 'The set']]}
+              onChange={(v) => set('readerTopBar', v)} />
+          </Field>
+          <Field label="Structure — where" onReset={reset('structurePosition')}>
+            <Picks value={settings?.structurePosition || 'top'}
+              options={[['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['off', 'Hidden']]}
+              onChange={(v) => set('structurePosition', v)} />
+          </Field>
+          <Field label="Structure — style" onReset={reset('ribbonStyle')}>
+            <Picks value={settings?.ribbonStyle || 'codes'}
+              options={[['codes', 'Boxes'], ['chips', 'Chips'], ['numbered', 'Inline'], ['dots', 'Dots'], ['dotlabel', 'Dots+label']]}
+              onChange={(v) => set('ribbonStyle', v)} />
+          </Field>
+
+          {/* ── Getting around ───────────────────────────────────────────── */}
+          <GroupTitle>Getting around</GroupTitle>
+          <Field label="Song to song" onReset={reset('readerNav')}>
+            <Picks value={settings?.readerNav || 'footer'}
+              options={[['footer', 'Bottom bar'], ['pill', 'Pill'], ['edge', 'Edge arrows'], ['swipe', 'Swipe']]}
+              onChange={(v) => set('readerNav', v)} />
+          </Field>
+          {/* The second orphan: `config.footer` has always been read, and there
+              was no control for it either. */}
+          <Field label="The bottom bar shows" onReset={reset('readerFooter')}>
+            <Picks value={settings?.readerFooter || 'next'}
+              options={[['next', 'Next song'], ['count', 'Just the count']]}
+              onChange={(v) => set('readerFooter', v)} />
+          </Field>
+          {/* Element 29. The strip existed with no way to turn it off — only
+              its open/closed state was remembered, per device. */}
+          <Field label="The setlist rail" onReset={reset('readerRail')}>
+            <Picks value={settings?.readerRail || 'on'}
+              options={[['on', 'Shown'], ['off', 'Hidden']]}
+              onChange={(v) => set('readerRail', v)} />
+          </Field>
         </>
       )}
 
@@ -946,6 +1031,15 @@ export default function ReaderMenu({
               Vocals and Drums drop the chords; Guitar and Bass open their own tabs. All still changeable under Display.
             </p>
           </div>
+
+          {/* Was "In a pinch", in Layout, and nobody could tell what it did
+              (owner, 2026-08-04: "What is in a pinch? I don't really know what
+              it does"). It is `displayMode` — the same setting as "show chords"
+              — so it belongs beside the role picker that sets it, under a name
+              that says what it is. */}
+          <Segs label="Show" value={settings?.displayMode || 'chords'}
+            options={[['chords', 'Chords + lyrics'], ['lyrics', 'Lyrics only'], ['chordsonly', 'Chords only']]}
+            onChange={(v) => set('displayMode', v)} />
 
           <Segs label="Chord names" value={config?.display?.notation || 'letters'}
             options={NOTATIONS} onChange={(v) => set('notation', v)} />
