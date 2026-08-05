@@ -4,26 +4,37 @@ import { CHART_FONTS, CHART_COLOR_PALETTE } from '@/data/chartThemes';
  * The small controls `AaMenu` is built out of.
  *
  * Extracted from it when the reader grew its own ☰ menu, so the primitives sit
- * beside the design system rather than inside one panel. The reader's
- * `ReaderMenu` deliberately does NOT use these: it follows the concept
- * mockup's tighter geometry (single-line rows, 27px steppers, small segmented
- * pills), and forcing one set of controls to serve both looks would flatten the
- * difference the mockup exists to make. Nothing here holds state.
+ * beside the design system rather than inside one panel. Nothing here holds
+ * state.
+ *
+ * The reader's `ReaderMenu` used to keep its OWN copies — the concept mockup's
+ * tighter geometry (single-line rows, 27px steppers, small segmented pills) —
+ * on the reasoning that one set of controls serving both looks would flatten
+ * the difference the mockup existed to make. The owner looked at both on a
+ * device and picked these (2026-08-04), so the mockup's copies are gone.
+ *
+ * ## `size`
+ *
+ * `md` (default) is the song hub's Aa popover: a panel you lean into on a
+ * browsing screen. **`lg` is the reader's ☰**, which is read from a music stand
+ * at arm's length — owner, 2026-08-04: *"everything is way too small, we need
+ * to make everything bigger"*. It is a size, not a theme: same shapes, same
+ * colours, more of them.
  */
 
 /** A ± stepper. `unit` is rendered small after the number ('px', '%', …). */
-export function Stepper({ value, min, max, onChange, label, unit = 'px', step = 1 }) {
+export function Stepper({ value, min, max, onChange, label, unit = 'px', step = 1, size = 'md' }) {
+  const lg = size === 'lg';
+  const btn = `${lg ? 'w-12 h-11 text-2xl' : 'w-9 h-8 text-lg'} min-h-0 rounded-md text-[var(--text-1)] leading-none disabled:opacity-30 hover:bg-[var(--bg-2)] cursor-pointer disabled:cursor-not-allowed`;
   return (
     <div className="flex items-center justify-between bg-[var(--bg-1)] border border-[var(--border-1)] rounded-lg p-1">
       <button type="button" aria-label={`Decrease ${label}`} disabled={value <= min}
-        onClick={() => onChange(Math.max(min, value - step))}
-        className="w-9 h-8 min-h-0 rounded-md text-[var(--text-1)] text-lg leading-none disabled:opacity-30 hover:bg-[var(--bg-2)] cursor-pointer disabled:cursor-not-allowed">−</button>
-      <span className="text-label-13 font-mono font-semibold text-[var(--text-1)] tabular-nums">
-        {value}{unit && <span className="text-[var(--text-2)] text-label-10 ml-0.5">{unit}</span>}
+        onClick={() => onChange(Math.max(min, value - step))} className={btn}>−</button>
+      <span className={`${lg ? 'text-label-14' : 'text-label-13'} font-mono font-semibold text-[var(--text-1)] tabular-nums`}>
+        {value}{unit && <span className={`text-[var(--text-2)] ${lg ? 'text-label-11' : 'text-label-10'} ml-0.5`}>{unit}</span>}
       </span>
       <button type="button" aria-label={`Increase ${label}`} disabled={value >= max}
-        onClick={() => onChange(Math.min(max, value + step))}
-        className="w-9 h-8 min-h-0 rounded-md text-[var(--text-1)] text-lg leading-none disabled:opacity-30 hover:bg-[var(--bg-2)] cursor-pointer disabled:cursor-not-allowed">+</button>
+        onClick={() => onChange(Math.min(max, value + step))} className={btn}>+</button>
     </div>
   );
 }
@@ -34,10 +45,10 @@ export function Label({ children }) {
 }
 
 /** One choice in a row of choices. */
-export function Pick({ active, onClick, children }) {
+export function Pick({ active, onClick, children, size = 'md' }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={active}
-      className={`px-3 h-8 min-h-0 rounded-lg border text-label-12 font-semibold cursor-pointer transition-colors ${
+      className={`${size === 'lg' ? 'px-4 h-11 text-label-13' : 'px-3 h-8 text-label-12'} min-h-0 rounded-lg border font-semibold cursor-pointer transition-colors ${
         active
           ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
           : 'border-[var(--border-1)] text-[var(--text-1)] bg-[var(--bg-1)] hover:border-[var(--border-3)]'}`}>
@@ -63,15 +74,15 @@ export function FontList({ activeId, onPick }) {
   );
 }
 
-export function Swatches({ activeValue, onPick }) {
+export function Swatches({ activeValue, onPick, size = 'md' }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className={`flex flex-wrap ${size === 'lg' ? 'gap-2.5' : 'gap-2'}`}>
       {CHART_COLOR_PALETTE.map(c => {
         const on = (c.value || null) === (activeValue || null);
         const isTheme = c.value === null;
         return (
           <button key={c.id} type="button" onClick={() => onPick(c.value)} title={c.name} aria-label={c.name}
-            className="w-8 h-8 min-h-0 rounded-full cursor-pointer"
+            className={`${size === 'lg' ? 'w-10 h-10' : 'w-8 h-8'} min-h-0 rounded-full cursor-pointer`}
             style={{
               background: isTheme
                 ? 'linear-gradient(135deg, var(--chart-text, #888) 50%, var(--chord, #e0b341) 50%)'

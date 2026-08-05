@@ -3,10 +3,10 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-04. State: `0.17.0-beta.65` on
+> _Rewritten 2026-08-04. State: `0.17.0-beta.66` on
 > `claude/reader-menu-element-28-qn9ofq`. `beta` is at **beta.44** — the
 > owner asked (2026-08-04) for rounds to go to the **feature branch only** so he
-> can compare against `beta`. 883 tests, 0 lint errors (8 pre-existing
+> can compare against `beta`. 884 tests, 0 lint errors (8 pre-existing
 > warnings)._
 
 ---
@@ -100,7 +100,7 @@ The facts to check before designing anything:
 
 ---
 
-## Just shipped (beta.65) — element 28, rounds 1–5
+## Just shipped (beta.66) — element 28, rounds 1–6
 
 | What | Where |
 |---|---|
@@ -113,9 +113,17 @@ The facts to check before designing anything:
 | **Free vs Pro decided** — legibility is free (all sizes, all spacing, tab size/grid), taste is Pro (full themes, fonts, colours, tab colours). `onUpgrade` threaded App → reader | `ReaderMenu.jsx`, `App.jsx` |
 | **Field labels** Geist Mono 10px ALL CAPS → sans 12px/600 sentence case · **theme ring** was two rings, now one · **reader theme** (`chartOverlaySurface`) · **Columns gated at 768** | `ReaderMenu.jsx`, `readerSurface.js` |
 
-**Next in element 28: the Layout tab, then Music.** Layout is still nine
-`Segs` in a column with the old geometry — it has not had the grouping or the
-`PanelControls` pass the Style tab just got.
+| **Everything is at the reader's size** — `PanelControls` takes `size`: `md` (the hub's Aa, unchanged) and `lg` (the ☰). The mockup's `Seg`/`MiniStepper` are deleted, so there is ONE pill style in the menu now | `PanelControls.jsx`, `ReaderMenu.jsx` |
+
+**Next in element 28: the Layout tab, then Music** — the owner is doing Layout
+"in the morning". Layout is nine controls in a flat column: it now has the right
+pill and the right size, but NOT the grouping the Style tab got. Its nine do not
+fall into obvious buckets the way Style's did, so bring a grouping proposal
+before building.
+
+⚠ **The dock is 30% and the controls are now bigger** — roughly 2½ rows visible
+on an 800px phone. The owner chose 70/30, so it was left alone; if Layout feels
+cramped the dial is `flex: 0 0 30%` in `Reader.jsx`.
 
 ---
 

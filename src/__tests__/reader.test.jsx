@@ -350,6 +350,23 @@ describe('the ☰ menu', () => {
     });
   });
 
+  it('uses ONE pill, at the reader size, on every tab', () => {
+    renderReader();
+    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
+    // Style's pills were `Pick` and Layout's were the concept mockup's own
+    // `Seg` — two pill styles at two sizes in one menu. And both were sized for
+    // a browsing panel, not for a music stand at arm's length (owner,
+    // 2026-08-04: "everything is way too small").
+    const stylePill = screen.getByRole('button', { name: 'S' });
+    fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
+    const layoutPill = screen.getByRole('button', { name: 'Boxes' });
+    expect(stylePill.className).toContain('h-11');
+    expect(layoutPill.className).toContain('h-11');
+    // The steppers take the same size.
+    fireEvent.click(screen.getByRole('button', { name: 'Style' }));
+    expect(screen.getByRole('button', { name: 'Increase lyric size' }).className).toContain('h-11');
+  });
+
   it('gives the themes arrows, so it reads as scrollable', () => {
     renderReader();
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));

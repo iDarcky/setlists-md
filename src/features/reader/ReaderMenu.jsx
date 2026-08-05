@@ -134,73 +134,39 @@ const TABS = [['style', 'Style'], ['layout', 'Layout'], ['music', 'Music']];
  */
 function Field({ label, children }) {
   return (
-    <div className="px-4 pt-3 pb-0.5">
-      <div className="text-[12px] font-semibold text-[var(--text-2)] mb-[7px]">{label}</div>
+    <div className="px-4 pt-3.5 pb-0.5">
+      <div className="text-[13.5px] font-semibold text-[var(--text-2)] mb-2">{label}</div>
       {children}
     </div>
   );
 }
 
-function Seg({ active, onClick, children, title }) {
-  return (
-    <button
-      type="button" onClick={onClick} aria-pressed={!!active} title={title}
-      className={`min-h-0 px-[11px] py-[5px] rounded-lg border text-[12px] cursor-pointer transition-colors ${
-        active
-          ? 'font-semibold text-white'
-          : 'font-normal text-[var(--text-2)] bg-transparent hover:border-[var(--border-3)]'}`}
-      style={active
-        ? { background: 'var(--color-brand)', borderColor: 'var(--color-brand)' }
-        : { borderColor: 'var(--border-2)' }}
-    >
-      {children}
-    </button>
-  );
-}
-
-/** A labelled row of segments bound to one setting. The workhorse. */
+/**
+ * A labelled row of choices bound to one setting. The workhorse of Layout and
+ * Music.
+ *
+ * It used to render the concept mockup's own `Seg` — an 11px pill with a 5px
+ * gap — beside the Style tab's `Pick`, so one menu carried two pill styles at
+ * two sizes. One pill, and it is the Aa menu's (owner, 2026-08-04).
+ */
 function Segs({ label, options, value, onChange }) {
   return (
     <Field label={label}>
-      <div className="flex gap-[5px] flex-wrap">
-        {options.map(([v, l]) => (
-          <Seg key={String(v)} active={value === v} onClick={() => onChange(v)}>{l}</Seg>
-        ))}
-      </div>
+      <Picks value={value} options={options} onChange={onChange} />
     </Field>
   );
 }
 
-function MiniStepper({ value, min, max, onChange, label, unit = '', step = 1, onReset }) {
-  return (
-    <div className="flex items-center gap-[7px]">
-      <button type="button" aria-label={`Decrease ${label}`} disabled={value <= min}
-        onClick={() => onChange(Math.max(min, value - step))}
-        className="w-[27px] h-[27px] min-h-0 grid place-items-center rounded-lg border border-[var(--border-2)] bg-transparent text-[var(--text-1)] text-[15px] leading-none cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[var(--bg-2)]">−</button>
-      <b className="font-mono text-[13px] font-semibold min-w-[52px] text-center tabular-nums text-[var(--text-1)]">{value}{unit}</b>
-      <button type="button" aria-label={`Increase ${label}`} disabled={value >= max}
-        onClick={() => onChange(Math.min(max, value + step))}
-        className="w-[27px] h-[27px] min-h-0 grid place-items-center rounded-lg border border-[var(--border-2)] bg-transparent text-[var(--text-1)] text-[15px] leading-none cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[var(--bg-2)]">+</button>
-      {onReset && (
-        <button type="button" onClick={onReset}
-          className="min-h-0 ml-1 text-[11px] text-[var(--ds-gray-600)] hover:text-[var(--text-1)] bg-transparent border-none cursor-pointer underline underline-offset-2">
-          Reset
-        </button>
-      )}
-    </div>
-  );
-}
-
 function ProNote({ children }) {
-  return <p className="m-0 text-[12px] text-[var(--ds-gray-600)]">{children}</p>;
+  return <p className="m-0 text-[13px] text-[var(--ds-gray-600)]">{children}</p>;
 }
 
 /** The heading over a group of fields — Lyrics · Chords · Spacing · Tabs. */
 function GroupTitle({ children }) {
   return (
     <div className="px-4 pt-4 pb-0.5 first:pt-1">
-      <div className="text-[13px] font-semibold text-[var(--text-1)]">{children}</div>
-      <div className="mt-1.5 h-px" style={{ background: 'var(--border-1)' }} />
+      <div className="text-[15px] font-semibold text-[var(--text-1)]">{children}</div>
+      <div className="mt-2 h-px" style={{ background: 'var(--border-1)' }} />
     </div>
   );
 }
@@ -217,9 +183,9 @@ function Pair({ children }) {
 /** `Pick`s bound to one setting — the Aa menu's pill, in a row. */
 function Picks({ value, options, onChange }) {
   return (
-    <div className="flex gap-1.5 flex-wrap">
+    <div className="flex gap-2 flex-wrap">
       {options.map(([v, l]) => (
-        <Pick key={String(v)} active={value === v} onClick={() => onChange(v)}>{l}</Pick>
+        <Pick key={String(v)} size="lg" active={value === v} onClick={() => onChange(v)}>{l}</Pick>
       ))}
     </div>
   );
@@ -228,9 +194,9 @@ function Picks({ value, options, onChange }) {
 /** Fonts as pills. The bordered list was 44px per font and a page on its own. */
 function FontPills({ activeId, onPick }) {
   return (
-    <div className="flex gap-1.5 flex-wrap">
+    <div className="flex gap-2 flex-wrap">
       {CHART_FONTS.map(f => (
-        <Pick key={f.id} active={activeId === f.id} onClick={() => onPick(f.id)}>
+        <Pick key={f.id} size="lg" active={activeId === f.id} onClick={() => onPick(f.id)}>
           <span style={{ fontFamily: f.stack }}>{f.name}</span>
         </Pick>
       ))}
@@ -248,7 +214,7 @@ function LockedNote({ children, onUpgrade }) {
       <ProNote>{children}</ProNote>
       {onUpgrade && (
         <button type="button" onClick={onUpgrade}
-          className="min-h-0 text-[12px] font-semibold cursor-pointer bg-transparent border-none p-0 underline underline-offset-2"
+          className="min-h-0 text-[13px] font-semibold cursor-pointer bg-transparent border-none p-0 underline underline-offset-2"
           style={{ color: 'var(--color-brand)' }}>
           Upgrade
         </button>
@@ -259,7 +225,7 @@ function LockedNote({ children, onUpgrade }) {
 
 function LockGlyph() {
   return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
     </svg>
@@ -270,8 +236,8 @@ function Arrow({ dir, onClick, disabled }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled}
       aria-label={dir === 'left' ? 'Previous themes' : 'More themes'}
-      className="shrink-0 w-6 h-[30px] min-h-0 grid place-items-center rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-[var(--text-1)] cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed hover:bg-[var(--bg-2)]">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      className="shrink-0 w-8 h-[40px] min-h-0 grid place-items-center rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-[var(--text-1)] cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed hover:bg-[var(--bg-2)]">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
         <polyline points={dir === 'left' ? '15 18 9 12 15 6' : '9 18 15 12 9 6'} />
       </svg>
@@ -344,7 +310,7 @@ function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
               <button
                 key={t.id} type="button"
                 onClick={() => (locked ? onUpgrade?.() : onPick(t.id))}
-                className="relative shrink-0 min-h-0 h-[30px] w-[54px] rounded-lg overflow-hidden border border-transparent cursor-pointer flex items-end justify-end px-1.5 py-1"
+                className="relative shrink-0 min-h-0 h-[40px] w-[70px] rounded-lg overflow-hidden border border-transparent cursor-pointer flex items-end justify-end px-2 py-1.5"
                 style={{
                   background: t.bg, color: t.chord, fontFamily: 'var(--font-mono)',
                   opacity: locked ? 0.45 : 1,
@@ -355,7 +321,7 @@ function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
                 aria-label={locked ? `${t.name} — upgrade to use` : `Theme: ${t.name}`}
                 aria-pressed={on} title={t.name}
               >
-                <span className="text-[10px] font-bold">Am</span>
+                <span className="text-[12px] font-bold">Am</span>
                 {locked && (
                   <span className="absolute inset-0 grid place-items-center" style={{ color: t.text || t.chord }}>
                     <LockGlyph />
@@ -370,7 +336,7 @@ function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
 
       {lockedCount > 0 && onUpgrade && (
         <button type="button" onClick={onUpgrade}
-          className="mt-2 w-full min-h-0 h-8 rounded-lg border text-[12px] font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
+          className="mt-2.5 w-full min-h-0 h-11 rounded-lg border text-[13.5px] font-semibold cursor-pointer flex items-center justify-center gap-2 transition-colors"
           style={{
             borderColor: 'var(--color-brand)',
             color: 'var(--color-brand)',
@@ -556,7 +522,7 @@ export default function ReaderMenu({
         <button
           key={id} type="button" onClick={() => setTab(id)}
           aria-pressed={tab === id}
-          className={`flex-1 min-h-0 h-8 rounded-lg text-[12.5px] font-semibold cursor-pointer transition-colors border ${
+          className={`flex-1 min-h-0 h-11 rounded-lg text-[15px] font-semibold cursor-pointer transition-colors border ${
             tab === id
               ? 'text-white border-transparent'
               : 'text-[var(--text-2)] border-transparent bg-transparent hover:text-[var(--text-1)] hover:bg-[var(--bg-2)]'}`}
@@ -596,7 +562,7 @@ export default function ReaderMenu({
           {/* ── Lyrics ───────────────────────────────────────────────────── */}
           <GroupTitle>Lyrics</GroupTitle>
           <Field label="Size">
-            <Stepper value={lyricSize} min={10} max={40} onChange={onLyricSize} label="lyric size" />
+            <Stepper size="lg" value={lyricSize} min={10} max={40} onChange={onLyricSize} label="lyric size" />
           </Field>
           <Pair>
             <Field label="Font">
@@ -607,7 +573,7 @@ export default function ReaderMenu({
             </Field>
             <Field label="Colour">
               {styleAllowed
-                ? <Swatches activeValue={settings?.chartLyricColor}
+                ? <Swatches size="lg" activeValue={settings?.chartLyricColor}
                     onPick={(v) => set('chartLyricColor', v || undefined)} />
                 : <LockedNote onUpgrade={onUpgrade}>Colours are part of Pro.</LockedNote>}
             </Field>
@@ -616,7 +582,7 @@ export default function ReaderMenu({
           {/* ── Chords ───────────────────────────────────────────────────── */}
           <GroupTitle>Chords</GroupTitle>
           <Field label="Size">
-            <Stepper value={chordSize} min={8} max={40} onChange={onChordSize} label="chord size" />
+            <Stepper size="lg" value={chordSize} min={8} max={40} onChange={onChordSize} label="chord size" />
           </Field>
           <Pair>
             <Field label="Font">
@@ -627,7 +593,7 @@ export default function ReaderMenu({
             </Field>
             <Field label="Colour">
               {styleAllowed
-                ? <Swatches activeValue={settings?.chartChordColor}
+                ? <Swatches size="lg" activeValue={settings?.chartChordColor}
                     onPick={(v) => set('chartChordColor', v || undefined)} />
                 : <LockedNote onUpgrade={onUpgrade}>Colours are part of Pro.</LockedNote>}
             </Field>
@@ -641,6 +607,7 @@ export default function ReaderMenu({
           <Pair>
             <Field label="Line spacing">
               <Stepper
+                size="lg"
                 value={Math.round((settings?.lyricLineHeight ?? 1.35) * 100)} min={100} max={240}
                 step={5} unit="%" label="line height"
                 onChange={(v) => set('lyricLineHeight', Math.round(v) / 100)}
@@ -648,6 +615,7 @@ export default function ReaderMenu({
             </Field>
             <Field label="Between sections">
               <Stepper
+                size="lg"
                 value={settings?.sectionSpacing ?? 24} min={8} max={64} step={2}
                 unit="px" label="section gap"
                 onChange={(v) => set('sectionSpacing', v)}
@@ -679,7 +647,7 @@ export default function ReaderMenu({
                     key={key} type="color" aria-label={`Tab ${label.toLowerCase()} colour`} title={label}
                     value={settings?.[key] || fallback}
                     onChange={(e) => set(key, e.target.value)}
-                    className="w-8 h-8 min-h-0 rounded-lg border border-[var(--border-1)] bg-transparent cursor-pointer p-0"
+                    className="w-10 h-10 min-h-0 rounded-lg border border-[var(--border-1)] bg-transparent cursor-pointer p-0"
                   />
                 ))}
               </div>
@@ -752,7 +720,7 @@ export default function ReaderMenu({
               Object.entries(r?.applies || {}).forEach(([k, v]) => set(k, v));
             }} />
           <div className="px-4 pt-1 pb-0.5">
-            <p className="m-0 text-[12px] text-[var(--ds-gray-600)]">
+            <p className="m-0 text-[13px] text-[var(--ds-gray-600)]">
               Vocals and Drums drop the chords; Guitar and Bass open their own tabs. All still changeable under Display.
             </p>
           </div>
@@ -768,7 +736,7 @@ export default function ReaderMenu({
               // Truthful rather than a knob that does nothing: the chart shows
               // SOUNDING chords today. Shapes for a capoed player is element 19
               // and is real work, not a toggle.
-              <p className="m-0 text-[12px] text-[var(--text-2)]">
+              <p className="m-0 text-[13px] text-[var(--text-2)]">
                 <span className="font-mono font-semibold text-[var(--chord)]">Capo {capo}</span>
                 {' — '}the chords below are what it sounds like. Shapes are coming.
               </p>

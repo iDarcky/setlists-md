@@ -1173,6 +1173,31 @@ silently doing nothing, and each locked field carries an inline **Upgrade** link
 `Reader` → `ReaderMenu`. Absent → the lock is stated but not sellable, which is
 what every locked control here used to be.
 
+#### Element 28, round 6 — the reader size, 2026-08-04
+
+Owner, on beta.65: *"I love it, the only problem is that everything is way too
+small, we need to make everything bigger."*
+
+**The ☰ is read from a music stand at arm's length. `AaMenu` is read on a
+browsing screen at reading distance.** They had been sharing one size, and that
+size was the browsing one. `PanelControls` now takes **`size`**: `md` (default,
+the hub's Aa) and **`lg` (the reader's ☰)** — same shapes, same colours, more of
+them. `Pick` 32→44px, `Stepper` buttons 36×32→48×44, `Swatches` 32→40px, plus
+the menu's own type (tab strip 32→44px and 12.5→15px, group titles 13→15px,
+field labels 12→13.5px), theme tiles 54×30→70×40, arrows, the lock and the CTA.
+
+**And the two pill styles became one.** Style used `Pick`; Layout and Music
+still rendered the concept mockup's own `Seg` at 11px with a 5px gap — two pill
+styles at two sizes in one menu, which is what round 5 left behind when it
+converted only the tab it was working on. `Segs` keeps its call signature and is
+built on `Pick` now; the mockup's `Seg` and `MiniStepper` are **deleted**.
+
+> ⚠ **The dock is still 30%, and bigger controls mean fewer of them fit.** On an
+> 800px phone that is 240px, less ~57px of tab strip, so roughly **2½ rows**
+> before you scroll. The owner picked 70/30 deliberately, so it has NOT been
+> changed — but if the Layout pass finds it cramped, the dial is the dock's
+> `flex: 0 0 30%` in `Reader.jsx`, and 40% is the obvious next stop.
+
 ### The four views — the map, agreed 2026-08-01
 
 The owner's list, confirmed and completed. **A view is a TEMPLATE of the
