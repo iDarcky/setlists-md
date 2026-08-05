@@ -152,6 +152,7 @@ A running log of what's new in setlists.md. Newest releases first.
 
 ### Fixed
 - **The reader scrolled twice (Labs)** — the song was being laid out inside a box locked to the height of one screen, so the page and the song disagreed about how long the song was. It affected phones as well as desktops.
+- **Three ways to draw the song structure instead of five (Labs)** — Boxes, Chips and Dots. "Inline" was the Boxes chip without its box and "Dots + label" was Dots with that same text beside them, so they were variants pretending to be styles. If you were using one, you land on the style it was a variant of — nothing resets to the default.
 - **The structure chips are easier to hit (Labs)** — the boxes stay the same size, but the area your thumb has to land in is bigger.
 - **Editing brings the song map to the top (Labs)** — whichever side or edge you keep it on, it comes to the top while you're editing the play order and goes back where it was when you're done.
 - **Tapping a repeated section opens it where you are (Labs)** — a chorus shown as a `↩ Chorus` tag used to throw you back to the first time it was played, which on stage reads as the app losing your place. Tap the tag, or its chip in the structure, and the words open right there for the rest of the song. A repeat you've hidden still takes you to the one place it's written.

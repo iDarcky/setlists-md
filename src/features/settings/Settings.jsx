@@ -473,11 +473,11 @@ function ChartPanel({ settings, update }) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            {/* Three since 2026-08-05 (owner). Inline and Dots + label were
+                variants of Boxes and Dots, not styles of their own. */}
             <SelectItem value="codes">Boxes</SelectItem>
             <SelectItem value="chips">Chips</SelectItem>
-            <SelectItem value="numbered">Inline</SelectItem>
             <SelectItem value="dots">Dots</SelectItem>
-            <SelectItem value="dotlabel">Dots + label</SelectItem>
           </SelectContent>
         </Select>
       </Row>

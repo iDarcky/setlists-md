@@ -741,7 +741,7 @@ export default function Reader({
       // a DRAG HANDLE now, and 'dots' is a 10px circle while 'numbered' is bare
       // text with no box — nothing there to grab, and nothing to paint a drop
       // outline on.
-      style={editing ? 'codes' : (settings?.ribbonStyle || 'codes')}
+      style={editing ? 'codes' : config.ribbonStyle}
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
       // EXPANDED while editing (owner: "I imagine that when the user presses
       // the edit the cx3 expands to c c c"). Right — a collapsed `C ×3` is one

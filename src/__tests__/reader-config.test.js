@@ -139,3 +139,31 @@ describe('the knobs that reached the renderer but not the user', () => {
     expect(cfg.rail).toBe(true);
   });
 });
+
+// ── Element 3 — five ribbon styles became three, 2026-08-05 ────────────────
+//
+// Owner: "Boxes and Inline are kind of the same? Why not keeping boxes/Inline,
+// Dots and Chips?" — so 'numbered' (Inline: the Boxes chip without its box) and
+// 'dotlabel' (Dots with that chip's text beside it) are gone from the list.
+describe('the ribbon style, and the two that were cut', () => {
+  const styleOf = (ribbonStyle) => resolveReaderConfig({ ribbonStyle }, { wide: true }).ribbonStyle;
+
+  it('keeps the three that survived', () => {
+    expect(styleOf('codes')).toBe('codes');
+    expect(styleOf('chips')).toBe('chips');
+    expect(styleOf('dots')).toBe('dots');
+  });
+
+  it('lands a cut style on the one it was a variant of, not on the default', () => {
+    // The whole point of the map. `pick`'s fallback sends everything to
+    // 'codes', which would move a Dots + label user to boxes — a setting
+    // silently changed to something they did not choose.
+    expect(styleOf('numbered')).toBe('codes');
+    expect(styleOf('dotlabel')).toBe('dots');
+  });
+
+  it('falls back to Boxes for anything it has never heard of', () => {
+    expect(styleOf('sparkles')).toBe('codes');
+    expect(styleOf(undefined)).toBe('codes');
+  });
+});

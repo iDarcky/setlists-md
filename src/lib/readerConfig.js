@@ -53,6 +53,10 @@ export const READER_KNOBS = {
   // column 2, balanced); 'across' is a grid laid left→right. See the note in
   // `Reader` — 'across' cannot be balanced, by construction.
   flow: ['down', 'across'],
+  // 3 — what a chip on the structure ribbon LOOKS like. Three, since
+  // 2026-08-05 (owner: *"Boxes and Inline are kind of the same? Why not
+  // keeping boxes/Inline, Dots and Chips?"*).
+  ribbonStyle: ['codes', 'chips', 'dots'],
   // How far through the SET you are, as a hairline at the top of the chrome.
   // Owner, 2026-08-04: "easy, do it".
   progress: ['on', 'off'],
@@ -76,6 +80,7 @@ const DEFAULTS = {
   rail: 'on',
   flow: 'down',
   progress: 'on',
+  ribbonStyle: 'codes',
 };
 
 // Stored under these settings keys. `structurePosition` and
@@ -95,6 +100,7 @@ const KEY = {
   rail: 'readerRail',
   flow: 'readerFlow',
   progress: 'readerProgress',
+  ribbonStyle: 'ribbonStyle',
 };
 
 export function readerSettingKey(knob) {
@@ -104,6 +110,19 @@ export function readerSettingKey(knob) {
 function pick(knob, value) {
   const allowed = READER_KNOBS[knob];
   return allowed.includes(value) ? value : DEFAULTS[knob];
+}
+
+// The two styles that were cut, and where their users land. 'numbered' (Inline)
+// was the `codes` chip without its box; 'dotlabel' was `dots` with those same
+// codes beside them. So each is a variant of a survivor and lands on it —
+// nobody opens the reader to find their setting silently reset to the default.
+//
+// It has to be a MAP, not `pick`'s fallback: the fallback sends everything to
+// 'codes', which would move a Dots+label user to boxes.
+const RIBBON_LEGACY = { numbered: 'codes', dotlabel: 'dots' };
+
+export function normalizeRibbonStyle(value) {
+  return pick('ribbonStyle', RIBBON_LEGACY[value] || value);
 }
 
 /**
@@ -135,6 +154,9 @@ const HUB_VIEW = {
   footer: 'next',
   nav: 'footer',
   columns: 1,
+  // Nothing reads this while `ribbon` is 'off'; it is here so the two shapes
+  // of the config object stay the same shape.
+  ribbonStyle: 'codes',
 };
 
 /**
@@ -261,6 +283,7 @@ export function resolveReaderConfig(settings, ctx = {}) {
     topBar: pick('topBar', settings?.[KEY.topBar]),
     rail: pick('rail', settings?.[KEY.rail]) === 'on',
     flow: pick('flow', settings?.[KEY.flow]),
+    ribbonStyle: normalizeRibbonStyle(settings?.[KEY.ribbonStyle]),
     progress: pick('progress', settings?.[KEY.progress]) === 'on',
     columns: resolveColumns(settings?.defaultColumns, wide),
     display: resolveChartDisplay(settings),

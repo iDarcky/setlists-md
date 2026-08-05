@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useEntitlement } from '@/hooks/useEntitlement';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { chartOverlaySurface } from './readerSurface';
+import { normalizeRibbonStyle } from '@/lib/readerConfig';
 // The Aa menu's own controls (owner, 2026-08-04: *"can we use the one from the
 // Aa for the buttons and +/- and stuff? i think that those look nice"*). The
 // note in `PanelControls` used to say the reader deliberately did NOT use
@@ -1172,9 +1173,15 @@ export default function ReaderMenu({
               options={[['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['off', 'Hidden']]}
               onChange={(v) => set('structurePosition', v)} />
           </Field>
+          {/* Three, down from five (owner, 2026-08-05). Inline was the Boxes
+              chip without its box and Dots + label was Dots with that chip's
+              text beside it — two variants pretending to be styles. A stored
+              one still resolves to the survivor it was a variant of
+              (`normalizeRibbonStyle`), so the control never shows a value the
+              list does not contain. */}
           <Field label="Structure style" onReset={reset('ribbonStyle')}>
-            <Dropdown label="Structure style" value={settings?.ribbonStyle || 'codes'}
-              options={[['codes', 'Boxes'], ['chips', 'Chips'], ['numbered', 'Inline'], ['dots', 'Dots'], ['dotlabel', 'Dots + label']]}
+            <Dropdown label="Structure style" value={normalizeRibbonStyle(settings?.ribbonStyle)}
+              options={[['codes', 'Boxes'], ['chips', 'Chips'], ['dots', 'Dots']]}
               onChange={(v) => set('ribbonStyle', v)} />
           </Field>
           {/* An on/off for the set bar, and nothing else. It is NOT a two-way
