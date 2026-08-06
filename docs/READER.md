@@ -262,6 +262,12 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
   dots, remove the scrolling of 2 and 3, show full"*). The window of six existed
   because a column of CHIPS could carry no more; a 7px dot on a 13px pitch means
   thirty sections are ~390px of a ~700px band.
+- ⚠ **A dot's size change must not move its neighbours.** The dot WAS the flex
+  item, so growing it 7→11px shoved every sibling below it — and a fast scroll
+  walks the active dot down the list one section at a time, which reads as the
+  column shuddering (owner, 2026-08-06). Every dot sits in a **fixed 11px cell**
+  now and only the paint inside it changes. Measured over 14 fast wheel steps in
+  Chromium: worst wander **4.0px → 0.0px**.
 - **Smaller dots**: 7px, and the current one 11px with **no halo**. It was 10px
   and 14px + a same-colour 2px box-shadow — an 18px blob over a lyric. (The
   `ring-*` classes went with it: the inline `boxShadow` had always overridden

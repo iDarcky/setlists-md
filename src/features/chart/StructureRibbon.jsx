@@ -498,10 +498,23 @@ export function StructureRibbon({
                   that shows a seam on a fractional-DPR screen. The `ring-*`
                   classes went too: the inline `boxShadow` overrode them, so
                   they had never drawn anything at all. */}
-              <span
-                className={cn('rounded-full transition-all', active ? 'w-[11px] h-[11px]' : 'w-[7px] h-[7px]')}
-                style={{ background: s.b }}
-              />
+              {/* ── A FIXED cell, with the dot sized inside it ─────────────
+                  Owner, 2026-08-06: *"there's like a shaking of the left side
+                  dots when scrolling fast, is it because one of the dots is
+                  getting bigger?"* — yes, exactly that.
+                  The dot WAS the flex item, so growing it from 7px to 11px
+                  moved every sibling below it by 4px, and scrolling fast walks
+                  the active dot down the list one section at a time. Fourteen
+                  little shoves in a row reads as a shudder.
+                  The cell is always 11px, so the column's geometry never
+                  changes; only the paint inside one cell does. */}
+              <span className="grid place-items-center w-[11px] h-[11px]">
+                <span
+                  className={cn('rounded-full transition-[width,height] duration-150',
+                    active ? 'w-[11px] h-[11px]' : 'w-[7px] h-[7px]')}
+                  style={{ background: s.b }}
+                />
+              </span>
               {showLabels && (
                 <span className="font-mono font-bold text-[11px]" style={{ color: s.b }}>{labelOf(run.name)}</span>
               )}

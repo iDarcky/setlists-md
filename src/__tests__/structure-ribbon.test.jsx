@@ -206,3 +206,25 @@ describe('the edges say there is more', () => {
     });
   });
 });
+
+// ── The dots must not move each other — 2026-08-06 ─────────────────────────
+describe('a dot changes size without shoving its neighbours', () => {
+  it('gives every dot a fixed cell and sizes the dot inside it', () => {
+    const { container } = render(
+      <StructureRibbon structure={['Verse 1', 'Chorus', 'Verse 2']} style="dots"
+        orientation="vertical" activeIndex={1} activeFill onSelect={() => {}} />
+    );
+    // Owner: "there's like a shaking of the left side dots when scrolling
+    // fast, is it because one of the dots is getting bigger?" — yes. The dot
+    // WAS the flex item, so growing it from 7px to 11px moved every sibling
+    // below it, and a fast scroll walks the active dot down the list one
+    // section at a time. Measured in Chromium over 14 fast wheel steps: the
+    // worst dot wandered 4.0px. With a fixed cell: 0.0px.
+    for (const cell of container.querySelectorAll('button > span:first-child')) {
+      expect(cell.className).toContain('w-[11px]');
+      expect(cell.className).toContain('h-[11px]');
+      // ...and the thing that actually resizes is INSIDE the cell.
+      expect(cell.firstElementChild.className).toMatch(/w-\[(7|11)px\]/);
+    }
+  });
+});
