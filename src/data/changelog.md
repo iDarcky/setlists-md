@@ -3,7 +3,7 @@
 A running log of what's new in setlists.md. Newest releases first.
 
 ## 0.17.0 — A new way to add songs, and libraries you can shape
-*July 2026*
+*August 2026*
 
 ### Added
 - **Add a song, all on one screen** — search, import and blank song together instead of behind tabs. Drop a file anywhere on it; on a phone Import opens your files straight away.

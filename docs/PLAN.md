@@ -67,7 +67,8 @@ any of it. Also landed: the component-architecture foundation (§3.1, all ✅).
 > |---|---|
 > | **Closed** | **1 — top bar** ✅ 2026-08-04, eleven rounds. It turned out to contain all of **edit mode** (orange chrome, structure editing from the song map, per-section lyric editing, chord replacement, undo, New version, pull-to-finish), the set bar's progress line, the chrome's real height, and the rail's toggle. |
 > | **Closed** | **2 — the ☰, the reader's settings menu** ✅ 2026-08-04, fifteen rounds. Three tabs (Style · Layout · Music), three shapes (phone dock · desktop side panel · popover), free-vs-Pro decided, and **seven settings that were wired at one end only**. `READER.md` → "Element 28 → 2, CLOSED". |
-> | **Next** | **3 — the structure ribbon** (was 2). Partly settled by edit mode: it already forces the `codes` style while editing and its chips are the drag handles for the play order. |
+> | **Closed** | **3 — the structure ribbon** ✅ 2026-08-06, thirteen rounds. Three styles (Boxes · Chips · Dots), five positions of which **left/right are always dots**, fading ends, a key-change mark, Tag-opens-in-place, a chip that lands on the reading line, and a side rail that shows the whole song and **scrubs**. It also turned up four bugs older than the element: the chart never used the window's full width, two readers in the DOM broke every full-screen jump, painting the rail under the chart made it unclickable, and the next song kept the previous song's scroll (prio 0). `READER.md` → "The element-3 pass". |
+> | **Next** | **4 — the section heading** (was 3 — renumbered when the ☰ took 2). The band cue is **4b**: it renders on the heading's own line, so it will most likely be settled in the same pass. |
 > | **Then** | **29 — the setlist rail** (*"it will require some work in the future. Not quite now."*) · then the 14–27 table. |
 >
 > Two things carried out of element 1 and are NOT part of it: the **chord-model
@@ -179,14 +180,12 @@ serious thing in this document; the last two are blocked on you.
 3d. 🟡 **Add a band cue / inline note from the SONG HUB**, without opening the
    editor (owner, 2026-08-04, prio 1). Pairs with 3c: the field you would be
    typing into is the one that eats spaces.
-4. 🔴 **The active-section highlight is wrong when the song fits on screen.**
-   Confirmed, one line. `src/hooks/useActiveSection.js` has a "near the bottom,
-   snap to the last section" rule:
-   `if (root.scrollTop + root.clientHeight >= root.scrollHeight - 16) current = lastIdx;`
-   With no scrollable overflow that is **true on the first frame**, so the last
-   section lights up immediately. Gate it on the content actually being
-   scrollable. Note this hits the **structure ribbon too**, not just the song
-   map — same hook, every surface.
+4. ✅ **The active-section highlight is wrong when the song fits on screen** —
+   fixed in beta.31 by the `scrollable` guard in `src/hooks/useActiveSection.js`,
+   and re-verified in Chromium 2026-08-05: a song that fits highlights nothing at
+   all, and on a phone the chip tracks the pinned heading. The owner was offered
+   three ways to fill that "nothing" (light the first chip, fill them all softly,
+   tint the strip) and rejected all three — **nothing lit is the decision**.
 5. 🔴 **The Song Hub chart and the editor preview must follow the APP theme.**
    Not an open question: `docs/READER.md` already records the decision — "a white
    chart card sitting inside a dark app reads as broken rather than as a stage" —

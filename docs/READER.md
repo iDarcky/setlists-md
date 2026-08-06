@@ -95,8 +95,19 @@ original surfaces render untouched.
 > |---|---------|-------|
 > | **1** | **Top bar** | ✅ closed 2026-08-04 (it turned out to contain edit mode) |
 > | **2** | **The ☰ — the reader's settings menu** | ✅ closed 2026-08-04, 15 rounds |
-> | **3** | **Structure ribbon** | **NEXT** |
+> | **3** | **Structure ribbon** | ✅ closed 2026-08-06, 13 rounds (beta.78 → beta.90) |
+> | **4** | **Section heading** | **NEXT** |
+> | 4b | Band cue | it lives on the heading's own line — likely settled in 4's pass |
 > | 29 | The setlist rail | shipped as a strip; *"it will require some work in the future"* |
+>
+> ## And once more, 2026-08-06
+>
+> The **section heading is element 4** (owner, closing element 3: *"element 4
+> which is the Section heading"*). It held the number 3 before the ☰ renumber
+> and had been colliding with the ribbon ever since. The **band cue takes 4b**
+> rather than shifting the whole tail by one: it renders on the heading's own
+> line, so it is the same object seen from a different angle, and shifting 5–13
+> would break every reference in this file to buy nothing.
 
 ### 1 — Top bar ✅ closed 2026-08-04
 **Fixed. No customization at all.** One row: ☰ · practice · edit · title · key ·
@@ -133,7 +144,19 @@ original surfaces render untouched.
   drummer and other players"* (owner). Making ♩ the way into the practice row
   was rejected — the metronome icon is the switch and it stays the only one.
 
-### 3 — Structure ribbon *(was element 2)*
+### 3 — Structure ribbon ✅ closed 2026-08-06 *(was element 2)*
+
+> **Thirteen rounds, beta.78 → beta.90.** What it is now, in one place: three
+> styles (Boxes · Chips · Dots) and five positions, of which **left and right
+> are always dots** — small enough to float in the margin the chart already had.
+> The ends of a scrolling row fade. A key change shows as a gold `↗B` naming the
+> key you arrive in. Tapping a Tag opens it where it stands. A chip lands its
+> section ON the reading line, so the map and the chart never disagree about
+> where you are. The side rail shows the whole song and **scrubs** under a
+> thumb. Editing takes the map to the top and hands it back on exit.
+>
+> Everything below this line is the standing record; the round-by-round account
+> is "The element-3 pass" further down.
 Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
 
 - Position: top (default) / bottom / left / right / off — `structurePosition`.
@@ -337,7 +360,7 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
 > use `role="button"` rather than `<button>` for the same reason.
 > `src/__tests__/structure-ribbon.test.jsx` asserts the opt-out per style.
 
-### 3 — Section heading
+### 4 — Section heading *(was 3; renumbered 2026-08-06)*
 - **The user chooses** full name / letters / ALL CAPS — `readerHeading`.
   (ALL CAPS is the original chart's heading, kept on request.)
 - Per-type colours, matching the ribbon, both from `sectionIdentity`.
@@ -360,7 +383,7 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
   padding. Two sticky edges that merely ABUT show a sliver of scrolling content
   on any device whose pixel ratio isn't a whole number. Overlap, never abut.
 
-### 4 — Band cue
+### 4b — Band cue *(it renders on element 4's own line)*
 - Starts **on the same line as the section heading** and wraps from there like
   a sentence continuing — NOT flex, or a long cue is forced onto its own row.
 - Capped at 240 chars. A cue is an instruction, not an essay; it must never
@@ -2458,7 +2481,37 @@ being routes into `live`.
    `preventDefault()` is a silent no-op (a console warning at best). Any gesture
    that must take the scroll — pull-to-finish, the ribbon's drag — registers a
    **native** listener with `{ passive: false }` in an effect.
-9. **A doc that says "removed" is not a removal.** beta.58 wrote the
+9. **There are TWO readers in the DOM.** The Song Hub keeps its embedded
+   `Reader` mounted behind the full-screen one, and both render
+   `id="section-N"`, the same class names and the same structure. `jumpTo` used
+   `document.getElementById` and was measuring the HUB's section from inside the
+   full-screen scroller — every jump in full screen landed nowhere near its
+   target. The same duplicate wrecked a day of browser probes that queried
+   `document.querySelector`. **Scope to `scrollRef.current`, always** — in the
+   app and in any measurement of it.
+10. **Paint order IS hit-test order.** "Put the rail under the lyrics" was the
+   honest reading of a real instruction, and it made the whole map unclickable:
+   the chart's box includes its padding, and the strip lives in that padding, so
+   the chart swallowed every tap. Nothing looked wrong — a tap that does nothing
+   is silent. If an overlay must not cover something, move it by GEOMETRY; use
+   z-order only for things nobody touches.
+11. **Firefox has two focus artifacts, and they need different answers.**
+   `:-moz-focusring { outline: auto }` draws on the border box (move it with
+   `outline-offset`), and `::-moz-focus-inner` draws a dotted border INSIDE the
+   button, which no offset can reach — modern-normalize zeroed it, Tailwind v4's
+   preflight dropped the rule. On a 10px round chip the second one reads as "a
+   line inside the dot". **Chromium shows neither: test small round controls in
+   Firefox.**
+12. **`flex-1` is the CROSS-AXIS twin of the `min-h-0` trap.** A row inside the
+   scroller had no `flex-1`, so it was shrink-to-fit: the chart laid out 840px
+   wide in a 1236px scroller with 400px of dead window beside it, for months. A
+   narrower chart is still a correct chart, which is why nobody saw it — it just
+   wraps more, and wrapping more is part of why an "almost fitting" song scrolls.
+13. **A size change inside a flex column moves every sibling below it.** The
+   active dot grew 7→11px as the flex item itself, so a fast scroll walked it
+   down the list shoving each neighbour 4px — read as the column shuddering.
+   Fixed cell, resize the paint inside it.
+14. **A doc that says "removed" is not a removal.** beta.58 wrote the
    `scrollTop`-compensation warning above into both the code and this file and
    left the line itself running; the next round then read the comment, believed
    it, and looked elsewhere. When retiring something, `grep` for it after
