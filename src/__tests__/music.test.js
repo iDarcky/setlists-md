@@ -240,8 +240,25 @@ describe('sectionStyle & compactLabel', () => {
     expect(s1.l).toBe(s2.l);
   });
 
-  it('returns a default style for unknown section types', () => {
-    expect(sectionStyle('Zonk').l).toBe('?');
+  it('returns a default style for unknown section types, with a real code', () => {
+    // '?' is not an abbreviation — it is the ribbon saying it lost the section.
+    // An unknown type gets initials instead (2026-08-06).
+    expect(sectionStyle('Zonk').b).toBe('var(--ds-gray-700)');
+    expect(sectionStyle('Zonk').l).toBe('Zo');
+    expect(sectionStyle('Key Change').l).toBe('Kc');
+  });
+
+  it('reads a section type by its LETTERS, not its punctuation', () => {
+    // The table's key is 'Pre Chorus'; charts write 'Pre-Chorus'. All four
+    // spellings are one section, in the heading AND in the ribbon.
+    for (const spelling of ['Pre Chorus', 'Pre-Chorus', 'PreChorus', 'prechorus']) {
+      expect(sectionStyle(spelling).l).toBe('Pc');
+      expect(compactLabel(spelling)).toBe('Pc');
+    }
+    // …and it must not swallow the types whose names start the same way.
+    expect(sectionStyle('Interlude').l).toBe('Il');
+    expect(sectionStyle('Instrumental').l).toBe('It');
+    expect(sectionStyle('Intro').l).toBe('I');
   });
 
   it('compactLabel appends trailing numbers', () => {

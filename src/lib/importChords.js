@@ -124,9 +124,16 @@ export function importChartText(text) {
     out.push(line);
   }
 
-  const body = out.join('\n').replace(/^\n+/, '').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  const raw = out.join('\n').replace(/^\n+/, '').replace(/\n{3,}/g, '\n\n').trim() + '\n';
   // A body with lyrics but no "## " heading parses to ZERO sections — every
   // line before the first heading is dropped — so an unlabelled paste used to
   // vanish entirely on save. Nothing leaves here without a section.
-  return { body: ensureSections(body), meta };
+  const body = ensureSections(raw);
+  // `inferred` = the headings in `body` are OURS, guessed from the shape of the
+  // text; the writer never wrote a section marker. Callers that already know
+  // which section they are filling must not let a guess overwrite that — see
+  // `ArrangeTabV2.commitLyricComposer`, where typing the first line into an
+  // empty Pre-Chorus turned it into "Verse 1" because `## Verse 1` had been
+  // invented here and the section was then rebuilt from it.
+  return { body, meta, inferred: body !== raw };
 }

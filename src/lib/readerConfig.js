@@ -71,7 +71,11 @@ const DEFAULTS = {
   // paper, and paper has no frames on it.
   sectionStyle: 'plain',
   sticky: 'on',
-  repeats: 'condensed',
+  // 'full' — a repeat is written out (owner, 2026-08-06). This file's DEFAULTS
+  // are the fallback for a settings object that has no stored value at all;
+  // `storage.js DEFAULT_SETTINGS` is what a real profile carries, and the two
+  // disagreed (`condensed` here, `full` there) for as long as both existed.
+  repeats: 'full',
   notes: 'on',
   inlineNotes: 'on',
   footer: 'next',
@@ -120,6 +124,13 @@ function pick(knob, value) {
 // It has to be a MAP, not `pick`'s fallback: the fallback sends everything to
 // 'codes', which would move a Dots+label user to boxes.
 const RIBBON_LEGACY = { numbered: 'codes', dotlabel: 'dots' };
+
+// Same shape, same reason. 'ref' was the third repeat style ("Chorus — as
+// before") and it collapsed onto the Tag pill, so a stored 'ref' MEANS
+// 'condensed'. It used to reach that by accident, because `pick`'s fallback
+// happened to be 'condensed'; the moment the default became 'full' (2026-08-06)
+// that accident would have written those users' repeats out in full.
+const REPEATS_LEGACY = { ref: 'condensed' };
 
 export function normalizeRibbonStyle(value) {
   return pick('ribbonStyle', RIBBON_LEGACY[value] || value);
@@ -275,7 +286,7 @@ export function resolveReaderConfig(settings, ctx = {}) {
     // through a section at a time. On a desktop the whole section is usually
     // on screen already, so pinning is just a bar that never goes away.
     sticky: !wide && pick('sticky', settings?.[KEY.sticky]) === 'on',
-    repeats: pick('repeats', settings?.[KEY.repeats]),
+    repeats: pick('repeats', REPEATS_LEGACY[settings?.[KEY.repeats]] || settings?.[KEY.repeats]),
     notes: pick('notes', settings?.[KEY.notes]) === 'on',
     inlineNotes: pick('inlineNotes', settings?.[KEY.inlineNotes]) === 'on',
     footer: pick('footer', settings?.[KEY.footer]),

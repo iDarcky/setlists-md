@@ -44,8 +44,8 @@ describe('the ☰ default table', () => {
     expect(cfg.heading).toBe('name');
     expect(table.readerSectionStyle).toBe("'plain'");
     expect(cfg.sectionStyle).toBe('plain');
-    expect(table.duplicateSections).toBe("'condensed'");
-    expect(cfg.repeats).toBe('condensed');
+    expect(table.duplicateSections).toBe("'full'");
+    expect(cfg.repeats).toBe('full');
     expect(table.readerNav).toBe("'footer'");
     expect(cfg.nav).toBe('footer');
     expect(table.readerFooter).toBe("'next'");

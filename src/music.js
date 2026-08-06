@@ -146,6 +146,29 @@ const SECTION_COLORS = {
 
 const DEFAULT_STYLE = { b: 'var(--ds-gray-700)', d: 'var(--ds-gray-1000)', l: '?', bg: 'var(--ds-gray-100)', br: 'var(--ds-gray-400)', c: 'gray' };
 
+// Letters only — the spelling-insensitive form of a section name.
+// "Pre-Chorus", "Pre Chorus", "PreChorus" and "pre chorus" are one section.
+const letters = (s) => String(s).toLowerCase().replace(/[^a-z]/g, '');
+
+/**
+ * A two-letter code for a section type the table doesn't know.
+ *
+ * `?` was the old answer, and `?` is not an abbreviation — it is the ribbon
+ * saying it has lost the section. Every custom type shared between two users,
+ * every "Turnaround" and "Chant", drew one. Two words give their initials
+ * ("Key Change" → "Kc", the same shape as the built-in "Pc"); one word gives
+ * its first two letters ("Turnaround" → "Tu").
+ */
+export function shortCode(name) {
+  const clean = String(name || '').replace(/\s*\d+$/, '').trim();
+  const words = clean.split(/[\s\-_]+/).map(w => w.replace(/[^A-Za-z]/g, '')).filter(Boolean);
+  if (words.length === 0) return '?';
+  const raw = words.length > 1
+    ? words[0][0] + words[1][0]
+    : words[0].slice(0, 2);
+  return raw[0].toUpperCase() + (raw[1] || '').toLowerCase();
+}
+
 // All canonical section type keys, exported so settings panels can iterate
 // over them without re-declaring the list.
 export const SECTION_TYPE_KEYS = Object.keys(SECTION_COLORS);
@@ -156,8 +179,10 @@ export const SECTION_TYPE_KEYS = Object.keys(SECTION_COLORS);
 export function sectionBaseType(type) {
   if (!type) return null;
   const base = type.replace(/\s*\d+$/, '');
+  // Letters only — same rule as `sectionStyle`, or "Pre-Chorus" has no base
+  // type here while having one there.
   return Object.keys(SECTION_COLORS).find(
-    k => base.toLowerCase().startsWith(k.toLowerCase())
+    k => letters(base).startsWith(letters(k))
   ) || null;
 }
 
@@ -191,15 +216,23 @@ export function sectionStyle(type, customColors = null, customTypes = null) {
     if (ct) {
       const c = customColors?.[ct.id] || ct.color || 'var(--ds-gray-700)';
       const style = deriveStyleFromColor(c);
-      return { ...style, l: ct.label?.[0]?.toUpperCase() || '?' };
+      return { ...style, l: shortCode(ct.label || ct.name) };
     }
   }
 
   // 2. Built-in type, possibly with a user colour override.
+  //
+  // ⚠ Matched on LETTERS ONLY. The table's key is `Pre Chorus` with a space,
+  // and a `startsWith` on the raw text meant `## Pre-Chorus` — which is how
+  // most charts and every importer write it — matched nothing and fell to the
+  // grey `?` default. Measured 2026-08-06: `Pre-Chorus`, `PreChorus` and
+  // `Prechorus` all drew a grey heading AND a `?` chip, so the section fell out
+  // of the heading and the map at the same time. Folding out spaces, hyphens
+  // and punctuation makes all four spellings one section.
   const key = Object.keys(SECTION_COLORS).find(
-    k => baseLower.startsWith(k.toLowerCase())
+    k => letters(baseLower).startsWith(letters(k.toLowerCase()))
   );
-  if (!key) return DEFAULT_STYLE;
+  if (!key) return { ...DEFAULT_STYLE, l: shortCode(base) };
 
   const override = customColors?.[key];
   if (override) {
@@ -261,9 +294,11 @@ export function inferStructureMode(structure, sections) {
 }
 
 // Compact label for live mode (e.g. "Chorus 1" → "C1", "Pre Chorus" → "Pc")
-export function compactLabel(name) {
+export function compactLabel(name, customTypes = null) {
   const num = name.match(/(\d+)$/)?.[1] || '';
-  const style = sectionStyle(name);
+  // `customTypes` matters here: without it an invented type falls to the
+  // default style and loses the code its own label would give it.
+  const style = sectionStyle(name, null, customTypes);
   return style.l + num;
 }
 

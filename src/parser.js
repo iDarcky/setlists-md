@@ -93,7 +93,14 @@ export function parseSongMd(text) {
     }
     // Lines starting with > are band/performance notes
     if (line.match(/^>\s*(.*)/)) {
-      if (current) current.note = line.replace(/^>\s*/, '').trim();
+      // ⚠ Strip exactly the ONE space the serializer writes (`> ${note}`) — do
+      // NOT trim. The cue field in the editor round-trips through
+      // songToMd → parse on every keystroke, so a `.trim()` here deleted the
+      // trailing space before it could become a word boundary: you could type
+      // one word into a band cue and no more (PLAN §1.2 #3c, prio 1, reported
+      // 2026-08-04). Trimming is right for a file and wrong for a keystroke,
+      // and this line is both. `\r` is dropped for CRLF files.
+      if (current) current.note = line.replace(/^>[ \t]?/, '').replace(/\r$/, '');
       continue;
     }
 
@@ -537,11 +544,31 @@ export function parseSectionLines(rawText) {
 export function extractInlineNotes(line) {
   const notes = [];
   const clean = line.replace(/\{!([^}]*)\}/g, (_, text) => {
-    notes.push(text.trim());
+    // Same rule as the band cue above: the space the writer typed is theirs.
+    // This one runs at RENDER, not at parse (the `{!…}` marker stays in the
+    // line), which is why the inline note never actually ate a keystroke the
+    // way the cue did — but a deliberate space still vanished from the page.
+    notes.push(text);
     return '';
   });
   return { clean, notes };
 }
+
+/**
+ * How long a cue and an inline note may be.
+ *
+ * Measured, not guessed (2026-08-06, Chromium, the reader's own heading row):
+ * a band cue wraps to **2 rows at 70 characters on a 360px phone** and to 3 at
+ * 80. Two rows is the ceiling the owner set — the heading pins with its cue, so
+ * every row beyond that is a row of the song the pin is covering.
+ *
+ * Enforced at the INPUT (the editor's cue field and inline-note field), because
+ * a cap applied at render is a truncation the writer never sees coming. A
+ * longer cue arriving from an imported file is still shown, clipped, by the
+ * reader — a file is not a keystroke.
+ */
+export const CUE_MAX_CHARS = 70;
+export const INLINE_NOTE_MAX_CHARS = 40;
 
 // Generate a unique ID for songs and setlists
 export function generateId() {

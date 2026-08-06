@@ -430,7 +430,7 @@ describe('the ☰ menu', () => {
     // comparing against `undefined` alone put a Reset on a change nobody made
     // (owner: "even if I select the current option I still get the reset").
     render(<Reader song={makeSong()} onExit={() => {}}
-      settings={{ readerHeading: 'name', duplicateSections: 'condensed', displayMode: 'chords' }} />);
+      settings={{ readerHeading: 'name', duplicateSections: 'full', displayMode: 'chords' }} />);
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
     fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
     expect(screen.queryAllByRole('button', { name: /^Reset / }).length).toBe(0);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo, Fragment } from 'react';
 import PopMenu, { MenuItem } from '@/ui/PopMenu';
-import { parseSongMd, songToMd, placementToLine, parseTabBlock, parseSectionLines, splitMd, parseFrontmatterFields, serializeFrontmatterFields } from '@/parser';
+import { parseSongMd, songToMd, placementToLine, parseTabBlock, parseSectionLines, splitMd, parseFrontmatterFields, serializeFrontmatterFields, CUE_MAX_CHARS, INLINE_NOTE_MAX_CHARS } from '@/parser';
 import { sectionStyle, getNashvilleNumber, getSolfege } from '@/music';
 import TabBlock from '@/features/chart/TabBlock';
 import TabGridEditor from './TabGridEditorV2';
@@ -310,6 +310,9 @@ function InlineNoteInput({ initial, onCommit, onClose }) {
         else if (e.key === 'Escape') { e.preventDefault(); onClose(); }
       }}
       onBlur={() => onCommit(text)}
+      // An inline note rides on a lyric line (or out on a leader beside it),
+      // so it has a line's worth of room and no more.
+      maxLength={INLINE_NOTE_MAX_CHARS}
       placeholder="Add a comment…"
       className="mt-1 w-full max-w-[24rem] bg-transparent border-b border-dashed border-[var(--ds-gray-400)] text-[var(--text-2)] italic outline-none py-0.5 px-1 text-[0.85em]"
       style={{ fontSize: 15 }}
@@ -918,8 +921,16 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
   // multi-section paste (has `## headers`) expands into real sections in place.
   const commitLyricComposer = useCallback((secIdx, rawText) => {
     if (!song) { setLyricComposer(null); return; }
-    const { body } = importChartText(rawText);
-    if (/^##\s/m.test(body)) {
+    const { body, inferred } = importChartText(rawText);
+    // ⚠ Only a heading the WRITER put there may re-shape the sections. The
+    // importer invents `## Verse 1` for any unlabelled text (`ensureSections`),
+    // so an empty section you had just set to Pre-Chorus was rebuilt from that
+    // guess the moment you typed a word into it, and came back as Verse 1
+    // (owner, 2026-08-06: *"I add a new section and select it as Pre-Chorus but
+    // after I write something in it it goes automatically to verse"*). A real
+    // paste with real markers — `[Chorus]`, `Bridge:`, `## Verse 2` — still
+    // expands into real sections, because those are not inferred.
+    if (!inferred && /^##\s/m.test(body)) {
       const parsed = parseSongMd(`---\n---\n\n${body}`);
       const secs = parsed?.sections?.length ? parsed.sections : null;
       if (secs) {
@@ -1332,6 +1343,10 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
                 <input
                   value={sec.note || ''}
                   onChange={e => updateSectionNote(secIdx, e.target.value)}
+                  // A cue is an instruction, not an essay: capped so it can
+                  // never wrap past two rows in the reader, where the heading
+                  // pins WITH its cue and every extra row hides a row of song.
+                  maxLength={CUE_MAX_CHARS}
                   placeholder="cue..."
                   className="flex-1 bg-transparent border-none text-label-11 italic text-[var(--text-2)] outline-none min-w-0 px-1"
                   style={{ borderLeft: sec.note ? `2px solid ${s.br}` : 'none' }}

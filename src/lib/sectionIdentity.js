@@ -35,7 +35,7 @@ export function resolveSectionColors(settings) {
 export function sectionIdentity(type, settings) {
   const s = sectionStyle(type, resolveSectionColors(settings), settings?.customSectionTypes);
   return {
-    code: compactLabel(type),                            // "C2"
+    code: compactLabel(type, settings?.customSectionTypes), // "C2"
     name: sectionLabel(type, settings?.sectionLabels),   // "Chorus 2"
     color: s.b,      // the section colour — text, bars, active fills
     fill: s.bg,      // low-alpha tint for block backgrounds

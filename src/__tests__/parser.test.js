@@ -80,6 +80,24 @@ describe('parseSongMd', () => {
     expect(song.sections[0].note).toBe('Gently');
   });
 
+  // PLAN §1.2 #3c, prio 1, reported 2026-08-04 and fixed 2026-08-06.
+  // The editor's cue field round-trips through songToMd → parse on EVERY
+  // keystroke, so a `.trim()` here deleted the space before it could become a
+  // word boundary: you could type one word into a band cue and no more.
+  it('keeps the space you just typed at the end of a band cue', () => {
+    const song = parseSongMd('---\ntitle: T\n---\n## Verse 1\n> Start soft \nla la');
+    expect(song.sections[0].note).toBe('Start soft ');
+  });
+
+  it('round-trips a cue with a trailing space byte-exact', () => {
+    const src = { title: 'T', key: 'C', sections: [{ type: 'Verse 1', note: 'Start ', lines: ['la'] }] };
+    const back = parseSongMd(songToMd(src));
+    expect(back.sections[0].note).toBe('Start ');
+    // …and exactly one space is eaten, the one the serializer writes.
+    expect(parseSongMd(songToMd({ ...src, sections: [{ ...src.sections[0], note: ' odd ' }] }))
+      .sections[0].note).toBe(' odd ');
+  });
+
   it('parses modulate markers into objects', () => {
     const song = parseSongMd(SAMPLE);
     const chorus = song.sections[1];

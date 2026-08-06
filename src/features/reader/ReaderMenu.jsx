@@ -155,7 +155,9 @@ const MENU_DEFAULTS = {
   tabSize: 1,
   tabSubdivision: 1,
   readerFlow: 'down',
-  duplicateSections: 'condensed',
+  // Keep in step with `storage.js DEFAULT_SETTINGS` — a Reset that disagrees
+  // with the default CHANGES a setting the user never touched.
+  duplicateSections: 'full',
   readerHeading: 'name',
   readerSectionStyle: 'plain',
   readerSticky: 'on',
@@ -1133,7 +1135,7 @@ export default function ReaderMenu({
                 tag" were two names for the same pill; the pill is what you see,
                 so the pill is what it is called. The stored value stays
                 `condensed` — renaming it would need a migration for a word. */}
-            <Picks value={settings?.duplicateSections || 'condensed'}
+            <Picks value={settings?.duplicateSections || 'full'}
               options={[['full', 'Full'], ['condensed', 'Tag'], ['hide', 'Hidden']]}
               onChange={(v) => set('duplicateSections', v)} />
           </Field>

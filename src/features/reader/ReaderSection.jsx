@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { sectionIdentity, headingText, resolveSectionColors } from '@/lib/sectionIdentity';
 import SectionBlock from '@/features/chart/SectionBlock';
-import { serializeTabBlock, lineToPlacement, placementToLine } from '@/parser';
+import { serializeTabBlock, lineToPlacement, placementToLine, CUE_MAX_CHARS } from '@/parser';
 
 /**
  * One section — elements 3, 4 and 5.
@@ -211,6 +211,46 @@ export default function ReaderSection({
   editing = false, onRemove = null, onEditLines = null,
 }) {
   const [writing, setWriting] = useState(false);
+  // ── A short section must not pin ────────────────────────────────────────────
+  // Owner, 2026-08-06: *"there's a bug with pinning on one verse sections. It
+  // automatically hides the verse."* Measured at maximum scroll on a 390px
+  // phone, an Outro of one chord line: the section box ran 64.3 → 121.7, its
+  // heading pinned at 79 → 113.4 (opaque, z-5), and the only line in the
+  // section sat at 104.7 → 121.7. **Half of the one line was behind its own
+  // heading**, and there is a ~22px band of scroll where it is behind it
+  // completely.
+  //
+  // A pinned heading covering lines is normal and harmless while those lines
+  // are ones you have already sung past. It stops being harmless the moment the
+  // section's whole body fits under the heading — then the heading is hiding
+  // the thing it is naming. So: a section pins only when its body is taller
+  // than its heading. Measured, not counted from `lines.length`, because a
+  // chord-only row is 17px and a chord+lyric row is 50px.
+  //
+  // The +8 is hysteresis. Pinning ADDS 7.4px of padding to the heading, so a
+  // body within a few pixels of the boundary would toggle the pin, resize the
+  // heading, and flip the comparison back — an observer feeding its own input.
+  const headRef = useRef(null);
+  const bodyRef = useRef(null);
+  const [tallEnough, setTallEnough] = useState(true);
+  useEffect(() => {
+    if (!config.sticky || typeof ResizeObserver === 'undefined') return undefined;
+    const measure = () => {
+      const bh = bodyRef.current?.getBoundingClientRect().height || 0;
+      const hh = headRef.current?.getBoundingClientRect().height || 0;
+      // Nothing has laid out yet (jsdom, or a section inside a closed panel) —
+      // decide nothing rather than deciding wrongly.
+      if (!bh && !hh) return;
+      setTallEnough(bh >= hh + 8);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (bodyRef.current) ro.observe(bodyRef.current);
+    if (headRef.current) ro.observe(headRef.current);
+    return () => ro.disconnect();
+  }, [config.sticky]);
+  const pinned = config.sticky && tallEnough;
+
   const id = sectionIdentity(section.type, settings);
   const style = config.sectionStyle;
   const colour = id.color;
@@ -220,10 +260,13 @@ export default function ReaderSection({
   // no emphasis. A leading ! is that convention, made real.
   const rawCue = String(section.note || '');
   const loud = /^!/.test(rawCue.trim());
-  // Element 4 is a cue, not an essay. Long enough for a real instruction,
-  // short enough that it can never push the song off the screen.
-  const CUE_MAX = 240;
-  const cue = rawCue.length > CUE_MAX ? `${rawCue.slice(0, CUE_MAX).trimEnd()}…` : rawCue;
+  // Element 4b is a cue, not an essay — and the heading PINS with its cue, so
+  // every row it wraps to is a row of song hidden behind it. Capped at the
+  // input now (`CUE_MAX_CHARS`, the editor's field); this is the display guard
+  // for a cue that arrived from an imported file, which no input ever saw.
+  const cue = rawCue.length > CUE_MAX_CHARS
+    ? `${rawCue.slice(0, CUE_MAX_CHARS).trimEnd()}…`
+    : rawCue;
   // One repeat treatment, one name. 'ref' and 'condensed' had converged on
   // the same pill, so 'ref' is gone from the knob entirely.
   const condensed = repeatOf >= 0 && config.repeats === 'condensed' && !expanded;
@@ -353,8 +396,9 @@ export default function ReaderSection({
           wraps from there like a sentence continuing, rather than being forced
           onto a row of its own the moment it gets long. */}
       <div
+        ref={headRef}
         className="mb-1.5"
-        style={config.sticky ? {
+        style={pinned ? {
           position: 'sticky',
           // Pin ONE PIXEL HIGH, and pad that pixel back. Two sticky edges that
           // merely ABUT will show a sliver of whatever scrolls between them on
@@ -391,6 +435,10 @@ export default function ReaderSection({
       {/* The words, as text. Replaces the rendered chart for this section only
           while it is open, so you are never editing one thing and reading
           another. */}
+      {/* A plain wrapper, only so the body can be MEASURED against the heading
+          (see `tallEnough`). No padding, no border — margins still collapse
+          through it, so the section gaps are exactly what they were. */}
+      <div ref={bodyRef}>
       {writing && onEditLines ? (
         <LyricEditor
           section={section}
@@ -431,6 +479,7 @@ export default function ReaderSection({
       />
       </>
       )}
+      </div>
     </div>
   );
 }

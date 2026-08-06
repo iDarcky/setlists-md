@@ -275,6 +275,12 @@ export const DEFAULT_SETTINGS = {
   onboardingComplete: false,
   showInlineNotes: true,
   inlineNoteStyle: 'dashes',
+  // ⚠ These two are the REAL defaults for a new profile — `readerConfig`'s own
+  // DEFAULTS never fire, because `loadSettings` merges this object into every
+  // settings load, so `pick()` always sees a stored value. For two days the
+  // docs, the ☰'s Reset and `readerConfig` all said Plain + Tag while every
+  // user got Bar + Full. Keep the three in step: `storage.js DEFAULT_SETTINGS`
+  // = `lib/readerConfig.js DEFAULTS` = `ReaderMenu MENU_DEFAULTS`.
   duplicateSections: 'full',
   // Accidental spelling for chords/keys: 'auto' (follow the key), 'sharps', 'flats'.
   accidentals: 'auto',
@@ -286,7 +292,9 @@ export const DEFAULT_SETTINGS = {
   unifiedReader: false,
   // Reader display (Labs `unifiedReader`) — see lib/readerConfig.js.
   readerHeading: 'name',
-  readerSectionStyle: 'bar',
+  // 'plain' — no frame. A chart is paper, and paper has no frames on it
+  // (owner, 2026-08-04; corrected here 2026-08-06, where it had always been).
+  readerSectionStyle: 'plain',
   readerSticky: 'on',
   readerNotes: 'on',
   firstDayOfWeek: 'sunday',
