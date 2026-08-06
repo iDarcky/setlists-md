@@ -462,6 +462,13 @@ export default function Reader({
   // `scrollTop` and the heading's `getBoundingClientRect().top` across the
   // transition before touching anything.
 
+  // The chart's side padding. 32px is the app-wide `wide-container` value and
+  // it stays on wide screens; a phone comes in to 12px so the words start at
+  // the edge, except on whichever side the floating structure rail occupies.
+  const railSide = config.ribbon === 'left' || config.ribbon === 'right' ? config.ribbon : null;
+  const padLeft = wide ? 32 : (railSide === 'left' ? 32 : 12);
+  const padRight = wide ? 32 : (railSide === 'right' ? 32 : 12);
+
   const jumpTo = useCallback((idx, smooth = true) => {
     const sc = scrollRef.current;
     // ⚠ Scoped to THIS reader's scroller, never `document.getElementById`.
@@ -614,6 +621,17 @@ export default function Reader({
       if (slots.every(i => prev.has(i))) return prev;
       const next = new Set(prev);
       slots.forEach(i => next.add(i));
+      return next;
+    });
+  }, []);
+  // …and back. An opened repeat had no way to close until the song changed
+  // (owner, 2026-08-06: *"Is there a way to collapse back sections?"*).
+  const closeRepeat = useCallback((idxOrSlots) => {
+    const slots = Array.isArray(idxOrSlots) ? idxOrSlots : [idxOrSlots];
+    setOpenRepeats(prev => {
+      if (!slots.some(i => prev.has(i))) return prev;
+      const next = new Set(prev);
+      slots.forEach(i => next.delete(i));
       return next;
     });
   }, []);
@@ -1372,6 +1390,30 @@ export default function Reader({
               ['--chart-font-size-chord']: `${config.display.chordFontSize}px`,
               ['--chart-line-height-lyric']: settings?.lyricLineHeight ?? 1.35,
               ['--chart-section-gap']: `${settings?.sectionSpacing ?? 24}px`,
+              // ── The left edge, and what the right one is for ──────────────
+              // Owner, 2026-08-06: *"on mobile the sections should start right
+              // next to the left side of the screen because the right side
+              // should be for inline notes"*.
+              //
+              // `wide-container` gives every reading surface 32px a side. On a
+              // 390px phone that is 64px — 16% of the screen — spent on nothing,
+              // and measured, dropping it to 12px both sides took the same eight
+              // lines from 549px to 529px while GAINING 40px of text width. It
+              // is free.
+              //
+              // ⚠ Except on the side the structure rail floats down. Element 3
+              // settled that a side rail is 26px of dots painted INSIDE the 32px
+              // the chart already had, so it crosses no words (READER.md, "the
+              // rail never covers a word"). Take that padding away and the dots
+              // land on the lyrics. So the rail's side keeps its 32px, and only
+              // the other one comes in.
+              ['--chart-pad-left']: `${padLeft}px`,
+              ['--chart-pad-right']: `${padRight}px`,
+              paddingLeft: `${padLeft}px`,
+              paddingRight: `${padRight}px`,
+              // The note strip's width, read by `SectionBlock`'s gutter grid.
+              // Only sections that actually carry a note reserve it.
+              ['--note-gutter']: '88px',
               // ── Two columns, and which way you READ them ────────────────
               // `columnCount` (multicol) fills column 1 to the bottom, then
               // column 2 — you read DOWN, then across. That is the default and
@@ -1430,6 +1472,7 @@ export default function Reader({
               // are the same section, back to back, so opening one and leaving
               // the others as tags would put the ugliness back.
               onOpenHere={() => openRepeat(runs[idx]?.slots || idx)}
+              onCollapse={() => closeRepeat(runs[idx]?.slots || idx)}
               expanded={openRepeats.has(idx)}
               run={runs[idx]}
               tabColors={tabColors}

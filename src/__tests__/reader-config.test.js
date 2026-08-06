@@ -40,16 +40,39 @@ describe('settings drive it', () => {
 describe('context overrides are physical facts, not preferences', () => {
   it('places a note by the room available', () => {
     // A note belongs to its line either way; only the treatment changes.
+    // Wide: a dotted leader out to the edge of its ~594px column, which costs
+    // nothing. Narrow: a reserved strip down the right — but ONLY in sections
+    // that actually carry a note, which `ReaderSection` decides. A permanent
+    // gutter measured +24% on the song's height (549px → 682px on a phone).
     expect(resolveReaderConfig({}, wide).notePlacement).toBe('leader');
-    expect(resolveReaderConfig({}, narrow).notePlacement).toBe('above');
+    expect(resolveReaderConfig({}, narrow).notePlacement).toBe('gutter');
   });
 
-  it('only pins headings on a narrow screen', () => {
-    // On a desktop the whole section is usually on screen already, so a pinned
-    // heading is just a bar that never goes away.
+  it('pins headings at ONE column, on any screen — and never at two', () => {
+    // It used to be `!wide && …`, so the switch read ON and did nothing on
+    // every device 768px and wider, including a one-column desktop and an iPad
+    // in portrait. The owner tested exactly that. Sticky pins fine inside a
+    // 2-column multicol (measured in Chromium), but two columns have no single
+    // reading line for a pinned heading to answer to — the order runs down one
+    // column and up the next — so that is the one place it stays off, and the
+    // ☰ hides the switch there rather than lying about it.
     const on = { readerSticky: 'on' };
     expect(resolveReaderConfig(on, narrow).sticky).toBe(true);
+    expect(resolveReaderConfig({ ...on, defaultColumns: 1 }, wide).sticky).toBe(true);
+    expect(resolveReaderConfig({ ...on, defaultColumns: 2 }, wide).sticky).toBe(false);
+    // 'auto' on a wide screen resolves to two columns, so it is off there too.
     expect(resolveReaderConfig(on, wide).sticky).toBe(false);
+    expect(resolveReaderConfig({ readerSticky: 'off' }, narrow).sticky).toBe(false);
+  });
+
+  it('lands the retired frames on the one that replaced them', () => {
+    // `block` and `card` boxed the text; `tint` is the same idea without the
+    // box. A MAP, not `pick`'s fallback — the fallback is 'plain', which is no
+    // frame at all, and neither user asked for that.
+    expect(resolveReaderConfig({ readerSectionStyle: 'block' }, narrow).sectionStyle).toBe('tint');
+    expect(resolveReaderConfig({ readerSectionStyle: 'card' }, narrow).sectionStyle).toBe('tint');
+    expect(resolveReaderConfig({ readerSectionStyle: 'rule' }, narrow).sectionStyle).toBe('rule');
+    expect(resolveReaderConfig({ readerSectionStyle: 'nonsense' }, narrow).sectionStyle).toBe('plain');
   });
 
   it('keeps a side ribbon on a phone, because it floats now', () => {

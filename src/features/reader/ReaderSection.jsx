@@ -197,7 +197,7 @@ function clampChords(chords, plainText) {
 
 export default function ReaderSection({
   section, index, config, songKey, settings, transpose, modOffset,
-  repeatOf = -1, onOpenHere, tabColors, stickyTop = 0, onChordTap = null,
+  repeatOf = -1, onOpenHere, onCollapse = null, tabColors, stickyTop = 0, onChordTap = null,
   // Where this slot sits in a run of back-to-back repeats — `songFlow.runs`.
   // The lead slot draws one pill for the whole run; the rest draw nothing.
   run = null,
@@ -278,20 +278,65 @@ export default function ReaderSection({
   // has no height of its own.
   const hidden = repeatOf >= 0 && config.repeats === 'hide' && !expanded;
 
+  // ── Who pays for the note gutter ────────────────────────────────────────────
+  // The strip down the right costs width, and width is height: measured on a
+  // 390px phone, a permanent gutter took the same eight lines from 549px to
+  // 682px — **+24%**, about one extra screen every four. So only a section that
+  // actually has an inline note reserves it (owner, 2026-08-06: *"if no notes
+  // we use for lyrics if notes we have a space for them"*). A section with none
+  // uses the full width, and the strip simply isn't there.
+  //
+  // Wide screens never take this branch — a note goes out on a dotted leader
+  // inside its own ~594px column, which costs nothing and is what a printed
+  // chart does.
+  const hasInlineNote = (section.lines || []).some(
+    l => typeof l === 'string' && /\{!.*?\}/.test(l)
+  );
+  const notePlacement = config.notePlacement === 'gutter'
+    ? (hasInlineNote && config.inlineNotes ? 'gutter' : 'above')
+    : config.notePlacement;
+
+  // ── The four frames ─────────────────────────────────────────────────────────
+  // Redesigned 2026-08-06. A frame is only about WHERE THE SECTION'S COLOUR
+  // LIVES, and **not one of them takes a pixel of width from the lyrics** —
+  // which is the whole reason `block` and `card` are gone. They boxed the text:
+  // on a 390px phone a Card chorus spent 32px of chart padding + 12.8px of card
+  // padding + 13.6px of chorus indent before a lyric started, and the pinned
+  // heading was an opaque slab inset 10px from the card it lived in, with the
+  // card's own colour rule floating above it, disconnected. Three edges that
+  // never lined up. Owner: *"We need a complete redesign for blocks and cards."*
+  //
+  // The bar hangs in the MARGIN (`position: absolute`, negative left), so it
+  // costs nothing either — it used to be a `border-left` plus 12px of padding,
+  // which is 15px of lyric width for a 3px mark.
   const frame = {
-    bar: { borderLeft: `${heavy ? 5 : 3}px solid ${colour}`, paddingLeft: '0.75rem' },
-    // No rule at all — the section is carried by its heading alone, which is
-    // how the original chart read.
+    // Nothing. The coloured heading carries the section, which is how the
+    // original chart read. The default.
     plain: {},
-    block: { background: id.fill, borderRadius: '0.6rem', padding: '0.6rem 0.75rem' },
-    card: {
-      background: 'color-mix(in srgb, var(--chart-text, #808080) 5%, transparent)',
-      border: '1px solid var(--chart-rule, var(--ds-gray-300))',
-      borderTop: `3px solid ${colour}`,
-      borderRadius: '0.6rem',
-      padding: '0.65rem 0.8rem',
+    // A hairline under the heading, in the section's colour. Applied to the
+    // heading row, not here — see `headRule`.
+    rule: {},
+    // Colour in the left margin. `position: relative` is the anchor; the mark
+    // itself is drawn as a child so it can sit outside the text column.
+    bar: { position: 'relative' },
+    // A wash behind the section, EDGE TO EDGE. No radius, no side padding, no
+    // border: a tint is a change of paper, not a box on it. The negative
+    // margins pull it out to the chart's own padding so it bleeds to the screen
+    // edges the way a highlighted passage does.
+    tint: {
+      background: id.fill,
+      paddingTop: '0.45rem',
+      paddingBottom: '0.45rem',
+      marginLeft: 'calc(-1 * var(--chart-pad-left, 12px))',
+      marginRight: 'calc(-1 * var(--chart-pad-right, 12px))',
+      paddingLeft: 'var(--chart-pad-left, 12px)',
+      paddingRight: 'var(--chart-pad-right, 12px)',
     },
   }[style] || {};
+  // The section's colour as a hairline under its heading.
+  const headRule = style === 'rule'
+    ? { borderBottom: `1px solid color-mix(in srgb, ${colour} 45%, transparent)`, paddingBottom: '0.25rem' }
+    : null;
 
   const HEADING_CLASS = {
     code: 'font-bold uppercase tracking-wider font-mono',
@@ -331,32 +376,70 @@ export default function ReaderSection({
     breakInside: 'avoid',
     // Land the section below the sticky chrome, not underneath it.
     scrollMarginTop: stickyTop + 8,
-    // ── The air above a heavy section ────────────────────────────────────────
-    // ⚠ PADDING, not margin, and ABOVE, not below.
-    //
-    // This was `marginBottom: heavy ? '1.6rem' : '1rem'`, and measured on
-    // 2026-08-06 it was worth **1.6px**. A section's bottom margin COLLAPSES
-    // against `SectionBlock`'s own `--chart-section-gap` (the Section spacing
-    // setting, 24px by default), so the real gap is `max(spacing, margin)`:
-    //
-    //   spacing  8px → 16.0 after a verse · 25.6 after a chorus
-    //   spacing 24px → 24.0 · 25.6          ← the default: 1.6px of "shape"
-    //   spacing 48px → 48.0 · 48.0          ← no difference at all
-    //
-    // It was also on the wrong side: air BELOW a chorus is air above whatever
-    // follows it, so the one thing it did was start the next verse 1.6px lower.
-    //
-    // Padding cannot collapse, so this survives at every spacing, and it sits
-    // where the doc always claimed it did. `heavy` is Chorus/Refrain/Bridge —
-    // the sections the room sings loudest.
-    paddingTop: heavy ? '0.85rem' : undefined,
-    marginBottom: '1rem',
-    // ...and it steps IN. A small step is enough to make the verse/chorus
-    // alternation visible at a glance from a music stand; more than this and
-    // long chorus lines start wrapping earlier than the verses around them,
-    // which costs more than the shape gains.
-    marginLeft: heavy ? '0.85rem' : undefined,
+    // ⚠ A frame with vertical padding BLOCKS margin collapse, so this margin
+    // stops being absorbed into the chart's own section gap and starts adding
+    // to it. Measured on a 390px phone: `tint` came out 35% taller than `plain`
+    // (779px → 1048px), and only a third of that was its own padding — the
+    // rest was 16px of margin per section that had been collapsing away
+    // invisibly under every other frame. The gap is the Section-spacing
+    // setting's job; a framed section leaves it to it.
+    marginBottom: frame.paddingTop ? 0 : '1rem',
   };
+
+  // ── The air above a heavy section, and its step in ──────────────────────────
+  // ⚠ PADDING, not margin, and ABOVE, not below.
+  //
+  // This was `marginBottom: heavy ? '1.6rem' : '1rem'`, and measured on
+  // 2026-08-06 it was worth **1.6px**. A section's bottom margin COLLAPSES
+  // against `SectionBlock`'s own `--chart-section-gap` (the Section spacing
+  // setting, 24px by default), so the real gap is `max(spacing, margin)`:
+  //
+  //   spacing  8px → 16.0 after a verse · 25.6 after a chorus
+  //   spacing 24px → 24.0 · 25.6          ← the default: 1.6px of "shape"
+  //   spacing 48px → 48.0 · 48.0          ← no difference at all
+  //
+  // It was also on the wrong side: air BELOW a chorus is air above whatever
+  // follows it, so the one thing it did was start the next verse 1.6px lower.
+  // Padding cannot collapse, so this survives at every spacing.
+  //
+  // ⚠ ADDED to what the frame already asked for, never assigned over it. Writing
+  // `marginLeft: heavy ? '0.85rem' : undefined` after `...frame` set the key to
+  // undefined for every light section, and React serialises that as "remove"
+  // — which silently deleted `tint`'s negative margin. Measured in Chromium:
+  // the wash stopped bleeding on the left, the words started at 24px instead of
+  // 12px, and the song grew **30% taller** (779px → 1018px) from the extra
+  // wrapping. The frame and the weight both have a claim on these two
+  // properties; they have to be composed, not overwritten.
+  if (heavy) {
+    outer.paddingTop = frame.paddingTop ? `calc(${frame.paddingTop} + 0.85rem)` : '0.85rem';
+    // A tint bleeds to the screen edge, so a heavy tinted section steps its
+    // WORDS in rather than its wash — the alternative pulls the colour back off
+    // the edge, which is the one thing the frame exists to do.
+    if (style === 'tint') {
+      outer.paddingLeft = `calc(${frame.paddingLeft} + 0.85rem)`;
+    } else {
+      outer.marginLeft = frame.marginLeft ? `calc(${frame.marginLeft} + 0.85rem)` : '0.85rem';
+    }
+  }
+
+  // The margin bar — `bar`'s colour, drawn OUTSIDE the text column so it costs
+  // no width. It used to be a `border-left` with 12px of padding beside it:
+  // 15px of lyric width to show a 3px mark, on the side of the screen the
+  // owner wants the words to start from.
+  const marginBar = style === 'bar' ? (
+    <span
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        left: heavy ? '-0.75rem' : '-0.7rem',
+        top: 0,
+        bottom: 0,
+        width: heavy ? 4 : 2,
+        borderRadius: 999,
+        background: colour,
+      }}
+    />
+  ) : null;
 
   // Reordering moved to the song map — drag a chip there. What is left is the
   // one decision you make while looking at the section itself: cut it.
@@ -445,7 +528,8 @@ export default function ReaderSection({
 
   return (
     <div id={`section-${index}`} data-section-index={index} style={outer}>
-      {/* Element 3 + 4. NOT flex: the cue starts on the section's own line and
+      {marginBar}
+      {/* Element 4 + 4b. NOT flex: the cue starts on the section's own line and
           wraps from there like a sentence continuing, rather than being forced
           onto a row of its own the moment it gets long. */}
       <div
@@ -472,17 +556,42 @@ export default function ReaderSection({
           // the extra padding keeps the text exactly where it was.
           top: stickyTop - 1,
           zIndex: 5,
-          // Opaque, or lyrics scroll visibly through the pinned heading.
-          background: 'var(--chart-bg, var(--ds-background-100))',
+          // ── A pinned heading wears its section's frame ────────────────────
+          // Opaque, or lyrics scroll visibly through it — but opaque in WHAT.
+          // It used to be `--chart-bg` always, which on a tinted section was a
+          // slab of bare paper cut out of the wash. It takes the tint now, and
+          // paints it edge to edge like the section does, so pinning changes
+          // nothing about how the section looks.
+          background: style === 'tint'
+            ? `linear-gradient(${id.fill}, ${id.fill}), var(--chart-bg, var(--ds-background-100))`
+            : 'var(--chart-bg, var(--ds-background-100))',
           paddingTop: 'calc(0.2rem + 1px)',
           paddingBottom: '0.2rem',
-          marginLeft: '-0.25rem',
-          paddingLeft: '0.25rem',
+          marginLeft: style === 'tint' ? 'calc(-1 * var(--chart-pad-left, 12px))' : '-0.25rem',
+          marginRight: style === 'tint' ? 'calc(-1 * var(--chart-pad-right, 12px))' : undefined,
+          paddingLeft: style === 'tint' ? 'var(--chart-pad-left, 12px)' : '0.25rem',
+          paddingRight: style === 'tint' ? 'var(--chart-pad-right, 12px)' : undefined,
           } : null),
+          ...(headRule || null),
         }}
       >
         {label}
         {handles}
+        {/* Close it again. A repeat you opened had no way back — it stayed open
+            until the song changed (owner, 2026-08-06: *"Is there a way to
+            collapse back sections?"*). The pill opens with ▾, so the opened
+            section closes with ▴, on the heading it opened into. */}
+        {expanded && repeatOf >= 0 && !editing && onCollapse && (
+          <button
+            type="button"
+            onClick={onCollapse}
+            aria-label={`Collapse ${id.name} back to a tag`}
+            className="min-h-0 ml-1.5 px-1 bg-transparent border-none cursor-pointer align-middle"
+            style={{ color: colour, opacity: 0.7, fontSize: `${Math.max(11, labelPx - 3)}px`, lineHeight: 1 }}
+          >
+            ▴
+          </button>
+        )}
         {cue && config.notes && (
           <span
             className="ml-2"
@@ -535,7 +644,7 @@ export default function ReaderSection({
         // The sticky heading above already renders the name and cue.
         hideHeading
         inlineNotes={config.inlineNotes}
-        notePlacement={config.notePlacement}
+        notePlacement={notePlacement}
         noteStyle={settings?.inlineNoteStyle || 'dashes'}
         sectionColors={resolveSectionColors(settings)}
         sectionLabels={settings?.sectionLabels}

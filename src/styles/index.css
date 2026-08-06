@@ -1005,64 +1005,71 @@ html.dialog-open main {
 [data-theme="light"] .slrow-v-soft { background: rgba(0,0,0,0.038); border-color: rgba(0,0,0,0.06); box-shadow: 0 1px 2px rgba(0,0,0,0.05), 0 10px 24px rgba(0,0,0,0.08); }
 
 /* ── Section identity ────────────────────────────────────────────────────────
-   Eleven section types, eleven hues.
+   Eleven section types, and SATURATION SAYS WHO IS SINGING.
+
+   Eleven hues on one wheel is more than hue alone can separate — the first cut
+   put Pre Chorus at 42° beside Instrumental at 26°, and Refrain at 288° beside
+   Interlude at 254°, all four fully saturated, and the owner could not tell
+   them apart (2026-08-06). Hue is now only half the signal:
+
+     VIVID (88% / 90%) — the five sections the room SINGS:
+                         Verse · Pre Chorus · Chorus · Refrain · Bridge
+     MUTED (40% / 42%) — the six the band only PLAYS:
+                         Intro · Tag · Instrumental · Interlude · Vamp · Outro
+
+   So a vivid amber Pre Chorus sits next to a muted tan Instrumental, and a
+   vivid violet Refrain next to a muted lavender Interlude: two dimensions of
+   difference, not one. It also makes the page's shape mean something at a
+   glance — the colour tells you where the congregation comes in.
 
    ⚠ NOT in `@theme`. Tailwind v4 tree-shakes theme variables nothing in the
-   CSS references, and these are read only from JS (`music.js`'s section table
-   builds `var(--section-…)` inline). Declared there, they were dropped from the
-   build and every heading fell back to the chart's ink — measured in Chromium
-   2026-08-06: a page of grey headings and grey chips. A plain unlayered rule
-   ships them.
+   CSS references, and these are read only from JS (`music.js` builds
+   `var(--section-…)` inline). Declared there they were dropped from the build
+   and every heading fell back to the chart's ink — a page of grey headings that
+   looked fine in review and wrong in Chromium.
 
    These are CHART INK, not UI chrome, so they are their own tokens rather than
-   steps of the Geist ramps: the ramps carry seven chromatic hues and the chart
+   steps of the Geist ramps: the ramps carry seven chromatic hues, the chart
    needs eleven, and a change to the UI's blue should not repaint anybody's
-   Intro. Before this, four pairs shared a colour — Intro=Tag,
-   Refrain=Interlude, Pre Chorus=Instrumental=Vamp, Ending=Outro — and the
-   heading and its chip in the ribbon are one system, so a shared colour cost
-   the same thing twice.
-
-   Every value is CONTRAST-CHECKED, not eyeballed. Dark: each clears 4.5:1
-   against both `#0d1320` (Midnight) and `#0a0a0a` (Stage Black), worst 4.67.
-   Light: against white and the warm paper themes, worst 4.57. The old
-   `--ds-blue-700` Intro measured **4.18** and failed. Neighbours on the colour
-   wheel are separated by LIGHTNESS as well as hue (blue 64% → cyan 46% → teal
-   40%), because 20° of hue is not a difference you can read from a music stand.
+   Intro. Every value is CONTRAST-CHECKED against the real chart backgrounds:
+   each clears 4.6:1 on Midnight AND Stage Black (dark) or white AND the warm
+   paper themes (light). Lightness is solved toward the middle of the passing
+   band, not the first value that passes — the first pass walks straight to the
+   pastel end of the ramp.
 
    Fills and borders are mixed off the accent in `music.js`, the same way a
-   user's custom colour is — one token per hue, correct on any ground. */
+   user's custom colour is: one token per hue, correct on any ground. */
 :root {
-  /* Intro is deliberately DEEPER and more saturated than Midnight's chord
-     colour (`--chord: #7ec1ff`, hsl 209 100% 75%). At the first cut it was
-     hsl(212 92% 64%) — three degrees of hue from the chords beside it — and
-     rendered as a chord that had wandered into the heading. This clears 4.76:1
-     on the background and reads as its own blue against them. */
-  --section-intro: hsl(222, 92%, 62%);
-  --section-tag: hsl(196, 88%, 50%);
-  --section-bridge: hsl(168, 80%, 42%);
-  --section-verse: hsl(130, 62%, 54%);
-  --section-vamp: hsl(85, 70%, 40%);
-  --section-prechorus: hsl(42, 92%, 50%);
-  --section-instrumental: hsl(26, 92%, 64%);
-  --section-outro: hsl(356, 80%, 58%);
-  --section-chorus: hsl(330, 85%, 64%);
-  --section-refrain: hsl(288, 78%, 66%);
-  --section-interlude: hsl(254, 92%, 72%);
+  /* Sung — vivid */
+  --section-verse: hsl(130, 88%, 60%);
+  --section-prechorus: hsl(42, 88%, 60%);
+  --section-chorus: hsl(330, 88%, 60%);
+  --section-refrain: hsl(288, 88%, 60%);
+  --section-bridge: hsl(168, 88%, 60%);
+  /* Played — muted. Intro is also the one that has to stay clear of Midnight's
+     chord colour (`--chord: #7ec1ff`); 40% saturation against the chords' 100%
+     does that in a way hue alone never did. */
+  --section-intro: hsl(222, 40%, 68%);
+  --section-tag: hsl(196, 40%, 68%);
+  --section-instrumental: hsl(26, 40%, 68%);
+  --section-interlude: hsl(254, 40%, 68%);
+  --section-vamp: hsl(85, 40%, 68%);
+  --section-outro: hsl(356, 40%, 68%);
 }
 
-/* Same eleven hues on paper, darkened until each clears 4.5:1 against white
-   and the warm paper themes. A Geist ramp's 700 step is one value for both
-   themes, which is why the old palette read washed-out on light charts. */
+/* The same eleven on paper, darkened until each clears 4.6:1 against white and
+   the warm paper themes. A Geist ramp's 700 step is one value for both themes,
+   which is why the old palette read washed-out on light charts. */
 [data-theme="light"] {
-  --section-intro: hsl(222, 92%, 40%);
-  --section-tag: hsl(196, 90%, 30%);
-  --section-bridge: hsl(168, 85%, 26%);
-  --section-verse: hsl(130, 80%, 28%);
-  --section-vamp: hsl(85, 85%, 25%);
-  --section-prechorus: hsl(42, 95%, 28%);
-  --section-instrumental: hsl(26, 88%, 38%);
-  --section-outro: hsl(356, 80%, 40%);
-  --section-chorus: hsl(330, 88%, 38%);
-  --section-refrain: hsl(288, 80%, 42%);
-  --section-interlude: hsl(254, 92%, 52%);
+  --section-verse: hsl(130, 90%, 27%);
+  --section-prechorus: hsl(42, 90%, 30%);
+  --section-chorus: hsl(330, 90%, 34%);
+  --section-refrain: hsl(288, 90%, 34%);
+  --section-bridge: hsl(168, 90%, 26%);
+  --section-intro: hsl(222, 42%, 40%);
+  --section-tag: hsl(196, 42%, 39%);
+  --section-instrumental: hsl(26, 42%, 40%);
+  --section-interlude: hsl(254, 42%, 40%);
+  --section-vamp: hsl(85, 42%, 33%);
+  --section-outro: hsl(356, 42%, 40%);
 }

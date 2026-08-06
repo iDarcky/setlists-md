@@ -2741,7 +2741,6 @@ export default function App() {
           onOpenTeam={() => { setDrawerOpen(false); goTeam(); }}
           teams={teams}
           activeLibrary={activeLibrary}
-          setActiveLibrary={switchWorkspace}
           canInstall={canInstall}
           isIOS={isIOS}
           isStandalone={isStandalone}

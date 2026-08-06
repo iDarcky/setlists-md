@@ -1147,16 +1147,30 @@ export default function ReaderMenu({
               options={[['name', 'Name'], ['code', 'Short'], ['caps', 'Uppercase']]}
               onChange={(v) => set('readerHeading', v)} />
           </Field>
-          <Field label="Style" onReset={reset('readerSectionStyle')}>
+          {/* Four frames, and NONE of them takes width from the lyrics — which
+              is why Block and Card are gone (2026-08-06). They boxed the text;
+              a Card chorus on a phone spent 58px before a lyric started and its
+              pinned heading was a slab inset from the card it sat in. Both land
+              on Tint, which is the same idea without the box. */}
+          <Field label="Style" onReset={reset('readerSectionStyle')}
+            info="Where the section's colour lives. None of these takes width from the words.">
             <Dropdown label="Section style" value={settings?.readerSectionStyle || 'plain'}
-              options={[['plain', 'Plain'], ['bar', 'Bar'], ['block', 'Block'], ['card', 'Card']]}
+              options={[['plain', 'None'], ['rule', 'Rule'], ['bar', 'Margin bar'], ['tint', 'Tint']]}
               onChange={(v) => set('readerSectionStyle', v)} />
           </Field>
-          <Field label="Pin heading while scrolling" inline>
-            <Switch label="Pin heading while scrolling"
-              on={(settings?.readerSticky || 'on') === 'on'}
-              onChange={(v) => set('readerSticky', v ? 'on' : 'off')} />
-          </Field>
+          {/* Two columns has no reading line a pinned heading could answer to —
+              the order runs down one column and up the next, so two headings
+              would pin side by side. The switch goes away rather than lying
+              (owner, 2026-08-06: *"Let's say the user selects 2 column, the
+              option is gone"*). It is real on every device at one column now,
+              desktop included; it used to be silently off above 768px. */}
+          {config?.columns !== 2 && (
+            <Field label="Pin heading while scrolling" inline>
+              <Switch label="Pin heading while scrolling"
+                on={(settings?.readerSticky || 'on') === 'on'}
+                onChange={(v) => set('readerSticky', v ? 'on' : 'off')} />
+            </Field>
+          )}
           {/* Split in two on 2026-08-04. They were one knob, and they are
               different marks: a band cue is written under a heading for
               everyone, an inline note is dropped mid-line for a moment. */}

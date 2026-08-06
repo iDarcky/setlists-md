@@ -17,8 +17,22 @@ import { resolveChartDisplay, resolveColumns } from '@/lib/chartDisplay';
 export const READER_KNOBS = {
   ribbon: ['top', 'bottom', 'left', 'right', 'off'],  // 2
   heading: ['name', 'code', 'caps'],       // 3
-  sectionStyle: ['bar', 'plain', 'block', 'card'],   // 3
-  sticky: ['on', 'off'],                   // 3
+  // 4 — the section frame. Redesigned 2026-08-06: a frame is now only about
+  // WHERE THE SECTION'S COLOUR LIVES, and none of the four takes a pixel of
+  // width from the lyrics.
+  //
+  //   plain — nothing; the coloured heading is the whole mark (default)
+  //   rule  — a hairline under the heading, in the section's colour
+  //   bar   — that colour as a bar in the LEFT MARGIN, outside the text column
+  //   tint  — a low-alpha wash behind the section, EDGE TO EDGE
+  //
+  // `block` and `card` are gone. They boxed the text: on a 390px phone a Card
+  // chorus spent 32px of chart padding + 12.8px of card padding + 13.6px of
+  // chorus indent = 58px before a lyric started, and the pinned heading was an
+  // opaque slab inset 10px from the card it sat in, with the card's own colour
+  // rule floating above it. Both land on `tint` (see REPEATS/STYLE_LEGACY).
+  sectionStyle: ['plain', 'rule', 'bar', 'tint'],   // 4
+  sticky: ['on', 'off'],                   // 4
   // 'ref' was a third repeat style that read as 'Chorus — as before'. It
   // and 'condensed' had collapsed onto the same pill, so it was two names
   // for one thing. A stored 'ref' now falls back to the default via pick().
@@ -131,6 +145,13 @@ const RIBBON_LEGACY = { numbered: 'codes', dotlabel: 'dots' };
 // happened to be 'condensed'; the moment the default became 'full' (2026-08-06)
 // that accident would have written those users' repeats out in full.
 const REPEATS_LEGACY = { ref: 'condensed' };
+
+// The two frames that were cut, and where their users land. Both drew a filled
+// box around the text, and `tint` is the survivor that does that without taking
+// the width — so neither user opens the reader to find their setting reset to
+// the default. A MAP, not `pick`'s fallback, for the same reason the ribbon's
+// is: the fallback sends everything to `plain`, which is "no frame at all".
+const STYLE_LEGACY = { block: 'tint', card: 'tint' };
 
 export function normalizeRibbonStyle(value) {
   return pick('ribbonStyle', RIBBON_LEGACY[value] || value);
@@ -281,11 +302,11 @@ export function resolveReaderConfig(settings, ctx = {}) {
   const cfg = {
     ribbon: pick('ribbon', settings?.[KEY.ribbon]),
     heading: pick('heading', settings?.[KEY.heading]),
-    sectionStyle: pick('sectionStyle', settings?.[KEY.sectionStyle]),
-    // Pinned headings earn their space on a phone, where you thumb-scroll
-    // through a section at a time. On a desktop the whole section is usually
-    // on screen already, so pinning is just a bar that never goes away.
-    sticky: !wide && pick('sticky', settings?.[KEY.sticky]) === 'on',
+    sectionStyle: pick('sectionStyle',
+      STYLE_LEGACY[settings?.[KEY.sectionStyle]] || settings?.[KEY.sectionStyle]),
+    // Filled in below — it depends on `columns`, which is resolved in this
+    // same object and cannot be read from inside it.
+    sticky: false,
     repeats: pick('repeats', REPEATS_LEGACY[settings?.[KEY.repeats]] || settings?.[KEY.repeats]),
     notes: pick('notes', settings?.[KEY.notes]) === 'on',
     inlineNotes: pick('inlineNotes', settings?.[KEY.inlineNotes]) === 'on',
@@ -312,10 +333,6 @@ export function resolveReaderConfig(settings, ctx = {}) {
 
   // --- physical facts, not preferences ---
 
-  // A note belongs to its line either way; only the treatment changes with the
-  // room. Wide: out to the right edge on a dotted leader, like a printed
-  // chart. Narrow: above its line, so it is read before the line is sung.
-  cfg.notePlacement = wide ? 'leader' : 'above';
 
   if (!wide) {
     // Left/right used to collapse to 'top' here — a docked 56px rail really did
@@ -325,6 +342,40 @@ export function resolveReaderConfig(settings, ctx = {}) {
     // four words a line.
     cfg.columns = 1;
   }
+
+  // ── Pinning is about COLUMNS, not about screen size ─────────────────────────
+  // It used to be `!wide && …`, which meant the switch read ON and did nothing
+  // on every device 768px and wider — including an iPad in portrait and a
+  // one-column desktop. The owner tested exactly that: *"I've tested on one
+  // column on desktop and still doesn't pin… if not, we have to remove the
+  // option."*
+  //
+  // The reason it was off was a judgement ("the whole section is usually on
+  // screen already"), not a limitation: measured in Chromium 2026-08-06,
+  // `position: sticky` pins identically inside a 2-column multicol and a single
+  // column. So it pins everywhere now, with one honest exception — TWO COLUMNS.
+  // There the reading order runs down one column and up the next, so two
+  // headings would pin side by side to one reading line and the "where am I"
+  // they answer would be two different places. The ☰ hides the switch when
+  // columns are 2 (owner's call), the same way the ribbon hides the side
+  // positions for a style that cannot float.
+  cfg.sticky = cfg.columns === 1 && pick('sticky', settings?.[KEY.sticky]) === 'on';
+
+  // ── Where an inline note goes ──────────────────────────────────────────────
+  // WIDE: out to the right edge of its column on a dotted leader, like the
+  // margin notes on a printed chart. There is room, so it costs nothing.
+  //
+  // NARROW: a 'gutter' — a strip down the right that the lyrics stop before,
+  // with the notes in it. Measured on a 390px phone: a permanent gutter costs
+  // **24% of the song's height** (549px → 682px for the same eight lines), so
+  // it is not permanent. `ReaderSection` asks for it PER SECTION, and only a
+  // section that actually contains a note pays (owner, 2026-08-06: *"if no
+  // notes we use for lyrics if notes we have a space for them"*). A section
+  // with none uses the full width.
+  //
+  // 'above' — the previous narrow rule, a note on its own line over its lyric —
+  // is still what a section falls back to if the gutter is switched off.
+  cfg.notePlacement = wide ? 'leader' : 'gutter';
 
   return cfg;
 }

@@ -60,6 +60,7 @@ export default function SectionBlock({
   //   'inline' — trailing the line, separated by dashes (default, unchanged)
   //   'above'  — on its own line ABOVE, so it is read before the line is sung
   //   'leader' — pushed to the right edge, joined by a dotted leader
+  //   'gutter' — in a reserved strip down the right; the words stop before it
   notePlacement = 'inline',
   // Element 9. `myInstrument` is what YOU play this service (from the band);
   // a tab for another instrument collapses to one line instead of taking a
@@ -106,6 +107,30 @@ export default function SectionBlock({
     >
       {text}
     </div>
+  );
+  // ── The note gutter ────────────────────────────────────────────────────────
+  // A strip down the right that the words stop before, with the notes in it —
+  // the owner's *"the right side should be for inline notes"*, made real on a
+  // phone. The line becomes a two-cell grid rather than the note being another
+  // inline thing on the lyric's row: a grid keeps the strip's edge STRAIGHT
+  // down the section, which is what makes it read as a margin instead of as
+  // ragged text with words hanging off it.
+  //
+  // Lines with no note still take the grid, so the text stops at the same
+  // place. That is the point — a margin that only some lines respect is not a
+  // margin.
+  const gutterGrid = notePlacement === 'gutter'
+    ? { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) var(--note-gutter, 88px)', columnGap: '0.5rem', alignItems: 'start' }
+    : null;
+  const noteGutter = (text) => (
+    <span
+      className="text-[0.72em] leading-snug self-start pt-[0.15em] whitespace-pre-wrap"
+      style={{ color: text.trim().startsWith('!') ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--text-2))',
+               fontStyle: text.trim().startsWith('!') ? 'normal' : 'italic',
+               fontWeight: text.trim().startsWith('!') ? 600 : 400 }}
+    >
+      {text}
+    </span>
   );
   const noteLeader = (text) => (
     <span className="flex-1 inline-flex items-baseline gap-1.5 min-w-0 pl-2">
@@ -202,7 +227,7 @@ export default function SectionBlock({
       const displayLine = !showChords ? cleanLine.replace(/\[.*?\]/g, '') : cleanLine;
       const showNote = inlineNotes && inlineNote;
       return (
-        <div key={idx}>
+        <div key={idx} style={gutterGrid || undefined}>
           {showNote && notePlacement === 'above' && noteAbove(inlineNote)}
           <div
             className={notePlacement === 'leader' ? 'min-h-[1.3em] flex items-baseline opacity-90' : 'min-h-[1.3em] whitespace-pre-wrap opacity-90'}
@@ -227,6 +252,7 @@ export default function SectionBlock({
             )}
             {showNote && notePlacement === 'leader' && noteLeader(inlineNote)}
           </div>
+          {notePlacement === 'gutter' && (showNote ? noteGutter(inlineNote) : <span />)}
         </div>
       );
     }
@@ -321,6 +347,7 @@ export default function SectionBlock({
         }}
       >
         {inlineNotes && inlineNote && notePlacement === 'above' && noteAbove(inlineNote)}
+        <div style={gutterGrid || undefined}>
         <div className="flex flex-wrap items-end">
           {hasLyrics
             ? (() => {
@@ -381,6 +408,8 @@ export default function SectionBlock({
             </span>
           )}
           {inlineNotes && inlineNote && notePlacement === 'leader' && noteLeader(inlineNote)}
+        </div>
+        {notePlacement === 'gutter' && (inlineNotes && inlineNote ? noteGutter(inlineNote) : <span />)}
         </div>
       </div>
     );

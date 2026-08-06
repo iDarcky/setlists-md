@@ -153,18 +153,42 @@ describe('element 3 — section heading', () => {
     expect(screen.getAllByText('V1').length).toBeGreaterThan(0);
   });
 
-  it('changes the frame with the section style, including no line at all', () => {
-    const frame = () => document.querySelector('[data-section-index]').style;
+  it('changes the frame with the section style — and none of them takes width', () => {
+    // Redesigned 2026-08-06. A frame says only WHERE THE SECTION'S COLOUR
+    // LIVES; `block` and `card` are gone because they boxed the text (a Card
+    // chorus on a 390px phone spent 58px before a lyric started). The rule this
+    // asserts is the one that matters: no frame adds side padding to the
+    // section, so the words start in the same place under all four.
+    const sec = () => document.querySelector('[data-section-index]');
+    const frame = () => sec().style;
+
     let r = render(<Reader song={makeSong()} settings={{ readerSectionStyle: 'bar' }} onExit={() => {}} />);
-    expect(frame().borderLeft).toBeTruthy();
+    // The bar hangs in the MARGIN, absolutely positioned — not a border with
+    // padding beside it, which cost 15px of lyric width to show a 3px mark.
+    expect(frame().borderLeft).toBeFalsy();
+    expect(frame().position).toBe('relative');
+    expect(sec().querySelector('span[aria-hidden="true"]').style.position).toBe('absolute');
     r.unmount();
 
-    r = render(<Reader song={makeSong()} settings={{ readerSectionStyle: 'card' }} onExit={() => {}} />);
-    expect(frame().borderRadius).toBeTruthy();
+    r = render(<Reader song={makeSong()} settings={{ readerSectionStyle: 'tint' }} onExit={() => {}} />);
+    // Edge to edge: the tint pulls out to the chart's own padding and pushes it
+    // back in, so it bleeds to the screen instead of drawing a box.
+    expect(frame().background).toBeTruthy();
+    expect(frame().borderRadius).toBeFalsy();
+    // Read the attribute, not the CSSOM: jsdom drops `calc(-1 * var(…))` on
+    // parse, so `style.marginLeft` comes back empty for a value React really
+    // did write.
+    expect(sec().getAttribute('style')).toContain('--chart-pad-left');
+    r.unmount();
+
+    r = render(<Reader song={makeSong()} settings={{ readerSectionStyle: 'rule' }} onExit={() => {}} />);
+    // The hairline is on the HEADING row, not around the section.
+    expect(frame().borderBottom).toBeFalsy();
+    expect(document.querySelector('[data-section-anchor]').style.borderBottom).toBeTruthy();
     r.unmount();
 
     // 'plain' is the original chart's look: the heading carries the section,
-    // with no rule beside it.
+    // with no rule beside it. Still the default.
     render(<Reader song={makeSong()} settings={{ readerSectionStyle: 'plain' }} onExit={() => {}} />);
     expect(frame().borderLeft).toBeFalsy();
     expect(frame().background).toBeFalsy();
@@ -1234,22 +1258,42 @@ describe('element 3 — the rail never covers a word', () => {
     // ...and the strip itself takes pointer events, or the scrub drops the
     // gesture in the gap between two dots.
     expect(rail.firstElementChild.className).toContain('pointer-events-auto');
-    // A gutter was tried too (round 1) and rejected: ~83px of a 390px phone for
-    // Chips, and the right margin belongs to element 5's inline notes. The
-    // chart does not move for the map.
+    // The chart does not move for the map — but it DOES keep the padding the
+    // strip lives inside. On a phone the words come in to the left edge (12px)
+    // except on the rail's own side, which holds its 32px so the dots still sit
+    // in margin rather than on lyrics.
     const chart = container.querySelector('.wide-container.py-3');
-    expect(chart.style.paddingLeft).toBe('');
-    expect(chart.style.paddingRight).toBe('');
+    expect(chart.style.paddingLeft).toBe('32px');
+    expect(chart.style.paddingRight).toBe('32px');
   });
 
-  it('takes no gutter at all when the ribbon is not on a side', () => {
+  it('brings the words to the left edge on a phone, and keeps the rail side', () => {
+    // Owner, 2026-08-06: *"on mobile the sections should start right next to
+    // the left side of the screen because the right side should be for inline
+    // notes"*. 32px a side on a 390px screen is 16% spent on nothing; measured,
+    // coming in to 12px gained 40px of text width AND took 20px off the song's
+    // height. The exception is the side the structure rail floats down, which
+    // keeps its 32px — element 3 settled that the dots live inside that padding
+    // so they cross no words.
+    mockWidth(false);
+    let r = render(<Reader song={longSong()} settings={{ structurePosition: 'top' }} onExit={() => {}} />);
+    let chart = document.querySelector('.wide-container.py-3');
+    expect(chart.style.paddingLeft).toBe('12px');
+    expect(chart.style.paddingRight).toBe('12px');
+    r.unmount();
+
+    r = render(<Reader song={longSong()} settings={{ structurePosition: 'right' }} onExit={() => {}} />);
+    chart = document.querySelector('.wide-container.py-3');
+    expect(chart.style.paddingLeft).toBe('12px');
+    expect(chart.style.paddingRight).toBe('32px');
+    r.unmount();
+
+    // A wide screen keeps the app-wide 32px both sides.
     mockWidth(true);
-    const { container } = render(
-      <Reader song={longSong()} settings={{ structurePosition: 'top' }} onExit={() => {}} />,
-    );
-    const chart = container.querySelector('.wide-container.py-3');
-    expect(chart.style.paddingLeft).toBe('');
-    expect(chart.style.paddingRight).toBe('');
+    render(<Reader song={longSong()} settings={{ structurePosition: 'top' }} onExit={() => {}} />);
+    chart = document.querySelector('.wide-container.py-3');
+    expect(chart.style.paddingLeft).toBe('32px');
+    expect(chart.style.paddingRight).toBe('32px');
   });
 });
 
