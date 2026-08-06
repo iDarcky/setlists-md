@@ -91,6 +91,11 @@ export function sectionWeight(type) {
  * Runs of back-to-back repeats, collapsed the way the ribbon already collapses
  * its chips.
  *
+ * `isCollapsed(i)` says whether slot `i` is currently DRAWN as a pill — the
+ * reader passes "not opened in place". A run is a maximal stretch of adjacent
+ * slots that are all pills for the same first play, so opening or closing one
+ * re-groups the rest.
+ *
  * Owner, 2026-08-06: *"if we repeats a bridge x4 we have the bridge once and
  * the 3 tags and they look ugly, can we unify them somehow?"* — yes, and it is
  * the rule element 3 settled for the map: **consecutive only, never a global
@@ -102,16 +107,24 @@ export function sectionWeight(type) {
  *   `{ lead: false }`          — inside a run that has already been drawn
  *   `null`                     — not a repeat at all
  */
-export function repeatRuns(ordered, repeats) {
+export function repeatRuns(ordered, repeats, isCollapsed = () => true) {
   const out = (ordered || []).map(() => null);
   let i = 0;
   while (i < out.length) {
-    if (!(repeats[i] >= 0)) { i += 1; continue; }
-    // Walk forward while each slot repeats the SAME first play as this one and
-    // sits immediately next to the previous — `repeats[]` already encodes
-    // "identical section, identical modulate offset".
+    // A slot only joins a run if it is DRAWN as a pill right now. That is the
+    // second argument, and leaving it out was the bug: the runs were computed
+    // from the song alone, so closing the last of three opened repeats made it
+    // a non-lead member of a run whose lead was still open — and a non-lead
+    // member draws nothing. Owner, 2026-08-06: *"if I have 3 and I close the
+    // last one, I lose it until I close the 2nd to last one then it appears as
+    // x2."* Exactly that.
+    if (!(repeats[i] >= 0) || !isCollapsed(i)) { i += 1; continue; }
+    // Walk forward while each slot repeats the SAME first play as this one,
+    // sits immediately next to the previous, and is also collapsed —
+    // `repeats[]` already encodes "identical section, identical modulate
+    // offset".
     let j = i;
-    while (j + 1 < out.length && repeats[j + 1] === repeats[i]) j += 1;
+    while (j + 1 < out.length && repeats[j + 1] === repeats[i] && isCollapsed(j + 1)) j += 1;
     out[i] = { lead: true, count: j - i + 1, slots: Array.from({ length: j - i + 1 }, (_, k) => i + k) };
     for (let k = i + 1; k <= j; k += 1) out[k] = { lead: false, of: i };
     i = j + 1;

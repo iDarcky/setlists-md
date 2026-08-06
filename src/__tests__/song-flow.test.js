@@ -142,4 +142,24 @@ describe('repeatRuns', () => {
     };
     expect(buildSongFlow(song).runs[1]).toEqual({ lead: true, count: 1, slots: [1] });
   });
+
+  it('re-groups when a repeat is opened in place', () => {
+    // Owner, 2026-08-06: *"if I have 3 and I close the last one, I lose it
+    // until I close the 2nd to last one then it appears as x2."* The runs were
+    // computed from the song alone, so a closed slot whose run-lead was still
+    // OPEN became a non-lead member — and a non-lead member draws nothing.
+    const repeats = [-1, 0, 0, 0];
+    const ordered = repeats.map(() => ({}));
+    const open = (...idx) => repeatRuns(ordered, repeats, (i) => !idx.includes(i));
+
+    // All three open: no pills at all.
+    expect(open(1, 2, 3).every(r => r === null)).toBe(true);
+    // Only the LAST closed: it is its own pill, not a lost member.
+    expect(open(1, 2)[3]).toEqual({ lead: true, count: 1, slots: [3] });
+    // Two closed and adjacent: one pill for both.
+    expect(open(1)[2]).toEqual({ lead: true, count: 2, slots: [2, 3] });
+    expect(open(1)[3]).toEqual({ lead: false, of: 2 });
+    // None open: back to one pill for the whole run.
+    expect(open()[1]).toEqual({ lead: true, count: 3, slots: [1, 2, 3] });
+  });
 });

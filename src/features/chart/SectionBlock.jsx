@@ -119,15 +119,32 @@ export default function SectionBlock({
   // Lines with no note still take the grid, so the text stops at the same
   // place. That is the point — a margin that only some lines respect is not a
   // margin.
+  // ⚠ A note must land on ITS OWN LINE, and neither end of the cell is that
+  // line. A rendered line is a CHORD ROW ABOVE A LYRIC ROW: align the note to
+  // the top and it sits level with the chords (measured 2026-08-06 — note at
+  // y=122.9, its words at y=142.9, **20px adrift**, which is what the owner
+  // saw); align it to the bottom and a line that wraps to two rows drops it to
+  // the last one (50.8px adrift, worse). `baseline` does not help — a flex row
+  // of chord-over-lyric columns has no baseline the grid can see.
+  //
+  // So: top-aligned, offset down by exactly one chord row (`noteGutter`).
+  // Re-measured after: note 142.9, lyric 142.9 — 0.0px.
   const gutterGrid = notePlacement === 'gutter'
     ? { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) var(--note-gutter, 88px)', columnGap: '0.5rem', alignItems: 'start' }
     : null;
-  const noteGutter = (text) => (
+  // `hasChordRow` — a line rendered with chords ABOVE its words puts a row of
+  // chords between the cell's top and the lyric the note belongs to, so the
+  // note has to start one chord-row down. `leading-none` on the chord means
+  // that row is exactly the chord font size; the +3px is the gap the chord
+  // wrapper leaves under it. Measured, then checked back to 0.0px of drift.
+  const noteGutter = (text, hasChordRow = false) => (
     <span
-      className="text-[0.72em] leading-snug self-start pt-[0.15em] whitespace-pre-wrap"
+      className="text-[0.72em] leading-snug self-start whitespace-pre-wrap"
+      data-note-gutter=""
       style={{ color: text.trim().startsWith('!') ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--text-2))',
                fontStyle: text.trim().startsWith('!') ? 'normal' : 'italic',
-               fontWeight: text.trim().startsWith('!') ? 600 : 400 }}
+               fontWeight: text.trim().startsWith('!') ? 600 : 400,
+               marginTop: hasChordRow ? 'calc(var(--chart-font-size-chord, 17px) + 3px)' : 0 }}
     >
       {text}
     </span>
@@ -409,7 +426,7 @@ export default function SectionBlock({
           )}
           {inlineNotes && inlineNote && notePlacement === 'leader' && noteLeader(inlineNote)}
         </div>
-        {notePlacement === 'gutter' && (inlineNotes && inlineNote ? noteGutter(inlineNote) : <span />)}
+        {notePlacement === 'gutter' && (inlineNotes && inlineNote ? noteGutter(inlineNote, true) : <span />)}
         </div>
       </div>
     );

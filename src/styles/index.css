@@ -1012,10 +1012,16 @@ html.dialog-open main {
    Interlude at 254°, all four fully saturated, and the owner could not tell
    them apart (2026-08-06). Hue is now only half the signal:
 
-     VIVID (88% / 90%) — the five sections the room SINGS:
-                         Verse · Pre Chorus · Chorus · Refrain · Bridge
-     MUTED (40% / 42%) — the six the band only PLAYS:
-                         Intro · Tag · Instrumental · Interlude · Vamp · Outro
+     VIVID — the five sections the room SINGS:
+             Verse · Pre Chorus · Chorus · Refrain · Bridge
+     DEEPER — the six the band only PLAYS:
+             Intro · Tag · Instrumental · Interlude · Vamp · Outro
+
+   ⚠ "Muted" is not "pale". The first cut flattened all six played hues to one
+   saturation and one lightness, and six colours separated by hue alone at low
+   saturation read as six pastels — everything looked the same. They sit back by
+   being DEEPER and a little less saturated, each on its own rung of a lightness
+   ladder, so a muted blue is still a blue.
 
    So a vivid amber Pre Chorus sits next to a muted tan Instrumental, and a
    vivid violet Refrain next to a muted lavender Interlude: two dimensions of
@@ -1043,18 +1049,22 @@ html.dialog-open main {
   /* Sung — vivid */
   --section-verse: hsl(130, 88%, 60%);
   --section-prechorus: hsl(42, 88%, 60%);
-  --section-chorus: hsl(330, 88%, 60%);
-  --section-refrain: hsl(288, 88%, 60%);
-  --section-bridge: hsl(168, 88%, 60%);
-  /* Played — muted. Intro is also the one that has to stay clear of Midnight's
-     chord colour (`--chord: #7ec1ff`); 40% saturation against the chords' 100%
-     does that in a way hue alone never did. */
-  --section-intro: hsl(222, 40%, 68%);
-  --section-tag: hsl(196, 40%, 68%);
-  --section-instrumental: hsl(26, 40%, 68%);
-  --section-interlude: hsl(254, 40%, 68%);
-  --section-vamp: hsl(85, 40%, 68%);
-  --section-outro: hsl(356, 40%, 68%);
+  --section-chorus: hsl(330, 88%, 62%);
+  --section-refrain: hsl(288, 88%, 66%);
+  --section-bridge: hsl(168, 88%, 58%);
+  /* Played — DEEPER, not paler, and each on its own rung of the lightness
+     ladder. The first cut put all six at 40% saturation and 68% lightness, and
+     six colours that differ only in hue at low saturation are six pastels:
+     owner, 2026-08-06, *"I don't know what you did with the saturations but now
+     everything looks the same"*. Muting by lightness-and-a-little-saturation
+     keeps each one its own colour (a real blue, a real orange, a real olive)
+     while still sitting back from the five the room sings. */
+  --section-intro: hsl(222, 62%, 64%);
+  --section-tag: hsl(196, 55%, 52%);
+  --section-instrumental: hsl(26, 62%, 56%);
+  --section-interlude: hsl(262, 55%, 70%);
+  --section-vamp: hsl(85, 50%, 48%);
+  --section-outro: hsl(356, 58%, 60%);
 }
 
 /* The same eleven on paper, darkened until each clears 4.6:1 against white and
@@ -1063,13 +1073,13 @@ html.dialog-open main {
 [data-theme="light"] {
   --section-verse: hsl(130, 90%, 27%);
   --section-prechorus: hsl(42, 90%, 30%);
-  --section-chorus: hsl(330, 90%, 34%);
-  --section-refrain: hsl(288, 90%, 34%);
+  --section-chorus: hsl(330, 90%, 32%);
+  --section-refrain: hsl(288, 90%, 32%);
   --section-bridge: hsl(168, 90%, 26%);
-  --section-intro: hsl(222, 42%, 40%);
-  --section-tag: hsl(196, 42%, 39%);
-  --section-instrumental: hsl(26, 42%, 40%);
-  --section-interlude: hsl(254, 42%, 40%);
-  --section-vamp: hsl(85, 42%, 33%);
-  --section-outro: hsl(356, 42%, 40%);
+  --section-intro: hsl(222, 70%, 38%);
+  --section-tag: hsl(196, 63%, 36%);
+  --section-instrumental: hsl(26, 70%, 38%);
+  --section-interlude: hsl(262, 63%, 38%);
+  --section-vamp: hsl(85, 58%, 30%);
+  --section-outro: hsl(356, 66%, 38%);
 }

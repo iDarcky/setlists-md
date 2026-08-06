@@ -3,7 +3,7 @@ import { semitonesBetween, keysInQualityOf, notateChord } from '@/music';
 import { resolveSongView } from '@/arrangements';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/ui/Select';
 import { IconButton } from '@/ui/IconButton';
-import { buildSongFlow } from '@/lib/songFlow';
+import { buildSongFlow, repeatRuns } from '@/lib/songFlow';
 import { resolveSectionColors } from '@/lib/sectionIdentity';
 import { resolveReaderConfig } from '@/lib/readerConfig';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -388,7 +388,7 @@ export default function Reader({
   // the app quietly deciding your phone shouldn't sleep while you browse.
   useWakeLock(!embedded && settings?.keepAwake === true);
 
-  const { ordered, offsets, repeats, runs } = useMemo(() => buildSongFlow(song), [song]);
+  const { ordered, offsets, repeats } = useMemo(() => buildSongFlow(song), [song]);
 
   // The active section IS whichever heading is pinned — so the reading line
   // sits at the pin, not a third of the way down. Otherwise the ribbon
@@ -624,6 +624,15 @@ export default function Reader({
       return next;
     });
   }, []);
+  // Which slots are drawn as ONE pill, right now. Recomputed from the open set,
+  // not from the song: a run is a stretch of adjacent slots that are all still
+  // tags. Open one and it leaves the run; close it and it rejoins whichever
+  // neighbours are also closed.
+  const runs = useMemo(
+    () => repeatRuns(ordered, repeats, (i) => !openRepeats.has(i)),
+    [ordered, repeats, openRepeats],
+  );
+
   // …and back. An opened repeat had no way to close until the song changed
   // (owner, 2026-08-06: *"Is there a way to collapse back sections?"*).
   const closeRepeat = useCallback((idxOrSlots) => {
@@ -1472,7 +1481,10 @@ export default function Reader({
               // are the same section, back to back, so opening one and leaving
               // the others as tags would put the ugliness back.
               onOpenHere={() => openRepeat(runs[idx]?.slots || idx)}
-              onCollapse={() => closeRepeat(runs[idx]?.slots || idx)}
+              // Closing acts on THIS slot. It becomes a tag again and merges
+              // with whichever neighbours are also tags — the run is derived,
+              // so there is nothing to keep in step by hand.
+              onCollapse={() => closeRepeat(idx)}
               expanded={openRepeats.has(idx)}
               run={runs[idx]}
               tabColors={tabColors}
