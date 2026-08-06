@@ -361,21 +361,26 @@ export function resolveReaderConfig(settings, ctx = {}) {
   // positions for a style that cannot float.
   cfg.sticky = cfg.columns === 1 && pick('sticky', settings?.[KEY.sticky]) === 'on';
 
-  // ── Where an inline note goes ──────────────────────────────────────────────
-  // WIDE: out to the right edge of its column on a dotted leader, like the
-  // margin notes on a printed chart. There is room, so it costs nothing.
+  // ── Where an inline note goes: a GUTTER, everywhere ────────────────────────
+  // A strip down the right that the lyrics stop before, with the notes in it.
   //
-  // NARROW: a 'gutter' — a strip down the right that the lyrics stop before,
-  // with the notes in it. Measured on a 390px phone: a permanent gutter costs
-  // **24% of the song's height** (549px → 682px for the same eight lines), so
-  // it is not permanent. `ReaderSection` asks for it PER SECTION, and only a
-  // section that actually contains a note pays (owner, 2026-08-06: *"if no
-  // notes we use for lyrics if notes we have a space for them"*). A section
-  // with none uses the full width.
+  // The dotted LEADER used to own wide screens — the note pinned to the right
+  // edge of its column, joined to the words by dots. Seen at 1280 in two
+  // columns it was the wrong call: a 594px column with an ordinary lyric leaves
+  // ~400px of dotted rule running across the page, which reads as a divider
+  // rather than a connection (owner, 2026-08-06: *"for 2 column is not quite
+  // good"*). One treatment for every width also means one place where a note's
+  // vertical alignment has to be right, and it was 5px out on wide too.
   //
-  // 'above' — the previous narrow rule, a note on its own line over its lyric —
-  // is still what a section falls back to if the gutter is switched off.
-  cfg.notePlacement = wide ? 'leader' : 'gutter';
+  // Measured on a 390px phone, a PERMANENT gutter costs **24% of the song's
+  // height** (549px → 682px for the same eight lines) — so it is not permanent.
+  // `ReaderSection` asks for it PER SECTION, and only a section that actually
+  // contains a note pays (owner: *"if no notes we use for lyrics if notes we
+  // have a space for them"*). A section with none uses the full width.
+  //
+  // 'above' — a note on its own line over its lyric — is still what a section
+  // falls back to if inline notes are switched off mid-section.
+  cfg.notePlacement = 'gutter';
 
   return cfg;
 }

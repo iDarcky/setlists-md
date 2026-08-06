@@ -44,7 +44,12 @@ describe('context overrides are physical facts, not preferences', () => {
     // nothing. Narrow: a reserved strip down the right — but ONLY in sections
     // that actually carry a note, which `ReaderSection` decides. A permanent
     // gutter measured +24% on the song's height (549px → 682px on a phone).
-    expect(resolveReaderConfig({}, wide).notePlacement).toBe('leader');
+    // A GUTTER at every width, since 2026-08-06. The dotted leader owned wide
+    // screens until it was seen at 1280 in two columns: a 594px column with an
+    // ordinary lyric left ~400px of dots running across the page, which reads
+    // as a divider, not a connection. One treatment also means one place where
+    // a note's alignment has to be right.
+    expect(resolveReaderConfig({}, wide).notePlacement).toBe('gutter');
     expect(resolveReaderConfig({}, narrow).notePlacement).toBe('gutter');
   });
 

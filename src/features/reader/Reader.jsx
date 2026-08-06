@@ -1421,8 +1421,10 @@ export default function Reader({
               paddingLeft: `${padLeft}px`,
               paddingRight: `${padRight}px`,
               // The note strip's width, read by `SectionBlock`'s gutter grid.
-              // Only sections that actually carry a note reserve it.
-              ['--note-gutter']: '88px',
+              // Only sections that actually carry a note reserve it. Wider on a
+              // wide screen because the column is: 88px of a 366px phone is a
+              // quarter of the line, 132px of a 594px column is a fifth.
+              ['--note-gutter']: wide ? '132px' : '88px',
               // ── Two columns, and which way you READ them ────────────────
               // `columnCount` (multicol) fills column 1 to the bottom, then
               // column 2 — you read DOWN, then across. That is the default and

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { sectionIdentity, headingText, resolveSectionColors } from '@/lib/sectionIdentity';
 import SectionBlock from '@/features/chart/SectionBlock';
-import { serializeTabBlock, lineToPlacement, placementToLine, CUE_MAX_CHARS } from '@/parser';
+import { serializeTabBlock, lineToPlacement, placementToLine } from '@/parser';
 
 /**
  * One section — elements 3, 4 and 5.
@@ -264,12 +264,17 @@ export default function ReaderSection({
   const rawCue = String(section.note || '');
   const loud = /^!/.test(rawCue.trim());
   // Element 4b is a cue, not an essay — and the heading PINS with its cue, so
-  // every row it wraps to is a row of song hidden behind it. Capped at the
-  // input now (`CUE_MAX_CHARS`, the editor's field); this is the display guard
-  // for a cue that arrived from an imported file, which no input ever saw.
-  const cue = rawCue.length > CUE_MAX_CHARS
-    ? `${rawCue.slice(0, CUE_MAX_CHARS).trimEnd()}…`
-    : rawCue;
+  // every row it wraps to is a row of song hidden behind it. New cues are
+  // capped at the INPUT (`CUE_MAX_CHARS`, measured to fit two rows on a 360px
+  // phone), and the heading row is clamped to two rows for everything else.
+  //
+  // The clamp, not a character cut, is the answer for a cue that already exists
+  // — the owner's question was *"what are we doing with users that might have
+  // had longer notes?"*. Cutting at 70 characters would show `…` and hide the
+  // rest of a note somebody wrote before there was a limit; clamping shows two
+  // full rows, bounds the pin exactly the same, and leaves the text untouched
+  // in the file and in the editor, which is where it gets shortened.
+  const cue = rawCue;
   // One repeat treatment, one name. 'ref' and 'condensed' had converged on
   // the same pill, so 'ref' is gone from the knob entirely.
   const condensed = repeatOf >= 0 && config.repeats === 'condensed' && !expanded;
@@ -546,6 +551,16 @@ export default function ReaderSection({
           // is now as tall as the tallest thing in it.
           fontSize: `${labelPx}px`,
           lineHeight: 1.25,
+          // TWO ROWS, name and cue together. The clamp is on the ROW, not on
+          // the cue, because the cue starts on the heading's own line and wraps
+          // from there — clamping the cue alone would first have to make it a
+          // block, which is the layout element 4b explicitly rejected.
+          ...(cue && config.notes ? {
+            display: '-webkit-box',
+            WebkitBoxOrient: 'vertical',
+            WebkitLineClamp: 2,
+            overflow: 'hidden',
+          } : null),
           ...(pinned ? {
           position: 'sticky',
           // Pin ONE PIXEL HIGH, and pad that pixel back. Two sticky edges that

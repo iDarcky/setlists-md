@@ -171,28 +171,32 @@ describe('element 10 — the other nav styles', () => {
 // with its own toggle. The chart never reflows when you open it, so the words
 // do not jump mid-song.
 describe('the setlist rail', () => {
-  it('is always there on a wide screen, collapsed to a strip', () => {
+  it('is not there at all until it is asked for, at every width', () => {
+    // It used to keep a 44px strip docked on wide so the chart never reflowed
+    // when you opened it. Owner, 2026-08-06: *"should we remove the rail on
+    // ipad to win more space? … we don't even need the button because we can
+    // open the rail from the x/x bar at the bottom"*. On a 1024px iPad that
+    // strip was permanent chrome holding one chevron, and the way in already
+    // existed. Opening reflows the chart now — a price you only pay when you
+    // ask for it.
     renderIt();
-    const rail = screen.getByRole('complementary', { name: 'Setlist' });
-    expect(rail).toBeTruthy();
-    expect(rail.style.width).toBe('44px');
-    // Collapsed shows no list — a 44px strip cannot, and a mounted one would
-    // leave a clipped column of titles behind the strip.
-    expect(screen.getByRole('button', { name: 'Expand setlist' })).toBeTruthy();
+    expect(screen.queryByRole('complementary', { name: 'Setlist' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Expand setlist' })).toBeNull();
   });
 
-  it('expands from its own toggle, and the footer counter still opens it', () => {
+  it('opens from the footer counter, and closes from its own header', () => {
     renderIt();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand setlist' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open setlist' }));
     const rail = screen.getByRole('complementary', { name: 'Setlist' });
     expect(rail.style.width).toBe('264px');
     expect(screen.getAllByText('Goodness of God').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: 'Collapse setlist' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse setlist' }));
+    expect(screen.queryByRole('complementary', { name: 'Setlist' })).toBeNull();
   });
 
   it('remembers being left open, per device', () => {
     renderIt();
-    fireEvent.click(screen.getByRole('button', { name: 'Expand setlist' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open setlist' }));
     expect(localStorage.getItem('setlists-md:reader-rail-open')).toBe('1');
   });
 
@@ -594,7 +598,12 @@ describe('edit mode — locking and the section controls', () => {
     expect(screen.queryByRole('button', { name: 'Next song' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Display options' }).disabled).toBe(true);
     expect(screen.getByRole('button', { name: 'Practice tools' }).disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Expand setlist' }).disabled).toBe(true);
+    // The way into the setlist is the footer counter now, and while editing it
+    // is not a button at all — `Centre` renders a plain div without a handler,
+    // which is stronger than a disabled toggle. The rail keeps no resting strip
+    // to hold one anyway.
+    expect(screen.queryByRole('button', { name: 'Open setlist' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /setlist/i })).toBeNull();
   });
 
   it('closes the practice strip when the editor opens', () => {

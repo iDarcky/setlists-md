@@ -236,7 +236,6 @@ export default function SetlistReader({
       {cfg.rail && <SetlistRail
         open={railOpen}
         wide={wide}
-        onOpen={() => setRailOpen(true)}
         onClose={() => setRailOpen(false)}
         locked={locked}
         title={setlist?.name}
