@@ -1063,19 +1063,15 @@ describe('element 3 — the floating side rail', () => {
     // The class, not `getComputedStyle` — jsdom loads no stylesheet, so every
     // Tailwind utility computes to its initial value here.
     expect(rail().className).toContain('sticky');
-    // ...and you see THROUGH it, which is a property of the ground, not of the
-    // marks. Round 1 faded the whole strip to 0.72 and the owner's read was
-    // "the transparency feels strange": dimming the chips takes the ink down
-    // with the surface, so the one filled chip goes pale and the outlines go
-    // muddy over whatever lyric is behind them. Translucent PLATE, full-
-    // strength chips.
+    // ...and it is transparent, on the MARKS. That is only honest because the
+    // side rail is dots: a frosted plate was tried first and it hid words,
+    // which the owner ruled out ("the lyrics are the number one in
+    // importance"), and fading text chips washes the ink out with the ground.
+    // A dot has no ink to wash.
     const strip = rail().firstElementChild;
-    expect(strip.style.opacity).toBe('');
-    expect(strip.style.backgroundColor).toContain('color-mix');
-    expect(strip.style.backdropFilter).toContain('blur');
-    // The longhand, never the `background` shorthand — jsdom's parser throws on
-    // `color-mix` inside it during the `cloneNode` every role query does.
-    expect(strip.style.background).toBe('');
+    expect(Number(strip.style.opacity)).toBeGreaterThan(0);
+    expect(Number(strip.style.opacity)).toBeLessThan(1);
+    expect(strip.style.backgroundColor).toBe('');
   });
 
   it('gives the chart the whole width — the row is a flex ITEM', () => {
@@ -1132,6 +1128,22 @@ describe('the ribbon marks a key change', () => {
 
 describe('element 3 — what the side rail does differently', () => {
   const repeated = () => makeSong({ structure: ['Verse 1', 'Chorus', 'Chorus', 'Verse 2'] });
+
+  it('is DOTS on a side, whatever style is set', () => {
+    mockWidth(true);
+    const { container } = render(
+      <Reader song={makeSong()} settings={{ structurePosition: 'left', ribbonStyle: 'chips' }}
+        onExit={() => {}} />,
+    );
+    // Owner, 2026-08-06: "maybe we allow only dots to be placed left/right
+    // because we can make them transparent". A dot is 10px of colour with no
+    // text to cover or be covered — the only mark that survives being laid
+    // over lyrics. Same shape as edit mode forcing 'codes': the POSITION
+    // decides what a chip can be.
+    const rail = container.querySelector('.sticky.h-0');
+    expect(rail.textContent).not.toContain('Verse');
+    expect(rail.querySelector('span[class*="rounded-full"]')).toBeTruthy();
+  });
 
   it('spells repeats out instead of collapsing them to ×2', () => {
     mockWidth(true);
@@ -1201,7 +1213,7 @@ describe('element 3 — the rail never covers a word', () => {
     structure: ['Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Verse 1'],
   });
 
-  it('paints under the chart and gives it a gutter to keep clear of', () => {
+  it('paints under the chart and never moves it', () => {
     mockWidth(true);
     const { container } = render(
       <Reader song={longSong()} settings={{ structurePosition: 'left' }} onExit={() => {}} />,
@@ -1215,8 +1227,11 @@ describe('element 3 — the rail never covers a word', () => {
     expect(rail.className).toContain('z-0');
     const chart = container.querySelector('.wide-container.py-3');
     expect(chart.className).toContain('z-[1]');
-    // jsdom measures nothing, so the gutter is 0 here — what this pins is that
-    // it is the LEFT one that moves for a left rail.
+    // A gutter was tried (round 1) and rejected: it cost ~83px of a 390px
+    // phone for Chips, and the right margin belongs to element 5's inline
+    // notes. The chart does not move for the map — the map gets small enough
+    // to float over it instead.
+    expect(chart.style.paddingLeft).toBe('');
     expect(chart.style.paddingRight).toBe('');
   });
 

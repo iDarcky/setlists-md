@@ -238,13 +238,33 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
   PREVIOUS section: owner, 2026-08-06, with a screenshot — *"if I click on
   verse 2 it scrolls to verse 2 but not quite so I still see verse 1
   selected"*. One number, both halves.
-- **The rail never covers a word.** Owner, seeing chips across "Wash all my
-  sins away": *"the lyrics are the number one in importance"*. Two halves: the
-  strip paints UNDER the chart (`z-0` against the chart's `z-[1]`), and the
-  chart is indented by the strip's measured width so they never meet. Painting
-  under alone leaves a chip nobody can tap wherever a line crosses it, and the
-  map is a control, not a decoration. The gutter costs what the style costs —
-  ~26px for Dots, ~40px for Boxes, ~83px for Chips on a 390px phone.
+- **The rail never covers a word, and never moves one either.** Owner, seeing
+  chips across "Wash all my sins away": *"the lyrics are the number one in
+  importance"* — then, on the fix: *"I don't want the strip bar to push the
+  lyrics to the right. The right side should be for inline notes."*
+  - Round 1 gave the chart a **gutter** the width of the strip. It worked and it
+    cost the wrong thing: ~83px of a 390px phone for Chips, and the right margin
+    is **element 5's** — inline notes live out there on a wide screen. Rejected.
+  - Settled: **a side rail is DOTS, whatever style is set** (owner: *"maybe we
+    allow only dots to be placed left/right because we can make them
+    transparent"*). Same shape as edit mode forcing `codes` — the POSITION
+    decides what a chip can be, because a floating 26px column and a full-width
+    row are not the same object.
+  - **The dots carry the transparency** (0.7), with no plate. Frost was right
+    for text chips and wrong for a floating strip: a plate is opaque enough to
+    hide a word. A dot has no ink to wash out, which is the one case where
+    fading the marks is the honest tool.
+  - It still paints UNDER the chart (`z-0` vs the chart's `z-[1]`). Measured on
+    a 390px phone: the strip is 26px and the chart's own padding is 32px, so the
+    dots sit **inside the margin the chart already had** — zero crossings, zero
+    width taken.
+- ⚠ **The dots' "line inside them" was Firefox** (owner's screenshot, Zen).
+  `:-moz-focusring { outline: auto }` ships in the preflight, and Firefox draws
+  `outline: auto` as a **dashed ring that follows `border-radius`** — so a
+  tapped 14px dot got a dashed circle painted inside it. Chromium never showed
+  it because its focus ring is drawn outside the box. `outline-offset-2` on the
+  chip keeps the ring (a keyboard user needs it) and takes it off the dot.
+  **Test small round controls in Firefox, not just Chromium.**
 
 **Open, carried out of the pass:**
 - **Moving between sections in the left/right rail** — the owner is undecided

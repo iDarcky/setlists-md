@@ -1179,7 +1179,8 @@ export default function ReaderMenu({
               one still resolves to the survivor it was a variant of
               (`normalizeRibbonStyle`), so the control never shows a value the
               list does not contain. */}
-          <Field label="Structure style" onReset={reset('ribbonStyle')}>
+          <Field label="Structure style" onReset={reset('ribbonStyle')}
+            info="Left and right always show dots: the strip floats over the chart there, and a dot is the only mark small enough to do that without covering a word.">
             <Dropdown label="Structure style" value={normalizeRibbonStyle(settings?.ribbonStyle)}
               options={[['codes', 'Boxes'], ['chips', 'Chips'], ['dots', 'Dots']]}
               onChange={(v) => set('ribbonStyle', v)} />

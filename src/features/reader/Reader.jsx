@@ -302,30 +302,6 @@ export default function Reader({
   // nothing when the song already fits.
   const chartRef = useRef(null);
   const [tailPad, setTailPad] = useState(0);
-  // ── The rail's own width ─────────────────────────────────────────────────
-  // Owner, 2026-08-06, with a screenshot of the rail sitting across "Wash all
-  // my sins away": *"I like the idea of frost… but I think we need to put it
-  // below the lyrics then, because the lyrics are the number one in
-  // importance."*
-  //
-  // Painting it underneath alone is not enough — a chip that a lyric covers is
-  // a chip nobody can tap, and the map is a control, not a decoration. So the
-  // chart keeps CLEAR of it: the strip is measured and the chart is indented by
-  // exactly that much on that side, so the two never occupy the same pixel and
-  // the words never have anything over them. Measured rather than a constant
-  // because the strip's width is the style's — a dot is ~20px, a box ~34, and
-  // "Verse 1" spelled out is ~90.
-  const [railW, setRailW] = useState(0);
-  const railRef = useCallback((el) => {
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(entries => {
-      const box = entries[0]?.borderBoxSize?.[0]?.inlineSize;
-      const w = box ?? el.getBoundingClientRect().width ?? 0;
-      setRailW(prev => (Math.abs(prev - w) <= 0.5 ? prev : w));
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
   // What we last applied, so the natural height can be recovered from a
   // measurement that includes it. Read inside a ResizeObserver, never in render.
   const tailPadRef = useRef(0);
@@ -880,7 +856,24 @@ export default function Reader({
       // a DRAG HANDLE now, and 'dots' is a 10px circle while 'numbered' is bare
       // text with no box — nothing there to grab, and nothing to paint a drop
       // outline on.
-      style={editing ? 'codes' : config.ribbonStyle}
+      // ── Sides are DOTS, whatever the style says ────────────────────────
+      // Owner, 2026-08-06: *"maybe we allow only dots to be placed left/right
+      // because we can make them transparent? I don't want the strip bar to
+      // push the lyrics to the right. The right side should be for inline
+      // notes."*
+      //
+      // Round 1 gave the chart a gutter so the strip could never cover a word.
+      // It worked, and it cost the wrong thing: 21px of chip on a phone became
+      // ~83px of chart, and the right margin is element 5's — inline notes live
+      // out there on a wide screen. So the strip goes back to floating over the
+      // chart and gets small enough to do it honestly. A dot is 10px of colour
+      // with no text to be covered or to cover, which is the only thing that
+      // survives being laid over lyrics.
+      //
+      // Same shape as edit mode forcing 'codes': the POSITION decides what a
+      // chip can be, because a 48px-wide column and a full-width row are not
+      // the same object.
+      style={editing ? 'codes' : (ribbonSide ? 'dots' : config.ribbonStyle)}
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
       // The side rail shows a WINDOW that walks with the song — 2 behind, the
       // one you are in, 3 ahead (owner, 2026-08-05). A column cannot carry a
@@ -1217,32 +1210,24 @@ export default function Reader({
               style={{ top: headH || 0 }}
               aria-hidden={false}
             >
-              {/* ── Why this is glass and not a faded ribbon ─────────────
-                  Round 1 dimmed the whole strip to 0.72 and the owner's read
-                  was *"the transparency feels strange"*. He is right, and the
-                  reason is that fading the CHIPS attacks the wrong layer: it
-                  takes the ink down with the surface, so the one filled chip —
-                  the entire point of the row — goes pale, the outlines go muddy
-                  against whatever lyric happens to be behind them, and the
-                  result reads as a rendering fault rather than as a choice.
-                  What the request actually asks for is to see THROUGH it, and
-                  that is a property of the ground, not of the marks: full-
-                  strength chips on a translucent, slightly blurred plate. The
-                  lyrics still show through, and the map stays crisp. */}
+              {/* ── Transparent dots, no plate ────────────────────────────
+                  The frosted plate was the right answer for CHIPS — it kept
+                  text legible over text — and the wrong one for a strip that
+                  floats: a plate is opaque enough to hide a word, and the words
+                  come first. With the side rail reduced to dots there is no
+                  text on the strip to protect, so the plate goes and the dots
+                  themselves carry the transparency, which is what was asked for
+                  in the first place ("that's why I wanted them transparent").
+                  Frost stays where it earns its keep — see the ☰. */}
               <div
-                ref={railRef}
                 className={`absolute ${ribbonPlace === 'left' ? 'left-0 items-start' : 'right-0 items-end'} flex flex-col [&_button]:pointer-events-auto rounded-xl`}
                 style={{
                   top: Math.max(0, (viewH - headH - footH) / 2),
                   transform: 'translateY(-50%)',
-                  // `backgroundColor` longhand, never the `background`
-                  // shorthand: jsdom's parser throws on `color-mix` inside the
-                  // shorthand during `cloneNode`, which Testing Library does for
-                  // every role query.
-                  backgroundColor: 'color-mix(in srgb, var(--chart-bg, var(--ds-background-100)) 62%, transparent)',
-                  backdropFilter: 'blur(3px)',
-                  WebkitBackdropFilter: 'blur(3px)',
-                  padding: '3px 2px',
+                  // On the marks, not on a ground — a dot has no ink to wash
+                  // out, so this is the one place fading is the honest tool.
+                  opacity: 0.7,
+                  padding: '2px',
                 }}
               >
                 {ribbonNode}
@@ -1258,12 +1243,6 @@ export default function Reader({
             ref={chartRef}
             className="wide-container py-3 relative z-[1]"
             style={{
-              // The gutter the rail lives in. Nothing else changes: with the
-              // rail off (or on the other side) this is 0 and the chart is
-              // exactly where it was.
-              ...(ribbonSide && railW
-                ? { [ribbonPlace === 'left' ? 'paddingLeft' : 'paddingRight']: railW + 6 }
-                : null),
               fontSize: config.display.lyricFontSize,
               // SectionBlock sizes chords off these vars, not inherited size.
               ['--chart-font-size-lyric']: `${config.display.lyricFontSize}px`,

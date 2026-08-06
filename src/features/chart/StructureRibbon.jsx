@@ -159,7 +159,16 @@ export function StructureRibbon({
   // own padding buys nothing at all. 6px is what the padding affords — 33px of
   // target, not the 44px guideline. A real 44 costs ~16px of permanent chrome
   // height, which is element 1's most expensive currency.
-  const TAP_AREA = "relative after:content-[''] after:absolute after:-inset-x-[3px] after:-inset-y-[6px]";
+  //
+  // `outline-offset-2` is not cosmetic — it is the DOTS BUG. Firefox (and Zen)
+  // ship `:-moz-focusring { outline: auto }`, and Firefox draws `outline: auto`
+  // as a dashed ring that follows `border-radius` — so a tapped 14px dot got a
+  // dashed circle painted INSIDE it (owner's screenshot, 2026-08-06: *"the dots
+  // have a line inside them"*, Zen/Firefox only). Pushing the outline 2px out
+  // keeps the focus ring — a keyboard user still needs it — and takes it off
+  // the dot. Chromium never showed it because its focus ring is already drawn
+  // outside the box.
+  const TAP_AREA = "relative outline-offset-2 after:content-[''] after:absolute after:-inset-x-[3px] after:-inset-y-[6px]";
 
   // ── The edges ────────────────────────────────────────────────────────────
   // A long song runs off both ends of the strip with nothing to say so: the
