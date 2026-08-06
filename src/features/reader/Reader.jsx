@@ -302,6 +302,30 @@ export default function Reader({
   // nothing when the song already fits.
   const chartRef = useRef(null);
   const [tailPad, setTailPad] = useState(0);
+  // ── The rail's own width ─────────────────────────────────────────────────
+  // Owner, 2026-08-06, with a screenshot of the rail sitting across "Wash all
+  // my sins away": *"I like the idea of frost… but I think we need to put it
+  // below the lyrics then, because the lyrics are the number one in
+  // importance."*
+  //
+  // Painting it underneath alone is not enough — a chip that a lyric covers is
+  // a chip nobody can tap, and the map is a control, not a decoration. So the
+  // chart keeps CLEAR of it: the strip is measured and the chart is indented by
+  // exactly that much on that side, so the two never occupy the same pixel and
+  // the words never have anything over them. Measured rather than a constant
+  // because the strip's width is the style's — a dot is ~20px, a box ~34, and
+  // "Verse 1" spelled out is ~90.
+  const [railW, setRailW] = useState(0);
+  const railRef = useCallback((el) => {
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(entries => {
+      const box = entries[0]?.borderBoxSize?.[0]?.inlineSize;
+      const w = box ?? el.getBoundingClientRect().width ?? 0;
+      setRailW(prev => (Math.abs(prev - w) <= 0.5 ? prev : w));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   // What we last applied, so the natural height can be recovered from a
   // measurement that includes it. Read inside a ResizeObserver, never in render.
   const tailPadRef = useRef(0);
@@ -471,7 +495,25 @@ export default function Reader({
     // container's top edge, which is behind the header, so the heading you
     // jumped to ended up hidden underneath it.
     const top = el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
-    sc.scrollTo({ top: Math.max(0, top - headH - 8), behavior: 'smooth' });
+    // ── Land ON the pin line, one pixel above it — never below ──────────────
+    // Owner, 2026-08-06, with a screenshot: *"if I click on verse 2 it scrolls
+    // to verse 2 but not quite so I still see verse 1 selected"*. Both halves
+    // of that are one number.
+    //
+    // This used to land the section 8px BELOW the header, as breathing room.
+    // But the scroll-spy's rule is "the last section whose top has scrolled
+    // ABOVE the reading line" (`useActiveSection`, `top - line <= 1`), and the
+    // reading line IS `headH`. A section sitting 8px below it has not reached
+    // the line, so the spy keeps reporting the PREVIOUS section: you jump to
+    // Verse 2, you are looking at Verse 2, and the ribbon says Verse 1.
+    //
+    // So the jump lands where a scroll would have put it: top edge one pixel
+    // UNDER the header, which is exactly where a sticky heading pins
+    // (`stickyTop - 1` in `ReaderSection` — overlap, never abut). The spy then
+    // reads `-1 <= 1` and agrees on the same frame, and the 8px of "breathing
+    // room" is revealed as what it always was: the gap that made the two
+    // halves of "where am I" disagree.
+    sc.scrollTo({ top: Math.max(0, top - headH + 1), behavior: 'smooth' });
   }, [headH]);
 
   // ── A repeat you asked to see ────────────────────────────────────────────
@@ -1167,7 +1209,11 @@ export default function Reader({
               **A bit transparent**, so the lyrics read through it. */}
           {ribbonSide && ribbonNode && (
             <div
-              className="sticky z-10 h-0 pointer-events-none"
+              // z-0, not z-10: the lyrics are element 6 and they win every
+              // overlap. With the gutter below they should never meet, but a
+              // wide tab or a long chord line can still reach across, and when
+              // it does the word is the thing that must be readable.
+              className="sticky z-0 h-0 pointer-events-none"
               style={{ top: headH || 0 }}
               aria-hidden={false}
             >
@@ -1184,6 +1230,7 @@ export default function Reader({
                   strength chips on a translucent, slightly blurred plate. The
                   lyrics still show through, and the map stays crisp. */}
               <div
+                ref={railRef}
                 className={`absolute ${ribbonPlace === 'left' ? 'left-0 items-start' : 'right-0 items-end'} flex flex-col [&_button]:pointer-events-auto rounded-xl`}
                 style={{
                   top: Math.max(0, (viewH - headH - footH) / 2),
@@ -1209,8 +1256,14 @@ export default function Reader({
               which is why the body never lined up with the bar above it. */}
           <div
             ref={chartRef}
-            className="wide-container py-3"
+            className="wide-container py-3 relative z-[1]"
             style={{
+              // The gutter the rail lives in. Nothing else changes: with the
+              // rail off (or on the other side) this is 0 and the chart is
+              // exactly where it was.
+              ...(ribbonSide && railW
+                ? { [ribbonPlace === 'left' ? 'paddingLeft' : 'paddingRight']: railW + 6 }
+                : null),
               fontSize: config.display.lyricFontSize,
               // SectionBlock sizes chords off these vars, not inherited size.
               ['--chart-font-size-lyric']: `${config.display.lyricFontSize}px`,

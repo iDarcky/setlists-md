@@ -231,6 +231,21 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
   last section's top to reach the pin line, and **zero when the song already
   fits**, because a flat pad invents a scroll on a song that almost fits.
 
+- **A chip lands the section ON the reading line** (1px under the header),
+  never below it. It used to land 8px below as breathing room — and the
+  scroll-spy's rule is "the last section whose top has scrolled ABOVE the
+  line", where the line IS `headH`. So the jump left the chip pointing at the
+  PREVIOUS section: owner, 2026-08-06, with a screenshot — *"if I click on
+  verse 2 it scrolls to verse 2 but not quite so I still see verse 1
+  selected"*. One number, both halves.
+- **The rail never covers a word.** Owner, seeing chips across "Wash all my
+  sins away": *"the lyrics are the number one in importance"*. Two halves: the
+  strip paints UNDER the chart (`z-0` against the chart's `z-[1]`), and the
+  chart is indented by the strip's measured width so they never meet. Painting
+  under alone leaves a chip nobody can tap wherever a line crosses it, and the
+  map is a control, not a decoration. The gutter costs what the style costs —
+  ~26px for Dots, ~40px for Boxes, ~83px for Chips on a 390px phone.
+
 **Open, carried out of the pass:**
 - **Moving between sections in the left/right rail** — the owner is undecided
   about the whole interaction (*"I'll have to think about it"*). The window and

@@ -1175,3 +1175,58 @@ describe('a chip can reach the last section on every device', () => {
     expect(src).toContain('natural > band + 4');
   });
 });
+
+// ── The jump and the highlight are ONE number — 2026-08-06 ─────────────────
+describe('a chip lands the section on the reading line', () => {
+  it('scrolls to the pin line, never below it', async () => {
+    const src = await import('node:fs').then(fs =>
+      fs.readFileSync('src/features/reader/Reader.jsx', 'utf8'));
+    // Owner, with a screenshot: "if I click on verse 2 it scrolls to verse 2
+    // but not quite so I still see verse 1 selected."
+    //
+    // The jump used to land the section 8px BELOW the header as breathing
+    // room, and the scroll-spy's rule is "the last section whose top has
+    // scrolled ABOVE the reading line" — which IS `headH`. 8px below the line
+    // is not above it, so the spy kept reporting the previous section: you are
+    // looking at Verse 2 and the ribbon says Verse 1. Measured after the fix:
+    // the section's top lands at -1 relative to the header, and the clicked
+    // chip is the lit one.
+    expect(src).toContain('top - headH + 1');
+    expect(src).not.toContain('top - headH - 8');
+  });
+});
+
+describe('element 3 — the rail never covers a word', () => {
+  const longSong = () => makeSong({
+    structure: ['Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Verse 1'],
+  });
+
+  it('paints under the chart and gives it a gutter to keep clear of', () => {
+    mockWidth(true);
+    const { container } = render(
+      <Reader song={longSong()} settings={{ structurePosition: 'left' }} onExit={() => {}} />,
+    );
+    // Owner, 2026-08-06, with a screenshot of chips sitting across "Wash all my
+    // sins away": the lyrics are element 6 and they are first. Two halves —
+    // the rail paints BELOW the chart, and the chart is indented past it so
+    // they never meet at all. Painting under alone would leave a chip nobody
+    // can tap wherever a line crosses it, and the map is a control.
+    const rail = container.querySelector('.sticky.h-0');
+    expect(rail.className).toContain('z-0');
+    const chart = container.querySelector('.wide-container.py-3');
+    expect(chart.className).toContain('z-[1]');
+    // jsdom measures nothing, so the gutter is 0 here — what this pins is that
+    // it is the LEFT one that moves for a left rail.
+    expect(chart.style.paddingRight).toBe('');
+  });
+
+  it('takes no gutter at all when the ribbon is not on a side', () => {
+    mockWidth(true);
+    const { container } = render(
+      <Reader song={longSong()} settings={{ structurePosition: 'top' }} onExit={() => {}} />,
+    );
+    const chart = container.querySelector('.wide-container.py-3');
+    expect(chart.style.paddingLeft).toBe('');
+    expect(chart.style.paddingRight).toBe('');
+  });
+});

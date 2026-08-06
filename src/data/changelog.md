@@ -152,6 +152,8 @@ A running log of what's new in setlists.md. Newest releases first.
 
 ### Fixed
 - **The next song starts at the top (Labs)** — moving to the next song in a set kept the previous song's scroll position, so song two opened three verses down, or past its own end if it was shorter.
+- **Tapping a section in the map now agrees with the map (Labs)** — it landed the section just below the top bar, which is a hair short of where the reader decides "you are here", so you'd be looking at Verse 2 while the map still highlighted Verse 1. It lands exactly on the line now.
+- **The structure down the side no longer sits on the words (Labs)** — it's painted underneath the chart and the chart keeps clear of it, so the lyrics are never covered.
 - **Tapping a section takes you to it, wherever it is in the song (Labs)** — the last sections had nothing below them to scroll into, so on a desktop the final chip barely moved the page. The chart now carries exactly as much space after the last section as that jump needs, and none at all when the song already fits on the screen.
 - **The reader scrolled twice (Labs)** — the song was being laid out inside a box locked to the height of one screen, so the page and the song disagreed about how long the song was. It affected phones as well as desktops.
 - **A key change shows on the song structure (Labs)** — a small gold `↗ B` between two sections, naming the key you land in rather than how far it moves. It only appears on songs that actually change key.
