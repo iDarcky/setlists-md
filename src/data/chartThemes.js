@@ -97,11 +97,16 @@ export const CHART_THEMES = [
     text: '#1a1815',
     chord: '#9a7b32',
     subtle: '#8b8378',
+    // Eleven hues, one per type — the muted Hymnal register, each solved for
+    // 4.6:1 or better against this theme's own paper. The first cut repeated
+    // four colours (Pre Chorus = Instrumental = Vamp, Tag = Interlude =
+    // Refrain, Ending = Outro), which is the same fault the built-in palette
+    // had: a chip and a heading that name different sections in one colour.
     sections: {
-      Intro: '#5a7a96', Verse: '#4a7c59', 'Pre Chorus': '#a8823c',
-      Chorus: '#a8543c', Bridge: '#4a6b8a', Instrumental: '#a8823c',
-      Ending: '#96473f', Tag: '#7a5c8f', Interlude: '#7a5c8f',
-      Vamp: '#a8823c', Outro: '#96473f', Refrain: '#7a5c8f',
+      Intro: '#43569f', Verse: '#347f3d', 'Pre Chorus': '#866e37',
+      Chorus: '#a34369', Bridge: '#327b6c', Instrumental: '#9f6a41',
+      Ending: '#a34348', Tag: '#377a90', Interlude: '#5943a3',
+      Vamp: '#5d7b32', Outro: '#a34348', Refrain: '#9043a3',
     },
   },
   {
@@ -113,11 +118,12 @@ export const CHART_THEMES = [
     text: '#ede8e1',
     chord: '#d6ac55',
     subtle: '#8a8278',
+    // Same eleven hues, lifted for near-black paper (4.6:1 or better).
     sections: {
-      Intro: '#8fb4ce', Verse: '#7fb88c', 'Pre Chorus': '#d6b476',
-      Chorus: '#d68e76', Bridge: '#84a9c9', Instrumental: '#d6b476',
-      Ending: '#d6857c', Tag: '#b394c4', Interlude: '#b394c4',
-      Vamp: '#d6b476', Outro: '#d6857c', Refrain: '#b394c4',
+      Intro: '#5f72c0', Verse: '#3f8d4a', 'Pre Chorus': '#947b42',
+      Chorus: '#b86180', Bridge: '#3f8d7c', Instrumental: '#a97253',
+      Ending: '#b8616a', Tag: '#42879d', Interlude: '#8472c0',
+      Vamp: '#6c8d3f', Outro: '#b8616a', Refrain: '#a661b8',
     },
   },
 ];

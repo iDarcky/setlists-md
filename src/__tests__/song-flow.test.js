@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { orderSections, sectionModOffsets, repeatFirstIndex, buildSongFlow } from '@/lib/songFlow';
+import { orderSections, sectionModOffsets, repeatFirstIndex, repeatRuns, buildSongFlow } from '@/lib/songFlow';
 
 const sec = (type, lines = ['a']) => ({ type, lines });
 const mod = n => ({ type: 'modulate', semitones: n });
@@ -103,5 +103,43 @@ describe('buildSongFlow', () => {
     expect(offsets).toEqual([0, 0, 2]);
     // The repeated Verse 1 is now +2, so it is not a condensable repeat.
     expect(repeats).toEqual([-1, -1, -1]);
+  });
+});
+
+describe('repeatRuns', () => {
+  // Owner, 2026-08-06: four bridges drew a bridge and three identical tags,
+  // *"they look ugly, can we unify them somehow?"* — collapsed the way the
+  // ribbon already collapses chips: CONSECUTIVE ONLY, never a global tally.
+  const runs = (repeats) => repeatRuns(repeats.map(() => ({})), repeats);
+
+  it('collapses a back-to-back run into one pill', () => {
+    // Bridge, then three more bridges.
+    const r = runs([-1, 0, 0, 0]);
+    expect(r[0]).toBeNull();
+    expect(r[1]).toEqual({ lead: true, count: 3, slots: [1, 2, 3] });
+    expect(r[2]).toEqual({ lead: false, of: 1 });
+    expect(r[3]).toEqual({ lead: false, of: 1 });
+  });
+
+  it('does NOT collapse repeats that are apart in the song', () => {
+    // Chorus · Verse 2 · Chorus — two separate moments, two separate tags.
+    const r = runs([-1, -1, 0, -1, 0]);
+    expect(r[2]).toEqual({ lead: true, count: 1, slots: [2] });
+    expect(r[4]).toEqual({ lead: true, count: 1, slots: [4] });
+  });
+
+  it('keeps runs of different sections apart even when adjacent', () => {
+    // …Chorus-repeat, Bridge-repeat: adjacent, but not the same section.
+    const r = runs([-1, -1, 0, 1]);
+    expect(r[2]).toEqual({ lead: true, count: 1, slots: [2] });
+    expect(r[3]).toEqual({ lead: true, count: 1, slots: [3] });
+  });
+
+  it('rides along on buildSongFlow', () => {
+    const song = {
+      structureMode: 'doc',
+      sections: [{ type: 'Chorus', lines: ['a'] }, { type: 'Chorus', lines: ['a'] }],
+    };
+    expect(buildSongFlow(song).runs[1]).toEqual({ lead: true, count: 1, slots: [1] });
   });
 });

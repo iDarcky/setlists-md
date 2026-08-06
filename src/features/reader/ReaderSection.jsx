@@ -198,6 +198,9 @@ function clampChords(chords, plainText) {
 export default function ReaderSection({
   section, index, config, songKey, settings, transpose, modOffset,
   repeatOf = -1, onOpenHere, tabColors, stickyTop = 0, onChordTap = null,
+  // Where this slot sits in a run of back-to-back repeats — `songFlow.runs`.
+  // The lead slot draws one pill for the whole run; the rest draw nothing.
+  run = null,
   // Element 3, 2026-08-05: a Tag you have tapped is OPEN, right where it is.
   // The Reader owns the set of opened slots — it is a fact about this reading
   // of this song, not about the song.
@@ -296,15 +299,28 @@ export default function ReaderSection({
     caps: 'font-black uppercase tracking-[0.15em]',
     name: 'font-semibold tracking-wide first-letter:text-[1.15em]',
   };
+  // ── How big a section's name is ─────────────────────────────────────────────
+  // Measured on 2026-08-06: the heading was 12.16px against 18px lyrics and a
+  // **13px cue** — the smallest text on the page was the one naming where you
+  // are, and the instruction riding on it was set larger than the section it
+  // belonged to. Owner: *"I agree that it should be heading > cue."*
+  //
+  // Fixed sizes, not a fraction of the lyric size (owner's instinct, and it is
+  // the right one: a heading is chrome for the page, not another voice in it).
+  // The step from light to heavy is REAL now — 14 → 17px is 21%, where 12.16 →
+  // 13.76 was 13% and read as a rendering accident.
+  const HEADING_PX = {
+    name: heavy ? 17 : 14,
+    code: heavy ? 17 : 14,
+    // Caps read smaller at the same size — all-uppercase has no descenders and
+    // no x-height contrast — so this one runs a point above the others.
+    caps: heavy ? 18 : 15,
+  };
+  const labelPx = HEADING_PX[config.heading] ?? HEADING_PX.name;
   const label = (
     <span
       className={HEADING_CLASS[config.heading] || HEADING_CLASS.name}
-      style={{
-        color: colour,
-        fontSize: config.heading === 'caps'
-          ? (heavy ? '0.95rem' : '0.86rem')
-          : (heavy ? '0.86rem' : '0.76rem'),
-      }}
+      style={{ color: colour, fontSize: `${labelPx}px` }}
     >
       {headingText(id, config.heading)}
     </span>
@@ -315,14 +331,30 @@ export default function ReaderSection({
     breakInside: 'avoid',
     // Land the section below the sticky chrome, not underneath it.
     scrollMarginTop: stickyTop + 8,
-    // A chorus gets more air above it than a verse, so the page has a shape
-    // you can read without reading the words.
-    marginBottom: heavy ? '1.6rem' : '1rem',
-    // ...and it steps IN. `heavy` is Chorus/Refrain/Bridge (songFlow's HEAVY
-    // set) — the sections a song leans on. A small step is enough to make the
-    // verse/chorus alternation visible at a glance from a music stand; more
-    // than this and long chorus lines start wrapping earlier than the verses
-    // around them, which costs more than the shape gains.
+    // ── The air above a heavy section ────────────────────────────────────────
+    // ⚠ PADDING, not margin, and ABOVE, not below.
+    //
+    // This was `marginBottom: heavy ? '1.6rem' : '1rem'`, and measured on
+    // 2026-08-06 it was worth **1.6px**. A section's bottom margin COLLAPSES
+    // against `SectionBlock`'s own `--chart-section-gap` (the Section spacing
+    // setting, 24px by default), so the real gap is `max(spacing, margin)`:
+    //
+    //   spacing  8px → 16.0 after a verse · 25.6 after a chorus
+    //   spacing 24px → 24.0 · 25.6          ← the default: 1.6px of "shape"
+    //   spacing 48px → 48.0 · 48.0          ← no difference at all
+    //
+    // It was also on the wrong side: air BELOW a chorus is air above whatever
+    // follows it, so the one thing it did was start the next verse 1.6px lower.
+    //
+    // Padding cannot collapse, so this survives at every spacing, and it sits
+    // where the doc always claimed it did. `heavy` is Chorus/Refrain/Bridge —
+    // the sections the room sings loudest.
+    paddingTop: heavy ? '0.85rem' : undefined,
+    marginBottom: '1rem',
+    // ...and it steps IN. A small step is enough to make the verse/chorus
+    // alternation visible at a glance from a music stand; more than this and
+    // long chorus lines start wrapping earlier than the verses around them,
+    // which costs more than the shape gains.
     marginLeft: heavy ? '0.85rem' : undefined,
   };
 
@@ -363,15 +395,27 @@ export default function ReaderSection({
   // In edit mode a hidden repeat has to come BACK, as its pill: you cannot
   // reorder or remove a slot in the play order that draws nothing at all.
   if (hidden || condensed) {
+    // A run of back-to-back repeats is ONE pill (owner, 2026-08-06: four
+    // bridges drew a bridge and three identical tags, *"they look ugly"*). The
+    // slots it stands for still exist — empty, keeping their
+    // `data-section-index` — because the ribbon is the map of the song and a
+    // slot missing from the map breaks the one job. Edit mode gets them back as
+    // individual pills: you cannot reorder or remove a slot you cannot see.
+    if (!editing && run && !run.lead) {
+      return <div id={`section-${index}`} data-section-index={index} aria-hidden="true" />;
+    }
+    const times = !editing && run?.lead ? run.count : 1;
     return (
       <div id={`section-${index}`} data-section-index={index} style={outer}>
         <button
           type="button"
           onClick={editing ? undefined : onOpenHere}
-          aria-label={`${id.name} — same as before, show it here`}
+          aria-label={times > 1
+            ? `${id.name} — same as before, ${times} times, show it here`
+            : `${id.name} — same as before, show it here`}
           className="min-h-0 inline-flex items-center gap-1.5 bg-transparent cursor-pointer"
           style={{
-            fontSize: '0.72em',
+            fontSize: `${Math.max(11, labelPx - 2)}px`,
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
@@ -384,6 +428,15 @@ export default function ReaderSection({
         >
           <span aria-hidden="true">↩</span>
           {id.name}
+          {times > 1 && <span style={{ opacity: 0.75 }}>×{times}</span>}
+          {/* Say that it opens. It has been tappable since 2026-08-05 and read
+              as dead text — owner: *"I think a show should be visible so the
+              user knows"*. The chevron is the affordance; the ribbon chip keeps
+              the other behaviour (jump to where the words are), so both things
+              he liked survive, each in the place it belongs. */}
+          {!editing && (
+            <span aria-hidden="true" style={{ opacity: 0.7, fontSize: '0.85em', marginLeft: '0.15em' }}>▾</span>
+          )}
         </button>
         {handles}
       </div>
@@ -397,8 +450,19 @@ export default function ReaderSection({
           onto a row of its own the moment it gets long. */}
       <div
         ref={headRef}
+        data-section-anchor=""
         className="mb-1.5"
-        style={pinned ? {
+        style={{
+          // ── The row's own type metrics ──────────────────────────────────────
+          // Measured 2026-08-06: this row was **34.4px tall to hold a 16px
+          // word**. It inherited the chart's 18px/27px body type, so the line
+          // box was a 27px strut with a 12–18px label floating in it — ~9px of
+          // nothing per section, 80px on a nine-section song, and it grew as
+          // the lyric size grew. Sized off the heading itself instead: the row
+          // is now as tall as the tallest thing in it.
+          fontSize: `${labelPx}px`,
+          lineHeight: 1.25,
+          ...(pinned ? {
           position: 'sticky',
           // Pin ONE PIXEL HIGH, and pad that pixel back. Two sticky edges that
           // merely ABUT will show a sliver of whatever scrolls between them on
@@ -414,14 +478,19 @@ export default function ReaderSection({
           paddingBottom: '0.2rem',
           marginLeft: '-0.25rem',
           paddingLeft: '0.25rem',
-        } : undefined}
+          } : null),
+        }}
       >
         {label}
         {handles}
         {cue && config.notes && (
           <span
-            className="text-label-11 ml-2"
+            className="ml-2"
             style={{
+              // Smaller than the name it rides on, always. It used to be 13px
+              // beside a 12.16px heading — the instruction set larger than the
+              // section (owner: *"heading > cue"*).
+              fontSize: `${Math.max(11, labelPx - 2)}px`,
               color: loud ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--ds-gray-700))',
               fontStyle: loud ? 'normal' : 'italic',
               fontWeight: loud ? 600 : 400,

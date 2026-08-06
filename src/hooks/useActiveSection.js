@@ -59,7 +59,16 @@ export function useActiveSection(scrollRef, resetKey, lineFraction = 0.28, enabl
       // reading line. Sections are stacked, so once one is below it the rest are.
       let current = 0;
       for (const el of els) {
-        const top = el.getBoundingClientRect().top - rootTop;
+        // ⚠ The HEADING's top, not the section box's, when the two differ.
+        // A heavy section (Chorus/Refrain/Bridge) carries real air above it as
+        // padding, so its box starts ~14px before its heading does — and the
+        // chip would light up 14px of scrolling before the heading it points at
+        // reached the line. That is element 3's bug in miniature ("if I click
+        // on verse 2 it scrolls to verse 2 but not quite so I still see verse 1
+        // selected"), and the answer is the same one: measure the thing the eye
+        // is actually reading. `jumpTo` uses the same anchor.
+        const anchor = el.querySelector('[data-section-anchor]') || el;
+        const top = anchor.getBoundingClientRect().top - rootTop;
         if (top - line <= 1) current = Number(el.getAttribute('data-section-index'));
         else break;
       }

@@ -87,9 +87,42 @@ export function sectionWeight(type) {
   return HEAVY.has(base) ? 'hi' : 'base';
 }
 
-/** All three in one pass — what the reader actually wants. */
+/**
+ * Runs of back-to-back repeats, collapsed the way the ribbon already collapses
+ * its chips.
+ *
+ * Owner, 2026-08-06: *"if we repeats a bridge x4 we have the bridge once and
+ * the 3 tags and they look ugly, can we unify them somehow?"* — yes, and it is
+ * the rule element 3 settled for the map: **consecutive only, never a global
+ * tally**. `B B B B` is one Bridge and one `↩ BRIDGE ×3`; `C V2 C` is two
+ * separate tags, because they are not the same moment in the song.
+ *
+ * Returns one entry per slot:
+ *   `{ lead: true, count: n }` — draw the pill here; it stands for `n` plays
+ *   `{ lead: false }`          — inside a run that has already been drawn
+ *   `null`                     — not a repeat at all
+ */
+export function repeatRuns(ordered, repeats) {
+  const out = (ordered || []).map(() => null);
+  let i = 0;
+  while (i < out.length) {
+    if (!(repeats[i] >= 0)) { i += 1; continue; }
+    // Walk forward while each slot repeats the SAME first play as this one and
+    // sits immediately next to the previous — `repeats[]` already encodes
+    // "identical section, identical modulate offset".
+    let j = i;
+    while (j + 1 < out.length && repeats[j + 1] === repeats[i]) j += 1;
+    out[i] = { lead: true, count: j - i + 1, slots: Array.from({ length: j - i + 1 }, (_, k) => i + k) };
+    for (let k = i + 1; k <= j; k += 1) out[k] = { lead: false, of: i };
+    i = j + 1;
+  }
+  return out;
+}
+
+/** All of it in one pass — what the reader actually wants. */
 export function buildSongFlow(song) {
   const ordered = orderSections(song);
   const offsets = sectionModOffsets(ordered);
-  return { ordered, offsets, repeats: repeatFirstIndex(ordered, offsets) };
+  const repeats = repeatFirstIndex(ordered, offsets);
+  return { ordered, offsets, repeats, runs: repeatRuns(ordered, repeats) };
 }

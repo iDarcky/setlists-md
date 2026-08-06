@@ -388,7 +388,7 @@ export default function Reader({
   // the app quietly deciding your phone shouldn't sleep while you browse.
   useWakeLock(!embedded && settings?.keepAwake === true);
 
-  const { ordered, offsets, repeats } = useMemo(() => buildSongFlow(song), [song]);
+  const { ordered, offsets, repeats, runs } = useMemo(() => buildSongFlow(song), [song]);
 
   // The active section IS whichever heading is pinned — so the reading line
   // sits at the pin, not a third of the way down. Otherwise the ribbon
@@ -479,7 +479,11 @@ export default function Reader({
     // Land the section BELOW the sticky chrome. scrollIntoView aligns to the
     // container's top edge, which is behind the header, so the heading you
     // jumped to ended up hidden underneath it.
-    const top = el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
+    // The heading's own top, not the section box's — a heavy section's box
+    // starts above its heading (the air it carries is padding). Same anchor the
+    // scroll-spy reads, so a jump and the chip it came from cannot disagree.
+    const anchor = el.querySelector('[data-section-anchor]') || el;
+    const top = anchor.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
     // ── Land ON the pin line, one pixel above it — never below ──────────────
     // Owner, 2026-08-06, with a screenshot: *"if I click on verse 2 it scrolls
     // to verse 2 but not quite so I still see verse 1 selected"*. Both halves
@@ -603,9 +607,15 @@ export default function Reader({
   // a tag into a full section moves everything below it, so a jump measured in
   // the same tick lands at the pre-expansion offset.
   const pendingJumpRef = useRef(null);
-  const openRepeat = useCallback((idx, thenJump = false) => {
-    if (thenJump) pendingJumpRef.current = idx;
-    setOpenRepeats(prev => (prev.has(idx) ? prev : new Set(prev).add(idx)));
+  const openRepeat = useCallback((idxOrSlots, thenJump = false) => {
+    const slots = Array.isArray(idxOrSlots) ? idxOrSlots : [idxOrSlots];
+    if (thenJump) pendingJumpRef.current = slots[0];
+    setOpenRepeats(prev => {
+      if (slots.every(i => prev.has(i))) return prev;
+      const next = new Set(prev);
+      slots.forEach(i => next.add(i));
+      return next;
+    });
   }, []);
   useEffect(() => {
     const idx = pendingJumpRef.current;
@@ -623,9 +633,9 @@ export default function Reader({
     // honest destination is the one place those words are on the page (owner,
     // Q2, 2026-08-05).
     if (isRepeat && config.repeats === 'hide') { jumpTo(first); return; }
-    if (isRepeat && config.repeats === 'condensed') { openRepeat(idx, true); return; }
+    if (isRepeat && config.repeats === 'condensed') { openRepeat(runs[idx]?.slots || idx, true); return; }
     jumpTo(idx);
-  }, [repeats, openRepeats, config.repeats, jumpTo, openRepeat]);
+  }, [repeats, runs, openRepeats, config.repeats, jumpTo, openRepeat]);
 
   // ── Edit mode's operations ───────────────────────────────────────────────
   // Every edit pushes the state BEFORE it onto the session's history, which is
@@ -1415,9 +1425,13 @@ export default function Reader({
               transpose={transpose}
               modOffset={offsets[idx]}
               repeatOf={repeats[idx]}
-              // The tag opens where it stands (owner, option B, 2026-08-05).
-              onOpenHere={() => openRepeat(idx)}
+              // The tag opens where it stands (owner, option B, 2026-08-05),
+              // and a collapsed RUN opens all the plays it stands for — they
+              // are the same section, back to back, so opening one and leaving
+              // the others as tags would put the ugliness back.
+              onOpenHere={() => openRepeat(runs[idx]?.slots || idx)}
               expanded={openRepeats.has(idx)}
+              run={runs[idx]}
               tabColors={tabColors}
               stickyTop={headH}
               onChordTap={editing

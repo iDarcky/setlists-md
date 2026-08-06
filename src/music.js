@@ -129,20 +129,54 @@ export function semitonesBetween(fromKey, toKey) {
 // Section type → colors, label, pre-computed bg/border
 // b = base color, d = display/text color, l = compact label
 // bg = low-opacity background, br = semi-transparent border
+/**
+ * One hue per section type — eleven types, eleven colours.
+ *
+ * Until 2026-08-06 there were twelve types sharing seven hues: Intro=Tag,
+ * Refrain=Interlude, Pre Chorus=Instrumental=Vamp, Ending=Outro. The heading
+ * and the ribbon chip are one system, so a shared colour cost the same thing
+ * twice — you could not tell which section the chart was naming, on the page or
+ * on the map.
+ *
+ * The colours live in `styles/index.css` as `--section-*`, per app theme, each
+ * contrast-checked against the real chart backgrounds. Fills and borders are
+ * mixed off the accent here rather than being separate tokens: one number to
+ * change per hue, and the same derivation a user's custom colour already gets.
+ *
+ * **`Ending` is gone from the picker and stays as an alias of Outro** (owner,
+ * 2026-08-06). They were one thing under two names — the same argument that
+ * retired 'ref' from the repeats knob — so `## Ending` in an existing file
+ * still parses, still renders, and now renders as what it always meant.
+ */
+const hue = (name, code) => ({
+  b: `var(--section-${name})`,
+  d: `var(--section-${name})`,
+  l: code,
+  bg: `color-mix(in srgb, var(--section-${name}) 14%, transparent)`,
+  br: `color-mix(in srgb, var(--section-${name}) 35%, transparent)`,
+  c: name,
+});
+
 const SECTION_COLORS = {
-  Intro:        { b: 'var(--ds-blue-700)',  d: 'var(--ds-blue-1000)',  l: 'I',  bg: 'var(--ds-blue-100)',  br: 'var(--ds-blue-400)', c: 'blue' },
-  Refrain:      { b: 'var(--ds-purple-700)',d: 'var(--ds-purple-1000)',l: 'Rf', bg: 'var(--ds-purple-100)',br: 'var(--ds-purple-400)',c: 'purple' },
-  Verse:        { b: 'var(--ds-green-700)', d: 'var(--ds-green-1000)', l: 'V',  bg: 'var(--ds-green-100)', br: 'var(--ds-green-400)', c: 'green' },
-  'Pre Chorus': { b: 'var(--ds-amber-700)', d: 'var(--ds-amber-1000)', l: 'Pc', bg: 'var(--ds-amber-100)', br: 'var(--ds-amber-400)', c: 'amber' },
-  Chorus:       { b: 'var(--ds-pink-700)',  d: 'var(--ds-pink-1000)',  l: 'C',  bg: 'var(--ds-pink-100)',  br: 'var(--ds-pink-400)', c: 'pink' },
-  Bridge:       { b: 'var(--ds-teal-700)',  d: 'var(--ds-teal-1000)',  l: 'B',  bg: 'var(--ds-teal-100)',  br: 'var(--ds-teal-400)', c: 'teal' },
-  Instrumental: { b: 'var(--ds-amber-700)', d: 'var(--ds-amber-1000)', l: 'It', bg: 'var(--ds-amber-100)', br: 'var(--ds-amber-400)', c: 'amber' },
-  Ending:       { b: 'var(--ds-red-700)',   d: 'var(--ds-red-1000)',   l: 'E',  bg: 'var(--ds-red-100)',   br: 'var(--ds-red-400)',  c: 'red' },
-  Tag:          { b: 'var(--ds-blue-700)',  d: 'var(--ds-blue-1000)',  l: 'T',  bg: 'var(--ds-blue-100)',  br: 'var(--ds-blue-400)', c: 'blue' },
-  Interlude:    { b: 'var(--ds-purple-700)',d: 'var(--ds-purple-1000)',l: 'Il', bg: 'var(--ds-purple-100)',br: 'var(--ds-purple-400)',c: 'purple' },
-  Vamp:         { b: 'var(--ds-amber-700)', d: 'var(--ds-amber-1000)', l: 'Vm', bg: 'var(--ds-amber-100)', br: 'var(--ds-amber-400)', c: 'amber' },
-  Outro:        { b: 'var(--ds-red-700)',   d: 'var(--ds-red-1000)',   l: 'O',  bg: 'var(--ds-red-100)',   br: 'var(--ds-red-400)',  c: 'red' },
+  Intro:        hue('intro', 'I'),
+  Refrain:      hue('refrain', 'Rf'),
+  Verse:        hue('verse', 'V'),
+  'Pre Chorus': hue('prechorus', 'Pc'),
+  Chorus:       hue('chorus', 'C'),
+  Bridge:       hue('bridge', 'B'),
+  Instrumental: hue('instrumental', 'It'),
+  // Alias, not a type — see the note above. Kept BEFORE `Tag` for the same
+  // reason every key's order matters here: the lookup is first-match.
+  Ending:       hue('outro', 'O'),
+  Tag:          hue('tag', 'T'),
+  Interlude:    hue('interlude', 'Il'),
+  Vamp:         hue('vamp', 'Vm'),
+  Outro:        hue('outro', 'O'),
 };
+
+// The types a user may PICK. `Ending` is deliberately absent: it resolves for
+// files that already contain it, and nobody makes a new one.
+export const RETIRED_SECTION_TYPES = ['Ending'];
 
 const DEFAULT_STYLE = { b: 'var(--ds-gray-700)', d: 'var(--ds-gray-1000)', l: '?', bg: 'var(--ds-gray-100)', br: 'var(--ds-gray-400)', c: 'gray' };
 
@@ -171,7 +205,8 @@ export function shortCode(name) {
 
 // All canonical section type keys, exported so settings panels can iterate
 // over them without re-declaring the list.
-export const SECTION_TYPE_KEYS = Object.keys(SECTION_COLORS);
+export const SECTION_TYPE_KEYS = Object.keys(SECTION_COLORS)
+  .filter(k => !RETIRED_SECTION_TYPES.includes(k));
 
 // Resolve the canonical base type for a section header (e.g. "Verse 1" →
 // "Verse", "Chorus 2" → "Chorus"). Returns null if no built-in type matches

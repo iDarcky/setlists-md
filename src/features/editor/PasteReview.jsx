@@ -17,7 +17,10 @@ import { sectionStyle } from '@/music';
 
 const TYPES = [
   'Intro', 'Verse', 'Pre Chorus', 'Chorus', 'Bridge',
-  'Instrumental', 'Interlude', 'Tag', 'Vamp', 'Outro', 'Ending', 'Refrain',
+  // 'Ending' is NOT here (2026-08-06). It and 'Outro' were one thing under two
+  // names, so it is retired from every picker and kept only as an alias in
+  // `music.js` — a file that already says `## Ending` still reads correctly.
+  'Instrumental', 'Interlude', 'Tag', 'Vamp', 'Outro', 'Refrain',
 ];
 
 // Number same-typed blocks in order: Verse, Verse → Verse 1, Verse 2.
