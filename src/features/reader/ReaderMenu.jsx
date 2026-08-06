@@ -884,6 +884,11 @@ export default function ReaderMenu({
   const isDefault = (k) => settings?.[k] === undefined
     || (k in MENU_DEFAULTS && settings[k] === MENU_DEFAULTS[k]);
 
+  // The pair above reads both halves: the style as it RESOLVES (a stored
+  // 'numbered' is Boxes), and whether the map is currently down a side.
+  const ribbonStyleNow = normalizeRibbonStyle(settings?.ribbonStyle);
+  const sidePos = settings?.structurePosition === 'left' || settings?.structurePosition === 'right';
+
   const reset = (...keys) => (
     keys.every(isDefault)
       ? null
@@ -1168,22 +1173,40 @@ export default function ReaderMenu({
 
           {/* ── Structure ────────────────────────────────────────────────── */}
           <GroupTitle>Structure</GroupTitle>
-          <Field label="Structure location" onReset={reset('structurePosition')}>
-            <Dropdown label="Structure location" value={settings?.structurePosition || 'top'}
-              options={[['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['off', 'Hidden']]}
-              onChange={(v) => set('structurePosition', v)} />
-          </Field>
-          {/* Three, down from five (owner, 2026-08-05). Inline was the Boxes
-              chip without its box and Dots + label was Dots with that chip's
-              text beside it — two variants pretending to be styles. A stored
-              one still resolves to the survivor it was a variant of
-              (`normalizeRibbonStyle`), so the control never shows a value the
-              list does not contain. */}
-          <Field label="Structure style" onReset={reset('ribbonStyle')}
-            info="Left and right always show dots: the strip floats over the chart there, and a dot is the only mark small enough to do that without covering a word.">
-            <Dropdown label="Structure style" value={normalizeRibbonStyle(settings?.ribbonStyle)}
+          {/* STYLE first, then location (owner, 2026-08-06) — and the two are
+              dependent, because they always were and the menu just didn't say
+              so. A side rail floats over the chart, so only a dot is small
+              enough to live there; boxes and chips need a row of their own.
+              The reader already forced dots on a side, silently. Stating it in
+              the control that causes it is the honest version: pick Boxes and
+              the sides are simply not on the list, and if you were already on
+              one, the location moves to Top with you rather than leaving you
+              with a setting that means something else.
+
+              Three, down from five (2026-08-05). Inline was the Boxes chip
+              without its box and Dots + label was Dots with that chip's text
+              beside it — two variants pretending to be styles. A stored one
+              still resolves to the survivor it was a variant of
+              (`normalizeRibbonStyle`), so the control never shows a value its
+              own list does not contain. */}
+          <Field label="Structure style" onReset={reset('ribbonStyle')}>
+            <Dropdown label="Structure style" value={ribbonStyleNow}
               options={[['codes', 'Boxes'], ['chips', 'Chips'], ['dots', 'Dots']]}
-              onChange={(v) => set('ribbonStyle', v)} />
+              onChange={(v) => {
+                set('ribbonStyle', v);
+                // A style that cannot float takes the map off the side with it.
+                if (v !== 'dots' && sidePos) set('structurePosition', 'top');
+              }} />
+          </Field>
+          <Field label="Structure location" onReset={reset('structurePosition')}
+            info={ribbonStyleNow === 'dots'
+              ? 'Down a side the map floats over the chart, in the margin it already had.'
+              : 'Left and right need dots — a box or a chip laid over the lyrics covers a word.'}>
+            <Dropdown label="Structure location" value={settings?.structurePosition || 'top'}
+              options={ribbonStyleNow === 'dots'
+                ? [['top', 'Top'], ['bottom', 'Bottom'], ['left', 'Left'], ['right', 'Right'], ['off', 'Hidden']]
+                : [['top', 'Top'], ['bottom', 'Bottom'], ['off', 'Hidden']]}
+              onChange={(v) => set('structurePosition', v)} />
           </Field>
           {/* An on/off for the set bar, and nothing else. It is NOT a two-way
               with the structure — element 8b moved the set bar ABOVE the title

@@ -462,9 +462,18 @@ export default function Reader({
   // `scrollTop` and the heading's `getBoundingClientRect().top` across the
   // transition before touching anything.
 
-  const jumpTo = useCallback((idx) => {
-    const el = document.getElementById(`section-${idx}`);
+  const jumpTo = useCallback((idx, smooth = true) => {
     const sc = scrollRef.current;
+    // ⚠ Scoped to THIS reader's scroller, never `document.getElementById`.
+    // Two readers can be mounted at once — the Song Hub keeps its embedded one
+    // behind the full-screen one — and both render `id="section-N"`. A document
+    // lookup returns the HUB's section, so every jump in full screen was
+    // measuring an element in a different scroller and landing nowhere near it.
+    // Found while driving the rail's scrub in Chromium, 2026-08-06; the same
+    // duplicate cost twenty minutes of mis-measurement the day before.
+    const el = sc
+      ? sc.querySelector(`[data-section-index="${idx}"]`)
+      : document.getElementById(`section-${idx}`);
     if (!el) return;
     if (!sc) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     // Land the section BELOW the sticky chrome. scrollIntoView aligns to the
@@ -489,8 +498,83 @@ export default function Reader({
     // reads `-1 <= 1` and agrees on the same frame, and the 8px of "breathing
     // room" is revealed as what it always was: the gap that made the two
     // halves of "where am I" disagree.
-    sc.scrollTo({ top: Math.max(0, top - headH + 1), behavior: 'smooth' });
+    sc.scrollTo({ top: Math.max(0, top - headH + 1), behavior: smooth ? 'smooth' : 'auto' });
   }, [headH]);
+
+  // ── Scrubbing the side rail ──────────────────────────────────────────────
+  // Owner, 2026-08-06: *"do you know what would be cool? to have like a scrub
+  // when user clicks and drags the side rail"*. It is, and it is the answer to
+  // the question he had parked — what moving between sections in that rail
+  // should feel like. A tap is one jump; a drag is the whole song under a
+  // thumb, with the chart following live.
+  //
+  // Hit-tested by COORDINATE (`elementFromPoint` → `[data-slot]`), not by which
+  // element the pointer went down on: with pointer capture every move event
+  // retargets to the chip you started on, which is exactly what a scrub must
+  // not follow.
+  //
+  // ⚠ NATIVE listeners with `{ passive: false }`, in an effect. React's
+  // synthetic touch handlers are passive, so `preventDefault` there is a silent
+  // no-op and the page scrolls under the gesture instead of the gesture driving
+  // it. Same rule as the ribbon's drag and the pull-to-finish.
+  // A CALLBACK ref, like the bottom block's: the rail comes and goes with the
+  // setting, so the listeners have to follow the node in and out of the tree
+  // rather than being bound once. It re-binds when `jumpTo` changes, which is
+  // when `headH` changes — and a jump measured against a stale header lands in
+  // the wrong place.
+  const scrubRef = useCallback((el) => {
+    if (!el) return undefined;
+    const state = { on: false, last: null };
+    // NEAREST dot to the finger, by geometry — not `elementFromPoint`.
+    // A column of 7px dots on a 13px pitch is half gaps, so a hit test that
+    // demands a direct hit stalls between every pair of them; and with pointer
+    // capture `e.target` is always the chip the gesture STARTED on, which is
+    // the one thing a scrub must not follow. Nearest-centre is also what makes
+    // it forgiving: the finger is somewhere over the strip, and the strip
+    // answers with the section that is closest.
+    const slotAt = (y) => {
+      let best = null;
+      let bestD = Infinity;
+      for (const chip of el.querySelectorAll('[data-slot]')) {
+        const r = chip.getBoundingClientRect();
+        const d = Math.abs((r.top + r.bottom) / 2 - y);
+        if (d < bestD) { bestD = d; best = chip; }
+      }
+      const n = best ? Number(best.getAttribute('data-slot')) : NaN;
+      return Number.isNaN(n) ? null : n;
+    };
+    const move = (e) => {
+      if (!state.on) return;
+      e.preventDefault();
+      const slot = slotAt(e.clientY);
+      // Only when it CHANGES: re-jumping to the slot you are already on fights
+      // the smooth-scroll you just started and pins the chart mid-flight.
+      if (slot == null || slot === state.last) return;
+      state.last = slot;
+      // Instant, not smooth: a scrub is direct manipulation, and an animation
+      // per dot would arrive after the finger had left.
+      jumpTo(slot, false);
+    };
+    const down = (e) => {
+      const slot = slotAt(e.clientY);
+      if (slot == null) return;
+      state.on = true;
+      state.last = slot;
+      try { el.setPointerCapture?.(e.pointerId); } catch { /* not supported */ }
+      jumpTo(slot, false);
+    };
+    const up = () => { state.on = false; state.last = null; };
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => {
+      el.removeEventListener('pointerdown', down);
+      el.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+  }, [jumpTo]);
 
   // ── A repeat you asked to see ────────────────────────────────────────────
   // Owner, 2026-08-05, option B: **tapping a Tag opens it in place.**
@@ -875,11 +959,13 @@ export default function Reader({
       // the same object.
       style={editing ? 'codes' : (ribbonSide ? 'dots' : config.ribbonStyle)}
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
-      // The side rail shows a WINDOW that walks with the song — 2 behind, the
-      // one you are in, 3 ahead (owner, 2026-08-05). A column cannot carry a
-      // twenty-section map, and scrolling it would be a second scroll racing
-      // the song's.
-      windowAround={ribbonSide ? { before: 2, after: 3 } : null}
+      // No window any more (owner, 2026-08-06: *"now that we have dots, remove
+      // the scrolling of 2 and 3, show full"*). The window existed because a
+      // column of CHIPS could not carry a whole song — six spelled-out names
+      // was the most that fit. A dot is 7px on a 13px pitch, so thirty sections
+      // are ~390px of a ~700px band: the whole map fits, and a map you can see
+      // all of is the one thing the ribbon is for.
+      windowAround={null}
       keyChanges={keyChanges}
       // EXPANDED while editing (owner: "I imagine that when the user presses
       // the edit the cx3 expands to c c c"). Right — a collapsed `C ×3` is one
@@ -1206,7 +1292,22 @@ export default function Reader({
               // overlap. With the gutter below they should never meet, but a
               // wide tab or a long chord line can still reach across, and when
               // it does the word is the thing that must be readable.
-              className="sticky z-0 h-0 pointer-events-none"
+              // ⚠ ABOVE the chart (z-10), and it has to be.
+              //
+              // beta.87 put it UNDER — the honest reading of "the lyrics are
+              // number one" — and that silently broke the map: paint order is
+              // hit-test order, so the chart's own box (padding included, and
+              // the strip lives in that padding) swallowed every tap. Not one
+              // dot was clickable, and the scrub could not start. Caught by
+              // driving the gesture in Chromium; `elementFromPoint` over a dot
+              // answered `.wide-container`.
+              //
+              // The rule survives, by GEOMETRY instead of z-order: a 26px strip
+              // of 7px dots sits inside the 32px padding the chart already had,
+              // so it does not cover a word in the first place. Under-painting
+              // was the right answer for the frosted CHIPS that started this —
+              // and those are exactly what a side rail no longer draws.
+              className="sticky z-10 h-0 pointer-events-none"
               style={{ top: headH || 0 }}
               aria-hidden={false}
             >
@@ -1220,8 +1321,20 @@ export default function Reader({
                   in the first place ("that's why I wanted them transparent").
                   Frost stays where it earns its keep — see the ☰. */}
               <div
-                className={`absolute ${ribbonPlace === 'left' ? 'left-0 items-start' : 'right-0 items-end'} flex flex-col [&_button]:pointer-events-auto rounded-xl`}
+                ref={scrubRef}
+                // `pointer-events-auto` on the whole strip, not just the chips:
+                // it is a scrub track now, and a track with holes in it is a
+                // track that drops the gesture between two dots. It costs the
+                // 26px column its scroll-through, which is the trade the scrub
+                // is worth.
+                className={`absolute ${ribbonPlace === 'left' ? 'left-0 items-start' : 'right-0 items-end'} flex flex-col pointer-events-auto rounded-xl`}
                 style={{
+                  // The browser decides `touch-action` when the gesture STARTS,
+                  // so the scrub has to claim the vertical axis up front or the
+                  // page scroll wins the first move and never gives it back.
+                  // It is claimed on the STRIP only — 26px of the screen — so
+                  // the chart either side of it still scrolls normally.
+                  touchAction: 'none',
                   top: Math.max(0, (viewH - headH - footH) / 2),
                   transform: 'translateY(-50%)',
                   // On the marks, not on a ground — a dot has no ink to wash

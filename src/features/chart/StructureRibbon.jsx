@@ -204,11 +204,19 @@ export function StructureRibbon({
 
   // The key-change marks, interleaved before the chip they arrive at. Built
   // here rather than inside each style branch so the four cannot drift.
+  // Also where every chip is stamped with the play-order slot it stands for.
+  // `data-run` is the EDIT index (a position in the visible list) and exists
+  // only while reordering; `data-slot` is the slot itself, and the reader's
+  // side rail hit-tests on it to scrub. Stamped HERE because this is the pass
+  // that still knows which run produced which node — `decorate` sees an array
+  // that may have marks interleaved, so its indices are not runs.
   const withMarks = (nodes) => {
-    if (!keyChanges || onReorder) return nodes;
+    // Marks are never drawn while reordering, and that also keeps `decorate`'s
+    // `data-run` indices aligned with `shown`.
+    const marks = keyChanges && !onReorder;
     const out = [];
     shown.forEach((run, i) => {
-      const arriveAt = keyChanges[run.index];
+      const arriveAt = marks ? keyChanges[run.index] : null;
       if (arriveAt) {
         out.push(
           <span
@@ -227,7 +235,7 @@ export function StructureRibbon({
           </span>
         );
       }
-      out.push(nodes[i]);
+      out.push(cloneElement(nodes[i], { 'data-slot': run.index }));
     });
     return out;
   };
@@ -475,10 +483,24 @@ export function StructureRibbon({
               className={cn('shrink-0 inline-flex items-center gap-1 min-h-0', onSelect && `cursor-pointer hover:opacity-80 ${TAP_AREA}`)}
             >
               {/* The dot uses the section's base colour (`s.b`) so it matches the
-                  in-chart section titles, not a washed-out border tint. */}
+                  in-chart section titles, not a washed-out border tint.
+
+                  SMALLER, and the current one only a little bigger than the
+                  rest (owner, 2026-08-06: *"we can make the dots smaller,
+                  especially the selected dot, it should be even smaller"*).
+                  They were 10px and 14px + a 2px halo — an 18px blob for the
+                  one you are on, which on a floating side rail is a lot of
+                  paint over a lyric.
+
+                  The halo is gone with it. It was a box-shadow in the dot's OWN
+                  colour, so it added nothing a bigger dot doesn't say, and a
+                  same-colour shadow abutting a fill is exactly the kind of edge
+                  that shows a seam on a fractional-DPR screen. The `ring-*`
+                  classes went too: the inline `boxShadow` overrode them, so
+                  they had never drawn anything at all. */}
               <span
-                className={cn('rounded-full transition-all', active ? 'w-3.5 h-3.5 ring-2 ring-offset-1 ring-offset-transparent' : 'w-2.5 h-2.5')}
-                style={{ background: s.b, boxShadow: active ? `0 0 0 2px ${s.b}` : undefined }}
+                className={cn('rounded-full transition-all', active ? 'w-[11px] h-[11px]' : 'w-[7px] h-[7px]')}
+                style={{ background: s.b }}
               />
               {showLabels && (
                 <span className="font-mono font-bold text-[11px]" style={{ color: s.b }}>{labelOf(run.name)}</span>

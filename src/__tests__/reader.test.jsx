@@ -1033,16 +1033,18 @@ describe('element 3 — the floating side rail', () => {
   });
   const rail = () => document.querySelector('.sticky.h-0');
 
-  it('shows a window of six, not the whole map', () => {
+  it('shows the WHOLE map, not a window', () => {
     mockWidth(true);
     const { container } = render(
       <Reader song={longSong()} settings={{ structurePosition: 'left' }} onExit={() => {}} />,
     );
-    // Ten runs in the play order, six chips on the rail: two behind, the one
-    // you are in, three ahead. A column cannot carry a twenty-section map, and
-    // scrolling it would be a second scroll racing the song's.
+    // It was a window of six while a side rail could be chips: six spelled-out
+    // names was the most a column could carry. Dots are 7px on a 13px pitch, so
+    // the whole song fits — and a map you can see all of is the thing the
+    // ribbon is for (owner, 2026-08-06: "now that we have dots, remove the
+    // scrolling of 2 and 3, show full").
     expect(container.querySelectorAll('[data-section-index]').length).toBe(10);
-    expect(rail().querySelectorAll('button').length).toBe(6);
+    expect(rail().querySelectorAll('button').length).toBe(10);
   });
 
   it('hangs off the CHART COLUMN, so the ☰ pushes it instead of covering it', () => {
@@ -1213,24 +1215,29 @@ describe('element 3 — the rail never covers a word', () => {
     structure: ['Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Verse 1'],
   });
 
-  it('paints under the chart and never moves it', () => {
+  it('stays reachable, and keeps clear of the words by geometry', () => {
     mockWidth(true);
     const { container } = render(
       <Reader song={longSong()} settings={{ structurePosition: 'left' }} onExit={() => {}} />,
     );
-    // Owner, 2026-08-06, with a screenshot of chips sitting across "Wash all my
-    // sins away": the lyrics are element 6 and they are first. Two halves —
-    // the rail paints BELOW the chart, and the chart is indented past it so
-    // they never meet at all. Painting under alone would leave a chip nobody
-    // can tap wherever a line crosses it, and the map is a control.
+    // beta.87 painted the rail UNDER the chart — the honest reading of "the
+    // lyrics are the number one in importance" — and that silently broke the
+    // map: paint order is hit-test order, so the chart's own box (padding
+    // included, and the strip lives in that padding) swallowed every tap. Not
+    // one dot was clickable. Caught by driving the scrub in Chromium.
+    //
+    // The rule survives by GEOMETRY: a 26px strip of 7px dots sits inside the
+    // 32px padding the chart already had, so it does not reach a word to cover
+    // it. Measured in Chromium: 0 lyric lines crossing the strip.
     const rail = container.querySelector('.sticky.h-0');
-    expect(rail.className).toContain('z-0');
+    expect(rail.className).toContain('z-10');
+    // ...and the strip itself takes pointer events, or the scrub drops the
+    // gesture in the gap between two dots.
+    expect(rail.firstElementChild.className).toContain('pointer-events-auto');
+    // A gutter was tried too (round 1) and rejected: ~83px of a 390px phone for
+    // Chips, and the right margin belongs to element 5's inline notes. The
+    // chart does not move for the map.
     const chart = container.querySelector('.wide-container.py-3');
-    expect(chart.className).toContain('z-[1]');
-    // A gutter was tried (round 1) and rejected: it cost ~83px of a 390px
-    // phone for Chips, and the right margin belongs to element 5's inline
-    // notes. The chart does not move for the map — the map gets small enough
-    // to float over it instead.
     expect(chart.style.paddingLeft).toBe('');
     expect(chart.style.paddingRight).toBe('');
   });
@@ -1243,5 +1250,47 @@ describe('element 3 — the rail never covers a word', () => {
     const chart = container.querySelector('.wide-container.py-3');
     expect(chart.style.paddingLeft).toBe('');
     expect(chart.style.paddingRight).toBe('');
+  });
+});
+
+// ── The side rail scrubs — 2026-08-06 ──────────────────────────────────────
+// Owner: "do you know what would be cool? to have like a scrub when user
+// clicks and drags the side rail". It is also the answer to the question he
+// had parked — what moving between sections in that rail should feel like.
+describe('the side rail is a scrub track', () => {
+  it('stamps every chip with the play-order slot the gesture hit-tests on', () => {
+    mockWidth(true);
+    const { container } = render(
+      <Reader song={makeSong()} settings={{ structurePosition: 'left' }} onExit={() => {}} />,
+    );
+    const slots = [...container.querySelectorAll('.sticky.h-0 [data-slot]')]
+      .map(el => el.getAttribute('data-slot'));
+    // `data-run` is the EDIT index and only exists while reordering; this is
+    // the slot itself, and it is always there. V1 C V2 C → 0,1,2,3.
+    expect(slots).toEqual(['0', '1', '2', '3']);
+  });
+
+  it('claims the vertical axis on the strip, and only there', () => {
+    mockWidth(true);
+    const { container } = render(
+      <Reader song={makeSong()} settings={{ structurePosition: 'left' }} onExit={() => {}} />,
+    );
+    // The browser decides `touch-action` when the gesture STARTS, so a scrub
+    // has to claim its axis up front or the page scroll wins the first move and
+    // never gives it back. 26px of the screen; the chart either side of it
+    // scrolls normally.
+    const strip = container.querySelector('.sticky.h-0').firstElementChild;
+    expect(strip.style.touchAction).toBe('none');
+  });
+
+  it('never looks a section up in the document — two readers can be mounted', async () => {
+    const src = await import('node:fs').then(fs =>
+      fs.readFileSync('src/features/reader/Reader.jsx', 'utf8'));
+    // The Song Hub keeps its embedded Reader behind the full-screen one, and
+    // both render `id="section-N"`. `document.getElementById` returned the
+    // HUB's section, so every jump in full screen measured an element in a
+    // different scroller — which is why the scrub moved nothing at all until
+    // this was found.
+    expect(src).toContain('sc.querySelector(`[data-section-index="${idx}"]`)');
   });
 });

@@ -291,6 +291,28 @@
 }
 
 @layer base {
+  /* ── Firefox's inner focus border ─────────────────────────────────────────
+     Owner's screenshot, 2026-08-06: a dashed circle painted INSIDE a 14px
+     structure dot, in Zen (Firefox). Chromium never draws it, which is why
+     four measurement passes there found nothing.
+
+     Firefox has TWO focus artifacts and they need different answers:
+       · `:-moz-focusring { outline: auto }` — the preflight's, drawn on the
+         border box. `outline-offset` moves it clear (see `TAP_AREA` in
+         StructureRibbon).
+       · `::-moz-focus-inner` — a legacy dotted border drawn INSIDE the button,
+         which no offset can reach. modern-normalize zeroes it; Tailwind v4's
+         preflight dropped the rule, so it came back.
+     This is the second one. It is the standard normalize reset, app-wide,
+     because every small round control in the app has the same exposure. */
+  button::-moz-focus-inner,
+  [type='button']::-moz-focus-inner,
+  [type='reset']::-moz-focus-inner,
+  [type='submit']::-moz-focus-inner {
+    border-style: none;
+    padding: 0;
+  }
+
   /* ── The brand's derived tones ─────────────────────────────────────────────
      `--color-brand` is overridden at runtime by the Accent colour setting
      (`useChartTheme` writes it as an inline style on :root). Its three

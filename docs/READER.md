@@ -258,12 +258,48 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
     a 390px phone: the strip is 26px and the chart's own padding is 32px, so the
     dots sit **inside the margin the chart already had** — zero crossings, zero
     width taken.
+- **The side rail shows the WHOLE map** (owner, 2026-08-06: *"now that we have
+  dots, remove the scrolling of 2 and 3, show full"*). The window of six existed
+  because a column of CHIPS could carry no more; a 7px dot on a 13px pitch means
+  thirty sections are ~390px of a ~700px band.
+- **Smaller dots**: 7px, and the current one 11px with **no halo**. It was 10px
+  and 14px + a same-colour 2px box-shadow — an 18px blob over a lyric. (The
+  `ring-*` classes went with it: the inline `boxShadow` had always overridden
+  them, so they never drew anything.)
+- **Style, then location, and they are dependent.** Boxes/Chips offer Top ·
+  Bottom · Hidden only; Dots offer all five. Picking a style that cannot float
+  moves the location to Top with you. The reader forced dots on a side already —
+  this is the menu finally saying so.
+- ⚠ **The rail paints ABOVE the chart, and it has to.** beta.87 put it under —
+  the honest reading of "lyrics first" — and that silently broke the map: paint
+  order is hit-test order, so the chart's own box (padding included, and the
+  strip lives in that padding) swallowed every tap. **Not one dot was
+  clickable.** The rule survives by GEOMETRY instead: 26px of strip inside the
+  32px padding the chart already had.
+- **The rail scrubs.** Press and drag it and the chart follows, section by
+  section (owner: *"do you know what would be cool? to have like a scrub when
+  user clicks and drags the side rail"*). Nearest-dot-by-geometry, not
+  `elementFromPoint`: a column of 7px dots is half gaps, and with pointer
+  capture `e.target` is always the chip you started on. Jumps are INSTANT while
+  scrubbing — an animation per dot arrives after the finger has left. Native
+  listeners, `{ passive: false }`, `touch-action: none` on the strip only.
+- ⚠ **`jumpTo` must never use `document.getElementById`.** The Song Hub keeps
+  its embedded Reader mounted behind the full-screen one and both render
+  `id="section-N"`, so a document lookup returned the HUB's section and every
+  full-screen jump measured an element in a different scroller. Scoped to the
+  reader's own scroller via `[data-section-index]`. The same duplicate had
+  already cost twenty minutes of mis-measured probes the day before: **there are
+  two readers in the DOM; scope everything.**
 - ⚠ **The dots' "line inside them" was Firefox** (owner's screenshot, Zen).
   `:-moz-focusring { outline: auto }` ships in the preflight, and Firefox draws
   `outline: auto` as a **dashed ring that follows `border-radius`** — so a
   tapped 14px dot got a dashed circle painted inside it. Chromium never showed
-  it because its focus ring is drawn outside the box. `outline-offset-2` on the
-  chip keeps the ring (a keyboard user needs it) and takes it off the dot.
+  it because its focus ring is drawn outside the box. Firefox has **two** focus
+  artifacts and they need different answers: `:-moz-focusring { outline: auto }`
+  (moved clear with `outline-offset-2` on the chip) and **`::-moz-focus-inner`**,
+  a legacy dotted border drawn INSIDE the button that no offset can reach —
+  modern-normalize zeroed it, Tailwind v4's preflight dropped the rule, so it
+  came back. Both are handled now (the second app-wide, in `@layer base`).
   **Test small round controls in Firefox, not just Chromium.**
 
 **Open, carried out of the pass:**
