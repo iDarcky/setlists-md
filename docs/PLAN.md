@@ -191,26 +191,49 @@ serious thing in this document; the last two are blocked on you.
    Not an open question: `docs/READER.md` already records the decision — "a white
    chart card sitting inside a dark app reads as broken rather than as a stage" —
    and the code disagrees with it. A bug against a written decision.
-6. 🔴 **Prod-only sync loop** (2026-07-30) — **still open, and SPREADING: 2 → 4
-   songs between two runs.** Ruled out so far: the `.md` round-trip (frontmatter
-   keys ARE lowercased at `parser.js:34`, so `originaltitle` reads back fine) and
-   the push not recording `updated_at` (`team-engine.js` stores `data.updated_at`
-   from the push response). The live clue is that the toast says *"Uploaded 4
-   songs"* while Sync Doctor calls the same 4 *"newer on the server"* — we push,
-   then immediately consider the result foreign. Prime suspect now: **array-valued
-   extra-meta fields don't round-trip.** `writers`, `themes`, `genres` are arrays;
-   `parser.js:203` coerces with `String(meta[k])`, so `['A','B']` becomes `"A,B"`
-   and re-serializes differently from what the server holds — permanent drift, and
-   the drift list (`writers`, `language`, `year`, `originaltitle`) is entirely
-   extra-meta. To confirm: open one drifting song and check whether `writers` is
-   an array locally. **Do not delete the songs** — nothing is corrupt, they just
-   never converge. Old §1.2 note below.
-   BLOCKED-on-you remainder: Prod-but-not-beta
-   means data or schema, not code, so there is nothing to read in the diff. Run
-   Settings → Sync → **Sync Doctor** in the affected Space; it re-runs the
-   engine's exact hash arithmetic per song and names the drifting field. Paste
-   its output. Do not guess at this one — see `CLAUDE.md`'s note on canonical-hash
-   baseline drift.
+6. 🔴 **Prod-only sync loop — ROOT-CAUSED 2026-08-07, not yet fixed in code.**
+   Measured against production, not guessed:
+   - `team_activity` held **27,628 rows, 93% of them `song_edited`** — 5,482 in
+     the last 7 days alone. Nobody edits songs 5,482 times in a week.
+   - The activity trigger already declines genuine no-ops
+     (`NEW.content_hash is not distinct from OLD.content_hash`), so **the
+     content really was changing** every time.
+   - The `.md` round-trip is NOT the cause: `songToMd → parse → songToMd`
+     reaches a fixed point in at most one pass for every shape tested,
+     including array-valued extra meta. The old "arrays don't round-trip"
+     suspicion is **wrong** — `String(['A','B'])` is `"A,B"` and re-serialises
+     to itself.
+   - What actually changes is the **extended-metadata frontmatter**:
+     `language`, `writers`, `year`, `originalTitle` appear and disappear
+     between consecutive versions of the same song. On one song the `language`
+     line was **added 15 times and removed 14 times in 14 days**.
+   - The same ACCOUNT writes both shapes (135 versions with `language`, 78
+     without, in 14 days), so it is **two clients, not two people** — one
+     running a build from before those fields entered the format on 2026-06-06
+     (`f5b667b`). The old build's parser drops what it does not model, and its
+     next push deletes the fields; the current build re-adds them. Forever.
+     That is exactly why it is prod-only and why it spreads: every song either
+     client touches joins the ping-pong.
+
+   **Two fixes, and they are different jobs:**
+   - **Stops it today (no code):** get the stale client onto the current build.
+     A PWA keeps serving its cached shell until the service worker is replaced,
+     so a tablet that is only ever backgrounded can run June's code in August.
+   - **Stops it ever recurring (code, and it is the real fix):** `parseSongMd`
+     must **carry frontmatter keys it does not model** and `songToMd` must
+     re-emit them. Today an unknown key is silently dropped, which turns "an
+     older client synced" into permanent data loss plus an infinite write loop.
+     ⚠ Deliberately NOT shipped in the same session it was diagnosed: it
+     changes the interchange format for every song of every user, and it wants
+     its own pass with round-trip tests over real files.
+
+   **Cleanup done** (`supabase/migrations/20260807_activity_retention.sql`):
+   27,628 → 2,041 rows by collapsing edit storms to one row per entity per
+   actor per hour, plus a nightly `prune_team_history()` (90-day activity
+   retention, 20 snapshots per song). Neither table had any retention before —
+   a write storm was permanent, and every member's Activity Feed paged through
+   27k rows to show ten.
+
 7. 🟡 **The editor's `+` button renders over the chords** (screenshot, 2026-07-30).
    Small and visible.
 8. 🟡 **Setlist editor: "Clean" and "Remove" both become "Remove", both red.**
