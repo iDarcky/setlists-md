@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { sectionIdentity, headingText, resolveSectionColors } from '@/lib/sectionIdentity';
 import SectionBlock from '@/features/chart/SectionBlock';
-import { serializeTabBlock, lineToPlacement, placementToLine } from '@/parser';
+import { serializeTabBlock, lineToPlacement, placementToLine, CUE_MAX_CHARS } from '@/parser';
 
 /**
  * One section — elements 3, 4 and 5.
@@ -212,8 +212,13 @@ export default function ReaderSection({
   // stays on the heading because you decide to cut a section while looking at
   // it, not while looking at its chip.
   editing = false, onRemove = null, onEditLines = null,
+  // Element 5. Present only in practice, and only when the host can save.
+  // Absent → the heading behaves exactly as it always has.
+  onEditCue = null,
 }) {
   const [writing, setWriting] = useState(false);
+  // Element 5: null = not editing the cue; a string = the draft.
+  const [cueDraft, setCueDraft] = useState(null);
   // ── A short section must not pin ────────────────────────────────────────────
   // Owner, 2026-08-06: *"there's a bug with pinning on one verse sections. It
   // automatically hides the verse."* Measured at maximum scroll on a 390px
@@ -555,7 +560,11 @@ export default function ReaderSection({
           // the cue, because the cue starts on the heading's own line and wraps
           // from there — clamping the cue alone would first have to make it a
           // block, which is the layout element 4b explicitly rejected.
-          ...(cue && config.notes ? {
+          // ⚠ The clamp comes OFF while the cue is being written. A
+          // `-webkit-box` with `line-clamp` hides the second row, and an input
+          // that scrolls its own text out of a clamped box is a field you
+          // cannot read what you typed into.
+          ...(cue && config.notes && cueDraft === null ? {
             display: '-webkit-box',
             WebkitBoxOrient: 'vertical',
             WebkitLineClamp: 2,
@@ -607,9 +616,48 @@ export default function ReaderSection({
             ▴
           </button>
         )}
-        {cue && config.notes && (
+        {/* ── Element 5: the cue, and writing one ────────────────────────────
+            Three states on one row, all at the cue's own size so the heading
+            never changes height: the cue as text, the cue as a field, and —
+            only when a cue could be written and there is none — a quiet `+`.
+            The `+` is at cue size and cue colour on purpose: it is not a
+            control competing with the section's name, it is the empty shape of
+            the thing it makes. */}
+        {cueDraft !== null ? (
+          <input
+            autoFocus
+            value={cueDraft}
+            maxLength={CUE_MAX_CHARS}
+            aria-label={`Cue for ${id.name}`}
+            placeholder="Band cue…"
+            onChange={(e) => setCueDraft(e.target.value)}
+            onBlur={() => { onEditCue?.(cueDraft); setCueDraft(null); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+              // Escape abandons the draft. Clearing the draft BEFORE blur means
+              // the blur handler sees `null` and writes nothing.
+              if (e.key === 'Escape') { e.preventDefault(); setCueDraft(null); }
+            }}
+            className="ml-2 min-h-0 bg-transparent border-0 border-b outline-none"
+            style={{
+              fontSize: `${Math.max(11, labelPx - 2)}px`,
+              fontStyle: 'italic',
+              fontWeight: 400,
+              color: 'var(--chart-text, var(--ds-gray-1000))',
+              borderColor: 'var(--color-brand)',
+              width: `min(22ch, 60%)`,
+            }}
+          />
+        ) : cue && config.notes ? (
           <span
             className="ml-2"
+            {...(onEditCue ? {
+              role: 'button', tabIndex: 0,
+              onClick: () => setCueDraft(cue),
+              onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCueDraft(cue); } },
+              title: 'Edit this cue',
+              style: { cursor: 'pointer' },
+            } : null)}
             style={{
               // Smaller than the name it rides on, always. It used to be 13px
               // beside a 12.16px heading — the instruction set larger than the
@@ -618,11 +666,28 @@ export default function ReaderSection({
               color: loud ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--ds-gray-700))',
               fontStyle: loud ? 'normal' : 'italic',
               fontWeight: loud ? 600 : 400,
+              ...(onEditCue ? { cursor: 'pointer' } : null),
             }}
           >
             {cue}
           </span>
-        )}
+        ) : onEditCue && config.notes ? (
+          <button
+            type="button"
+            onClick={() => setCueDraft('')}
+            aria-label={`Add a cue to ${id.name}`}
+            title="Add a cue"
+            className="min-h-0 ml-2 px-1 bg-transparent border-none cursor-pointer align-middle"
+            style={{
+              fontSize: `${Math.max(11, labelPx - 2)}px`,
+              color: 'var(--chart-subtle, var(--ds-gray-700))',
+              opacity: 0.55,
+              lineHeight: 1,
+            }}
+          >
+            +
+          </button>
+        ) : null}
       </div>
 
       {/* The words, as text. Replaces the rendered chart for this section only

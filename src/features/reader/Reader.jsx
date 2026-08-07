@@ -28,7 +28,7 @@ import {
 } from '@/lib/editStructure';
 import ChordAutocomplete from '@/features/editor/ChordAutocomplete';
 import { transposeChord } from '@/music';
-import { parseSectionLines } from '@/parser';
+import { parseSectionLines, CUE_MAX_CHARS } from '@/parser';
 import { showUndoToast } from '@/lib/undoToast';
 
 const EMPTY = [];
@@ -739,6 +739,36 @@ export default function Reader({
     if (si < 0) return;
     const lines = parseSectionLines(text);
     const sections = (song.sections || []).map((sec, i) => (i === si ? { ...sec, lines } : sec));
+    writeSong({ sections });
+  }, [song, writeSong]);
+
+  // ── Element 5: a cue, written from the reader ──────────────────────────────
+  //
+  // PLAN §1.2 #3d. Until now the only way to write a band cue was the editor's
+  // Arrange tab: leave the reader, open the editor, find the section. Measured
+  // against production 2026-08-07 — 31 of 350 songs carry a cue and 16 carry an
+  // inline note, and the note gutter element 4 paid for is empty on 95% of
+  // songs. Reaching it is the reason.
+  //
+  // Practice only, via `config.can.writeNotes` — the capability was declared in
+  // `readerConfig` (live false, practice true, hub false) and read by NOTHING
+  // until here. Editing a shared chart mid-service, in a hurry, is the same
+  // argument `MissingSongScreen` already uses for refusing "remove from
+  // setlist".
+  //
+  // ⚠ Writes to `song.sections`, NOT the play order: a section sung three times
+  // is ONE body, so a cue written on it correctly appears on every repeat.
+  const editSectionCue = useCallback((section, text) => {
+    if (!song) return;
+    const si = (song.sections || []).indexOf(section);
+    if (si < 0) return;
+    // Capped at the INPUT (parser's CUE_MAX_CHARS) — a cap applied at render is
+    // a truncation the writer never sees coming. Trimmed to '' so an emptied
+    // field REMOVES the cue rather than leaving a blank one that still
+    // reserves the heading's second row.
+    const note = String(text || '').slice(0, CUE_MAX_CHARS).trim();
+    if (note === (section.note || '')) return;
+    const sections = (song.sections || []).map((sec, i) => (i === si ? { ...sec, note } : sec));
     writeSong({ sections });
   }, [song, writeSong]);
 
@@ -1505,6 +1535,12 @@ export default function Reader({
               editing={editing}
               onRemove={editing ? () => removeSection(idx, section) : null}
               onEditLines={editing ? (text) => editSectionLines(section, text) : null}
+              // Element 5. Practice only, and only when the host can actually
+              // save — `onUpdateSong` is absent on read-only surfaces, and a
+              // field that accepts a cue nobody stores is worse than none.
+              onEditCue={config.can.writeNotes && onUpdateSong && !editing
+                ? (text) => editSectionCue(section, text)
+                : null}
             />
           ))}
           </div>
