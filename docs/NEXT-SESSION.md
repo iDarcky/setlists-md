@@ -3,13 +3,39 @@
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-06. State: `0.17.0-beta.92`, and **`beta` is at the same
+> _Rewritten 2026-08-07. State: `0.17.0-beta.93`, and **`beta` is at the same
 > commit** — elements 1, 2, 3, 4 and 4b are all promoted onto it. Start element
 > 5 on a fresh branch off `beta`.
 >
 > The owner tests on his phone and compares against `beta`, so during an element
 > ship each round to the **feature branch only** and promote at the close.
-> 955 tests, 0 lint errors (8 pre-existing warnings)._
+> 961 tests, 0 lint errors (8 pre-existing warnings)._
+>
+> ⚠ **`git checkout beta` may land you on a stale LOCAL branch.** It happened on
+> 2026-08-07 and silently reverted a whole element's work in the tree. Always
+> `git fetch origin beta` and branch from `origin/beta`.
+
+---
+
+## There is a real user. This is not a pre-launch repo any more.
+
+Found 2026-08-07, by reading the production database rather than assuming:
+
+- **24 accounts, three humans who actually use it.** The owner; **Centreap**
+  (`r.centea00@`), who owns the *Inchinare Sincera* workspace — 108 songs, 18
+  setlists, **active 20 of the last 30 days**; and Beniamin, 12 of 30.
+- The other 21 accounts have **0 or 1 lifetime events**.
+- Centreap's band has 8 members and 7 of them have ≤1 event — but
+  `team_activity` only logs WRITES, so a member who only reads charts on a
+  Sunday is invisible. **We cannot currently tell whether members use it.** A
+  `last_opened` stamp on `team_members` would answer it; that is a real gap in
+  a product whose thesis is team use.
+- `main` is **169 commits / 20 days behind** `beta` and still on `0.16.0`. The
+  live users are on `beta`, so `beta` is production AND staging at once.
+
+**What this changes for you:** shipping a broken `beta` breaks somebody's
+Sunday service. Measure before you ship, and prefer a round that is smaller
+than you think it should be.
 
 ---
 
@@ -169,8 +195,19 @@ Element 4's is narrower and sharper:
   open.
 - **Element 13:** the post-practice screen should summarise what changed.
 - **Stream A has not started** (`PLAN.md` §0) — domain, email, OAuth, staging,
-  monitoring. It is the only real risk to the October 1 public beta, and none
-  of it is programming.
+  monitoring. It is the only real risk to the October 1 public beta, none of it
+  is programming, and there is now a real church on the other end of it.
+- **§1.2 #6 — the sync loop is root-caused and half-fixed.** The format side
+  shipped in beta.93 (the parser carries frontmatter keys it does not model, so
+  an older build can never delete a newer build's field). The loop that is
+  RUNNING needs the stale client updated — no code reaches that device. Verify
+  in a week: `select count(*) from team_activity where action='song_edited' and
+  created_at > now() - interval '7 days'` should fall to roughly the number of
+  songs actually edited. It was **5,482**.
+- **A client build stamp is the missing diagnostic.** `team_songs` should carry
+  the `__APP_VERSION__` that wrote each row. Proving "two clients, one stale"
+  took an hour of diffing version snapshots; with the stamp it is
+  `select app_version, count(*) from team_songs group by 1`. One column.
 
 ---
 
