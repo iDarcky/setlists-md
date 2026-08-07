@@ -39,9 +39,19 @@
  * every value on READ. 34 rows stay exactly as they are.
  */
 
-/** Vocals' second level. A part is never stored on its own — always `vocals:x`. */
+/**
+ * Vocals' second level. A part is never stored on its own — always `vocals:x`.
+ *
+ * **Lead male and lead female stay separate** (owner, 2026-08-07). A first cut
+ * folded both into one `lead`, which would have quietly flattened the 6 rows
+ * production already holds — 5 "Lead male" and 1 "Lead female", entered by a
+ * leader who evidently wanted the distinction. Soprano/Alto/Tenor/Bass encode
+ * range; lead male/female encodes which of the two the room follows, and those
+ * are not the same question.
+ */
 export const VOCAL_PARTS = [
-  { id: 'lead', label: 'Lead' },
+  { id: 'lead-male', label: 'Lead male' },
+  { id: 'lead-female', label: 'Lead female' },
   { id: 'soprano', label: 'Soprano' },
   { id: 'alto', label: 'Alto' },
   { id: 'tenor', label: 'Tenor' },
@@ -85,10 +95,13 @@ const LEGACY = {
   'vocals': 'vocals',
   'vocal': 'vocals',
   'vocalist': 'vocals',
-  'lead vocal': 'vocals:lead',
-  'lead vocals': 'vocals:lead',
-  'lead male': 'vocals:lead',
-  'lead female': 'vocals:lead',
+  // "Lead Vocal" names no gender, so it resolves to plain Vocals rather than
+  // guessing one of the two.
+  'lead vocal': 'vocals',
+  'lead vocals': 'vocals',
+  'lead': 'vocals',
+  'lead male': 'vocals:lead-male',
+  'lead female': 'vocals:lead-female',
   'soprano': 'vocals:soprano',
   'alto': 'vocals:alto',
   'tenor': 'vocals:tenor',

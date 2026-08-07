@@ -37,7 +37,16 @@ describe('instruments — the musical axis', () => {
     expect(normalize('Bass')).toBe('bass-guitar');
     expect(normalize('Drums')).toBe('drums');
     expect(normalize('Piano')).toBe('piano');
-    expect(normalize('Lead Vocal')).toBe('vocals:lead');
+    expect(normalize('Lead Vocal')).toBe('vocals');
+  });
+
+  // 6 rows in production say "Lead male"/"Lead female" and the distinction is
+  // deliberate — folding both into one `lead` would flatten them silently.
+  it('keeps lead male and lead female apart', () => {
+    expect(normalize('Lead male')).toBe('vocals:lead-male');
+    expect(normalize('Lead female')).toBe('vocals:lead-female');
+    expect(labelFor('vocals:lead-male')).toBe('Vocals · Lead male');
+    expect(normalize('Lead male')).not.toBe(normalize('Lead female'));
   });
 
   it('accepts values already canonical, and is case/space insensitive', () => {
