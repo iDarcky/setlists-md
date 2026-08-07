@@ -57,14 +57,23 @@ export default function Account({
     }
   };
 
-  // An instrument chip owns its whole family: turning Vocals off also drops
-  // whichever part was chosen under it, so a part can never be left stranded
-  // without the instrument it belongs to.
+  // **Vocals plus at most ONE instrument** (owner, 2026-08-07). Singing while
+  // you play is the normal case; playing two instruments in one service is not,
+  // and letting a profile claim three is what made `resolveMyInstrument` give
+  // up and show every tab — it refuses to guess when the list is ambiguous.
+  // Picking a second instrument REPLACES the first rather than erroring.
+  //
+  // An instrument chip also owns its whole family: turning Vocals off drops
+  // whichever part was under it, so a part is never stranded.
   const toggleInstrument = (id) => {
-    const mine = myTokens.filter(t => t.split(':')[0] === id);
-    save(mine.length
-      ? myTokens.filter(t => t.split(':')[0] !== id)
-      : [...myTokens, id]);
+    const on = myTokens.some(t => t.split(':')[0] === id);
+    if (on) { save(myTokens.filter(t => t.split(':')[0] !== id)); return; }
+    const keep = id === 'vocals'
+      // Turning Vocals on keeps whatever instrument is already there.
+      ? myTokens
+      // Turning an instrument on keeps only Vocals (and its part).
+      : myTokens.filter(t => t.split(':')[0] === 'vocals');
+    save([...keep, id]);
   };
 
   // Picking a part replaces the bare instrument — "Vocals · Alto" is more
@@ -304,11 +313,15 @@ export default function Account({
                       onClick={() => togglePart(inst.id, p.id)}
                       disabled={instrumentsBusy}
                       aria-pressed={on}
+                      // The SAME selected language as an instrument chip — a
+                      // part in a second colour read as a different kind of
+                      // thing rather than as step two. Hierarchy comes from
+                      // size and indent, not from a second palette.
                       className="h-6 px-2.5 rounded-full text-copy-12 border cursor-pointer transition-colors disabled:opacity-50"
                       style={{
-                        background: on ? 'var(--color-brand-soft, var(--color-brand))' : 'transparent',
+                        background: on ? 'var(--color-brand)' : 'transparent',
                         borderColor: on ? 'var(--color-brand)' : 'var(--drawer-border)',
-                        color: on ? 'var(--color-brand)' : 'var(--drawer-text)',
+                        color: on ? '#fff' : 'var(--drawer-text)',
                       }}
                     >
                       {p.label}

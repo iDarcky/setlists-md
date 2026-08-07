@@ -65,7 +65,10 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
 
   const openPicker = (member) => {
     setPickFor(member);
-    setPickInstrument(instrumentFilter || member.instruments?.[0] || '');
+    // Canonical + top level: a raw `vocals:alto` here would pre-select a chip
+    // that step one does not offer, so nothing would look selected.
+    const mine = (member.instruments || []).map(normalize).filter(Boolean).map(t => t.split(':')[0]);
+    setPickInstrument(instrumentFilter || mine[0] || '');
     setPickVocal('');
   };
   const confirmPicker = async () => {
@@ -111,7 +114,11 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
       return { ...m, availStatus: status };
     });
     if (instrumentFilter) {
-      list = list.filter(m => Array.isArray(m.instruments) && m.instruments.includes(instrumentFilter));
+      // Compare canonically: a profile holding legacy "Acoustic Guitar" must
+      // match the `acoustic-guitar` chip, and `vocals:alto` must match Vocals.
+      list = list.filter(m => (m.instruments || [])
+        .map(normalize).filter(Boolean).map(t => t.split(':')[0])
+        .includes(instrumentFilter));
     }
     list.sort((a, b) => {
       const ra = a.availStatus ? AVAIL_RANK[a.availStatus] ?? 1 : 1;
@@ -162,11 +169,17 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
     return result;
   }, [overscheduleWarn, v2, setlists, setlistIdMap, schedules, members, setlistDate]);
 
-  // Set of distinct instruments across all team members for the filter chips.
+  // Distinct instruments across the team, for the filter chips.
+  // ⚠ Normalised and reduced to the TOP LEVEL. These render raw otherwise, and
+  // once Account started saving canonical tokens the filter row read
+  // "acoustic-guitar" and "vocals:lead-female" at the user.
   const allInstruments = useMemo(() => {
     const set = new Set();
-    members.forEach(m => (m.instruments || []).forEach(i => set.add(i)));
-    return Array.from(set).sort();
+    members.forEach(m => (m.instruments || []).forEach(i => {
+      const t = normalize(i);
+      if (t) set.add(t.split(':')[0]);
+    }));
+    return Array.from(set).sort((a, b) => labelFor(a).localeCompare(labelFor(b)));
   }, [members]);
 
   const handleAddMember = async (member, role, vocal) => {
@@ -466,7 +479,7 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
                             : 'bg-transparent border-[var(--ds-gray-300)] text-[var(--ds-gray-700)]'
                         }`}
                       >
-                        {inst}
+                        {labelFor(inst)}
                       </button>
                     ))}
                   </div>
