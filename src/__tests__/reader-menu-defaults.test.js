@@ -59,8 +59,9 @@ describe('the ☰ default table', () => {
     expect(cfg.notes).toBe(true);
     expect(table.readerInlineNotes).toBe("'on'");
     expect(cfg.inlineNotes).toBe(true);
-    expect(table.readerRail).toBe("'on'");
-    expect(cfg.rail).toBe(true);
+    // `readerRail` is not in the table any more — the knob is gone with the
+    // strip it used to hide.
+    expect(table.readerRail).toBeUndefined();
     expect(table.readerSticky).toBe("'on'");
   });
 

@@ -212,7 +212,7 @@ export default function SetlistReader({
           (owner, 2026-08-04). They are hidden while editing rather than
           restacked: song navigation is locked in edit mode anyway, so a control
           that cannot do anything is worse than no control. */}
-      {cfg.rail && (cfg.nav === 'edge' || cfg.nav === 'swipe') && !railOpen && !locked && (
+      {(cfg.nav === 'edge' || cfg.nav === 'swipe') && !railOpen && !locked && (
         <button
           type="button"
           onClick={openRail}
@@ -233,7 +233,7 @@ export default function SetlistReader({
       {/* Element 29's strip, and it can be turned off now (Layout → The set).
           It used to be unconditional: only its open/closed state was a
           preference, and that lived in localStorage per device. */}
-      {cfg.rail && <SetlistRail
+      <SetlistRail
         open={railOpen}
         wide={wide}
         onClose={() => setRailOpen(false)}
@@ -242,7 +242,7 @@ export default function SetlistReader({
         items={railItems}
         idx={idx}
         onSelect={go}
-      />}
+      />
     </>
   );
 

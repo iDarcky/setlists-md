@@ -96,9 +96,10 @@ original surfaces render untouched.
 > | **1** | **Top bar** | ✅ closed 2026-08-04 (it turned out to contain edit mode) |
 > | **2** | **The ☰ — the reader's settings menu** | ✅ closed 2026-08-04, 15 rounds |
 > | **3** | **Structure ribbon** | ✅ closed 2026-08-06, 13 rounds (beta.78 → beta.90) |
-> | **4** | **Section heading** | **NEXT** |
-> | 4b | Band cue | it lives on the heading's own line — likely settled in 4's pass |
-> | 29 | The setlist rail | shipped as a strip; *"it will require some work in the future"* |
+> | **4** | **Section heading** | ✅ closed 2026-08-06, 5 rounds (beta.91 → beta.92) |
+> | **4b** | **Band cue** | ✅ closed with it — it lives on the heading's own line |
+> | **5** | **Notes** — all four layers, not just `{!…}` | **NEXT** |
+> | 29 | The setlist rail | strip removed in element 4's pass; the rest is still open |
 >
 > ## And once more, 2026-08-06
 >
@@ -360,44 +361,178 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
 > use `role="button"` rather than `<button>` for the same reason.
 > `src/__tests__/structure-ribbon.test.jsx` asserts the opt-out per style.
 
-### 4 — Section heading *(was 3; renumbered 2026-08-06)*
+### 4 — Section heading ✅ closed 2026-08-06 *(was 3; renumbered 2026-08-06)*
+
+> **Five rounds, beta.91 → beta.92.** What it is now, in one place: a heading
+> you can read (14px, 17px on a chorus, always a size above its cue), eleven
+> section types in eleven colours, and four frames — None · Rule · Margin bar ·
+> Tint — **none of which takes a pixel of width from the words**. The words
+> start at the edge of a phone; the right side is for notes. A chorus has real
+> air above it. Headings pin at one column on every device. Back-to-back
+> repeats are one tag, and a tag you opened can close again.
+>
+> It also turned up **seven bugs older than the element** — see "The
+> element-4 pass" for the full account.
+
 - **The user chooses** full name / letters / ALL CAPS — `readerHeading`.
   (ALL CAPS is the original chart's heading, kept on request.)
+- **Sizes are FIXED, not a fraction of the lyric size** (owner, 2026-08-06:
+  *"I don't know about scaling with lyrics but I agree that it should be
+  heading > cue"*). Name/Short **14px**, **17px** heavy; Uppercase 15/18. The
+  cue is always `labelPx − 2`. It was 12.16px against 18px lyrics and a 13px
+  cue — the smallest text on the page was the one naming where you are, and the
+  instruction riding on it was set larger than the section it belonged to.
+  **No separate size knob**: the owner raised it and then raised the menu's
+  density against it, and a heading is chrome for the page, not another voice.
+- **The heading row is sized off the heading.** It inherited the chart's
+  18px/27px body type, so it measured **34.4px to hold a 16px word** — ~9px of
+  strut per section, ~170px on a ten-section song, growing with the lyric size.
 - Per-type colours, matching the ribbon, both from `sectionIdentity`.
-- A chorus is **clearly heavier** than a verse — bigger, thicker rule, more air
-  above it. The page has a shape you can read without reading the words.
-- **Sticky on a phone, never on desktop.** On a desktop the whole section is
-  usually on screen already, so pinning is just a bar that never goes away.
-  Sticky headings pin **below** the measured header height (`headH`, via
-  `ResizeObserver`), and `scrollMarginTop` uses the same number.
-- Frames: Bar / No line / Block / Card — `readerSectionStyle`. "No line" is the
-  original chart's look and was requested explicitly.
-- Repeats: **reference by default** — a repeated chorus renders as
-  `Chorus — as before`, tappable to jump to the first one. `duplicateSections`.
-  This is the lever that buys bigger text *and* less scrolling.
-  **Three values now: Full · Condensed · Hidden.** `hide` draws nothing at all,
-  not even the pill (owner, 2026-08-01) — but the section's div stays (empty,
-  `aria-hidden`) and **the ribbon still lists it**. The ribbon is the map of the
-  song; a section missing from the map breaks the one job.
+- **A chorus is clearly heavier** — bigger (a 21% step, where it used to be 13%
+  and read as a rendering accident), indented 0.85rem, and with **real air
+  above it**: see the margin-collapse trap below.
+- **Sticky is about COLUMNS, not screen size.** One column pins on every
+  device; two columns never do, and the ☰ hides the switch there rather than
+  lying about it (owner: *"Let's say the user selects 2 column, the option is
+  gone"*). It used to be `!wide`, so the switch read ON and did nothing at
+  768px and up — a one-column desktop and an iPad in portrait included.
+  Measured: `position: sticky` pins identically inside a 2-column multicol, so
+  the old behaviour was a judgement, not a limitation.
+- **A section only pins when its body is taller than its heading** (+8px of
+  hysteresis, because pinning itself grows the heading by 7.4px). A one-line
+  outro had **over half its only line behind the heading naming it**.
+- Frames: **None · Rule · Margin bar · Tint** — `readerSectionStyle`, default
+  `plain` (None). A frame says only WHERE THE SECTION'S COLOUR LIVES and none
+  of them boxes the text. `block`/`card` are retired to `tint` by
+  `STYLE_LEGACY`.
+- Repeats: **Full · Tag · Hidden** (`duplicateSections`, default `full`).
+  `hide` draws nothing at all, not even the pill — but the section's div stays
+  (empty, `aria-hidden`) and **the ribbon still lists it**. The ribbon is the
+  map of the song; a section missing from the map breaks the one job.
 - The pinned heading sits at **`stickyTop - 1`** with a matching extra pixel of
   padding. Two sticky edges that merely ABUT show a sliver of scrolling content
   on any device whose pixel ratio isn't a whole number. Overlap, never abut.
+- **A pinned heading wears its section's frame.** It used to paint
+  `--chart-bg` always, which on a tinted section was bare paper cut out of the
+  wash.
 
-### 4b — Band cue *(it renders on element 4's own line)*
+#### The element-4 pass — decisions, 2026-08-06
+
+- **The words start at the left edge.** 32px a side on a 390px phone is 16% of
+  the screen; 12px gains 40px of line AND takes 20px off the song's height.
+  ⚠ **Except the side the structure rail floats down**, which keeps its 32px —
+  element 3 measured the dots as living inside that padding, and taking it away
+  puts them on the lyrics.
+- **Eleven types, eleven colours, and saturation says who is singing.** Four
+  pairs shared a hue (Intro=Tag, Refrain=Interlude, Pre Chorus=Instrumental=
+  Vamp, Ending=Outro) and the heading and its chip are one system, so a shared
+  colour cost the same thing twice. Vivid = the five the room sings; deeper =
+  the six the band plays. ⚠ **"Muted" is not "pale"** — the first cut flattened
+  all six played hues to one saturation and one lightness, and six colours
+  separated by hue alone at low saturation are six pastels (owner: *"now
+  everything looks the same"*). They sit back by being DEEPER, each on its own
+  rung of a lightness ladder.
+- **`Ending` is retired to an alias of `Outro`** — one thing under two names,
+  the same argument that retired `ref` from the repeats knob. Gone from every
+  picker; a file that says `## Ending` still reads.
+- **The colours are their own `--section-*` tokens**, not steps of the Geist
+  ramps: the ramps carry seven chromatic hues and the chart needs eleven, and a
+  change to the UI's blue should not repaint anybody's Intro. Every value is
+  contrast-checked against the real chart backgrounds (worst 4.6:1); the old
+  `--ds-blue-700` Intro measured **4.18** and failed.
+- **A note goes in a GUTTER, at every width** — a strip down the right that the
+  words stop before. The dotted leader owned wide screens until it was seen at
+  1280 in two columns: a 594px column with an ordinary lyric leaves ~400px of
+  dotted rule, which reads as a divider, not a connection. **Only a section
+  that actually carries a note reserves the strip** (owner: *"if no notes we
+  use for lyrics if notes we have a space for them"*) — a permanent gutter
+  measured **+24% on the song's height**. 132px wide, 88px on a phone.
+- **A long cue clamps to two rows**, name and cue together, on the ROW rather
+  than the cue — the cue starts on the heading's own line, and clamping it
+  alone would first have to make it a block. New cues are capped at the INPUT
+  (70 chars, measured: two rows on a 360px phone, three at 80). A character cut
+  was the wrong answer for a cue written before there was a limit.
+- **`↩ BRIDGE ×3`** — back-to-back repeats collapse into one pill, consecutive
+  only, the rule element 3 already uses for chips. The pill carries a **▾** so
+  it reads as openable (owner: *"a show should be visible"*), opening it opens
+  the whole run, and **the pill opens in place while the ribbon chip still
+  jumps** — both behaviours he liked, each where it belongs.
+- **An opened repeat closes again** from a ▴ on its heading.
+- **The setlist rail keeps no resting strip** (element 29, pulled forward on
+  request). It used to hold 44px docked on wide so the chart never reflowed on
+  opening; on a 1024px iPad that is permanent chrome for one chevron, and the
+  way in already existed — the footer's `x / x` counter, plus the edge hotspot
+  on the swipe/edge nav modes. Opening reflows the chart now; that is the
+  price, and you only pay it when you ask. **`readerRail` went with it** — a
+  knob whose reason for existing was removed is worse than no knob.
+- **Defaults: Plain + Full.** `storage.js DEFAULT_SETTINGS` said `bar`/`full`
+  while `readerConfig`, the ☰'s Reset and this file all said `plain`/
+  `condensed` — so no user ever had the documented default, and pressing Reset
+  on a fresh profile CHANGED a setting nobody had touched. No migration: beta
+  only, one database, users change it themselves (owner).
+
+### 4b — Band cue ✅ closed 2026-08-06 *(it renders on element 4's own line)*
 - Starts **on the same line as the section heading** and wraps from there like
   a sentence continuing — NOT flex, or a long cue is forced onto its own row.
-- Capped at 240 chars. A cue is an instruction, not an essay; it must never
-  push the song off the screen.
+- **Capped at 70 characters at the INPUT**, and the heading row clamps to two.
+  A cue is an instruction, not an essay; the heading **pins with its cue**, so
+  every row past two is a row of song hidden behind it.
+- **Always smaller than the name it rides on** (`labelPx − 2`).
 - A leading `!` means **loud**: red, upright, semibold. Their team writes
   `!!! sing up an octave !!!` because the format has no emphasis; this is that
   convention made real.
-- Shown in Live too. No settings of its own.
+- Shown in Live too. No settings of its own beyond the on/off.
+- ⚠ **You could not type a space into one** until 2026-08-06 (PLAN §1.2 #3c,
+  prio 1, reported 08-04). The editor's cue field round-trips through
+  `songToMd` → parse on EVERY keystroke and parse ran `.trim()`, so the
+  trailing space died before it could become a word boundary: one word per cue
+  and no more. Parse strips exactly the one space the serializer writes.
+  **The inline-note half of that report does not reproduce** — inline notes are
+  edited in a local-state input and only trim at render.
 
-### 5 — Inline notes (`{!…}`)
-Placement is a **physical fact, not a preference**:
-- **Wide** — out to the right edge on a dotted leader, like a printed chart.
-- **Narrow** — on its own line *above* its lyric line, so it's read before the
-  line is sung.
+### 5 — Notes — **NEXT** *(was "inline notes"; widened 2026-08-06)*
+
+> **Element 5 is every note, not one kind of note** (owner, 2026-08-06:
+> *"element 5 should actually become notes, and this should include all the
+> notes, not separate as we have them right now"*). The app has four layers and
+> they were designed separately, at different times, with different rules:
+>
+> | | where it lives | who sees it | element |
+> |---|---|---|---|
+> | **Band cue** (`> text`) | on the section heading | everyone | 4b ✅ |
+> | **Inline note** (`{!…}`) | on a lyric line | everyone | 5 |
+> | **Arrangement note** | `arrangement.notes`, markdown | everyone | 5 |
+> | **My note** (`team_notes`) | per user, per scope | you only | 5 |
+> | **Setlist item note** | `items[i].note`, 100 chars | everyone | 5 / 10 |
+>
+> **WHERE an inline note goes is already settled** — element 4's pass answered
+> it, because the owner asked for the right margin while the section was being
+> rebuilt. It is a **gutter** at every width: a strip down the right, reserved
+> only by sections that actually carry a note, with the note on the same line as
+> its words. The old rule in this file ("narrow → above its line, wide → a
+> dotted leader") is superseded; see "The element-4 pass".
+>
+> So element 5 is now: what a note **looks like**, what it can **say**, and how
+> the four layers relate. Open questions it inherits:
+> - Can you write a cue or a note from the READER, or only from the editor?
+>   (§1.2 #3d asks the same about the hub. `LyricEditor` in the reader edits
+>   `section.lines` only — the cue is neither shown nor editable there.)
+> - Do the four layers keep four treatments, or one with a marker for scope?
+> - Does "My note" belong in the reader at all, or only in the hub?
+> - The ☰'s **Notes** row was built and then moved out to the setlist — decide
+>   where it lands.
+
+**Settled, carried in from element 4:**
+- **Placement is a physical fact, not a preference** — the gutter, at every
+  width, per section that has a note.
+- ⚠ **A note lands on its own line, and neither end of the cell is that line.**
+  A rendered line is a chord row above a lyric row: top-aligned, the note sits
+  level with the chords (20px adrift); bottom-aligned, a line that wraps to two
+  rows drops it to the second (50.8px adrift); `baseline` cannot help, because
+  a flex row of chord-over-lyric columns exposes no baseline the grid can see.
+  Top-aligned, offset by exactly one chord row.
+- **Capped at 40 characters at the input.**
+- A leading `!` means loud, the same as a cue.
 
 ### 6/7 — Chords and lyrics
 - Chords above lyrics, per-word grouping so a line only wraps at a space.
@@ -2511,7 +2646,35 @@ being routes into `live`.
    active dot grew 7→11px as the flex item itself, so a fast scroll walked it
    down the list shoving each neighbour 4px — read as the column shuddering.
    Fixed cell, resize the paint inside it.
-14. **A doc that says "removed" is not a removal.** beta.58 wrote the
+14. **`undefined` in a style object is a DELETE, not a skip.** `{...frame,
+   marginLeft: heavy ? x : undefined}` removes the frame's own margin for every
+   light section — React serialises `undefined` as "". It silently killed the
+   tint frame's edge-to-edge bleed: the wash stopped at 24px, the words started
+   12px in from where they should, and the song came out **30% taller** from the
+   extra wrapping. When a frame and a weight both have a claim on one property,
+   COMPOSE them (`calc(a + b)`); never let the later key win by accident.
+15. **A frame with vertical padding blocks margin collapse.** Every other frame
+   let the section's own `marginBottom` collapse into `--chart-section-gap`;
+   `tint` has padding, so the margin stopped being absorbed and started adding.
+   Same class as the `1.6px of air` finding below — margin collapse is doing
+   more of this layout than the code admits.
+16. **A margin between sections is `max(spacing, margin)`, not the sum.** "A
+   chorus gets more air" was `marginBottom: 1.6rem` vs `1rem`, and measured it
+   was worth **1.6px** at the default Section spacing and **exactly zero** above
+   26px. It was also on the wrong side — air below a chorus is air above the
+   verse that follows. Use PADDING for air that must survive, and put it where
+   the doc says it is.
+17. **Tailwind v4 tree-shakes `@theme` variables nothing in the CSS
+   references.** The eleven `--section-*` tokens are read only from JS, so
+   declared in `@theme` they were dropped from the build and every heading fell
+   back to the chart's ink. The page rendered; it just rendered grey. Ship
+   JS-only tokens in a plain unlayered rule.
+18. **Runs derived from the song go stale against per-slot state.** `repeatRuns`
+   grouped adjacent repeats from the SONG, so a slot closed while its run-lead
+   was still open became a non-lead member — and a non-lead member draws
+   nothing. Closing the last of three lost it entirely. Anything that groups
+   slots has to take the live state as an argument.
+19. **A doc that says "removed" is not a removal.** beta.58 wrote the
    `scrollTop`-compensation warning above into both the code and this file and
    left the line itself running; the next round then read the comment, believed
    it, and looked elsewhere. When retiring something, `grep` for it after

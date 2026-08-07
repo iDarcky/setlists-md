@@ -68,8 +68,9 @@ any of it. Also landed: the component-architecture foundation (§3.1, all ✅).
 > | **Closed** | **1 — top bar** ✅ 2026-08-04, eleven rounds. It turned out to contain all of **edit mode** (orange chrome, structure editing from the song map, per-section lyric editing, chord replacement, undo, New version, pull-to-finish), the set bar's progress line, the chrome's real height, and the rail's toggle. |
 > | **Closed** | **2 — the ☰, the reader's settings menu** ✅ 2026-08-04, fifteen rounds. Three tabs (Style · Layout · Music), three shapes (phone dock · desktop side panel · popover), free-vs-Pro decided, and **seven settings that were wired at one end only**. `READER.md` → "Element 28 → 2, CLOSED". |
 > | **Closed** | **3 — the structure ribbon** ✅ 2026-08-06, thirteen rounds. Three styles (Boxes · Chips · Dots), five positions of which **left/right are always dots**, fading ends, a key-change mark, Tag-opens-in-place, a chip that lands on the reading line, and a side rail that shows the whole song and **scrubs**. It also turned up four bugs older than the element: the chart never used the window's full width, two readers in the DOM broke every full-screen jump, painting the rail under the chart made it unclickable, and the next song kept the previous song's scroll (prio 0). `READER.md` → "The element-3 pass". |
-> | **Next** | **4 — the section heading** (was 3 — renumbered when the ☰ took 2). The band cue is **4b**: it renders on the heading's own line, so it will most likely be settled in the same pass. |
-> | **Then** | **29 — the setlist rail** (*"it will require some work in the future. Not quite now."*) · then the 14–27 table. |
+> | **Closed** | **4 — the section heading, and 4b the band cue** ✅ 2026-08-06, five rounds. Sizes you can read, eleven section types in eleven colours, four frames that take no width from the words, the left edge on a phone, a note gutter down the right, pinning tied to the column count, `↩ BRIDGE ×3`, and a tag that closes again. It also turned up **seven bugs older than the element** — the band-cue space bug (§1.2 #3c), a new section reverting to Verse, hyphenated `Pre-Chorus` falling off the colour table, `?` for every unknown type, a one-line section hidden behind its own heading, and two documented defaults nobody has ever had. `READER.md` → "The element-4 pass". |
+> | **Next** | **5 — Notes**, widened from "inline notes" to **all four layers** (owner, 2026-08-06): the band cue, the inline `{!…}`, the arrangement note and the private "My note". WHERE an inline note goes is already settled by element 4's pass (a gutter, per section that has one); element 5 is what a note looks like, what it can say, and how the layers relate. |
+> | **Then** | **29 — the setlist rail.** Its permanent strip was removed in element 4's pass (owner pulled it forward: *"remove the rail on ipad to win more space"*); the rest of it is still open. Then the 14–27 table. |
 >
 > Two things carried out of element 1 and are NOT part of it: the **chord-model
 > unification** (§7 #13) and **draggable song sections** (§7 #14, prio 2).
@@ -168,15 +169,15 @@ serious thing in this document; the last two are blocked on you.
    "Element 28, round 1". **The fix is to cut the menu down to what works, NOT
    to reconnect `HUB_VIEW` to `settings`** — that is the bug that turned the
    hub's Chart tab into a second Lyrics tab.
-3c. 🔴 **You cannot type a space into a band cue, or an inline note.** Reported
-   by the owner 2026-08-04; root cause found by reading, not yet fixed (he asked
-   for it to be noted, prio 1). The cue field is `ArrangeTabV2.jsx:1332`; every
-   keystroke calls `emitSong`, which does `songToMd()` → `onChange(md)` → the
-   editor re-parses → **`parser.js:96` runs `.trim()` on the cue**. The trailing
-   space is deleted before it can become a word boundary, so you can type one
-   word and no more. `parser.js:540` does the same to `{!inline notes}`, so #2
-   is almost certainly the identical bug. Fix at the parse boundary, not in the
-   input — trimming on parse is right for a file, wrong for a keystroke.
+3c. ✅ **You cannot type a space into a band cue — FIXED** (element 4, beta.92).
+   Root cause exactly as written: every keystroke ran `songToMd()` →
+   `onChange(md)` → re-parse, and `parser.js` trimmed the cue. Parse now strips
+   exactly the one space the serializer writes. Verified end to end in Chromium:
+   "watch the drummer here" types as written. **The inline-note half does NOT
+   reproduce** — inline notes are edited in a local-state input and only trim at
+   render, so they never round-tripped per keystroke; the render-time trim went
+   anyway. Cues are capped at 70 characters at the input now and inline notes at
+   40 (measured: 70 wraps to two rows on a 360px phone, 80 to three).
 3d. 🟡 **Add a band cue / inline note from the SONG HUB**, without opening the
    editor (owner, 2026-08-04, prio 1). Pairs with 3c: the field you would be
    typing into is the one that eats spaces.

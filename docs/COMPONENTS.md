@@ -348,7 +348,14 @@ auto-scroll, metronome, font stepping. Audio/Practice tabs unbuilt.
 `ChartStyleControls.jsx` (1 importer — legacy?)
 
 **Status.** 🟡 The Aa-menu consolidation landed; `embedded` mode lets the hub
-drive it.
+drive it. **The Reader's element-by-element walk owns the display layer now** —
+`src/features/reader/` is the surface being designed (elements 1, 2, 3, 4, 4b
+closed as of 2026-08-06; element 5, Notes, is next). `docs/READER.md` is its
+decision log and outranks this entry for anything under `features/reader/`,
+`SectionBlock`, `StructureRibbon` or `AaMenu`. Two things moved OUT of the
+files listed above in element 4's pass: the eleven `--section-*` colour tokens
+now live in `styles/index.css` (not the Geist ramps), and section identity is
+resolved once in `lib/sectionIdentity.js` for both the heading and the ribbon.
 
 **Debt.**
 - **Display state is re-implemented three times** — `ChartView`,

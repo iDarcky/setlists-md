@@ -1,15 +1,15 @@
-# Next session — the Reader, element 4 (the section heading)
+# Next session — the Reader, element 5 (Notes — all four layers)
 
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-06. State: `0.17.0-beta.91`, and **`beta` is at the same
-> commit** — elements 1, 2 and 3 are all promoted onto it. Start element 4 on a
-> fresh branch off `beta`.
+> _Rewritten 2026-08-06. State: `0.17.0-beta.92`, and **`beta` is at the same
+> commit** — elements 1, 2, 3, 4 and 4b are all promoted onto it. Start element
+> 5 on a fresh branch off `beta`.
 >
 > The owner tests on his phone and compares against `beta`, so during an element
 > ship each round to the **feature branch only** and promote at the close.
-> 945 tests, 0 lint errors (8 pre-existing warnings)._
+> 955 tests, 0 lint errors (8 pre-existing warnings)._
 
 ---
 
@@ -17,9 +17,9 @@
 
 1. **This file.**
 2. **`docs/READER.md`** — the element-by-element decision log. **The important
-   one.** Read element 4's section *and* "The element-3 pass" above it: the
-   heading and the ribbon are one system (the highlighted chip and the heading
-   it points at must name the same section), so element 3's decisions bind here.
+   one.** Read element 5's section *and* element 4's pass above it: element 4
+   already settled **where** an inline note goes (a gutter), so element 5
+   inherits a decision rather than making it.
 3. `CLAUDE.md` — how the app works.
 4. `docs/PLAN.md` §1 — what is parked and in what order.
 
@@ -32,7 +32,8 @@ Ignore `docs/views-vision.md` and `docs/views_questions.md` — scrapped design.
 - **One element at a time. Ask the questions and let him decide BEFORE
   building.** Batch the questions (4–6; he answers them all in one go).
 - Build exactly what is asked. **No adjacent settings, no knobs nobody
-  requested.**
+  requested.** He has now removed one knob for being pointless (`readerRail`)
+  and declined another (a heading-size stepper) on menu-density grounds.
 - **Ship every round** — he tests on his phone. A description of a change is not
   a change. Push the **feature branch only** while an element is in flight;
   promote to `beta` when he says the element is done.
@@ -42,14 +43,22 @@ Ignore `docs/views-vision.md` and `docs/views_questions.md` — scrapped design.
   > the code, and in a real browser — before explaining why it should be fine.
   > Every root cause is in `READER.md`'s trap list.
 
-### Measure in a real browser. It is what element 3 was made of.
+### Measure in a real browser. It is what elements 3 and 4 were made of.
 
-Chromium is at `/opt/pw-browsers/chromium` and Playwright installs into the
-project (`npm i --no-save playwright`). Seed IndexedDB directly (store
-`keyval-store` / `keyval`, key `setlists-md:settings`, `unifiedReader: true`)
-and drive the real app. **Four of element 3's bugs were invisible in the code
-and obvious under measurement**, including two that predated the element.
+Chromium is at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` and
+Playwright installs into the project (`npm i --no-save playwright`; import it by
+absolute path from a scratch script). Seed IndexedDB directly (store
+`keyval-store` / `keyval`, key `setlists-md:settings`, `unifiedReader: true`),
+overwrite a demo song's `arrangements[0].sections` with a purpose-built fixture,
+then drive Library → song → **Full screen**.
 ⚠ Scope every query to the full-screen dialog — see the two-readers trap.
+
+**Element 4 found seven bugs this way, five of them older than the element.**
+Two were pure-CSS traps that read as correct in review (`undefined` deleting a
+style key; `@theme` tree-shaking JS-only tokens). One was a colour palette that
+passed every contrast check and still looked wrong to the owner — *his eye is
+the test for anything visual; the numbers only stop you shipping something
+provably unreadable.*
 
 ---
 
@@ -60,113 +69,108 @@ and obvious under measurement**, including two that predated the element.
 | **1** | Top bar | ✅ closed — it turned out to contain all of **edit mode** |
 | **2** | The ☰ — the reader's settings menu | ✅ closed, 15 rounds |
 | **3** | Structure ribbon | ✅ closed 2026-08-06, 13 rounds |
-| **4** | **Section heading** | **NEXT — this session** |
-| 4b | Band cue | renders on the heading's own line; likely settled in the same pass |
-| 29 | The setlist rail | shipped as a strip; *"some work in the future. Not quite now."* |
-
-**The numbering moved twice.** The ☰ was 28 and became **2**, pushing the ribbon
-2 → 3; that left the section heading (then 3) colliding, so on 2026-08-06 it
-became **4** and the band cue **4b**. Later numbers (5–13, 24, 29) are
-deliberately untouched — they were never an order.
+| **4** | Section heading | ✅ closed 2026-08-06, 5 rounds |
+| **4b** | Band cue | ✅ closed with it |
+| **5** | **Notes — all four layers** | **NEXT — this session** |
+| 29 | The setlist rail | its permanent strip is gone; the rest is open |
 
 ---
 
-## Element 4 — the section heading. What is actually there
+## Element 5 — Notes. What it is now
 
-`src/features/reader/ReaderSection.jsx` (the frame, the sticky heading, the
-cue), with `src/lib/sectionIdentity.js` as the single source of a section's
-code, name, colour and weight. **Measure before designing.**
+**The owner widened it, 2026-08-06:** *"element 5 should actually become notes,
+and this should include all the notes, not separate as we have them right now."*
+Four layers exist, designed separately, at different times, with different
+rules:
 
-Already decided (in `READER.md`, do not re-open without a reason):
+| | where it lives | who sees it | state |
+|---|---|---|---|
+| **Band cue** (`> text`) | on the section heading | everyone | ✅ 4b |
+| **Inline note** (`{!…}`) | on a lyric line | everyone | placement settled, look open |
+| **Arrangement note** | `arrangement.notes`, markdown | everyone | untouched by the walk |
+| **My note** (`team_notes`) | per user, per scope | you only | `notes/usePrivateNotes.js` |
+| **Setlist item note** | `items[i].note`, 100 chars | everyone | element 10's neighbour |
 
-- **The user chooses the wording** — full name / letters / ALL CAPS
-  (`readerHeading`). ALL CAPS is the original chart's heading, kept on request.
-- **Per-type colours, matching the ribbon**, both from `sectionIdentity` — the
-  chip and the heading it points at are visibly the same object.
-- **A chorus is clearly heavier than a verse** — bigger, thicker rule, more air
-  above, and it **steps in** by `0.85rem`. `heavy` is songFlow's HEAVY set
-  (Chorus/Refrain/Bridge). The page should have a shape you can read without
-  reading the words.
-- **Sticky on a phone, never on a desktop.** Pins at `stickyTop - 1` (overlap,
-  never abut — a fractional-DPR device shows a sliver through any seam).
-- **Four frames** — Bar / No line / Block / Card (`readerSectionStyle`), with
-  `plain` ("no line") the default since 2026-08-04: *"a chart is paper, and
-  paper has no frames on it."*
-- **Repeats: Full · Tag · Hidden** (`duplicateSections`). A Tag is the PDF
-  export's pill, `↩ Chorus`, and **tapping it opens that repeat in place**
-  (element 3, 2026-08-05). Hidden draws nothing but keeps its slot on the map.
-- **The heading is the reading line.** `useActiveSection` is given `headH`, so
-  the ribbon changes at the exact moment the heading pins — and a chip's jump
-  lands the section 1px *under* the header for the same reason. Anything that
-  changes where a heading sits changes both.
+### Already settled — do not re-open
 
-**Owner's parked item, to raise IN THIS PASS (he asked to be reminded):**
-tapping a Tag to open it in place is shipped but *not settled* — *"I don't know
-if I like the clicking on a tag to expand, but I'll think about it in the
-respective element, remind me."*
+- **An inline note goes in a GUTTER, at every width** — a strip down the right
+  that the words stop before, **reserved only by sections that actually carry a
+  note**. A permanent gutter measured **+24%** on a song's height. 132px in a
+  wide column, 88px on a phone (`--note-gutter`, set in `Reader`).
+- ⚠ **A note lands on its own line, and neither end of its cell is that line.**
+  A rendered line is a chord row above a lyric row: top-aligned it sits level
+  with the chords (20px adrift), bottom-aligned a wrapped line drops it to the
+  second row (50.8px adrift), and `baseline` cannot help. Top-aligned, offset by
+  exactly one chord row. Re-measured to 0.0px.
+- **Capped at 40 characters at the input**; a leading `!` means loud.
+- The **dotted leader is retired** — at 1280 in two columns it left ~400px of
+  dots running across the page.
 
-**Questions worth asking first** (his answers are the deliverable, not your
-opinions): does a repeated section need to look different from its first play
-beyond the pill? Should the cue (4b) ever wrap to its own line, or stay on the
-heading's line at any length? Is the chorus's indent doing enough work, or
-should the *frame* carry the weight instead? What happens to a heading when the
-section is only two lines long — is the sticky pin worth it? Should a section
-carry anything else at all (its key after a modulate, a bar count, who plays)?
+### The questions this element inherits
+
+- Can you write a cue or a note **from the reader**, or only from the editor?
+  `LyricEditor` in `ReaderSection` edits `section.lines` only — the cue is
+  neither shown nor editable there. §1.2 #3d asks the same about the hub.
+- Do four layers keep four treatments, or one treatment with a marker for scope?
+- Does **My note** belong in the reader at all, or only in the hub?
+- The ☰'s **Notes** row was built and then moved out to the setlist. Where does
+  it land?
+- Does the arrangement note (markdown, unbounded) need the same discipline the
+  cue just got — a cap, a clamp, a place?
 
 ---
 
-## Just closed — element 3, the structure ribbon (13 rounds, beta.78 → beta.90)
+## Just closed — element 4, the section heading (5 rounds, beta.91 → beta.92)
 
-Three styles (**Boxes · Chips · Dots**) and five positions, of which **left and
-right are always dots** — small enough to float inside the margin the chart
-already had, so the map never covers a word and never pushes one aside. The ends
-of a scrolling row fade. A key change shows as a gold `↗B` naming the key you
-*arrive* in. Tapping a Tag opens it where it stands. **A chip lands its section
-ON the reading line** so the map and the chart never disagree. The side rail
-shows the whole song and **scrubs** under a thumb. Editing takes the map to the
-top and hands it back on exit.
+Sizes you can read (14px, 17px on a chorus, cue always a size below), **eleven
+section types in eleven colours** with saturation saying who sings, **four
+frames that take no width from the words** (None · Rule · Margin bar · Tint —
+Block and Card are gone), the words starting at the **left edge** of a phone, a
+**note gutter** down the right, pinning tied to the **column count** rather than
+screen width, `↩ BRIDGE ×3` for a run of repeats, and a tag that closes again.
 
-Full account: `READER.md` → "The element-3 pass".
+Full account: `READER.md` → "The element-4 pass".
 
-### ⚠ The lesson to carry into element 4
+### ⚠ The lesson to carry into element 5
 
-**Element 2's was "grep both ends".** Element 3's is one step further out:
+Element 2's was "grep both ends". Element 3's was "drive it in a browser".
+Element 4's is narrower and sharper:
 
-> **Drive it in a browser, or you are guessing.** Four bugs in this element were
-> invisible in the code and unmissable under measurement — and *two of them
-> predated the element*: the chart had never used the window's full width
-> (840px in a 1236px scroller), every full-screen jump had been measuring a
-> section in a **different reader**, painting the rail under the chart made the
-> whole map silently untappable, and the next song kept the previous song's
-> scroll position (prio 0, reported by the owner).
+> **A default that is written in three places is a default in none of them.**
+> `storage.js DEFAULT_SETTINGS`, `lib/readerConfig.js DEFAULTS` and
+> `ReaderMenu MENU_DEFAULTS` disagreed for as long as all three existed — so no
+> user had ever seen the documented default, and pressing **Reset** on a fresh
+> profile *changed* a setting nobody had touched. Nothing failed. Nothing
+> logged. It took rendering a real profile and comparing it against the doc.
 >
-> A tap that does nothing is silent. A layout that is merely *narrower* still
-> looks correct. Neither has a failing test to write in advance — they have a
-> measurement.
+> The same shape produced the retired frames (`block`/`card`) needing an
+> explicit legacy MAP rather than `pick()`'s fallback, and the retired repeat
+> value (`ref`) needing one too. **When you retire a stored value, map it; when
+> you change a default, check every place that names it.**
 
 ---
 
 ## Known-open, carried forward
 
-- **The side rail's interaction as a whole** — the owner is thinking about it.
-  The window/scrub/dots are round 1 of an answer, not the answer.
 - **§7 #13 — two chord pickers, and underneath them two chord MODELS.**
   `ArrangeTabV2` uses `{ plainText, chords: [{ pos, chord }] }`; the reader and
   the `.md` use `[C]inline` strings. This is why the reader can replace a chord
   but cannot yet *add* one. Unify the model first.
 - **§7 #14 (prio 2) — draggable song sections on the page.**
-- **§1.2 #3c — you cannot type a space into a band cue or an inline note.**
-  Root-caused, not fixed, owner's prio 1: every keystroke round-trips through
-  `songToMd`/parse and `parser.js` trims it. **This one is element 4b's
-  neighbour — worth fixing while you are in the cue.**
 - **§1.2 #3d — add a cue/inline note from the SONG HUB**, without the editor.
+  **This is element 5's neighbour** — the field you would type into is the one
+  whose space bug was just fixed.
 - **§1.1 #4 — graduate the flag and delete the old surfaces.** A session of its
   own; the owner will call it. ⚠ `PerformanceView`/`PracticeView` are the
   **only** writers of `showChords`, now just a migration fallback — deleting
   them is the moment to drop it. Settings → Chart Style goes with them.
-- **Whether to reset defaults for everyone** — the owner decides once the
-  elements are finished. Nothing resets today.
+- **Element 29 — the setlist rail.** Its permanent strip went in element 4's
+  pass at the owner's request; how you *move through* a set from it is still
+  open.
 - **Element 13:** the post-practice screen should summarise what changed.
+- **Stream A has not started** (`PLAN.md` §0) — domain, email, OAuth, staging,
+  monitoring. It is the only real risk to the October 1 public beta, and none
+  of it is programming.
 
 ---
 
@@ -176,12 +180,18 @@ Full account: `READER.md` → "The element-3 pass".
   embedded one sits behind the full-screen one, and both render
   `id="section-N"`. Never `document.getElementById` for a section; scope to
   `scrollRef.current`. Same for any browser probe.
-- **Paint order is hit-test order.** An overlay moved *under* content to keep
-  that content readable becomes untappable, including under the content's
-  padding. Separate by geometry.
+- **`undefined` in a style object is a DELETE.** `{...frame, x: cond ? v :
+  undefined}` removes the frame's own `x`. Compose with `calc()` instead.
+- **Tailwind v4 tree-shakes `@theme` variables nothing in the CSS references.**
+  JS-only tokens (the `--section-*` palette) must ship in a plain unlayered
+  rule or they vanish from the build — silently, rendering grey.
+- **Margin collapse is doing more of this layout than the code admits.** The gap
+  between sections is `max(--chart-section-gap, marginBottom)`, not the sum; a
+  frame with vertical padding blocks the collapse and starts adding instead.
+- **Paint order is hit-test order.** An overlay moved *under* content becomes
+  untappable, including under the content's padding. Separate by geometry.
 - **Firefox draws two focus artifacts Chromium does not** (`:-moz-focusring`
-  and `::-moz-focus-inner`). On a small round control the second reads as a line
-  *inside* it. Test round controls in Firefox.
+  and `::-moz-focus-inner`). Test round controls in Firefox.
 - **The Song Hub renders `Reader`, not `ChartView`,** when the flag is on.
   Three places can cause a "hub theme bug": the reader, the chart, and the hub's
   own card.
@@ -189,23 +199,15 @@ Full account: `READER.md` → "The element-3 pass".
   phones) lives in `@layer base` and beats every `height` utility.
 - **Inside `overflow-y-auto`, a wrapper must GROW with its content**
   (`flex-1 min-h-0` caps it) — and on the CROSS axis a flex item needs `flex-1`
-  or it is shrink-to-fit. Both cost real bugs; both have guards now.
-- **A size change inside a flex column moves every sibling below it.** Fixed
-  cell, resize the paint inside it.
+  or it is shrink-to-fit.
 - **CSS custom-property cycles** are invalid at computed-value time and unset
   the whole subtree. Every fallback must be a literal.
-- **`chartSurface` remaps `--ds-gray-` 100–400, 700 and 1000 only.** Check the
-  steps whenever the reader adopts another shared component.
-- **jsdom's CSS shorthand parser throws on some values inside the `background`
-  shorthand**, during the `cloneNode` every role query does — one bad inline
-  style takes out every `getByRole` on the page. Use `backgroundColor` /
-  `backgroundImage` longhands inline.
+- **`chartSurface` remaps `--ds-gray-` 100–400, 700 and 1000 only.**
+- **jsdom drops `calc(-1 * var(…))`** on parse — assert on
+  `getAttribute('style')`, not the CSSOM. Its `background` shorthand parser also
+  throws on some values during the `cloneNode` every role query does; use
+  longhands inline.
 - **`mockWidth` in `reader.test.jsx` answers per query**, against a real width.
-  Any new breakpoint needs the same check.
-- **React's synthetic touch listeners are passive** — `preventDefault()` in an
-  `onTouchMove` prop is a no-op. Native listener, `{ passive: false }`, in an
-  effect. Same for any gesture that must take the scroll (the ribbon's drag, the
-  rail's scrub, pull-to-finish).
-- **An effect that owns a gesture must not depend on anything that changes**, or
-  its cleanup tears the gesture down mid-drag.
+- **React's synthetic touch listeners are passive** — native listener,
+  `{ passive: false }`, in an effect, for any gesture that must take the scroll.
 - **`applyKeyHistories` is reference-preserving on purpose.**

@@ -430,9 +430,10 @@ describe('the ☰ menu', () => {
     // "Bottom bar" is both the Controls value and the field below it, which
     // only exists while that value is chosen.
     expect(screen.getAllByText('Bottom bar').length).toBe(2);
-    // And the rail could not be turned off at all: only its open/closed state
-    // was a preference, and that lived in localStorage.
-    expect(screen.getByRole('switch', { name: 'Setlist rail' })).toBeTruthy();
+    // The rail's own switch is gone with the strip it used to hide (2026-08-06):
+    // the rail draws nothing until the footer's `x / x` counter opens it, so
+    // there is no longer anything for a "Setlist rail: off" to mean.
+    expect(screen.queryByRole('switch', { name: 'Setlist rail' })).toBeNull();
   });
 
   it('moved "In a pinch" to Music, as what it actually is', () => {

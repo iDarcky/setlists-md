@@ -58,11 +58,12 @@ export const READER_KNOBS = {
   // It was an either/or once — "never both: two maps competing for one glance"
   // — and the owner overruled that. The name is the fossil of the old rule.
   topBar: ['ribbon', 'setlist'],
-  // 29 — the setlist rail. It existed with no way to turn it off: open/closed
-  // was remembered per device in localStorage, but the strip itself was always
-  // there. Owner, 2026-08-04: "the only one that we don't have is the setlist
-  // rail but we can add that easy here."
-  rail: ['on', 'off'],
+  // ⚠ `rail` was here, and it is GONE (2026-08-06). It existed to hide the
+  // strip the rail kept permanently docked on a wide screen; the strip itself
+  // went in the same round — the rail is nothing until the footer's `x / x`
+  // counter asks for it — so the switch had nothing left to turn off. A knob
+  // whose reason for existing has been removed is worse than no knob: it reads
+  // as a promise the app cannot keep. Owner: *"yes do that, it's cleaner."*
   // Which way two columns are READ. 'down' is multicol (fill column 1, then
   // column 2, balanced); 'across' is a grid laid left→right. See the note in
   // `Reader` — 'across' cannot be balanced, by construction.
@@ -95,7 +96,6 @@ const DEFAULTS = {
   footer: 'next',
   nav: 'footer',
   topBar: 'ribbon',
-  rail: 'on',
   flow: 'down',
   progress: 'on',
   ribbonStyle: 'codes',
@@ -115,7 +115,6 @@ const KEY = {
   footer: 'readerFooter',
   nav: 'readerNav',
   topBar: 'readerTopBar',
-  rail: 'readerRail',
   flow: 'readerFlow',
   progress: 'readerProgress',
   ribbonStyle: 'ribbonStyle',
@@ -313,7 +312,6 @@ export function resolveReaderConfig(settings, ctx = {}) {
     footer: pick('footer', settings?.[KEY.footer]),
     nav: pick('nav', settings?.[KEY.nav]),
     topBar: pick('topBar', settings?.[KEY.topBar]),
-    rail: pick('rail', settings?.[KEY.rail]) === 'on',
     flow: pick('flow', settings?.[KEY.flow]),
     ribbonStyle: normalizeRibbonStyle(settings?.[KEY.ribbonStyle]),
     progress: pick('progress', settings?.[KEY.progress]) === 'on',

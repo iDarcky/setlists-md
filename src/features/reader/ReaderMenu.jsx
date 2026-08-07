@@ -168,7 +168,6 @@ const MENU_DEFAULTS = {
   ribbonStyle: 'codes',
   readerNav: 'footer',
   readerFooter: 'next',
-  readerRail: 'on',
   readerProgress: 'on',
   displayMode: 'chords',
   notation: 'letters',
@@ -1261,12 +1260,6 @@ export default function ReaderMenu({
             <Switch label="Progress line"
               on={(settings?.readerProgress || 'on') === 'on'}
               onChange={(v) => set('readerProgress', v ? 'on' : 'off')} />
-          </Field>
-          <Field label="Setlist rail" inline
-            info="The strip down the side listing the whole service.">
-            <Switch label="Setlist rail"
-              on={(settings?.readerRail || 'on') === 'on'}
-              onChange={(v) => set('readerRail', v ? 'on' : 'off')} />
           </Field>
         </>
       )}

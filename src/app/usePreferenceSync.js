@@ -76,7 +76,6 @@ export const PORTABLE_PREF_KEYS = [
   'readerFooter',
   'readerNav',
   'readerTopBar',
-  'readerRail',
   'readerFlow',
   'readerProgress',
   // The ☰ → "The music" row writes both: the role preset itself, and the tab
