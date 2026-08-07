@@ -214,6 +214,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **A new section stays the type you picked** — set an empty section to Pre-Chorus, type the first line, and it turned into Verse 1. The importer that guesses sections for pasted text was guessing for text you typed by hand.
 - **Pre-Chorus is a pre-chorus however you spell it** — written with a hyphen (which is how most charts and every import write it) it fell off the colour list entirely: a grey heading and a `?` in the song map. Any section type the app doesn't know now shows its initials rather than a question mark.
 - **Closing one of three repeats no longer loses it (Labs)** — closing the last of a run made it vanish until you closed the one before it.
+- **A song stops re-uploading itself forever** — if one of your devices was running an older version of the app, the two would take turns adding and removing a song's extra details (language, writers, year, original title), each seeing the other's change as an edit. On one song that happened 29 times in a fortnight. The app now carries any detail it doesn't recognise through untouched instead of deleting it, so an out-of-date device can never strip something a newer one added. Team activity histories are also tidied nightly rather than growing forever.
 - **"No line" and "Full repeats" really are the defaults** — the app said one thing and shipped another, and pressing Reset in the display menu changed a setting you'd never touched.
 
 ## 0.16.0 — Notifications, reliability, and a card-based editor

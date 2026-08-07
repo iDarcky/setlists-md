@@ -20,6 +20,20 @@ export function parseSongMd(text) {
 
   // Parse YAML frontmatter (simple key: value)
   const meta = {};
+  // ── Keys this build does not model, kept verbatim ───────────────────────────
+  // A dropped key is not a cosmetic loss. Measured in production 2026-08-07:
+  // the extended-metadata fields entered the format on 2026-06-06, and a client
+  // still running the older build stripped them on parse and deleted them on
+  // its next push — while the current build re-added them. One song had its
+  // `language` line added 15 times and removed 14 times in 14 days, and
+  // `team_activity` reached 27,628 rows, 93% of it that ping-pong.
+  //
+  // So an unrecognised key rides through untouched, RAW — the exact source
+  // text, not a re-serialisation of a guessed type — so the round trip is
+  // byte-exact and a future field can never be destroyed by a build that
+  // predates it. (This cannot repair the current loop: the old client's parser
+  // has already dropped them. It stops the NEXT one.)
+  const extraFrontmatter = [];
   for (const fl of frontLines) {
     const m = fl.match(/^(\w[\w\s]*?):\s*(.+)$/);
     if (m) {
@@ -31,7 +45,11 @@ export function parseSongMd(text) {
       } else if (!isNaN(val) && val !== '') {
         val = Number(val);
       }
-      meta[m[1].trim().toLowerCase()] = val;
+      const rawKey = m[1].trim();
+      meta[rawKey.toLowerCase()] = val;
+      if (!KNOWN_FRONTMATTER_KEYS.has(rawKey.toLowerCase())) {
+        extraFrontmatter.push([rawKey, m[2].trim()]);
+      }
     }
   }
 
@@ -208,6 +226,10 @@ export function parseSongMd(text) {
     tabLibrary,
     // Extended descriptive metadata (song-level).
     ...Object.fromEntries(EXTRA_META_FIELDS.map(([k]) => [k, meta[k] != null ? String(meta[k]) : ''])),
+    // Frontmatter this build does not model, verbatim, in source order.
+    // Absent (not an empty array) when there is none, so the common song shape
+    // is unchanged and no existing song's hash moves.
+    ...(extraFrontmatter.length ? { extraFrontmatter } : null),
     // Arrangement linkage — null when the file is a standalone (single-arrangement) song.
     songId: meta.songid || null,
     arrangementId: meta.arrangementid || null,
@@ -234,6 +256,26 @@ export const EXTRA_META_FIELDS = [
   ['story', 'story'],
 ];
 export const EXTRA_META_KEYS = EXTRA_META_FIELDS.map(([k]) => k);
+
+/**
+ * Every frontmatter key this version of the format understands, lower-cased.
+ *
+ * Anything NOT in here is carried through parse → serialize untouched (see
+ * `extraFrontmatter`). That is the whole point: a build that predates a field
+ * must not be able to DELETE it.
+ *
+ * ⚠ Keep it in step with `songToMd`'s frontmatter block. `parser.test.js`
+ * asserts it, by serializing a song with every field populated and checking
+ * that every key it emits is listed here — so adding a key to the serializer
+ * and forgetting this list fails the suite rather than silently duplicating
+ * the key on the next save.
+ */
+export const KNOWN_FRONTMATTER_KEYS = new Set([
+  'id', 'title', 'artist', 'key', 'tempo', 'time', 'duration', 'ccli', 'tags',
+  'spotify', 'youtube', 'capo', 'notes', 'structure', 'structuremode',
+  'songid', 'arrangementid', 'arrangementname',
+  ...EXTRA_META_KEYS,
+]);
 
 // Frontmatter is one line per field. Strip newlines/tabs that would break the
 // parse (or inject stray keys) and trim. Internal single spaces are preserved.
@@ -266,6 +308,7 @@ export function songToMd(song, arrangement) {
         spotify: song.spotify,
         youtube: song.youtube,
         ...Object.fromEntries(EXTRA_META_FIELDS.map(([k]) => [k, song[k]])),
+        extraFrontmatter: song.extraFrontmatter,
         key: arr?.key,
         tempo: arr?.tempo,
         time: arr?.time,
@@ -318,6 +361,12 @@ export function songToMd(song, arrangement) {
         && !structureFollowsSections(view.structure, view.sections));
   if (isCustomStructure) {
     md += `structureMode: custom\n`;
+  }
+  // Unmodelled keys, last and verbatim. Order among themselves is the source
+  // file's; position after the known block is arbitrary but STABLE, which is
+  // all the round trip needs.
+  for (const [k, raw] of view.extraFrontmatter || []) {
+    md += `${k}: ${raw}\n`;
   }
   if (useArrangementIdentity) {
     md += `songId: ${view._songId}\n`;

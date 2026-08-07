@@ -219,13 +219,17 @@ serious thing in this document; the last two are blocked on you.
    - **Stops it today (no code):** get the stale client onto the current build.
      A PWA keeps serving its cached shell until the service worker is replaced,
      so a tablet that is only ever backgrounded can run June's code in August.
-   - **Stops it ever recurring (code, and it is the real fix):** `parseSongMd`
-     must **carry frontmatter keys it does not model** and `songToMd` must
-     re-emit them. Today an unknown key is silently dropped, which turns "an
-     older client synced" into permanent data loss plus an infinite write loop.
-     ⚠ Deliberately NOT shipped in the same session it was diagnosed: it
-     changes the interchange format for every song of every user, and it wants
-     its own pass with round-trip tests over real files.
+   - ✅ **Stops it ever recurring — SHIPPED beta.93.** `parseSongMd` now carries
+     frontmatter keys it does not model (`song.extraFrontmatter`, raw source
+     text, in order) and `songToMd` re-emits them; `arrangements.js` carries
+     them through the v2 flatten/inflate. An unknown key used to be silently
+     dropped, which turned "an older client synced" into data loss plus an
+     infinite write loop — and would have done it again for the next field
+     anybody adds. Six round-trip tests, including the exact production shape
+     and a **drift guard**: serialize a song with every field populated and
+     assert every key it emits is in `KNOWN_FRONTMATTER_KEYS`, so adding a key
+     to the serializer and forgetting the list fails the suite instead of
+     writing that key twice on the next save.
 
    **Cleanup done** (`supabase/migrations/20260807_activity_retention.sql`):
    27,628 → 2,041 rows by collapsing edit storms to one row per entity per
