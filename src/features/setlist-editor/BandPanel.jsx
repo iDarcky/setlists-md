@@ -4,7 +4,7 @@ import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { normalizeText } from '@/lib/search';
-import { VOCAL_PARTS as SHARED_VOCAL_PARTS, labelFor, normalize, pickableTokens } from '@/data/instruments';
+import { INSTRUMENT_IDS, labelFor, normalize, partsFor } from '@/data/instruments';
 import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 import { toast } from '@/ui/use-toast';
@@ -12,10 +12,10 @@ import { useConfirm } from '@/ui/useConfirmHook';
 
 // Instrument is the team_schedules.role column; vocal part is a separate
 // column so a person can have both (e.g. Electric Guitar + Backing).
-// Instruments and vocal parts come from the one shared closed list
-// (`data/instruments.js`). This file declared its own copies of both.
-const INSTRUMENT_OPTIONS = pickableTokens().map(o => o.token);
-const VOCAL_PARTS = SHARED_VOCAL_PARTS.map(p => p.label);
+// Instruments come from the one shared closed list (`data/instruments.js`);
+// this file used to declare its own copy. The picker is TWO STEPS — the seven
+// instruments here, then the parts of whichever one was chosen.
+const INSTRUMENT_OPTIONS = INSTRUMENT_IDS;
 
 // Sort priority: available (0) → unknown (1) → maybe (2) → unavailable (3).
 const AVAIL_RANK = { available: 0, maybe: 2, unavailable: 3 };
@@ -372,6 +372,8 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
                             );
                           })()}
                         </div>
+                        {/* STEP TWO — only when the instrument has parts. */}
+                        {(partsFor(schedule.role).length > 0 || schedule.vocal_part) && (
                         <div className="flex flex-col gap-1">
                           <span className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold">Vocal part</span>
                           <select
@@ -380,11 +382,17 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
                             onChange={(e) => handleUpdateVocalPart(schedule.id, e.target.value)}
                           >
                             <option value="">None</option>
-                            {VOCAL_PARTS.map(part => (
+                            {/* Whatever this row already holds stays offered —
+                                6 rows say "Lead male"/"Lead female". */}
+                            {[...new Set([
+                              ...partsFor(schedule.role).map(p => p.label),
+                              ...(schedule.vocal_part ? [schedule.vocal_part] : []),
+                            ])].map(part => (
                               <option key={part} value={part}>{part}</option>
                             ))}
                           </select>
                         </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -598,7 +606,13 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
                 <button
                   key={inst}
                   type="button"
-                  onClick={() => setPickInstrument(p => p === inst ? '' : inst)}
+                  onClick={() => setPickInstrument(p => {
+                    const next = p === inst ? '' : inst;
+                    // Step two belongs to step one: leaving Vocals drops the
+                    // part, so a stranded "Alto" can never ride on Drums.
+                    if (!partsFor(next).length) setPickVocal('');
+                    return next;
+                  })}
                   className={`text-label-12 px-2.5 py-1 rounded-full border cursor-pointer transition-colors ${
                     pickInstrument === inst
                       ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white'
@@ -610,9 +624,14 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
               ))}
             </div>
 
+            {/* STEP TWO. Only for an instrument that has parts — i.e. Vocals.
+                Showing it always is how the picker ended up listing Vocals
+                eight times. */}
+            {partsFor(pickInstrument).length > 0 && (
+            <>
             <p className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold mb-1.5">Vocal part</p>
             <div className="flex flex-wrap gap-1.5 mb-5">
-              {VOCAL_PARTS.map(part => (
+              {partsFor(pickInstrument).map(p2 => p2.label).map(part => (
                 <button
                   key={part}
                   type="button"
@@ -627,6 +646,8 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
                 </button>
               ))}
             </div>
+            </>
+            )}
 
             <div className="flex items-center justify-end gap-2">
               <Button size="sm" variant="ghost" onClick={() => setPickFor(null)}>Cancel</Button>

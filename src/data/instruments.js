@@ -187,17 +187,19 @@ export function wantsDiagrams(token) {
   return parseToken(token).instrument?.diagrams ?? false;
 }
 
-/**
- * Every pickable token, flattened for a picker: an instrument with parts
- * offers the instrument itself AND each part.
- */
-export function pickableTokens() {
-  const out = [];
-  for (const inst of INSTRUMENTS) {
-    out.push({ token: inst.id, label: inst.label, parent: null });
-    for (const p of inst.parts || []) {
-      out.push({ token: `${inst.id}:${p.id}`, label: p.label, parent: inst.id });
-    }
-  }
-  return out;
+/** The seven top-level ids, for a picker's first step. */
+export const INSTRUMENT_IDS = INSTRUMENTS.map(i => i.id);
+
+/** The parts an instrument offers as its SECOND step. Empty for most. */
+export function partsFor(token) {
+  return parseToken(token).instrument?.parts || [];
 }
+
+/*
+ * ⚠ There is deliberately no "flatten instruments and their parts into one
+ * list" helper. There was, briefly, and wiring it into the two roster pickers
+ * — which already had their own separate "Vocal part" row — put Vocals into
+ * the picker EIGHT times: once bare, once per part up top, and then every part
+ * again underneath. A picker takes two steps: `INSTRUMENT_IDS` first, then
+ * `partsFor()` only for what was chosen.
+ */

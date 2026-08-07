@@ -6,7 +6,7 @@ import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { toast } from '@/ui/use-toast';
-import { VOCAL_PARTS, labelFor, normalize, pickableTokens } from '@/data/instruments';
+import { INSTRUMENT_IDS, labelFor, normalize, partsFor } from '@/data/instruments';
 
 // Standard instruments offered when a member hasn't declared their own. Mirrors
 // BandPanel's list (team_schedules.role holds the assigned instrument).
@@ -14,7 +14,10 @@ import { VOCAL_PARTS, labelFor, normalize, pickableTokens } from '@/data/instrum
 // This file used to declare its own, `BandPanel` declared a third, and
 // `Account` a fourth — four vocabularies writing to two columns that the
 // reader then compared against a fifth.
-const ROLE_TOKENS = pickableTokens().map(o => o.token);
+//
+// TOP LEVEL ONLY. The parts belong to the "Vocals" row below, which is step
+// two; offering the flattened list here put Vocals in the picker eight times.
+const ROLE_TOKENS = INSTRUMENT_IDS;
 
 function toDateStr(d) {
   const y = d.getFullYear();
@@ -158,9 +161,11 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
   // `acoustic-guitar` in the list collapse to one chip instead of two.
   const roleOptions = active
     ? [...new Set([
-        ...(active.member.instruments || []).map(normalize).filter(Boolean),
+        // `.split(':')[0]` keeps step one to instruments — a member whose
+        // profile says `vocals:alto` must not put an "Alto" chip up here.
+        ...(active.member.instruments || []).map(normalize).filter(Boolean).map(t => t.split(':')[0]),
         ...ROLE_TOKENS,
-        ...(normalize(activeSched?.role) ? [normalize(activeSched.role)] : []),
+        ...(normalize(activeSched?.role) ? [normalize(activeSched.role).split(':')[0]] : []),
       ])]
     : [];
 
@@ -334,8 +339,9 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
                   </div>
                 </div>
 
+                {(partsFor(activeSched?.role).length > 0 || activeSched?.vocal_part) && (
                 <div className="flex flex-col gap-2">
-                  <span className="text-label-11 uppercase tracking-wider font-bold text-[var(--ds-gray-600)]">Vocals</span>
+                  <span className="text-label-11 uppercase tracking-wider font-bold text-[var(--ds-gray-600)]">Vocal part</span>
                   <div className="flex flex-wrap gap-1.5">
                     {/* The shared parts list, plus whatever this schedule
                         already holds — older builds offered "Lead male" /
@@ -343,7 +349,7 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
                         the stored value keeps it selectable instead of
                         silently reading as "no part chosen". */}
                     {[...new Set([
-                      ...VOCAL_PARTS.map(p => p.label),
+                      ...partsFor(activeSched?.role).map(p => p.label),
                       ...(activeSched?.vocal_part ? [activeSched.vocal_part] : []),
                     ])].map(part => {
                       const selected = activeSched?.vocal_part === part;
@@ -364,6 +370,7 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
                     })}
                   </div>
                 </div>
+                )}
 
                 {activeSched && (
                   <button

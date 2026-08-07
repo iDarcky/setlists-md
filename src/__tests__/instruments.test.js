@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   INSTRUMENTS, VOCAL_PARTS, normalize, parseToken, labelFor, tabId,
-  displayModeFor, wantsDiagrams, pickableTokens,
+  displayModeFor, wantsDiagrams, INSTRUMENT_IDS, partsFor,
 } from '@/data/instruments';
 import { TAB_INSTRUMENTS } from '@/data/tabInstruments';
 
@@ -97,12 +97,25 @@ describe('instruments — the musical axis', () => {
     expect(displayModeFor('junk')).toBeNull();
   });
 
-  it('offers every instrument and every part to a picker', () => {
-    const tokens = pickableTokens().map(o => o.token);
-    expect(tokens).toContain('drums');
-    expect(tokens).toContain('vocals');
-    for (const p of VOCAL_PARTS) expect(tokens).toContain(`vocals:${p.id}`);
-    // Every pickable token must survive a round trip through normalize.
-    for (const t of tokens) expect(normalize(t)).toBe(t);
+  // ⚠ A picker takes TWO STEPS. A flattened "instruments and their parts in
+  // one list" helper existed briefly and, wired into the two roster pickers
+  // that already had their own Vocal-part row, put Vocals in the picker EIGHT
+  // times. Step one is instruments only.
+  it('offers only the seven instruments in step one', () => {
+    expect(INSTRUMENT_IDS).toEqual(INSTRUMENTS.map(i => i.id));
+    expect(INSTRUMENT_IDS).toHaveLength(7);
+    for (const id of INSTRUMENT_IDS) expect(id).not.toContain(':');
+    for (const id of INSTRUMENT_IDS) expect(normalize(id)).toBe(id);
+  });
+
+  it('offers a second step only for what has parts', () => {
+    expect(partsFor('vocals')).toEqual(VOCAL_PARTS);
+    expect(partsFor('vocals:alto')).toEqual(VOCAL_PARTS);
+    for (const id of ['drums', 'keys', 'piano', 'bass-guitar', 'acoustic-guitar', 'electric-guitar']) {
+      expect(partsFor(id)).toEqual([]);
+    }
+    // Nothing to offer for a value that means nothing — never a crash.
+    expect(partsFor('junk')).toEqual([]);
+    expect(partsFor(null)).toEqual([]);
   });
 });
