@@ -117,10 +117,11 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const { team, teams, members, setActiveTeam, isAdmin, isEditor, hasTeamPlan, atWorkspaceLimit, loading: teamLoading } = useTeam();
+  const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
-  const canEdit = !team || isAdmin || isEditor;
+  // Who may change the shared library — answered once, in `lib/teamRoles.js`.
+  const canEdit = canWriteLibrary;
   const isTeamAdmin = isAdmin;
   const confirm = useConfirm();
   // Workspace move/copy picker: null, or { action: 'move'|'copy', songId }.
@@ -382,7 +383,11 @@ export default function App() {
   }, [enqueueConflicts]);
 
   // Initialize sync engine for the active library
-  const isTeamReadOnly = activeLibrary !== 'personal' && !isAdmin && !isEditor;
+  // ⚠ Must agree with the DB. RLS decides the same question in
+  // `get_user_editable_teams()` (admin · editor · leader); if these two ever
+  // disagree the write lands in local state, looks saved, and is silently
+  // reverted by the next pull — the worst failure mode this app has.
+  const isTeamReadOnly = activeLibrary !== 'personal' && !canWriteLibrary;
   useEffect(() => {
     if (syncEngineRef.current) {
       syncEngineRef.current.cancelDebounce();
@@ -710,7 +715,7 @@ export default function App() {
     if (!isTeamReadOnly) return false;
     toast({
       title: 'Read-only library',
-      description: 'Only team admins and editors can change songs here. Ask a team admin for the editor role.',
+      description: 'Only admins, leaders and editors can change songs here. Ask a team admin to change your role.',
     });
     return true;
   };

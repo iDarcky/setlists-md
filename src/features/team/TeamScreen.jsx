@@ -10,6 +10,7 @@ import ActivityFeed from './ActivityFeed';
 import AvatarUploader from '@/ui/AvatarUploader';
 import { useConfirm } from '@/ui/useConfirmHook';
 import { BILLING_ENABLED, startTeamCheckout } from '@/lib/billingCheckout';
+import { TEAM_ROLES } from '@/lib/teamRoles';
 
 const TeamIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -195,14 +196,12 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
 
 // ── Team Dashboard ──────────────────────────────────────────────────────────
 
-const MEMBER_ROLES = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'leader', label: 'Leader' },
-  { value: 'editor', label: 'Editor' },
-  { value: 'member', label: 'Member' },
-];
+// The role list comes from `lib/teamRoles.js` — the one place the model is
+// written — so this picker can never offer a role the permission checks do not
+// know about, or describe one differently from what it actually does.
+const MEMBER_ROLES = TEAM_ROLES.map(r => ({ value: r.id, label: r.label, blurb: r.blurb }));
 
-function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
+function MemberRow({ member, isCurrentUser, isAdmin, isOwner = false, onRemove, onRoleChange }) {
   const confirm = useConfirm();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -213,7 +212,11 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
     return () => document.removeEventListener('mousedown', handler);
   }, [menuOpen]);
 
-  const isOwner = member.role === 'admin';
+  // The crown used to be `member.role === 'admin'`, under a variable called
+  // `isOwner` — so every admin wore it and the ACTUAL owner was distinguished
+  // nowhere. Two of the three real workspaces have two admins each, and the
+  // owner is the only one who can pay for the Space, so it is worth naming.
+  const isTeamAdmin = member.role === 'admin';
   const profile = member.profile || {};
   const displayName = profile.display_name || profile.email?.split('@')[0] || member.user_id?.slice(0, 8);
   const initial = displayName?.slice(0, 2)?.toUpperCase() || '??';
@@ -243,9 +246,9 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
           )}
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
-          {isOwner ? (
+          {isOwner || isTeamAdmin ? (
             <span className="inline-flex items-center gap-1 text-label-11 font-semibold" style={{ color: 'var(--color-brand)' }}>
-              <CrownIcon /> Admin
+              <CrownIcon /> {isOwner ? 'Owner' : 'Admin'}
             </span>
           ) : (
             <span className="text-label-11 font-medium text-[var(--modes-text-muted)] capitalize">{member.role || 'Member'}</span>
@@ -278,18 +281,24 @@ function MemberRow({ member, isCurrentUser, isAdmin, onRemove, onRoleChange }) {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg>
           </button>
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-52 rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden py-1">
+            <div className="absolute right-0 top-full mt-1 w-64 rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden py-1">
               <div className="px-3 pt-1.5 pb-1 text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)] font-semibold">Change role</div>
+              {/* Each role carries its own one-line description. Picking a role
+                  changes what somebody may do to a shared library, and the bare
+                  word "Leader" does not say that it now includes writing. */}
               {MEMBER_ROLES.map(r => {
                 const active = (member.role || 'member') === r.value;
                 return (
                   <button
                     key={r.value}
                     onClick={() => { onRoleChange(member.id, r.value); setMenuOpen(false); }}
-                    className="w-full flex items-center justify-between px-3 py-2 text-left text-copy-14 text-[var(--modes-text)] hover:bg-[var(--modes-surface)] bg-transparent border-none cursor-pointer"
+                    className="w-full flex items-start justify-between gap-2 px-3 py-2 text-left hover:bg-[var(--modes-surface)] bg-transparent border-none cursor-pointer"
                   >
-                    {r.label}
-                    {active && <span className="text-[var(--color-brand)]">✓</span>}
+                    <span className="min-w-0">
+                      <span className="block text-copy-14 text-[var(--modes-text)]">{r.label}</span>
+                      <span className="block text-label-11 text-[var(--modes-text-dim)] leading-snug">{r.blurb}</span>
+                    </span>
+                    {active && <span className="text-[var(--color-brand)] shrink-0">✓</span>}
                   </button>
                 );
               })}
@@ -888,6 +897,7 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
                     member={member}
                     isCurrentUser={member.user_id === currentUserId}
                     isAdmin={isAdmin}
+                    isOwner={!!team?.owner_id && member.user_id === team.owner_id}
                     onRemove={onRemove}
                     onRoleChange={onRoleChange}
                   />
