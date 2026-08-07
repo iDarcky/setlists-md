@@ -45,8 +45,12 @@ export const TEAM_ROLES = [
     canManageMembers: false,
   },
   {
+    // ⚠ The STORED value stays `editor` — renaming the label is free, renaming
+    // a value in a column that RLS reads is not. "Editor" collided with *the
+    // editor*, the screen, so "give them the editor role so they can use the
+    // editor" taught nobody anything.
     id: 'editor',
-    label: 'Editor',
+    label: 'Contributor',
     blurb: 'Keeps the song library right. Does not run services.',
     canWriteLibrary: true,
     canPlanServices: false,

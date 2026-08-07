@@ -16,8 +16,11 @@ describe('resolveMyInstrument', () => {
       members,
       setlistMap: { 'sl-1': 'row-uuid' },
     });
-    // Not 'Acoustic Guitar' — this week they're on bass.
-    expect(got).toBe('Bass');
+    // Not the acoustic guitar — this week they're on bass. The value comes
+    // back CANONICAL (`data/instruments.js`), not as the stored label: the
+    // reader compares it against a TAB_INSTRUMENTS key, and "Bass" never
+    // matched one.
+    expect(got).toBe('bass-guitar');
   });
 
   it('never matches a schedule against the local setlist id alone', () => {
@@ -35,7 +38,7 @@ describe('resolveMyInstrument', () => {
   });
 
   it('falls back to my instrument when I only play one', () => {
-    expect(resolveMyInstrument({ userId: ME, members })).toBe('Acoustic Guitar');
+    expect(resolveMyInstrument({ userId: ME, members })).toBe('acoustic-guitar');
   });
 
   it('guesses nothing when I play several', () => {
@@ -52,7 +55,32 @@ describe('resolveMyInstrument', () => {
       setlistId: 'sl-1',
       schedules: [{ user_id: ME, setlist_id: 'sl-1', role: 'Bass', availability: 'unavailable' }],
       members,
-    })).toBe('Acoustic Guitar');
+    })).toBe('acoustic-guitar');
+  });
+
+  it('canonicalises whatever spelling the row happens to hold', () => {
+    // Production holds Title Case labels written by older builds, and they are
+    // deliberately never migrated in place — normalising on READ is the whole
+    // contract. Both spellings must land on the same answer.
+    for (const stored of ['Acoustic Guitar', 'acoustic-guitar', 'acoustic']) {
+      expect(resolveMyInstrument({
+        userId: ME, members: [{ user_id: ME, instruments: [stored] }],
+      })).toBe('acoustic-guitar');
+    }
+  });
+
+  it('still guesses nothing when two spellings of two instruments are held', () => {
+    expect(resolveMyInstrument({
+      userId: ME, members: [{ user_id: ME, instruments: ['Keys', 'Piano'] }],
+    })).toBeNull();
+  });
+
+  it('treats two spellings of ONE instrument as one instrument', () => {
+    // 'Bass' and 'bass-guitar' are the same thing; before normalisation this
+    // read as "plays several" and silently gave up.
+    expect(resolveMyInstrument({
+      userId: ME, members: [{ user_id: ME, instruments: ['Bass', 'bass-guitar'] }],
+    })).toBe('bass-guitar');
   });
 
   it('is null for a guest or a personal workspace', () => {

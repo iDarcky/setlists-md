@@ -1,3 +1,5 @@
+import { normalize } from '@/data/instruments';
+
 /**
  * "What am I playing this service?"
  *
@@ -33,12 +35,14 @@ export function resolveMyInstrument({
     // Someone who declined isn't playing, so their roles say nothing about
     // what they need on screen — fall through to their instrument list.
     if (mine && mine.availability !== 'unavailable') {
-      const role = String(mine.role || '').trim();
+      const role = normalize(mine.role);
       if (role) return role;
     }
   }
 
   const me = members.find(m => m.user_id === userId);
-  const list = (me?.instruments || []).map(s => String(s || '').trim()).filter(Boolean);
+  const list = uniq((me?.instruments || []).map(normalize).filter(Boolean));
   return list.length === 1 ? list[0] : null;
 }
+
+function uniq(xs) { return Array.from(new Set(xs)); }

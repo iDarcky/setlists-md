@@ -1,4 +1,5 @@
 import { resolveChartDisplay, resolveColumns } from '@/lib/chartDisplay';
+import { tabId } from '@/data/instruments';
 
 /**
  * The reader's settings, resolved.
@@ -319,9 +320,15 @@ export function resolveReaderConfig(settings, ctx = {}) {
     display: resolveChartDisplay(settings),
     // Element 9: tabs for other instruments collapse. A manual override in
     // settings wins over the band, and 'all' means never collapse.
+    //
+    // ⚠ `SectionBlock` compares this against a TAB_INSTRUMENTS key
+    // (`acoustic`/`electric`/`bass`), but the band hands down what the schedule
+    // says — `"Acoustic Guitar"`. Those never matched, so a scheduled player's
+    // OWN tab was the one that stayed collapsed. `tabId()` is the translation.
+    // The settings override already speaks tab ids, so it passes through.
     myInstrument: settings?.tabInstrument && settings.tabInstrument !== 'all'
       ? settings.tabInstrument
-      : myInstrument,
+      : tabId(myInstrument),
     embedded,
     // What this VIEW can do, as opposed to what the user has chosen. See the
     // VIEW table above.

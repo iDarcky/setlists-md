@@ -6,16 +6,15 @@ import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { toast } from '@/ui/use-toast';
+import { VOCAL_PARTS, labelFor, normalize, pickableTokens } from '@/data/instruments';
 
 // Standard instruments offered when a member hasn't declared their own. Mirrors
 // BandPanel's list (team_schedules.role holds the assigned instrument).
-const INSTRUMENT_OPTIONS = [
-  'Acoustic Guitar', 'Electric Guitar', 'Bass', 'Drums', 'Keys', 'Piano',
-];
-
-const VOCAL_PARTS = [
-  'Lead male', 'Lead female', 'Soprano', 'Alto', 'Tenor', 'Bass', 'Backing',
-];
+// Instruments come from the one shared closed list (`data/instruments.js`).
+// This file used to declare its own, `BandPanel` declared a third, and
+// `Account` a fourth — four vocabularies writing to two columns that the
+// reader then compared against a fifth.
+const ROLE_TOKENS = pickableTokens().map(o => o.token);
 
 function toDateStr(d) {
   const y = d.getFullYear();
@@ -154,11 +153,14 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
   const activeSched = active?.col ? scheduleFor(active.member.user_id, active.col) : null;
   const activeIsMe = active && active.member.user_id === user?.id;
   const canManageActive = active && canManageBand && active.col.type === 'service';
+  // What this member plays comes first, then the full list. Everything is
+  // normalised, so a legacy "Acoustic Guitar" on a profile and the canonical
+  // `acoustic-guitar` in the list collapse to one chip instead of two.
   const roleOptions = active
     ? [...new Set([
-        ...((active.member.instruments && active.member.instruments.length) ? active.member.instruments : INSTRUMENT_OPTIONS),
-        ...INSTRUMENT_OPTIONS,
-        ...(activeSched?.role ? [activeSched.role] : []),
+        ...(active.member.instruments || []).map(normalize).filter(Boolean),
+        ...ROLE_TOKENS,
+        ...(normalize(activeSched?.role) ? [normalize(activeSched.role)] : []),
       ])]
     : [];
 
@@ -313,7 +315,7 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
                   <span className="text-label-11 uppercase tracking-wider font-bold text-[var(--ds-gray-600)]">Instrument</span>
                   <div className="flex flex-wrap gap-1.5">
                     {roleOptions.map(role => {
-                      const selected = activeSched?.role === role;
+                      const selected = normalize(activeSched?.role) === role;
                       return (
                         <button
                           key={role}
@@ -325,7 +327,7 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
                               : 'bg-transparent text-[var(--ds-gray-700)] border-[var(--ds-gray-300)] hover:border-[var(--ds-gray-500)]'
                           }`}
                         >
-                          {role}
+                          {labelFor(role)}
                         </button>
                       );
                     })}
@@ -335,7 +337,15 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
                 <div className="flex flex-col gap-2">
                   <span className="text-label-11 uppercase tracking-wider font-bold text-[var(--ds-gray-600)]">Vocals</span>
                   <div className="flex flex-wrap gap-1.5">
-                    {VOCAL_PARTS.map(part => {
+                    {/* The shared parts list, plus whatever this schedule
+                        already holds — older builds offered "Lead male" /
+                        "Lead female" and 6 real rows still say so. Appending
+                        the stored value keeps it selectable instead of
+                        silently reading as "no part chosen". */}
+                    {[...new Set([
+                      ...VOCAL_PARTS.map(p => p.label),
+                      ...(activeSched?.vocal_part ? [activeSched.vocal_part] : []),
+                    ])].map(part => {
                       const selected = activeSched?.vocal_part === part;
                       return (
                         <button

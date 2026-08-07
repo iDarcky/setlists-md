@@ -4,6 +4,7 @@ import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { normalizeText } from '@/lib/search';
+import { VOCAL_PARTS as SHARED_VOCAL_PARTS, labelFor, normalize, pickableTokens } from '@/data/instruments';
 import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 import { toast } from '@/ui/use-toast';
@@ -11,24 +12,10 @@ import { useConfirm } from '@/ui/useConfirmHook';
 
 // Instrument is the team_schedules.role column; vocal part is a separate
 // column so a person can have both (e.g. Electric Guitar + Backing).
-const INSTRUMENT_OPTIONS = [
-  "Acoustic Guitar",
-  "Electric Guitar",
-  "Bass",
-  "Drums",
-  "Keys",
-  "Piano",
-];
-
-const VOCAL_PARTS = [
-  "Lead male",
-  "Lead female",
-  "Soprano",
-  "Alto",
-  "Tenor",
-  "Bass",
-  "Backing",
-];
+// Instruments and vocal parts come from the one shared closed list
+// (`data/instruments.js`). This file declared its own copies of both.
+const INSTRUMENT_OPTIONS = pickableTokens().map(o => o.token);
+const VOCAL_PARTS = SHARED_VOCAL_PARTS.map(p => p.label);
 
 // Sort priority: available (0) → unknown (1) → maybe (2) → unavailable (3).
 const AVAIL_RANK = { available: 0, maybe: 2, unavailable: 3 };
@@ -368,19 +355,18 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
                           {(() => {
                             // Offer the member's declared instruments first, then
                             // the standard list; keep whatever's set even if custom.
-                            const base = (member?.instruments && member.instruments.length > 0)
-                              ? member.instruments
-                              : INSTRUMENT_OPTIONS;
-                            const opts = [...new Set([...base, ...INSTRUMENT_OPTIONS, ...(schedule.role ? [schedule.role] : [])])];
+                            const mine = (member?.instruments || []).map(normalize).filter(Boolean);
+                            const cur = normalize(schedule.role);
+                            const opts = [...new Set([...mine, ...INSTRUMENT_OPTIONS, ...(cur ? [cur] : [])])];
                             return (
                               <select
                                 className="w-full bg-[var(--ds-background-100)] border border-[var(--ds-gray-300)] rounded-md text-copy-13 px-2 py-1 outline-none"
-                                value={schedule.role || ''}
+                                value={normalize(schedule.role) || ''}
                                 onChange={(e) => handleUpdateRole(schedule.id, e.target.value)}
                               >
                                 <option value="">None</option>
                                 {opts.map(role => (
-                                  <option key={role} value={role}>{role}</option>
+                                  <option key={role} value={role}>{labelFor(role)}</option>
                                 ))}
                               </select>
                             );
@@ -608,7 +594,7 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
 
             <p className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold mb-1.5">Instrument</p>
             <div className="flex flex-wrap gap-1.5 mb-4">
-              {[...new Set([...(pickFor.instruments || []), ...INSTRUMENT_OPTIONS])].map(inst => (
+              {[...new Set([...(pickFor.instruments || []).map(normalize).filter(Boolean), ...INSTRUMENT_OPTIONS])].map(inst => (
                 <button
                   key={inst}
                   type="button"
@@ -619,7 +605,7 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
                       : 'bg-transparent border-[var(--ds-gray-300)] text-[var(--ds-gray-800)] hover:border-[var(--ds-gray-500)]'
                   }`}
                 >
-                  {inst}
+                  {labelFor(inst)}
                 </button>
               ))}
             </div>

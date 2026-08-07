@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   StageGreeting,
   AccountSummary,
@@ -11,19 +11,9 @@ import { useAuth } from '@/auth/useAuth';
 import { useTeam } from '@/auth/useTeam';
 import { clearAll } from '@/storage';
 import AvatarUploader from '@/ui/AvatarUploader';
+import { INSTRUMENTS, normalize } from '@/data/instruments';
 
 const NAME_MAX = 15;
-
-const SUGGESTED_INSTRUMENTS = [
-  'Vocals',
-  'Lead Vocal',
-  'Acoustic Guitar',
-  'Electric Guitar',
-  'Bass',
-  'Drums',
-  'Keys',
-  'Piano',
-];
 
 export default function Account({
   settings,
@@ -41,20 +31,25 @@ export default function Account({
   const { profile, updateProfile, updatePassword, deleteAccount, user } = useAuth();
   const { team, members, updateMyInstruments } = useTeam();
   const myMember = team && user ? members.find(m => m.user_id === user.id) : null;
-  const myInstruments = myMember?.instruments || [];
-  const [customInstrument, setCustomInstrument] = useState('');
   const [instrumentsBusy, setInstrumentsBusy] = useState(false);
   const [instrumentsError, setInstrumentsError] = useState(null);
 
-  const toggleInstrument = async (name) => {
+  // Stored values are normalised on READ, never rewritten in place — older
+  // builds wrote Title Case labels and PLAN §1.2 #6 documents a stale client
+  // still writing to this database. See `data/instruments.js`.
+  // The `|| []` lives INSIDE the memo: as a separate binding it is a new array
+  // every render, so the memo would never actually memoise.
+  const myTokens = useMemo(
+    () => Array.from(new Set((myMember?.instruments || []).map(normalize).filter(Boolean))),
+    [myMember?.instruments]
+  );
+
+  const save = async (next) => {
     if (instrumentsBusy) return;
     setInstrumentsBusy(true);
     setInstrumentsError(null);
     try {
-      const next = myInstruments.includes(name)
-        ? myInstruments.filter(i => i !== name)
-        : [...myInstruments, name];
-      await updateMyInstruments(next);
+      await updateMyInstruments(Array.from(new Set(next)));
     } catch (err) {
       setInstrumentsError(err.message || 'Could not save instruments.');
     } finally {
@@ -62,20 +57,23 @@ export default function Account({
     }
   };
 
-  const addCustomInstrument = async () => {
-    const name = customInstrument.trim();
-    if (!name || instrumentsBusy) return;
-    setCustomInstrument('');
-    if (myInstruments.includes(name)) return;
-    setInstrumentsBusy(true);
-    setInstrumentsError(null);
-    try {
-      await updateMyInstruments([...myInstruments, name]);
-    } catch (err) {
-      setInstrumentsError(err.message || 'Could not save instruments.');
-    } finally {
-      setInstrumentsBusy(false);
-    }
+  // An instrument chip owns its whole family: turning Vocals off also drops
+  // whichever part was chosen under it, so a part can never be left stranded
+  // without the instrument it belongs to.
+  const toggleInstrument = (id) => {
+    const mine = myTokens.filter(t => t.split(':')[0] === id);
+    save(mine.length
+      ? myTokens.filter(t => t.split(':')[0] !== id)
+      : [...myTokens, id]);
+  };
+
+  // Picking a part replaces the bare instrument — "Vocals · Alto" is more
+  // specific than "Vocals", and holding both would say nothing extra.
+  const togglePart = (id, partId) => {
+    const token = `${id}:${partId}`;
+    save(myTokens.includes(token)
+      ? myTokens.filter(t => t !== token)
+      : [...myTokens.filter(t => t !== id && t !== token), token]);
   };
 
   // Prefer the cloud display_name so the input matches what the rest of the UI
@@ -264,15 +262,19 @@ export default function Account({
             <span className="text-copy-14 font-medium" style={{ color: 'var(--drawer-text)' }}>
               Your Instruments
             </span>
+            {/* A CLOSED list. The free-text field that used to sit under this
+                is gone: the reader keys what it shows off your instrument, and
+                a typed "Klavier" maps to nothing at all. */}
             <div className="flex flex-wrap gap-2">
-              {SUGGESTED_INSTRUMENTS.map(name => {
-                const active = myInstruments.includes(name);
+              {INSTRUMENTS.map(inst => {
+                const active = myTokens.some(t => t.split(':')[0] === inst.id);
                 return (
                   <button
-                    key={name}
+                    key={inst.id}
                     type="button"
-                    onClick={() => toggleInstrument(name)}
+                    onClick={() => toggleInstrument(inst.id)}
                     disabled={instrumentsBusy}
+                    aria-pressed={active}
                     className="h-7 px-3 rounded-full text-copy-13 border cursor-pointer transition-colors disabled:opacity-50"
                     style={{
                       background: active ? 'var(--color-brand)' : 'transparent',
@@ -280,52 +282,41 @@ export default function Account({
                       color: active ? '#fff' : 'var(--drawer-text)',
                     }}
                   >
-                    {name}
+                    {inst.label}
                   </button>
                 );
               })}
-              {myInstruments.filter(i => !SUGGESTED_INSTRUMENTS.includes(i)).map(name => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => toggleInstrument(name)}
-                  disabled={instrumentsBusy}
-                  className="h-7 px-3 rounded-full text-copy-13 border cursor-pointer disabled:opacity-50"
-                  style={{
-                    background: 'var(--color-brand)',
-                    borderColor: 'var(--color-brand)',
-                    color: '#fff',
-                  }}
-                  title="Click to remove"
-                >
-                  {name} ×
-                </button>
-              ))}
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={customInstrument}
-                onChange={e => setCustomInstrument(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomInstrument(); } }}
-                placeholder="Add instrument…"
-                className="h-8 px-3 rounded-lg border outline-none text-copy-14 flex-1 sm:flex-none sm:w-48"
-                style={{
-                  background: 'var(--drawer-surface)',
-                  borderColor: 'var(--drawer-border)',
-                  color: 'var(--drawer-text)',
-                }}
-              />
-              <button
-                type="button"
-                onClick={addCustomInstrument}
-                disabled={!customInstrument.trim() || instrumentsBusy}
-                className="h-8 px-3 rounded-lg text-copy-13 font-medium border-none cursor-pointer disabled:opacity-50"
-                style={{ background: 'var(--color-brand)', color: '#fff' }}
-              >
-                Add
-              </button>
-            </div>
+            {/* Second level. Only appears for an instrument that HAS parts and
+                that you actually picked — an empty row of parts for a drummer
+                is chrome nobody asked for. */}
+            {INSTRUMENTS.filter(i => i.parts && myTokens.some(t => t.split(':')[0] === i.id)).map(inst => (
+              <div key={inst.id} className="flex flex-wrap items-center gap-2 pl-1">
+                <span className="text-label-11 uppercase tracking-wider" style={{ color: 'var(--drawer-text-dim, var(--ds-gray-600))' }}>
+                  {inst.label} — which part?
+                </span>
+                {inst.parts.map(p => {
+                  const on = myTokens.includes(`${inst.id}:${p.id}`);
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => togglePart(inst.id, p.id)}
+                      disabled={instrumentsBusy}
+                      aria-pressed={on}
+                      className="h-6 px-2.5 rounded-full text-copy-12 border cursor-pointer transition-colors disabled:opacity-50"
+                      style={{
+                        background: on ? 'var(--color-brand-soft, var(--color-brand))' : 'transparent',
+                        borderColor: on ? 'var(--color-brand)' : 'var(--drawer-border)',
+                        color: on ? 'var(--color-brand)' : 'var(--drawer-text)',
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
             {instrumentsError && (
               <div
                 className="text-copy-12 px-2 py-1 rounded"
