@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { notateChord, sectionStyle, sectionLabel } from '@/music';
-import { parseLine } from '@/parser';
+import { parseLine, INLINE_NOTE_MAX_CHARS } from '@/parser';
 import TabBlock from './TabBlock';
 
 const NOTE_SEPARATORS = {
@@ -62,6 +62,12 @@ export default function SectionBlock({
   //   'leader' — pushed to the right edge, joined by a dotted leader
   //   'gutter' — in a reserved strip down the right; the words stop before it
   notePlacement = 'inline',
+  // ── Element 5: writing an inline note ────────────────────────────────────
+  // All three are null on every surface but the Reader in practice, and when
+  // `onNoteOpen` is null this component behaves exactly as it always has.
+  // `noteDraft` is `{ lineIdx, text }` — owned by ReaderSection, because it
+  // also has to force the gutter open for a section that has no note yet.
+  onNoteOpen = null, noteDraft = null, onNoteDraftChange = null, onNoteCommit = null,
   // Element 9. `myInstrument` is what YOU play this service (from the band);
   // a tab for another instrument collapses to one line instead of taking a
   // block of screen you scroll past every section. Null = show everything.
@@ -137,8 +143,37 @@ export default function SectionBlock({
   // note has to start one chord-row down. `leading-none` on the chord means
   // that row is exactly the chord font size; the +3px is the gap the chord
   // wrapper leaves under it. Measured, then checked back to 0.0px of drift.
+  // The field, in the gutter cell, sharing `noteGutter`'s alignment exactly —
+  // same size, same one-chord-row offset — so committing does not make the note
+  // jump to a different place than the one you typed it in.
+  const noteGutterEditor = (hasChordRow = false) => (
+    <input
+      autoFocus
+      value={noteDraft?.text ?? ''}
+      maxLength={INLINE_NOTE_MAX_CHARS}
+      aria-label="Note for this line"
+      placeholder="Note…"
+      onChange={(e) => onNoteDraftChange?.(e.target.value)}
+      onBlur={() => onNoteCommit?.()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+        if (e.key === 'Escape') { e.preventDefault(); onNoteDraftChange?.(null); }
+      }}
+      className="w-full min-h-0 bg-transparent border-0 border-b outline-none self-start"
+      style={{
+        fontSize: '0.72em', fontStyle: 'italic', lineHeight: 1.3,
+        color: 'var(--chart-text, var(--text-1))',
+        borderColor: 'var(--color-brand)',
+        marginTop: hasChordRow
+          ? 'calc(var(--chart-chord-size, 1em) * 1 + 3px)'
+          : undefined,
+      }}
+    />
+  );
+
   const noteGutter = (text, hasChordRow = false) => (
     <span
+      {...(onNoteOpen ? { role: 'button', tabIndex: 0, title: 'Edit this note' } : null)}
       className="text-[0.72em] leading-snug self-start whitespace-pre-wrap"
       data-note-gutter=""
       style={{ color: text.trim().startsWith('!') ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--text-2))',
@@ -261,7 +296,15 @@ export default function SectionBlock({
               lineHeight: 'var(--chart-line-height-lyric, 1.35)',
             }}
           >
-            <span className="whitespace-pre-wrap">{displayLine}</span>
+            <span
+              className="whitespace-pre-wrap"
+              {...(onNoteOpen ? {
+                role: 'button', tabIndex: 0, title: 'Add a note to this line',
+                style: { cursor: 'pointer' },
+                onClick: () => onNoteOpen(idx, inlineNote || ''),
+                onKeyDown: (e) => { if (e.key === 'Enter') { e.preventDefault(); onNoteOpen(idx, inlineNote || ''); } },
+              } : null)}
+            >{displayLine}</span>
             {showNote && notePlacement === 'inline' && (
               <span className="italic text-[0.8em]" style={{ color: 'var(--chart-subtle, var(--text-2))' }}>
                 {NOTE_SEPARATORS[noteStyle] || NOTE_SEPARATORS.dashes}{inlineNote}
@@ -269,7 +312,11 @@ export default function SectionBlock({
             )}
             {showNote && notePlacement === 'leader' && noteLeader(inlineNote)}
           </div>
-          {notePlacement === 'gutter' && (showNote ? noteGutter(inlineNote) : <span />)}
+          {notePlacement === 'gutter' && (
+            noteDraft?.lineIdx === idx ? noteGutterEditor()
+              : showNote ? noteGutter(inlineNote)
+              : <span />
+          )}
         </div>
       );
     }
@@ -315,7 +362,13 @@ export default function SectionBlock({
           role: 'button',
           tabIndex: 0,
           'aria-label': `${shapeName} chord shape`,
-          onClick: (e) => onChordTap(shapeName, e.currentTarget.getBoundingClientRect(), tapMeta(ordinal)),
+          onClick: (e) => {
+            // ⚠ Stop the bubble. Element 5 puts a note-opening click on the
+            // line wrapper, and a chord sits INSIDE it — without this, tapping
+            // a chord would fire both, opening a note behind the chord popover.
+            e.stopPropagation();
+            onChordTap(shapeName, e.currentTarget.getBoundingClientRect(), tapMeta(ordinal));
+          },
           onKeyDown: (e) => {
             if (e.key !== 'Enter' && e.key !== ' ') return;
             e.preventDefault();
@@ -365,7 +418,15 @@ export default function SectionBlock({
       >
         {inlineNotes && inlineNote && notePlacement === 'above' && noteAbove(inlineNote)}
         <div style={gutterGrid || undefined}>
-        <div className="flex flex-wrap items-end">
+        <div
+          className="flex flex-wrap items-end"
+          {...(onNoteOpen ? {
+            role: 'button', tabIndex: 0, title: 'Add a note to this line',
+            style: { cursor: 'pointer' },
+            onClick: () => onNoteOpen(idx, inlineNote || ''),
+            onKeyDown: (e) => { if (e.key === 'Enter') { e.preventDefault(); onNoteOpen(idx, inlineNote || ''); } },
+          } : null)}
+        >
           {hasLyrics
             ? (() => {
                 const words = groupChordWords(pairs);
@@ -426,7 +487,11 @@ export default function SectionBlock({
           )}
           {inlineNotes && inlineNote && notePlacement === 'leader' && noteLeader(inlineNote)}
         </div>
-        {notePlacement === 'gutter' && (inlineNotes && inlineNote ? noteGutter(inlineNote, true) : <span />)}
+        {notePlacement === 'gutter' && (
+          noteDraft?.lineIdx === idx ? noteGutterEditor(true)
+            : (inlineNotes && inlineNote) ? noteGutter(inlineNote, true)
+            : <span />
+        )}
         </div>
       </div>
     );

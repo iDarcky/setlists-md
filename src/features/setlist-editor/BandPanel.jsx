@@ -4,7 +4,7 @@ import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { normalizeText } from '@/lib/search';
-import { INSTRUMENT_IDS, labelFor, normalize, partsFor } from '@/data/instruments';
+import { INSTRUMENT_IDS, VOCAL_PARTS as PARTS, displayTokens, labelFor, normalize } from '@/data/instruments';
 import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 import { toast } from '@/ui/use-toast';
@@ -385,8 +385,7 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
                             );
                           })()}
                         </div>
-                        {/* STEP TWO — only when the instrument has parts. */}
-                        {(partsFor(schedule.role).length > 0 || schedule.vocal_part) && (
+                        {/* Independent of the instrument — see the picker. */}
                         <div className="flex flex-col gap-1">
                           <span className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold">Vocal part</span>
                           <select
@@ -398,14 +397,13 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
                             {/* Whatever this row already holds stays offered —
                                 6 rows say "Lead male"/"Lead female". */}
                             {[...new Set([
-                              ...partsFor(schedule.role).map(p => p.label),
+                              ...PARTS.map(p => p.label),
                               ...(schedule.vocal_part ? [schedule.vocal_part] : []),
                             ])].map(part => (
                               <option key={part} value={part}>{part}</option>
                             ))}
                           </select>
                         </div>
-                        )}
                       </div>
                     )}
                   </div>
@@ -523,11 +521,11 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
                               )}
                             </div>
                             {/* Static instrument display (both v1 and v2). */}
-                            {member.instruments && member.instruments.length > 0 ? (
+                            {displayTokens(member.instruments).length > 0 ? (
                               <div className="flex flex-wrap gap-1 mt-1">
-                                {member.instruments.map(inst => (
-                                  <span key={inst} className="text-label-11 px-1.5 py-0.5 rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)]">
-                                    {inst}
+                                {displayTokens(member.instruments).map(({ token, label }) => (
+                                  <span key={token} className="text-label-11 px-1.5 py-0.5 rounded-full bg-[var(--ds-gray-100)] text-[var(--ds-gray-700)]">
+                                    {label}
                                   </span>
                                 ))}
                               </div>
@@ -619,13 +617,7 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
                 <button
                   key={inst}
                   type="button"
-                  onClick={() => setPickInstrument(p => {
-                    const next = p === inst ? '' : inst;
-                    // Step two belongs to step one: leaving Vocals drops the
-                    // part, so a stranded "Alto" can never ride on Drums.
-                    if (!partsFor(next).length) setPickVocal('');
-                    return next;
-                  })}
+                  onClick={() => setPickInstrument(p => (p === inst ? '' : inst))}
                   className={`text-label-12 px-2.5 py-1 rounded-full border cursor-pointer transition-colors ${
                     pickInstrument === inst
                       ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white'
@@ -637,14 +629,14 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
               ))}
             </div>
 
-            {/* STEP TWO. Only for an instrument that has parts — i.e. Vocals.
-                Showing it always is how the picker ended up listing Vocals
-                eight times. */}
-            {partsFor(pickInstrument).length > 0 && (
-            <>
+            {/* ⚠ INDEPENDENT of the instrument, on purpose — this is the
+                "do you also sing?" question, and the whole point of the
+                instrument and the part being two columns is that a guitarist
+                can take Backing. Gating it behind `role === vocals` left a
+                guitarist who sings with no way to say so. */}
             <p className="text-label-11 text-[var(--ds-gray-600)] uppercase font-semibold mb-1.5">Vocal part</p>
             <div className="flex flex-wrap gap-1.5 mb-5">
-              {partsFor(pickInstrument).map(p2 => p2.label).map(part => (
+              {PARTS.map(p2 => p2.label).map(part => (
                 <button
                   key={part}
                   type="button"
@@ -659,8 +651,6 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
                 </button>
               ))}
             </div>
-            </>
-            )}
 
             <div className="flex items-center justify-end gap-2">
               <Button size="sm" variant="ghost" onClick={() => setPickFor(null)}>Cancel</Button>

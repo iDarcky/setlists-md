@@ -11,6 +11,7 @@ import AvatarUploader from '@/ui/AvatarUploader';
 import { useConfirm } from '@/ui/useConfirmHook';
 import { BILLING_ENABLED, startTeamCheckout } from '@/lib/billingCheckout';
 import { TEAM_ROLES } from '@/lib/teamRoles';
+import { displayTokens } from '@/data/instruments';
 
 const TeamIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -260,11 +261,13 @@ function MemberRow({ member, isCurrentUser, isAdmin, isOwner = false, onRemove, 
             </>
           )}
         </div>
-        {Array.isArray(member.instruments) && member.instruments.length > 0 && (
+        {displayTokens(member.instruments).length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
-            {member.instruments.map(inst => (
-              <span key={inst} className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)]">
-                {inst}
+            {/* `displayTokens`, never the raw array — a stored value is not a
+                label. See `data/instruments.js`. */}
+            {displayTokens(member.instruments).map(({ token, label }) => (
+              <span key={token} className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)]">
+                {label}
               </span>
             ))}
           </div>

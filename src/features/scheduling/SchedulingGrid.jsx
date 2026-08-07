@@ -6,7 +6,7 @@ import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { toast } from '@/ui/use-toast';
-import { INSTRUMENT_IDS, labelFor, normalize, partsFor } from '@/data/instruments';
+import { INSTRUMENT_IDS, VOCAL_PARTS, labelFor, normalize } from '@/data/instruments';
 
 // Standard instruments offered when a member hasn't declared their own. Mirrors
 // BandPanel's list (team_schedules.role holds the assigned instrument).
@@ -339,7 +339,9 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
                   </div>
                 </div>
 
-                {(partsFor(activeSched?.role).length > 0 || activeSched?.vocal_part) && (
+                {/* ⚠ INDEPENDENT of the instrument — the "do you also sing?"
+                    question. Instrument and part are two columns precisely so a
+                    guitarist can take Backing. */}
                 <div className="flex flex-col gap-2">
                   <span className="text-label-11 uppercase tracking-wider font-bold text-[var(--ds-gray-600)]">Vocal part</span>
                   <div className="flex flex-wrap gap-1.5">
@@ -349,7 +351,7 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
                         the stored value keeps it selectable instead of
                         silently reading as "no part chosen". */}
                     {[...new Set([
-                      ...partsFor(activeSched?.role).map(p => p.label),
+                      ...VOCAL_PARTS.map(p => p.label),
                       ...(activeSched?.vocal_part ? [activeSched.vocal_part] : []),
                     ])].map(part => {
                       const selected = activeSched?.vocal_part === part;
@@ -370,7 +372,6 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
                     })}
                   </div>
                 </div>
-                )}
 
                 {activeSched && (
                   <button

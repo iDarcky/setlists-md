@@ -215,10 +215,16 @@ export default function ReaderSection({
   // Element 5. Present only in practice, and only when the host can save.
   // Absent → the heading behaves exactly as it always has.
   onEditCue = null,
+  // Element 5: write an inline note. `(lineIdx, text)`; null → read-only.
+  onEditNote = null,
 }) {
   const [writing, setWriting] = useState(false);
   // Element 5: null = not editing the cue; a string = the draft.
   const [cueDraft, setCueDraft] = useState(null);
+  // Element 5: `{ lineIdx, text }` while a line's note is being written.
+  // ⚠ Owned HERE, not in SectionBlock, because the gutter's existence is
+  // decided here — a section with no note yet has no gutter to type into.
+  const [noteDraft, setNoteDraft] = useState(null);
   // ── A short section must not pin ────────────────────────────────────────────
   // Owner, 2026-08-06: *"there's a bug with pinning on one verse sections. It
   // automatically hides the verse."* Measured at maximum scroll on a 390px
@@ -303,7 +309,10 @@ export default function ReaderSection({
     l => typeof l === 'string' && /\{!.*?\}/.test(l)
   );
   const notePlacement = config.notePlacement === 'gutter'
-    ? (hasInlineNote && config.inlineNotes ? 'gutter' : 'above')
+    // ⚠ `|| noteDraft` — the strip is reserved only by sections that already
+    // carry a note, so the FIRST note in a section would otherwise have no
+    // gutter to be typed into. Drafting reserves it for the duration.
+    ? ((hasInlineNote || noteDraft) && config.inlineNotes ? 'gutter' : 'above')
     : config.notePlacement;
 
   // ── The four frames ─────────────────────────────────────────────────────────
@@ -672,20 +681,26 @@ export default function ReaderSection({
             {cue}
           </span>
         ) : onEditCue && config.notes ? (
+          // A bare `+` was too small to aim at on a phone (owner, 2026-08-07)
+          // — a 7px glyph with 4px of padding, in a row whose height is set by
+          // a 14px heading. It says the WORD now, so it is both a bigger target
+          // and self-explanatory, and it sits in the cue's own slot at the
+          // cue's own size so the row height still never moves.
           <button
             type="button"
             onClick={() => setCueDraft('')}
             aria-label={`Add a cue to ${id.name}`}
-            title="Add a cue"
-            className="min-h-0 ml-2 px-1 bg-transparent border-none cursor-pointer align-middle"
+            className="min-h-0 ml-2 px-2 py-0.5 rounded-md bg-transparent cursor-pointer align-middle"
             style={{
               fontSize: `${Math.max(11, labelPx - 2)}px`,
+              lineHeight: 1.2,
+              fontStyle: 'italic',
               color: 'var(--chart-subtle, var(--ds-gray-700))',
-              opacity: 0.55,
-              lineHeight: 1,
+              border: '1px dashed var(--chart-rule, var(--ds-gray-400))',
+              opacity: 0.75,
             }}
           >
-            +
+            + cue
           </button>
         ) : null}
       </div>
@@ -724,6 +739,12 @@ export default function ReaderSection({
         // The sticky heading above already renders the name and cue.
         hideHeading
         inlineNotes={config.inlineNotes}
+        onNoteOpen={onEditNote ? (lineIdx, text) => setNoteDraft({ lineIdx, text }) : null}
+        noteDraft={noteDraft}
+        onNoteDraftChange={(text) => setNoteDraft(text === null ? null : (d) => (d ? { ...d, text } : d))}
+        onNoteCommit={() => {
+          setNoteDraft((d) => { if (d) onEditNote?.(d.lineIdx, d.text); return null; });
+        }}
         notePlacement={notePlacement}
         noteStyle={settings?.inlineNoteStyle || 'dashes'}
         sectionColors={resolveSectionColors(settings)}

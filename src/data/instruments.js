@@ -190,6 +190,27 @@ export function wantsDiagrams(token) {
 /** The seven top-level ids, for a picker's first step. */
 export const INSTRUMENT_IDS = INSTRUMENTS.map(i => i.id);
 
+/**
+ * A stored `instruments` array → what to SHOW: `[{ token, label }]`,
+ * canonical, de-duplicated, unknowns dropped.
+ *
+ * ⚠ Use this anywhere a member's instruments are rendered. Three separate
+ * places mapped the raw array straight into chips, so the moment canonical
+ * tokens started being stored the UI read "acoustic-guitar" and
+ * "vocals:lead-female" at the user. A stored value is not a label.
+ */
+export function displayTokens(list) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of list || []) {
+    const t = normalize(raw);
+    if (!t || seen.has(t)) continue;
+    seen.add(t);
+    out.push({ token: t, label: labelFor(t) });
+  }
+  return out;
+}
+
 /** The parts an instrument offers as its SECOND step. Empty for most. */
 export function partsFor(token) {
   return parseToken(token).instrument?.parts || [];

@@ -28,7 +28,7 @@ import {
 } from '@/lib/editStructure';
 import ChordAutocomplete from '@/features/editor/ChordAutocomplete';
 import { transposeChord } from '@/music';
-import { parseSectionLines, CUE_MAX_CHARS } from '@/parser';
+import { parseSectionLines, CUE_MAX_CHARS, INLINE_NOTE_MAX_CHARS } from '@/parser';
 import { showUndoToast } from '@/lib/undoToast';
 
 const EMPTY = [];
@@ -769,6 +769,32 @@ export default function Reader({
     const note = String(text || '').slice(0, CUE_MAX_CHARS).trim();
     if (note === (section.note || '')) return;
     const sections = (song.sections || []).map((sec, i) => (i === si ? { ...sec, note } : sec));
+    writeSong({ sections });
+  }, [song, writeSong]);
+
+  // Element 5: an inline note, written from the reader.
+  //
+  // The note lives INSIDE the lyric line as `{!text}` — that is the `.md`
+  // format, and `extractInlineNotes` strips it at render. So writing one is a
+  // string edit on the line: drop whatever marker is there, append the new one.
+  //
+  // ⚠ Appended at the END of the line, not at a character position. A note
+  // belongs to the LINE (element 4 put it in a gutter beside the whole line,
+  // not above a word), so where in the string it sits changes nothing about
+  // where it renders — and asking the writer to place it would be asking about
+  // something they cannot see.
+  const editSectionNote = useCallback((section, lineIdx, text) => {
+    if (!song) return;
+    const si = (song.sections || []).indexOf(section);
+    if (si < 0) return;
+    const raw = section.lines?.[lineIdx];
+    if (typeof raw !== 'string') return;          // a tab or a modulate marker
+    const note = String(text || '').slice(0, INLINE_NOTE_MAX_CHARS).trim();
+    const bare = raw.replace(/\s*\{![^}]*\}/g, '');
+    const nextLine = note ? `${bare} {!${note}}` : bare;
+    if (nextLine === raw) return;
+    const sections = withEditedLine(song.sections, si, lineIdx, nextLine);
+    if (sections === song.sections) return;
     writeSong({ sections });
   }, [song, writeSong]);
 
@@ -1540,6 +1566,9 @@ export default function Reader({
               // field that accepts a cue nobody stores is worse than none.
               onEditCue={config.can.writeNotes && onUpdateSong && !editing
                 ? (text) => editSectionCue(section, text)
+                : null}
+              onEditNote={config.can.writeNotes && onUpdateSong && !editing
+                ? (lineIdx, text) => editSectionNote(section, lineIdx, text)
                 : null}
             />
           ))}
