@@ -343,7 +343,18 @@ export default function Reader({
       // `+ 4` of hysteresis: a song that lands within a few pixels of the band
       // must not flip the padding on and off as the two measurements chase
       // each other.
-      const want = natural > band + 4 ? Math.max(0, band - lastH - 8) : 0;
+      //
+      // ⚠ ONE COLUMN ONLY (owner, 2026-08-08: *"on mobile or 1 column we could
+      // scroll to the bottom of the page so the last item could be scrolled. On
+      // tablet on two columns is not needed like that, scroll just to get into
+      // view"*). The pad exists so the LAST section's top can reach the pin
+      // line, which matters when sections stack down one column. In two columns
+      // the last section sits at the foot of the RIGHT column with a whole
+      // column of song beside it — the pad buys nothing and costs a screen of
+      // blank paper at the end of every song.
+      const want = config.columns >= 2
+        ? 0
+        : (natural > band + 4 ? Math.max(0, band - lastH - 8) : 0);
       if (Math.abs(want - applied) <= 2) return;
       tailPadRef.current = want;
       setTailPad(want);

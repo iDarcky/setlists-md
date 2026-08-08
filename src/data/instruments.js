@@ -67,8 +67,18 @@ export const VOCAL_PARTS = [
  *   • `tabs`    — which `TAB_INSTRUMENTS` block is THEIRS (null = none are)
  *   • `diagrams`— whether chord diagrams are useful to them
  */
+/**
+ * ⚠ **Vocals is NOT in this list** (owner, 2026-08-08). Once the vocal part
+ * became independent of the instrument — a guitarist can take Backing — an
+ * entry called "Vocals" said the same thing twice: a pure singer is *no
+ * instrument + a part*, and a singing guitarist is *acoustic-guitar + a part*.
+ * Keeping it let someone pick Vocals AND a part, which is the "Vocals eight
+ * times" bug in a quieter form.
+ *
+ * Legacy values that named it still resolve (`normalize('Vocals')`), they just
+ * are not offered.
+ */
 export const INSTRUMENTS = [
-  { id: 'vocals', label: 'Vocals', parts: VOCAL_PARTS, display: 'lyrics', tabs: null, diagrams: false },
   { id: 'acoustic-guitar', label: 'Acoustic Guitar', display: 'chords', tabs: 'acoustic', diagrams: true },
   { id: 'electric-guitar', label: 'Electric Guitar', display: 'chords', tabs: 'electric', diagrams: true },
   { id: 'bass-guitar', label: 'Bass Guitar', display: 'chords', tabs: 'bass', diagrams: false },
@@ -77,7 +87,11 @@ export const INSTRUMENTS = [
   { id: 'drums', label: 'Drums', display: 'lyrics', tabs: null, diagrams: false },
 ];
 
-const BY_ID = new Map(INSTRUMENTS.map(i => [i.id, i]));
+// Retired from the pickable list but still a real stored value. `parseToken`
+// and `labelFor` must keep answering for it, so it lives here.
+const VOCALS = { id: 'vocals', label: 'Vocals', parts: VOCAL_PARTS, display: 'lyrics', tabs: null, diagrams: false };
+
+const BY_ID = new Map([...INSTRUMENTS, VOCALS].map(i => [i.id, i]));
 const PART_BY_ID = new Map(VOCAL_PARTS.map(p => [p.id, p]));
 
 /**

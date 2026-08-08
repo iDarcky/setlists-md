@@ -301,7 +301,13 @@ export default function SectionBlock({
       const displayLine = !showChords ? cleanLine.replace(/\[.*?\]/g, '') : cleanLine;
       const showNote = inlineNotes && inlineNote;
       return (
-        <div key={idx} style={gutterGrid || undefined}>
+        // ⚠ `break-inside: avoid`. A rendered line is a chord row over a lyric
+        // row, and in a two-column layout a line box was free to FRAGMENT at
+        // the column boundary — which is how the comma under a Romanian ț
+        // (U+021B, a real descender, not an accent) ended up alone at the top
+        // of the next column, reading as a mystery dot on somebody's chart
+        // mid-rehearsal. It also kept a chord from being cut off its own words.
+        <div key={idx} style={{ ...(gutterGrid || {}), breakInside: 'avoid' }}>
           {showNote && notePlacement === 'above' && noteAbove(inlineNote)}
           <div
             className={notePlacement === 'leader' ? 'min-h-[1.3em] flex items-baseline opacity-90' : 'min-h-[1.3em] whitespace-pre-wrap opacity-90'}
@@ -440,7 +446,7 @@ export default function SectionBlock({
         }}
       >
         {inlineNotes && inlineNote && notePlacement === 'above' && noteAbove(inlineNote)}
-        <div style={gutterGrid || undefined}>
+        <div style={{ ...(gutterGrid || {}), breakInside: 'avoid' }}>
         <div
           className="flex flex-wrap items-end"
           {...(onNoteOpen ? {

@@ -11,7 +11,7 @@ import { useAuth } from '@/auth/useAuth';
 import { useTeam } from '@/auth/useTeam';
 import { clearAll } from '@/storage';
 import AvatarUploader from '@/ui/AvatarUploader';
-import { INSTRUMENTS, normalize } from '@/data/instruments';
+import { INSTRUMENTS, VOCAL_PARTS, normalize } from '@/data/instruments';
 
 const NAME_MAX = 15;
 
@@ -57,32 +57,24 @@ export default function Account({
     }
   };
 
-  // **Vocals plus at most ONE instrument** (owner, 2026-08-07). Singing while
-  // you play is the normal case; playing two instruments in one service is not,
-  // and letting a profile claim three is what made `resolveMyInstrument` give
-  // up and show every tab — it refuses to guess when the list is ambiguous.
-  // Picking a second instrument REPLACES the first rather than erroring.
-  //
-  // An instrument chip also owns its whole family: turning Vocals off drops
-  // whichever part was under it, so a part is never stranded.
+  // **At most ONE instrument, plus singing** (owner, 2026-08-07/08). Playing
+  // two instruments in one service is not the normal case, and a profile
+  // claiming three is what made `resolveMyInstrument` give up and show every
+  // tab — it refuses to guess from an ambiguous list. Picking a second
+  // instrument REPLACES the first rather than erroring.
   const toggleInstrument = (id) => {
     const on = myTokens.some(t => t.split(':')[0] === id);
-    if (on) { save(myTokens.filter(t => t.split(':')[0] !== id)); return; }
-    const keep = id === 'vocals'
-      // Turning Vocals on keeps whatever instrument is already there.
-      ? myTokens
-      // Turning an instrument on keeps only Vocals (and its part).
-      : myTokens.filter(t => t.split(':')[0] === 'vocals');
-    save([...keep, id]);
+    // Whatever happens, anything under `vocals:` survives — singing is the
+    // other axis now, not one of the instruments.
+    const sung = myTokens.filter(t => t.split(':')[0] === 'vocals');
+    save(on ? sung : [...sung, id]);
   };
 
-  // Picking a part replaces the bare instrument — "Vocals · Alto" is more
-  // specific than "Vocals", and holding both would say nothing extra.
-  const togglePart = (id, partId) => {
-    const token = `${id}:${partId}`;
-    save(myTokens.includes(token)
-      ? myTokens.filter(t => t !== token)
-      : [...myTokens.filter(t => t !== id && t !== token), token]);
+  // Singing is independent of the instrument, and a person sings ONE part.
+  const togglePart = (partId) => {
+    const token = `vocals:${partId}`;
+    const others = myTokens.filter(t => t.split(':')[0] !== 'vocals');
+    save(myTokens.includes(token) ? others : [...others, token]);
   };
 
   // Prefer the cloud display_name so the input matches what the rest of the UI
@@ -296,21 +288,20 @@ export default function Account({
                 );
               })}
             </div>
-            {/* Second level. Only appears for an instrument that HAS parts and
-                that you actually picked — an empty row of parts for a drummer
-                is chrome nobody asked for. */}
-            {INSTRUMENTS.filter(i => i.parts && myTokens.some(t => t.split(':')[0] === i.id)).map(inst => (
-              <div key={inst.id} className="flex flex-wrap items-center gap-2 pl-1">
-                <span className="text-label-11 uppercase tracking-wider" style={{ color: 'var(--drawer-text-dim, var(--ds-gray-600))' }}>
-                  {inst.label} — which part?
-                </span>
-                {inst.parts.map(p => {
-                  const on = myTokens.includes(`${inst.id}:${p.id}`);
+            {/* ⚠ Its own question, not a sub-list of the instrument above.
+                Singing and playing are independent — a guitarist takes Backing
+                — which is exactly why "Vocals" stopped being an instrument. */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span className="text-label-11 uppercase tracking-wider w-full" style={{ color: 'var(--drawer-text-dim, var(--ds-gray-600))' }}>
+                Do you sing?
+              </span>
+              {VOCAL_PARTS.map(p => {
+                  const on = myTokens.includes(`vocals:${p.id}`);
                   return (
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => togglePart(inst.id, p.id)}
+                      onClick={() => togglePart(p.id)}
                       disabled={instrumentsBusy}
                       aria-pressed={on}
                       // The SAME selected language as an instrument chip — a
@@ -328,8 +319,7 @@ export default function Account({
                     </button>
                   );
                 })}
-              </div>
-            ))}
+            </div>
             {instrumentsError && (
               <div
                 className="text-copy-12 px-2 py-1 rounded"

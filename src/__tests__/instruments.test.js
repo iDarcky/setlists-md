@@ -6,12 +6,25 @@ import {
 import { TAB_INSTRUMENTS } from '@/data/tabInstruments';
 
 describe('instruments — the musical axis', () => {
-  it('is a closed list of seven, vocals alone carrying a second level', () => {
+  // ⚠ Vocals is NOT offered as an instrument (owner, 2026-08-08). Once the
+  // vocal part became independent of the instrument, an entry called "Vocals"
+  // said the same thing twice — a pure singer is *no instrument + a part*.
+  it('is a closed list of six, with vocals deliberately absent', () => {
     expect(INSTRUMENTS.map(i => i.id)).toEqual([
-      'vocals', 'acoustic-guitar', 'electric-guitar', 'bass-guitar',
+      'acoustic-guitar', 'electric-guitar', 'bass-guitar',
       'keys', 'piano', 'drums',
     ]);
-    expect(INSTRUMENTS.filter(i => i.parts).map(i => i.id)).toEqual(['vocals']);
+    expect(INSTRUMENTS.some(i => i.id === 'vocals')).toBe(false);
+    expect(INSTRUMENTS.some(i => i.parts)).toBe(false);
+  });
+
+  // ...but it is still a real STORED value, so everything must resolve it.
+  it('still resolves vocals and its parts even though nothing offers them', () => {
+    expect(normalize('Vocals')).toBe('vocals');
+    expect(normalize('vocals:alto')).toBe('vocals:alto');
+    expect(labelFor('vocals:alto')).toBe('Vocals · Alto');
+    expect(displayModeFor('vocals')).toBe('lyrics');
+    expect(partsFor('vocals')).toEqual(VOCAL_PARTS);
   });
 
   // ⚠ THE BUG THIS FILE EXISTS FOR. `SectionBlock` opens a tab when
@@ -103,15 +116,16 @@ describe('instruments — the musical axis', () => {
   // times. Step one is instruments only.
   it('offers only the seven instruments in step one', () => {
     expect(INSTRUMENT_IDS).toEqual(INSTRUMENTS.map(i => i.id));
-    expect(INSTRUMENT_IDS).toHaveLength(7);
+    expect(INSTRUMENT_IDS).toHaveLength(6);
+    expect(INSTRUMENT_IDS).not.toContain('vocals');
     for (const id of INSTRUMENT_IDS) expect(id).not.toContain(':');
     for (const id of INSTRUMENT_IDS) expect(normalize(id)).toBe(id);
   });
 
-  it('offers a second step only for what has parts', () => {
+  it('offers no parts under any pickable instrument', () => {
     expect(partsFor('vocals')).toEqual(VOCAL_PARTS);
     expect(partsFor('vocals:alto')).toEqual(VOCAL_PARTS);
-    for (const id of ['drums', 'keys', 'piano', 'bass-guitar', 'acoustic-guitar', 'electric-guitar']) {
+    for (const id of INSTRUMENT_IDS) {
       expect(partsFor(id)).toEqual([]);
     }
     // Nothing to offer for a value that means nothing — never a crash.
