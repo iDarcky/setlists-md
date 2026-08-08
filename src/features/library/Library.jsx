@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense } from 'react';
 import SongCard from './SongCard';
-import SidePeek from '@/app/SidePeek';
 import { Button } from '@/ui/Button';
 import WorkspacePickerDialog from '@/ui/WorkspacePickerDialog';
 import { SearchBar } from '@/ui/SearchBar';
@@ -328,12 +327,10 @@ export default function Library({
   loaded = true,
   onSelectSong,
   onNewSong,
-  previewSongId = null,
-  onSelectPreview,
-  isFullscreen = false,
-  onToggleFullscreen,
+  // ⚠ No preview props any more. `SidePeek` — the right-hand overlay — is
+  // gone (owner, 2026-08-08), and the Library has no docked pane, so a song
+  // row does one thing: it opens the song.
   onEditSong,
-  onUpdateSong,
   readOnly = false,
   chartDefaults = {},
   canEdit = true,
@@ -348,7 +345,6 @@ export default function Library({
   onTagSongs,
   tableColumns,
   onSetTableColumns,
-  chartMoveCopy,
   plus = false,
 }) {
   // Responsive shell. Touch tablets (pointer: coarse) get the two-pane master-
@@ -362,10 +358,6 @@ export default function Library({
   // column-visibility guards (`!splitDock`) read cleanly.
   const splitDock = false;
 
-  const previewSong = useMemo(
-    () => songs.find(s => s.id === previewSongId) || null,
-    [songs, previewSongId],
-  );
 
   // Row click opens the full chart; a dedicated row button opens the peek.
   const openFull = (song) => onSelectSong?.(song);
@@ -373,11 +365,6 @@ export default function Library({
   // on that button, so dismissing costs no movement at all — the cheapest half
   // of "make it easy to click out of" (owner, 2026-07-31); the other half is
   // the panel never reaching under the pointer, in `SidePeek`.
-  const openPeek = (song, e) => {
-    e?.stopPropagation();
-    onSelectPreview?.(song.id === previewSongId ? null : song.id);
-  };
-
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState('title');
   const [sortAsc, setSortAsc] = useState(true);
@@ -537,11 +524,6 @@ export default function Library({
       setSortMode(modeKey);
       setSortAsc(true);
     }
-  };
-
-  const closePeek = () => {
-    if (isFullscreen) onToggleFullscreen?.();
-    onSelectPreview?.(null);
   };
 
   // ----- Selection -----
@@ -788,14 +770,13 @@ export default function Library({
                 {flatRows.map(song => {
                   const arrCount = Array.isArray(song.arrangements) ? song.arrangements.length : 1;
                   const isSel = selectedSet.has(song.id);
-                  const isPreview = advanced && song.id === previewSongId;
                   return (
                     <tr
                       key={song.id}
                       role="button"
                       onClick={(e) => onRowActivate(song, e)}
                       className={cn('group cursor-pointer border-b border-[var(--modes-border)] transition-colors',
-                        isSel || isPreview ? 'bg-[var(--modes-surface-strong)]' : 'hover:bg-[var(--modes-surface)]')}
+                        isSel ? 'bg-[var(--modes-surface-strong)]' : 'hover:bg-[var(--modes-surface)]')}
                     >
                       <td className={cn('px-4', rowPad)} onClick={(e) => e.stopPropagation()}>
                         {!readOnly && (
@@ -806,16 +787,6 @@ export default function Library({
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="text-copy-15 font-semibold text-[var(--modes-text)] truncate">{song.title || 'Untitled'}</span>
                           <ArrangementsBadge count={arrCount} />
-                          {onSelectPreview && !isTablet && (
-                            <button
-                              onClick={(e) => openPeek(song, e)}
-                              aria-label="Open in pane"
-                              title="Open in pane"
-                              className="hidden lg:inline-flex ml-auto items-center justify-center w-7 h-7 rounded-md border-none bg-transparent text-[var(--modes-text-muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--modes-surface-strong)] hover:text-[var(--modes-text)] transition-all cursor-pointer"
-                            >
-                              <PaneIcon />
-                            </button>
-                          )}
                         </div>
                         {/* Mobile artist sub-line — only when the Artist column
                             is responsively hidden (non-plus; plus always shows it). */}
@@ -858,7 +829,6 @@ export default function Library({
                       song={song}
                       variant="compact"
                       highlight={deferredQuery}
-                      selected={advanced && song.id === previewSongId}
                       onClick={() => onRowActivate(song)}
                       {...songCardPlus(song)}
                     />
@@ -887,7 +857,6 @@ export default function Library({
                       song={song}
                       variant="row"
                       showTags={true}
-                      selected={advanced && song.id === previewSongId}
                       onClick={() => onRowActivate(song)}
                       {...songCardPlus(song)}
                     />
@@ -984,47 +953,6 @@ export default function Library({
         </SelectionBar>
       )}
 
-      {/* Right-side overlay peek — desktop + tablet portrait (landscape docks) */}
-      <SidePeek
-        open={advanced && !!previewSong && !splitDock}
-        onClose={closePeek}
-        expanded={isFullscreen}
-        label="Song preview"
-      >
-        {previewSong && (
-          <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
-            {chartDefaults?.settings?.unifiedReader ? (
-              // The peek is the SONG HUB, not a reduced preview of it (owner,
-              // 2026-07-31). Before this it mounted a bare embedded `Reader`,
-              // so the peek and the song page were two different answers to
-              // "show me this song" — one with tabs, art, key and the player,
-              // one with just the chart. The hub already renders that same
-              // embedded Reader inside itself, so this is one surface fewer to
-              // keep in step, not one more to build.
-              <SongHub
-                key={previewSong.id}
-                song={previewSong}
-                onBack={closePeek}
-                onEdit={onEditSong ? () => onEditSong(previewSong) : null}
-                onUpdateSong={onUpdateSong}
-                {...(chartMoveCopy ? chartMoveCopy(previewSong.id) : {})}
-                {...chartDefaults}
-              />
-            ) : (
-            <ChartView
-              key={previewSong.id}
-              song={previewSong}
-              onBack={closePeek}
-              onEdit={onEditSong ? () => onEditSong(previewSong) : null}
-              isFullscreen={isFullscreen}
-              onToggleFullscreen={onToggleFullscreen}
-              {...(chartMoveCopy ? chartMoveCopy(previewSong.id) : {})}
-              {...chartDefaults}
-            />
-            )}
-          </Suspense>
-        )}
-      </SidePeek>
 
       {/* Bulk move/copy destination picker (shared modal). */}
       {bulkPicker && (

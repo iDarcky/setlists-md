@@ -352,9 +352,17 @@ export default function Reader({
       // the last section sits at the foot of the RIGHT column with a whole
       // column of song beside it — the pad buys nothing and costs a screen of
       // blank paper at the end of every song.
+      //
+      // ⚠ Two columns still get a FLOOR, not zero (owner, 2026-08-08: *"right
+      // now is quite 0, especially for when we have the floating pill, it
+      // should at least clear it"*). The footer floats over the chart, so a
+      // last line that ends exactly at the scroller's bottom sits under it.
+      // 72px clears the pill and its safe-area inset without inventing the
+      // screen of blank paper the full pad was costing.
+      const FLOAT_CLEARANCE = 72;
       const want = config.columns >= 2
-        ? 0
-        : (natural > band + 4 ? Math.max(0, band - lastH - 8) : 0);
+        ? (natural > band + 4 ? FLOAT_CLEARANCE : 0)
+        : (natural > band + 4 ? Math.max(FLOAT_CLEARANCE, band - lastH - 8) : 0);
       if (Math.abs(want - applied) <= 2) return;
       tailPadRef.current = want;
       setTailPad(want);

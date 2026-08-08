@@ -185,7 +185,6 @@ export default function App() {
     members,
     setlistMap: teamSetlistMap,
   }), [user?.id, currentSetlist?.id, schedules, members, teamSetlistMap]);
-  const [previewSongId, setPreviewSongId] = useState(null);
   const [previewSetlistId, setPreviewSetlistId] = useState(null);
   // Schedule list/calendar view — lifted here so the BottomNav morphing FAB can
   // toggle it (alongside the desktop header switch). Defaults to list on phones.
@@ -453,7 +452,6 @@ export default function App() {
     // Clear stale data immediately to avoid "ghost" content during load
     setSongs([]);
     setSetlists([]);
-    setPreviewSongId(null);
     setPreviewSetlistId(null);
 
     (async () => {
@@ -885,9 +883,8 @@ export default function App() {
       setView(viewName);
       setCurrentSong(null);
       setCurrentSetlist(null);
-      // Clear any open side-peek selection so it doesn't auto-reopen when
-      // returning to the library/setlists view after navigating away.
-      setPreviewSongId(null);
+      // Clear the docked pane's selection so it doesn't auto-reopen when
+      // returning to the setlists view after navigating away.
       setPreviewSetlistId(null);
       setIsFullscreen(false);
       if (viewName === 'settings') {
@@ -2224,12 +2221,7 @@ export default function App() {
               loaded={loaded}
               onSelectSong={goChart}
               onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
-              previewSongId={previewSongId}
-              onSelectPreview={setPreviewSongId}
-              isFullscreen={isFullscreen}
-              onToggleFullscreen={toggleFullscreen}
               onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
-              onUpdateSong={isTeamReadOnly ? null : handleUpdateSong}
               readOnly={isTeamReadOnly}
               setlists={setlists}
               activeLibrary={activeLibrary}
@@ -2242,7 +2234,6 @@ export default function App() {
               onSetTableColumns={setTableColumns}
               onMoveSongs={!isTeamReadOnly && teams.length > 0 ? handleMoveSongs : null}
               onCopySongs={teams.length > 0 ? handleCopySongs : null}
-              chartMoveCopy={buildChartMoveCopy}
               chartDefaults={{
                 defaultColumns: settings?.defaultColumns,
                 defaultFontSize: settings?.defaultFontSize,

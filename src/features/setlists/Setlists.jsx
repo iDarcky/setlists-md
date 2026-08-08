@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import SetlistCard from './SetlistCard';
-import SidePeek from '@/app/SidePeek';
 import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 import { SearchBar } from '@/ui/SearchBar';
@@ -184,7 +183,12 @@ export default function Setlists({
 
   const openFull = (sl) => onViewSetlist?.(sl);
   const openPeek = (sl, e) => { e?.stopPropagation(); onSelectPreview?.(sl.id); };
-  const onRowActivate = isTablet ? openPeek : openFull;
+  // ⚠ Opening a setlist opens the SETLIST. It used to open a right-hand
+  // overlay on tablet only, so the same tap did two different things depending
+  // on which device you held (owner, 2026-08-08). `SidePeek` is gone; the only
+  // survivor is the tablet-LANDSCAPE split dock, which is a layout rather than
+  // an overlay — there, a row still selects what the docked pane shows.
+  const onRowActivate = splitDock ? openPeek : openFull;
 
   // Service column + filter are a Church-tier feature (one service per setlist).
   const { allowed: showService } = useEntitlement('multi-service');
@@ -610,12 +614,6 @@ export default function Setlists({
             {plus && !isUpcoming(sl) && (
               <span className="shrink-0 text-label-11 font-semibold px-1.5 py-0.5 rounded bg-[var(--modes-surface-strong)] text-[var(--modes-text-dim)] border border-[var(--modes-border)]">Past</span>
             )}
-            {onSelectPreview && !isTablet && (
-              <button onClick={(e) => openPeek(sl, e)} aria-label="Open in pane" title="Open in pane"
-                className="hidden lg:inline-flex ml-auto items-center justify-center w-7 h-7 rounded-md border-none bg-transparent text-[var(--modes-text-muted)] opacity-0 group-hover:opacity-100 hover:bg-[var(--modes-surface-strong)] hover:text-[var(--modes-text)] transition-all cursor-pointer">
-                <PaneIcon />
-              </button>
-            )}
           </div>
         </td>
         {showCol('date') && <td className="px-5 py-3.5 text-copy-14 text-[var(--modes-text-muted)] whitespace-nowrap">{formatDate(sl.date)}</td>}
@@ -1009,37 +1007,6 @@ export default function Setlists({
         </SelectionBar>
       )}
 
-      {/* Right-side overlay peek — desktop + tablet portrait (landscape docks) */}
-      <SidePeek
-        open={advanced && !!previewSetlist && !splitDock}
-        onClose={closePeek}
-        expanded={isFullscreen}
-        label="Setlist preview"
-      >
-        {previewSetlist && (
-          <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
-            <SetlistOverview
-              key={previewSetlist.id}
-              setlist={previewSetlist}
-              embedded
-              hidePlay={isTablet}
-              songs={songs}
-              clockFormat={clockFormat}
-              onBack={closePeek}
-              onToggleFullscreen={onToggleFullscreen}
-              onEdit={canEdit ? () => onEditSetlist?.(previewSetlist) : undefined}
-              onExportZip={() => onExportSetlistZip?.(previewSetlist)}
-              onExportPdfOverview={() => onExportSetlistPdfOverview?.(previewSetlist)}
-              onExportPdfFull={() => onExportSetlistPdfFull?.(previewSetlist)}
-              onPlay={() => onPlaySetlist(previewSetlist)}
-              onPractice={(i) => onPracticeSetlist?.(previewSetlist, i)}
-              onDelete={canEdit ? () => onDeleteSetlist?.(previewSetlist.id) : undefined}
-              isFullscreen={isFullscreen}
-              canEdit={canEdit}
-            />
-          </Suspense>
-        )}
-      </SidePeek>
     </div>
   );
 }
