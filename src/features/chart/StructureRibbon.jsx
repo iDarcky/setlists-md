@@ -138,7 +138,16 @@ export function StructureRibbon({
       // drag are the same gesture, and the scroller wins; wrapping removes the
       // conflict rather than arbitrating it, and it also shows the whole
       // expanded map at once, which is what you want while editing it.
-      : ((wrap || onReorder) ? 'flex-wrap' : 'flex-nowrap overflow-x-auto no-scrollbar'),
+      // ⚠ `overflow-y-hidden` is NOT redundant. Per spec, when one axis is set
+      // to anything but `visible`, a `visible` other axis computes to `auto` —
+      // so `overflow-x-auto` alone made the strip VERTICALLY scrollable too.
+      // Measured 2026-08-08 at 889px: clientHeight 25 vs scrollHeight 28, i.e.
+      // 3px of real scroll, which on a touch device is a rubber-band wobble
+      // every time you swipe the chips (owner: *"why can we scroll up/down the
+      // structure section?"*). The 3px comes from the chip buttons' own
+      // overflow, not from anything anybody can see, so clipping it loses
+      // nothing.
+      : ((wrap || onReorder) ? 'flex-wrap' : 'flex-nowrap overflow-x-auto overflow-y-hidden no-scrollbar'),
   );
   const colorOf = (name) => sectionStyle(name.replace(/\s*\d+$/, ''), sectionColors, customSectionTypes);
   const labelOf = (name) => (compact ? compactLabel(name) : sectionLabel(name, sectionLabels));

@@ -68,6 +68,9 @@ export default function SectionBlock({
   // `noteDraft` is `{ lineIdx, text }` — owned by ReaderSection, because it
   // also has to force the gutter open for a section that has no note yet.
   onNoteOpen = null, noteDraft = null, onNoteDraftChange = null, onNoteCommit = null,
+  // Show a `+` in the gutter of lines with no note. True only for the section
+  // being read — one per line, over a whole song, is ~30 of them.
+  noteHint = false,
   // Element 9. `myInstrument` is what YOU play this service (from the band);
   // a tab for another instrument collapses to one line instead of taking a
   // block of screen you scroll past every section. Null = show everything.
@@ -146,6 +149,25 @@ export default function SectionBlock({
   // The field, in the gutter cell, sharing `noteGutter`'s alignment exactly —
   // same size, same one-chord-row offset — so committing does not make the note
   // jump to a different place than the one you typed it in.
+  // The empty gutter cell, when a note COULD go there. Same slot, same
+  // one-chord-row offset as the note itself, so the `+` stands exactly where
+  // its note will.
+  const noteGutterHint = (lineIdx, hasChordRow = false) => (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onNoteOpen(lineIdx, ''); }}
+      aria-label="Add a note to this line"
+      className="min-h-0 self-start text-left bg-transparent border-none cursor-pointer p-0"
+      style={{
+        fontSize: '0.72em', lineHeight: 1.3, opacity: 0.4,
+        color: 'var(--chart-subtle, var(--text-2))',
+        marginTop: hasChordRow ? 'calc(var(--chart-chord-size, 1em) * 1 + 3px)' : undefined,
+      }}
+    >
+      +
+    </button>
+  );
+
   const noteGutterEditor = (hasChordRow = false) => (
     <input
       autoFocus
@@ -315,6 +337,7 @@ export default function SectionBlock({
           {notePlacement === 'gutter' && (
             noteDraft?.lineIdx === idx ? noteGutterEditor()
               : showNote ? noteGutter(inlineNote)
+              : (noteHint && onNoteOpen) ? noteGutterHint(idx)
               : <span />
           )}
         </div>
@@ -490,6 +513,7 @@ export default function SectionBlock({
         {notePlacement === 'gutter' && (
           noteDraft?.lineIdx === idx ? noteGutterEditor(true)
             : (inlineNotes && inlineNote) ? noteGutter(inlineNote, true)
+            : (noteHint && onNoteOpen) ? noteGutterHint(idx, true)
             : <span />
         )}
         </div>

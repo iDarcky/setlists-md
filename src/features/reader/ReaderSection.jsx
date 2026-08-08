@@ -217,6 +217,9 @@ export default function ReaderSection({
   onEditCue = null,
   // Element 5: write an inline note. `(lineIdx, text)`; null → read-only.
   onEditNote = null,
+  // Show the `+` on this section's empty lines — true only for the section
+  // being read. See the note at the call site.
+  noteHintHere = false,
 }) {
   const [writing, setWriting] = useState(false);
   // Element 5: null = not editing the cue; a string = the draft.
@@ -312,7 +315,7 @@ export default function ReaderSection({
     // ⚠ `|| noteDraft` — the strip is reserved only by sections that already
     // carry a note, so the FIRST note in a section would otherwise have no
     // gutter to be typed into. Drafting reserves it for the duration.
-    ? ((hasInlineNote || noteDraft) && config.inlineNotes ? 'gutter' : 'above')
+    ? ((hasInlineNote || noteDraft || (noteHintHere && onEditNote)) && config.inlineNotes ? 'gutter' : 'above')
     : config.notePlacement;
 
   // ── The four frames ─────────────────────────────────────────────────────────
@@ -740,6 +743,7 @@ export default function ReaderSection({
         hideHeading
         inlineNotes={config.inlineNotes}
         onNoteOpen={onEditNote ? (lineIdx, text) => setNoteDraft({ lineIdx, text }) : null}
+        noteHint={!!onEditNote && noteHintHere}
         noteDraft={noteDraft}
         onNoteDraftChange={(text) => setNoteDraft(text === null ? null : (d) => (d ? { ...d, text } : d))}
         onNoteCommit={() => {

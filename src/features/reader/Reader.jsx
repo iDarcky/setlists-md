@@ -466,8 +466,14 @@ export default function Reader({
   // it stays on wide screens; a phone comes in to 12px so the words start at
   // the edge, except on whichever side the floating structure rail occupies.
   const railSide = config.ribbon === 'left' || config.ribbon === 'right' ? config.ribbon : null;
-  const padLeft = wide ? 32 : (railSide === 'left' ? 32 : 12);
-  const padRight = wide ? 32 : (railSide === 'right' ? 32 : 12);
+  // ⚠ NOT `wide ? 32 : 12` any more. Element 4 took the words to the left edge
+  // on a phone and left every wider screen at 32px, so an iPad — the device
+  // most of this is actually read on — never got it (owner, 2026-08-08: *"we
+  // moved the lyrics on mobile to the left, but we never did that on tablet"*).
+  // The argument was never about screen size, it was about the right side
+  // belonging to notes, and that is true at every width.
+  const padLeft = railSide === 'left' ? 32 : 12;
+  const padRight = railSide === 'right' ? 32 : 12;
 
   const jumpTo = useCallback((idx, smooth = true) => {
     const sc = scrollRef.current;
@@ -875,9 +881,16 @@ export default function Reader({
     // On the DAMPED distance: ~98px of actual finger travel. Under a full
     // thumb-length, over anything you could do by accident while scrolling.
     const TRIGGER = 44;
+    // ⚠ Move the WHOLE READER, not the header (owner, 2026-08-08: *"it only
+    // drags the header, it should drag everything"*). The gesture is "pull the
+    // page down"; pulling one strip away from the words underneath it reads as
+    // the header coming loose, not as the page moving. The scroller is the
+    // right node because the header is INSIDE it — one transform carries the
+    // bar, the ribbon and the chart together — and the pull only arms at
+    // `scrollTop === 0`, so nothing is scrolled out from under the transform.
     const paint = (d) => {
-      const head = headRef.current;
-      if (head) head.style.transform = d ? `translateY(${d}px)` : '';
+      const body = sc;
+      if (body) body.style.transform = d ? `translateY(${d}px)` : '';
       const hint = hintRef.current;
       if (!hint) return;
       hint.style.opacity = String(Math.min(1, d / 28));
@@ -907,12 +920,11 @@ export default function Reader({
       const p = pullRef.current;
       pullRef.current = null;
       if (!p) return;
-      const head = headRef.current;
       // Animate the snap back, then take the transition off again so the next
       // pull tracks the thumb instead of easing behind it.
-      if (head) head.style.transition = 'transform 180ms ease-out';
+      sc.style.transition = 'transform 180ms ease-out';
       paint(0);
-      setTimeout(() => { if (head) head.style.transition = ''; }, 200);
+      setTimeout(() => { sc.style.transition = ''; }, 200);
       if (p.d >= TRIGGER) pullLiveRef.current.done?.();
     };
     sc.addEventListener('touchstart', onStart, { passive: true });
@@ -1570,6 +1582,12 @@ export default function Reader({
               onEditNote={config.can.writeNotes && onUpdateSong && !editing
                 ? (lineIdx, text) => editSectionNote(section, lineIdx, text)
                 : null}
+              // ⚠ The `+` on an EMPTY line shows only in the section you are
+              // reading. One per line would be ~30 on a real song — the noise
+              // the `+ cue` avoids by there being one per section. Tying it to
+              // `useActiveSection` caps it at the two or three lines in front
+              // of you and it follows you down the song.
+              noteHintHere={activeSection === idx}
             />
           ))}
           </div>

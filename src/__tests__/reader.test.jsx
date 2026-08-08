@@ -1264,11 +1264,13 @@ describe('element 3 — the rail never covers a word', () => {
     // except on the rail's own side, which holds its 32px so the dots still sit
     // in margin rather than on lyrics.
     const chart = container.querySelector('.wide-container.py-3');
+    // The rail is on the LEFT here, so that side holds its 32px. The other side
+    // comes in like everywhere else — see the test below.
     expect(chart.style.paddingLeft).toBe('32px');
-    expect(chart.style.paddingRight).toBe('32px');
+    expect(chart.style.paddingRight).toBe('12px');
   });
 
-  it('brings the words to the left edge on a phone, and keeps the rail side', () => {
+  it('brings the words to the left edge at EVERY width, and keeps the rail side', () => {
     // Owner, 2026-08-06: *"on mobile the sections should start right next to
     // the left side of the screen because the right side should be for inline
     // notes"*. 32px a side on a 390px screen is 16% spent on nothing; measured,
@@ -1289,12 +1291,24 @@ describe('element 3 — the rail never covers a word', () => {
     expect(chart.style.paddingRight).toBe('32px');
     r.unmount();
 
-    // A wide screen keeps the app-wide 32px both sides.
+    // ⚠ A WIDE screen gets it too, since 2026-08-08. It used to keep the
+    // app-wide 32px both sides, which meant the iPad — the device most of this
+    // is actually read on — never got the change (owner: *"we moved the lyrics
+    // on mobile to the left, but we never did that on tablet"*). The argument
+    // was never about screen size; the right side belongs to notes at every
+    // width.
     mockWidth(true);
-    render(<Reader song={longSong()} settings={{ structurePosition: 'top' }} onExit={() => {}} />);
+    r = render(<Reader song={longSong()} settings={{ structurePosition: 'top' }} onExit={() => {}} />);
+    chart = document.querySelector('.wide-container.py-3');
+    expect(chart.style.paddingLeft).toBe('12px');
+    expect(chart.style.paddingRight).toBe('12px');
+    r.unmount();
+
+    // ...and a wide screen with a rail still keeps that one side at 32px.
+    render(<Reader song={longSong()} settings={{ structurePosition: 'left' }} onExit={() => {}} />);
     chart = document.querySelector('.wide-container.py-3');
     expect(chart.style.paddingLeft).toBe('32px');
-    expect(chart.style.paddingRight).toBe('32px');
+    expect(chart.style.paddingRight).toBe('12px');
   });
 });
 
