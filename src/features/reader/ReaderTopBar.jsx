@@ -161,22 +161,38 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
             A mis-tap here costs you a panel, not the service. */}
         {leading}
 
-        {/* You cannot walk out of edit mode through the exit (owner,
-            2026-08-03: "it should not allow me to leave while I have the editor
-            open"). Leaving mid-edit stranded the change — applied, but with no
-            way back to Cancel it. Finish or discard first; both are one tap
-            away in the edit row. */}
-        {onExit && (
+        {/* ── The right-hand slot: ✕ while reading, the word "Cancel" while
+            editing ──────────────────────────────────────────────────────────
+            The slot used to be DISABLED in edit mode (owner, 2026-08-03: "it
+            should not allow me to leave while I have the editor open"), which
+            left dead pixels in the most reachable spot on the screen. The guard
+            was right; the answer was wrong. It is Cancel now.
+
+            ⚠ But it is WORDS, not the ✕. The deleted edit bar had already
+            settled this: *"only undo is an icon, because the curved arrow is
+            universal — everything else is text. 'Which one discards my work' is
+            a question no 16px glyph answers."* Keeping ✕ here made the same
+            glyph mean "leave the song" and "throw away what you just did"
+            depending on a mode, in the one corner where muscle memory is
+            strongest. The word costs a few pixels of a bar that carries no
+            tools in this mode anyway. */}
+        {onExit && (editing ? (
+          <button
+            type="button"
+            onClick={onExit}
+            className="min-h-0 h-[26px] shrink-0 px-2.5 rounded-lg border text-label-11 font-semibold cursor-pointer"
+            style={{
+              backgroundColor: 'transparent',
+              borderColor: 'rgba(255,255,255,0.45)',
+              color: '#fff',
+            }}
+          >
+            Cancel
+          </button>
+        ) : (
           <IconButton
             size="sm"
             className={BAR_BUTTON}
-            // ⚠ In edit mode this is CANCEL, not Exit — the reader relabels it
-            // and hands it a different handler. It used to be DISABLED here:
-            // dead pixels in the most reachable spot on the screen, guarding
-            // against "leaving mid-edit strands the change". The guard was
-            // right and the answer was wrong — ✕ already means "get out without
-            // keeping", which is exactly what Cancel is. See `Reader`'s
-            // `requestCancelEdit` for the confirm that makes a mis-tap safe.
             aria-label={exitLabel}
             disabled={exitDisabled}
             title={exitDisabled ? 'Finish editing first' : undefined}
@@ -184,7 +200,7 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
           >
             <CloseIcon />
           </IconButton>
-        )}
+        ))}
         </div>
       </div>
 

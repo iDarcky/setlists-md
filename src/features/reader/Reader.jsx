@@ -188,6 +188,24 @@ export default function Reader({
   // of chart scroll that only exists while the ☰ is open, on top of the
   // panel's own scroll. That is the second scrollbar.
   const [footH, setFootH] = useState(0);
+  // The RESTING height of that block — what it measures while you are just
+  // reading, with no click row and no edit mode.
+  //
+  // ⚠ The floating controls are anchored above the bottom block, and the block
+  // changes height for reasons that have nothing to do with them. Entering edit
+  // mode REMOVES the nav row, so `footH` collapsed and the circles fell to the
+  // bottom of the screen — the button you had just pressed moved out from under
+  // your thumb as a result of pressing it. Opening the click pushed them the
+  // other way. Two adjacent buttons, two opposite motions, neither asked for
+  // (owner, 2026-08-09: *"right now the buttons are a bit strange"*).
+  //
+  // So the anchor has a FLOOR: the circles never sit lower than they do at
+  // rest. Edit mode no longer moves them at all, and the only thing that does
+  // is the click row — one motion, in one direction, caused by the one button
+  // that means "make room for a bar". It costs no layout: this moves a
+  // button's offset, it does not reserve space.
+  const [restH, setRestH] = useState(0);
+  const modeRef = useRef({ editing: false, practiceOpen: false });
   // The ☰ menu, anchored to its button. Standalone this opens `ReaderMenu` —
   // the reader's own four-row menu. EMBEDDED (the Song Hub, the side peek) the
   // host owns the Aa button and passes a rect down, and that still opens
@@ -347,6 +365,13 @@ export default function Reader({
       const box = entries[0]?.borderBoxSize?.[0]?.blockSize;
       const h = box ?? el.getBoundingClientRect().height ?? 0;
       setFootH(prev => (Math.abs(prev - h) <= 0.5 ? prev : h));
+      // ...and the RESTING height, captured only while nothing is adding to the
+      // block, so the floor is "the bar you always have" and never "the tallest
+      // it ever got". See `restH`.
+      const { editing: isEditing, practiceOpen: isPractice } = modeRef.current;
+      if (h && !isEditing && !isPractice) {
+        setRestH(prev => (Math.abs(prev - h) <= 0.5 ? prev : h));
+      }
     });
     ro.observe(el);
     return () => { ro.disconnect(); setFootH(0); };
@@ -444,6 +469,12 @@ export default function Reader({
   const canEdit = !embedded && config.can.editSong && !!onUpdateSong;
   const editing = canEdit && editSession?.id === songId;
   const editBase = editing ? editSession.base : null;
+
+  // What the block is doing right now, for the observer below to read. A REF
+  // and not a dependency: `setRestH` has to happen where the height is
+  // measured, and calling setState straight out of an effect body is a
+  // cascading render (the React compiler rule that caught this).
+  useEffect(() => { modeRef.current = { editing, practiceOpen }; }, [editing, practiceOpen]);
 
   // Report the mode outward, so the HOST can lock its own controls (the
   // setlist's nav and rail). An effect, because it synchronises an external
@@ -1899,7 +1930,7 @@ export default function Reader({
           // arithmetic version cleared 24% of the reader and left the button
           // sitting on top of the panel's first row. Two different boxes with
           // one plausible-looking multiplication between them: measure it.
-          bottom={footH + dockH}
+          bottom={Math.max(footH, restH) + dockH}
         />
       )}
 

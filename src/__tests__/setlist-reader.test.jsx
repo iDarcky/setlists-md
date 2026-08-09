@@ -416,7 +416,7 @@ describe('edit mode', () => {
     openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     expect(screen.queryByRole('button', { name: 'Exit' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Cancel editing' }).disabled).toBe(false);
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(false);
   });
@@ -470,7 +470,7 @@ describe('edit mode', () => {
     // and CLONES the whole reader tree on every attempt. Against this component
     // that is slow enough to read as a hang.
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel editing' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     });
     expect(ask).toHaveBeenCalled();
     // Restored from the snapshot taken on entry — the same one the fork uses.
@@ -488,12 +488,12 @@ describe('edit mode', () => {
     editThen(onUpdateSong, dirtied);
     onUpdateSong.mockClear();
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel editing' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     });
     expect(ask).toHaveBeenCalled();
     expect(onUpdateSong).not.toHaveBeenCalled();
     // Still editing — the mis-tap cost nothing.
-    expect(screen.getByRole('button', { name: 'Cancel editing' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
     ask.mockRestore();
   });
 
@@ -501,7 +501,7 @@ describe('edit mode', () => {
     const ask = vi.spyOn(window, 'confirm').mockReturnValue(true);
     editThen(vi.fn(), null);
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel editing' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     });
     expect(ask).not.toHaveBeenCalled();
     ask.mockRestore();
@@ -518,7 +518,7 @@ describe('edit mode', () => {
     openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel editing' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     });
     expect(ask).not.toHaveBeenCalled();
     ask.mockRestore();
@@ -710,7 +710,7 @@ describe('edit mode — locking and the section controls', () => {
     // ✕ is not inert — it is Cancel now, the one way out that cannot strand a
     // change. Everything else that could carry you off mid-edit still goes.
     expect(screen.queryByRole('button', { name: 'Exit' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Cancel editing' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
     // The whole nav row goes, rather than sitting there as a bar of dead
     // controls under the edit row.
     expect(screen.queryByRole('button', { name: 'Next song' })).toBeNull();
