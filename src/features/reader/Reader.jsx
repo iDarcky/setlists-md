@@ -1732,18 +1732,21 @@ export default function Reader({
               onEditCue={config.can.writeNotes && onUpdateSong && !editing
                 ? (text) => editSectionCue(section, text)
                 : null}
-              // ⚠ Gates the TAP, not just the `+`. Passing `onEditNote`
-              // unconditionally left every lyric line opening a note field on
-              // any tap, in or out of the mode — including the empty gutter
-              // (owner, 2026-08-09: *"the notes still open when you press the
-              // lyrics or in the right side"*). The mode is the gate.
-              onEditNote={noteMode === 'note' && config.can.writeNotes && onUpdateSong && !editing
+              // ⚠ NOT gated on the mode — `noteHintHere` is. The gate belongs
+              // on the empty affordances (the `+` and the whole-lyric tap that
+              // places a note), never on the note that is already there. Gated
+              // here, two things broke at once: an existing note came out as a
+              // dead `role="button"`, and because the mode disarms after every
+              // write the note you had just typed was untappable the instant
+              // you pressed Enter (owner, 2026-08-09: *"I put a note then I
+              // want to re-edit that note and I cannot"*).
+              onEditNote={config.can.writeNotes && onUpdateSong && !editing
                 ? (lineIdx, text) => editSectionNote(section, lineIdx, text)
                 : null}
               noteHintHere={noteMode === 'note'}
-              // The `+ cue` placeholder is gated the same way. An EXISTING cue
-              // stays tappable at all times — only the empty affordance waits
-              // to be asked for.
+              // Same split for cues, which is why cues never had the bug: an
+              // EXISTING cue stays tappable at all times, only the empty `+ cue`
+              // placeholder waits to be asked for.
               cueHintHere={noteMode === 'cue'}
             />
           ))}

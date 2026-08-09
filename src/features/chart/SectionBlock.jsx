@@ -193,9 +193,25 @@ export default function SectionBlock({
     />
   );
 
-  const noteGutter = (text, hasChordRow = false) => (
+  // ⚠ An EXISTING note needs no arming. `noteHint` exists to answer "which
+  // line?" for a note that isn't there yet; a note that IS there has already
+  // answered it, and the mode disarms itself after every write — so gating this
+  // on the mode meant the note you had just finished typing was untappable the
+  // instant you pressed Enter (owner, 2026-08-09: *"I put a note then I want to
+  // re-edit that note and I cannot"*). It shipped carrying `role="button"` and
+  // `title="Edit this note"` with no handler at all: a control that announced
+  // itself as editable, to sighted users and to a screen reader, and did
+  // nothing. Say it does something or say nothing.
+  const noteGutter = (text, hasChordRow = false, lineIdx = null) => (
     <span
-      {...(onNoteOpen ? { role: 'button', tabIndex: 0, title: 'Edit this note' } : null)}
+      {...(onNoteOpen && lineIdx != null ? {
+        role: 'button', tabIndex: 0, title: 'Edit this note',
+        style: { cursor: 'pointer' },
+        onClick: (e) => { e.stopPropagation(); onNoteOpen(lineIdx, text); },
+        onKeyDown: (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onNoteOpen(lineIdx, text); }
+        },
+      } : null)}
       className="text-[0.72em] leading-snug self-start whitespace-pre-wrap"
       data-note-gutter=""
       style={{ color: text.trim().startsWith('!') ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--text-2))',
@@ -326,7 +342,7 @@ export default function SectionBlock({
           >
             <span
               className="whitespace-pre-wrap"
-              {...(onNoteOpen ? {
+              {...(onNoteOpen && noteHint ? {
                 role: 'button', tabIndex: 0, title: 'Add a note to this line',
                 style: { cursor: 'pointer' },
                 onClick: () => onNoteOpen(idx, inlineNote || ''),
@@ -342,7 +358,7 @@ export default function SectionBlock({
           </div>
           {notePlacement === 'gutter' && (
             noteDraft?.lineIdx === idx ? noteGutterEditor()
-              : showNote ? noteGutter(inlineNote)
+              : showNote ? noteGutter(inlineNote, false, idx)
               : (noteHint && onNoteOpen) ? noteGutterHint(idx)
               : <span />
           )}
@@ -449,7 +465,12 @@ export default function SectionBlock({
         <div style={{ ...(gutterGrid || {}), breakInside: 'avoid' }}>
         <div
           className="flex flex-wrap items-end"
-          {...(onNoteOpen ? {
+          // ⚠ `noteHint`, NOT `onNoteOpen`. This is the whole lyric line — the
+          // biggest tap target on the page — so it may only listen while you
+          // have actually ASKED to place a note. Gated on the prop instead, it
+          // opened a note field on any tap anywhere, including the empty
+          // gutter. The note ITSELF is tappable without arming; the lyric is not.
+          {...(onNoteOpen && noteHint ? {
             role: 'button', tabIndex: 0, title: 'Add a note to this line',
             style: { cursor: 'pointer' },
             onClick: () => onNoteOpen(idx, inlineNote || ''),
@@ -518,7 +539,7 @@ export default function SectionBlock({
         </div>
         {notePlacement === 'gutter' && (
           noteDraft?.lineIdx === idx ? noteGutterEditor(true)
-            : (inlineNotes && inlineNote) ? noteGutter(inlineNote, true)
+            : (inlineNotes && inlineNote) ? noteGutter(inlineNote, true, idx)
             : (noteHint && onNoteOpen) ? noteGutterHint(idx, true)
             : <span />
         )}
