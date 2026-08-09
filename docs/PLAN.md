@@ -68,6 +68,8 @@ any of it. Also landed: the component-architecture foundation (§3.1, all ✅).
 > | **Closed** | **1 — top bar** ✅ 2026-08-04, eleven rounds. It turned out to contain all of **edit mode** (orange chrome, structure editing from the song map, per-section lyric editing, chord replacement, undo, New version, pull-to-finish), the set bar's progress line, the chrome's real height, and the rail's toggle. |
 > | **Closed** | **2 — the ☰, the reader's settings menu** ✅ 2026-08-04, fifteen rounds. Three tabs (Style · Layout · Music), three shapes (phone dock · desktop side panel · popover), free-vs-Pro decided, and **seven settings that were wired at one end only**. `READER.md` → "Element 28 → 2, CLOSED". |
 > | **Closed** | **3 — the structure ribbon** ✅ 2026-08-06, thirteen rounds. Three styles (Boxes · Chips · Dots), five positions of which **left/right are always dots**, fading ends, a key-change mark, Tag-opens-in-place, a chip that lands on the reading line, and a side rail that shows the whole song and **scrubs**. It also turned up four bugs older than the element: the chart never used the window's full width, two readers in the DOM broke every full-screen jump, painting the rail under the chart made it unclickable, and the next song kept the previous song's scroll (prio 0). `READER.md` → "The element-3 pass". |
+> | **Closed** | **5 — notes** ✅ 2026-08-09, six rounds. It started as "what does a note look like" and became **where editing lives**: one mode, no arming, and a rule that assigns every control to a surface (bar = where you are · corner = what you do to the song · footer = where you're going). The edit bar is gone, Cancel is a word in the top bar, live can do nothing to a song, and the ☰ leaves edit mode entirely — *"you're changing the song, not the screen."* Also: three declared-but-unread capabilities, the ț bug (a 6px unpainted margin under a sticky heading, not multicol), and ~830 lines of orphans. `READER.md` → "The element-5 pass". |
+> | **Next** | **6/7 — chords and lyrics.** One pass, both numbers. Mostly settled already (chords above lyrics, per-word grouping, lyrics NEVER truncated, the `chordFollows` spacing rule, everything user-settable) — so this is polish plus two decisions. ⚠ **Element 19 (capo) lands inside it**: the chart shows sounding chords and a capoed guitarist wants shapes; element 11 already ruled capo out for *diagrams*, the chart itself is undecided. |
 > | **Closed** | **4 — the section heading, and 4b the band cue** ✅ 2026-08-06, five rounds. Sizes you can read, eleven section types in eleven colours, four frames that take no width from the words, the left edge on a phone, a note gutter down the right, pinning tied to the column count, `↩ BRIDGE ×3`, and a tag that closes again. It also turned up **seven bugs older than the element** — the band-cue space bug (§1.2 #3c), a new section reverting to Verse, hyphenated `Pre-Chorus` falling off the colour table, `?` for every unknown type, a one-line section hidden behind its own heading, and two documented defaults nobody has ever had. `READER.md` → "The element-4 pass". |
 > | **Next** | **5 — Notes**, widened from "inline notes" to **all four layers** (owner, 2026-08-06): the band cue, the inline `{!…}`, the arrangement note and the private "My note". WHERE an inline note goes is already settled by element 4's pass (a gutter, per section that has one); element 5 is what a note looks like, what it can say, and how the layers relate. |
 > | **Then** | **29 — the setlist rail.** Its permanent strip was removed in element 4's pass (owner pulled it forward: *"remove the rail on ipad to win more space"*); the rest of it is still open. Then the 14–27 table. |
@@ -558,6 +560,26 @@ Each doubles the work of the pass that touches it.
 - [ ] `Button2` + `PageHeaderLegacy` — now isolated in `features/design/`;
       nothing but the showcase imports them. Deleting is a decision about the
       showcase, not a refactor.
+- [x] ✅ **The 2026-08-04 folder move's orphans** — deleted 2026-08-09, ~830
+      lines: `app/Sidebar.jsx`, `pdf/renderers.js` (the exporters had inlined
+      their own copies), `features/import/ImportTab.jsx` + `BrowseTab.jsx`,
+      `features/editor/ChordPalette.jsx`,
+      `features/setlist-editor/BandReadCard.jsx`,
+      `features/team/TeamBanner.jsx`, `features/sync/SyncStatus.jsx`.
+- [x] ✅ `settings.stageMode` and the whole `chordEmphasis` chain it fed —
+      deleted. Bassist root-emphasis (`C/E` → `E`) was built, rendered and
+      reachable by no user, because nothing wrote the setting. If it is ever
+      wanted it should hang off `myInstrument`, the axis that exists.
+- [x] ✅ `ReaderEditBar` — its four controls moved to the corner and the top bar.
+
+⚠ **`sync/merge.js` is NOT dead — do not delete it on sight.** Nothing imports
+it, so every orphan sweep will flag it. It is field-level three-way merge with
+**11 passing tests** (`src/__tests__/merge.test.js`), built to stop a Yes/Yes
+conflict where one person fixed a tempo and another added a tag from reaching a
+human at all — i.e. aimed straight at the "73 conflicts" symptom in CLAUDE.md.
+It is **built and tested but wired to nothing**, the same family as the
+declared-but-unread capabilities element 5 found. It needs an owner and a
+session, not a delete.
 
 ### 3.7 Cross-cutting, cheapest during each pass
 

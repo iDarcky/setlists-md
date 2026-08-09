@@ -1045,16 +1045,20 @@ describe('element 3 — edit mode takes the map to the top', () => {
       <Reader song={makeSong()} settings={{ structurePosition: 'bottom' }} onExit={() => {}}
         onUpdateSong={() => {}} mode="practice" />,
     );
-    // A raw button count in the head as a proxy for "the ribbon moved up". It
-    // needed a filter while element 5's control lived in the bar — that control
-    // was present OUT of edit mode and absent INSIDE it, so the ribbon arriving
-    // and the button leaving cancelled exactly (5 → 5) and the test failed while
-    // the behaviour was correct. The bar carries no tools in any mode now, so
-    // the count is clean again. The ribbon itself cannot be selected across both
-    // states: `overflow-x-auto` normally, `flex-wrap` while editing, because
-    // editing makes it reorderable.
-    const inHead = () => container.querySelectorAll('.reader-head button').length;
-    const before = inHead();
+    // ⚠ Asserts WHERE the ribbon is, not how many buttons the head has. The
+    // count was a proxy, and it has now been wrong twice for opposite reasons:
+    // first element 5's control was in the bar out of edit mode and gone inside
+    // it (the ribbon arriving and the button leaving cancelled exactly, 5 → 5),
+    // and now the ☰ leaves on entering edit, which cancels it again. A proxy
+    // that has to be re-derived every time the bar changes is not measuring the
+    // thing the test is about.
+    //
+    // The `+` exists ONLY in edit mode and belongs to the ribbon, so finding it
+    // inside `.reader-head` says exactly this test's claim: with
+    // `structurePosition: 'bottom'`, editing brings the map up to the top.
+    const head = () => container.querySelector('.reader-head');
+    const plusInHead = () => !!head()?.querySelector('[aria-label^="Add a section"]');
+    expect(plusInHead()).toBe(false);
 
     openSongActions();
     fireEvent.click(screen.getByRole('button', { name: /^edit this song/i }));
@@ -1062,9 +1066,8 @@ describe('element 3 — edit mode takes the map to the top', () => {
     // to normal". It used to rescue 'off', 'left' and 'right' only — a bottom
     // ribbon stayed under the nav bar, which is the furthest possible place
     // from the change you are making.
-    expect(inHead()).toBeGreaterThan(before);
-    // The `+` that only edit mode has is up there with it.
     expect(screen.getByRole('button', { name: /add a section/i })).toBeTruthy();
+    expect(plusInHead()).toBe(true);
   });
 });
 

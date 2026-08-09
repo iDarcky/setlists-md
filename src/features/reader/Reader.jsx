@@ -1274,7 +1274,12 @@ export default function Reader({
     />
   ) : null;
 
-  const menuNode = ownAaAnchor ? (
+  // ⚠ DERIVED, not an effect that closes it on entry. Edit mode has no ☰
+  // button, so a panel left open would have no way back — and on a phone it is
+  // 40% of the screen sitting over the thing you came here to change. Gating
+  // here means the anchor simply stops meaning anything while editing, and the
+  // panel is exactly where you left it when you finish.
+  const menuNode = ownAaAnchor && !editing ? (
     <ReaderMenu
       dock={menuDocks ? 'bottom' : 'side'}
       onUpgrade={onUpgrade}
@@ -1327,8 +1332,20 @@ export default function Reader({
           aboveBar={aboveBar}
           leading={railButton}
           title={song.title}
-          onMenu={(rect) => setOwnAaAnchor(a => (a ? null : rect))}
-          menuOpen={!!ownAaAnchor}
+          // ⚠ GONE while editing, not disabled and not live. The category
+          // argument settles it (owner, 2026-08-09): *"you're changing the
+          // song, not the screen."* The ☰ is how the page is PAINTED — the same
+          // reason `ReaderActions` gives for keeping it out of the corner — and
+          // edit mode is about the song. Two rounds were spent on the other two
+          // answers: dead-but-present (pixels that look broken) and re-enabled
+          // (harmless, which is not a reason FOR a control).
+          //
+          // The title shifting left is the cost, and it is the right cost: the
+          // whole bar changes colour and its right-hand control changes from a
+          // glyph to a word at the same instant. Nothing INTERACTIVE moves under
+          // a thumb — that is the jump the floating circles were fixed for.
+          onMenu={editing ? null : (rect) => setOwnAaAnchor(a => (a ? null : rect))}
+          menuOpen={!editing && !!ownAaAnchor}
           // ⚠ In edit mode ✕ IS Cancel. It was disabled here — dead pixels in
           // the most reachable spot on the screen, guarding against "leaving
           // mid-edit strands the change". The guard was right and the answer

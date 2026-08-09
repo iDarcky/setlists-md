@@ -490,7 +490,7 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
   **The inline-note half of that report does not reproduce** — inline notes are
   edited in a local-state input and only trim at render.
 
-### 5 — Notes — **NEXT** *(was "inline notes"; widened 2026-08-06)*
+### 5 — Notes — **CLOSED 2026-08-09** *(was "inline notes"; widened 2026-08-06)*
 
 > **Element 5 is every note, not one kind of note** (owner, 2026-08-06:
 > *"element 5 should actually become notes, and this should include all the
@@ -533,6 +533,110 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
   Top-aligned, offset by exactly one chord row.
 - **Capped at 40 characters at the input.**
 - A leading `!` means loud, the same as a cue.
+
+#### The element-5 pass — CLOSED 2026-08-09
+
+Six rounds. It started as "what does a note look like" and turned into **where
+does editing live**, because the honest answer to "can you write a cue from the
+reader" turned out to require answering "what is a mode".
+
+**The decisions, in the order they were forced:**
+
+**Editing is one mode.** Two rounds were spent moving a single gate around: arm
+"Note", then tap a line; then existing notes tappable without arming — which let
+a cue be rewritten while merely reading (owner: *"why can I edit them without
+having the exit toggled?"*). Both were the same mistake, a second lighter editing
+mode beside the real one. There is one now. Outside it a cue and a note are text.
+Inside it every cue and note on the song is writable at once — no arming, no
+picking, no instruction line — beside the section pencils that were already
+there. Owner: *"that's the whole point. You want to edit something... you are
+just there focusing on editing."*
+
+**The three surfaces, and the rule that assigns controls to them.** This is the
+element's most reusable output:
+
+  · the TOP BAR says **where you are** — ☰ · title · key · ✕
+  · the CORNER says **what you do to the song** — Edit / Done, click / Undo
+  · the FOOTER says **where you're going** — prev / next / finish
+
+The bar reached five icons beside a truncating title (owner: *"too much for the
+header"*) and the fix was not to prune the list but to notice the list was
+answering a different question. **The bar now carries no tools in any view or
+mode** and is the one thing in the reader whose shape never changes.
+
+**The corner is two circles, not a menu.** Round 3 built one button with a stack
+of four and the stack hid that its contents answered two questions. 48px primary,
+44px satellite: size is the whole hierarchy, readable before either glyph is.
+
+**⚠ Two rounds were lost to "harmless" as an argument.** The ☰ in edit mode went
+disabled → re-enabled → gone. Re-enabling was justified as "the reason it was
+disabled expired, and it can't hurt anything". The owner's counter settled it in
+one line: *"you're changing the song, not the screen."* A category argument beats
+a safety argument, and *harmless is never a reason FOR a control*. The rule was
+already written in `ReaderActions` — the ☰ stays out because that is how the page
+is PAINTED — and got contradicted anyway.
+
+**There is no edit bar.** Its four controls all had homes: Done → the big circle,
+in place; Undo → the satellite slot the click vacates; Cancel → the top bar's ✕,
+which was DISABLED there (dead pixels in the most reachable spot on screen); New
+version → a labelled pill above the circles, only when dirty. A whole bar of
+chart back on a phone, and edit mode is down to element 12's two-bars maximum.
+
+**Cancel is a WORD.** Moving it onto ✕ made one glyph mean "leave the song" and
+"throw away what you just did" depending on a mode, in the corner where muscle
+memory is strongest. The deleted edit bar had already settled it — *"'which one
+discards my work' is a question no 16px glyph answers"* — and it got broken two
+commits after being quoted. It confirms, but **only when dirty**: a confirm on an
+untouched song teaches people to dismiss confirms.
+
+**Live can do nothing to a song.** `practiceTools: false` there too, which
+REMOVES the metronome from the service view — the owner's call, twice.
+
+**Enter chains.** Committing a note opens the next line's, skipping tabs and
+modulate markers. Marking up a chart is a verse, not one note.
+
+**The signal on empty lines.** ~30 `+` marks down a song is noise while READING
+and simply the affordance while EDITING — which already puts a pencil and a trash
+on every heading. The gutter takes a hairline down its left edge while writable
+so the marks read as a column's contents rather than litter. Owner: *"we need to
+signal to the users that they can [write] there otherwise how would they know"*.
+
+**Anchoring.** The floating controls sit above the bottom block, and that block
+changes height for reasons that have nothing to do with them: entering edit mode
+removed the nav row, so the circles fell and *the button you had just pressed
+moved out from under your thumb as a result of pressing it*. The anchor has a
+floor now — the block's resting height — so only the click row moves them, one
+direction, animated. Measured at 390px: reading 779/721, editing 779/721, click
+open 738/680.
+
+**Three bugs of one family, found by sweeping rather than by report.** A
+capability declared and read by nothing (`writeNotes`, `saveKey`) and a field
+read but never written (`item.key`). All three present identically: you use the
+feature, nothing happens, no error anywhere. `switchArrangement` reads zero too
+but honestly — element 21 isn't built. `settings.stageMode` was the same shape
+and the whole chain went (see below).
+
+**⚠ The ț was not what it looked like.** Diagnosed as multicol fragmentation and
+"fixed" with `break-inside: avoid`, which changed nothing because nothing was
+fragmenting. The heading carried `mb-1.5` — a 6px MARGIN, and margins are not
+painted — so a pinned opaque heading had a 6px transparent strip under it that
+lyrics scrolled through. Most letters never reach into it; U+021B's comma is a
+real descender, so its letter stayed hidden behind the heading while its comma
+appeared in the gap. **A sticky element's painted box must reach the content it
+covers, and only padding paints.**
+
+**Removed as part of the pass:** `stageMode` + the whole `chordEmphasis` chain it
+fed (bassist root-emphasis was built, rendered, and reachable by no user);
+`ReaderEditBar`; `StructureRibbon`'s `MetaPill`; `ReaderTopBar`'s exported
+`MenuIcon`; and eight orphaned modules left behind by the 2026-08-04 folder move.
+
+**Still open, carried out of element 5:**
+- The **arrangement note** and **"My note"** (`team_notes`) still have no home in
+  the reader — that is element 22, unchanged by this pass.
+- The setlist item note is element 10's.
+- `sync/merge.js` is **built and tested (11 tests) but wired to nothing** — the
+  three-way merge that would stop trivial conflicts reaching a human. Same family
+  as the bugs above; it needs an owner, not a delete.
 
 ### 6/7 — Chords and lyrics
 - Chords above lyrics, per-word grouping so a line only wraps at a space.

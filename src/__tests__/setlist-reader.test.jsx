@@ -714,11 +714,12 @@ describe('edit mode — locking and the section controls', () => {
     // The whole nav row goes, rather than sitting there as a bar of dead
     // controls under the edit row.
     expect(screen.queryByRole('button', { name: 'Next song' })).toBeNull();
-    // ⚠ The ☰ is LIVE while editing. It was disabled because Cancel used to be
-    // out of reach at the bottom of the screen, so anything that could take
-    // your attention elsewhere was a way to strand a change. Cancel is in this
-    // bar now, and the ☰ never left the song anyway — it opens a display panel.
-    expect(screen.getByRole('button', { name: 'Display options' }).disabled).toBe(false);
+    // ⚠ GONE, not disabled. The ☰ is how the page is PAINTED and edit mode is
+    // about the SONG (owner: "you're changing the song, not the screen") — a
+    // category argument, not a safety one, which is why it outranks "it is
+    // harmless". Dead-but-present was the previous answer and it left pixels in
+    // the bar that looked broken.
+    expect(screen.queryByRole('button', { name: 'Display options' })).toBeNull();
     // GONE, not disabled — the click's satellite unmounts while editing. Same
     // argument the setlist counter makes below: not being a button at all is
     // stronger than being a disabled one.

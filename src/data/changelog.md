@@ -54,6 +54,8 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Eleven section types, eleven colours** — Intro and Tag used to share a blue, Refrain and Interlude a purple, Pre Chorus, Instrumental and Vamp an amber, and Ending and Outro a red, so the heading and its chip could name two different sections in one colour. The five the room sings (Verse, Pre Chorus, Chorus, Refrain, Bridge) are vivid; the six the band plays sit back a shade. Every colour is checked for contrast on the real chart backgrounds, light and dark.
 - **A repeat you opened can close again (Labs)** — the tag opens the chorus where you're singing it, and a small ▴ on the heading puts it back.
 - **Back-to-back repeats are one tag (Labs)** — a bridge played four times is the bridge and one `↩ BRIDGE ×3`, not three identical pills stacked up. It carries a ▾ so it reads as something you can open, and opening it opens the whole run.
+- **Write a note or a band cue from the reader (Labs)** — tap Edit and every line of the song grows a ＋ in the margin beside it, every section heading a ＋ cue. Write where you're looking, without leaving for the editor. Press Enter and it saves and moves to the next line, so marking up a whole verse is one pass. Tapping a note you already wrote opens it again.
+- **Edit and the metronome float where your thumb is (Labs)** — two round buttons in the bottom-right corner of the reader instead of a row of icons squeezed beside the song's title. They step out of the way while you scroll and come back when you stop.
 
 ### Improved
 - **The reader's ☰ menu wears the chart's own colours (Labs)** — it used to be an app-coloured panel with a couple of chart-coloured details leaking into it, so on a cream chart theme in a dark app it never quite belonged to the page it was changing. It now sits on the same paper as the song, which means the theme and colour swatches preview against the thing they're actually about.
@@ -161,6 +163,11 @@ A running log of what's new in setlists.md. Newest releases first.
 - **A short section doesn't hide behind its own heading (Labs)** — a one-line outro had over half its only line behind the heading naming it.
 - **The setlist rail takes no room until you ask for it (Labs)** — it used to keep a strip permanently docked down the side of a tablet or desktop. Tap the `x / x` counter at the bottom to open the whole list; on the swipe and edge modes the edge still opens it too. Its on/off setting has gone with the strip.
 - **A long band cue shows two rows and stops (Labs)** — enough to read, never enough to push the song off the screen, and the note itself is untouched.
+- **Editing is one mode, and nothing changes outside it (Labs)** — notes and cues used to have a little editing mode of their own, so a note could be rewritten while you were only reading. Now the song only changes while you're editing it, and while you are, everything on it is editable at once — no arming, no picking what to change first.
+- **The reader's top bar never changes shape (Labs)** — it carries the song, its key and the way out, and nothing else, in every mode. Editing swaps the ✕ for the word Cancel so there is no doubt which one throws your work away, and it asks first if you've changed anything.
+- **Edit mode gave a whole bar back to the song (Labs)** — Done, Undo and Cancel moved to the corner and the top bar, so there's one less bar across the bottom while you work.
+- **Your instruments and your role are two different things** — one list of what you play, and separately whether you lead, contribute or read. Vocals now asks which part you sing.
+- **The setlist's key is the key you get** — choosing a key for a song inside a setlist now opens the reader in that key, and a key you change during practice sticks to the setlist rather than being forgotten.
 
 ### Fixed
 - **The next song starts at the top (Labs)** — moving to the next song in a set kept the previous song's scroll position, so song two opened three verses down, or past its own end if it was shorter.
@@ -215,6 +222,10 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Pre-Chorus is a pre-chorus however you spell it** — written with a hyphen (which is how most charts and every import write it) it fell off the colour list entirely: a grey heading and a `?` in the song map. Any section type the app doesn't know now shows its initials rather than a question mark.
 - **Closing one of three repeats no longer loses it (Labs)** — closing the last of a run made it vanish until you closed the one before it.
 - **A song stops re-uploading itself forever** — if one of your devices was running an older version of the app, the two would take turns adding and removing a song's extra details (language, writers, year, original title), each seeing the other's change as an edit. On one song that happened 29 times in a fortnight. The app now carries any detail it doesn't recognise through untouched instead of deleting it, so an out-of-date device can never strip something a newer one added. Team activity histories are also tidied nightly rather than growing forever.
+- **The stray dot on Romanian songs is gone** — a ț's comma appeared on its own just above a section heading, with no letter attached, because the heading's background stopped six pixels short of the words scrolling underneath it.
+- **A comma no longer gets separated from its letter across two columns** — a line can't be split down the middle any more.
+- **The structure strip doesn't wobble** — it could be scrolled a few pixels up and down for no reason, so it rubber-banded every time you swiped along it.
+- **Setlists stop opening in a half-window on a tablet** — tapping a setlist opens it properly on every size of screen.
 - **"No line" and "Full repeats" really are the defaults** — the app said one thing and shipped another, and pressing Reset in the display menu changed a setting you'd never touched.
 
 ## 0.16.0 — Notifications, reliability, and a card-based editor

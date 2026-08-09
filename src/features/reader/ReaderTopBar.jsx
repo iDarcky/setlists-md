@@ -115,18 +115,8 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
               aria-label={menuOpen ? 'Close display options' : 'Display options'}
               aria-expanded={menuOpen}
               style={menuOpen ? { color: 'var(--chord)' } : undefined}
-              // ⚠ Live in EVERY mode now, including editing. It used to be
-              // rendered-but-disabled here ("dead, not gone", so the bar would
-              // not change shape when you pressed edit) and the reason it was
-              // dead was: *"an edit is a mode you leave deliberately, and every
-              // one of these is a way to wander out of it with the change
-              // applied and Cancel out of reach."*
-              //
-              // Cancel is not out of reach any more — it is the word sitting at
-              // the other end of this same bar. The premise expired, so the
-              // control comes back rather than staying as dead pixels. And it
-              // never was a way OUT: it opens a display panel, it does not leave
-              // the song. Nothing it contains can strand an edit.
+              // ⚠ The reader passes `onMenu = null` while editing, so this is
+              // absent there — not disabled. See `Reader`.
               onClick={(e) => {
                 // Read the rect synchronously: React nulls currentTarget once
                 // the handler returns, so a lazy state updater would see null.
