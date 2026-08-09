@@ -560,8 +560,23 @@ export default function ReaderSection({
       <div
         ref={headRef}
         data-section-anchor=""
-        className="mb-1.5"
         style={{
+          // ⚠ The 6px under this row is PADDING, never margin. It was
+          // `mb-1.5`, and a margin is not painted — so a pinned heading with an
+          // opaque background had a 6px transparent strip under it that the
+          // lyrics scrolled through. Most letters never reach into it. A
+          // Romanian ț does: U+021B's comma is a real descender, so as a line
+          // passed under the heading its comma appeared in the gap while the
+          // letter it belongs to stayed hidden behind the opaque row — a dot
+          // sitting above "Verse 2" that is "nowhere from the lyrics" (owner,
+          // 2026-08-08, on two songs).
+          //
+          // Diagnosed first as multicol fragmentation and "fixed" with
+          // `break-inside: avoid` on the line boxes, which changed nothing
+          // because nothing was fragmenting. The rule is simpler than the one I
+          // reached for: a sticky element's painted box must reach all the way
+          // to the content it covers. Only padding paints.
+          paddingBottom: '0.375rem',
           // ── The row's own type metrics ──────────────────────────────────────
           // Measured 2026-08-06: this row was **34.4px tall to hold a 16px
           // word**. It inherited the chart's 18px/27px body type, so the line
@@ -605,7 +620,9 @@ export default function ReaderSection({
             ? `linear-gradient(${id.fill}, ${id.fill}), var(--chart-bg, var(--ds-background-100))`
             : 'var(--chart-bg, var(--ds-background-100))',
           paddingTop: 'calc(0.2rem + 1px)',
-          paddingBottom: '0.2rem',
+          // The row's own breathing room PLUS the 6px that used to be a margin.
+          // Same total gap as before, all of it now inside the painted box.
+          paddingBottom: 'calc(0.2rem + 0.375rem)',
           marginLeft: style === 'tint' ? 'calc(-1 * var(--chart-pad-left, 12px))' : '-0.25rem',
           marginRight: style === 'tint' ? 'calc(-1 * var(--chart-pad-right, 12px))' : undefined,
           paddingLeft: style === 'tint' ? 'var(--chart-pad-left, 12px)' : '0.25rem',

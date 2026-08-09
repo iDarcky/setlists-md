@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { MetronomeIcon } from './ReaderPracticeRow';
-import { EditIcon } from './ReaderEditBar';
 
 /**
  * The reader's two floating controls, bottom-right: **Edit** (48px) with the
@@ -100,6 +99,7 @@ export default function ReaderActions({
       {showClick && (
         <Circle
           size={40}
+          glyph={18}
           aria={practiceOpen ? 'Close practice tools' : 'Practice tools'}
           pressed={practiceOpen}
           // Gold, not brand: `--chord` is already the colour a running click
@@ -117,6 +117,7 @@ export default function ReaderActions({
       {showEdit && (
         <Circle
           size={48}
+          glyph={22}
           aria="Edit this song"
           pressed={false}
           lit={false}
@@ -124,35 +125,74 @@ export default function ReaderActions({
           litInk="#fff"
           onClick={onEdit}
         >
-          <EditIcon />
+          <PencilIcon />
         </Circle>
       )}
     </div>
   );
 }
 
-function Circle({ size, aria, pressed, lit, litBg, litInk, onClick, children }) {
+/**
+ * ⚠ Two things here were wrong the first time and are worth keeping wrong-proof.
+ *
+ * **The glyph is sized off the circle, not hardcoded.** `MetronomeIcon` and the
+ * bar's `EditIcon` carry `width="15"`/`width="16"` — right for a 32px bar
+ * button, and left at that they made the 48px primary wear a 33%-of-diameter
+ * glyph while the 40px secondary wore 37.5%. The BIG button read weaker than
+ * the small one, which inverts the whole reason there are two sizes. Both are
+ * ~45% now, set in CSS so it overrides the SVG's own attributes.
+ *
+ * **A BORDER, not an outline.** An outline is painted outside the border box,
+ * so a 48px control drew a 50px ring and the two circles' rings sat at
+ * different offsets from their fills. A border is part of the box (Tailwind's
+ * preflight makes everything `border-box`), hugs `border-radius` identically on
+ * every engine, and keeps well clear of Firefox's focus-ring quirk on small
+ * round controls — see CLAUDE.md.
+ */
+function Circle({ size, glyph, aria, pressed, lit, litBg, litInk, onClick, children }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={aria}
       aria-pressed={pressed}
-      className="pointer-events-auto rounded-full grid place-items-center border-none cursor-pointer min-h-0"
+      className="pointer-events-auto rounded-full grid place-items-center cursor-pointer min-h-0 p-0"
       style={{
         width: size, height: size,
         backgroundColor: lit ? litBg : 'var(--chart-bg, var(--ds-background-100))',
         color: lit ? litInk : 'var(--chart-text, var(--ds-gray-1000))',
         boxShadow: '0 2px 10px rgba(0,0,0,0.35)',
-        outlineStyle: lit ? 'none' : 'solid',
-        outlineWidth: lit ? 0 : 1,
-        outlineColor: 'var(--chart-rule, var(--ds-gray-400))',
-        transitionProperty: 'background-color, color',
+        borderStyle: 'solid',
+        borderWidth: 1,
+        borderColor: lit ? 'transparent' : 'var(--chart-rule, var(--ds-gray-400))',
+        transitionProperty: 'background-color, color, border-color',
         transitionDuration: '180ms',
         transitionTimingFunction: 'ease',
       }}
     >
-      {children}
+      <span
+        className="grid place-items-center [&>svg]:w-[var(--glyph)] [&>svg]:h-[var(--glyph)]"
+        style={{ '--glyph': `${glyph}px` }}
+      >
+        {children}
+      </span>
     </button>
+  );
+}
+
+/**
+ * A pencil, and ONLY a pencil. The edit bar's `EditIcon` is a pencil plus the
+ * short underline stroke beneath it — a fine glyph in a row of icons, and a
+ * diagonal composition inside a circle: the mass sits upper-left, the stroke
+ * hangs lower-right, and the ring around it reads as off-register even though
+ * it is a perfect circle. That is what "the edit circle outline is wrong
+ * somehow" was seeing. One centred mark instead.
+ */
+function PencilIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M16.8 3.7a2.4 2.4 0 0 1 3.4 3.4L7.9 19.4l-4.4 1 1-4.4Z" />
+    </svg>
   );
 }
