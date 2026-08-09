@@ -1030,8 +1030,15 @@ describe('element 3 — edit mode takes the map to the top', () => {
       <Reader song={makeSong()} settings={{ structurePosition: 'bottom' }} onExit={() => {}}
         onUpdateSong={() => {}} mode="practice" />,
     );
-    const inHead = () => container.querySelectorAll('.reader-head button')
-      .length;
+    // ⚠ Excludes element 5's note control. This is a raw button count in the
+    // head, which is a proxy for "the ribbon moved up" — and the note control
+    // is present OUT of edit mode and absent INSIDE it, so the ribbon arriving
+    // and the note button leaving cancelled exactly (5 → 5) and the test failed
+    // while the behaviour was correct. The ribbon itself cannot be selected
+    // across both states: it is `overflow-x-auto` normally and `flex-wrap`
+    // while editing, because editing makes it reorderable.
+    const inHead = () => [...container.querySelectorAll('.reader-head button')]
+      .filter(b => !/note/i.test(b.getAttribute('aria-label') || '')).length;
     const before = inHead();
 
     fireEvent.click(screen.getByRole('button', { name: /^edit/i }));

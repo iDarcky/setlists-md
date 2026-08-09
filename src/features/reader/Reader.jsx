@@ -22,6 +22,23 @@ import { useEntitlement } from '@/hooks/useEntitlement';
 import { useMetronome } from '@/hooks/useMetronome';
 import { clampTempo } from '@/lib/metronome';
 import ReaderEditBar, { EditIcon } from './ReaderEditBar';
+
+/**
+ * Element 5's control. A sheet with a folded corner and one written line —
+ * deliberately NOT a `+`, which is what the per-line affordance used, and not
+ * a pencil, which is what edit mode next to it uses.
+ */
+function NoteIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 13h6" />
+      <path d="M9 17h4" />
+    </svg>
+  );
+}
 import {
   materialiseStructure, removeSlot, moveRun, appendSection, snapshotEditable, isDirty,
   replaceChordInLine, withEditedLine,
@@ -1264,6 +1281,24 @@ export default function Reader({
                   <MetronomeIcon />
                 </IconButton>
               )}
+              {/* Element 5. It sits HERE, not in the bottom block, because the
+                  bottom block is where PRACTICE TOOLS live and writing a note
+                  is an action on the song — the same family as the pencil
+                  beside it (owner, 2026-08-09: *"maybe it should be top
+                  somewhere"*). Between practice and edit, in increasing order
+                  of commitment: a click, a note, the whole song. */}
+              {config.can.writeNotes && onUpdateSong && !editing && (
+                <IconButton
+                  size="sm"
+                  className={BAR_BUTTON}
+                  aria-label={pickingNote ? 'Cancel adding a note' : 'Add a note'}
+                  aria-pressed={pickingNote}
+                  onClick={() => setPickingNote(v => !v)}
+                  style={pickingNote ? { color: 'var(--color-brand)' } : undefined}
+                >
+                  <NoteIcon />
+                </IconButton>
+              )}
               {/* Beside practice, per the ☰'s round-3 cut: "the top bar keeps
                   ☰ · practice · edit · exit". */}
               {canEdit && (
@@ -1356,6 +1391,18 @@ export default function Reader({
             // the whole sticky block instead — see `ReaderTopBar`.
             <div className="wide-container overflow-hidden pt-0.5 pb-1" style={{ fontSize: '0.85em' }}>
               {ribbonNode}
+            </div>
+          )}
+
+          {/* Element 5's one line of instruction, under the chrome so it is
+              adjacent to the control that turned it on. It replaces the row
+              this used to occupy in the bottom block. */}
+          {pickingNote && (
+            <div
+              className="wide-container pb-1 text-label-11"
+              style={{ color: 'var(--color-brand)' }}
+            >
+              Tap the line your note belongs to
             </div>
           )}
 
@@ -1726,31 +1773,6 @@ export default function Reader({
               style={{ ...(footer || practiceOpen ? rule : null), fontSize: '0.85em' }}
             >
               {ribbonNode}
-            </div>
-          )}
-          {/* Element 5 — "Add note". Always visible where notes can be
-              written, so it never depends on the song scrolling. */}
-          {showChrome && config.can.writeNotes && onUpdateSong && !editing && (
-            <div className={`wide-container py-1${footer ? ' border-b' : ''}`} style={footer ? rule : undefined}>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPickingNote(v => !v)}
-                  aria-pressed={pickingNote}
-                  className="min-h-0 h-7 px-2.5 rounded-full border cursor-pointer text-label-11 font-semibold bg-transparent"
-                  style={{
-                    borderColor: pickingNote ? 'var(--color-brand)' : 'var(--chart-rule, var(--ds-gray-400))',
-                    color: pickingNote ? 'var(--color-brand)' : 'var(--chart-subtle, var(--ds-gray-700))',
-                  }}
-                >
-                  {pickingNote ? 'Cancel' : '+ Add note'}
-                </button>
-                {pickingNote && (
-                  <span className="text-label-11" style={{ color: 'var(--chart-subtle, var(--ds-gray-700))' }}>
-                    Tap the line it belongs to
-                  </span>
-                )}
-              </div>
             </div>
           )}
           {showChrome && practiceOpen && (
