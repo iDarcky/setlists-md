@@ -22,23 +22,8 @@ import { useEntitlement } from '@/hooks/useEntitlement';
 import { useMetronome } from '@/hooks/useMetronome';
 import { clampTempo } from '@/lib/metronome';
 import ReaderEditBar, { EditIcon } from './ReaderEditBar';
+import ReaderNoteFab from './ReaderNoteFab';
 
-/**
- * Element 5's control. A sheet with a folded corner and one written line —
- * deliberately NOT a `+`, which is what the per-line affordance used, and not
- * a pencil, which is what edit mode next to it uses.
- */
-function NoteIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-      <path d="M14 3v5h5" />
-      <path d="M9 13h6" />
-      <path d="M9 17h4" />
-    </svg>
-  );
-}
 import {
   materialiseStructure, removeSlot, moveRun, appendSection, snapshotEditable, isDirty,
   replaceChordInLine, withEditedLine,
@@ -335,7 +320,10 @@ export default function Reader({
   // mobile"*). One always-visible action that then asks WHICH LINE is
   // independent of whether the song scrolls, which is why it works at
   // every width.
-  const [pickingNote, setPickingNote] = useState(false);
+  // null | 'note' (a line) | 'cue' (a section). One mode, because the two
+  // targets sit inches apart and lighting both at once put ~40 affordances on
+  // a song at the same time.
+  const [noteMode, setNoteMode] = useState(null);
   const [tailPad, setTailPad] = useState(0);
   // What we last applied, so the natural height can be recovered from a
   // measurement that includes it. Read inside a ResizeObserver, never in render.
@@ -856,9 +844,9 @@ export default function Reader({
     const sections = withEditedLine(song.sections, si, lineIdx, nextLine);
     if (sections === song.sections) return;
     writeSong({ sections });
-    // One note per "Add note". Staying in the mode would leave every line
-    // wearing a `+` after you had already answered the question.
-    setPickingNote(false);
+    // One note per ask. Staying in the mode would leave every line wearing a
+    // `+` after you had already answered the question.
+    setNoteMode(null);
   }, [song, writeSong]);
 
   // Taking a section out is the one edit you make and immediately doubt, so it
@@ -1281,24 +1269,10 @@ export default function Reader({
                   <MetronomeIcon />
                 </IconButton>
               )}
-              {/* Element 5. It sits HERE, not in the bottom block, because the
-                  bottom block is where PRACTICE TOOLS live and writing a note
-                  is an action on the song — the same family as the pencil
-                  beside it (owner, 2026-08-09: *"maybe it should be top
-                  somewhere"*). Between practice and edit, in increasing order
-                  of commitment: a click, a note, the whole song. */}
-              {config.can.writeNotes && onUpdateSong && !editing && (
-                <IconButton
-                  size="sm"
-                  className={BAR_BUTTON}
-                  aria-label={pickingNote ? 'Cancel adding a note' : 'Add a note'}
-                  aria-pressed={pickingNote}
-                  onClick={() => setPickingNote(v => !v)}
-                  style={pickingNote ? { color: 'var(--color-brand)' } : undefined}
-                >
-                  <NoteIcon />
-                </IconButton>
-              )}
+              {/* ⚠ Element 5's control is NOT here. It was, for one round, and
+                  the bar went to five icons beside a truncating title (owner:
+                  *"too much for the header"*). It floats now —
+                  `ReaderNoteFab`, which carries the reasoning. */}
               {/* Beside practice, per the ☰'s round-3 cut: "the top bar keeps
                   ☰ · practice · edit · exit". */}
               {canEdit && (
@@ -1397,12 +1371,12 @@ export default function Reader({
           {/* Element 5's one line of instruction, under the chrome so it is
               adjacent to the control that turned it on. It replaces the row
               this used to occupy in the bottom block. */}
-          {pickingNote && (
+          {noteMode && (
             <div
               className="wide-container pb-1 text-label-11"
               style={{ color: 'var(--color-brand)' }}
             >
-              Tap the line your note belongs to
+              {noteMode === 'note' ? 'Tap the line your note belongs to' : 'Tap the section your cue belongs to'}
             </div>
           )}
 
@@ -1739,7 +1713,11 @@ export default function Reader({
                 : null}
               // Every line offers itself, but only while you have ASKED to
               // add a note. See `pickingNote`.
-              noteHintHere={pickingNote}
+              noteHintHere={noteMode === 'note'}
+              // The `+ cue` placeholder is gated the same way. An EXISTING cue
+              // stays tappable at all times — only the empty affordance waits
+              // to be asked for.
+              cueHintHere={noteMode === 'cue'}
             />
           ))}
           </div>
@@ -1822,6 +1800,19 @@ export default function Reader({
 
           It also leaves the input unfocused on touch on purpose, so the
           keyboard doesn't cover the bar you are tapping chips in. */}
+      {/* Element 5 — the way in. Practice only, and only when the host can
+          save; `ReaderNoteFab` carries why it floats rather than sitting in
+          the bar. `footH` keeps it clear of the sticky bottom block. */}
+      {showChrome && config.can.writeNotes && onUpdateSong && !editing && (
+        <ReaderNoteFab
+          mode={noteMode}
+          onPick={setNoteMode}
+          onCancel={() => setNoteMode(null)}
+          scrollRef={scrollRef}
+          bottom={footH}
+        />
+      )}
+
       {chordEdit && (
         <ChordAutocomplete
           initial={chordEdit.chord || ''}

@@ -217,9 +217,12 @@ export default function ReaderSection({
   onEditCue = null,
   // Element 5: write an inline note. `(lineIdx, text)`; null → read-only.
   onEditNote = null,
-  // Show the `+` on this section's empty lines — true only for the section
-  // being read. See the note at the call site.
+  // Show the `+` on this section's empty lines. Driven by the FAB's mode.
   noteHintHere = false,
+  // Show the `+ cue` placeholder on the heading. Also the FAB's mode — an
+  // EXISTING cue stays tappable at all times, only the empty affordance waits
+  // to be asked for, so a song with no cues carries no chrome until you ask.
+  cueHintHere = false,
 }) {
   const [writing, setWriting] = useState(false);
   // Element 5: null = not editing the cue; a string = the draft.
@@ -683,7 +686,7 @@ export default function ReaderSection({
           >
             {cue}
           </span>
-        ) : onEditCue && config.notes ? (
+        ) : onEditCue && config.notes && cueHintHere ? (
           // A bare `+` was too small to aim at on a phone (owner, 2026-08-07)
           // — a 7px glyph with 4px of padding, in a row whose height is set by
           // a 14px heading. It says the WORD now, so it is both a bigger target
