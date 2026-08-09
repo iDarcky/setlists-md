@@ -108,17 +108,25 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
             an 8px gap they read as three unrelated controls; 32px with a 2px
             gap reads as one group of tools, and gives 24px back to the title. */}
         <span className="shrink-0 flex items-center gap-0.5">
-          {(onMenu || editing) && (
+          {onMenu && (
             <IconButton
               size="sm"
               className={BAR_BUTTON}
               aria-label={menuOpen ? 'Close display options' : 'Display options'}
               aria-expanded={menuOpen}
               style={menuOpen ? { color: 'var(--chord)' } : undefined}
-              // Dead, not GONE. Dropping the button while editing would change
-              // the bar's shape the moment you press edit and everything else
-              // would jump left.
-              disabled={!onMenu}
+              // ⚠ Live in EVERY mode now, including editing. It used to be
+              // rendered-but-disabled here ("dead, not gone", so the bar would
+              // not change shape when you pressed edit) and the reason it was
+              // dead was: *"an edit is a mode you leave deliberately, and every
+              // one of these is a way to wander out of it with the change
+              // applied and Cancel out of reach."*
+              //
+              // Cancel is not out of reach any more — it is the word sitting at
+              // the other end of this same bar. The premise expired, so the
+              // control comes back rather than staying as dead pixels. And it
+              // never was a way OUT: it opens a display panel, it does not leave
+              // the song. Nothing it contains can strand an edit.
               onClick={(e) => {
                 // Read the rect synchronously: React nulls currentTarget once
                 // the handler returns, so a lazy state updater would see null.

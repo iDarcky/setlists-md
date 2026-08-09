@@ -1327,7 +1327,7 @@ export default function Reader({
           aboveBar={aboveBar}
           leading={railButton}
           title={song.title}
-          onMenu={editing ? null : (rect) => setOwnAaAnchor(a => (a ? null : rect))}
+          onMenu={(rect) => setOwnAaAnchor(a => (a ? null : rect))}
           menuOpen={!!ownAaAnchor}
           // ⚠ In edit mode ✕ IS Cancel. It was disabled here — dead pixels in
           // the most reachable spot on the screen, guarding against "leaving
