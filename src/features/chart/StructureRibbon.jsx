@@ -754,17 +754,3 @@ function AddSection({ options, onPick, sectionColors, customSectionTypes }) {
   );
 }
 
-export function MetaPill({ label, value, highlight }) {
-  return (
-    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)]">
-      <span className="text-label-10 font-semibold text-[var(--ds-gray-600)]">
-        {label}
-      </span>
-      <span
-        className={cn("text-label-14-mono font-bold", highlight ? "text-[var(--chord)]" : "text-[var(--ds-gray-1000)]")}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}

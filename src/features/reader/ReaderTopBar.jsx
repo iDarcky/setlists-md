@@ -18,7 +18,7 @@ import { BAR_BUTTON, EDIT_ACCENT, EDIT_INK, EDIT_CHROME } from './readerChrome';
 const ReaderTopBar = forwardRef(function ReaderTopBar(
   {
     title, meta = null, onMenu, onExit, tools = null, leading = null,
-    aboveBar = null, editing = false, exitDisabled = false, progress = null, children,
+    aboveBar = null, editing = false, exitDisabled = false, exitLabel = 'Exit', progress = null, children,
     // Element 28: the ☰ LIGHTS UP while its menu is open — the same treatment
     // element 12's practice icon uses. It was briefly a ✕ (the owner's first
     // idea), which put two ✕ in one bar: the menu's on the left and Exit on
@@ -170,7 +170,14 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
           <IconButton
             size="sm"
             className={BAR_BUTTON}
-            aria-label="Exit"
+            // ⚠ In edit mode this is CANCEL, not Exit — the reader relabels it
+            // and hands it a different handler. It used to be DISABLED here:
+            // dead pixels in the most reachable spot on the screen, guarding
+            // against "leaving mid-edit strands the change". The guard was
+            // right and the answer was wrong — ✕ already means "get out without
+            // keeping", which is exactly what Cancel is. See `Reader`'s
+            // `requestCancelEdit` for the confirm that makes a mis-tap safe.
+            aria-label={exitLabel}
             disabled={exitDisabled}
             title={exitDisabled ? 'Finish editing first' : undefined}
             onClick={onExit}
@@ -187,7 +194,7 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
   );
 });
 
-export function MenuIcon() {
+function MenuIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" />

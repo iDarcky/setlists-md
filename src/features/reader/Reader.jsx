@@ -21,8 +21,8 @@ import ChordPopover from '@/features/chart/ChordPopover';
 import { useEntitlement } from '@/hooks/useEntitlement';
 import { useMetronome } from '@/hooks/useMetronome';
 import { clampTempo } from '@/lib/metronome';
-import ReaderEditBar, { EditIcon } from './ReaderEditBar';
 import ReaderActions from './ReaderActions';
+import { useConfirm } from '@/ui/useConfirmHook';
 
 import {
   materialiseStructure, removeSlot, moveRun, appendSection, snapshotEditable, isDirty,
@@ -427,7 +427,7 @@ export default function Reader({
   // ── Edit mode ────────────────────────────────────────────────────────────
   // Not a panel. The owner's shape: press edit and the CHART becomes editable —
   // the tempo and time in the bar turn into fields, each section grows a play-
-  // order handle. See `ReaderEditBar` for why there is no sheet.
+  // order handle. Element 3 decided against a sheet: see `docs/READER.md`.
   //
   // Edits apply IMMEDIATELY to the song (owner: "it should change the song").
   // `editBase` is the snapshot taken on entry, and it exists for exactly one
@@ -769,6 +769,28 @@ export default function Reader({
     if (editBase && song) onUpdateSong?.({ ...song, ...editBase });
     setEditSession(null);
   }, [editBase, song, onUpdateSong]);
+
+  // Cancel moved onto the top bar's ✕, and ✕ has meant "leave the song" in
+  // every other mode of this reader for its whole life. Muscle memory does not
+  // read labels: the same tap that used to close a chart now discards an edit.
+  //
+  // ⚠ So it asks — but ONLY when there is something to lose. A confirm on an
+  // untouched song is a dialog that teaches people to dismiss dialogs, and the
+  // next one they dismiss is this one.
+  const confirm = useConfirm();
+  const requestCancelEdit = useCallback(async () => {
+    if (isDirty(editBase, song)) {
+      const ok = await confirm({
+        title: 'Discard your changes?',
+        description: 'Everything you changed to this song goes back to how it was.',
+        confirmLabel: 'Discard',
+        cancelLabel: 'Keep editing',
+        destructive: true,
+      });
+      if (!ok) return;
+    }
+    cancelEdit();
+  }, [confirm, cancelEdit, editBase, song]);
 
   const editStructure = useCallback((op) => {
     // Materialise first: a song played in document order has no `structure` to
@@ -1276,9 +1298,15 @@ export default function Reader({
           title={song.title}
           onMenu={editing ? null : (rect) => setOwnAaAnchor(a => (a ? null : rect))}
           menuOpen={!!ownAaAnchor}
-          onExit={onExit}
+          // ⚠ In edit mode ✕ IS Cancel. It was disabled here — dead pixels in
+          // the most reachable spot on the screen, guarding against "leaving
+          // mid-edit strands the change". The guard was right and the answer
+          // was wrong: ✕ already means "get out without keeping", which is
+          // precisely Cancel. `requestCancelEdit` is what makes a mis-tap safe.
+          onExit={editing ? requestCancelEdit : onExit}
           editing={editing}
-          exitDisabled={editing}
+          exitLabel={editing ? 'Cancel editing' : 'Exit'}
+          exitDisabled={false}
           progress={progress}
           // ⚠ NO `tools`, in any view, in any mode. The click and Edit both
           // float now (`ReaderActions`); notes never had a bar control. That is
@@ -1759,7 +1787,7 @@ export default function Reader({
             </div>
           )}
           {showChrome && practiceOpen && (
-            <div className={`wide-container py-1${footer ? ' border-b' : ''}`} style={footer ? rule : undefined}>
+            <div className={`reader-row-in wide-container py-1${footer ? ' border-b' : ''}`} style={footer ? rule : undefined}>
               <ReaderPracticeRow
                 song={song}
                 bpm={bpm}
@@ -1767,18 +1795,6 @@ export default function Reader({
                 onSaveTempo={onUpdateSong ? (v) => onUpdateSong({ ...song, tempo: v }) : null}
                 clickRunning={metronome.running}
                 onToggleClick={() => (metronome.running ? metronome.stop() : metronome.start(bpm, song.time))}
-              />
-            </div>
-          )}
-          {editing && (
-            <div className={`wide-container py-1${footer ? ' border-b' : ''}`} style={footer ? rule : undefined}>
-              <ReaderEditBar
-                onDone={toggleEdit}
-                onCancel={cancelEdit}
-                onUndo={undo}
-                canUndo={history.length > 0}
-                onSaveAsArrangement={onSaveAsArrangement ? saveAsArrangement : null}
-                dirty={isDirty(editBase, song)}
               />
             </div>
           )}
@@ -1862,6 +1878,14 @@ export default function Reader({
           scrollRef={scrollRef}
           onEdit={canEdit ? toggleEdit : null}
           editing={editing}
+          // The edit bar's four controls, rehoused — see `ReaderActions`.
+          // Cancel is the only one that did NOT come here: it is the top bar's
+          // ✕, which had nothing to do in this mode.
+          onDone={toggleEdit}
+          onUndo={undo}
+          canUndo={history.length > 0}
+          onNewVersion={onSaveAsArrangement ? saveAsArrangement : null}
+          dirty={editing && isDirty(editBase, song)}
           // Null in live as of 2026-08-09 (`readerConfig`), so live shows
           // neither circle — it is the reading view and nothing else.
           onPractice={config.can.practiceTools ? togglePractice : null}

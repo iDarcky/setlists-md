@@ -1101,3 +1101,22 @@ html.dialog-open main {
 @media (prefers-reduced-motion: reduce) {
   .reader-fab-pill { animation: none; opacity: 1; }
 }
+
+/* The practice row MOUNTS into the sticky bottom block, so there is no previous
+   state for a transition to run from — keyframes, like the FAB pills. It rises
+   from behind the block it lands in rather than appearing on top of it, which
+   is what makes it read as one bar arriving instead of a layout jump.
+
+   ⚠ Its partner is `ReaderActions`, whose `bottom` TRANSITIONS over a similar
+   duration. Two things moving the same distance on the same cue have to move
+   together; change one of these and change the other. */
+@keyframes reader-row-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+.reader-row-in {
+  animation: reader-row-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reader-row-in { animation: none; }
+}

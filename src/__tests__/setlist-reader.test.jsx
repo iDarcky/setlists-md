@@ -1,6 +1,6 @@
 // Element 10 — the footer, and the break that shares it.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import SetlistReader from '@/features/reader/SetlistReader';
 import { songFromFlat } from '@/arrangements';
 
@@ -405,12 +405,18 @@ describe('edit mode', () => {
   // Owner, 2026-08-03: "it should not allow me to leave while I have the editor
   // open." Leaving mid-edit stranded the change — applied, with no way back to
   // Cancel it.
-  it('will not let you walk out through the exit', () => {
+  it('turns the exit into Cancel while editing, rather than disabling it', () => {
+    // ⚠ The OLD contract was "the exit is disabled in edit mode", which left
+    // dead pixels in the most reachable spot on the screen. ✕ already means
+    // "get out without keeping" — that IS Cancel — so it takes the job. The
+    // guard it replaced (never strand a change with no way back) is kept by
+    // the confirm, tested below.
     renderMode('practice');
     expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(false);
     openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
-    expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Exit' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cancel editing' }).disabled).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(false);
   });
@@ -424,20 +430,98 @@ describe('edit mode', () => {
     expect(screen.getByRole('button', { name: 'Undo the last change' }).disabled).toBe(false);
   });
 
-  it('puts everything back on Cancel', () => {
-    const onUpdateSong = vi.fn();
-    renderMode('practice', { onUpdateSong });
+  // ⚠ The reader does NOT own the song: it calls `onUpdateSong` and waits to be
+  // handed the next one. A plain `vi.fn()` swallows that, so the song never
+  // changes and the reader is never dirty — every test written against the mock
+  // alone silently exercises the CLEAN path. The confirm only exists on the
+  // dirty path, so it has to see a real change arrive from the parent.
+  //
+  // `rerender` rather than a stateful wrapper on purpose: the parent applying a
+  // write is exactly what this is, and feeding the reader's own output back into
+  // it re-enters a component that re-measures on every song identity change.
+  const dirtied = songFromFlat({
+    id: 'm1', title: 'Cornerstone', key: 'C',
+    sections: [{ type: 'Verse 1', lines: ['[C]a'] }, { type: 'Verse 2', lines: ['[G]c'] }],
+  });
+  const editThen = (onUpdateSong, nextSong) => {
+    const { rerender } = render(
+      <SetlistReader setlist={multiSet} songs={[multi]} settings={{}} mode="practice"
+        onBack={() => {}} onFinish={() => {}} onUpdateSong={onUpdateSong} />
+    );
     openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Take Chorus out of the play order' }));
+    if (nextSong) {
+      rerender(
+        <SetlistReader setlist={multiSet} songs={[nextSong]} settings={{}} mode="practice"
+          onBack={() => {}} onFinish={() => {}} onUpdateSong={onUpdateSong} />
+      );
+    }
+  };
+
+  it('puts everything back on Cancel — after asking', async () => {
+    const onUpdateSong = vi.fn();
+    // No ConfirmProvider in a unit render, so `useConfirm` falls through to
+    // window.confirm, which jsdom does not implement.
+    const ask = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    editThen(onUpdateSong, dirtied);
     onUpdateSong.mockClear();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    // ⚠ `act`, not `findByRole`. What we are waiting for is ONE microtask —
+    // the confirm's promise — and `findByRole` retries `getByRole`, which walks
+    // and CLONES the whole reader tree on every attempt. Against this component
+    // that is slow enough to read as a hang.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel editing' }));
+    });
+    expect(ask).toHaveBeenCalled();
     // Restored from the snapshot taken on entry — the same one the fork uses.
     expect(onUpdateSong).toHaveBeenCalledWith(expect.objectContaining({
-      structure: multi.arrangements[0].structure,
+      sections: multi.arrangements[0].sections,
     }));
     // ...and edit mode is over, so the exit works again.
     expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(false);
+    ask.mockRestore();
+  });
+
+  it('keeps your work when you decline the confirm', async () => {
+    const onUpdateSong = vi.fn();
+    const ask = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    editThen(onUpdateSong, dirtied);
+    onUpdateSong.mockClear();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel editing' }));
+    });
+    expect(ask).toHaveBeenCalled();
+    expect(onUpdateSong).not.toHaveBeenCalled();
+    // Still editing — the mis-tap cost nothing.
+    expect(screen.getByRole('button', { name: 'Cancel editing' })).toBeTruthy();
+    ask.mockRestore();
+  });
+
+  it('does NOT ask when nothing has changed — a confirm nobody needs is a confirm people learn to dismiss', async () => {
+    const ask = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    editThen(vi.fn(), null);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel editing' }));
+    });
+    expect(ask).not.toHaveBeenCalled();
+    ask.mockRestore();
+  });
+
+  it('offers New version only once something has changed', () => {
+    editThen(vi.fn(), null);
+    expect(screen.queryByRole('button', { name: 'New version' })).toBeNull();
+  });
+
+  it('does NOT ask when nothing has changed — a confirm nobody needs is a confirm people learn to dismiss', async () => {
+    const ask = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderMode('practice');
+    openSongActions();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel editing' }));
+    });
+    expect(ask).not.toHaveBeenCalled();
+    ask.mockRestore();
   });
 });
 
@@ -623,7 +707,10 @@ describe('edit mode — locking and the section controls', () => {
     open();
     // Each of these is one tap from leaving the song with the change applied
     // and Cancel out of reach.
-    expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(true);
+    // ✕ is not inert — it is Cancel now, the one way out that cannot strand a
+    // change. Everything else that could carry you off mid-edit still goes.
+    expect(screen.queryByRole('button', { name: 'Exit' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cancel editing' })).toBeTruthy();
     // The whole nav row goes, rather than sitting there as a bar of dead
     // controls under the edit row.
     expect(screen.queryByRole('button', { name: 'Next song' })).toBeNull();
