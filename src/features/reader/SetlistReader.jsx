@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { resolveSongView } from '@/arrangements';
-import { semitonesBetween } from '@/music';
+import { semitonesBetween, transposeKey } from '@/music';
 import { resolveReaderConfig } from '@/lib/readerConfig';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import FloatingNavPill from '@/ui/FloatingNavPill';
@@ -100,6 +100,22 @@ export default function SetlistReader({
     return song ? { ...it, song } : { ...it, isMissing: true };
   }), [setlist, songs]);
 
+  // ── What key is this slot in? ────────────────────────────────────────────
+  // ⚠ The setlist stores a TRANSPOSE, not a key. `SetlistBuilder` writes
+  // `item.transpose` (semitones) and `SetlistOverview` reads it back through
+  // `transposeKey`; `item.key` was read HERE and written by nobody, so a key
+  // set in the builder never reached the reader — it opened in the song's
+  // original key every time (owner, 2026-08-09). One representation, and it is
+  // the one the rest of the app already agreed on.
+  //
+  // `it.key` stays as a fallback because an imported or shared setlist could
+  // carry one, but nothing in this app writes it.
+  const slotKey = (it) => {
+    if (!it?.song) return null;
+    if (it.transpose) return transposeKey(it.song.key, it.transpose);
+    return it.key || it.song.key;
+  };
+
   const total = items.length;
   const go = useCallback((n) => setIdx(Math.max(0, Math.min(total - 1, n))), [total]);
   const goPrev = useCallback(() => setIdx(p => Math.max(0, p - 1)), []);
@@ -130,7 +146,11 @@ export default function SetlistReader({
     if (!it?.song) return;
     setKeys(prev => ({ ...prev, [it.song.id]: k }));
     if (!cfg.can.saveKey || !onUpdateSetlist || !setlist) return;
-    const nextItems = (setlist.items || []).map((raw, i) => (i === idx ? { ...raw, key: k } : raw));
+    // ⚠ Write a TRANSPOSE, not a key — see `slotKey`. Writing `key` here is
+    // what the builder and the overview would then fail to read, which is the
+    // same bug pointing the other way.
+    const semis = semitonesBetween(it.song.key, k);
+    const nextItems = (setlist.items || []).map((raw, i) => (i === idx ? { ...raw, transpose: semis } : raw));
     onUpdateSetlist({ ...setlist, items: nextItems });
   }, [items, idx, cfg.can.saveKey, onUpdateSetlist, setlist]);
 
@@ -143,7 +163,7 @@ export default function SetlistReader({
   // give it the key actually being read rather than the one on the song.
   const railItems = useMemo(() => items.map(it => {
     if (it.isBreak || it.isMissing || !it.song) return it;
-    const shown = keys[it.song.id] || it.key || it.song.key;
+    const shown = keys[it.song.id] || slotKey(it);
     return { ...it, shownKey: shown, transpose: semitonesBetween(it.song.key, shown) };
   }), [items, keys]);
 
@@ -164,7 +184,7 @@ export default function SetlistReader({
     ? (items[idx - 1].isBreak ? (items[idx - 1].label || 'Break') : (items[idx - 1].song?.title || 'Song'))
     : null;
   const nextKey = nxt && !nxt.isBreak && nxt.song
-    ? (keys[nxt.song.id] || nxt.key || nxt.song.key || null)
+    ? (keys[nxt.song.id] || slotKey(nxt) || null)
     : null;
 
   // Element 13. The finale takes ONE thing: when the session started. An
@@ -364,7 +384,7 @@ export default function SetlistReader({
       onSaveAsArrangement={onSaveAsArrangement}
       onUpgrade={onUpgrade}
       onExit={onBack}
-      selectedKey={keys[cur.song.id] || cur.key || cur.song.key}
+      selectedKey={keys[cur.song.id] || slotKey(cur)}
       onSelectKey={pickKey}
       footer={footer}
       aboveBar={aboveBar}
