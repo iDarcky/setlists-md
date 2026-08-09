@@ -2414,6 +2414,8 @@ export default function App() {
               mode={view === 'setlist-practice' ? 'practice' : 'live'}
               startIndex={view === 'setlist-practice' ? practiceStartIndex : 0}
               onUpdateSong={isTeamReadOnly ? null : handleUpdateSong}
+              // A key chosen in PRACTICE sticks onto the setlist item.
+              onUpdateSetlist={isTeamReadOnly ? null : handleUpdateSetlist}
               onSaveAsArrangement={isTeamReadOnly ? null : handleSaveAsArrangement}
               trash={trash}
               onRestoreSong={isTeamReadOnly ? null : handleRestoreSong}

@@ -36,6 +36,10 @@ export default function SetlistReader({
   mode = 'live',
   // Element 12 — a tapped tempo saves to the song.
   onUpdateSong = null,
+  // A key chosen in PRACTICE sticks, onto the setlist item. Absent → the key
+  // stays session-only, which is what LIVE wants: a scramble mid-service is
+  // not a decision about the set.
+  onUpdateSetlist = null,
   // Edit mode's fork — only App can build it, from the real v2 song in state.
   onSaveAsArrangement = null,
   // Which item to open on. Tapping a song in the setlist overview means "start
@@ -49,6 +53,14 @@ export default function SetlistReader({
     const n = (setlist?.items || []).length;
     return Number.isInteger(startIndex) && startIndex > 0 && startIndex < n ? startIndex : 0;
   });
+  // The key you are reading in. Session-only in LIVE; in PRACTICE it is also
+  // written onto the setlist item (`saveKey`), because practice is where
+  // changing a key is a DECISION rather than a scramble.
+  //
+  // ⚠ `saveKey` was the second capability declared in `readerConfig` and read
+  // by NOTHING — the same shape as `writeNotes`. So a key changed in practice
+  // looked applied, survived until you left, and was gone next time, with the
+  // setlist still showing the old one (owner, 2026-08-09).
   const [keys, setKeys] = useState({});
   // Remembered per DEVICE, not synced: whether you want the running order
   // beside the chart is a fact about the screen you are on, not a preference
@@ -107,6 +119,20 @@ export default function SetlistReader({
   }, [goNext, goPrev]);
 
   const cfg = resolveReaderConfig(settings, { wide, mode });
+
+  // Picking a key. Always applies to what you are reading; in practice it is
+  // ALSO written onto the setlist item, which is what `saveKey` was declared
+  // for. Writing to `items[idx].key` (the slot) rather than to the song keeps
+  // it a decision about THIS set — the same song in another service is
+  // untouched, and the song's own written key never moves.
+  const pickKey = useCallback((k) => {
+    const it = items[idx];
+    if (!it?.song) return;
+    setKeys(prev => ({ ...prev, [it.song.id]: k }));
+    if (!cfg.can.saveKey || !onUpdateSetlist || !setlist) return;
+    const nextItems = (setlist.items || []).map((raw, i) => (i === idx ? { ...raw, key: k } : raw));
+    onUpdateSetlist({ ...setlist, items: nextItems });
+  }, [items, idx, cfg.can.saveKey, onUpdateSetlist, setlist]);
 
   // The reader reports when it is mid-edit, and the setlist's own controls go
   // inert — moving song, or opening the rail, would strand an applied change
@@ -339,7 +365,7 @@ export default function SetlistReader({
       onUpgrade={onUpgrade}
       onExit={onBack}
       selectedKey={keys[cur.song.id] || cur.key || cur.song.key}
-      onSelectKey={(k) => setKeys(prev => ({ ...prev, [cur.song.id]: k }))}
+      onSelectKey={pickKey}
       footer={footer}
       aboveBar={aboveBar}
       railButton={railButton}
