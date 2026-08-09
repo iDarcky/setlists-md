@@ -197,7 +197,14 @@ export default function Reader({
   // (the screen splits 70/30); above it is a popover anchored to the button.
   // 700 and not 768 for the reason it always was — between 640 and 700 the
   // popover is wider than the room beside the ☰.
-  const menuDocks = useMediaQuery('(max-width: 699.98px)');
+  // Where the ☰ goes: docked along the bottom, or a side panel.
+  //
+  // ⚠ Tablet PORTRAIT docks too (owner, 2026-08-08). A side panel eats width
+  // from a column that is already narrow when the tablet is stood up, and the
+  // reach argument is the same as a phone's — the thumb is at the bottom of the
+  // device, not beside the chart. Landscape keeps the side panel, where width
+  // is the thing there is plenty of.
+  const menuDocks = useMediaQuery('(max-width: 699.98px), (max-width: 1024px) and (orientation: portrait)');
   // Element 11 — the chord you tapped, and where it was.
   const [tappedChord, setTappedChord] = useState(null);
   const { allowed: canSeeShapes } = useEntitlement('chord-diagrams');
@@ -301,6 +308,17 @@ export default function Reader({
   // costs: enough that the last section's top can reach the pin line, and
   // nothing when the song already fits.
   const chartRef = useRef(null);
+  // Element 5: "Add note" is a MODE, not a per-line affordance.
+  //
+  // ⚠ The first cut showed a `+` in the gutter of the section you were
+  // reading, via `useActiveSection` — which carries a `scrollable` guard from
+  // element 4 ("a song that fits highlights nothing"). On a tablet in two
+  // columns the song usually FITS, so nothing was ever active and the `+`
+  // appeared nowhere (owner, 2026-08-08: *"I can see them, but only on
+  // mobile"*). One always-visible action that then asks WHICH LINE is
+  // independent of whether the song scrolls, which is why it works at
+  // every width.
+  const [pickingNote, setPickingNote] = useState(false);
   const [tailPad, setTailPad] = useState(0);
   // What we last applied, so the natural height can be recovered from a
   // measurement that includes it. Read inside a ResizeObserver, never in render.
@@ -821,6 +839,9 @@ export default function Reader({
     const sections = withEditedLine(song.sections, si, lineIdx, nextLine);
     if (sections === song.sections) return;
     writeSong({ sections });
+    // One note per "Add note". Staying in the mode would leave every line
+    // wearing a `+` after you had already answered the question.
+    setPickingNote(false);
   }, [song, writeSong]);
 
   // Taking a section out is the one edit you make and immediately doubt, so it
@@ -907,13 +928,35 @@ export default function Reader({
     // right node because the header is INSIDE it — one transform carries the
     // bar, the ribbon and the chart together — and the pull only arms at
     // `scrollTop === 0`, so nothing is scrolled out from under the transform.
+    // ── Making the gesture legible ────────────────────────────────────────
+    // The first cut moved the page and swapped a line of text at the halfway
+    // point, and the owner's read was *"is cool but is not understandable"*.
+    // The problem was that nothing showed HOW FAR through you were: the label
+    // flipped at 44px with no warning either side, so the gesture had two
+    // states and no middle.
+    //
+    // Now the pill itself is the progress bar. `p` (0 → 1) drives three things
+    // at once, all written straight to the node — a finger produces ~120 moves
+    // and this must not re-render:
+    //   · the arrow ROTATES 0 → 180°, so it points back the way you came the
+    //     moment releasing would do something;
+    //   · the pill FILLS from the edge, so distance is visible, not inferred;
+    //   · it settles at 1 with a small scale pop, which is the "you're there"
+    //     that the label change was trying to be on its own.
     const paint = (d) => {
-      const body = sc;
-      if (body) body.style.transform = d ? `translateY(${d}px)` : '';
+      const prog = Math.max(0, Math.min(1, d / TRIGGER));
+      if (sc) sc.style.transform = d ? `translateY(${d}px)` : '';
       const hint = hintRef.current;
       if (!hint) return;
-      hint.style.opacity = String(Math.min(1, d / 28));
-      hint.textContent = d >= TRIGGER ? 'Release to finish' : 'Pull down to finish';
+      hint.style.opacity = String(Math.min(1, d / 20));
+      // The pill grows toward its armed size rather than jumping to it.
+      hint.style.transform = `scale(${(0.9 + prog * 0.1).toFixed(3)})`;
+      const fill = hint.querySelector('[data-pull-fill]');
+      if (fill) fill.style.transform = `scaleX(${prog.toFixed(3)})`;
+      const arrow = hint.querySelector('[data-pull-arrow]');
+      if (arrow) arrow.style.transform = `rotate(${(prog * 180).toFixed(1)}deg)`;
+      const label = hint.querySelector('[data-pull-label]');
+      if (label) label.textContent = prog >= 1 ? 'Release to finish' : 'Keep pulling';
     };
     const cancel = () => { pullRef.current = null; paint(0); };
     const onStart = (e) => {
@@ -940,10 +983,29 @@ export default function Reader({
       pullRef.current = null;
       if (!p) return;
       // Animate the snap back, then take the transition off again so the next
-      // pull tracks the thumb instead of easing behind it.
-      sc.style.transition = 'transform 180ms ease-out';
+      // pull tracks the thumb instead of easing behind it. The pill eases with
+      // it — during the drag it is written raw every frame, and only on
+      // RELEASE is it allowed to animate.
+      const hint = hintRef.current;
+      const eased = 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1)';
+      sc.style.transition = eased;
+      if (hint) {
+        hint.style.transition = `opacity 160ms linear, ${eased}`;
+        const fill = hint.querySelector('[data-pull-fill]');
+        const arrow = hint.querySelector('[data-pull-arrow]');
+        if (fill) fill.style.transition = eased;
+        if (arrow) arrow.style.transition = eased;
+      }
       paint(0);
-      setTimeout(() => { sc.style.transition = ''; }, 200);
+      setTimeout(() => {
+        sc.style.transition = '';
+        if (!hint) return;
+        hint.style.transition = 'opacity 120ms linear';
+        const fill = hint.querySelector('[data-pull-fill]');
+        const arrow = hint.querySelector('[data-pull-arrow]');
+        if (fill) fill.style.transition = '';
+        if (arrow) arrow.style.transition = '';
+      }, 240);
       if (p.d >= TRIGGER) pullLiveRef.current.done?.();
     };
     sc.addEventListener('touchstart', onStart, { passive: true });
@@ -1309,10 +1371,37 @@ export default function Reader({
             <div
               ref={hintRef}
               aria-hidden="true"
-              className="absolute left-0 right-0 top-full pt-2 flex justify-center pointer-events-none text-label-11 font-semibold"
-              style={{ opacity: 0, color: EDIT_ACCENT }}
+              className="absolute left-1/2 top-full mt-2 pointer-events-none"
+              style={{
+                opacity: 0,
+                transform: 'scale(0.9)',
+                transformOrigin: 'top center',
+                marginLeft: '-84px',
+                width: '168px',
+                // The one transition in the gesture: `transform` is written on
+                // every touchmove and must NOT ease behind the thumb, so only
+                // opacity is allowed to smooth.
+                transition: 'opacity 120ms linear',
+              }}
             >
-              Pull down to finish
+              <div
+                className="relative overflow-hidden rounded-full flex items-center justify-center gap-1.5 h-7 text-label-11 font-semibold"
+                style={{
+                  color: EDIT_ACCENT,
+                  border: `1px solid ${EDIT_ACCENT}`,
+                  background: 'var(--chart-bg, var(--ds-background-100))',
+                }}
+              >
+                {/* The fill, behind the label. `scaleX` from the left edge —
+                    a width animation would relayout on every frame. */}
+                <span
+                  data-pull-fill=""
+                  className="absolute inset-0 origin-left"
+                  style={{ background: EDIT_ACCENT, opacity: 0.18, transform: 'scaleX(0)' }}
+                />
+                <span data-pull-arrow="" className="relative leading-none" style={{ transform: 'rotate(0deg)' }}>↓</span>
+                <span data-pull-label="" className="relative">Keep pulling</span>
+              </div>
             </div>
           )}
         </ReaderTopBar>
@@ -1601,12 +1690,9 @@ export default function Reader({
               onEditNote={config.can.writeNotes && onUpdateSong && !editing
                 ? (lineIdx, text) => editSectionNote(section, lineIdx, text)
                 : null}
-              // ⚠ The `+` on an EMPTY line shows only in the section you are
-              // reading. One per line would be ~30 on a real song — the noise
-              // the `+ cue` avoids by there being one per section. Tying it to
-              // `useActiveSection` caps it at the two or three lines in front
-              // of you and it follows you down the song.
-              noteHintHere={activeSection === idx}
+              // Every line offers itself, but only while you have ASKED to
+              // add a note. See `pickingNote`.
+              noteHintHere={pickingNote}
             />
           ))}
           </div>
@@ -1640,6 +1726,31 @@ export default function Reader({
               style={{ ...(footer || practiceOpen ? rule : null), fontSize: '0.85em' }}
             >
               {ribbonNode}
+            </div>
+          )}
+          {/* Element 5 — "Add note". Always visible where notes can be
+              written, so it never depends on the song scrolling. */}
+          {showChrome && config.can.writeNotes && onUpdateSong && !editing && (
+            <div className={`wide-container py-1${footer ? ' border-b' : ''}`} style={footer ? rule : undefined}>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPickingNote(v => !v)}
+                  aria-pressed={pickingNote}
+                  className="min-h-0 h-7 px-2.5 rounded-full border cursor-pointer text-label-11 font-semibold bg-transparent"
+                  style={{
+                    borderColor: pickingNote ? 'var(--color-brand)' : 'var(--chart-rule, var(--ds-gray-400))',
+                    color: pickingNote ? 'var(--color-brand)' : 'var(--chart-subtle, var(--ds-gray-700))',
+                  }}
+                >
+                  {pickingNote ? 'Cancel' : '+ Add note'}
+                </button>
+                {pickingNote && (
+                  <span className="text-label-11" style={{ color: 'var(--chart-subtle, var(--ds-gray-700))' }}>
+                    Tap the line it belongs to
+                  </span>
+                )}
+              </div>
             </div>
           )}
           {showChrome && practiceOpen && (
