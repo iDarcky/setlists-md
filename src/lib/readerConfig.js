@@ -235,10 +235,19 @@ const VIEW = {
     // **Practice is obvious**: the Save shows up, because in practice changing
     // the key IS the decision being made.
     saveKey: false,
-    // Element 12's metronome icon in the bar.
-    practiceTools: true,
-    // The edit icon — §7 #12. Not built yet; practice-only when it is
-    // (owner, 2026-08-03: "Practice only.").
+    // Element 12's metronome.
+    //
+    // ⚠ OFF in live as of 2026-08-09, which REMOVES a shipped feature from the
+    // service view. The owner's call, twice: *"live gets no fab at all, not even
+    // metronome"* and *"you won't use the click during service, or at least not
+    // yet"*. A click track mid-service is a rehearsal habit that followed the
+    // app into the room; element 12 will decide whether live ever gets it back.
+    // Until then live is the reading view and nothing else.
+    practiceTools: false,
+    // The edit icon — §7 #12. Practice-only (owner, 2026-08-03: "Practice
+    // only."), and since 2026-08-09 this also gates writing notes and cues:
+    // they happen INSIDE edit mode now, so `editSong` false means no note can
+    // be written here either, whatever `writeNotes` says.
     editSong: false,
     // Element 21. Owner: "This should be for the practice view".
     switchArrangement: false,

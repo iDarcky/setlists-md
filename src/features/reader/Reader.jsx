@@ -22,7 +22,7 @@ import { useEntitlement } from '@/hooks/useEntitlement';
 import { useMetronome } from '@/hooks/useMetronome';
 import { clampTempo } from '@/lib/metronome';
 import ReaderEditBar, { EditIcon } from './ReaderEditBar';
-import ReaderNoteFab from './ReaderNoteFab';
+import ReaderActions from './ReaderActions';
 
 import {
   materialiseStructure, removeSlot, moveRun, appendSection, snapshotEditable, isDirty,
@@ -328,7 +328,6 @@ export default function Reader({
   // null | 'note' (a line) | 'cue' (a section). One mode, because the two
   // targets sit inches apart and lighting both at once put ~40 affordances on
   // a song at the same time.
-  const [noteMode, setNoteMode] = useState(null);
   const [tailPad, setTailPad] = useState(0);
   // What we last applied, so the natural height can be recovered from a
   // measurement that includes it. Read inside a ResizeObserver, never in render.
@@ -399,9 +398,16 @@ export default function Reader({
       // now is quite 0, especially for when we have the floating pill, it
       // should at least clear it"*). The footer floats over the chart, so a
       // last line that ends exactly at the scroller's bottom sits under it.
-      // 72px clears the pill and its safe-area inset without inventing the
+      // It clears the pill and its safe-area inset without inventing the
       // screen of blank paper the full pad was costing.
-      const FLOAT_CLEARANCE = 72;
+      //
+      // ⚠ 130, up from 72: the floating controls became TWO circles (48 + 40 +
+      // 10 gap = 98, plus the 12px inset and a little air). They sit over the
+      // note GUTTER, which in edit mode is the thing you are tapping — so the
+      // last line's note cell has to come out from under them, not merely the
+      // last lyric. A constant that tracks a layout has to move when the layout
+      // does; this one is derived from `ReaderActions`.
+      const FLOAT_CLEARANCE = 130;
       const want = config.columns >= 2
         ? (natural > band + 4 ? FLOAT_CLEARANCE : 0)
         : (natural > band + 4 ? Math.max(FLOAT_CLEARANCE, band - lastH - 8) : 0);
@@ -863,9 +869,10 @@ export default function Reader({
     const sections = withEditedLine(song.sections, si, lineIdx, nextLine);
     if (sections === song.sections) return;
     writeSong({ sections });
-    // One note per ask. Staying in the mode would leave every line wearing a
-    // `+` after you had already answered the question.
-    setNoteMode(null);
+    // ⚠ Nothing is disarmed here. This used to clear the note mode after every
+    // write — "one note per ask" — and that single line was what made the note
+    // you had just typed untappable the instant you pressed Enter. There is no
+    // mode to clear now: you are editing until you say you are done.
   }, [song, writeSong]);
 
   // Taking a section out is the one edit you make and immediately doubt, so it
@@ -1273,46 +1280,15 @@ export default function Reader({
           editing={editing}
           exitDisabled={editing}
           progress={progress}
-          tools={(
-            <>
-              {/* ⚠ The click and Edit are NOT here any more — they moved into
-                  the floating action with the notes, which is what took the bar
-                  from five icons beside a truncating title back to two. They
-                  come BACK to the bar while editing, because the FAB is hidden
-                  then and Edit must always have a visible way out. */}
-              {config.can.practiceTools && editing && (
-                <IconButton
-                  size="sm"
-                  className={BAR_BUTTON}
-                  aria-label={practiceOpen ? 'Close practice tools' : 'Practice tools'}
-                  aria-pressed={practiceOpen}
-                  disabled
-                  onClick={togglePractice}
-                  style={practiceOpen ? { color: 'var(--chord)' } : undefined}
-                >
-                  <MetronomeIcon />
-                </IconButton>
-              )}
-              {/* ⚠ Element 5's control is NOT here. It was, for one round, and
-                  the bar went to five icons beside a truncating title (owner:
-                  *"too much for the header"*). It floats now —
-                  `ReaderNoteFab`, which carries the reasoning. */}
-              {/* Only while EDITING: the FAB is hidden in edit mode, so this is
-                  the visible way back out. Otherwise it lives in the FAB. */}
-              {canEdit && editing && (
-                <IconButton
-                  size="sm"
-                  className={BAR_BUTTON}
-                  aria-label={editing ? 'Stop editing' : 'Edit this song'}
-                  aria-pressed={editing}
-                  onClick={toggleEdit}
-                  style={editing ? { color: 'var(--color-brand)' } : undefined}
-                >
-                  <EditIcon />
-                </IconButton>
-              )}
-            </>
-          )}
+          // ⚠ NO `tools`, in any view, in any mode. The click and Edit both
+          // float now (`ReaderActions`); notes never had a bar control. That is
+          // the point of the split: the bar answers *where am I* — title, key,
+          // position — and nothing else, so it is the one thing in the reader
+          // whose shape never changes. It reached five icons beside a
+          // truncating title once (owner: *"too much for the header"*) and the
+          // way back was not to prune the list but to notice that the list was
+          // answering a different question. `tools` stays a prop on
+          // `ReaderTopBar` because other surfaces pass one.
           meta={(
             <span className="shrink-0 flex items-center gap-2 text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
               {onSelectKey && config.can.transpose ? (
@@ -1389,18 +1365,6 @@ export default function Reader({
             // the whole sticky block instead — see `ReaderTopBar`.
             <div className="wide-container overflow-hidden pt-0.5 pb-1" style={{ fontSize: '0.85em' }}>
               {ribbonNode}
-            </div>
-          )}
-
-          {/* Element 5's one line of instruction, under the chrome so it is
-              adjacent to the control that turned it on. It replaces the row
-              this used to occupy in the bottom block. */}
-          {noteMode && (
-            <div
-              className="wide-container pb-1 text-label-11"
-              style={{ color: 'var(--color-brand)' }}
-            >
-              {noteMode === 'note' ? 'Tap the line your note belongs to' : 'Tap the section your cue belongs to'}
             </div>
           )}
 
@@ -1726,28 +1690,39 @@ export default function Reader({
               editing={editing}
               onRemove={editing ? () => removeSection(idx, section) : null}
               onEditLines={editing ? (text) => editSectionLines(section, text) : null}
-              // Element 5. Practice only, and only when the host can actually
-              // save — `onUpdateSong` is absent on read-only surfaces, and a
-              // field that accepts a cue nobody stores is worse than none.
-              onEditCue={config.can.writeNotes && onUpdateSong && !editing
+              // ── Element 5 — notes and cues live INSIDE edit mode ──────────
+              //
+              // ⚠ `editing`, not `!editing`. There is no note MODE any more.
+              // Two rounds were spent moving one gate around — arm first, then
+              // tap a line; then existing notes tappable without arming, which
+              // let you rewrite a cue while merely reading (owner, 2026-08-09:
+              // *"why can I edit them without having the exit toggled?"*).
+              // Both were the same mistake: a second, lighter editing mode
+              // sitting beside the real one.
+              //
+              // So there is one. Editing is editing: the exit locks, the song
+              // nav goes, and every cue and note on screen becomes writable at
+              // once — no arming, no picking, no instruction line. Outside it
+              // they are text. The owner's framing, and it is right: *"that's
+              // the whole point. You want to edit something... you are just
+              // there focusing on editing."*
+              //
+              // `onUpdateSong` still guards separately: it is absent on
+              // read-only surfaces, and a field that accepts a cue nobody
+              // stores is worse than no field.
+              onEditCue={config.can.writeNotes && onUpdateSong && editing
                 ? (text) => editSectionCue(section, text)
                 : null}
-              // ⚠ NOT gated on the mode — `noteHintHere` is. The gate belongs
-              // on the empty affordances (the `+` and the whole-lyric tap that
-              // places a note), never on the note that is already there. Gated
-              // here, two things broke at once: an existing note came out as a
-              // dead `role="button"`, and because the mode disarms after every
-              // write the note you had just typed was untappable the instant
-              // you pressed Enter (owner, 2026-08-09: *"I put a note then I
-              // want to re-edit that note and I cannot"*).
-              onEditNote={config.can.writeNotes && onUpdateSong && !editing
+              onEditNote={config.can.writeNotes && onUpdateSong && editing
                 ? (lineIdx, text) => editSectionNote(section, lineIdx, text)
                 : null}
-              noteHintHere={noteMode === 'note'}
-              // Same split for cues, which is why cues never had the bug: an
-              // EXISTING cue stays tappable at all times, only the empty `+ cue`
-              // placeholder waits to be asked for.
-              cueHintHere={noteMode === 'cue'}
+              // Every line and every heading offers itself, for as long as you
+              // are editing. ~30 `+` marks down a song is noise while READING
+              // and simply the affordance while editing — which already puts a
+              // pencil and a trash on every heading. It is also the only honest
+              // answer to *"how would they know"*.
+              noteHintHere={editing}
+              cueHintHere={editing}
             />
           ))}
           </div>
@@ -1869,33 +1844,31 @@ export default function Reader({
       )}
     </div>
 
-      {/* Element 5 — the way in. `ReaderNoteFab` carries why it floats rather
-          than sitting in the bar.
+      {/* Edit, and the click riding above it. `ReaderActions` carries why they
+          float rather than sitting in the bar, and why they are two circles
+          rather than one menu.
 
-          It lives HERE, a sibling of the scroller and the dock, rather than
-          inside the scroller: it is positioned against the reader root, and
-          being a child of the thing it is not positioned against was only ever
-          going to read wrong the first time someone moved it. */}
-      {/* ⚠ Rendered when it has ANY action, not when notes are allowed. Gating
-          the whole FAB on `writeNotes` (practice-only) while the CLICK moved
-          into it would have taken the metronome out of live entirely — caught
-          by the suite, not by reading. */}
-      {showChrome && !editing && (config.can.practiceTools || canEdit || (config.can.writeNotes && onUpdateSong)) && (
-        <ReaderNoteFab
-          mode={noteMode}
-          canNote={!!(config.can.writeNotes && onUpdateSong)}
-          onPick={setNoteMode}
-          onCancel={() => setNoteMode(null)}
+          They live HERE, siblings of the scroller and the dock, rather than
+          inside the scroller: they are positioned against the reader ROOT, and
+          being a child of the thing you are not positioned against was only
+          ever going to read wrong the first time someone moved it.
+
+          ⚠ Rendered THROUGH edit mode, unlike every previous shape. Edit is a
+          toggle that becomes Done in place; hiding it meant putting a duplicate
+          back in the top bar, which is how the bar ended up changing shape
+          depending on a mode. */}
+      {showChrome && (
+        <ReaderActions
           scrollRef={scrollRef}
-          // The rest of "what can I do to this song" moves here too, which is
-          // what empties the header (owner, 2026-08-09: *"move everything else
-          // there"*). Each is offered only when the VIEW allows it, so live
-          // gets a smaller stack rather than a disabled one.
+          onEdit={canEdit ? toggleEdit : null}
+          editing={editing}
+          // Null in live as of 2026-08-09 (`readerConfig`), so live shows
+          // neither circle — it is the reading view and nothing else.
           onPractice={config.can.practiceTools ? togglePractice : null}
           practiceOpen={practiceOpen}
-          onEdit={canEdit ? toggleEdit : null}
-          // The sticky bottom block, PLUS the docked ☰ — both are below the FAB
-          // in the reader's column and it has to clear both.
+          practiceRunning={metronome.running}
+          // The sticky bottom block, PLUS the docked ☰ — both are below these
+          // in the reader's column and they have to clear both.
           //
           // ⚠ `dockH` is MEASURED, not `viewH * 0.4`. The dock's 40% is 40% of
           // the ROOT; `viewH` is the SCROLLER, which is the other 60% — so the

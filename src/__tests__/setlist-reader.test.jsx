@@ -331,7 +331,11 @@ describe('edit mode', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     expect(screen.getByLabelText('Tempo')).toBeTruthy();
     expect(screen.getByLabelText('Time signature')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Stop editing' })).toBeTruthy();
+    // The way OUT is the edit bar's Done, not a second toggle. Edit's floating
+    // circle unmounts while editing rather than becoming "Stop editing" 80px
+    // above a Done that already says it — see `ReaderActions`.
+    expect(screen.getByRole('button', { name: 'Done' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Stop editing' })).toBeNull();
   });
 
   it('writes a tempo on Enter, not on every keystroke', () => {
@@ -624,7 +628,10 @@ describe('edit mode — locking and the section controls', () => {
     // controls under the edit row.
     expect(screen.queryByRole('button', { name: 'Next song' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Display options' }).disabled).toBe(true);
-    expect(screen.getByRole('button', { name: 'Practice tools' }).disabled).toBe(true);
+    // GONE, not disabled — the click's satellite unmounts while editing. Same
+    // argument the setlist counter makes below: not being a button at all is
+    // stronger than being a disabled one.
+    expect(screen.queryByRole('button', { name: 'Practice tools' })).toBeNull();
     // The way into the setlist is the footer counter now, and while editing it
     // is not a button at all — `Centre` renders a plain div without a handler,
     // which is stronger than a disabled toggle. The rail keeps no resting strip

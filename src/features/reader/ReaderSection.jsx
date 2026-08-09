@@ -749,8 +749,23 @@ export default function ReaderSection({
         noteHint={!!onEditNote && noteHintHere}
         noteDraft={noteDraft}
         onNoteDraftChange={(text) => setNoteDraft(text === null ? null : (d) => (d ? { ...d, text } : d))}
-        onNoteCommit={() => {
-          setNoteDraft((d) => { if (d) onEditNote?.(d.lineIdx, d.text); return null; });
+        onNoteCommit={(opts) => {
+          setNoteDraft((d) => {
+            if (!d) return null;
+            onEditNote?.(d.lineIdx, d.text);
+            if (!opts?.advance) return null;
+            // Enter walks DOWN to the next line that can carry a note. Tabs and
+            // modulate markers are objects in `lines[]`, not strings, and
+            // `editSectionNote` refuses them — so skipping them here is not a
+            // nicety, it is the difference between Enter advancing and Enter
+            // appearing to do nothing on a song with a tab in it.
+            const lines = section.lines || [];
+            let next = d.lineIdx + 1;
+            while (next < lines.length && typeof lines[next] !== 'string') next += 1;
+            if (next >= lines.length) return null;
+            const existing = lines[next].match(/\{!(.*?)\}/);
+            return { lineIdx: next, text: existing ? existing[1] : '' };
+          });
         }}
         notePlacement={notePlacement}
         noteStyle={settings?.inlineNoteStyle || 'dashes'}

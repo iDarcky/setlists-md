@@ -94,8 +94,14 @@ function makeSong(over = {}) {
     ...over,
   });
 }
+// ⚠ `mode="practice"` is load-bearing now. These tests used to render in the
+// DEFAULT mode, which resolves to LIVE, and that worked only because live once
+// carried the click. It does not as of 2026-08-09 (owner: *"live gets no fab at
+// all, not even metronome"*) — `readerConfig` sets `practiceTools: false` there,
+// so element 12 exists in practice and nowhere else. Rendering the mode the
+// feature actually lives in is the point, not a workaround.
 const renderReader = (props = {}) =>
-  render(<Reader song={makeSong()} settings={{}} onExit={() => {}} {...props} />);
+  render(<Reader song={makeSong()} settings={{}} mode="practice" onExit={() => {}} {...props} />);
 
 // ⚠ Element 5 moved the click out of the top bar and into the floating action
 // (owner, 2026-08-09: *"move everything else there"*). It kept its aria-label,
@@ -216,7 +222,7 @@ describe('element 12 — slow-down', () => {
   });
 
   it('falls back to a usable tempo when the song has none written', () => {
-    render(<Reader song={makeSong({ tempo: '' })} settings={{}} onExit={() => {}} />);
+    render(<Reader song={makeSong({ tempo: '' })} settings={{}} mode="practice" onExit={() => {}} />);
     openTools();
     // 100, not 40: `Number('')` is 0 and would have clamped to the floor.
     expect(screen.getByText('100')).toBeTruthy();
@@ -236,6 +242,7 @@ describe('element 12 — the backing track', () => {
       <Reader
         song={makeSong({ youtube: 'https://www.youtube.com/watch?v=abcdefghijk' })}
         settings={{}}
+        mode="practice"
         onExit={() => {}}
       />,
     );
@@ -250,6 +257,7 @@ describe('element 12 — the backing track', () => {
       <Reader
         song={makeSong({ youtube: 'https://www.youtube.com/watch?v=abcdefghijk' })}
         settings={{}}
+        mode="practice"
         onExit={() => {}}
       />,
     );

@@ -152,6 +152,15 @@ export default function SectionBlock({
   // The empty gutter cell, when a note COULD go there. Same slot, same
   // one-chord-row offset as the note itself, so the `+` stands exactly where
   // its note will.
+  // While the gutter is WRITABLE it gets a hairline down its left edge. One
+  // rule the length of the section says "this strip is a place" far better than
+  // thirty `+` marks say it individually — the marks then read as contents of a
+  // column instead of as litter on the chart. Off while reading: a margin you
+  // cannot write in does not need announcing.
+  const gutterRule = notePlacement === 'gutter' && noteHint && onNoteOpen
+    ? { borderLeft: '1px solid var(--chart-rule, var(--border-1))', paddingLeft: '0.5rem' }
+    : null;
+
   const noteGutterHint = (lineIdx, hasChordRow = false) => (
     <button
       type="button"
@@ -159,6 +168,7 @@ export default function SectionBlock({
       aria-label="Add a note to this line"
       className="min-h-0 self-start text-left bg-transparent border-none cursor-pointer p-0"
       style={{
+        ...(gutterRule || {}),
         fontSize: '0.72em', lineHeight: 1.3, opacity: 0.4,
         color: 'var(--chart-subtle, var(--text-2))',
         marginTop: hasChordRow ? 'calc(var(--chart-chord-size, 1em) * 1 + 3px)' : undefined,
@@ -176,13 +186,18 @@ export default function SectionBlock({
       aria-label="Note for this line"
       placeholder="Note…"
       onChange={(e) => onNoteDraftChange?.(e.target.value)}
-      onBlur={() => onNoteCommit?.()}
+      onBlur={() => onNoteCommit?.({ fromBlur: true })}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+        // Enter commits and OPENS THE NEXT LINE'S note. Marking up a chart is
+        // never one note, it is a verse; without this every note costs a tap to
+        // re-aim at a line you were already looking at. Escape cancels the
+        // draft, blur commits and stops.
+        if (e.key === 'Enter') { e.preventDefault(); onNoteCommit?.({ advance: true }); }
         if (e.key === 'Escape') { e.preventDefault(); onNoteDraftChange?.(null); }
       }}
       className="w-full min-h-0 bg-transparent border-0 border-b outline-none self-start"
       style={{
+        ...(gutterRule || {}),
         fontSize: '0.72em', fontStyle: 'italic', lineHeight: 1.3,
         color: 'var(--chart-text, var(--text-1))',
         borderColor: 'var(--color-brand)',
@@ -214,7 +229,8 @@ export default function SectionBlock({
       } : null)}
       className="text-[0.72em] leading-snug self-start whitespace-pre-wrap"
       data-note-gutter=""
-      style={{ color: text.trim().startsWith('!') ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--text-2))',
+      style={{ ...(gutterRule || {}),
+               color: text.trim().startsWith('!') ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--text-2))',
                fontStyle: text.trim().startsWith('!') ? 'normal' : 'italic',
                fontWeight: text.trim().startsWith('!') ? 600 : 400,
                marginTop: hasChordRow ? 'calc(var(--chart-font-size-chord, 17px) + 3px)' : 0 }}
@@ -340,15 +356,8 @@ export default function SectionBlock({
               lineHeight: 'var(--chart-line-height-lyric, 1.35)',
             }}
           >
-            <span
-              className="whitespace-pre-wrap"
-              {...(onNoteOpen && noteHint ? {
-                role: 'button', tabIndex: 0, title: 'Add a note to this line',
-                style: { cursor: 'pointer' },
-                onClick: () => onNoteOpen(idx, inlineNote || ''),
-                onKeyDown: (e) => { if (e.key === 'Enter') { e.preventDefault(); onNoteOpen(idx, inlineNote || ''); } },
-              } : null)}
-            >{displayLine}</span>
+            {/* Not a note target either — see the chorded branch below. */}
+            <span className="whitespace-pre-wrap">{displayLine}</span>
             {showNote && notePlacement === 'inline' && (
               <span className="italic text-[0.8em]" style={{ color: 'var(--chart-subtle, var(--text-2))' }}>
                 {NOTE_SEPARATORS[noteStyle] || NOTE_SEPARATORS.dashes}{inlineNote}
@@ -463,20 +472,13 @@ export default function SectionBlock({
       >
         {inlineNotes && inlineNote && notePlacement === 'above' && noteAbove(inlineNote)}
         <div style={{ ...(gutterGrid || {}), breakInside: 'avoid' }}>
-        <div
-          className="flex flex-wrap items-end"
-          // ⚠ `noteHint`, NOT `onNoteOpen`. This is the whole lyric line — the
-          // biggest tap target on the page — so it may only listen while you
-          // have actually ASKED to place a note. Gated on the prop instead, it
-          // opened a note field on any tap anywhere, including the empty
-          // gutter. The note ITSELF is tappable without arming; the lyric is not.
-          {...(onNoteOpen && noteHint ? {
-            role: 'button', tabIndex: 0, title: 'Add a note to this line',
-            style: { cursor: 'pointer' },
-            onClick: () => onNoteOpen(idx, inlineNote || ''),
-            onKeyDown: (e) => { if (e.key === 'Enter') { e.preventDefault(); onNoteOpen(idx, inlineNote || ''); } },
-          } : null)}
-        >
+        {/* ⚠ The lyric is NOT a note target. It was, while notes had their own
+            arming mode: "tap the line your note belongs to" made the whole line
+            the button. That mode is gone, and with it the biggest tap target on
+            the page listening for a gesture nobody aimed at it — which is what
+            opened a note field on any tap anywhere, gutter included. The note
+            lives in the gutter; the gutter is where you tap for it. */}
+        <div className="flex flex-wrap items-end">
           {hasLyrics
             ? (() => {
                 const words = groupChordWords(pairs);

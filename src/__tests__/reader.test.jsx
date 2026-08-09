@@ -14,8 +14,10 @@ import { songFromFlat } from '@/arrangements';
 // contract these tests encode is unchanged — Edit exists in practice, not in
 // live, not in a read-only library — it is just one tap deeper. This is that
 // tap, in one place.
-const openSongActions = () =>
-  fireEvent.click(screen.getByRole('button', { name: 'Song actions' }));
+const openSongActions = () => {
+  const fab = screen.queryByRole('button', { name: 'Song actions' });
+  if (fab) fireEvent.click(fab);
+};
 
 
 // The Aa popover gates Pro chart styling behind useEntitlement -> useTeam,
@@ -1043,15 +1045,15 @@ describe('element 3 — edit mode takes the map to the top', () => {
       <Reader song={makeSong()} settings={{ structurePosition: 'bottom' }} onExit={() => {}}
         onUpdateSong={() => {}} mode="practice" />,
     );
-    // ⚠ Excludes element 5's note control. This is a raw button count in the
-    // head, which is a proxy for "the ribbon moved up" — and the note control
-    // is present OUT of edit mode and absent INSIDE it, so the ribbon arriving
-    // and the note button leaving cancelled exactly (5 → 5) and the test failed
-    // while the behaviour was correct. The ribbon itself cannot be selected
-    // across both states: it is `overflow-x-auto` normally and `flex-wrap`
-    // while editing, because editing makes it reorderable.
-    const inHead = () => [...container.querySelectorAll('.reader-head button')]
-      .filter(b => !/note/i.test(b.getAttribute('aria-label') || '')).length;
+    // A raw button count in the head as a proxy for "the ribbon moved up". It
+    // needed a filter while element 5's control lived in the bar — that control
+    // was present OUT of edit mode and absent INSIDE it, so the ribbon arriving
+    // and the button leaving cancelled exactly (5 → 5) and the test failed while
+    // the behaviour was correct. The bar carries no tools in any mode now, so
+    // the count is clean again. The ribbon itself cannot be selected across both
+    // states: `overflow-x-auto` normally, `flex-wrap` while editing, because
+    // editing makes it reorderable.
+    const inHead = () => container.querySelectorAll('.reader-head button').length;
     const before = inHead();
 
     openSongActions();
