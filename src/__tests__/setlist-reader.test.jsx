@@ -34,6 +34,18 @@ const renderIt = (settings = {}) => render(
   <SetlistReader setlist={setlist} songs={songs} settings={settings} onBack={() => {}} onFinish={() => {}} />
 );
 
+
+// ⚠ Element 5 moved the click and Edit out of the top bar and into the floating
+// action (owner, 2026-08-09: *"move everything else there"*). The contract these
+// tests encode is unchanged — they kept their aria-labels precisely so a MOVE
+// isn't a RENAME — so this is only the one tap that reveals the stack. It is a
+// no-op when the FAB isn't there at all, which is what makes the negative
+// assertions ("no edit in live") still mean something.
+const openSongActions = () => {
+  const fab = screen.queryByRole('button', { name: 'Song actions' });
+  if (fab) fireEvent.click(fab);
+};
+
 describe('element 10 — the footer', () => {
   it('names the next song by default, with its key', () => {
     renderIt();
@@ -292,11 +304,13 @@ describe('edit mode', () => {
 
   it('is not offered in live, at all', () => {
     renderMode('live');
+    openSongActions();
     expect(screen.queryByRole('button', { name: 'Edit this song' })).toBeNull();
   });
 
   it('is offered in practice', () => {
     renderMode('practice');
+    openSongActions();
     expect(screen.getByRole('button', { name: 'Edit this song' })).toBeTruthy();
   });
 
@@ -304,6 +318,7 @@ describe('edit mode', () => {
     // App passes `onUpdateSong = null` in a team library the user can't write
     // to. Without this the button would appear and silently do nothing.
     renderMode('practice', { onUpdateSong: null });
+    openSongActions();
     expect(screen.queryByRole('button', { name: 'Edit this song' })).toBeNull();
   });
 
@@ -312,6 +327,7 @@ describe('edit mode', () => {
     // Not a panel: the values that were already in the bar become editable
     // where they were.
     expect(screen.queryByLabelText('Tempo')).toBeNull();
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     expect(screen.getByLabelText('Tempo')).toBeTruthy();
     expect(screen.getByLabelText('Time signature')).toBeTruthy();
@@ -321,6 +337,7 @@ describe('edit mode', () => {
   it('writes a tempo on Enter, not on every keystroke', () => {
     const onUpdateSong = vi.fn();
     renderMode('practice', { onUpdateSong });
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     const field = screen.getByLabelText('Tempo');
     fireEvent.change(field, { target: { value: '96' } });
@@ -332,6 +349,7 @@ describe('edit mode', () => {
 
   it('retired the up/down handles — reordering is a drag on the song map', () => {
     renderMode('practice');
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     expect(screen.queryByRole('button', { name: /Move Verse 1/ })).toBeNull();
     // Removing stays on the heading: you decide to cut a section while looking
@@ -342,6 +360,7 @@ describe('edit mode', () => {
   it('takes a section out of the play order without deleting it', () => {
     const onUpdateSong = vi.fn();
     renderMode('practice', { onUpdateSong });
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     fireEvent.click(screen.getByRole('button', { name: 'Take Chorus out of the play order' }));
     const written = onUpdateSong.mock.calls[0][0];
@@ -360,6 +379,7 @@ describe('edit mode', () => {
         onUpdateSong={onUpdateSong} onSaveAsArrangement={vi.fn()}
       />
     );
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     // Forking an untouched song makes a duplicate, not an arrangement.
     expect(screen.queryByText('New version')).toBeNull();
@@ -384,6 +404,7 @@ describe('edit mode', () => {
   it('will not let you walk out through the exit', () => {
     renderMode('practice');
     expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(false);
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     expect(screen.getByRole('button', { name: 'Exit' }).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
@@ -392,6 +413,7 @@ describe('edit mode', () => {
 
   it('has nothing to undo until something is done', () => {
     renderMode('practice');
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     expect(screen.getByRole('button', { name: 'Undo the last change' }).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Take Chorus out of the play order' }));
@@ -401,6 +423,7 @@ describe('edit mode', () => {
   it('puts everything back on Cancel', () => {
     const onUpdateSong = vi.fn();
     renderMode('practice', { onUpdateSong });
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     fireEvent.click(screen.getByRole('button', { name: 'Take Chorus out of the play order' }));
     onUpdateSong.mockClear();
@@ -432,6 +455,7 @@ describe('edit mode — chords', () => {
         onBack={() => {}} onFinish={() => {}} onUpdateSong={vi.fn()} {...over}
       />
     );
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     return r;
   };
@@ -489,6 +513,7 @@ describe('edit mode — chords', () => {
         onBack={() => {}} onFinish={() => {}} onUpdateSong={onUpdateSong}
       />
     );
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     expect(screen.getAllByRole('button', { name: 'G chord shape' })).toHaveLength(1);
 
@@ -527,6 +552,7 @@ describe('edit mode — the + on the song map', () => {
         onUpdateSong={onUpdateSong}
       />
     );
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
   };
 
@@ -585,6 +611,7 @@ describe('edit mode — locking and the section controls', () => {
         onUpdateSong={vi.fn()} {...over}
       />
     );
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
   };
 
@@ -614,10 +641,12 @@ describe('edit mode — locking and the section controls', () => {
         onUpdateSong={vi.fn()}
       />
     );
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Practice tools' }));
     expect(screen.getByLabelText('Click tempo up')).toBeTruthy();
     // Two bars at the bottom edge, never three — element 12's rule, and the
     // edit row is the third if the practice row stays open.
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
     expect(screen.queryByLabelText('Click tempo up')).toBeNull();
   });

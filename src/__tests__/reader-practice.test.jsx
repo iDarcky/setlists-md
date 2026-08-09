@@ -97,7 +97,23 @@ function makeSong(over = {}) {
 const renderReader = (props = {}) =>
   render(<Reader song={makeSong()} settings={{}} onExit={() => {}} {...props} />);
 
-const openTools = () => fireEvent.click(screen.getByRole('button', { name: 'Practice tools' }));
+// ⚠ Element 5 moved the click out of the top bar and into the floating action
+// (owner, 2026-08-09: *"move everything else there"*). It kept its aria-label,
+// so this is a relocation, not a rename.
+//
+// These tests render the reader in its default mode, which is LIVE — and live
+// can do exactly one thing to a song, so the FAB collapses to BE the click
+// rather than offering a stack of one. Hence the query: there is no 'Song
+// actions' to open here, and that absence is the collapse working. In practice,
+// where the stack is real, the same helper opens it.
+const openSongActions = () => {
+  const fab = screen.queryByRole('button', { name: 'Song actions' });
+  if (fab) fireEvent.click(fab);
+};
+const openTools = () => {
+  openSongActions();
+  fireEvent.click(screen.getByRole('button', { name: 'Practice tools' }));
+};
 // Starting is the ROW's job, not the icon's.
 const startClick = () => fireEvent.click(screen.getByRole('button', { name: 'Start the click' }));
 
@@ -117,8 +133,9 @@ const trackReady = async () => {
 };
 
 describe('element 12 — getting to the tools', () => {
-  it('is one icon beside the menu, and nothing until you tap it', () => {
+  it('is one control, and nothing until you tap it', () => {
     renderReader();
+    openSongActions();
     expect(screen.getByRole('button', { name: 'Practice tools' })).toBeTruthy();
     // The row is not chrome you pay for while reading.
     expect(screen.queryByLabelText('Click tempo up')).toBeNull();
@@ -145,6 +162,9 @@ describe('element 12 — getting to the tools', () => {
   it('closing puts the click away with the row', () => {
     renderReader();
     openTools();
+    // Same pill, second state — the stack closes on pick, so it takes another
+    // tap to get back to it.
+    openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Close practice tools' }));
     expect(screen.queryByLabelText('Click tempo up')).toBeNull();
   });

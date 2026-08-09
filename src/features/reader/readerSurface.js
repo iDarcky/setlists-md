@@ -34,7 +34,13 @@ export const chartSurface = {
   userSelect: 'none',
   WebkitUserSelect: 'none',
   WebkitTouchCallout: 'none',
-  background: 'var(--chart-bg, var(--ds-background-100))',
+  // ⚠ `backgroundColor`, not the `background` SHORTHAND. jsdom's shorthand
+  // expander throws on one containing a nested `var(...)`, and it throws during
+  // the `cloneNode` that `getByRole` performs — so this line is a landmine that
+  // detonates whenever a role query happens to reach the surface div. It sat
+  // here harmlessly for months and took out 37 tests the moment element 5
+  // changed which buttons the query had to walk past. Longhands, always.
+  backgroundColor: 'var(--chart-bg, var(--ds-background-100))',
   color: 'var(--chart-text, var(--ds-gray-1000))',
   '--bg-1': 'var(--chart-bg, #ffffff)',
   '--bg-2': 'var(--chart-bg, #ffffff)',
@@ -120,7 +126,7 @@ export const chartOverlaySurface = {
  * themed. They have to be re-pointed here.
  */
 export const hubSurface = {
-  background: 'var(--ds-background-100)',
+  backgroundColor: 'var(--ds-background-100)',
   color: 'var(--ds-gray-1000)',
   '--chart-bg': 'var(--ds-background-100)',
   '--chart-text': 'var(--ds-gray-1000)',

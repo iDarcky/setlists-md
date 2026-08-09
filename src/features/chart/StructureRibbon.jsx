@@ -568,24 +568,30 @@ export function StructureRibbon({
                 active && 'font-bold',
                 onSelect && `cursor-pointer hover:opacity-80 ${TAP_AREA}`,
               )}
+              // ⚠ `backgroundColor`, never the `background` SHORTHAND — see the
+              // note in `readerSurface.js`. A shorthand here made jsdom
+              // serialize the style attribute as shorthand PLUS longhands, and
+              // re-parsing that on the `cloneNode` every `getByRole` performs
+              // throws. One `background: 'transparent'` on this chip took out
+              // 37 reader tests.
               style={activeFill
                 ? (active
                   // The one filled chip. Its colour is the section's, so the
                   // chip and the heading it points at are the same object.
-                  ? { color: 'var(--chart-bg, var(--bg-1))', background: s.b, borderColor: s.b }
+                  ? { color: 'var(--chart-bg, var(--bg-1))', backgroundColor: s.b, borderColor: s.b }
                   : {
                     // Every code keeps its section's colour — you read the
                     // shape of the song off the row without reading it.
                     color: s.b,
                     borderColor: 'var(--chart-rule, var(--border-1))',
-                    background: 'transparent',
+                    backgroundColor: 'transparent',
                   })
                 // Without `activeFill` this is the pre-reader chart's ribbon:
                 // every code carries its own section colour, current one ringed.
                 : {
                   color: s.b,
                   borderColor: 'var(--chart-rule, var(--border-1))',
-                  background: 'transparent',
+                  backgroundColor: 'transparent',
                   ...(active ? { boxShadow: `0 0 0 2px ${s.b}` } : {}),
                 }}
             >
@@ -662,9 +668,14 @@ export function StructureRibbon({
             // the row read as muddy rather than quiet. One filled chip on a row
             // of clean outlines is the contrast the ribbon actually needs.
             style={{
+              // ⚠ `backgroundColor`, never the `background` SHORTHAND — see the
+              // note in `readerSurface.js`. jsdom expands the shorthand during
+              // the `cloneNode` every `getByRole` performs, and the expansion
+              // throws when a sibling longhand on the same chip carries a
+              // nested `var(a, var(b))`. One shorthand here took out 37 tests.
               ...(activeFill && active
-                ? { background: s.b, borderColor: s.b, color: 'var(--chart-bg, var(--bg-1))' }
-                : { borderColor: s.br, background: 'transparent', color: s.b }),
+                ? { backgroundColor: s.b, borderColor: s.b, color: 'var(--chart-bg, var(--bg-1))' }
+                : { borderColor: s.br, backgroundColor: 'transparent', color: s.b }),
               ...(active && !activeFill ? { boxShadow: `0 0 0 2px ${s.b}` } : {}),
             }}
           >

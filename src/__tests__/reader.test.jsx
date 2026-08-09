@@ -9,6 +9,15 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import Reader from '@/features/reader/Reader';
 import { songFromFlat } from '@/arrangements';
 
+// ⚠ Element 5 moved the click and Edit out of the top bar and into the
+// floating action (owner, 2026-08-09: *"move everything else there"*). The
+// contract these tests encode is unchanged — Edit exists in practice, not in
+// live, not in a read-only library — it is just one tap deeper. This is that
+// tap, in one place.
+const openSongActions = () =>
+  fireEvent.click(screen.getByRole('button', { name: 'Song actions' }));
+
+
 // The Aa popover gates Pro chart styling behind useEntitlement -> useTeam,
 // which needs a provider the app supplies at its root but a unit render does not.
 vi.mock('@/hooks/useEntitlement', () => ({
@@ -739,9 +748,13 @@ describe('the ☰ on a phone — element 28', () => {
     // would leave the chart full height and hidden underneath it.
     expect(panel.parentElement).not.toBe(document.body);
     expect(panel.parentElement.style.flex).toBe('0 0 40%');
-    // ...and the box it sits in is a sibling of the reader's scroller, which is
-    // what makes the 70% real rather than an overlay pretending.
-    expect(panel.parentElement.previousElementSibling.className).toContain('overflow-y-auto');
+    // ...and the box it sits in is a SIBLING of the reader's scroller, which is
+    // what makes the 70% real rather than an overlay pretending. Sibling, not
+    // `previousElementSibling`: element 5's floating action is in that column
+    // too, between the two, and the claim here was never about adjacency.
+    const column = [...panel.parentElement.parentElement.children];
+    expect(column).toContain(panel.parentElement);
+    expect(column.some(el => el.className.includes('overflow-y-auto'))).toBe(true);
     // The chart above is all still there, and still live.
     expect(document.querySelectorAll('[data-section-index]').length).toBe(4);
   });
@@ -1041,7 +1054,8 @@ describe('element 3 — edit mode takes the map to the top', () => {
       .filter(b => !/note/i.test(b.getAttribute('aria-label') || '')).length;
     const before = inHead();
 
-    fireEvent.click(screen.getByRole('button', { name: /^edit/i }));
+    openSongActions();
+    fireEvent.click(screen.getByRole('button', { name: /^edit this song/i }));
     // Owner, 2026-08-05: "move to the top, when exits edit everything goes back
     // to normal". It used to rescue 'off', 'left' and 'right' only — a bottom
     // ribbon stayed under the nav bar, which is the furthest possible place

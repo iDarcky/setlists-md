@@ -207,6 +207,11 @@ export default function Reader({
   // device, not beside the chart. Landscape keeps the side panel, where width
   // is the thing there is plenty of.
   const menuDocks = useMediaQuery('(max-width: 699.98px), (max-width: 1024px) and (orientation: portrait)');
+  // How tall the docked ☰ actually is, for the one thing that floats above it.
+  // A percentage in a stylesheet is not a number you can do arithmetic with
+  // somewhere else — `flex: 0 0 40%` resolves against the ROOT, and every other
+  // height in this file is measured off the SCROLLER. Measure the box.
+  const [dockH, setDockH] = useState(0);
   // Element 11 — the chord you tapped, and where it was.
   const [tappedChord, setTappedChord] = useState(null);
   const { allowed: canSeeShapes } = useEntitlement('chord-diagrams');
@@ -346,6 +351,20 @@ export default function Reader({
     });
     ro.observe(el);
     return () => { ro.disconnect(); setFootH(0); };
+  }, []);
+
+  // The docked ☰'s height. Same shape as `footRef` and for the same reason: the
+  // dock comes and goes with the menu, so the observer has to follow the node.
+  // The cleanup zeroing it is what drops the FAB back down when the menu closes.
+  const dockRef = useCallback((el) => {
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(entries => {
+      const box = entries[0]?.borderBoxSize?.[0]?.blockSize;
+      const h = box ?? el.getBoundingClientRect().height ?? 0;
+      setDockH(prev => (Math.abs(prev - h) <= 0.5 ? prev : h));
+    });
+    ro.observe(el);
+    return () => { ro.disconnect(); setDockH(0); };
   }, []);
 
   const config = useMemo(
@@ -1225,7 +1244,11 @@ export default function Reader({
     // A phone splits VERTICALLY (chart over settings, 60/40) and a desktop
     // HORIZONTALLY (settings down the left, chart beside them) — the outer row
     // here, the inner column below.
-    <div className="h-full flex flex-col">
+    // `relative` so element 5's floating action anchors HERE — to the reader's
+    // own box, which the docked ☰ is a flex child of — rather than to the
+    // full-screen dialog. Anchored to the dialog it sat behind the docked menu
+    // instead of riding above it (owner, 2026-08-09).
+    <div className="h-full flex flex-col relative">
     <div
       className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden no-scrollbar"
       ref={scrollRef}
@@ -1252,17 +1275,18 @@ export default function Reader({
           progress={progress}
           tools={(
             <>
-              {config.can.practiceTools && (
+              {/* ⚠ The click and Edit are NOT here any more — they moved into
+                  the floating action with the notes, which is what took the bar
+                  from five icons beside a truncating title back to two. They
+                  come BACK to the bar while editing, because the FAB is hidden
+                  then and Edit must always have a visible way out. */}
+              {config.can.practiceTools && editing && (
                 <IconButton
                   size="sm"
                   className={BAR_BUTTON}
                   aria-label={practiceOpen ? 'Close practice tools' : 'Practice tools'}
                   aria-pressed={practiceOpen}
-                  // Inert while editing, along with the ☰, the rail and the
-                  // song nav: an edit is a mode you leave deliberately, and
-                  // every one of these is a way to wander out of it with the
-                  // change applied and Cancel out of reach.
-                  disabled={editing}
+                  disabled
                   onClick={togglePractice}
                   style={practiceOpen ? { color: 'var(--chord)' } : undefined}
                 >
@@ -1273,9 +1297,9 @@ export default function Reader({
                   the bar went to five icons beside a truncating title (owner:
                   *"too much for the header"*). It floats now —
                   `ReaderNoteFab`, which carries the reasoning. */}
-              {/* Beside practice, per the ☰'s round-3 cut: "the top bar keeps
-                  ☰ · practice · edit · exit". */}
-              {canEdit && (
+              {/* Only while EDITING: the FAB is hidden in edit mode, so this is
+                  the visible way back out. Otherwise it lives in the FAB. */}
+              {canEdit && editing && (
                 <IconButton
                   size="sm"
                   className={BAR_BUTTON}
@@ -1708,11 +1732,14 @@ export default function Reader({
               onEditCue={config.can.writeNotes && onUpdateSong && !editing
                 ? (text) => editSectionCue(section, text)
                 : null}
-              onEditNote={config.can.writeNotes && onUpdateSong && !editing
+              // ⚠ Gates the TAP, not just the `+`. Passing `onEditNote`
+              // unconditionally left every lyric line opening a note field on
+              // any tap, in or out of the mode — including the empty gutter
+              // (owner, 2026-08-09: *"the notes still open when you press the
+              // lyrics or in the right side"*). The mode is the gate.
+              onEditNote={noteMode === 'note' && config.can.writeNotes && onUpdateSong && !editing
                 ? (lineIdx, text) => editSectionNote(section, lineIdx, text)
                 : null}
-              // Every line offers itself, but only while you have ASKED to
-              // add a note. See `pickingNote`.
               noteHintHere={noteMode === 'note'}
               // The `+ cue` placeholder is gated the same way. An EXISTING cue
               // stays tappable at all times — only the empty affordance waits
@@ -1800,19 +1827,6 @@ export default function Reader({
 
           It also leaves the input unfocused on touch on purpose, so the
           keyboard doesn't cover the bar you are tapping chips in. */}
-      {/* Element 5 — the way in. Practice only, and only when the host can
-          save; `ReaderNoteFab` carries why it floats rather than sitting in
-          the bar. `footH` keeps it clear of the sticky bottom block. */}
-      {showChrome && config.can.writeNotes && onUpdateSong && !editing && (
-        <ReaderNoteFab
-          mode={noteMode}
-          onPick={setNoteMode}
-          onCancel={() => setNoteMode(null)}
-          scrollRef={scrollRef}
-          bottom={footH}
-        />
-      )}
-
       {chordEdit && (
         <ChordAutocomplete
           initial={chordEdit.chord || ''}
@@ -1852,12 +1866,49 @@ export default function Reader({
       )}
     </div>
 
+      {/* Element 5 — the way in. `ReaderNoteFab` carries why it floats rather
+          than sitting in the bar.
+
+          It lives HERE, a sibling of the scroller and the dock, rather than
+          inside the scroller: it is positioned against the reader root, and
+          being a child of the thing it is not positioned against was only ever
+          going to read wrong the first time someone moved it. */}
+      {/* ⚠ Rendered when it has ANY action, not when notes are allowed. Gating
+          the whole FAB on `writeNotes` (practice-only) while the CLICK moved
+          into it would have taken the metronome out of live entirely — caught
+          by the suite, not by reading. */}
+      {showChrome && !editing && (config.can.practiceTools || canEdit || (config.can.writeNotes && onUpdateSong)) && (
+        <ReaderNoteFab
+          mode={noteMode}
+          canNote={!!(config.can.writeNotes && onUpdateSong)}
+          onPick={setNoteMode}
+          onCancel={() => setNoteMode(null)}
+          scrollRef={scrollRef}
+          // The rest of "what can I do to this song" moves here too, which is
+          // what empties the header (owner, 2026-08-09: *"move everything else
+          // there"*). Each is offered only when the VIEW allows it, so live
+          // gets a smaller stack rather than a disabled one.
+          onPractice={config.can.practiceTools ? togglePractice : null}
+          practiceOpen={practiceOpen}
+          onEdit={canEdit ? toggleEdit : null}
+          // The sticky bottom block, PLUS the docked ☰ — both are below the FAB
+          // in the reader's column and it has to clear both.
+          //
+          // ⚠ `dockH` is MEASURED, not `viewH * 0.4`. The dock's 40% is 40% of
+          // the ROOT; `viewH` is the SCROLLER, which is the other 60% — so the
+          // arithmetic version cleared 24% of the reader and left the button
+          // sitting on top of the panel's first row. Two different boxes with
+          // one plausible-looking multiplication between them: measure it.
+          bottom={footH + dockH}
+        />
+      )}
+
       {/* The dock. A fixed share of the READER, not of the viewport, so it is
           the same share whatever chrome sits above it. 40%, up from the 30%
           round 4 shipped: round 6 made every control bigger and 30% then held
           about two and a half rows before it had to scroll. */}
       {menuDocks && menuNode && (
-        <div className="shrink-0 min-h-0" style={{ flex: '0 0 40%' }}>{menuNode}</div>
+        <div ref={dockRef} className="shrink-0 min-h-0" style={{ flex: '0 0 40%' }}>{menuNode}</div>
       )}
     </div>
   );

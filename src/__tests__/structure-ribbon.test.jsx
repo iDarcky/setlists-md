@@ -70,8 +70,11 @@ describe('ribbon chips vs the global button min-height', () => {
       <StructureRibbon structure={structure} style="codes" activeIndex={0} activeFill onSelect={() => {}} />
     );
     const [verse1, chorus, verse2] = container.querySelectorAll('button');
-    expect(verse1.style.background).toBeTruthy();          // the one you're in
-    expect(chorus.style.background).toBe('transparent');
+    // `backgroundColor`, not `background` — the chips use the longhand on
+    // purpose (see the note on the chip's style: the shorthand makes jsdom
+    // serialize shorthand + longhands together and blow up on re-parse).
+    expect(verse1.style.backgroundColor).toBeTruthy();      // the one you're in
+    expect(chorus.style.backgroundColor).toBe('transparent');
     expect(chorus.style.color).toBeTruthy();
     expect(chorus.style.color).not.toBe(verse2.style.color);
   });
