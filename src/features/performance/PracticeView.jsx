@@ -774,7 +774,7 @@ function StructureEditor({ structure, availableSections, onUpdate, onClose }) {
 }
 
 // Chart with editable cue cards between sections
-function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, notation = 'letters', accidentals = 'auto', showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', chordEmphasis = 'full', sectionColors, sectionLabels, customSectionTypes, onSaveCue, canEditShared = true, privateNotes }) {
+function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFontSize, notation = 'letters', accidentals = 'auto', showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', sectionColors, sectionLabels, customSectionTypes, onSaveCue, canEditShared = true, privateNotes }) {
   const myEnabled = !!privateNotes?.enabled;
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   // Mirror the chart-view display switch.
@@ -872,7 +872,6 @@ function PracticeChart({ song, selectedKey, capo, fontSize, columns = 1, chordFo
             showLyrics={viewLyrics}
             showTabs={viewTabs}
             tabInstrument={tabInstrument}
-            chordEmphasis={chordEmphasis}
             inlineNotes
             noteStyle="dashes"
           />

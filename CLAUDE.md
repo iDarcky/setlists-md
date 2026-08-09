@@ -241,7 +241,7 @@ src/
 ├── data/
 │   ├── demos.js          # 3 demo songs loaded on first run
 │   ├── chordShapes.js    # ~50 worship chord fingering shapes for svguitar
-│   └── chartThemes.js · stageModes.js
+│   └── chartThemes.js
 ├── styles/index.css      # Global styles, CSS variables, fonts
 └── __tests__/            # 40 suites, 619 tests — all pure logic (no render tests yet)
 

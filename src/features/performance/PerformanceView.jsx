@@ -579,7 +579,7 @@ export default function PerformanceView({ setlist, songs, onBack, onFinish, defa
   );
 }
 
-function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, notation = 'letters', accidentals = 'auto', showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', chordEmphasis = 'full', sectionColors, sectionLabels, customSectionTypes, privateNotes }) {
+function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, notation = 'letters', accidentals = 'auto', showChords = true, showDiagrams = false, displayMode = 'chords', tabInstrument = 'all', sectionColors, sectionLabels, customSectionTypes, privateNotes }) {
   const transpose = semitonesBetween(song.key, selectedKey) - (capo || 0);
   const myNotesEnabled = !!privateNotes?.enabled;
   const viewChords = displayMode === 'chords' || displayMode === 'chordsonly';
@@ -696,7 +696,6 @@ function SongChart({ song, selectedKey, capo, fontSize, columns, chordFontSize, 
             showLyrics={viewLyrics}
             showTabs={viewTabs}
             tabInstrument={tabInstrument}
-            chordEmphasis={chordEmphasis}
             inlineNotes
             noteStyle="dashes"
           />

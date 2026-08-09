@@ -219,7 +219,7 @@ export default function ChartView({
     setShowChords(disp.showChords);
     setShowDiagrams(disp.showDiagrams);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.notation, settings?.showChords, settings?.showDiagrams, settings?.stageMode]);
+  }, [settings?.defaultFontSize, settings?.chordFontSize, settings?.nashville, settings?.notation, settings?.showChords, settings?.showDiagrams]);
 
   // Persisting helpers — update the snappy local mirror and the device setting.
   const changeFontSize = (v) => { const n = Math.max(10, Math.min(30, v)); setFontSize(n); onUpdateSettings?.('defaultFontSize', n); };
@@ -874,7 +874,6 @@ export default function ChartView({
                 showLyrics={viewLyrics}
                 showTabs={viewTabs}
                 tabInstrument={tabInstrument}
-                chordEmphasis={settings?.stageMode === 'bassist' ? 'root' : 'full'}
                 inlineNotes={showInlineNotes}
                 noteStyle={inlineNoteStyle}
                 sectionColors={settings?.sectionColors}

@@ -9,16 +9,6 @@ const NOTE_SEPARATORS = {
   arrow:  ' ----> ',
 };
 
-// The note a bassist actually plays: the slash bass (e.g. C/E → E) when there
-// is one, otherwise the chord root (Gsus4 → G, Bbm7 → Bb).
-function bassNote(chord) {
-  if (!chord) return chord;
-  const parts = String(chord).split('/');
-  const base = parts.length > 1 ? parts[parts.length - 1] : parts[0];
-  const m = base.match(/^[A-G][#b]?/);
-  return m ? m[0] : base;
-}
-
 // Group chord+text pairs into whole words so a lyric line only ever wraps at a
 // space — never in the middle of a word, even when a chord sits mid-word.
 // Returns a list of items: { segments: [{chord, text}] } for a word, or
@@ -51,7 +41,7 @@ function groupChordWords(pairs) {
 export default function SectionBlock({
   section, transpose, modOffset = 0, nns, notation, songKey, accidentals = 'auto',
   showChords = true, showLyrics = true, showTabs = true, inlineNotes = true, noteStyle = 'dashes',
-  sectionColors, sectionLabels, customSectionTypes, tabScale = 1, tabColors, tabInstrument = 'all', chordEmphasis = 'full',
+  sectionColors, sectionLabels, customSectionTypes, tabScale = 1, tabColors, tabInstrument = 'all',
   condensed = false, onJumpToFirst,
   // The reader renders its own (sticky) heading above this block, so it asks
   // for the body only. Default false keeps every existing caller unchanged.
@@ -400,9 +390,6 @@ export default function SectionBlock({
     // invisible until somebody plays it.
     const renderChord = (rawChord, padded, ordinal = -1) => {
       let chord = notateChord(rawChord, { key: songKey, notation: notationMode, transpose: effectiveTranspose, accidentals });
-      // Bass "root emphasis": collapse each chord to the note a bassist plays —
-      // the slash bass if present, otherwise the chord root.
-      if (chordEmphasis === 'root') chord = bassNote(chord);
       // Shapes are keyed by letter name, so a chart displayed in Nashville
       // still has to look up "G" — you cannot finger a "1".
       const shapeName = notationMode === 'letters'
