@@ -390,6 +390,30 @@ export default function SongHub({
               // Labs `unifiedReader`: the hub keeps its chrome (identity, tabs,
               // player bar) and swaps only the reader inside it — otherwise the
               // app would be back to two chart renderers.
+              //
+              // ⚠ `!fsMode` — the hub UNMOUNTS its reader while the full-screen
+              // one is open, rather than leaving both alive.
+              //
+              // Two Readers in the DOM at once is a whole bug FAMILY, not one
+              // bug. Both render `id="section-N"`, the same class names and the
+              // same structure, and the hub's copy is first in document order —
+              // so every `document.getElementById` / `document.querySelector`
+              // that means "the reader" silently finds the wrong one. It broke
+              // `jumpTo` (every jump in full screen measured the hub's section
+              // and landed nowhere near its target) and wrecked a day of browser
+              // probes. `CLAUDE.md` and `READER.md` both carry it as a standing
+              // gotcha that every future measurement has to remember.
+              //
+              // It also is not free to keep: the hidden copy re-renders on every
+              // settings change the full-screen one makes.
+              //
+              // The trade, stated honestly: closing full screen remounts the
+              // hub's reader, so the hub's own scroll position resets to the top
+              // of the song. You were reading full screen, so the place you care
+              // about is the one you just left — and a preview that starts at the
+              // beginning is a much smaller cost than a class of invisible
+              // wrong-element bugs that nobody can see and everybody inherits.
+              !fsMode && (
               <Reader
                 embedded
                 song={song}
@@ -403,6 +427,7 @@ export default function SongHub({
                 aaAnchor={aaAnchor}
                 onAaClose={closeAa}
               />
+              )
             ) : (
               <ChartView
                 embedded
