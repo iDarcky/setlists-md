@@ -13,6 +13,12 @@ export const PORTABLE_PREF_KEYS = [
   'chordFontSize',
   'nashville',
   'notation',
+  // Element 19. `{ [songId]: fret }` — YOUR capo per song, never the band's.
+  // It follows the account (owner, 2026-08-10: *"yes, it should follow the
+  // account"*) because a guitarist who set capo 2 on their phone wants capo 2
+  // on the iPad at rehearsal, and it is the one thing here that is per-song
+  // rather than per-app.
+  'songCapos',
   'showChords',
   'showDiagrams',
   'pedalNext',

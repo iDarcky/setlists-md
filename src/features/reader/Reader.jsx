@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
 import { semitonesBetween, keysInQualityOf, notateChord } from '@/music';
+import { capoFor, withCapo, shapeKeyFor, suggestCapo, MAX_CAPO } from '@/lib/capo';
 import { resolveSongView } from '@/arrangements';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/ui/Select';
 import { IconButton } from '@/ui/IconButton';
@@ -60,6 +61,61 @@ const EMPTY = [];
  * would make the bar taller in edit mode than out of it, which reads as the
  * page jumping when you press edit.
  */
+/**
+ * Element 19 — the capo, as a chip beside the key.
+ *
+ * Outlined rather than filled: the key pill is the solid `--chord` block, and
+ * two solid blocks side by side compete for the same "this is the fact" role.
+ * Outlined reads as *derived from* the thing next to it, which is exactly what
+ * a capo is.
+ *
+ * Off state is deliberately quiet — a hollow "Capo" in the bar's own muted ink,
+ * the same weight as the tempo and the time beside it. A guitarist finds it; a
+ * drummer never notices it is there.
+ *
+ * The list offers the SUGGESTED fret first and marks it, rather than defaulting
+ * to it. Owner, 2026-08-10: *"I don't know if I'd want auto-computed, I feel
+ * like it can be annoying"* — so the arithmetic is offered and the choice is
+ * the player's, which also means it survives the leader moving the key.
+ */
+function CapoChip({ capo, soundingKey, shapeKey, onSelect }) {
+  const suggestion = suggestCapo(soundingKey);
+  return (
+    <Select
+      value={String(capo)}
+      onValueChange={(v) => onSelect(parseInt(v, 10) || 0)}
+    >
+      <SelectTrigger
+        aria-label={capo ? `Capo ${capo}, shapes in ${shapeKey}` : 'Capo'}
+        className="!border gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90 !h-[23px] !min-h-[23px] sm:!h-[20px] sm:!min-h-[20px] !w-auto !pl-1.5 !pr-1 !py-0 !rounded-lg text-[12px] leading-none [&>svg]:w-[10px] [&>svg]:h-[10px] [&>svg]:shrink-0 [&>svg]:translate-y-[1px]"
+        style={{
+          // ⚠ LONGHANDS. A `background` or `outline` shorthand with a nested
+          // `var(a, var(b))` throws in jsdom's style expander, inside the
+          // `cloneNode` that every `getByRole` performs — one of those on one
+          // button took out 37 tests at once.
+          backgroundColor: 'transparent',
+          borderWidth: 1,
+          borderStyle: 'solid',
+          borderColor: capo ? 'var(--chord)' : 'var(--chart-rule, var(--ds-gray-400))',
+          color: capo ? 'var(--chord)' : 'var(--chart-subtle, var(--ds-gray-700))',
+        }}
+      >
+        <span>{capo ? `Capo ${capo}` : 'Capo'}</span>
+        {capo && shapeKey ? <span className="opacity-70">·{shapeKey}</span> : null}
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="0">No capo</SelectItem>
+        {Array.from({ length: MAX_CAPO }, (_, i) => i + 1).map(n => (
+          <SelectItem key={n} value={String(n)}>
+            {`Capo ${n} · ${shapeKeyFor(soundingKey, n)} shapes`}
+            {suggestion?.capo === n ? '  ★' : ''}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 function BarField({ value, onCommit, width, label, prefix = '', inputMode }) {
   const incoming = String(value ?? '');
   const [draft, setDraft] = useState(incoming);
@@ -1142,6 +1198,8 @@ export default function Reader({
 
   const transpose = (!selectedKey || !song?.key) ? 0 : semitonesBetween(song.key, selectedKey);
 
+  // Element 19's capo is resolved just below `displayKey` — it needs it.
+
   const tabColors = {
     ...(settings?.tabStringColor ? { line: settings.tabStringColor, label: settings.tabStringColor } : null),
     ...(settings?.tabNumberColor ? { number: settings.tabNumberColor } : null),
@@ -1179,6 +1237,21 @@ export default function Reader({
   if (!song) return null;
 
   const displayKey = selectedKey || song.key;
+  // ── Element 19 — the capo ────────────────────────────────────────────────
+  // YOUR capo for THIS song (`src/lib/capo.js` has the whole argument for why
+  // it is yours and not the band's). The chart shows SHAPES, so the chords
+  // render `capo` semitones DOWN while the key pill keeps saying the sounding
+  // key — both facts on screen, neither one lying.
+  //
+  // It is set in PRACTICE and only rendered in LIVE (owner, 2026-08-10: *"The
+  // capo is set in practice view, in live it's only rendered"*), which is the
+  // same rule `saveKey` already follows: live is the reading view.
+  const capo = capoFor(settings, song?.id);
+  const chartTranspose = transpose - capo;
+  const capoShapeKey = capo ? shapeKeyFor(displayKey, capo) : null;
+  const setCapo = onUpdateSettings && config.can.saveKey
+    ? (n) => onUpdateSettings('songCapos', withCapo(settings, song.id, n))
+    : null;
   // Element 1 is fixed — no customization, by decision. An earlier cut gave it
   // three density states nobody asked for, and a stored 'min' was silently
   // hiding the title.
@@ -1392,6 +1465,39 @@ export default function Reader({
                   {displayKey}
                 </span>
               )}
+              {/* ── Element 19 — the capo chip ────────────────────────────────
+                  Beside the key, not inside it (owner, 2026-08-10: *"I think it
+                  will be too much... the pill would get too cluttered if we also
+                  add capo"*). It survives element 5's "the bar carries no tools"
+                  because key AND capo together are the same fact — *where you
+                  are* — and the bar has room since the tools left it.
+
+                  Two states, and they follow the same rule `saveKey` does:
+                  in PRACTICE it is a control, in LIVE it is a read-out that
+                  appears only when a capo is already set (owner: *"in live it's
+                  only rendered... We needed only if there is already a capo that
+                  said capo +3"*). No capo, no chip, no clutter. */}
+              {setCapo ? (
+                <CapoChip
+                  capo={capo}
+                  soundingKey={displayKey}
+                  shapeKey={capoShapeKey}
+                  onSelect={setCapo}
+                />
+              ) : capo ? (
+                <span
+                  className="font-mono font-bold text-[12px] rounded-lg px-1.5 h-[23px] sm:h-[20px] inline-flex items-center gap-1 shrink-0"
+                  style={{
+                    borderWidth: 1,
+                    borderStyle: 'solid',
+                    borderColor: 'var(--chord)',
+                    color: 'var(--chord)',
+                  }}
+                >
+                  Capo {capo}
+                  {capoShapeKey && <span className="opacity-70">· {capoShapeKey}</span>}
+                </span>
+              ) : null}
               {/* The tempo and the time are ALREADY on this row as text. In
                   edit mode they become the fields — which is the owner's
                   "a couple of interactive fields", and the answer to "this
@@ -1736,7 +1842,7 @@ export default function Reader({
               config={config}
               songKey={song.key}
               settings={settings}
-              transpose={transpose}
+              transpose={chartTranspose}
               modOffset={offsets[idx]}
               repeatOf={repeats[idx]}
               // The tag opens where it stands (owner, option B, 2026-08-05),
