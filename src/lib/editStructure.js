@@ -1,3 +1,5 @@
+import { normalizeSectionName } from '@/music';
+
 /**
  * Edit mode's play-order arithmetic, as pure functions.
  *
@@ -101,6 +103,52 @@ export function moveRun(structure, fromIndex, count, toIndex) {
 export function appendSection(structure, name) {
   if (!Array.isArray(structure) || !name) return structure;
   return [...structure, name];
+}
+
+/**
+ * A section that does not exist yet — a NEW body, not another play of an old one.
+ *
+ * ⚠ This is a different verb from `appendSection` and from the song map's `+`,
+ * and the difference is the whole reason it lives at the bottom of the chart
+ * rather than on the map. The map's `+` means *"play this again"*: it touches
+ * `structure` only, and the section it repeats already has words. This one
+ * invents a body — somebody brought an intro to rehearsal — so it has to write
+ * `sections` AND `structure`, and it is the only edit in the reader that makes
+ * the song longer. Owner, 2026-08-10: *"a better way is to add a add section at
+ * the bottom of the edit view, because we already have a + in the song map for
+ * adding a repeating section."*
+ *
+ * Both lists move together or neither does. Writing `sections` alone leaves a
+ * section that exists and never plays; writing `structure` alone names a
+ * section that does not exist, which `buildSongFlow` then drops — either way the
+ * tap looks like it did nothing, which is the failure mode this whole file
+ * exists to avoid.
+ *
+ * `ordered` is what the reader is actually showing, so the structure is
+ * materialised from the same source `editStructure` uses — a song played in
+ * document order has no `structure` array to append to, and appending to the
+ * empty one it does have would silently drop every section before the new one.
+ *
+ * The name is made UNIQUE against the sections that exist, because the play
+ * order refers to sections BY NAME: a second "Intro" would be indistinguishable
+ * from the first, and every slot naming it would render the same body.
+ */
+export function addNewSection(song, ordered, rawName) {
+  const name = String(rawName || '').trim();
+  if (!song || !name) return null;
+  const sections = Array.isArray(song.sections) ? song.sections : [];
+  const taken = new Set(sections.map(s => normalizeSectionName(s?.type)));
+  let unique = name;
+  for (let n = 2; taken.has(normalizeSectionName(unique)); n += 1) unique = `${name} ${n}`;
+  return {
+    // One empty line, not zero. A section with no lines renders as a heading
+    // with nothing under it and no line to put a chord on, so the thing you
+    // just added would offer nowhere to type.
+    sections: [...sections, { type: unique, note: '', lines: [''] }],
+    structure: [...materialiseStructure(song, ordered), unique],
+    structureMode: 'custom',
+    name: unique,
+  };
 }
 
 /**

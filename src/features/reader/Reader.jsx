@@ -26,7 +26,7 @@ import ReaderActions from './ReaderActions';
 import { useConfirm } from '@/ui/useConfirmHook';
 
 import {
-  materialiseStructure, removeSlot, moveRun, appendSection, snapshotEditable, isDirty,
+  materialiseStructure, removeSlot, moveRun, appendSection, addNewSection, snapshotEditable, isDirty,
   replaceChordInLine, withEditedLine,
 } from '@/lib/editStructure';
 import ChordAutocomplete from '@/features/editor/ChordAutocomplete';
@@ -78,8 +78,8 @@ const EMPTY = [];
  * like it can be annoying"* — so the arithmetic is offered and the choice is
  * the player's, which also means it survives the leader moving the key.
  */
-function CapoChip({ capo, soundingKey, shapeKey, onSelect }) {
-  const suggestion = suggestCapo(soundingKey);
+function CapoChip({ capo, soundingKey, shapeKey, writtenCapo, onSelect }) {
+  const suggestion = suggestCapo(soundingKey, writtenCapo);
   return (
     <Select
       value={String(capo)}
@@ -113,6 +113,84 @@ function CapoChip({ capo, soundingKey, shapeKey, onSelect }) {
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+/**
+ * "Add section", at the foot of the chart, in edit mode.
+ *
+ * Two taps, not a dialog. A dialog for "what is it called" would cover the song
+ * you are adding to, and the answer is one of eight words nine times out of ten
+ * — so the eight are offered as chips and anything else is typed in the same
+ * row. `Intro` is first because it is the case that asked for this feature.
+ *
+ * Collapsed to a single quiet row until tapped: it sits under every song in
+ * edit mode, and something that says "+ Add section" permanently at the end of
+ * a chart is the same litter that ~30 `+` marks would have been in the gutter.
+ */
+function AddSectionRow({ onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState('');
+  const commit = (name) => {
+    const n = String(name || '').trim();
+    if (!n) return;
+    onAdd(n);
+    setDraft('');
+    setOpen(false);
+  };
+  const muted = 'var(--chart-subtle, var(--ds-gray-700))';
+  const rule = { borderColor: 'var(--chart-rule, var(--ds-gray-400))' };
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="w-full min-h-0 h-9 rounded-lg border border-dashed cursor-pointer bg-transparent text-label-12 font-semibold"
+        style={{ ...rule, color: muted, marginTop: 4 }}
+      >
+        + Add section
+      </button>
+    );
+  }
+  return (
+    <div className="rounded-lg border p-2" style={{ ...rule, marginTop: 4 }}>
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {['Intro', 'Verse', 'Pre Chorus', 'Chorus', 'Bridge', 'Instrumental', 'Tag', 'Outro'].map(t => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => commit(t)}
+            className="min-h-0 h-7 px-2 rounded-md border cursor-pointer text-label-11 font-semibold bg-transparent"
+            style={{ ...rule, color: 'var(--chart-text, var(--ds-gray-1000))' }}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-1.5">
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); commit(draft); }
+            if (e.key === 'Escape') { e.preventDefault(); setDraft(''); setOpen(false); }
+          }}
+          placeholder="Or type a name…"
+          aria-label="New section name"
+          className="flex-1 min-h-0 h-7 rounded-md border px-2 bg-transparent outline-none text-label-12"
+          style={{ ...rule, color: 'var(--chart-text, var(--ds-gray-1000))' }}
+        />
+        <button
+          type="button"
+          onClick={() => { setDraft(''); setOpen(false); }}
+          className="min-h-0 h-7 px-2 rounded-md border cursor-pointer text-label-11 font-semibold bg-transparent"
+          style={{ ...rule, color: muted }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -890,6 +968,17 @@ export default function Reader({
     writeSong({ structure: next, structureMode: 'custom' });
   }, [song, ordered, writeSong]);
 
+  // A section that does not exist yet. `addNewSection` writes `sections` AND
+  // `structure` in ONE patch on purpose — sending them as two writes would
+  // leave a window where the song names a section it does not have, and
+  // `buildSongFlow` drops those, so the new section would flicker or vanish.
+  const addSection = useCallback((name) => {
+    if (!song) return;
+    const next = addNewSection(song, ordered, name);
+    if (!next) return;
+    writeSong({ sections: next.sections, structure: next.structure, structureMode: next.structureMode });
+  }, [song, ordered, writeSong]);
+
   const applyChord = useCallback((picked) => {
     const meta = chordEdit?.meta;
     setChordEdit(null);
@@ -1482,6 +1571,9 @@ export default function Reader({
                   capo={capo}
                   soundingKey={displayKey}
                   shapeKey={capoShapeKey}
+                  // The writer's capo, if the arrangement carries one — it
+                  // seeds the suggestion rather than doing anything by itself.
+                  writtenCapo={song.capo}
                   onSelect={setCapo}
                 />
               ) : capo ? (
@@ -1907,6 +1999,22 @@ export default function Reader({
               cueHintHere={editing}
             />
           ))}
+          {/* ── Add a section — the bottom of the chart, in edit mode ────────
+              Somebody brings an intro at rehearsal. Until now that cost you the
+              whole reader: exit, hub, editor, add the section, save, come back,
+              find your place (owner, 2026-08-10). Edit mode already reorders,
+              repeats and removes sections and rewrites their words — inventing
+              one is the same class of edit, and the only one it could not do.
+
+              ⚠ HERE, and not on the song map. The map's `+` means *"play this
+              again"*; this means *"there is a new part of the song"*. One
+              control cannot carry both verbs (owner: *"we already have a + in
+              the song map for adding a repeating section"*). It also lands
+              where a new section goes — at the end, which is where you would
+              add one on paper. */}
+          {editing && onUpdateSong && (
+            <AddSectionRow onAdd={addSection} />
+          )}
           </div>
         </div>
         </div>

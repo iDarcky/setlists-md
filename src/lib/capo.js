@@ -52,14 +52,26 @@ export function shapeKeyFor(soundingKey, capo) {
  * Returns `{ capo, shapeKey }` for the smallest capo that lands on an open
  * shape family, or null when the sounding key IS one (capo 0 already works).
  */
-export function suggestCapo(soundingKey) {
+export function suggestCapo(soundingKey, writtenCapo = 0) {
   if (!soundingKey) return null;
+  // ⚠ The writer's own capo wins, when there is one. `arrangement.capo` is the
+  // person who charted the song saying "this was played with a capo on 2", and
+  // that is better information than any arithmetic — it is what the recording
+  // does. It was also, until now, a field NOTHING read: the editor collected it
+  // and its hint promised *"Shows capo shapes for guitarists alongside the real
+  // chords"*, which was false (owner, 2026-08-10, on whether to delete it —
+  // repurposing it makes an existing field true instead of throwing the writer's
+  // knowledge away).
+  const written = Number(writtenCapo);
+  if (Number.isFinite(written) && written >= 1 && written <= MAX_CAPO) {
+    return { capo: written, shapeKey: shapeKeyFor(soundingKey, written), from: 'song' };
+  }
   for (let capo = 0; capo <= MAX_CAPO; capo += 1) {
     const shape = shapeKeyFor(soundingKey, capo);
     // Compare ROOTS, so Am suggests the same capo as A — the shape family is
     // about the fingering, and the quality rides along.
     const hit = OPEN_SHAPE_KEYS.some(k => semitonesBetween(k, shape) === 0);
-    if (hit) return capo === 0 ? null : { capo, shapeKey: shape };
+    if (hit) return capo === 0 ? null : { capo, shapeKey: shape, from: 'shapes' };
   }
   return null;
 }

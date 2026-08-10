@@ -14,7 +14,7 @@ const FIELDS = [
   { key: 'language', label: 'Language', placeholder: 'English', group: 'Identity', span: 1, max: 30, hint: 'Filter the library by language.' },
   { key: 'translator', label: 'Translator', placeholder: 'Name', group: 'Identity', span: 1, max: 60, hint: 'Credited on the chart; searchable.' },
 
-  { key: 'capo', label: 'Capo', placeholder: '0', group: 'Musical', span: 1, type: 'number', max: 2, hint: 'Shows capo shapes for guitarists alongside the real chords.' },
+  { key: 'capo', label: 'Capo', placeholder: '0', group: 'Musical', span: 1, type: 'number', max: 2, hint: 'What the song was played with. Suggested to guitarists as their capo in the reader.' },
   { key: 'duration', label: 'Length', placeholder: '3:45', group: 'Musical', span: 1, type: 'time', max: 5, hint: 'Adds up to a setlist’s total running time.' },
   { key: 'vocalrange', label: 'Vocal range', placeholder: 'A2–C5', group: 'Musical', span: 1, max: 10, hint: 'Helps pick a key that suits whoever is singing.' },
   { key: 'year', label: 'Release year', placeholder: '1779', group: 'Musical', span: 1, type: 'number', max: 4, hint: 'Filter the library by year.' },

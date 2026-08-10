@@ -31,9 +31,9 @@ describe('what a capo does to the chart', () => {
 describe('the suggestion', () => {
   it('offers the smallest fret that lands on an open shape', () => {
     expect(suggestCapo('A')).toBeNull();          // A is already open
-    expect(suggestCapo('Bb')).toEqual({ capo: 1, shapeKey: 'A' });
-    expect(suggestCapo('F')).toEqual({ capo: 1, shapeKey: 'E' });
-    expect(suggestCapo('Eb')).toEqual({ capo: 1, shapeKey: 'D' });
+    expect(suggestCapo('Bb')).toEqual({ capo: 1, shapeKey: 'A', from: 'shapes' });
+    expect(suggestCapo('F')).toEqual({ capo: 1, shapeKey: 'E', from: 'shapes' });
+    expect(suggestCapo('Eb')).toEqual({ capo: 1, shapeKey: 'D', from: 'shapes' });
   });
 
   it('says nothing when the key is already an easy one', () => {
@@ -44,7 +44,7 @@ describe('the suggestion', () => {
     // Am fingers like A — the family is about the fingering, the quality rides
     // along. Suggesting a different capo for Am than for A would be wrong.
     expect(suggestCapo('Am')).toBeNull();
-    expect(suggestCapo('Bbm')).toEqual({ capo: 1, shapeKey: 'Am' });
+    expect(suggestCapo('Bbm')).toEqual({ capo: 1, shapeKey: 'Am', from: 'shapes' });
   });
 
   it('never suggests past the usable neck', () => {
@@ -52,6 +52,26 @@ describe('the suggestion', () => {
       const s = suggestCapo(k);
       if (s) expect(s.capo).toBeLessThanOrEqual(MAX_CAPO);
     }
+  });
+});
+
+describe('the writer\'s own capo', () => {
+  it('wins over the arithmetic, because it is what the recording does', () => {
+    // `arrangement.capo` was collected by the editor and read by NOTHING, with a
+    // hint promising capo shapes it never delivered. It is better information
+    // than any open-shape sum: it is what the person who charted the song
+    // actually played.
+    expect(suggestCapo('A', 3)).toEqual({ capo: 3, shapeKey: 'Gb', from: 'song' });
+    // …even when the sounding key is already an open one and the arithmetic
+    // would have suggested nothing at all.
+    expect(suggestCapo('G')).toBeNull();
+    expect(suggestCapo('G', 2)).toEqual({ capo: 2, shapeKey: 'F', from: 'song' });
+  });
+
+  it('ignores a written capo that is not a usable fret', () => {
+    expect(suggestCapo('Bb', 0)).toEqual({ capo: 1, shapeKey: 'A', from: 'shapes' });
+    expect(suggestCapo('Bb', 99)).toEqual({ capo: 1, shapeKey: 'A', from: 'shapes' });
+    expect(suggestCapo('Bb', null)).toEqual({ capo: 1, shapeKey: 'A', from: 'shapes' });
   });
 });
 
