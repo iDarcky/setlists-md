@@ -677,6 +677,49 @@ describe('the lyric colour and font belong to the LYRICS', () => {
     expect(src.match(/--chart-font-size-chord, 17px/g)?.length).toBe(3);
   });
 
+  // ⚠ The one that mattered. A chord standing alone between two spaces on a
+  // line WITH lyrics took the next chord down with it: `pending = pending ??
+  // p.chord` kept the held chord and discarded the arriving one. Nothing showed
+  // — the chart just drew fewer chords than the song has, which is a wrong chord
+  // played on a Sunday with no error anywhere. `parser.js` was innocent: it
+  // returns every pair and round-trips the line byte-exact.
+  it.each([
+    ['[C]word [G] [D]more', ['C', 'G', 'D']],
+    ['[Ab]mea [Cm] [Bb]', ['Ab', 'Cm', 'Bb']],
+    ['[C]a [G] [D] [Em]b', ['C', 'G', 'D', 'Em']],
+    // The turnaround that ends half the choruses in the library.
+    ['[Ab]setea [Cm]mea [Bb]', ['Ab', 'Cm', 'Bb']],
+    // Control: chords that already had words never regressed.
+    ['[C]a [G]b [D]c', ['C', 'G', 'D']],
+  ])('renders every chord in %s', async (line, expected) => {
+    const { default: SectionBlock } = await import('@/features/chart/SectionBlock');
+    const { container } = render(
+      <SectionBlock
+        section={{ type: 'Verse 1', note: '', lines: [line] }}
+        transpose={0}
+        songKey="C"
+        notation="letters"
+        // 'flats' so the assertion is about which chords survive, not about how
+        // an Ab is spelled in C — that is the open accidentals question.
+        accidentals="flats"
+      />
+    );
+    const chords = [...container.querySelectorAll('span')]
+      .filter(s => String(s.className).includes('text-[var(--chord)]'))
+      .map(s => s.textContent);
+    expect(chords).toEqual(expected);
+  });
+
+  it('never lets a chord with no word under it overhang off the screen', async () => {
+    const src = await import('node:fs').then(fs =>
+      fs.readFileSync('src/features/chart/SectionBlock.jsx', 'utf8'));
+    // A zero-width chord is invisible to the flex row, so the row cannot wrap on
+    // its account and the chart's padding cannot contain it — measured at 390px,
+    // a trailing `Cmaj9` painted 15.1px beyond the window. A chord with no word
+    // has nothing after it to shove, so the overhang buys it nothing anyway.
+    expect(src).toContain('chordFollows(wi, si) || !seg.text');
+  });
+
   it('gives a lyric-only line the same air as a chorded one — but only on a chart', async () => {
     const src = await import('node:fs').then(fs =>
       fs.readFileSync('src/features/chart/SectionBlock.jsx', 'utf8'));

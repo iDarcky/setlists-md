@@ -14,13 +14,40 @@ const NOTE_SEPARATORS = {
 // Returns a list of items: { segments: [{chord, text}] } for a word, or
 // { space: '…' } for the breakable gap between words. A chord that lands on a
 // space carries forward to the start of the next word.
+//
+// ⚠ IT USED TO DELETE CHORDS. `pending = pending ?? p.chord` reads as "keep the
+// one we are already carrying", and that is right for the case it was written
+// for — a chord landing mid-gap belongs to the word after it. But a chord
+// arriving while one is still held is not a duplicate; it is the NEXT chord, and
+// `??` threw it away. Any chord standing alone between two spaces on a line that
+// has lyrics took the following chord with it:
+//
+//     [C]word [G] [D]more     rendered   C G      — D gone
+//     [Ab]mea [Cm] [Bb]       rendered   Ab Cm    — Bb gone
+//     [C]a [G] [D] [Em]b      rendered   C G      — D and Em gone
+//
+// Measured in Chromium 2026-08-10, and it is the shape of a real line: a
+// trailing turnaround (`…mea [Cm] [Bb]`) is how half the worship charts in the
+// library end a chorus. Nothing showed on screen — the chart simply drew fewer
+// chords than the song had, so you play the wrong one and the app never says a
+// word. `parser.js` was innocent throughout: `parseLine` returns all four pairs
+// and `lineToPlacement`/`placementToLine` round-trip the line byte-exact. The
+// loss was here, in the renderer, and only on screen.
+//
+// A held chord that meets another chord has nothing left to attach to, so it is
+// emitted where it stands, with no word under it. The carry-forward that the
+// `??` was protecting still happens — it is the `/^\s+$/` branch below that
+// deliberately leaves `pending` alone.
 function groupChordWords(pairs) {
   const words = [];
   let cur = [];
   let pending = null;
   const flush = () => { if (cur.length) { words.push({ segments: cur }); cur = []; } };
   for (const p of pairs) {
-    if (p.chord) pending = pending ?? p.chord;
+    if (p.chord) {
+      if (pending) cur.push({ chord: pending, text: '' });
+      pending = p.chord;
+    }
     const parts = (p.text ?? '').split(/(\s+)/);
     for (const part of parts) {
       if (part === '') continue;
@@ -561,7 +588,26 @@ export default function SectionBlock({
                   <span key={wi} className="inline-flex items-end" style={{ whiteSpace: 'nowrap' }}>
                     {w.segments.map((seg, si) => (
                       <span key={si} className="inline-flex flex-col justify-end">
-                        {seg.chord && renderChord(seg.chord, chordFollows(wi, si), ordinalOf(wi, si))}
+                        {/* ⚠ `|| !seg.text` — a chord with NO WORD under it
+                            always takes its real width.
+                            Overhanging (width 0) exists so the last chord does
+                            not shove the words after it apart; a chord with no
+                            word has nothing after it to shove, so the overhang
+                            buys nothing — and it costs the chart the only thing
+                            that keeps a chord on screen. A zero-width box is
+                            invisible to the flex row, so the row never wraps on
+                            its account and the chart's right padding does not
+                            contain it: the ink just paints out of the box and
+                            off the edge. Measured at 390px on "Apă vie" (owner,
+                            2026-08-10: *"the chords are almost exiting the
+                            screen in the right side"*) — a trailing `Bb` ended
+                            6.0px past the chart's content edge, a `Cm` 9.3px
+                            past with 2.7px of window left, and a `Cmaj9`
+                            27.1px past the content edge and **15.1px beyond the
+                            window** — genuinely off the phone. With a real
+                            width the row wraps it instead, which is the correct
+                            answer to "it does not fit". */}
+                        {seg.chord && renderChord(seg.chord, chordFollows(wi, si) || !seg.text, ordinalOf(wi, si))}
                         <span
                           className="whitespace-pre"
                           style={{
