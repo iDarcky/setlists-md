@@ -3,6 +3,30 @@ import { notateChord, sectionStyle, sectionLabel } from '@/music';
 import { parseLine, INLINE_NOTE_MAX_CHARS } from '@/parser';
 import TabBlock from './TabBlock';
 
+// ── The three numbers chord spacing is built from ─────────────────────────
+// All measured in Chromium at 390px, 2026-08-10, and all used inside CSS
+// `calc` against the live font-size variables rather than baked into pixels —
+// the user can change either size from the Aa menu at any moment.
+//
+// `WORD_GAP_EM` — the gap between two words on a chorded line, in em of the
+// lyric size. It was an inherited space glyph (0.25em sans / 0.6em mono
+// depending on the surface, entirely by accident); 0.6em reproduced the old
+// chart exactly and read as too wide once the chords stopped fighting for room
+// (owner, 2026-08-10: *"the gap between words is too big now"*).
+const WORD_GAP_EM = 0.4;
+// `CHORD_CHAR_EM` — width of one chord character. EXACT: the chord font is
+// monospace and Geist Mono at 17px measures 10.2px a character.
+const CHORD_CHAR_EM = 0.6;
+// `LYRIC_CHAR_EM` — width of one lyric character. The lyric font is
+// proportional, so this is an estimate, and it is deliberately the LOW end of
+// the measured range (0.41em for "suflet," to 0.63em for "Ca"). Under-
+// estimating the room a line offers errs toward a slightly-too-wide gap, which
+// is the old behaviour and therefore safe; over-estimating it would let two
+// chords touch, which is not.
+const LYRIC_CHAR_EM = 0.42;
+// The clear air left between one chord's last glyph and the next chord's first.
+const CHORD_MIN_GAP_PX = 4;
+
 const NOTE_SEPARATORS = {
   dashes: ' ---- ',
   dots:   ' ...... ',
@@ -426,9 +450,44 @@ export default function SectionBlock({
     //   - a fixed trailing space on EVERY chord shoves lyrics apart whenever
     //     one chord is long (Asus7maj3) and nothing follows it
     //   - no spacing at all lets neighbouring chords collide
-    // So: a chord keeps a real gap whenever ANY chord follows it later on the
-    // line, and only overhangs (contributing no width) when it is the last
-    // chord there — where nothing on the chord row can collide with it.
+    //
+    // The rule used to be all-or-nothing: a chord kept a FIXED 0.6em gap
+    // whenever any chord followed it later on the line, and only overhung when
+    // it was the last one. Measured on "Apă vie" at 390px, that fixed gap was
+    // the whole problem — every chord demanded `ink 20.4px + margin 10.2px =
+    // 30.6px`, so every word narrower than 30.6px was padded out to it:
+    //
+    //     "va"  ink 19.2 -> box 30.6   10.2px dead
+    //     "Ca"  ink 22.5 -> box 30.6    8.1px dead
+    //     "Mă"  ink 25.5 -> box 30.6    5.1px dead
+    //
+    // 10.2 / 28.4 / 56.1px of dead space on three consecutive lines, and the
+    // clearance was being demanded from the chord's OWN word while the next
+    // chord was often five words away with nothing in between to collide with
+    // (owner, 2026-08-10: *"I'm ok with some spaces if there are some crowded
+    // sections, but on empty sections I don't think that is a problem if a
+    // chord overflows to an empty word that doesn't have another chord"*).
+    //
+    // So clearance is now what is MISSING, not a constant: a chord asks only
+    // for the room its own name needs beyond the room the words between it and
+    // the next chord already provide. Sparse line -> nothing is asked for and
+    // the chord overhangs. Crowded line -> exactly the shortfall.
+    //
+    // ⚠ It is arithmetic in CSS `calc`, not in JS, on purpose: the two font
+    // SIZES are CSS variables the user can change at any moment (`Aa`), and a
+    // number baked in at render would be stale the instant they did. JS
+    // contributes only what CSS cannot count — how many characters are in the
+    // way. `max(0px, …)` is what makes "there is already enough room" mean zero
+    // rather than a negative margin that would pull the next word backwards.
+    //
+    // The two per-character constants are measured, and deliberately asymmetric:
+    // the chord font is monospace, so 0.6em is EXACT (Geist Mono at 17px
+    // measures 10.2px a character); the lyric font is proportional and measured
+    // between 0.41em ("suflet,") and 0.63em ("Ca"), so the room estimate uses
+    // the LOW end. Under-estimating the room a line offers errs toward a gap
+    // that is slightly too big — which is the old behaviour, i.e. safe. Over-
+    // estimating it would let two chords touch, which is not.
+    //
     // `ordinal` is the chord's index among the chords ON THIS LINE, counted in
     // document order. Edit mode needs it: `onChordTap` used to hand back only
     // the DISPLAYED chord name, which cannot say *which* G was tapped when a
@@ -439,7 +498,9 @@ export default function SectionBlock({
     // would be correct today and wrong the moment anything renders a line twice
     // or out of order, and a chord edit landing on the wrong occurrence is
     // invisible until somebody plays it.
-    const renderChord = (rawChord, padded, ordinal = -1) => {
+    // `clearance` is a CSS length (possibly `0px`), or `null` for "overhang":
+    // contribute no width at all and simply paint across whatever follows.
+    const renderChord = (rawChord, clearance, ordinal = -1) => {
       let chord = notateChord(rawChord, { key: songKey, notation: notationMode, transpose: effectiveTranspose, accidentals });
       // Shapes are keyed by letter name, so a chart displayed in Nashville
       // still has to look up "G" — you cannot finger a "1".
@@ -476,11 +537,11 @@ export default function SectionBlock({
             paddingBottom: hasLyrics ? 3 : 0,
             fontFamily: 'var(--chart-font-chord, var(--font-mono))',
             fontSize: 'var(--chart-font-size-chord, 0.95em)',
-            // `padded === false` means this is the last chord on the line, so
-            // it contributes no width and simply overhangs the words after it.
-            ...(padded
-              ? { marginRight: '0.6em' }
-              : { display: 'block', width: 0, overflow: 'visible' }),
+            // `clearance === null` — nothing on the chord row can collide with
+            // it, so it contributes no width and overhangs the words after it.
+            ...(clearance === null
+              ? { display: 'block', width: 0, overflow: 'visible' }
+              : { marginRight: clearance }),
           }}
         >
           {chord}
@@ -526,25 +587,88 @@ export default function SectionBlock({
           {hasLyrics
             ? (() => {
                 const words = groupChordWords(pairs);
-                // Flatten to decide, per chord, whether another chord follows
-                // right after it. Only then does it need trailing clearance.
+                // One list in document order — segments and the gaps between
+                // words — so each chord can be asked what lies between it and
+                // the next one.
                 const flat = [];
                 words.forEach((w, wi) => {
-                  if (w.space) { flat.push({ wi, si: -1, chord: null }); return; }
-                  w.segments.forEach((seg, si) => flat.push({ wi, si, chord: seg.chord }));
+                  if (w.space) { flat.push({ wi, si: -1, chord: null, space: true, text: '' }); return; }
+                  w.segments.forEach((seg, si) => flat.push({
+                    wi, si, chord: seg.chord, space: false,
+                    // An empty segment still renders one NBSP (see the lyric
+                    // span below), so it is one character wide, not zero.
+                    text: seg.text || (seg.chord ? ' ' : ''),
+                  }));
                 });
-                // Any chord later on this line — not merely the next segment.
+                // How much room a chord has before the NEXT chord starts — the
+                // characters and word gaps it may paint across. It counts from
+                // the chord's own segment, because a chord is drawn from the
+                // left edge of its own word.
+                //
+                // ⚠ Every chord LATER on the line, not merely the next segment.
                 // Checking only the neighbour let a chord two segments away
                 // overlap the one overhanging into its space.
-                const chordFollows = (wi, si) => {
+                const roomAfter = (wi, si) => {
                   const at = flat.findIndex(f => f.wi === wi && f.si === si);
-                  return flat.slice(at + 1).some(f => f.chord);
+                  let chars = 0;
+                  let gaps = 0;
+                  let more = false;
+                  for (let i = at; i < flat.length; i++) {
+                    if (i > at && flat[i].chord) { more = true; break; }
+                    if (flat[i].space) gaps += 1;
+                    else chars += flat[i].text.length;
+                  }
+                  return { chars, gaps, more };
                 };
                 // `groupChordWords` regroups pairs into words but preserves
                 // their order, so counting chords across `flat` gives the same
                 // ordinal as counting `[...]` tokens in the source line.
                 const chordsInOrder = flat.filter(f => f.chord);
                 const ordinalOf = (wi, si) => chordsInOrder.findIndex(f => f.wi === wi && f.si === si);
+
+                // What trailing clearance this chord needs, as a CSS length —
+                // or `null` for "none at all, overhang freely".
+                const clearanceFor = (seg, wi, si) => {
+                  const { chars, gaps, more } = roomAfter(wi, si);
+                  // Nothing on the chord row can collide with it.
+                  if (!more) {
+                    // ⚠ …but a chord with NO WORD under it still takes a real
+                    // width. Overhanging costs nothing to lose here — there are
+                    // no words after it to shove — and it costs the one thing
+                    // that keeps the chord ON SCREEN: a zero-width box is
+                    // invisible to the flex row, so the row cannot wrap on its
+                    // account and the chart's right padding cannot contain it.
+                    // Measured at 390px on "Apă vie" (owner: *"the chords are
+                    // almost exiting the screen in the right side"*) — a
+                    // trailing `Bb` painted 6.0px past the content edge, a `Cm`
+                    // 9.3px past with 2.7px of window left, and a `Cmaj9` 27.1px
+                    // past it and 15.1px BEYOND THE WINDOW. A real width makes
+                    // the row wrap it, which is the right answer to "it does not
+                    // fit"; the clearance is still 0, so it costs no air.
+                    //
+                    // ⚠ `gaps > 0` — overhang only when there is another WORD
+                    // after this one to paint across. A chord over the last word
+                    // on the line has nothing to overhang into, so a zero-width
+                    // box buys it nothing and costs it the same containment:
+                    // measured in solfège (whose names run to four characters —
+                    // "Fa#m", "Sol") a final chord painted 7.3px off the right
+                    // edge. Everywhere else the overhang is exactly what the
+                    // owner asked for (2026-08-10: *"I don't think that is a
+                    // problem if a chord overflows to an empty word that doesn't
+                    // have another chord"*).
+                    return seg.text && gaps > 0 ? null : '0px';
+                  }
+                  // The shortfall, in CSS so it tracks both font sizes live.
+                  // ⚠ The length of the chord AS DISPLAYED — "1maj7" in
+                  // Nashville and "Gmaj7" in letters are not the same width, and
+                  // an Ab respelled G# is not the same width as Ab.
+                  const shown = notateChord(seg.chord, {
+                    key: songKey, notation: notationMode, transpose: effectiveTranspose, accidentals,
+                  });
+                  const need = `${shown.length} * ${CHORD_CHAR_EM} * var(--chart-font-size-chord, 17px) + ${CHORD_MIN_GAP_PX}px`;
+                  const have = `${chars} * ${LYRIC_CHAR_EM} * var(--chart-font-size-lyric, 18px) + ${gaps} * var(--chart-word-gap-em, ${WORD_GAP_EM}) * var(--chart-font-size-lyric, 18px)`;
+                  return `max(0px, calc(${need} - (${have})))`;
+                };
                 return words.map((w, wi) => (
                 w.space ? (
                   // ── The word gap, and why it is named ──────────────────────
@@ -563,8 +687,9 @@ export default function SectionBlock({
                   //
                   // A chord line wants the wider gap — it is the room a chord
                   // sits in — so it is kept, as a real declared width instead of
-                  // an inherited-font accident. 0.6em of the lyric size is
-                  // 10.8px at the 18px default, i.e. what the old chart drew.
+                  // an inherited-font accident. It shipped at the old chart's
+                  // 0.6em and came back as too wide once the chords stopped
+                  // fighting for room; `WORD_GAP_EM` is the one place it lives.
                   // Plain lyric lines are one text run and never reach here, so
                   // prose keeps its natural spacing exactly as before.
                   //
@@ -578,7 +703,7 @@ export default function SectionBlock({
                     style={{
                       whiteSpace: 'pre',
                       display: 'inline-block',
-                      width: 'var(--chart-word-gap, 0.6em)',
+                      width: `calc(var(--chart-word-gap-em, ${WORD_GAP_EM}) * 1em)`,
                       flexShrink: 0,
                     }}
                   >
@@ -588,26 +713,7 @@ export default function SectionBlock({
                   <span key={wi} className="inline-flex items-end" style={{ whiteSpace: 'nowrap' }}>
                     {w.segments.map((seg, si) => (
                       <span key={si} className="inline-flex flex-col justify-end">
-                        {/* ⚠ `|| !seg.text` — a chord with NO WORD under it
-                            always takes its real width.
-                            Overhanging (width 0) exists so the last chord does
-                            not shove the words after it apart; a chord with no
-                            word has nothing after it to shove, so the overhang
-                            buys nothing — and it costs the chart the only thing
-                            that keeps a chord on screen. A zero-width box is
-                            invisible to the flex row, so the row never wraps on
-                            its account and the chart's right padding does not
-                            contain it: the ink just paints out of the box and
-                            off the edge. Measured at 390px on "Apă vie" (owner,
-                            2026-08-10: *"the chords are almost exiting the
-                            screen in the right side"*) — a trailing `Bb` ended
-                            6.0px past the chart's content edge, a `Cm` 9.3px
-                            past with 2.7px of window left, and a `Cmaj9`
-                            27.1px past the content edge and **15.1px beyond the
-                            window** — genuinely off the phone. With a real
-                            width the row wraps it instead, which is the correct
-                            answer to "it does not fit". */}
-                        {seg.chord && renderChord(seg.chord, chordFollows(wi, si) || !seg.text, ordinalOf(wi, si))}
+                        {seg.chord && renderChord(seg.chord, clearanceFor(seg, wi, si), ordinalOf(wi, si))}
                         <span
                           className="whitespace-pre"
                           style={{
@@ -625,7 +731,14 @@ export default function SectionBlock({
               )); })()
             : pairs.map((p, i) => (
                 <span key={i} className="inline-flex flex-col justify-end">
-                  {p.chord && renderChord(p.chord, true, pairs.slice(0, i).filter(q => q.chord).length)}
+                  {/* Chord-only line (an intro, an instrumental): there are no
+                      words to overhang across, so every chord takes its width
+                      and one word gap of air. */}
+                  {p.chord && renderChord(
+                    p.chord,
+                    `calc(var(--chart-word-gap-em, ${WORD_GAP_EM}) * 1em)`,
+                    pairs.slice(0, i).filter(q => q.chord).length,
+                  )}
                 </span>
               ))}
           {inlineNotes && inlineNote && notePlacement === 'inline' && (

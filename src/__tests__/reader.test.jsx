@@ -658,7 +658,7 @@ describe('the lyric colour and font belong to the LYRICS', () => {
     // surface supplied. Measured at 390px on one song: the old PracticeView
     // hard-codes mono on its chart wrapper (space = 10.81px), the Reader sets
     // nothing (space = 4.50px), with identical words in both. Declare it.
-    expect(src).toContain("width: 'var(--chart-word-gap, 0.6em)'");
+    expect(src).toContain('var(--chart-word-gap-em');
     // The words either side are `nowrap` and cannot shrink, so a shrinkable gap
     // is the only thing that gives — the gaps would close on the longest line
     // of the song, which is the one that needs them most.
@@ -674,7 +674,9 @@ describe('the lyric colour and font belong to the LYRICS', () => {
     // `var(`-prefixed, so the comment naming the dead token stays legal — it is
     // the READ that was the bug, not the memory of it.
     expect(src).not.toContain('var(--chart-chord-size');
-    expect(src.match(/--chart-font-size-chord, 17px/g)?.length).toBe(3);
+    // The `+` hint, the input, and the committed note. (The chord-clearance
+    // arithmetic reads the same var, hence >= rather than a fixed count.)
+    expect(src.match(/--chart-font-size-chord, 17px/g).length).toBeGreaterThanOrEqual(3);
   });
 
   // ⚠ The one that mattered. A chord standing alone between two spaces on a
@@ -710,14 +712,62 @@ describe('the lyric colour and font belong to the LYRICS', () => {
     expect(chords).toEqual(expected);
   });
 
-  it('never lets a chord with no word under it overhang off the screen', async () => {
-    const src = await import('node:fs').then(fs =>
-      fs.readFileSync('src/features/chart/SectionBlock.jsx', 'utf8'));
-    // A zero-width chord is invisible to the flex row, so the row cannot wrap on
-    // its account and the chart's padding cannot contain it — measured at 390px,
-    // a trailing `Cmaj9` painted 15.1px beyond the window. A chord with no word
-    // has nothing after it to shove, so the overhang buys it nothing anyway.
-    expect(src).toContain('chordFollows(wi, si) || !seg.text');
+  // A zero-width chord is invisible to the flex row, so the row cannot wrap on
+  // its account and the chart's right padding cannot contain it — measured at
+  // 390px, a trailing `Cmaj9` painted 15.1px beyond the window and a solfège
+  // `Fa#m` 7.3px past the edge. So the overhang is now spent only where it buys
+  // something: a chord that has a word of its own AND more words after it to
+  // paint across. jsdom does not lay out, but it does carry the inline style,
+  // and the style IS the decision.
+  const chordStyles = async (line) => {
+    const { default: SectionBlock } = await import('@/features/chart/SectionBlock');
+    const { container } = render(
+      <SectionBlock section={{ type: 'Verse 1', note: '', lines: [line] }}
+        transpose={0} songKey="C" notation="letters" accidentals="flats" />
+    );
+    return [...container.querySelectorAll('span')]
+      .filter(s => String(s.className).includes('text-[var(--chord)]'))
+      .map(s => ({ chord: s.textContent, width: s.style.width, marginRight: s.style.marginRight }));
+  };
+
+  it('overhangs a last chord only when there are words left to paint across', async () => {
+    const [, , cmaj9] = await chordStyles('[C]a [G]b [Cmaj9]x more words after');
+    expect(cmaj9.chord).toBe('Cmaj9');
+    expect(cmaj9.width).toBe('0px');
+  });
+
+  it('does not overhang a chord that has no word under it', async () => {
+    const styles = await chordStyles('[Ab]setea [Cm]mea [Bb]');
+    const trailing = styles[styles.length - 1];
+    expect(trailing.chord).toBe('Bb');
+    // Real width, so the flex row can wrap it instead of painting it off-screen.
+    expect(trailing.width).not.toBe('0px');
+    // …and no clearance, so containing it costs the line no air.
+    expect(trailing.marginRight).toBe('0px');
+  });
+
+  it('does not overhang a chord sitting on the LAST word of a line', async () => {
+    const styles = await chordStyles('[C]a [G]last');
+    const last = styles[styles.length - 1];
+    expect(last.chord).toBe('G');
+    expect(last.width).not.toBe('0px');
+  });
+
+  it('asks only for the room the words between two chords do not already give', async () => {
+    // `[Gmaj7]I` — five characters of chord over one letter, with `Am7` next:
+    // the shortfall is real and a margin is asked for. `[C]a lot of words here
+    // [G]x` — the words already provide far more than `C` needs, so the max()
+    // floor takes it to nothing.
+    const tight = (await chordStyles('[Gmaj7]I [Am7]once'))[0];
+    const loose = (await chordStyles('[C]a lot of words here [G]x'))[0];
+    expect(tight.marginRight).toMatch(/^max\(0px, calc\(/);
+    expect(loose.marginRight).toMatch(/^max\(0px, calc\(/);
+    // Both are `max(0px, …)`; what differs is the arithmetic inside, which the
+    // browser resolves. The contract asserted here is that it is CSS — the two
+    // font sizes are live variables and a number baked in at render would be
+    // stale the moment the Aa menu moved one.
+    expect(tight.marginRight).toContain('var(--chart-font-size-chord');
+    expect(tight.marginRight).toContain('var(--chart-font-size-lyric');
   });
 
   it('gives a lyric-only line the same air as a chorded one — but only on a chart', async () => {
