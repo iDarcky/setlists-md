@@ -1,15 +1,11 @@
-# Next session — the Reader, element 6/7 (Chords and lyrics)
+# Next session — the flag graduation + the Practice/Live union, together
 
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-09. State: `0.17.0-beta.94`, and **`beta` is at the same
-> commit** — elements 1, 2, 3, 4, 4b and 5 are all promoted onto it. Start
-> element 6/7 on a fresh branch off `beta`.
->
-> The owner tests on his phone and compares against `beta`, so during an element
-> ship each round to the **feature branch only** and promote at the close.
-> 990 tests, 0 lint errors (8 pre-existing warnings)._
+> _Rewritten 2026-08-10. State: `0.17.0-beta.95`, and **`beta` is at the same
+> commit** — elements 1, 2, 3, 4, 5 (with 5a), 6/7 and 19 are all promoted onto
+> it. 1025 tests, 0 lint errors (8 pre-existing warnings), build clean._
 >
 > ⚠ **`git checkout beta` may land you on a stale LOCAL branch.** It happened on
 > 2026-08-07 and silently reverted a whole element's work in the tree. Always
@@ -17,17 +13,19 @@
 
 ---
 
-## There is a real user. This is not a pre-launch repo any more.
+## The user situation changed — read this before you plan around it
 
-- **24 accounts, three humans who actually use it.** The owner; **Centreap**
-  (`r.centea00@`), who owns the *Inchinare Sincera* workspace — 108 songs, 18
-  setlists, active 20 of the last 30 days; and Beniamin, 12 of 30.
-- `main` is far behind `beta` and still on `0.16.0`. The live users are on
-  `beta`, so **`beta` is production AND staging at once.**
+Earlier handoffs said `beta` was production. **It is not.** Owner, 2026-08-10:
+*"There are no live users on beta, he was at my place and I showed him beta,
+that's all, we can do whatever we want on beta."*
 
-**What this changes for you:** shipping a broken `beta` breaks somebody's Sunday
-service. Measure before you ship, and prefer a round smaller than you think it
-should be.
+So: `beta` is a real staging branch again. Ship bigger rounds there, break
+things, fix them. `main` is still the released thing (0.16.0) and still only
+takes changes through a PR.
+
+What has NOT changed: **measure before you ship**. This element found five bugs
+nobody had reported, every one of them invisible, and it found them by measuring
+rather than by reading the code.
 
 ---
 
@@ -37,151 +35,196 @@ should be.
    building**. Batch them — 4–6 is fine.
 2. **Build exactly what is asked.** No adjacent settings, no knobs nobody
    requested.
-3. **Ship every round to the feature branch only.** Not `beta`. He tests on his
-   phone against `beta` and promotes when he says the element is done.
+3. **Ship every round to the feature branch only.** He tests and says when it is
+   done; you promote at the close.
 4. **Serialise visual builds** — one at a time.
 5. **"IF I SAY SOMETHING LOOKS WRONG, IT IS WRONG.** Go and measure it in the
    code — and in a real browser — before explaining why it should be fine."
-6. Don't raise graduating the `unifiedReader` flag; that's a session of its own.
-7. At the close: finish, promote to `beta`, update the docs, write the next
-   handoff.
+   ⚠ Corollary learned this element: when you measure and **cannot** reproduce
+   it, say so plainly with what you tried, and ask for the missing condition.
+   Twice this element that was the right call and the bug turned out to be real
+   but conditional.
+6. At the close: finish, promote to `beta`, update the docs, write this file,
+   and give him the next super prompt **in chat**, not only in the file.
 
 ### How to measure in a real browser
 
-Chromium is at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`. Drive the
-real app with Playwright and seed IndexedDB (`indexedDB.open('keyval-store')`,
-store `keyval`; settings under `setlists-md:settings`, songs under
+Chromium is at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`; `playwright`
+is installed **globally** (`/opt/node22/lib/node_modules`), so symlink it into
+your scratch dir (`ln -s /opt/node22/lib/node_modules node_modules`) and drive
+the real app. Seed IndexedDB (`indexedDB.open('keyval-store')`, store `keyval`;
+settings under `setlists-md:settings`, songs under
 `setlists-md:song:personal:<id>` with the index at
-`setlists-md:songidx:personal`). Set `settings.unifiedReader = true`.
+`setlists-md:songidx:personal`, setlists under
+`setlists-md:setlists:personal`). Set `settings.unifiedReader = true`.
 
 - **The SETLIST reader is a ROUTE, not a `[role=dialog]`.** Only the Song Hub's
-  full-screen reader is a dialog, and only there are **two readers in the DOM at
-  once** — scope every query to the right one there.
-- Working probes from element 5 are worth copying: they seed, navigate
-  Setlists → a set → Practice, and assert on `aria-label`s.
+  full screen is a dialog. (The hub now UNMOUNTS its embedded reader while full
+  screen is open, so the two-readers trap is gone — but scope your queries
+  anyway.)
+- `npm install` first: `vite` is not in the image.
+- Element 6/7's probes are worth copying wholesale — they seed a song + setlist,
+  navigate Setlists → a set → Practice, enter edit mode, and assert on
+  `aria-label`s and `getBoundingClientRect()`.
 
 ---
 
-## Element 6/7 — what it is
+## What the next session is
 
-`docs/READER.md` → "### 6/7 — Chords and lyrics". It is **one pass covering both
-numbers**. Unusually for an element, most of it is already decided:
+**The `unifiedReader` graduation AND the Practice/Live union — as ONE change.**
+The owner asked for both and agreed to do them together; they rewrite the same
+seven branches in `App.jsx` (`setlist-play`, `setlist-performance`,
+`setlist-practice`, plus the two finales), so doing them apart means writing
+those lines twice.
 
-- Chords above lyrics, per-word grouping so a line only ever wraps at a space.
-- **Lyrics are NEVER truncated.** Owner: *"never, but never ever use … or
-  something else, the lyrics should always be shown."*
-- **Chord spacing** is a balance of two failures: a fixed trailing space shoves
-  lyrics apart whenever one chord is long; no spacing lets neighbours collide.
-  The rule: a chord keeps a real gap whenever **any** chord follows it later on
-  the line (`chordFollows`), and only overhangs when it is the last one. An
-  earlier version checked only the *immediately* next segment and a chord two
-  segments later still collided.
-- Sizes, colour, font and notation are all user-settable; chords size off
-  `--chart-font-size-chord`, never inherited size.
+### Graduation — what "swap, don't delete" actually means
 
-So this is a polish-and-decide pass on the reader's densest surface, not a build
-from nothing. **Start by measuring what it actually does today** — real numbers
-from a real browser, per the agreement — then bring him the open questions.
+Owner: *"I think we should graduate the flag, but not delete the old chart yet,
+just swap it."*
 
-### The two decisions it inherits
+⚠ **Flipping the default does NOT graduate anyone.** `loadSettings` returns
+`{ ...DEFAULT_SETTINGS, ...stored }` and `saveSettings` persists the merged
+object — so every existing profile already has `unifiedReader: false` written
+down. The graduation is to **stop reading the flag at the call sites**:
 
-1. **⚠ Element 19 — capo — lands inside this pass.** The chart shows *sounding*
-   chords; a capoed guitarist wants *shapes*. `capo` is on the arrangement and
-   the reader ignores it entirely. Element 11 already ruled capo out for
-   **diagrams** ("chart says G, tap G, get the G shape" — a capo-adjusted shape
-   would name a chord that appears nowhere on screen). **The chart itself is
-   undecided**, and it is the same question one level up. Raise it early: it
-   changes what a chord *is* on this surface.
-2. **Nashville and letters share one renderer.** `notateChord` handles both, and
-   diagrams look shapes up by letter name because you cannot finger a "1". Worth
-   checking the seams while you are in here.
+| file | what it does today |
+|---|---|
+| `App.jsx` ×7 | the three setlist routes + two finales fork on the flag |
+| `SongHub.jsx` ×2 | embedded reader, and full screen |
+| `Editor.jsx` | the preview pane |
+| `SharedSetlistViewer.jsx` | the public share link |
+| `Settings.jsx` | the Labs toggle — **delete it**; a toggle that does nothing is exactly the bug family this element found four times |
 
-### Where the code is
+`ChartView`, `PerformanceView`, `PracticeView` and `SetlistPlayer` stay in the
+tree, unreferenced, for a later delete. The Songs page's dead `ChartView` import
+is already gone.
 
-- `src/features/chart/SectionBlock.jsx` — the only place that knows about chords,
-  tabs, modulate markers and word-grouping. `groupChordWords`, `renderChord`,
-  `chordFollows`, the gutter grid. **This is the file.**
-- `src/features/reader/ReaderSection.jsx` — the frame, the sticky heading, the
-  cue, and the note-draft state.
-- `src/music.js` — `transposeChord`, `notateChord`, `sectionStyle`.
-- `src/parser.js` — `parseLine`, and `lineToPlacement`/`placementToLine`, the
-  lossless bijection between `[C]inline` strings and `{plainText, chords[]}`.
+### The union — the decision, and the reason
+
+Owner, after arguing both sides: *"Ok, you've convinced me we are dropping the
+practice button and we go all in."*
+
+The argument that settled it: **Live is a strict subset of Practice.** In
+`lib/readerConfig.js`, `VIEW.live` has `transpose: true` and *every other
+capability false*. A mode that can only do less is a **permission level, not a
+view** — and permission levels belong in a lock, not a destination. Plus **edit
+mode is already opt-in** (you must press Edit), so the accidental-service-edit
+the fork exists to prevent is already prevented.
+
+Agreed shape:
+
+- **One reader, one lock.** The lock turns off everything that can change the
+  song, keeps the screen awake, strips the tools.
+- **Phase 0 first, and it is worth doing on its own:** put the state ON SCREEN —
+  a small chip in the top bar, exactly like the capo chip. Today the mode is
+  invisible (you chose it two screens ago and nothing says so), which is the
+  real source of *"where did my settings go? why didn't the key change?"*
+- **Default: unlocked.** Reasons, in order of weight: edit mode is already
+  opt-in; forgetting to lock costs an edit that needs a deliberate Edit press
+  and has Undo, while forgetting to unlock blocks you mid-rehearsal; most opens
+  are not services; a default that removes capability teaches people the app
+  cannot do things.
+- **The setlist screen keeps both buttons** at first — they become "start
+  locked" / "start unlocked", so no muscle memory is lost while the routes
+  collapse underneath.
+- Idea, flagged as an idea: the lock could arm itself when the setlist's date is
+  today.
+
+**The decision rule the owner can re-apply:** does Live ever need to do
+something Practice *doesn't* — not less of, but MORE (a countdown, band-wide
+page sync, giant type)? Today the answer is no. If it becomes yes, they are two
+views again and the lock was wrong.
+
+### After that: element 8 — key change
+
+The owner asked whether it is fast. It should be: it is designed and built
+already (`READER.md` → "8 — Key change"), a solid `--chord` chip naming the
+ARRIVAL key rather than the interval, `mt-5 mb-4`, and a section repeated after
+a key change always renders in full. The pass is polish plus whatever the
+element turns up — and on this element's evidence, it will turn something up.
 
 ---
 
-## What element 5 just changed under you
+## What element 6/7 changed under you
 
-Read `READER.md` → "The element-5 pass" in full before touching the reader. The
-short version, because it changes where controls live:
+Read `READER.md` → "The element-6/7 pass" in full. The parts that change how you
+work in this code:
 
-- **Editing is ONE mode.** Outside it, a cue and a note are text — nothing on the
-  chart is editable. Inside it, everything is at once: no arming, no picking.
-- **Three surfaces, one rule.** The top bar says *where you are* (☰ · title · key
-  · ✕) and **carries no tools in any view or mode**. The corner says *what you do
-  to the song* (Edit / Done, click / Undo). The footer says *where you're going*.
-- **There is no edit bar.** Done → the big circle; Undo → the satellite; Cancel →
-  the top bar, **as the word "Cancel"**, confirming only when dirty; New version
-  → a pill above the circles when dirty.
-- **The ☰ is GONE in edit mode** (not disabled). *"You're changing the song, not
-  the screen."*
-- **Live can do nothing to a song** — `practiceTools: false`, so no circles and
-  no metronome there at all.
-- `SectionBlock` gained note props: `onNoteOpen`, `noteDraft`,
-  `onNoteDraftChange`, `onNoteCommit`, `noteHint`. All null outside the reader,
-  and the component behaves exactly as it always did when `onNoteOpen` is null.
+- **`SectionBlock` chord spacing is now CSS arithmetic.** `clearanceFor()`
+  returns `max(0px, calc(…))` built from three measured constants
+  (`WORD_GAP_EM` 0.4, `CHORD_CHAR_EM` 0.6 exact for mono, `LYRIC_CHAR_EM` 0.48 —
+  the measured ceiling; 0.50 collides at lyric size 28). JS contributes only
+  character COUNTS; both font sizes are live CSS variables and a number baked in
+  at render is stale the instant the Aa menu moves.
+- **`notateChord`'s 'auto' now preserves each chord's own accidental**
+  (`transposeKeepingSpelling`). Naturals ask the destination key. Do not
+  "restore" key-based spelling — the owner killed that explicitly.
+- **`capoFor` / `withCapo` / `suggestCapo`** in `src/lib/capo.js`. A capo is
+  **never** written to a song or a setlist item; there is a test asserting the
+  module never learns to.
+- **`addNewSection`** in `lib/editStructure.js` writes `sections` AND `structure`
+  in one patch. Two writes leave a window where the song names a section it does
+  not have and `buildSongFlow` drops it.
+- **`SectionTypeMenuItems`** moved to `@/features/chart/SectionTypeMenu`, with
+  `sectionTypeOptions()` in `lib/sectionIdentity`. Four callers now.
+- **`sectionConfig`** — editing forces `repeats: 'full'` as a COPY of the config.
+- **`PopMenu` caps its own height** from the trigger's position. Do not put a
+  `max-h-*` back in a `menuClassName`.
+- **Both preview panes are gone**, with the props that fed them
+  (`previewSetlistId`, `onSelectPreview`, and the export/practice callbacks the
+  pane needed).
 
 ---
 
 ## Traps that have already cost hours
 
-Full list in `READER.md` → "Traps that have already cost time". The ones most
-likely to bite in a chords-and-lyrics pass:
+Full list in `READER.md` → "Traps that have already cost time". The ones this
+element added or re-earned:
 
-- **⚠ `background` / `outline` SHORTHANDS with a nested `var(a, var(b))`.**
-  jsdom's expander throws on them, inside the `cloneNode` that **every
-  `getByRole` performs** — so one shorthand on a button takes out every
-  role-based test that renders the reader. It took out 37 at once. **Longhands,
-  always**: `backgroundColor`, `borderStyle`/`Width`/`Color`.
-- **⚠ A sticky element's painted box must reach the content it covers, and only
-  padding paints.** A 6px `mb-1.5` under the pinned heading was a transparent
-  strip the lyrics scrolled through; a Romanian ț's comma landed in it and read
-  as a mystery dot above the next section.
-- **A line box can FRAGMENT across multicol columns** — `break-inside: avoid` is
-  on the line divs for that reason. (It was *not* the ț bug, but it is real.)
-- **`overflow-x: auto` forces `overflow-y` from `visible` to `auto`.** The ribbon
-  had 3px of accidental vertical scroll and rubber-banded on touch.
-- **`flex-1` on the cross axis of a scroller.** A flex item with no `flex-1` is
-  shrink-to-fit: the chart once laid out 840px wide on a 1280px screen with
-  400px of dead window beside it.
-- **Paint order is hit-test order.** Putting an overlay under content to keep it
-  readable also puts it under for pointer events — including the content's
-  padding, which is empty space.
-- **A `vi.fn()` for `onUpdateSong` silently tests only the CLEAN path.** The
-  reader does not own the song; a mock that swallows the write means the song
-  never changes and the reader is never dirty. Hand the change back via
-  `rerender`, the way the parent does.
-- **`findByRole` retries `getByRole`, which walks and clones the whole tree.**
-  Against the reader that is slow enough to look like a hang. If you are waiting
-  on one microtask, use `await act(async () => {...})`.
+- ⚠ **A switch wired at ONE end is the house bug.** Five in this element alone:
+  `--chart-chord-size` (read, never written), `--chart-line-gap` (same),
+  `destructive: true` (passed, never read — the discard confirm rendered its
+  most destructive button as its most neutral), a dead `ChartView` import, and
+  `arrangement.capo` (collected, never read, under a false hint). **When you add
+  a switch, grep its read site and its write site in the same breath.**
+- ⚠ **A guess about a thing's size is wrong the moment it grows.** `PopMenu`
+  flipped on `spaceBelow < 280`; eleven section types are 473px.
+- ⚠ **An absolutely-positioned mark costs nothing; the same mark in flow costs
+  its own width.** The word-join rule added 7.5px to every syllable it was meant
+  to be silent about, because `flex-basis: 0` still contributes max-content to
+  the column's intrinsic width.
+- ⚠ **`background`/`outline` SHORTHANDS with a nested `var(a, var(b))`** throw in
+  jsdom's expander inside the `cloneNode` every `getByRole` performs. LONGHANDS,
+  always.
+- ⚠ **Brittle source-string tests break on every refactor.** Three did this
+  element. Prefer asserting the RENDERED style (`el.style.width`) — jsdom does
+  not lay out but it does carry inline styles, and the style IS the decision.
+- A sticky element's painted box must reach the content it covers; only PADDING
+  paints.
+- `overflow-x: auto` forces `overflow-y` from `visible` to `auto`.
+- `flex-1` on the cross axis of a scroller: an item without it is shrink-to-fit.
+- Paint order is hit-test order.
+- A `vi.fn()` for `onUpdateSong` tests only the CLEAN path — hand the change back
+  via `rerender`, the way the parent does.
 
-## One class of bug worth sweeping for
+## Things that are built and must NOT be deleted
 
-Element 5 found **three of one family**, none of them reported, all invisible:
+- **`src/sync/merge.js`** — field-level three-way merge, 11 passing tests, wired
+  to nothing. It stops a Yes/Yes conflict (one person fixed a tempo, another
+  added a tag) reaching a human — the "73 conflicts" symptom in CLAUDE.md. Owner,
+  2026-08-10: *"Ok, we need to wire it, I got it."* It has an owner now; it needs
+  a session.
+- **`ChartView` and the three legacy views** — deliberately left in the tree by
+  the graduation above. Delete them in a later, separate pass.
 
-- a capability **declared and read by nothing** (`writeNotes`, `saveKey`)
-- a field **read but never written** (`item.key`)
-- a setting **read but never written** (`settings.stageMode` — bassist
-  root-emphasis was fully built and reachable by no user)
+## Open, and named, but not scheduled
 
-They all present identically: *you use the feature, nothing happens, no error
-anywhere.* When you add a switch, grep for its read site and its write site in
-the same breath. `readerConfig`'s remaining capabilities are clean;
-`switchArrangement` reads zero, but honestly — element 21 is not built.
-
-## One thing that is built and must NOT be deleted
-
-`src/sync/merge.js` — field-level three-way merge, **11 passing tests**, wired to
-nothing. Every orphan sweep flags it. It exists to stop a Yes/Yes conflict where
-one person fixed a tempo and another added a tag from reaching a human, i.e. the
-"73 conflicts" symptom in CLAUDE.md. It needs an owner and a session, not a
-delete. Logged in `PLAN.md` §3.6.
+- **31 — arrangements.** The v2 schema has carried `arrangements[]` from the
+  start and almost nothing uses it. Owner: *"We need a way to handle arrangements
+  to songs."*
+- **32 — bars in the `.md`.** The format carries no bar information at all.
+- **33 — the Song Hub's tabs.** Three is one too many; probably zero.
+- **The dashboard activity feed should open the song, and show the diff.**
+  `storage.js` already has `loadVersions`/`pushVersion`, so the data is there.
+- **PDF export** is a separate renderer by necessity, and the owner wants it
+  improved next-ish.
