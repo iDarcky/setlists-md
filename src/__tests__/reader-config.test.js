@@ -56,7 +56,11 @@ describe('context overrides are physical facts, not preferences', () => {
     // option? Like right side gutter or under the word"*).
     expect(resolveReaderConfig({}, wide).notePlacement).toBe('gutter');
     expect(resolveReaderConfig({}, narrow).notePlacement).toBe('gutter');
-    expect(resolveReaderConfig({ readerNotePlacement: 'below' }, narrow).notePlacement).toBe('below');
+    // ABOVE, not below. A note is an instruction — "build here", "softer" — and
+    // you need it BEFORE you sing the line, not after (owner, 2026-08-10:
+    // *"maybe we put the notes on a line above?"*). Below is a footnote to a
+    // moment that has already gone.
+    expect(resolveReaderConfig({ readerNotePlacement: 'above' }, narrow).notePlacement).toBe('above');
   });
 
   it('pins headings at ONE column, on any screen — and never at two', () => {

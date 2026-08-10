@@ -419,13 +419,65 @@ export function notateChord(chord, { key, notation = 'letters', transpose = 0, a
   if (notation === 'nashville') return getNashvilleNumber(chord, key);
   if (notation === 'roman') return getRomanNumeral(chord, key);
   if (notation === 'solfege') return getSolfege(transposeChord(chord, transpose));
-  // Letters: choose sharp/flat spelling. 'auto' follows the key the chord is
-  // sounding in (the song key shifted by the current transpose).
   const targetKey = transpose ? transposeKey(key, transpose) : key;
-  const preferSharps = accidentals === 'sharps' ? true
-    : accidentals === 'flats' ? false
-    : keyPrefersSharps(targetKey);
-  return transposeChord(chord, transpose, preferSharps);
+  // An explicit preference always wins — that is what it is for.
+  if (accidentals === 'sharps') return transposeChord(chord, transpose, true);
+  if (accidentals === 'flats') return transposeChord(chord, transpose, false);
+  // 'auto' — see `transposeKeepingSpelling`.
+  return transposeKeepingSpelling(chord, transpose, targetKey);
+}
+
+/**
+ * ── What 'auto' means, since 2026-08-10 ──────────────────────────────────────
+ *
+ * **What the writer typed is right.** A chord that spells itself with a flat
+ * stays on the flat side wherever it is moved to; one that spells itself with a
+ * sharp stays sharp.
+ *
+ * It used to spell the whole chart by the KEY's convention, which broke twice:
+ *
+ *  - at ZERO transpose it still re-spelled, so a `Bb` written into a sharp-side
+ *    song was displayed as `A#`. Nobody asked for that, and it silently
+ *    overrode what the leader wrote.
+ *  - "one key, one accidental" is wrong on its own terms. In G major the flat
+ *    six is properly `Eb`, never `D#` — real notation spells by FUNCTION, and a
+ *    chord symbol alone does not carry function, so no key rule can get a
+ *    borrowed chord right.
+ *
+ * The obvious repair — "verbatim at zero transpose, key convention when moved"
+ * — was proposed and the owner killed it in one line: *"the user writes Ab to a
+ * song and then expects Ab to a different song, not G# when he modulates."*
+ * Exactly right. That rule fixes the chart at rest and reintroduces the same
+ * surprise the moment anybody transposes, which is the moment they are least
+ * able to check it.
+ *
+ * So the preference travels with the CHORD, not with the key. Zero transpose is
+ * then verbatim automatically — it falls out of the rule instead of being a
+ * special case.
+ *
+ * A natural root (`C`, `D`, `G`) carries no signal, so when it lands on a black
+ * note it follows the destination key's convention, which is the only thing
+ * left to ask.
+ *
+ * Each side of a slash chord is asked separately: `Ab/C` transposed +1 is
+ * `A/C#`, and the bass note's spelling is its own business.
+ */
+export function transposeKeepingSpelling(chord, semitones, targetKey) {
+  if (!chord) return chord;
+  if (String(chord).includes('/')) {
+    const [main, bass] = String(chord).split('/');
+    return transposeKeepingSpelling(main, semitones, targetKey)
+      + '/' + transposeKeepingSpelling(bass, semitones, targetKey);
+  }
+  const own = chordAccidental(chord);
+  return transposeChord(chord, semitones, own === null ? keyPrefersSharps(targetKey) : own);
+}
+
+/** How a chord spells itself: true = sharp, false = flat, null = natural root. */
+function chordAccidental(chord) {
+  const m = String(chord).match(/^[A-G]([#b])?/);
+  if (!m || !m[1]) return null;
+  return m[1] === '#';
 }
 
 // Diatonic chords for a given key (I, ii, iii, IV, V, vi, vii°)

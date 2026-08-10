@@ -1195,9 +1195,9 @@ export default function ReaderMenu({
               control that cannot do anything. */}
           {(settings?.readerInlineNotes || 'on') === 'on' && (
             <Field label="Note position" onReset={reset('readerNotePlacement')}
-              info="In a margin down the right, or on its own line under the words.">
+              info="In a margin down the right, or on its own line above the words.">
               <Dropdown label="Note position" value={config?.notePlacement || 'gutter'}
-                options={[['gutter', 'Right margin'], ['below', 'Under the line']]}
+                options={[['gutter', 'Right margin'], ['above', 'Above the line']]}
                 onChange={(v) => set('readerNotePlacement', v)} />
             </Field>
           )}

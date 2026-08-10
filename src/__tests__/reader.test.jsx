@@ -625,8 +625,14 @@ describe('the lyric colour and font belong to the LYRICS', () => {
     // "Between sections" quietly moved the lyrics apart too: 24→48 took every
     // line inside every section from 8px to 16px. 8px IS 24/3, so the default
     // is unchanged — they are simply not wired together any more.
-    expect(src).toContain("marginBottom: 'var(--chart-line-gap, 8px)'");
+    expect(src).toContain('marginBottom: 8,');
     expect(src).not.toContain('var(--chart-section-gap, 24px) / 3');
+    // …and it is a NUMBER, not `var(--chart-line-gap, 8px)`. Nothing ever wrote
+    // that variable, so the fallback was the only value it had — a var nobody
+    // writes tells the next reader "this is configurable" and it is not.
+    // `var(`-prefixed so the comment naming the retired token stays legal — it
+    // is the READ that was the problem, not the memory of it.
+    expect(src).not.toContain('var(--chart-line-gap,');
     // ⚠ And it is NOT conditional on the line having words. It used to be
     // `hasLyrics ? gap : 0`, so a chord-only line — an intro, an instrumental —
     // had no gap under it and sat on the lyric below, reading as that line's
@@ -819,7 +825,7 @@ describe('the lyric colour and font belong to the LYRICS', () => {
     // it ran into the chord row below and read as having taken those chords.
     // In Lyrics mode every line comes through that branch and the tight rhythm
     // is correct, so the gap is gated on chords being shown.
-    expect(src).toContain("marginBottom: showChords ? 'var(--chart-line-gap, 8px)' : 0");
+    expect(src).toContain('marginBottom: showChords ? 8 : 0');
   });
 });
 

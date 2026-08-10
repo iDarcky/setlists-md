@@ -18,12 +18,28 @@ const WORD_GAP_EM = 0.4;
 // monospace and Geist Mono at 17px measures 10.2px a character.
 const CHORD_CHAR_EM = 0.6;
 // `LYRIC_CHAR_EM` — width of one lyric character. The lyric font is
-// proportional, so this is an estimate, and it is deliberately the LOW end of
-// the measured range (0.41em for "suflet," to 0.63em for "Ca"). Under-
-// estimating the room a line offers errs toward a slightly-too-wide gap, which
-// is the old behaviour and therefore safe; over-estimating it would let two
+// proportional, so this is an estimate against a measured range of 0.41em
+// ("suflet,") to 0.63em ("Ca"). It shipped at the LOW end, 0.42, because
+// under-estimating the room a line offers errs toward a gap that is slightly
+// too wide — the old behaviour, and safe — while over-estimating it lets two
 // chords touch, which is not.
-const LYRIC_CHAR_EM = 0.42;
+//
+// ⚠ 0.50 was asked for (owner, 2026-08-10: *"Can we try 0.50?"*) and MEASURED
+// TO COLLIDE. Swept against the 15-line hostile corpus in Chromium:
+//
+//     0.42  ok everywhere      total dead 340.1px
+//     0.46  ok everywhere      total dead 326.0px
+//     0.48  ok everywhere      total dead 320.0px
+//     0.50  G and D land 0.2px apart at lyric size 28  dead 314.6px
+//
+// So 0.48 is the ceiling this corpus allows, and it ships at the ceiling.
+//
+// The more useful finding is the right-hand column: the whole 0.42 -> 0.50
+// range moves the total dead space by **8%**. This constant is not where the
+// remaining gaps come from — they are chords genuinely wider than the words
+// before the next chord (`Gmaj7` over "I"), which is the one case where a gap
+// is correct. Tuning it further buys almost nothing and risks a touch.
+const LYRIC_CHAR_EM = 0.48;
 // The clear air left between one chord's last glyph and the next chord's first.
 const CHORD_MIN_GAP_PX = 4;
 
@@ -423,7 +439,7 @@ export default function SectionBlock({
             // Only when chords are on. In Lyrics mode every line comes through
             // here and the tight 24.3px rhythm is what a lyric sheet should be —
             // measured before and after to be byte-identical there.
-            marginBottom: showChords ? 'var(--chart-line-gap, 8px)' : 0,
+            marginBottom: showChords ? 8 : 0,
           }}
         >
           {showNote && notePlacement === 'above' && noteAbove(inlineNote)}
@@ -588,12 +604,22 @@ export default function SectionBlock({
           // does for the sections?"). 8px IS 24/3, so the default look is
           // unchanged; the two are simply no longer wired together.
           //
+          // ⚠ It is a plain 8px now. It used to read a `--chart-line-gap`
+          // custom property that NOTHING ever wrote — set nowhere, so the
+          // fallback was the only value it ever had. A var nobody writes tells
+          // the next reader "this is configurable" and it is not, which is a
+          // more expensive lie than a number. There is already "Line spacing"
+          // (the space INSIDE a wrapped line) and "Between sections"; a third
+          // slider would be indistinguishable from the first to anyone not
+          // holding the code. If a user ever asks for more room between lines,
+          // that is the moment it becomes a setting with a reason.
+          //
           // ⚠ It used to be `hasLyrics ? gap : 0`, so a CHORD-ONLY line — an
           // intro or an instrumental, `[G] [C] [D] [Em]` — got no gap at all and
           // sat directly on the lyric of the line beneath it, reading as that
           // line's chords. A line is a line; the gap below it does not depend on
           // whether anybody sings during it.
-          marginBottom: 'var(--chart-line-gap, 8px)',
+          marginBottom: 8,
           lineHeight: 1,
         }}
       >

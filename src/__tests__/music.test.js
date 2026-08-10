@@ -194,15 +194,54 @@ describe('enharmonic spelling (keyPrefersSharps / preferSharps)', () => {
     expect(transposeChord('D/F#', 0, false)).toBe('D/Gb');
     expect(transposeChord('D/Gb', 0, true)).toBe('D/F#');
   });
-  it('notateChord auto-spells from the key it sounds in', () => {
-    // A song in G: the ♯4 chord reads F♯, not G♭.
-    expect(notateChord('F#', { key: 'G', accidentals: 'auto' })).toBe('F#');
-    expect(notateChord('Gb', { key: 'G', accidentals: 'auto' })).toBe('F#');
-    // A song in D♭: reads G♭.
-    expect(notateChord('F#', { key: 'Db', accidentals: 'auto' })).toBe('Gb');
-    // Forced overrides.
+  // ⚠ REWRITTEN 2026-08-10. This used to assert that 'auto' spells the whole
+  // chart by the KEY's convention — `Gb` in a G song displayed as `F#`. Two
+  // things were wrong with it. At zero transpose it re-spelled a chord nobody
+  // had moved, silently overriding what the leader typed. And "one key, one
+  // accidental" is wrong on its own terms: in G major the flat six is `Eb`,
+  // never `D#`, because real notation spells by FUNCTION and a chord symbol
+  // carries none.
+  //
+  // The owner killed the obvious repair ("verbatim at rest, key convention when
+  // moved") in one line: *"the user writes Ab to a song and then expects Ab to a
+  // different song, not G# when he modulates."* So the preference travels with
+  // the CHORD.
+  it('auto keeps the spelling the writer chose, wherever the chord goes', () => {
+    // At rest: verbatim, both ways, in either kind of key.
+    expect(notateChord('Gb', { key: 'G', accidentals: 'auto' })).toBe('Gb');
+    expect(notateChord('F#', { key: 'Db', accidentals: 'auto' })).toBe('F#');
+    // The bug this replaces: a borrowed flat in a sharp-side song.
+    expect(notateChord('Bb', { key: 'D', accidentals: 'auto' })).toBe('Bb');
+    expect(notateChord('Eb', { key: 'G', accidentals: 'auto' })).toBe('Eb');
+    // The owner's case, moving. Ab written -> flat side, always.
+    expect(notateChord('Ab', { key: 'Eb', transpose: 2, accidentals: 'auto' })).toBe('Bb');
+    expect(notateChord('Ab', { key: 'Eb', transpose: 5, accidentals: 'auto' })).toBe('Db');
+    // …and a sharp-written chord stays sharp for the same reason.
+    expect(notateChord('F#', { key: 'D', transpose: 2, accidentals: 'auto' })).toBe('G#');
+  });
+
+  it('asks the destination key only when the chord itself has no opinion', () => {
+    // A natural root carries no signal, so it follows the key it is sounding in.
+    // Landing on a black note that reads FLAT is not a quirk — it is the
+    // convention: C major up a semitone is D♭ major, not C♯ major, and every
+    // destination key here is spelled the way a musician would name it.
+    expect(notateChord('C', { key: 'C', transpose: 1, accidentals: 'auto' })).toBe('Db');
+    expect(notateChord('D', { key: 'C', transpose: 1, accidentals: 'auto' })).toBe('Eb');
+    // A natural that stays natural is untouched either way.
+    expect(notateChord('G', { key: 'C', transpose: 2, accidentals: 'auto' })).toBe('A');
+    expect(notateChord('C', { key: 'C', transpose: 7, accidentals: 'auto' })).toBe('G');
+  });
+
+  it('asks each side of a slash chord separately', () => {
+    // The bass note's spelling is its own business.
+    expect(notateChord('Ab/C', { key: 'Eb', transpose: 1, accidentals: 'auto' })).toBe('A/C#');
+    expect(notateChord('Gb/Bb', { key: 'Db', accidentals: 'auto' })).toBe('Gb/Bb');
+  });
+
+  it('still lets an explicit preference win — that is what it is for', () => {
     expect(notateChord('Gb', { key: 'G', accidentals: 'flats' })).toBe('Gb');
     expect(notateChord('F#', { key: 'Db', accidentals: 'sharps' })).toBe('F#');
+    expect(notateChord('Ab', { key: 'Eb', accidentals: 'sharps' })).toBe('G#');
   });
 });
 

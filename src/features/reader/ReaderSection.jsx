@@ -318,7 +318,7 @@ export default function ReaderSection({
     // ⚠ `|| noteDraft` — the strip is reserved only by sections that already
     // carry a note, so the FIRST note in a section would otherwise have no
     // gutter to be typed into. Drafting reserves it for the duration.
-    ? ((hasInlineNote || noteDraft || (noteHintHere && onEditNote)) && config.inlineNotes ? 'gutter' : 'below')
+    ? ((hasInlineNote || noteDraft || (noteHintHere && onEditNote)) && config.inlineNotes ? 'gutter' : 'above')
     : config.notePlacement;
 
   // ── The four frames ─────────────────────────────────────────────────────────
