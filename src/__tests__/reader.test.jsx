@@ -818,6 +818,23 @@ describe('the lyric colour and font belong to the LYRICS', () => {
     expect(rule.style.position).toBe('absolute');
   });
 
+  it('expands every repeat while editing, whatever the reading preference says', async () => {
+    const src = await import('node:fs').then(fs =>
+      fs.readFileSync('src/features/reader/Reader.jsx', 'utf8'));
+    // ⚠ A repeat collapsed to a `⇄ CHORUS 1` pill has no words on screen, so
+    // there is nowhere to put a chord, a cue or a note — edit mode was offering
+    // to edit a song half of which was a row of tags. Measured in Chromium with
+    // `duplicateSections: 'condensed'` and a structure of V C C V: reading gave
+    // 4 slots but only 2 with words (the pills measured 46px and 29px against
+    // 68px and 85px); editing gives all 4, at 74/88/88/74.
+    //
+    // A COPY, not a write: `duplicateSections` is a reading preference — how
+    // much of the song you want to scroll past — and edit mode is not asking
+    // that question. The user's own setting is never touched.
+    expect(src).toContain("editing ? { ...config, repeats: 'full' } : config");
+    expect(src).toContain('config={sectionConfig}');
+  });
+
   it('gives a lyric-only line the same air as a chorded one — but only on a chart', async () => {
     const src = await import('node:fs').then(fs =>
       fs.readFileSync('src/features/chart/SectionBlock.jsx', 'utf8'));

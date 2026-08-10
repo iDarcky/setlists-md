@@ -145,7 +145,7 @@ function AddSectionRow({ onAdd, customSectionTypes }) {
     <div style={{ marginTop: 4 }}>
       <PopMenu
         align="left"
-        menuClassName="w-52 max-h-[50vh]"
+        menuClassName="w-44"
         trigger={
           <button
             type="button"
@@ -946,6 +946,23 @@ export default function Reader({
     // 'custom', or `orderSections` ignores the array we just wrote.
     writeSong({ structure: next, structureMode: 'custom' });
   }, [song, ordered, writeSong]);
+
+  // ── Editing expands everything ───────────────────────────────────────────
+  // ⚠ A repeat collapsed to a `⇄ CHORUS 1` pill has no words on screen, so
+  // there is nothing to put a chord, a cue or a note on — edit mode was offering
+  // to edit a song half of which was a row of tags (owner, 2026-08-10: *"why do
+  // we still have the sections as tags, wasn't the consensus that when editing
+  // everything expands?"*). It was: it is the same rule that forces the song map
+  // back on and up to the top while editing, and `duplicateSections` is a
+  // READING preference — it says how much of the song you want to scroll past,
+  // which is not a question edit mode is asking.
+  //
+  // Restored on the way out, because it is a copy rather than a write: the
+  // user's own setting is never touched.
+  const sectionConfig = useMemo(
+    () => (editing ? { ...config, repeats: 'full' } : config),
+    [editing, config],
+  );
 
   // A section that does not exist yet. `addNewSection` writes `sections` AND
   // `structure` in ONE patch on purpose — sending them as two writes would
@@ -1910,7 +1927,7 @@ export default function Reader({
               key={`${section.id || section.type}-${idx}`}
               section={section}
               index={idx}
-              config={config}
+              config={sectionConfig}
               songKey={song.key}
               settings={settings}
               transpose={chartTranspose}

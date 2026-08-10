@@ -238,7 +238,7 @@ function SectionTypePicker({ value, num, options, customSectionTypes, onChange }
   return (
     <PopMenu
       align="left"
-      menuClassName="w-52 max-h-[50vh]"
+      menuClassName="w-44"
       trigger={
         <button
           type="button"
@@ -409,7 +409,7 @@ function PlayOrderEditor({ order, availableTypes, customSectionTypes, onChange, 
       })}
       <PopMenu
         align="left"
-        menuClassName="w-52 max-h-[50vh]"
+        menuClassName="w-44"
         trigger={
           <button
             type="button"
@@ -1550,7 +1550,7 @@ export default function ArrangeTabV2({ md, onChange, customSectionTypes, notatio
         <div className="mt-4 mb-8">
           <PopMenu
             align="left"
-            menuClassName="w-52 max-h-[50vh]"
+            menuClassName="w-44"
             trigger={
               <button type="button" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-label-12 font-semibold bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)] cursor-pointer">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>

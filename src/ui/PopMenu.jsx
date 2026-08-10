@@ -20,16 +20,31 @@ function PopMenu({ trigger, align = 'right', up = false, menuClassName = '', chi
       const el = triggerRef.current;
       if (el) {
         const r = el.getBoundingClientRect();
-        // Auto-flip upward when there isn't room below (near the bottom of the
-        // screen the menu would otherwise spill off / get clipped — the exact
-        // problem with "+ Add section" and the type picker on a phone).
-        const spaceBelow = window.innerHeight - r.bottom;
-        const openUp = up || (spaceBelow < 280 && r.top > spaceBelow);
+        // Auto-flip upward when there is more room above than below.
+        //
+        // ⚠ The flip used to be `spaceBelow < 280`, a fixed guess at how tall a
+        // menu is, and a menu taller than that guess still ran off the bottom
+        // whenever the space below merely EXCEEDED it. Measured on the owner's
+        // 1418px-tall window: "+ Add section" sat with 353px below it, so the
+        // menu opened downward — and eleven section types are ~473px, so the
+        // last three were cut off the screen with no way to reach them (owner,
+        // 2026-08-10: *"it gets out of the bounds of the screen"*, on both the
+        // reader's menu and the song editor's, which is the same component).
+        //
+        // A guess cannot be right for a list whose length it does not know, so
+        // the menu is CAPPED to the room it actually has instead. It scrolls
+        // inside that cap, which is a menu you can always finish reading —
+        // rather than one that fits until somebody adds a section type.
+        const GAP = 8;
+        const spaceBelow = window.innerHeight - r.bottom - GAP;
+        const spaceAbove = r.top - GAP;
+        const openUp = up || spaceAbove > spaceBelow;
         setCoords({
           left: align === 'right' ? null : r.left,
           right: align === 'right' ? window.innerWidth - r.right : null,
           top: openUp ? null : r.bottom + 4,
           bottom: openUp ? window.innerHeight - r.top + 4 : null,
+          maxHeight: Math.max(120, openUp ? spaceAbove : spaceBelow),
         });
       }
       return true;
@@ -70,8 +85,9 @@ function PopMenu({ trigger, align = 'right', up = false, menuClassName = '', chi
             right: coords.right != null ? coords.right : undefined,
             top: coords.top != null ? coords.top : undefined,
             bottom: coords.bottom != null ? coords.bottom : undefined,
+            maxHeight: coords.maxHeight ? `${coords.maxHeight}px` : undefined,
           }}
-          className={`z-[80] min-w-[180px] max-h-[60vh] overflow-y-auto rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1 ${menuClassName}`}
+          className={`z-[80] min-w-[168px] overflow-y-auto rounded-xl bg-[var(--ds-background-100)] border border-[var(--ds-gray-400)] shadow-2xl py-1 ${menuClassName}`}
         >
           {children}
         </div>,
