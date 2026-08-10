@@ -50,6 +50,15 @@ export const READER_KNOBS = {
   // one for cues?"*) — they are different marks, written by different people
   // for different reasons, and wanting one is no reason to want the other.
   inlineNotes: ['on', 'off'],
+  // 5/6 — WHERE an inline note goes. 'gutter' is the reserved strip down the
+  // right; 'below' puts it on its own line under the words. The gutter keeps a
+  // straight margin down the section but costs the WHOLE section 88px of line
+  // width on a phone (measured: 366 -> 256.4px, and one ten-character note made
+  // a chorus 41% taller). Below costs nothing and gives the words the full
+  // screen. Offered rather than decided (owner, 2026-08-10: *"Can we do the
+  // notes as an option? Like right side gutter or under the word with grey
+  // italic?"*).
+  notePlacement: ['gutter', 'below'],
   footer: ['count', 'next'],               // 10
   nav: ['footer', 'pill', 'edge', 'swipe'],// 10
   // 8 — the set bar's visibility. 'ribbon' means "no set bar"; 'setlist' shows
@@ -94,6 +103,7 @@ const DEFAULTS = {
   repeats: 'full',
   notes: 'on',
   inlineNotes: 'on',
+  notePlacement: 'gutter',
   footer: 'next',
   nav: 'footer',
   topBar: 'ribbon',
@@ -113,6 +123,7 @@ const KEY = {
   repeats: 'duplicateSections',
   notes: 'readerNotes',
   inlineNotes: 'readerInlineNotes',
+  notePlacement: 'readerNotePlacement',
   footer: 'readerFooter',
   nav: 'readerNav',
   topBar: 'readerTopBar',
@@ -394,7 +405,7 @@ export function resolveReaderConfig(settings, ctx = {}) {
   //
   // 'above' — a note on its own line over its lyric — is still what a section
   // falls back to if inline notes are switched off mid-section.
-  cfg.notePlacement = 'gutter';
+  cfg.notePlacement = pick('notePlacement', settings?.[KEY.notePlacement]);
 
   return cfg;
 }

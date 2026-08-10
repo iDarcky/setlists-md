@@ -1185,6 +1185,22 @@ export default function ReaderMenu({
               on={(settings?.readerInlineNotes || 'on') === 'on'}
               onChange={(v) => set('readerInlineNotes', v ? 'on' : 'off')} />
           </Field>
+          {/* WHERE a note goes. Offered rather than decided, because the two
+              answers trade the same thing in opposite directions: the gutter
+              keeps a straight margin down the section and charges every line in
+              it 88px of width on a phone (measured 366 -> 256.4px, one
+              ten-character note making a chorus 41% taller); under the line
+              costs nothing and gives the words the whole screen. Only shown
+              when notes are on — a placement for something switched off is a
+              control that cannot do anything. */}
+          {(settings?.readerInlineNotes || 'on') === 'on' && (
+            <Field label="Note position" onReset={reset('readerNotePlacement')}
+              info="In a margin down the right, or on its own line under the words.">
+              <Dropdown label="Note position" value={config?.notePlacement || 'gutter'}
+                options={[['gutter', 'Right margin'], ['below', 'Under the line']]}
+                onChange={(v) => set('readerNotePlacement', v)} />
+            </Field>
+          )}
 
           {/* ── Structure ────────────────────────────────────────────────── */}
           <GroupTitle>Structure</GroupTitle>

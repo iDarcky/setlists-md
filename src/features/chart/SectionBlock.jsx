@@ -100,6 +100,7 @@ export default function SectionBlock({
   // Where a {!note} goes relative to its lyric line:
   //   'inline' — trailing the line, separated by dashes (default, unchanged)
   //   'above'  — on its own line ABOVE, so it is read before the line is sung
+  //   'below'  — on its own line UNDER its words, full width, no gutter cost
   //   'leader' — pushed to the right edge, joined by a dotted leader
   //   'gutter' — in a reserved strip down the right; the words stop before it
   notePlacement = 'inline',
@@ -148,6 +149,26 @@ export default function SectionBlock({
   // A note above its line reads as an instruction you act on before singing;
   // a leader-dotted one sits at the right edge like the margin notes on a
   // printed chart, without costing a separate column.
+  // ── The `>` ─────────────────────────────────────────────────────────────
+  // A note is not a lyric, and until now nothing on screen said so — grey
+  // italic text sitting level with the words reads as words (owner, 2026-08-10:
+  // *"it acts like a lyric not a note"*, and the same objection to putting one
+  // under its line: *"some might think it's a lyric and read it"*).
+  //
+  // `>` is the mark, and it is the owner's (*"maybe we can use '>' in front of
+  // the note"*). It is the right one because the reader ALREADY uses it one
+  // level up: `> text` in the `.md` is a band cue on a section heading. Same
+  // glyph, same meaning — someone is talking to the band rather than singing —
+  // one level down. Nothing new to learn.
+  //
+  // `aria-hidden` on the mark: a screen reader announcing "greater-than" before
+  // every note is noise, and the note's own text is already distinct in the
+  // reading order.
+  const noteMark = () => (
+    <span aria-hidden="true" className="not-italic font-semibold" style={{ opacity: 0.6, marginRight: '0.35em' }}>
+      &gt;
+    </span>
+  );
   const noteAbove = (text) => (
     <div
       className="italic text-[0.8em] leading-snug"
@@ -155,7 +176,7 @@ export default function SectionBlock({
                fontStyle: text.trim().startsWith('!') ? 'normal' : 'italic',
                fontWeight: text.trim().startsWith('!') ? 600 : 400 }}
     >
-      {text}
+      {noteMark()}{text}
     </div>
   );
   // ── The note gutter ────────────────────────────────────────────────────────
@@ -283,7 +304,7 @@ export default function SectionBlock({
                fontWeight: text.trim().startsWith('!') ? 600 : 400,
                marginTop: hasChordRow ? 'calc(var(--chart-font-size-chord, 17px) + 3px)' : 0 }}
     >
-      {text}
+      {noteMark()}{text}
     </span>
   );
   const noteLeader = (text) => (
@@ -430,6 +451,7 @@ export default function SectionBlock({
             )}
             {showNote && notePlacement === 'leader' && noteLeader(inlineNote)}
           </div>
+          {showNote && notePlacement === 'below' && noteAbove(inlineNote)}
           {notePlacement === 'gutter' && (
             noteDraft?.lineIdx === idx ? noteGutterEditor()
               : showNote ? noteGutter(inlineNote, false, idx)
@@ -717,12 +739,73 @@ export default function SectionBlock({
                         <span
                           className="whitespace-pre"
                           style={{
+                            position: 'relative',
                             color: 'var(--chart-lyric, var(--chart-text, var(--text-1)))',
                             fontFamily: 'var(--chart-font-lyric, var(--font-sans))',
                             lineHeight: 'var(--chart-line-height-lyric, 1.25)',
                           }}
                         >
                           {seg.text || (seg.chord ? '\u00A0' : '')}
+                          {/* \u2500\u2500 The word-join mark \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+                              A chord can land in the MIDDLE of a word, and when
+                              its name needs more room than the syllable under it
+                              the clearance opens a gap inside the word itself:
+                              measured, `[Cmaj7]ran[G]somed` renders "ran" +
+                              56.9px + "somed", which reads as two words (owner,
+                              2026-08-10: *"if we break words we should use a
+                              form of --- or something so that users know that is
+                              a single word"*).
+
+                              \u26A0 It cannot be a JS decision. Whether the gap
+                              EXISTS is decided by a CSS `max(0px, calc(\u2026))` that
+                              only the browser resolves, so the mark decides for
+                              itself: a box of exactly the clearance width, sat
+                              on the gap (which is always at the RIGHT of the
+                              syllable, because the text is left-aligned in a
+                              column the chord widened), with the dash centred
+                              and `overflow: hidden`. Zero clearance, zero width,
+                              nothing drawn \u2014 the three other mid-word cases
+                              measured on the same run resolve to 0px and stay
+                              invisible.
+
+                              \u26A0 ABSOLUTE, and that is the whole trick. In flow it
+                              was measured adding **7.5px** \u2014 the dash's own
+                              width \u2014 to every syllable it was meant to say
+                              nothing about, because a flex item's `flex-basis:
+                              0` still contributes its max-content size to the
+                              COLUMN's intrinsic width. Out of flow it costs
+                              exactly nothing when there is nothing to say.
+
+                              `aria-hidden`: it repairs a layout artefact, not
+                              the text. A screen reader reads "ransomed" from two
+                              adjacent nodes and was never confused; a spoken
+                              "ran-dash-somed" would be the only broken reading
+                              of that word on the page. */}
+                          {si < w.segments.length - 1 && seg.chord && (
+                            <span
+                              aria-hidden="true"
+                              style={{
+                                position: 'absolute',
+                                right: 0,
+                                // A RULE, not a hyphen character. A glyph in a
+                                // box narrower than itself is a clipped glyph:
+                                // measured, `Hallelu[jah]` left 2.1px of
+                                // clearance and drew a 2.1px sliver of a "-",
+                                // which reads as damage rather than as a mark. A
+                                // rule is the same shape at every width — 32px
+                                // of it is a long dash, 2px of it is a tick, and
+                                // neither is broken. It also cannot be mistaken
+                                // for a hyphen the writer actually typed.
+                                width: clearanceFor(seg, wi, si) || 0,
+                                top: '45%',
+                                height: 0,
+                                borderTopWidth: 1,
+                                borderTopStyle: 'solid',
+                                borderTopColor: 'currentColor',
+                                opacity: 0.4,
+                              }}
+                            />
+                          )}
                         </span>
                       </span>
                     ))}
@@ -751,6 +834,7 @@ export default function SectionBlock({
           )}
           {inlineNotes && inlineNote && notePlacement === 'leader' && noteLeader(inlineNote)}
         </div>
+        {inlineNotes && inlineNote && notePlacement === 'below' && noteAbove(inlineNote)}
         {notePlacement === 'gutter' && (
           noteDraft?.lineIdx === idx ? noteGutterEditor(true)
             : (inlineNotes && inlineNote) ? noteGutter(inlineNote, true, idx)

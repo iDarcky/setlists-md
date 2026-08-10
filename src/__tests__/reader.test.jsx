@@ -770,6 +770,48 @@ describe('the lyric colour and font belong to the LYRICS', () => {
     expect(tight.marginRight).toContain('var(--chart-font-size-lyric');
   });
 
+  // ── Element 5/6, 2026-08-10 — a note is not a lyric ───────────────────────
+  it('marks an inline note with the same glyph a band cue uses', async () => {
+    const { default: SectionBlock } = await import('@/features/chart/SectionBlock');
+    const { container } = render(
+      <SectionBlock
+        section={{ type: 'Verse 1', note: '', lines: ['[C]Set me [G]free {!build here}'] }}
+        transpose={0} songKey="C" notation="letters" notePlacement="below"
+      />
+    );
+    // Grey italic text level with the words reads AS words. `>` says someone is
+    // talking to the band — which is exactly what it already means one level up
+    // on a section heading, so there is nothing new to learn.
+    expect(container.textContent).toContain('>');
+    expect(container.textContent).toContain('build here');
+    // …and it is hidden from a screen reader, which does not need "greater-than"
+    // announced before every note.
+    const mark = [...container.querySelectorAll('[aria-hidden="true"]')]
+      .find(el => el.textContent === '>');
+    expect(mark).toBeTruthy();
+  });
+
+  it('joins a word a chord broke, and only when it actually broke', async () => {
+    const { default: SectionBlock } = await import('@/features/chart/SectionBlock');
+    const { container } = render(
+      <SectionBlock
+        section={{ type: 'Verse 1', note: '', lines: ['[Cmaj7]ran[G]somed me now'] }}
+        transpose={0} songKey="C" notation="letters"
+      />
+    );
+    // A rule, not a hyphen character: measured, one case left 2.1px of clearance
+    // and a "-" glyph drew a 2.1px sliver, which reads as damage. A rule is the
+    // same shape at every width. Its WIDTH is the clearance expression, so the
+    // browser decides whether anything shows — zero clearance, zero width.
+    const rule = [...container.querySelectorAll('span[aria-hidden="true"]')]
+      .find(el => el.style.borderTopStyle === 'solid');
+    expect(rule).toBeTruthy();
+    expect(rule.style.width).toContain('max(0px, calc(');
+    // Absolute, so it costs nothing when there is nothing to say — in flow it
+    // was measured adding 7.5px to every syllable it was meant to be silent on.
+    expect(rule.style.position).toBe('absolute');
+  });
+
   it('gives a lyric-only line the same air as a chorded one — but only on a chart', async () => {
     const src = await import('node:fs').then(fs =>
       fs.readFileSync('src/features/chart/SectionBlock.jsx', 'utf8'));

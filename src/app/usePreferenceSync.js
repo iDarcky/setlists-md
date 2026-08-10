@@ -19,6 +19,8 @@ export const PORTABLE_PREF_KEYS = [
   // on the iPad at rehearsal, and it is the one thing here that is per-song
   // rather than per-app.
   'songCapos',
+  // 5/6 — where an inline note goes: the right margin, or under its line.
+  'readerNotePlacement',
   'showChords',
   'showDiagrams',
   'pedalNext',

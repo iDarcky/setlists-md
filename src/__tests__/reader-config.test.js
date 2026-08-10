@@ -49,8 +49,14 @@ describe('context overrides are physical facts, not preferences', () => {
     // ordinary lyric left ~400px of dots running across the page, which reads
     // as a divider, not a connection. One treatment also means one place where
     // a note's alignment has to be right.
+    // …and since 2026-08-10 it is the DEFAULT rather than the only answer.
+    // The gutter costs a phone 88px of every line in a section that carries one
+    // note (366 -> 256.4px measured, the section 41% taller), which is a price
+    // worth OFFERING rather than charging (owner: *"Can we do the notes as an
+    // option? Like right side gutter or under the word"*).
     expect(resolveReaderConfig({}, wide).notePlacement).toBe('gutter');
     expect(resolveReaderConfig({}, narrow).notePlacement).toBe('gutter');
+    expect(resolveReaderConfig({ readerNotePlacement: 'below' }, narrow).notePlacement).toBe('below');
   });
 
   it('pins headings at ONE column, on any screen — and never at two', () => {
