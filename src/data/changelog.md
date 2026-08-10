@@ -6,6 +6,8 @@ A running log of what's new in setlists.md. Newest releases first.
 *August 2026*
 
 ### Added
+- **Your own capo (Labs)** — set a capo per song and the chart shows the shapes you actually finger, while the key beside it keeps saying what the band is playing. It's yours alone: one guitarist's capo no longer changes what the bass player and the keys player read, which is what the old setlist capo did. It follows your account, and it suggests a fret — the one the song was written with, or the one that lands you on open chords.
+- **Add a section without leaving the song (Labs)** — someone brings an intro at rehearsal and you can add it from the bottom of the chart, in the same section list the song editor uses, colours and all. No more leaving, editing, saving and finding your place again.
 - **Add a song, all on one screen** — search, import and blank song together instead of behind tabs. Drop a file anywhere on it; on a phone Import opens your files straight away.
 - **Import a chord chart from a PDF** — drop one in and the chords, lyrics, sections, key, writers and play order come across. Romanian charts are understood too: STROFĂ, REFREN, PRE-REFREN and PUNTE become verses, choruses and bridges. Scanned or photographed PDFs say so rather than importing an empty song.
 - **Check a pasted song before it becomes a chart (Labs)** — paste anything and see the sections we found, each with a label you can tap to change. Blocks that repeat are marked as the chorus; join two blocks together or drop the ones that were website clutter.
@@ -170,6 +172,17 @@ A running log of what's new in setlists.md. Newest releases first.
 - **The setlist's key is the key you get** — choosing a key for a song inside a setlist now opens the reader in that key, and a key you change during practice sticks to the setlist rather than being forgotten.
 
 ### Fixed
+- **Chords could go missing from a chart (Labs)** — a chord standing on its own between two words, which is how most choruses end (`…setea mea  Cm  Bb`), silently took the next chord with it. The chart drew fewer chords than the song had, with nothing to say so. Your songs were never damaged — only what was drawn — and every chord is back.
+- **Chords no longer run off the right edge (Labs)** — a chord at the end of a line with no word under it could paint past the screen, where you couldn't read it at all. It wraps now instead.
+- **Less empty space between words (Labs)** — every chord used to reserve room whether or not another chord was anywhere near it, so short words like "va" and "Ca" were pushed apart for no reason. A chord now asks only for the room it's actually short of, and a chord with nothing after it simply hangs over the words. One chorus line went from 56px of dead space to none.
+- **Your sharps and flats stay yours** — write A♭ and you'll read A♭, in that song and after you transpose it. The chart used to respell chords to match the key, so a B♭ written into a song in D showed up as A♯.
+- **A note looks like a note** — inline notes now carry a `>` in front, the same mark a band cue uses, so they can't be mistaken for a lyric. You can also choose where they go: a margin down the right, or their own line above the words.
+- **Words a chord splits are joined again** — when a long chord opens a gap in the middle of a word, a small rule now bridges it so "ransomed" doesn't read as two words.
+- **A lyric line with no chords gets the same air as one with chords**, instead of running into the chords underneath it, and a line of chords on its own no longer sits on the words below.
+- **Discard really is red** — the "Discard your changes?" button was drawn as the calm, ordinary one.
+- **The section list stays on the screen** — picking a section type in the reader or the song editor no longer opens a menu whose bottom half is off the edge. It's narrower, too.
+- **Everything opens up while you're editing (Labs)** — a repeated section shown as a tag has no words to put a chord or a note on, so editing now shows the whole song. Your normal setting comes back when you're done.
+
 - **The next song starts at the top (Labs)** — moving to the next song in a set kept the previous song's scroll position, so song two opened three verses down, or past its own end if it was shorter.
 - **Tapping a section in the map now agrees with the map (Labs)** — it landed the section just below the top bar, which is a hair short of where the reader decides "you are here", so you'd be looking at Verse 2 while the map still highlighted Verse 1. It lands exactly on the line now.
 - **The structure down the side no longer sits on the words (Labs)** — on the left or right it's now a column of small, soft dots floating in the margin the chart already had: it doesn't cover a lyric and it doesn't push one aside either. The whole song fits, so there's nothing to scroll, and **you can drag the strip to scrub through the song** — press anywhere on it and the chart follows section by section. Boxes and Chips are for the top and bottom, where there's room for them, and the display menu now offers the style first with only the locations that suit it.

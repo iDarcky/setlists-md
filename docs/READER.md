@@ -660,7 +660,132 @@ fed (bassist root-emphasis was built, rendered, and reachable by no user);
   three-way merge that would stop trivial conflicts reaching a human. Same family
   as the bugs above; it needs an owner, not a delete.
 
-### 6/7 — Chords and lyrics
+### 6/7 — Chords and lyrics — **CLOSED 2026-08-10**
+
+#### The element-6/7 pass — CLOSED 2026-08-10
+
+Nine rounds. It was billed as "a polish-and-decide pass on the reader's densest
+surface, not a build from nothing", and it found **four bugs of one family plus
+one that had been silently corrupting charts on screen**.
+
+**⚠ The chart was DELETING chords.** `groupChordWords` held a chord to carry it
+to the next word (right, for a chord landing mid-gap) via `pending = pending ??
+p.chord` — so a chord arriving while one was still held was discarded as a
+duplicate. Any chord standing alone between two spaces took the NEXT one down
+with it:
+
+    [C]word [G] [D]more   drew  C G     — D gone
+    [Ab]mea [Cm] [Bb]     drew  Ab Cm   — Bb gone
+    [C]a [G] [D] [Em]b    drew  C G     — D and Em gone
+
+That is the shape of a trailing turnaround, which is how half the choruses in
+the library end. Nothing showed: the chart simply drew fewer chords than the
+song had. `parser.js` was innocent — it returns every pair and round-trips the
+line byte-exact — so no stored song was ever damaged. **The loss was only ever
+on screen, which is the only place it mattered.**
+
+**Chord clearance is what is MISSING, not a constant.** Every chord demanded
+`ink + 0.6em` whether or not anything was near it, so every word narrower than
+that got padded out to it: `"va"` 19.2→30.6, `"Ca"` 22.5→30.6, `"Mă"` 25.5→30.6
+— 10.2 / 28.4 / 56.1px of dead space on three consecutive lines of one chorus.
+A chord now asks only for the room its name needs beyond what the words before
+the next chord already give. Same three lines: **0.0 / 2.0 / 42.3px**, and the
+42.3 is two chords standing alone with no words under them, which is not dead
+space but two chords needing to be two chords. Owner: *"I'm ok with some spaces
+if there are some crowded sections, but on empty sections I don't think that is
+a problem if a chord overflows to an empty word that doesn't have another
+chord."*
+
+The arithmetic lives in **CSS `calc`, not JS**: both font sizes are variables
+the Aa menu can change, and a number baked in at render is stale the instant it
+does. JS contributes only what CSS cannot count — how many characters are in
+the way. `max(0px, …)` is what makes "there is already enough room" mean zero
+rather than a negative margin.
+
+**"Why does the old chart feel more airy?"** — measured, and it was not the
+lyric font. Words are Geist Sans 18px on both surfaces ("Amazing" = 71.97px in
+each). The SPACE between two words is its own span with no font, so it inherited
+whatever the surface set: the old `PracticeChart` hard-codes
+`fontFamily: var(--font-mono)`, so its spaces were Geist Mono at **10.81px**,
+against the Reader's Geist Sans at **4.50px**. Words in one font, the gaps
+between them in another, entirely by accident. The wider gap is the better chart
+— it is the room a chord sits in — so it was kept and declared (`WORD_GAP_EM`),
+then dialled 0.6 → 0.4 when it read as too wide once the chords stopped fighting
+for room.
+
+**Accidentals travel with the CHORD.** 'auto' spelled by the key, which
+re-spelled at ZERO transpose (a written `Bb` in a sharp-side song displayed as
+`A#`) and is wrong on its own terms anyway — in G the flat six is `Eb`, never
+`D#`, because notation spells by function and a chord symbol carries none. The
+obvious repair, "verbatim at rest, key convention when moved", was proposed here
+and the owner killed it in one line: *"the user writes Ab to a song and then
+expects Ab to a different song, not G# when he modulates."* So the preference
+travels with the chord; zero transpose is verbatim as a consequence rather than
+a special case, and a natural root asks the destination key because it is the
+only thing left to ask.
+
+**Element 19 — capo — closed inside this pass.** One number, per song, **per
+person**. The shared `items[i].capo` it replaces was written by the setlist
+builder and subtracted by three legacy views, so one guitarist's capo rewrote
+the chart for the bass player (owner: *"a huge red flag"*). The chart shows
+SHAPES; the key pill keeps saying the sounding key and an outlined chip beside
+it says how you get there. Set in Practice, rendered-only in Live, and only when
+a capo exists. `arrangement.capo` — a field the editor collected and NOTHING
+read, under a hint promising capo shapes it never delivered — now seeds the ★
+suggestion.
+
+**Four switches passed and read by nobody**, all invisible, none reported:
+`--chart-chord-size` (the note `+` and its input sat 4px above the note they
+became), `--chart-line-gap` (read once, written never — deleted), `destructive:
+true` on the discard confirm (`ConfirmProvider` forwards `variant` and nothing
+else, so **the most destructive button in the reader rendered as its most
+neutral one**), and a lazy `ChartView` import in `Library.jsx` referenced by
+nothing — which was the last NON-LEGACY call site keeping the old renderer
+alive and would have quietly outlived graduating the flag.
+
+**Editing expands everything.** A repeat collapsed to a `⇄ CHORUS 1` pill has no
+words on screen, so there is nowhere to put a chord, a cue or a note — edit mode
+was offering to edit a song half of which was a row of tags. `duplicateSections`
+is a READING preference; edit mode is not asking that question. It is a copy of
+the config, never a write.
+
+**Add a section, from the chart.** At the BOTTOM, never on the song map: the
+map's `+` means *"play this again"* and touches `structure` only; this invents a
+body and must write `sections` AND `structure` in one patch (two writes leave a
+window where the song names a section it does not have, and `buildSongFlow`
+drops those). It reuses the editor's own type menu rather than asking you to
+type a name, which also keeps the section COLOURS — a grey picker would be the
+one place in the app where a Chorus is not pink.
+
+**A menu cannot guess its own height.** `PopMenu` flipped upward on
+`spaceBelow < 280`, so a menu TALLER than that guess still ran off the bottom
+whenever the space below merely exceeded it: measured, "+ Add section" had 353px
+below it and eleven section types are ~473px. It is capped to the room it
+actually has now, and scrolls inside the cap.
+
+**Two Readers no longer mount at once.** The hub unmounts its embedded copy
+while full screen is open — measured 2 → 1. That retires a whole bug family
+(`jumpTo` measuring the wrong section, a day of browser probes) at the price of
+the hub's preview starting at the top when you come back.
+
+**Validated, not asserted.** Every spacing change was re-run against a 15-line
+hostile corpus (long chords over one-letter words, dense runs, trailing chords,
+diacritics) across nine configurations — 320/390/1280px, lyric 14–28px, chord
+17–24px, all four notations — asserting **zero chord collisions and zero chords
+past the content edge**. `LYRIC_CHAR_EM` was asked to go to 0.50 and MEASURED TO
+COLLIDE (G and D 0.2px apart at lyric 28); it ships at 0.48, the ceiling the
+corpus allows. The useful finding was that the whole 0.42→0.50 range moves total
+dead space by **8%** — the constant is not where the remaining gaps come from.
+
+**Still open, carried out of 6/7:**
+- Bars in the `.md` — the format carries no bar information at all, which is why
+  chord-only lines cannot be bars and why element 12's section loop was cut. Its
+  own element, and a MAJOR-version conversation.
+- The Song Hub's three tabs — Lyrics is a display mode rather than a document,
+  and Details largely duplicates the hub card above it. Its own element.
+- **Arrangements** — see below.
+
+### 6/7 — the decisions, as they stood going in
 - Chords above lyrics, per-word grouping so a line only wraps at a space.
 - **Lyrics are NEVER truncated.** Owner: *"never, but never ever use … or
   something else, the lyrics should always be shown."*
@@ -973,6 +1098,9 @@ remembers. Numbered from 14 so they can be worked the same way as the rest.
 | 25 | **Follow the leader** | The leader jumps to song 5 or repeats the bridge; the band is still on 4. Realtime already exists (`team_schedules`, the publication). This is the biggest *feature* left, not the biggest *fix*. | XL |
 | 26 | **Reachability** | Where controls sit for a thumb on a phone held one-handed while the other hand plays. Everything currently lives at the top. | S |
 | 27 | **Offline in the reader** | Cover art, the YouTube track, chord diagrams — all fail differently with no signal. Element 12's track already needs it. | S |
+| **31** | **Arrangements** | Noted 2026-08-10 (owner: *"We need a way to handle arrangements to songs. This is a different element, just note it down."*). The v2 schema has carried `arrangements[]` since the beginning and almost nothing uses it: the hub can switch between them, the reader cannot (that is 21), "New version" in edit mode can create one, and there is no way to name, compare, delete or choose a default from anywhere a musician actually is. A short acoustic version and the full band version are the same song, and today that is a shape the data has and the app does not. | L |
+| **32** | **Bars in the `.md`** | The format carries NO bar information — no `|`, no bar count, no timestamps. It is why a chord-only line cannot be drawn as bars, why element 12's section loop was cut, and why anything bar-accurate is impossible. `[G][C]` (no space) as "same bar" costs nothing; an explicit `|` is additive. A MAJOR-version conversation. | M |
+| **33** | **The Song Hub's tabs** | Three tabs is one too many: Lyrics is a display mode rather than a document, and Details largely duplicates the identity card above it. The answer is probably no tabs at all. | M |
 
 **On defaults:** every element above has a default whether or not anyone chose
 it. That is what tomorrow's pass is for — most of these are cheap if decided,

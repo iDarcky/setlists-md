@@ -142,20 +142,35 @@ function CapoChip({ capo, soundingKey, shapeKey, writtenCapo, onSelect }) {
 function AddSectionRow({ onAdd, customSectionTypes }) {
   const options = sectionTypeOptions(customSectionTypes);
   return (
-    <div style={{ marginTop: 4 }}>
+    <div style={{ marginTop: 10 }}>
       <PopMenu
         align="left"
         menuClassName="w-44"
         trigger={
           <button
             type="button"
-            className="w-full min-h-0 h-9 rounded-lg border border-dashed cursor-pointer bg-transparent text-label-12 font-semibold"
+            // ⚠ Not full-width, and not DASHED. A dashed rectangle spanning the
+            // column reads as a drop zone or an empty placeholder — something
+            // waiting to be filled rather than something to press (owner,
+            // 2026-08-10: *"This does not look good"*). It also drew a box the
+            // width of the chart for a control that acts on one thing.
+            //
+            // A compact pill with a real hairline is the same shape the song
+            // editor's own "+ Add section" already is, which is the second half
+            // of reusing its menu: same control, same place in the page, same
+            // look. Chart tokens rather than app greys, because it sits on the
+            // chart's paper and has to follow whatever theme that paper wears.
+            className="min-h-0 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border cursor-pointer bg-transparent text-label-12 font-semibold"
             style={{
               borderColor: 'var(--chart-rule, var(--ds-gray-400))',
               color: 'var(--chart-subtle, var(--ds-gray-700))',
             }}
           >
-            + Add section
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Add section
           </button>
         }
       >
