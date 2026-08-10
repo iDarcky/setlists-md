@@ -23,7 +23,12 @@ import {
 } from '@/lib/libraryPlus';
 import { splitMulti } from '@/lib/songFacets';
 
-const ChartView = lazy(() => import('@/features/chart/ChartView'));
+// ⚠ The Songs page has no preview pane. A lazy `ChartView` import survived
+// here after `SidePeek` was removed on 2026-08-08, referenced by nothing — it
+// was still the last non-legacy call site keeping the old chart renderer alive,
+// which mattered because graduating the reader flag would otherwise have left
+// it standing. Gone with the setlists pane (owner, 2026-08-10: *"Drop all the
+// panes."*).
 // The peek IS the song hub (decided 2026-07-31). Lazy for the same reason the
 // route is: the hub pulls in svguitar, the PDF exporter and the YouTube player.
 const SongHub = lazy(() => import('@/features/song/SongHub'));

@@ -471,7 +471,7 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
   on a fresh profile CHANGED a setting nobody had touched. No migration: beta
   only, one database, users change it themselves (owner).
 
-### 4b — Band cue ✅ closed 2026-08-06 *(it renders on element 4's own line)*
+### 5a — Band cue ✅ closed 2026-08-06 *(was 4b; renders on element 4's own line)*
 - Starts **on the same line as the section heading** and wraps from there like
   a sentence continuing — NOT flex, or a long cue is forced onto its own row.
 - **Capped at 70 characters at the INPUT**, and the heading row clamps to two.
@@ -490,7 +490,29 @@ Short codes, tappable to jump, auto-scrolls to keep the current chip centred.
   **The inline-note half of that report does not reproduce** — inline notes are
   edited in a local-state input and only trim at render.
 
-### 5 — Notes — **CLOSED 2026-08-09** *(was "inline notes"; widened 2026-08-06)*
+### 5 — Notes — a FAMILY, renumbered 2026-08-10
+
+> **Element 5 is every note, and each layer gets a letter.** The owner,
+> 2026-08-10: *"Why weren't we doing the 3 notes level with number 5? I said we
+> should unify all the notes under one element, or sister elements."* He is
+> right, and the reason it drifted is that element 5's pass ran out of room —
+> it started as "what does a note look like", turned into "what is a mode", and
+> took six rounds. The leftovers went to element 22, twenty places down the
+> list, where they stopped looking like part of the same thing.
+>
+> | # | Layer | Where it lives | Who sees it | State |
+> |---|-------|----------------|-------------|-------|
+> | **5a** | **Band cue** (`> text`) | on the section heading | everyone | ✅ closed 2026-08-06 *(was 4b)* |
+> | **5b** | **Inline note** (`{!…}`) | on a lyric line | everyone | ✅ closed 2026-08-09 |
+> | **5c** | **Setlist item note** | `items[i].note`, 100 chars | everyone | open — shares element 10 |
+> | **5d** | **Arrangement note** | `arrangement.notes`, markdown | everyone | open *(was 22)* |
+> | **5e** | **My note** (`team_notes`) | per user, per scope | you only | open *(was 22)* |
+>
+> **4b is now 5a** — the band cue is a note, and it was only 4b because it
+> renders on the heading's line. **22 is now 5d + 5e**, which frees 22 for the
+> setlist bar (below).
+
+### 5a/5b — the closed half — **CLOSED 2026-08-09** *(was "inline notes"; widened 2026-08-06)*
 
 > **Element 5 is every note, not one kind of note** (owner, 2026-08-06:
 > *"element 5 should actually become notes, and this should include all the
@@ -802,7 +824,14 @@ the song title. The boundary that actually exists on that screen is
 placement that still makes sense when the ribbon is off, or when element 8's
 setlist bar is showing instead.
 
-### 8b — The setlist bar — SET / HEADER / STRUCTURE
+### 22 — The setlist bar — SET / HEADER / STRUCTURE
+
+> **Renumbered from 8b, 2026-08-10.** `8b` implied it was part of element 8, and
+> element 8 is the `{modulate}` key change — the two have nothing to do with each
+> other (owner: *"8b -> 22, because it's different than modulate"*). It takes 22
+> because the notes that used to live there are now 5d and 5e. Tabs keeps 9; a
+> cascade renumber would break every cross-reference in this file to buy nothing.
+
 
 **Revised 2026-08-01, by the owner, against this element's original rule.** The
 set bar no longer *replaces* the structure ribbon. It sits **above the title
@@ -823,7 +852,7 @@ overruled it. Recorded as his call, not re-argued.
 either/or with the ribbon; the ribbon is still turned off through
 `structurePosition: 'off'`.
 
-### 8b — original notes
+### 22 — original notes *(was 8b)*
 
 `readerTopBar`: **Song structure** (the ribbon, default) or **The set** — the
 app's original player bar, kept because the owner still likes it: a thin
@@ -935,10 +964,10 @@ remembers. Numbered from 14 so they can be worked the same way as the rest.
 | 16 | **The room changed** | Rotate the tablet mid-song. Columns reflow, the section you were on moves — do you keep your place? This is the ONE job, and rotation is the easiest way to break it. | M |
 | 17 | **The screen went to sleep** | Deliberately not ported. Still the single most common real-world complaint about any chart app. Needs a decision, not just a wake lock. | S |
 | 18 | **Coming back** | You leave the reader mid-service (a call, a notification, the app is backgrounded, the tab is discarded). Do you return to song 5 where you were, or song 1? | M |
-| 19 | **Capo** | The chart shows sounding chords; a capoed guitarist wants shapes. `capo` is on the arrangement and the reader currently ignores it. Element 11 already ruled it out for diagrams — the chart itself is undecided. | M |
+| 19 | **Capo** | ✅ **CLOSED 2026-08-10**, inside element 6/7's pass. One number, per song, **per person** (`settings.songCapos`, portable) — never the band's, because the shared `items[i].capo` it replaces rewrote the chart for every player. The chart shows SHAPES; the key pill keeps saying the sounding key and an outlined chip beside it says how you get there. Set in Practice, rendered-only in Live. `arrangement.capo` seeds the ★ suggestion. | M |
 | 20 | **Auto-scroll** | Genuinely absent from the whole app, and the feature most competitors lead with. Either decide it's not wanted (defensible — a section-anchored reader may not need it) or design it. | L |
 | 21 | **Arrangement switching in the reader** | The hub can switch arrangements; the reader can't. Mid-rehearsal "let's do the short version" has no answer. | M |
-| 22 | **The three note levels, on stage** | Element 4 is the band cue, element 5 the inline note. Arrangement notes and private notes (`team_notes`) have **no home in the reader at all** — they exist and are invisible where they'd be used. | M |
+| ~~22~~ → **5d/5e** | **The three note levels, on stage** | Folded into element 5's family 2026-08-10 — the arrangement note is **5d** and "My note" is **5e**. They still have no home in the reader; they are just no longer filed twenty places away from the other notes. **22 is now the setlist bar** (was 8b). | M |
 | 23 | **Getting the chart out** | No print/PDF entry point from the reader. Someone asks for it after the service and you have to leave and go find the song. | S |
 | 24 | **Reading at a distance** | The stand is a metre away. Not the same problem as "big text" — it's contrast, weight and line spacing together. Older musicians are the ones who'll say so first. | M |
 | 25 | **Follow the leader** | The leader jumps to song 5 or repeats the bridge; the band is still on 4. Realtime already exists (`team_schedules`, the publication). This is the biggest *feature* left, not the biggest *fix*. | XL |

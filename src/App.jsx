@@ -185,7 +185,6 @@ export default function App() {
     members,
     setlistMap: teamSetlistMap,
   }), [user?.id, currentSetlist?.id, schedules, members, teamSetlistMap]);
-  const [previewSetlistId, setPreviewSetlistId] = useState(null);
   // Schedule list/calendar view — lifted here so the BottomNav morphing FAB can
   // toggle it (alongside the desktop header switch). Defaults to list on phones.
   const [scheduleView, setScheduleView] = useState(() =>
@@ -452,7 +451,6 @@ export default function App() {
     // Clear stale data immediately to avoid "ghost" content during load
     setSongs([]);
     setSetlists([]);
-    setPreviewSetlistId(null);
 
     (async () => {
       let savedSongs = await loadSongs(activeLibrary);
@@ -885,7 +883,6 @@ export default function App() {
       setCurrentSetlist(null);
       // Clear the docked pane's selection so it doesn't auto-reopen when
       // returning to the setlists view after navigating away.
-      setPreviewSetlistId(null);
       setIsFullscreen(false);
       if (viewName === 'settings') {
         setSettingsPanel(targetPanel || 'hub');
@@ -1049,7 +1046,6 @@ export default function App() {
   const goSetlistView = (sl) => {
     // Opening the full overview supersedes any side-peek preview — clear it so
     // returning to the list doesn't re-open the pane for this setlist.
-    setPreviewSetlistId(null);
     navigate('setlist-view', { setlist: sl });
   };
   const goSetlistPerformance = (sl) => {
@@ -1651,9 +1647,6 @@ export default function App() {
     if (!settings?.firstSetlistBuilt) {
       setSettings(prev => ({ ...prev, firstSetlistBuilt: true }));
     }
-    // Keep the desktop split-view selection in sync so the new/updated
-    // setlist is preselected if the user navigates back to the list.
-    setPreviewSetlistId(sl.id);
     if (isNew) {
       // Land on the new setlist's overview so the user can immediately see
       // (and play) what they built. `replace` keeps the history stack at
@@ -1828,7 +1821,6 @@ export default function App() {
       ...prev,
       setlists: [...prev.setlists.filter(t => !idSet.has(t.id)), ...ids.map(id => ({ id, deletedAt: Date.now() }))],
     }));
-    setPreviewSetlistId(null);
     toast({ title: `Deleted ${ids.length} setlist${ids.length === 1 ? '' : 's'}` });
   };
 
@@ -2260,8 +2252,6 @@ export default function App() {
               onPracticeSetlist={(sl, startIndex) => goSetlistPractice(sl, startIndex)}
               onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onImportSetlist={isTeamReadOnly ? null : handleImportSetlist}
-              previewSetlistId={previewSetlistId}
-              onSelectPreview={setPreviewSetlistId}
               isFullscreen={isFullscreen}
               onToggleFullscreen={toggleFullscreen}
               onEditSetlist={isTeamReadOnly ? null : (sl) => goSetlistBuild(sl)}
@@ -2281,7 +2271,6 @@ export default function App() {
                   ...prev,
                   setlists: [...prev.setlists.filter(t => t.id !== id), { id, deletedAt: Date.now() }],
                 }));
-                setPreviewSetlistId(null);
               }}
               onDeleteSetlists={isTeamReadOnly ? null : handleDeleteSetlists}
               plus={!!settings?.setlistsLibraryPlus}
@@ -2691,15 +2680,13 @@ export default function App() {
           onToggleScheduleView={() => setScheduleView(v => (v === 'list' ? 'calendar' : 'list'))}
           onMarkAllRead={hasUnreadNotifications ? handleMarkAllNotificationsRead : null}
           onClearAllNotifications={view === 'notifications' && mergedNotifications.some(n => n.type !== 'schedule_request') ? handleClearAllNotifications : null}
+          // The Setlists branch is gone with the docked pane: it fired off the
+          // pane's selection, and with no pane nothing can select a setlist
+          // from the list any more — the row opens the setlist instead.
           onPlay={
             view === 'setlist-view' && currentSetlist
               ? () => goSetlistPerformance(currentSetlist)
-              : view === 'setlists' && previewSetlistId
-                ? () => {
-                    const sl = setlists.find(s => s.id === previewSetlistId);
-                    if (sl) goSetlistPerformance(sl);
-                  }
-                : null
+              : null
           }
         />
       )}

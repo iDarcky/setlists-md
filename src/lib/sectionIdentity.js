@@ -1,4 +1,4 @@
-import { sectionStyle, sectionLabel, compactLabel } from '@/music';
+import { sectionStyle, sectionLabel, compactLabel, SECTION_TYPE_KEYS } from '@/music';
 import { sectionWeight } from '@/lib/songFlow';
 import { CHART_THEME_MAP, DEFAULT_CHART_THEME_ID } from '@/data/chartThemes';
 
@@ -60,3 +60,18 @@ export function headingText(identity, style = 'name') {
 }
 
 export const HEADING_STYLES = ['name', 'code', 'caps'];
+
+
+/**
+ * The list every "pick a section type" menu offers: the built-in types this
+ * build knows about, plus whatever the user has invented.
+ *
+ * `SECTION_TYPE_KEYS` already excludes the retired ones (`Ending`, an alias of
+ * Outro), so nobody can pick a type that exists only for backwards
+ * compatibility. Pure, so it lives here rather than beside the menu component —
+ * both the editor and the Reader build the same list from it.
+ */
+export function sectionTypeOptions(customSectionTypes) {
+  const custom = (customSectionTypes || []).map(t => t?.name?.trim()).filter(Boolean);
+  return [...SECTION_TYPE_KEYS, ...custom];
+}

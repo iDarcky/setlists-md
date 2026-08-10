@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo, Fragment } from 'react';
 import PopMenu, { MenuItem } from '@/ui/PopMenu';
+import { SectionTypeMenuItems } from '@/features/chart/SectionTypeMenu';
 import { parseSongMd, songToMd, placementToLine, parseTabBlock, parseSectionLines, splitMd, parseFrontmatterFields, serializeFrontmatterFields, CUE_MAX_CHARS, INLINE_NOTE_MAX_CHARS } from '@/parser';
 import { sectionStyle, getNashvilleNumber, getSolfege } from '@/music';
 import TabBlock from '@/features/chart/TabBlock';
@@ -218,26 +219,10 @@ const InteractiveLine = memo(function InteractiveLine({
 // the editor's sticky header — otherwise an upward-opening "+ Add" menu got
 // cut off / hidden under the header.
 
-// ─── Section-type menu items (shared) ─────────────────────────────
-// One renderer for every "pick a section type" menu — the type picker, the
-// play-order "+ Add", and the bottom "+ Add section". Each item wears its own
-// section colour so the three menus read the same.
-function SectionTypeMenuItems({ options, current, customSectionTypes, onPick }) {
-  return options.map(t => {
-    const st = sectionStyle(t, null, customSectionTypes);
-    return (
-      <button
-        key={t}
-        type="button"
-        onClick={() => { if (t !== current) onPick(t); }}
-        className="w-full text-left px-3 py-2 text-label-13 font-bold uppercase tracking-wider cursor-pointer bg-transparent border-none hover:bg-[var(--ds-gray-alpha-100)]"
-        style={{ color: st.b }}
-      >
-        {t}
-      </button>
-    );
-  });
-}
+// ─── Section-type menu items ──────────────────────────────────────
+// Moved to `@/features/chart/SectionTypeMenu` when the Reader's "add a section"
+// became a fourth caller (owner, 2026-08-10: *"reuse the section part from the
+// song editor, why not?"*). Same renderer, one home.
 
 // ─── Section type picker ──────────────────────────────────────────
 // Custom dropdown so each type carries its own section color and the number

@@ -4,6 +4,9 @@ import { capoFor, withCapo, shapeKeyFor, suggestCapo, MAX_CAPO } from '@/lib/cap
 import { resolveSongView } from '@/arrangements';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/ui/Select';
 import { IconButton } from '@/ui/IconButton';
+import PopMenu from '@/ui/PopMenu';
+import { SectionTypeMenuItems } from '@/features/chart/SectionTypeMenu';
+import { sectionTypeOptions } from '@/lib/sectionIdentity';
 import { buildSongFlow, repeatRuns } from '@/lib/songFlow';
 import { resolveSectionColors } from '@/lib/sectionIdentity';
 import { resolveReaderConfig } from '@/lib/readerConfig';
@@ -119,77 +122,45 @@ function CapoChip({ capo, soundingKey, shapeKey, writtenCapo, onSelect }) {
 /**
  * "Add section", at the foot of the chart, in edit mode.
  *
- * Two taps, not a dialog. A dialog for "what is it called" would cover the song
- * you are adding to, and the answer is one of eight words nine times out of ten
- * — so the eight are offered as chips and anything else is typed in the same
- * row. `Intro` is first because it is the case that asked for this feature.
+ * ⚠ It does NOT ask you to type a name. The song editor already has a
+ * "pick a section type" menu, and the owner's instruction was to reuse it
+ * rather than invent a second way to say the same thing (2026-08-10: *"don't do
+ * type a name, reuse the section part from the song editor, why not?"*). So it
+ * is `SectionTypeMenuItems` — the same renderer the editor's three menus use,
+ * moved to `@/features/chart/SectionTypeMenu` for the purpose.
  *
- * Collapsed to a single quiet row until tapped: it sits under every song in
- * edit mode, and something that says "+ Add section" permanently at the end of
- * a chart is the same litter that ~30 `+` marks would have been in the gutter.
+ * That also answers *"can we keep the colors for the sections?"* for free: each
+ * item wears the colour its heading and its ribbon chip will wear, from the same
+ * `sectionStyle` call. A picker that named the types in grey would be the one
+ * place in the app where a Chorus is not pink — you would be choosing something
+ * you could not recognise.
+ *
+ * Collapsed to a single quiet dashed row until tapped. It sits under every song
+ * in edit mode, and a permanent loud "+ Add section" at the end of a chart is
+ * the same litter ~30 `+` marks would have been in the gutter.
  */
-function AddSectionRow({ onAdd }) {
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState('');
-  const commit = (name) => {
-    const n = String(name || '').trim();
-    if (!n) return;
-    onAdd(n);
-    setDraft('');
-    setOpen(false);
-  };
-  const muted = 'var(--chart-subtle, var(--ds-gray-700))';
-  const rule = { borderColor: 'var(--chart-rule, var(--ds-gray-400))' };
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="w-full min-h-0 h-9 rounded-lg border border-dashed cursor-pointer bg-transparent text-label-12 font-semibold"
-        style={{ ...rule, color: muted, marginTop: 4 }}
-      >
-        + Add section
-      </button>
-    );
-  }
+function AddSectionRow({ onAdd, customSectionTypes }) {
+  const options = sectionTypeOptions(customSectionTypes);
   return (
-    <div className="rounded-lg border p-2" style={{ ...rule, marginTop: 4 }}>
-      <div className="flex flex-wrap gap-1.5 mb-2">
-        {['Intro', 'Verse', 'Pre Chorus', 'Chorus', 'Bridge', 'Instrumental', 'Tag', 'Outro'].map(t => (
+    <div style={{ marginTop: 4 }}>
+      <PopMenu
+        align="left"
+        menuClassName="w-52 max-h-[50vh]"
+        trigger={
           <button
-            key={t}
             type="button"
-            onClick={() => commit(t)}
-            className="min-h-0 h-7 px-2 rounded-md border cursor-pointer text-label-11 font-semibold bg-transparent"
-            style={{ ...rule, color: 'var(--chart-text, var(--ds-gray-1000))' }}
+            className="w-full min-h-0 h-9 rounded-lg border border-dashed cursor-pointer bg-transparent text-label-12 font-semibold"
+            style={{
+              borderColor: 'var(--chart-rule, var(--ds-gray-400))',
+              color: 'var(--chart-subtle, var(--ds-gray-700))',
+            }}
           >
-            {t}
+            + Add section
           </button>
-        ))}
-      </div>
-      <div className="flex items-center gap-1.5">
-        <input
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); commit(draft); }
-            if (e.key === 'Escape') { e.preventDefault(); setDraft(''); setOpen(false); }
-          }}
-          placeholder="Or type a name…"
-          aria-label="New section name"
-          className="flex-1 min-h-0 h-7 rounded-md border px-2 bg-transparent outline-none text-label-12"
-          style={{ ...rule, color: 'var(--chart-text, var(--ds-gray-1000))' }}
-        />
-        <button
-          type="button"
-          onClick={() => { setDraft(''); setOpen(false); }}
-          className="min-h-0 h-7 px-2 rounded-md border cursor-pointer text-label-11 font-semibold bg-transparent"
-          style={{ ...rule, color: muted }}
-        >
-          Cancel
-        </button>
-      </div>
+        }
+      >
+        <SectionTypeMenuItems options={options} customSectionTypes={customSectionTypes} onPick={onAdd} />
+      </PopMenu>
     </div>
   );
 }
@@ -950,7 +921,15 @@ export default function Reader({
         description: 'Everything you changed to this song goes back to how it was.',
         confirmLabel: 'Discard',
         cancelLabel: 'Keep editing',
-        destructive: true,
+        // ⚠ `variant: 'danger'`, not `destructive: true`. `destructive` was a
+        // prop this call site invented: `ConfirmProvider` forwards `variant` and
+        // nothing else, so the flag was read by NOBODY and the dialog fell back
+        // to `variant: 'default'` → a `primary` button, which in this design
+        // system is the pale inverted block (owner, 2026-08-10: *"the discard
+        // changes uses a strange color for the pop-up, why?"*). The most
+        // destructive button in the reader was rendered as its most neutral one.
+        // Same family as element 5's three: a switch passed and read by nothing.
+        variant: 'danger',
       });
       if (!ok) return;
     }
@@ -2013,7 +1992,7 @@ export default function Reader({
               where a new section goes — at the end, which is where you would
               add one on paper. */}
           {editing && onUpdateSong && (
-            <AddSectionRow onAdd={addSection} />
+            <AddSectionRow onAdd={addSection} customSectionTypes={settings?.customSectionTypes} />
           )}
           </div>
         </div>

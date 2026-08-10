@@ -8,8 +8,7 @@ import { searchSetlists } from '@/lib/search';
 import { resolveVisibleColumns } from '@/lib/tableColumns';
 import ColumnsMenu from '@/ui/ColumnsMenu';
 import SetlistFilters from './SetlistFilters';
-import { useIsDesktop, useIsTablet, useIsLandscape } from '@/lib/useMediaQuery';
-import { useResizablePane } from '@/lib/useResizablePane';
+import { useIsDesktop, useIsTablet } from '@/lib/useMediaQuery';
 import { usePersistentView, usePersistentJSON } from '@/lib/usePersistentView';
 import CardFieldsMenu from '@/ui/CardFieldsMenu';
 import { SelectionBar } from '@/ui/SelectionBar';
@@ -140,24 +139,12 @@ export default function Setlists({
   loaded = true,
   onViewSetlist,
   onPlaySetlist,
-  onPracticeSetlist,
   onNewSetlist,
   onImportSetlist,
-  previewSetlistId = null,
-  onSelectPreview,
-  isFullscreen = false,
-  onToggleFullscreen,
-  onEditSetlist,
   readOnly = false,
   clockFormat = '12h',
   tableColumns,
   onSetTableColumns,
-  overviewV2 = false,
-  overscheduleWarn = false,
-  streakLimit = 3,
-  onExportSetlistZip,
-  onExportSetlistPdfOverview,
-  onExportSetlistPdfFull,
   onDeleteSetlist,
   onDeleteSetlists,
   plus = false,
@@ -170,25 +157,24 @@ export default function Setlists({
   // Responsive shell — see Library.jsx for the breakpoint rationale.
   const wide = useIsDesktop();
   const isTablet = useIsTablet();
-  const isLandscape = useIsLandscape();
   const isDesktop = wide && !isTablet;
   const advanced = isDesktop || isTablet;
-  const splitDock = isTablet && isLandscape && wide && !isFullscreen;
-  const { width: paneWidth, onPointerDown: onPaneResize } = useResizablePane({ storageKey: 'setlists-md:setlists-pane-w' });
-
-  const previewSetlist = useMemo(
-    () => setlists.find(s => s.id === previewSetlistId) || null,
-    [setlists, previewSetlistId],
-  );
-
-  const openFull = (sl) => onViewSetlist?.(sl);
-  const openPeek = (sl, e) => { e?.stopPropagation(); onSelectPreview?.(sl.id); };
-  // ⚠ Opening a setlist opens the SETLIST. It used to open a right-hand
-  // overlay on tablet only, so the same tap did two different things depending
-  // on which device you held (owner, 2026-08-08). `SidePeek` is gone; the only
-  // survivor is the tablet-LANDSCAPE split dock, which is a layout rather than
-  // an overlay — there, a row still selects what the docked pane shows.
-  const onRowActivate = splitDock ? openPeek : openFull;
+  // ⚠ Opening a setlist opens the SETLIST. Full stop, on every device.
+  //
+  // It used to open a right-hand overlay on tablet only, so the same tap did
+  // two different things depending on which device you held (owner,
+  // 2026-08-08) — `SidePeek` went then. The tablet-LANDSCAPE split dock
+  // survived that cull because it was a layout rather than an overlay, and it
+  // was the wrong survivor: `SetlistOverview` was never designed for a column
+  // that narrow, and on a real tablet it rendered the title truncated to
+  // "Beta - t…", "Set order" squeezed into a strip narrower than its own words
+  // with the chips spilling out of it, and the band panel stacked beside it
+  // with no room (owner, 2026-08-10: *"the side-peek should be gone for
+  // setlists too… what is this dude"* → *"Drop all the panes."*).
+  //
+  // The same component is rendered at full width by the `setlist-view` route,
+  // which is what the row now opens, so nothing is lost but the broken copy.
+  const onRowActivate = (sl) => onViewSetlist?.(sl);
 
   // Service column + filter are a Church-tier feature (one service per setlist).
   const { allowed: showService } = useEntitlement('multi-service');
@@ -420,11 +406,6 @@ export default function Setlists({
     else { setSortMode(modeKey); setSortAsc(modeKey === 'name'); }
   };
 
-  const closePeek = () => {
-    if (isFullscreen) onToggleFullscreen?.();
-    onSelectPreview?.(null);
-  };
-
   // Phones can pick Cards / Compact / Table. Default per device: desktop/tablet
   // open in Table, phones open in Cards (the friendly default).
   const autoView = advanced ? 'table' : 'gallery';
@@ -591,14 +572,13 @@ export default function Setlists({
 
   const renderRow = (sl) => {
     const isSel = selectedSet.has(sl.id);
-    const isPreview = advanced && sl.id === previewSetlistId;
     return (
       <tr
         key={sl.id}
         role="button"
         onClick={(e) => onRowActivate(sl, e)}
         className={cn('group cursor-pointer border-b border-[var(--modes-border)] transition-colors',
-          isSel || isPreview ? 'bg-[var(--modes-surface-strong)]' : 'hover:bg-[var(--modes-surface)]')}
+          isSel ? 'bg-[var(--modes-surface-strong)]' : 'hover:bg-[var(--modes-surface)]')}
       >
         <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
           {!readOnly && (
@@ -642,7 +622,7 @@ export default function Setlists({
               : <span className="text-copy-14 text-[var(--modes-text-dim)]">—</span>}
           </td>
         )}
-        {!splitDock && showCol('tags') && (
+        {showCol('tags') && (
           <td className={cn('px-5 py-3.5', colFloor('hidden lg:table-cell'))}>
             <div className="flex flex-wrap gap-1">
               {(sl.tags || []).slice(0, 3).map(t => (
@@ -656,9 +636,8 @@ export default function Setlists({
   };
 
   return (
-    <div data-theme-variant="modes" className={cn(splitDock ? 'absolute inset-0 flex overflow-hidden' : 'relative min-h-full')}>
-      {/* List column — own scroller when a pane is docked beside it. */}
-      <div className={splitDock ? 'flex-1 min-w-0 min-h-0 overflow-y-auto' : 'contents'}>
+    <div data-theme-variant="modes" className="relative min-h-full">
+      <div className="contents">
       {/* Header — same frosted sticky band + control layout as the Songs
           library (h1 + search hidden on phones; controls always shown). */}
       <div className="sticky top-0 z-20 backdrop-blur-md bg-[color-mix(in_srgb,var(--ds-background-100)_80%,transparent)] border-b border-[var(--modes-border)]">
@@ -772,7 +751,6 @@ export default function Setlists({
                 sortMode={sortMode}
                 sortAsc={sortAsc}
                 onSort={handleSortClick}
-                compact={splitDock}
                 showService={showService}
                 showSchedule={showSchedule}
                 visibleCols={columnVisible}
@@ -791,7 +769,6 @@ export default function Setlists({
                 sortMode={sortMode}
                 sortAsc={sortAsc}
                 onSort={handleSortClick}
-                compact={splitDock}
                 showService={showService}
                 showSchedule={showSchedule}
                 visibleCols={columnVisible}
@@ -809,7 +786,7 @@ export default function Setlists({
                 </div>
                 <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
                   {upcoming.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} variant="compact" onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
                   ))}
                 </div>
               </section>
@@ -822,7 +799,7 @@ export default function Setlists({
                 </div>
                 <div className="modes-card overflow-hidden divide-y divide-[var(--modes-border)]" style={{ borderColor: 'var(--modes-border)' }}>
                   {past.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} variant="compact" selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} variant="compact" onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
                   ))}
                 </div>
               </section>
@@ -838,7 +815,7 @@ export default function Setlists({
                 </div>
                 <div className={galleryListClass}>
                   {group.items.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} variant={galleryVariant} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} variant={galleryVariant} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
                   ))}
                 </div>
               </section>
@@ -854,7 +831,7 @@ export default function Setlists({
                 </div>
                 <div className={galleryListClass}>
                   {upcoming.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} variant={galleryVariant} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} variant={galleryVariant} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
                   ))}
                 </div>
               </section>
@@ -867,7 +844,7 @@ export default function Setlists({
                 </div>
                 <div className={galleryListClass}>
                   {past.map(sl => (
-                    <SetlistCard key={sl.id} setlist={sl} variant={galleryVariant} selected={advanced && sl.id === previewSetlistId} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
+                    <SetlistCard key={sl.id} setlist={sl} variant={galleryVariant} onPlay={() => onPlaySetlist(sl)} onView={() => onRowActivate(sl)} clockFormat={clockFormat} durationLabel={durLabel(sl)} {...setlistCardPlus(sl)} />
                   ))}
                 </div>
               </section>
@@ -877,61 +854,6 @@ export default function Setlists({
       </div>
 
       </div>{/* /list column */}
-
-      {/* Pinned detail pane — tablet landscape (Phase 3 two-pane split) */}
-      {splitDock && (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize preview"
-          onPointerDown={onPaneResize}
-          className="shrink-0 w-1.5 self-stretch cursor-col-resize relative group"
-        >
-          <span className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-[var(--ds-gray-300)] group-hover:bg-[var(--color-brand)] transition-colors" />
-        </div>
-      )}
-
-      {splitDock && (
-        <aside
-          style={{ width: paneWidth }}
-          className="h-full min-h-0 shrink-0 border-l border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] overflow-hidden flex flex-col"
-        >
-          {previewSetlist ? (
-            <Suspense fallback={<div className="p-8 text-copy-14 text-[var(--ds-gray-700)]">Loading…</div>}>
-              <SetlistOverview
-                key={previewSetlist.id}
-                setlist={previewSetlist}
-                embedded
-                hidePlay={isTablet}
-                songs={songs}
-                clockFormat={clockFormat}
-                v2={overviewV2}
-                setlists={setlists}
-                overscheduleWarn={overscheduleWarn}
-                streakLimit={streakLimit}
-                onBack={closePeek}
-                onToggleFullscreen={onToggleFullscreen}
-                onEdit={canEdit ? () => onEditSetlist?.(previewSetlist) : undefined}
-                onExportZip={() => onExportSetlistZip?.(previewSetlist)}
-                onExportPdfOverview={() => onExportSetlistPdfOverview?.(previewSetlist)}
-                onExportPdfFull={() => onExportSetlistPdfFull?.(previewSetlist)}
-                onPlay={() => onPlaySetlist(previewSetlist)}
-                onPractice={(i) => onPracticeSetlist?.(previewSetlist, i)}
-                onDelete={canEdit ? () => onDeleteSetlist?.(previewSetlist.id) : undefined}
-                isFullscreen={false}
-                canEdit={canEdit}
-              />
-            </Suspense>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-3">
-              <div className="w-12 h-12 rounded-full bg-[var(--modes-surface-strong)] border border-[var(--modes-border)] flex items-center justify-center">
-                <PaneIcon />
-              </div>
-              <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">Select a setlist to preview it here.</p>
-            </div>
-          )}
-        </aside>
-      )}
 
       {/* FAB — narrow mouse-driven windows only. Touch tablets get the
           bottom-nav FAB instead, so gating on !isTablet avoids a duplicate. */}
