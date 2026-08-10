@@ -625,8 +625,13 @@ describe('the lyric colour and font belong to the LYRICS', () => {
     // "Between sections" quietly moved the lyrics apart too: 24→48 took every
     // line inside every section from 8px to 16px. 8px IS 24/3, so the default
     // is unchanged — they are simply not wired together any more.
-    expect(src).toContain("marginBottom: hasLyrics ? 'var(--chart-line-gap, 8px)' : 0");
+    expect(src).toContain("marginBottom: 'var(--chart-line-gap, 8px)'");
     expect(src).not.toContain('var(--chart-section-gap, 24px) / 3');
+    // ⚠ And it is NOT conditional on the line having words. It used to be
+    // `hasLyrics ? gap : 0`, so a chord-only line — an intro, an instrumental —
+    // had no gap under it and sat on the lyric below, reading as that line's
+    // chords.
+    expect(src).not.toContain("marginBottom: hasLyrics ?");
   });
 
   it('keeps the chart ink separate from the lyric colour at the source', async () => {
@@ -642,6 +647,44 @@ describe('the lyric colour and font belong to the LYRICS', () => {
     // The hub is the Reader with the settings wire cut; --chart-lyric is a new
     // wire and needed cutting too.
     expect(hubSurface['--chart-lyric']).toBe('var(--ds-gray-1000)');
+  });
+
+  // ── Element 6/7, 2026-08-10 ──────────────────────────────────────────────
+  it('declares the word gap instead of inheriting a space glyph', async () => {
+    const src = await import('node:fs').then(fs =>
+      fs.readFileSync('src/features/chart/SectionBlock.jsx', 'utf8'));
+    // The gap between two words on a CHORDED line is this span, and it carries
+    // no font of its own — so it used to be whatever space the surrounding
+    // surface supplied. Measured at 390px on one song: the old PracticeView
+    // hard-codes mono on its chart wrapper (space = 10.81px), the Reader sets
+    // nothing (space = 4.50px), with identical words in both. Declare it.
+    expect(src).toContain("width: 'var(--chart-word-gap, 0.6em)'");
+    // The words either side are `nowrap` and cannot shrink, so a shrinkable gap
+    // is the only thing that gives — the gaps would close on the longest line
+    // of the song, which is the one that needs them most.
+    expect(src).toContain('flexShrink: 0');
+  });
+
+  it('offers a note field where the note itself will land', async () => {
+    const src = await import('node:fs').then(fs =>
+      fs.readFileSync('src/features/chart/SectionBlock.jsx', 'utf8'));
+    // `--chart-chord-size` is written by NOBODY, so the `+` hint and the input
+    // fell back to `1em` — of their own 0.72em text, i.e. 16px against the
+    // committed note's 20px. Three call sites, one var, no exceptions.
+    // `var(`-prefixed, so the comment naming the dead token stays legal — it is
+    // the READ that was the bug, not the memory of it.
+    expect(src).not.toContain('var(--chart-chord-size');
+    expect(src.match(/--chart-font-size-chord, 17px/g)?.length).toBe(3);
+  });
+
+  it('gives a lyric-only line the same air as a chorded one — but only on a chart', async () => {
+    const src = await import('node:fs').then(fs =>
+      fs.readFileSync('src/features/chart/SectionBlock.jsx', 'utf8'));
+    // A plain line had 0px under it while a chorded line had 8px, so on a chart
+    // it ran into the chord row below and read as having taken those chords.
+    // In Lyrics mode every line comes through that branch and the tight rhythm
+    // is correct, so the gap is gated on chords being shown.
+    expect(src).toContain("marginBottom: showChords ? 'var(--chart-line-gap, 8px)' : 0");
   });
 });
 

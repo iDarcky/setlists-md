@@ -1336,11 +1336,16 @@ export default function ReaderMenu({
           <Field label="Capo">
             {capo ? (
               // Truthful rather than a knob that does nothing: the chart shows
-              // SOUNDING chords today. Shapes for a capoed player is element 19
-              // and is real work, not a toggle.
+              // SOUNDING chords today.
+              //
+              // It used to end "Shapes are coming." — a promise, made in a
+              // settings panel, by a round that had not been asked to make one
+              // (owner, 2026-08-10: *"yes we delete that"*). Element 19 will
+              // decide what a capoed player reads; until it has, this row says
+              // what is true and nothing about what is next.
               <p className="m-0 text-[13px] text-[var(--text-2)]">
                 <span className="font-mono font-semibold text-[var(--chord)]">Capo {capo}</span>
-                {' — '}the chords below are what it sounds like. Shapes are coming.
+                {' — '}the chords below are what it sounds like.
               </p>
             ) : (
               <ProNote>None on this arrangement.</ProNote>

@@ -161,7 +161,12 @@ export default function SectionBlock({
         ...(gutterRule || {}),
         fontSize: '0.72em', lineHeight: 1.3, opacity: 0.4,
         color: 'var(--chart-subtle, var(--text-2))',
-        marginTop: hasChordRow ? 'calc(var(--chart-chord-size, 1em) * 1 + 3px)' : undefined,
+        // ⚠ `--chart-font-size-chord`, not `--chart-chord-size`. The latter is
+        // written by nobody, so this resolved to `1em` — and `1em` HERE is the
+        // button's own 0.72em text, i.e. 12.96px + 3px = 16px against the
+        // committed note's 20px. The `+` and the field you typed in sat 4px
+        // above the note they turned into.
+        marginTop: hasChordRow ? 'calc(var(--chart-font-size-chord, 17px) + 3px)' : undefined,
       }}
     >
       +
@@ -191,8 +196,10 @@ export default function SectionBlock({
         fontSize: '0.72em', fontStyle: 'italic', lineHeight: 1.3,
         color: 'var(--chart-text, var(--text-1))',
         borderColor: 'var(--color-brand)',
+        // Same var, same reason as `noteGutterHint` above — the field has to
+        // sit exactly where the note it becomes will sit.
         marginTop: hasChordRow
-          ? 'calc(var(--chart-chord-size, 1em) * 1 + 3px)'
+          ? 'calc(var(--chart-font-size-chord, 17px) + 3px)'
           : undefined,
       }}
     />
@@ -329,7 +336,24 @@ export default function SectionBlock({
         // (U+021B, a real descender, not an accent) ended up alone at the top
         // of the next column, reading as a mystery dot on somebody's chart
         // mid-rehearsal. It also kept a chord from being cut off its own words.
-        <div key={idx} style={{ ...(gutterGrid || {}), breakInside: 'avoid' }}>
+        <div
+          key={idx}
+          style={{
+            ...(gutterGrid || {}),
+            breakInside: 'avoid',
+            // ⚠ A lyric-only line had NO gap under it while a chorded line had
+            // 8px, so on a chart a plain line ran straight into the chord row of
+            // the line below it — measured 2026-08-10: "Amazing grace…" bottom
+            // 167.2 → next line 175.2 (8px), but "That saved a wretch like me"
+            // bottom 199.5 → the next line's chords at 199.5 (0px). It reads as
+            // that line having grabbed the chords underneath it.
+            //
+            // Only when chords are on. In Lyrics mode every line comes through
+            // here and the tight 24.3px rhythm is what a lyric sheet should be —
+            // measured before and after to be byte-identical there.
+            marginBottom: showChords ? 'var(--chart-line-gap, 8px)' : 0,
+          }}
+        >
           {showNote && notePlacement === 'above' && noteAbove(inlineNote)}
           <div
             className={notePlacement === 'leader' ? 'min-h-[1.3em] flex items-baseline opacity-90' : 'min-h-[1.3em] whitespace-pre-wrap opacity-90'}
@@ -453,7 +477,13 @@ export default function SectionBlock({
           // increases the distance between lyrics, can you make sure it only
           // does for the sections?"). 8px IS 24/3, so the default look is
           // unchanged; the two are simply no longer wired together.
-          marginBottom: hasLyrics ? 'var(--chart-line-gap, 8px)' : 0,
+          //
+          // ⚠ It used to be `hasLyrics ? gap : 0`, so a CHORD-ONLY line — an
+          // intro or an instrumental, `[G] [C] [D] [Em]` — got no gap at all and
+          // sat directly on the lyric of the line beneath it, reading as that
+          // line's chords. A line is a line; the gap below it does not depend on
+          // whether anybody sings during it.
+          marginBottom: 'var(--chart-line-gap, 8px)',
           lineHeight: 1,
         }}
       >
@@ -490,7 +520,43 @@ export default function SectionBlock({
                 const ordinalOf = (wi, si) => chordsInOrder.findIndex(f => f.wi === wi && f.si === si);
                 return words.map((w, wi) => (
                 w.space ? (
-                  <span key={wi} style={{ whiteSpace: 'pre' }}>{w.space}</span>
+                  // ── The word gap, and why it is named ──────────────────────
+                  // This span carries no font of its own, so until now the gap
+                  // between two words on a CHORDED line was whatever space
+                  // glyph the surrounding surface happened to supply. Measured
+                  // 2026-08-10 on the same song at 390px: the old PracticeView
+                  // hard-codes `fontFamily: var(--font-mono)` on its chart
+                  // wrapper, so its spaces were Geist Mono — **10.81px** — while
+                  // the Reader sets no font, so its spaces were Geist Sans —
+                  // **4.50px**. Same words (Geist Sans 18px, "Amazing" = 71.97px
+                  // in both), gaps 2.4× apart. That difference, and nothing
+                  // else, is the "the old chart feels more airy" the owner
+                  // reported: the old surface was accidentally setting words in
+                  // one font and the spaces between them in another.
+                  //
+                  // A chord line wants the wider gap — it is the room a chord
+                  // sits in — so it is kept, as a real declared width instead of
+                  // an inherited-font accident. 0.6em of the lyric size is
+                  // 10.8px at the 18px default, i.e. what the old chart drew.
+                  // Plain lyric lines are one text run and never reach here, so
+                  // prose keeps its natural spacing exactly as before.
+                  //
+                  // `flexShrink: 0`: the words either side are `nowrap` and
+                  // cannot shrink, so a shrinkable gap would be the only thing
+                  // giving way under pressure — the gaps would quietly close up
+                  // on the longest line of the song, which is the one line that
+                  // most needs them.
+                  <span
+                    key={wi}
+                    style={{
+                      whiteSpace: 'pre',
+                      display: 'inline-block',
+                      width: 'var(--chart-word-gap, 0.6em)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {w.space}
+                  </span>
                 ) : (
                   <span key={wi} className="inline-flex items-end" style={{ whiteSpace: 'nowrap' }}>
                     {w.segments.map((seg, si) => (
