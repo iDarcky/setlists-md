@@ -296,29 +296,19 @@ export function resolveViewCapabilities(mode) {
 }
 
 /**
- * Which mode the reader OPENS in.
+ * The mode a reader falls back to when nothing else decides.
  *
- * **Live.** Owner, 2026-08-11: *"why am I not live when I press play?"* and,
- * twice now, *"I don't understand why I'd go from practice to live? I
- * understand the other way around."*
+ * ⚠ This constant has been BOTH values during this element, and neither was
+ * right on its own — a single entry point cannot have a fixed default without
+ * being wrong for one of its two audiences. "Always practice" was wrong on
+ * Sunday morning; "always live" was wrong every other day of the week.
  *
- * ⚠ This REVERSES an earlier decision of mine, and the earlier reasoning was
- * wrong in a specific way worth writing down. It argued from the cost of each
- * mistake — forgetting to switch TO live costs an edit that has Undo, while
- * forgetting to switch OUT blocks a rehearsal — and concluded "open with more
- * capability". But that treats the two modes as peers you pick between, and
- * they are not. Pressing **Play on a setlist means "we are doing this now"**;
- * rehearsing is the special case you step out to. A default is not a hedge
- * against mistakes, it is a statement about what the button means.
- *
- * A time-based version was floated and dropped by the owner in the same breath
- * (*"If I set the time at 10:00 then it starts in live… too complicated"*).
- * Play means live; the time on the setlist is not asked.
- *
- * The one transition that has to be easy is therefore **live → practice**, and
- * it is: a single row at the top of the ☰, and a drag on the chart.
+ * What decides it now is the clock: `lib/openingMode.js` reads the setlist's
+ * own service and rehearsal times. This is what is left over — a setlist with
+ * no date or no time, and campfire, which has neither. Those are all "I am
+ * looking at this", which is practice.
  */
-export const READER_DEFAULT_MODE = 'live';
+export const READER_DEFAULT_MODE = 'practice';
 
 export function resolveReaderConfig(settings, ctx = {}) {
   const {

@@ -18,7 +18,7 @@ import { getSyncState, setActiveProvider } from '@/sync/tokens';
 import { reconcileAdopt, applyPulled } from '@/sync/adopt';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { resolveMyInstrument } from '@/lib/myInstrument';
-import { READER_DEFAULT_MODE } from '@/lib/readerConfig';
+import { resolveOpeningMode } from '@/lib/openingMode';
 import OnboardingFlow from '@/features/onboarding/OnboardingFlow';
 import Dashboard from '@/features/dashboard/Dashboard';
 import Library from '@/features/library/Library';
@@ -1081,12 +1081,16 @@ export default function App() {
   // `mode` is the reader's OPENING mode, not a destination — the chip in the
   // top bar switches it from inside, so a wrong guess here costs one tap
   // instead of leaving the set.
-  const goSetlistRead = (sl, { mode = READER_DEFAULT_MODE, startIndex = 0 } = {}) => {
+  // `mode` omitted → the CLOCK decides: near the service it opens live, near
+  // the rehearsal (or any other day) it opens in practice. See
+  // `lib/openingMode.js` for the rule and why a fixed default could not work.
+  const goSetlistRead = (sl, { mode, startIndex = 0 } = {}) => {
+    const opening = mode || resolveOpeningMode(sl);
     if (!settings?.firstStageMode) {
       setSettings(prev => ({ ...prev, firstStageMode: true }));
     }
     setReaderStartIndex(Number.isInteger(startIndex) ? startIndex : 0);
-    setReaderMode(mode === 'live' ? 'live' : 'practice');
+    setReaderMode(opening === 'live' ? 'live' : 'practice');
     navigate('setlist-read', { setlist: sl });
   };
   // Casual "campfire" play: open a single song via an ephemeral, unsaved
