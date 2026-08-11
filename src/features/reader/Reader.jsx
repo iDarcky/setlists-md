@@ -120,6 +120,53 @@ function CapoChip({ capo, soundingKey, shapeKey, writtenCapo, onSelect }) {
 }
 
 /**
+ * The MODE, as a chip in the top bar — the union's Phase 0.
+ *
+ * Until now the mode was chosen two screens ago and nothing on the reader said
+ * so. That silence is the real source of *"where did my settings go? why didn't
+ * the key change?"* — a key changed in Live is deliberately session-only
+ * (`saveKey`), and a reader that never names its mode makes correct behaviour
+ * look like a bug. So the first move is not to change what the modes do; it is
+ * to put the one you are in ON SCREEN.
+ *
+ * ⚠ It is NOT "locked / unlocked". That framing was proposed and the owner
+ * killed it (2026-08-11: *"what is locked? my heart"*) — the words describe a
+ * mechanism nobody asked about, where Live and Practice describe the two
+ * situations people are actually in. The app already says Live and Practice on
+ * the finale, in the docs and on the buttons; inventing a second vocabulary for
+ * the same fact is how a collapsed fork survives in the language.
+ *
+ * The COLOURS are `ReaderFinale`'s FLAVOUR badges, deliberately: solid ink for
+ * Live, brand for Practice. One vocabulary, two screens — you meet the badge
+ * when you start and you meet the same badge when you finish.
+ *
+ * Tappable, one tap, no confirm. Switching costs nothing in either direction
+ * (Practice → Live only ever removes tools; Live → Practice only adds them),
+ * and a confirm on a control pressed mid-rehearsal is a dialog nobody reads.
+ */
+function ModeChip({ mode, onChange }) {
+  const live = mode === 'live';
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(live ? 'practice' : 'live')}
+      // The label states the mode AND what pressing does — the chip is the
+      // only place either fact is written down.
+      aria-label={live ? 'Live mode. Switch to Practice' : 'Practice mode. Switch to Live'}
+      className="min-h-0 shrink-0 h-[23px] sm:h-[20px] px-2 rounded-lg text-label-11 font-semibold leading-none inline-flex items-center cursor-pointer border-0 hover:opacity-90"
+      style={{
+        // LONGHANDS — see CapoChip. A `background` shorthand with a nested
+        // var() fallback throws inside jsdom's style expander.
+        backgroundColor: live ? 'var(--chart-text, #111111)' : 'var(--color-brand)',
+        color: live ? 'var(--chart-bg, #ffffff)' : '#ffffff',
+      }}
+    >
+      {live ? 'Live' : 'Practice'}
+    </button>
+  );
+}
+
+/**
  * "Add section", at the foot of the chart, in edit mode.
  *
  * ⚠ It does NOT ask you to type a name. The song editor already has a
@@ -251,6 +298,12 @@ export default function Reader({
   // why every practice-only decision — writing a note, switching arrangement —
   // had nowhere to attach: the reader could not tell which one it was in.
   mode = 'live',
+  // Switching mode FROM the reader — the union, 2026-08-11. The mode used to be
+  // fixed by which route you came in on, which is why it was invisible: there
+  // was nothing to show because there was nothing to change. Absent → the chip
+  // does not render at all (the hub, the editor preview, a shared link), which
+  // is right: those surfaces have exactly one mode and always will.
+  onModeChange = null,
   // Element 12: a tapped tempo writes back to the song (owner, 2026-08-01), so
   // the reader needs a way to save one. Absent → the tempo stays session-only.
   onUpdateSong = null,
@@ -1601,6 +1654,19 @@ export default function Reader({
                   {capoShapeKey && <span className="opacity-70">· {capoShapeKey}</span>}
                 </span>
               ) : null}
+              {/* ── The mode, named ──────────────────────────────────────────
+                  AFTER the key and the capo, because those two are facts about
+                  the SONG and this is a fact about the SCREEN — the bar reads
+                  outward from what you are playing to how you are reading it.
+
+                  ⚠ Hidden while editing, like the ☰ and for the same reason.
+                  Edit mode only exists in Practice, so the chip could only ever
+                  say "Practice" there — and pressing it would strand an applied
+                  change with no way back to Cancel. A control whose only two
+                  outcomes are "no-op" and "lose your work" is not a control. */}
+              {onModeChange && !editing && (
+                <ModeChip mode={config.mode} onChange={onModeChange} />
+              )}
               {/* The tempo and the time are ALREADY on this row as text. In
                   edit mode they become the fields — which is the owner's
                   "a couple of interactive fields", and the answer to "this

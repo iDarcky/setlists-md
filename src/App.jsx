@@ -18,6 +18,7 @@ import { getSyncState, setActiveProvider } from '@/sync/tokens';
 import { reconcileAdopt, applyPulled } from '@/sync/adopt';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { resolveMyInstrument } from '@/lib/myInstrument';
+import { READER_DEFAULT_MODE } from '@/lib/readerConfig';
 import OnboardingFlow from '@/features/onboarding/OnboardingFlow';
 import Dashboard from '@/features/dashboard/Dashboard';
 import Library from '@/features/library/Library';
@@ -64,22 +65,25 @@ async function maybeWarnQuota(warnedRef) {
 }
 
 // Lazy-loaded: heavy secondary views not needed on initial render
-const ChartView = lazy(() => import('@/features/chart/ChartView'));
 const SongHub = lazy(() => import('@/features/song/SongHub'));
 const Editor = lazy(() => import('@/features/editor/Editor'));
 const SetlistBuilder = lazy(() => import('@/features/setlist-editor/SetlistBuilder'));
-const SetlistPlayer = lazy(() => import('@/features/performance/SetlistPlayer'));
 const SetlistOverview = lazy(() => import('@/features/setlist-viewer/SetlistOverview'));
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
-const PerformanceView = lazy(() => import('@/features/performance/PerformanceView'));
-const PracticeView = lazy(() => import('@/features/performance/PracticeView'));
-// Labs `unifiedReader`: one viewer in place of SetlistPlayer/Performance/Practice.
+// THE reader. One viewer for the whole set, in place of SetlistPlayer,
+// PerformanceView and PracticeView — the `unifiedReader` Labs flag graduated
+// 2026-08-11 and the three old surfaces are no longer referenced from anywhere.
+// They stay in the tree for one more cycle; see docs/PLAN.md §1.1.
+//
+// ⚠ A lazy import of `ChartView` also lived here, referenced by nothing. It was
+// the LAST non-legacy call site keeping the old renderer in the graph, and it
+// would have quietly outlived the graduation it was supposed to end — the same
+// dead import `Library.jsx` was carrying. Sixth of the family.
 const SetlistReader = lazy(() => import('@/features/reader/SetlistReader'));
 const LegalPage = lazy(() => import('@/features/legal/LegalPage'));
 const GoogleDriveCallback = lazy(() => import('@/features/auth/GoogleDriveCallback'));
-const PracticeFinale = lazy(() => import('@/features/performance/PracticeFinale'));
-const LiveFinale = lazy(() => import('@/features/performance/LiveFinale'));
-// Element 13, Labs `unifiedReader`: one finale in place of the two above.
+// Element 13: ONE finale, in place of LiveFinale + PracticeFinale (which were
+// ~80% the same file). Both are unreferenced as of the graduation.
 const ReaderFinale = lazy(() => import('@/features/reader/ReaderFinale'));
 const LydianShowcase = lazy(() => import('@/features/design/LydianShowcase'));
 // The add-a-song surface: search over the catalog, with Import and Blank
@@ -196,8 +200,20 @@ export default function App() {
   const markSetlistDirty = useCallback((dirty) => { setlistDirtyRef.current = dirty; }, []);
   const editorDirtyRef = useRef(false);
   const markEditorDirty = useCallback((dirty) => { editorDirtyRef.current = dirty; }, []);
-  // Which item to open in setlist practice (tapping a song in the overview).
-  const [practiceStartIndex, setPracticeStartIndex] = useState(0);
+  // Which item the reader opens on (tapping a song in the overview means
+  // "start HERE").
+  const [readerStartIndex, setReaderStartIndex] = useState(0);
+  // ── The reader's mode: 'live' | 'practice' ────────────────────────────────
+  // STATE, not a route. Until 2026-08-11 this was three route names for one
+  // screen (`setlist-play`, `setlist-performance`, `setlist-practice`) whose
+  // only difference was which finale they landed on — so the reader could not
+  // tell which one it was in, every per-mode decision had nowhere to attach,
+  // and the user had no way to change their mind without leaving the set.
+  //
+  // It lives in App (not in `SetlistReader`) because the finale needs it after
+  // the reader has unmounted, and because it belongs in the history snapshot:
+  // backing into a session must restore the mode you were reading in.
+  const [readerMode, setReaderMode] = useState('live');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [authStartMode, setAuthStartMode] = useState('signin');
   const [newSongModal, setNewSongModal] = useState(null);
@@ -222,11 +238,14 @@ export default function App() {
   // Wake-lock explainer is now state-driven (was render-condition-driven) so
   // it can participate in the history stack.
   const [showWakeLockExplainer, setShowWakeLockExplainer] = useState(false);
-  // Session metrics handed off from Practice / Live views to their finale
-  // screens. `sessionSource` records which Live view started the session
-  // ('play' | 'performance') so "Run it again" returns to the right one.
+  // Session metrics handed off from the reader to the finale.
+  //
+  // ⚠ `sessionSource` used to live beside this, recording which of the two Live
+  // routes started the session ('play' | 'performance') so "Run it again" could
+  // return to the right one. Both routes rendered the same component with the
+  // same props, so it was a three-value state distinguishing two identical
+  // things. `readerMode` replaces it and means something.
   const [sessionStats, setSessionStats] = useState(null);
-  const [sessionSource, setSessionSource] = useState(null);
 
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
@@ -698,7 +717,9 @@ export default function App() {
     wakeLockExplainer: showWakeLockExplainer,
     isFullscreen,
     sessionStats,
-    sessionSource,
+    // The mode you were reading in. Without this, backing out of the finale
+    // into the reader would restore the screen but not the mode it was in.
+    readerMode,
   });
 
   const pushHistory = (snap) => {
@@ -749,7 +770,7 @@ export default function App() {
       setShowWakeLockExplainer(!!prev.wakeLockExplainer);
       if (typeof prev.isFullscreen === 'boolean') setIsFullscreen(prev.isFullscreen);
       setSessionStats(prev.sessionStats ?? null);
-      setSessionSource(prev.sessionSource ?? null);
+      setReaderMode(prev.readerMode || 'live');
     } else {
       setView('home');
       setCurrentSong(null);
@@ -761,7 +782,7 @@ export default function App() {
       setShowWakeLockExplainer(false);
       setIsFullscreen(false);
       setSessionStats(null);
-      setSessionSource(null);
+      setReaderMode('live');
     }
   }, []);
 
@@ -857,11 +878,25 @@ export default function App() {
     }
   }, [isIOS, isStandalone, view, settings?.onboardingComplete, settings?.seenIOSInstallHint, showIOSHint]);
 
-  // Auto-fire: wake-lock explainer the first time the user enters a stage
-  // view. The hook itself acquires silently — this just tells them why.
+  // ── Auto-fire: the keep-awake OFFER, once, on the first read ──────────────
+  // ⚠ This used to explain a thing that is about to stop being true. The old
+  // `SetlistPlayer` and `PerformanceView` called `useWakeLock(true)` —
+  // unconditional — so the screen just stayed on and this sheet said why. The
+  // Reader asks `settings.keepAwake === true`, and `keepAwake` has no entry in
+  // DEFAULT_SETTINGS, so it is `undefined` for everyone who has never opened
+  // Settings. Graduating the flag would therefore have turned the screen-sleep
+  // back ON mid-service, silently, with a sheet still explaining that it
+  // wouldn't. A switch wired at one end, and it would have been found on a
+  // Sunday.
+  //
+  // Owner's call, 2026-08-11: *"the keep awake was a bit intrusive anyway, it
+  // should be a setting that's off and the user should decide"* — so the
+  // default stays off and this sheet becomes the place the decision is OFFERED,
+  // once, at the only moment it means anything: the first time you open a set
+  // to read from. It writes `keepAwake`; it no longer describes it.
   useEffect(() => {
     if (
-      (view === 'setlist-performance' || view === 'setlist-play') &&
+      view === 'setlist-read' &&
       !settings?.seenWakeLockExplainer &&
       !showWakeLockExplainer
     ) {
@@ -920,7 +955,7 @@ export default function App() {
         setShowWakeLockExplainer(!!prev.wakeLockExplainer);
         if (typeof prev.isFullscreen === 'boolean') setIsFullscreen(prev.isFullscreen);
         setSessionStats(prev.sessionStats ?? null);
-        setSessionSource(prev.sessionSource ?? null);
+        setReaderMode(prev.readerMode || 'live');
         return;
       }
     }
@@ -1048,63 +1083,54 @@ export default function App() {
     // returning to the list doesn't re-open the pane for this setlist.
     navigate('setlist-view', { setlist: sl });
   };
-  const goSetlistPerformance = (sl) => {
+  // ── ONE way into the reader ───────────────────────────────────────────────
+  // There were three (`goSetlistPerformance`, an unreachable `setlist-play`,
+  // and `goSetlistPractice`). The owner, 2026-08-11: *"Why do we need the 2
+  // buttons? Wasn't the whole idea so we have one single entry point?"*
+  //
+  // `mode` is the reader's OPENING mode, not a destination — the chip in the
+  // top bar switches it from inside, so a wrong guess here costs one tap
+  // instead of leaving the set.
+  const goSetlistRead = (sl, { mode = READER_DEFAULT_MODE, startIndex = 0 } = {}) => {
     if (!settings?.firstStageMode) {
       setSettings(prev => ({ ...prev, firstStageMode: true }));
     }
-    navigate('setlist-performance', { setlist: sl });
+    setReaderStartIndex(Number.isInteger(startIndex) ? startIndex : 0);
+    setReaderMode(mode === 'live' ? 'live' : 'practice');
+    navigate('setlist-read', { setlist: sl });
   };
-  // Casual "campfire" play: open a single song in Live via an ephemeral,
-  // unsaved one-item setlist (no setlist needed). Suggestions can append to it.
+  // Casual "campfire" play: open a single song via an ephemeral, unsaved
+  // one-item setlist (no setlist needed). Suggestions can append to it.
   const playSongCasually = (song, arrangementId) => {
     if (!song) return;
-    goSetlistPerformance({
+    goSetlistRead({
       id: `campfire-${song.id}`,
       name: song.title || 'Song',
       _campfire: true,
       items: [{ type: 'song', songId: song.id, ...(arrangementId ? { arrangementId } : {}) }],
     });
   };
-  const goSetlistPractice = (sl, startIndex = 0) => {
-    setPracticeStartIndex(Number.isInteger(startIndex) ? startIndex : 0);
-    navigate('setlist-practice', { setlist: sl });
-  };
-  const goPracticeFinale = (sl, stats) => {
+  const goSetlistFinale = (sl, stats) => {
     setSessionStats(stats || null);
-    setSessionSource('practice');
-    navigate('practice-finale', { setlist: sl });
+    navigate('setlist-finale', { setlist: sl });
   };
-  const goLiveFinale = (sl, stats, source) => {
-    setSessionStats(stats || null);
-    setSessionSource(source || 'play');
-    navigate('live-finale', { setlist: sl });
-  };
-  // From a finale "Run it again" — re-enter the originating session view
-  // with replace, so the back stack stays at the entry point that opened
-  // the original session rather than nesting another finale below it.
-  const handleRunSessionAgain = () => {
-    if (!currentSetlist) return;
-    const dest = sessionSource === 'performance'
-      ? 'setlist-performance'
-      : sessionSource === 'play'
-        ? 'setlist-play'
-        : 'setlist-practice';
-    setSessionStats(null);
-    setSessionSource(null);
-    navigate(dest, { setlist: currentSetlist, replace: true });
-  };
+  // ⚠ `handleRunSessionAgain` was here, and it is GONE. Element 13 CUT "Run it
+  // again" from the finale (`docs/READER.md` §13: finishing a set and
+  // immediately restarting it is not a thing that happens), but only from the
+  // screen — the handler stayed, fully written, called by nothing, for as long
+  // as `ReaderFinale` has existed. Same family as the dead `ChartView` imports:
+  // a switch wired at one end. When you cut a feature, grep for its handler.
+  //
   // From a finale "Back to setlist" / "View setlist" — replace the finale
   // with the setlist overview so back from there returns to the original
   // entry point rather than the finale.
   const handleFinaleViewOverview = () => {
     if (!currentSetlist) return;
     setSessionStats(null);
-    setSessionSource(null);
     navigate('setlist-view', { setlist: currentSetlist, replace: true });
   };
   const handleFinaleGoHome = () => {
     setSessionStats(null);
-    setSessionSource(null);
     goToMainView('home');
   };
   const goTeam = () => goToMainView('team');
@@ -2067,7 +2093,11 @@ export default function App() {
     <Suspense fallback={lazyFallback}>
       <Toaster />
       <OfflineBanner />
-      <UpdatePrompt suppress={view === 'setlist-play' || view === 'setlist-performance'} />
+      {/* Suppressed for the WHOLE reader route, both modes. It used to name the
+          two live routes and leave practice out — an artifact of the fork, not
+          a decision: the reason is "do not cover a chart somebody is playing
+          from", which is equally true at a rehearsal. */}
+      <UpdatePrompt suppress={view === 'setlist-read'} />
       <ConflictResolver conflicts={pendingConflicts} onResolve={resolveConflict} onResolveAll={resolveAllConflicts} />
       {view === 'signin' && (
         <AuthScreen
@@ -2117,8 +2147,8 @@ export default function App() {
           scrollKey={`${view}|${currentSetlist?.id || currentSong?.id || ''}`}
           activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
           onNavigate={goToMainView} 
-          isFullscreen={view === 'setlist-performance' || view === 'setlist-play' || view === 'setlist-practice' || (isFullscreen && (view === 'library' || view === 'setlists' || view === 'song-hub'))}
-          hideBanner={view === 'setlist-performance' || view === 'setlist-play' || view === 'setlist-practice'}
+          isFullscreen={view === 'setlist-read' || (isFullscreen && (view === 'library' || view === 'setlists' || view === 'song-hub'))}
+          hideBanner={view === 'setlist-read'}
           hasUnreadNotifications={hasUnreadNotifications} 
           notifications={mergedNotifications} 
           onMarkRead={handleMarkNotificationRead} 
@@ -2186,7 +2216,7 @@ export default function App() {
               onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
               onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onViewSetlist={goSetlistView}
-              onPlaySetlist={goSetlistPerformance}
+              onPlaySetlist={(sl) => goSetlistRead(sl)}
               onGoLibrary={goLibrary}
               onGoSetlists={goSetlists}
               onOpenSchedule={goSchedule}
@@ -2248,8 +2278,7 @@ export default function App() {
               setlists={setlists}
               loaded={loaded}
               onViewSetlist={goSetlistView}
-              onPlaySetlist={goSetlistPerformance}
-              onPracticeSetlist={(sl, startIndex) => goSetlistPractice(sl, startIndex)}
+              onPlaySetlist={(sl) => goSetlistRead(sl)}
               onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onImportSetlist={isTeamReadOnly ? null : handleImportSetlist}
               isFullscreen={isFullscreen}
@@ -2297,16 +2326,12 @@ export default function App() {
               {...buildChartMoveCopy(currentSong.id)}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
-              onOpenAdvancedStyle={() => goToMainView('settings', { settingsPanel: 'chart-style' })}
               onUpgrade={() => navigate('upgrade')}
-              defaultColumns={settings?.defaultColumns}
-              defaultFontSize={settings?.defaultFontSize}
-              showInlineNotes={settings?.showInlineNotes !== false}
-              inlineNoteStyle={settings?.inlineNoteStyle || 'dashes'}
-              duplicateSections={settings?.duplicateSections || 'full'}
-              chartLayout={settings?.chartLayout || 'columns'}
-              isFullscreen={isFullscreen}
-              onToggleFullscreen={() => setIsFullscreen(v => !v)}
+              // ⚠ Nine props were threaded here into a component that stopped
+              // declaring them: the seven that fed `chartProps` (which fed the
+              // ChartView the hub no longer mounts), plus `isFullscreen` and
+              // `onToggleFullscreen`, which SongHub has NEVER declared — the
+              // hub's full screen is its own `fsMode` state and always was.
               onTransposed={() => {
                 if (!settings?.firstTransposed) {
                   setSettings(prev => ({ ...prev, firstTransposed: true }));
@@ -2365,8 +2390,7 @@ export default function App() {
               setlists={setlists}
               overscheduleWarn={settings?.rosterOverscheduleWarning}
               streakLimit={settings?.rosterStreakLimit || 3}
-              onPlay={() => goSetlistPerformance(currentSetlist)}
-              onPractice={(startIndex) => goSetlistPractice(currentSetlist, startIndex)}
+              onPlay={(startIndex) => goSetlistRead(currentSetlist, { startIndex })}
               onOpenSong={(song) => goChart(song)}
               onDelete={isTeamReadOnly ? null : () => handleDeleteSetlist(currentSetlist.id)}
               canEdit={canEdit}
@@ -2388,20 +2412,22 @@ export default function App() {
               clockFormat={settings?.clockFormat || '12h'}
             />
           )}
-          {/* Labs `unifiedReader`: one viewer serves setlist-play, -performance
-              and -practice. The route only decides which preset it opens on;
-              the preset is switchable from inside. Flag off → the four original
-              surfaces render untouched. */}
-          {settings?.unifiedReader && currentSetlist
-            && (view === 'setlist-play' || view === 'setlist-performance' || view === 'setlist-practice') && (
+          {/* ── THE reader ────────────────────────────────────────────────────
+              One route, one component. It replaced three route names that
+              rendered the same screen and differed only in which finale they
+              landed on, and the Labs fork that sat above them. `readerMode` is
+              state now, switchable from the chip in the reader's own top bar —
+              which is why nothing here forks any more. */}
+          {currentSetlist && view === 'setlist-read' && (
             <SetlistReader
               setlist={currentSetlist}
               songs={songs}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               myInstrument={myInstrument}
-              mode={view === 'setlist-practice' ? 'practice' : 'live'}
-              startIndex={view === 'setlist-practice' ? practiceStartIndex : 0}
+              mode={readerMode}
+              onModeChange={setReaderMode}
+              startIndex={readerStartIndex}
               onUpdateSong={isTeamReadOnly ? null : handleUpdateSong}
               // A key chosen in PRACTICE sticks onto the setlist item.
               onUpdateSetlist={isTeamReadOnly ? null : handleUpdateSetlist}
@@ -2410,96 +2436,19 @@ export default function App() {
               onRestoreSong={isTeamReadOnly ? null : handleRestoreSong}
               onUpgrade={() => navigate('upgrade')}
               onBack={goBack}
-              onFinish={(stats) => (view === 'setlist-practice'
-                ? goPracticeFinale(currentSetlist, stats)
-                : goLiveFinale(currentSetlist, stats, view === 'setlist-play' ? 'play' : 'performance'))}
+              onFinish={(stats) => goSetlistFinale(currentSetlist, stats)}
             />
           )}
-          {!settings?.unifiedReader && view === 'setlist-play' && currentSetlist && (
-            <SetlistPlayer
-              setlist={currentSetlist}
-            songs={songs}
-              onBack={goBack}
-              onFinish={(stats) => goLiveFinale(currentSetlist, stats, 'play')}
-              defaultColumns={settings?.defaultColumns}
-              defaultFontSize={settings?.defaultFontSize}
-              showInlineNotes={settings?.showInlineNotes !== false}
-              inlineNoteStyle={settings?.inlineNoteStyle || 'dashes'}
-              displayRole={settings?.displayRole || 'leader'}
-              duplicateSections={settings?.duplicateSections || 'full'}
-            />
-          )}
-          {!settings?.unifiedReader && view === 'setlist-performance' && currentSetlist && (
-            <PerformanceView
-              setlist={currentSetlist}
-            songs={songs}
-              onBack={goBack}
-              onFinish={(stats) => goLiveFinale(currentSetlist, stats, 'performance')}
-              defaultColumns={settings?.defaultColumns}
-              defaultFontSize={settings?.defaultFontSize}
-              railEnabled={settings?.performanceRail !== false}
-              navStyle={settings?.navStyle || 'pill'}
-              settings={settings}
-              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
-              teamId={activeLibrary !== 'personal' ? activeLibrary : null}
-              userId={user?.id}
-              onAppendSong={(songId, arrangementId) => setCurrentSetlist(prev => (
-                prev ? { ...prev, items: [...prev.items, { type: 'song', songId, ...(arrangementId ? { arrangementId } : {}) }] } : prev
-              ))}
-            />
-          )}
-          {!settings?.unifiedReader && view === 'setlist-practice' && currentSetlist && (
-            <PracticeView
-              setlist={currentSetlist}
-            songs={songs}
-              startIndex={practiceStartIndex}
-              onBack={goBack}
-              onFinish={(stats) => goPracticeFinale(currentSetlist, stats)}
-              onUpdateSong={handleUpdateSong}
-              onUpdateSetlist={handleUpdateSetlist}
-              defaultColumns={settings?.defaultColumns}
-              defaultFontSize={settings?.defaultFontSize}
-              railEnabled={settings?.performanceRail !== false}
-              navStyle={settings?.navStyle || 'pill'}
-              settings={settings}
-              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
-              onOpenAdvancedStyle={() => goToMainView('settings', { settingsPanel: 'chart-style' })}
-              teamId={activeLibrary !== 'personal' ? activeLibrary : null}
-              userId={user?.id}
-              canEditShared={canEdit}
-            />
-          )}
-          {/* Element 13, Labs `unifiedReader`: ONE finale for both kinds, in
-              place of LiveFinale + PracticeFinale (which were ~80% the same
-              file). Flag off → the two originals render untouched, since the old
-              views still feed them their richer session stats. */}
-          {settings?.unifiedReader && currentSetlist
-            && (view === 'practice-finale' || view === 'live-finale') && (
+          {/* Element 13 — ONE finale, whose only fork is its flavour (the badge
+              and the phrase). It reads `readerMode`, so a session that STARTED
+              in practice and was switched to live mid-run finishes as live —
+              which is the honest answer: the finale describes the run that just
+              happened, and the mode is the last thing that was true of it. */}
+          {currentSetlist && view === 'setlist-finale' && (
             <ReaderFinale
               setlist={currentSetlist}
-              mode={view === 'practice-finale' ? 'practice' : 'live'}
+              mode={readerMode}
               session={sessionStats}
-              onGoOverview={handleFinaleViewOverview}
-              onGoHome={handleFinaleGoHome}
-            />
-          )}
-          {!settings?.unifiedReader && view === 'practice-finale' && currentSetlist && (
-            <PracticeFinale
-              setlist={currentSetlist}
-            songs={songs}
-              sessionStats={sessionStats}
-              onRunAgain={handleRunSessionAgain}
-              onUpdateSetlist={handleUpdateSetlist}
-              onGoOverview={handleFinaleViewOverview}
-              onGoHome={handleFinaleGoHome}
-            />
-          )}
-          {!settings?.unifiedReader && view === 'live-finale' && currentSetlist && (
-            <LiveFinale
-              setlist={currentSetlist}
-              sessionStats={sessionStats}
-              onRunAgain={handleRunSessionAgain}
-              onUpdateSetlist={handleUpdateSetlist}
               onGoOverview={handleFinaleViewOverview}
               onGoHome={handleFinaleGoHome}
             />
@@ -2685,7 +2634,7 @@ export default function App() {
           // from the list any more — the row opens the setlist instead.
           onPlay={
             view === 'setlist-view' && currentSetlist
-              ? () => goSetlistPerformance(currentSetlist)
+              ? () => goSetlistRead(currentSetlist)
               : null
           }
         />
@@ -2791,8 +2740,15 @@ export default function App() {
           state-driven now so the modal participates in the back stack. */}
       {showWakeLockExplainer && (
         <WakeLockExplainer
-          onContinue={() => {
-            setSettings(prev => ({ ...prev, seenWakeLockExplainer: true }));
+          // BOTH ends of the switch. `seenWakeLockExplainer` stops the sheet
+          // coming back either way; `keepAwake` is the thing the sheet is
+          // actually about, and until now nothing here wrote it.
+          onEnable={() => {
+            setSettings(prev => ({ ...prev, seenWakeLockExplainer: true, keepAwake: true }));
+            dismissTopModal();
+          }}
+          onDecline={() => {
+            setSettings(prev => ({ ...prev, seenWakeLockExplainer: true, keepAwake: false }));
             dismissTopModal();
           }}
         />

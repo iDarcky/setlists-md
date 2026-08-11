@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveReaderConfig, readerSettingKey, READER_KNOBS } from '@/lib/readerConfig';
+import { resolveReaderConfig, readerSettingKey, READER_KNOBS, READER_DEFAULT_MODE, resolveViewCapabilities } from '@/lib/readerConfig';
 
 const wide = { wide: true };
 const narrow = { wide: false };
@@ -209,5 +209,48 @@ describe('the ribbon style, and the two that were cut', () => {
   it('falls back to Boxes for anything it has never heard of', () => {
     expect(styleOf('sparkles')).toBe('codes');
     expect(styleOf(undefined)).toBe('codes');
+  });
+});
+
+// ── The mode, now that it is state rather than a route ──────────────────────
+describe('the reader mode', () => {
+  it('opens in practice', () => {
+    // The decision, pinned so it cannot drift silently: one button opens the
+    // set, and it opens with capability rather than without. The reasoning is
+    // in the doc comment on READER_DEFAULT_MODE — the short version is that
+    // forgetting to switch TO live costs an edit that needs a deliberate press
+    // and has Undo, while forgetting to switch OUT of live blocks a rehearsal.
+    expect(READER_DEFAULT_MODE).toBe('practice');
+  });
+
+  it('the default mode is one the VIEW table actually has', () => {
+    // A default naming a mode with no row would fall through
+    // `resolveViewCapabilities`'s `|| VIEW.live` and silently open live —
+    // exactly the kind of switch that is wired at one end.
+    const fallback = resolveViewCapabilities('definitely-not-a-mode');
+    expect(resolveViewCapabilities(READER_DEFAULT_MODE)).not.toBe(fallback);
+  });
+
+  it('carries the capabilities of its mode onto the resolved config', () => {
+    const live = resolveReaderConfig({}, { ...wide, mode: 'live' });
+    const practice = resolveReaderConfig({}, { ...wide, mode: 'practice' });
+    expect(live.mode).toBe('live');
+    expect(practice.mode).toBe('practice');
+    // Live is a strict SUBSET of practice — the fact that made the collapse
+    // safe. If a capability is ever true in live and false in practice, they
+    // are two views again and the single reader was the wrong shape.
+    for (const k of Object.keys(practice.can)) {
+      if (live.can[k]) expect(practice.can[k]).toBe(true);
+    }
+  });
+
+  it('live can transpose and nothing else', () => {
+    const { can } = resolveReaderConfig({}, { ...wide, mode: 'live' });
+    expect(can.transpose).toBe(true);
+    expect(can.saveKey).toBe(false);
+    expect(can.practiceTools).toBe(false);
+    expect(can.editSong).toBe(false);
+    expect(can.switchArrangement).toBe(false);
+    expect(can.writeNotes).toBe(false);
   });
 });

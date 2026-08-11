@@ -75,7 +75,6 @@ export const PORTABLE_PREF_KEYS = [
   'hmMenu',
   'accountPanel',
   'pasteIntoChart',
-  'unifiedReader',
   'readerHeading',
   'readerSectionStyle',
   'readerSticky',

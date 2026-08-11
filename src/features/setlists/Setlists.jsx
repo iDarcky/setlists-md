@@ -708,7 +708,7 @@ export default function Setlists({
                   {next.location ? ` · ${next.location}` : ''}
                 </div>
               </div>
-              <Button variant="brand" size="sm" onClick={(e) => { e.stopPropagation(); onPlaySetlist(next); }} className="shrink-0 hidden sm:inline-flex">Play Live</Button>
+              <Button variant="brand" size="sm" onClick={(e) => { e.stopPropagation(); onPlaySetlist(next); }} className="shrink-0 hidden sm:inline-flex">Play</Button>
             </div>
           );
         })()}

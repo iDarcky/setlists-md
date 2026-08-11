@@ -33,7 +33,12 @@ export default function SetlistReader({
   // place you notice it's gone rather than from Settings → Data.
   trash = [], onRestoreSong,
   // 'live' | 'practice' — see the note on Reader's own `mode`.
+  //
+  // Since the union (2026-08-11) this is STATE, not a route: one entry point
+  // opens the set and the chip in the top bar switches. `onModeChange` absent →
+  // no chip, which is how the public share link stays Live forever.
   mode = 'live',
+  onModeChange = null,
   // Element 12 — a tapped tempo saves to the song.
   onUpdateSong = null,
   // A key chosen in PRACTICE sticks, onto the setlist item. Absent → the key
@@ -380,6 +385,7 @@ export default function SetlistReader({
       onUpdateSettings={onUpdateSettings}
       myInstrument={myInstrument}
       mode={mode}
+      onModeChange={onModeChange}
       onUpdateSong={onUpdateSong}
       onSaveAsArrangement={onSaveAsArrangement}
       onUpgrade={onUpgrade}

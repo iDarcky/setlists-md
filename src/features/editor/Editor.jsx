@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useMediaQuery } from '@/lib/useMediaQuery';
-import ChartView from '@/features/chart/ChartView';
 import Reader from '@/features/reader/Reader';
 import AaMenu from '@/features/chart/AaMenu';
 import { parseSongMd, songToMd, generateId, splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields, sanitizeFrontmatterValue, EXTRA_META_KEYS } from '@/parser';
@@ -946,11 +945,9 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   // writes through them (the Aa popover below edits global, same as the chart).
   // The preview shows the HUB VIEW — a fixed look, disconnected from the Aa
   // settings and the chart themes, so what you see while editing is what the
-  // song page shows. Flag off, the old chart stays.
+  // song page shows.
   const cardPreviewChartEl = previewSong ? (
-    chartDefaults.settings?.unifiedReader
-      ? <Reader song={previewSong} embedded settings={chartDefaults.settings} />
-      : <ChartView song={previewSong} isPreview {...chartDefaults} />
+    <Reader song={previewSong} embedded settings={chartDefaults.settings} />
   ) : null;
   const gSettings = chartDefaults.settings || {};
   const gUpdate = chartDefaults.onUpdateSettings;

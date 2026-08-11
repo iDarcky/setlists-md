@@ -1088,9 +1088,9 @@ describe('element 11 — tap a chord', () => {
 });
 
 // ── Embedded in the Song Hub ────────────────────────────────────────────────
-// The hub renders READER (not ChartView) whenever the `unifiedReader` Labs flag
-// is on. Two fixes were once made to ChartView for bugs that live here — these
-// pin the behaviour to the component the hub actually mounts.
+// The hub renders READER, unconditionally, since the `unifiedReader` flag
+// graduated (2026-08-11). Two fixes were once made to ChartView for bugs that
+// live here — these pin the behaviour to the component the hub actually mounts.
 describe('embedded in the Song Hub', () => {
   it('renders chords on the Chart tab even if the global setting is off', () => {
     // The bug: `showChords:false` from any other surface silently turned the
@@ -1578,5 +1578,79 @@ describe('the side rail is a scrub track', () => {
     // different scroller — which is why the scrub moved nothing at all until
     // this was found.
     expect(src).toContain('sc.querySelector(`[data-section-index="${idx}"]`)');
+  });
+});
+
+// ── The mode chip — the union's Phase 0 ─────────────────────────────────────
+// Until 2026-08-11 the mode was chosen two screens ago and the reader never
+// said which one it was in. That silence is the point of these tests: the mode
+// has to be ON SCREEN, and it has to be the mode the capabilities came from —
+// a chip that says "Live" over a reader behaving as practice would be worse
+// than no chip, because it would be believed.
+describe('the mode chip', () => {
+  beforeEach(() => { mockWidth(1024); });
+
+  it('names the mode it is actually in', () => {
+    const { rerender } = render(
+      <Reader song={makeSong()} settings={{}} mode="live" onModeChange={() => {}} onExit={() => {}} />
+    );
+    expect(screen.getByRole('button', { name: /^Live mode/ })).toBeTruthy();
+
+    rerender(
+      <Reader song={makeSong()} settings={{}} mode="practice" onModeChange={() => {}} onExit={() => {}} />
+    );
+    expect(screen.getByRole('button', { name: /^Practice mode/ })).toBeTruthy();
+  });
+
+  it('switches to the OTHER mode, both ways', () => {
+    const onModeChange = vi.fn();
+    const { rerender } = render(
+      <Reader song={makeSong()} settings={{}} mode="live" onModeChange={onModeChange} onExit={() => {}} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^Live mode/ }));
+    expect(onModeChange).toHaveBeenLastCalledWith('practice');
+
+    rerender(
+      <Reader song={makeSong()} settings={{}} mode="practice" onModeChange={onModeChange} onExit={() => {}} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^Practice mode/ }));
+    expect(onModeChange).toHaveBeenLastCalledWith('live');
+  });
+
+  it('is ABSENT with no onModeChange — the surfaces that have exactly one mode', () => {
+    // The public share link, the hub, the editor preview. A chip there would
+    // offer a switch with nothing on the other side of it.
+    render(<Reader song={makeSong()} settings={{}} mode="live" onExit={() => {}} />);
+    expect(screen.queryByRole('button', { name: /mode\./ })).toBeNull();
+  });
+
+  it('is absent while editing — the one mode it could not honestly offer', () => {
+    // Edit mode exists only in practice, so the chip could only ever say
+    // "Practice" there, and pressing it would strand the applied change.
+    render(
+      <Reader
+        song={makeSong()} settings={{}} mode="practice"
+        onModeChange={() => {}} onUpdateSong={() => {}} onExit={() => {}}
+      />
+    );
+    expect(screen.getByRole('button', { name: /^Practice mode/ })).toBeTruthy();
+    openSongActions();
+    fireEvent.click(screen.getByRole('button', { name: /^Edit/ }));
+    expect(screen.queryByRole('button', { name: /^Practice mode/ })).toBeNull();
+  });
+
+  it('the chip and the capabilities come from the SAME mode', () => {
+    // The failure this pins: a chip fed by the route while the config was fed
+    // by something else. `can.editSong` is live's clearest false, so the Edit
+    // action is the observable end of the capability set.
+    render(
+      <Reader
+        song={makeSong()} settings={{}} mode="live"
+        onModeChange={() => {}} onUpdateSong={() => {}} onExit={() => {}}
+      />
+    );
+    expect(screen.getByRole('button', { name: /^Live mode/ })).toBeTruthy();
+    openSongActions();
+    expect(screen.queryByRole('button', { name: /^Edit/ })).toBeNull();
   });
 });

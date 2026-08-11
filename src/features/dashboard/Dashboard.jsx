@@ -269,7 +269,7 @@ export default function Dashboard({
           </div>
           <Button variant="brand" className="shrink-0" onClick={(e) => { e.stopPropagation(); onPlaySetlist(upcomingSetlists[0]); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="mr-1.5"><path d="M8 5v14l11-7z"/></svg>
-            Play Live
+            Play
           </Button>
         </div>
       </section>
@@ -389,7 +389,7 @@ export default function Dashboard({
               </div>
               <button
                 onClick={(e) => { e.stopPropagation(); onPlaySetlist(sl); }}
-                aria-label="Play live"
+                aria-label="Play"
                 className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-transparent border-none cursor-pointer text-[var(--modes-text-muted)] hover:text-[var(--color-brand)] hover:bg-[var(--modes-surface-strong)] transition-colors"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>

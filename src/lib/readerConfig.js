@@ -295,6 +295,29 @@ export function resolveViewCapabilities(mode) {
   return VIEW[mode] || VIEW.live;
 }
 
+/**
+ * Which mode the reader OPENS in, now that one button opens it.
+ *
+ * **Practice**, and the reasons in the order they carried weight:
+ *
+ *  1. **Edit mode is already opt-in.** The accidental-mid-service-edit that a
+ *     live-by-default would be protecting against is already prevented by
+ *     having to press Edit — so live-by-default buys a guard that exists.
+ *  2. **The two mistakes are not the same size.** Forgetting to switch TO live
+ *     costs you an edit that needed a deliberate press and has Undo. Forgetting
+ *     to switch OUT of live blocks you mid-rehearsal, which is when nobody
+ *     wants to go looking for a setting.
+ *  3. **Most opens are not services.** A set gets read a dozen times in the
+ *     week before it is played once.
+ *  4. **A default that removes capability teaches people the app cannot do
+ *     things.** Someone whose first open silently hides the metronome and the
+ *     edit button learns an app without them, and never looks again.
+ *
+ * One tap in the top bar changes it, which is what makes a wrong guess cheap
+ * enough to have a default at all.
+ */
+export const READER_DEFAULT_MODE = 'practice';
+
 export function resolveReaderConfig(settings, ctx = {}) {
   const {
     wide = false, embedded = false, myInstrument = null,

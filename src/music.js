@@ -63,11 +63,27 @@ export function transposeChord(chord, semitones, preferSharps) {
 // Transpose a key signature (same optional `preferSharps` as transposeChord).
 export function transposeKey(key, semitones, preferSharps) {
   if (!key) return key;
-  if (semitones === 0 && preferSharps === undefined) return key;
+  // ⚠ A MISSING transpose used to render the literal string "undefined" as the
+  // key. `(idx + undefined + 120) % 12` is NaN, `CHROMATIC[NaN]` is undefined,
+  // and `undefined + suffix` is the word. Nothing threw; the badge simply said
+  // "undefined" where the key goes.
+  //
+  // Six of the nine call sites already defended with `|| 0` and three did not
+  // (`SetlistOverview` twice — and it has TWO render sites — plus the builder's
+  // own `SetlistItemRow`). A guard that has to be remembered at every call site
+  // is a guard that will be missed, so it lives here now and the callers'
+  // `|| 0` become redundant rather than load-bearing.
+  //
+  // Reachable through IMPORTED, SHARED and older-synced setlists, whose items
+  // predate `transpose` or omit it; `SetlistBuilder.addSong` always writes
+  // `transpose: 0`, which is why the normal add path never showed it and this
+  // survived.
+  const semis = Number.isFinite(semitones) ? semitones : 0;
+  if (semis === 0 && preferSharps === undefined) return key;
   const { root, suffix } = parseRoot(key);
   const idx = CHROMATIC.indexOf(root);
   if (idx === -1) return key;
-  const newRoot = spellRoot(CHROMATIC[(idx + semitones + 120) % 12], preferSharps);
+  const newRoot = spellRoot(CHROMATIC[(idx + semis + 120) % 12], preferSharps);
   return newRoot + suffix;
 }
 

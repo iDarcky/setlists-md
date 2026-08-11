@@ -143,7 +143,7 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
   } else if (activeView === 'setlists' && onPlay) {
     // A setlist is selected in the tablet split pane — the prominent action is
     // to go live, not to create. (Creating still lives in the list header.)
-    fab = { kind: 'action', label: 'Play live', onClick: onPlay, icon: <PlayIcon /> };
+    fab = { kind: 'action', label: 'Play', onClick: onPlay, icon: <PlayIcon /> };
   } else if (activeView === 'setlists' && onNewSetlist) {
     // Offer New + Import as a menu when import is available, so mobile / touch
     // tablets (which only ever see this FAB) can still import a .zip.
@@ -151,7 +151,7 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
       ? { kind: 'menu', menu: 'setlist', label: 'Create', icon: <PlusIcon open={menuOpen} /> }
       : { kind: 'action', label: 'New setlist', onClick: onNewSetlist, icon: <PlusIcon /> };
   } else if (activeView === 'setlist-view' && onPlay) {
-    fab = { kind: 'action', label: 'Play live', onClick: onPlay, icon: <PlayIcon /> };
+    fab = { kind: 'action', label: 'Play', onClick: onPlay, icon: <PlayIcon /> };
   } else if (activeView === 'notifications' && (onMarkAllRead || onClearAllNotifications)) {
     // On the notifications page the FAB opens a small menu: mark everything read
     // (clears the badge) or clear the whole list — no more scrolling to the

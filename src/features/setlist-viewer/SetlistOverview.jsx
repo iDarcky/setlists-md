@@ -19,12 +19,23 @@ import { toast } from '@/ui/use-toast';
 
 /**
  * Card-language setlist viewer (Labs `setlistCards`). Read-only: a pinned
- * identity card leading with Play Live / Practice, then a Set order / Band tab
- * switcher. Tapping a song opens the practice view from that song.
+ * identity card leading with ONE Play button, then a Set order / Band tab
+ * switcher. Tapping a song opens the reader from that song.
+ *
+ * ⚠ There were TWO buttons here — "Play Live" and "Practice" — because there
+ * were two routes. There are not two routes any more (2026-08-11), and the
+ * owner's question settled the button too: *"Why do we need the 2 buttons?
+ * Wasn't the whole idea so we have one single entry point?"* Which mode you
+ * read in is now a chip in the reader's own top bar, one tap, visible the whole
+ * time — as opposed to a choice made on this screen and then never shown again,
+ * which is what made it invisible in the first place.
+ *
+ * `onPlay` takes the index to start at, which is what `onPractice` took: the
+ * "start HERE" the song rows have always meant survives the collapse.
  */
 export default function SetlistOverview({
   setlist, songs, setlists = [], onBack, onEdit, onExportZip, onExportPdfOverview, onExportPdfFull,
-  onPlay, onPractice, onDelete, isFullscreen = false, onToggleFullscreen,
+  onPlay, onDelete, isFullscreen = false, onToggleFullscreen,
   clockFormat = '12h', canEdit = true, embedded = false, hidePlay = false,
   overscheduleWarn = false, streakLimit = 3,
 }) {
@@ -44,7 +55,7 @@ export default function SetlistOverview({
     return s ? resolveSongView(s, arrangementId) : null;
   };
 
-  const practiceAt = (i) => onPractice?.(Number.isInteger(i) ? i : 0);
+  const playAt = (i) => onPlay?.(Number.isInteger(i) ? i : 0);
 
   const { songCount, breakCount, totalSeconds, anyEstimated } = useMemo(() => {
     let sc = 0, bc = 0, total = 0, est = false;
@@ -166,22 +177,6 @@ export default function SetlistOverview({
     </>
   );
 
-  // Practice is a first-class action (not hidden in the ⋯ menu). Desktop shows
-  // a labelled button; mobile a compact icon button.
-  const practiceIconPath = <><circle cx="12" cy="12" r="9" /><path d="M10 8.5 16 12l-6 3.5v-7z" /></>;
-  const practiceBtnDesktop = onPractice && (
-    <Button variant="secondary" size="sm" onClick={() => practiceAt(0)} className="min-w-[108px] justify-center">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">{practiceIconPath}</svg>
-      Practice
-    </Button>
-  );
-  const practiceBtnMobile = onPractice && (
-    <Button variant="secondary" size="sm" onClick={() => practiceAt(0)} className="shrink-0 px-2.5">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">{practiceIconPath}</svg>
-      Practice
-    </Button>
-  );
-
   const editIconBtn = onEdit && iconBtn('Edit', onEdit, <><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></>);
 
   const moreMenuEl = menuItems.length > 0 && (
@@ -234,8 +229,8 @@ export default function SetlistOverview({
             return (
               <div
                 key={idx}
-                {...(onPractice ? { role: 'button', tabIndex: 0, onClick: () => practiceAt(idx), onKeyDown: (e) => e.key === 'Enter' && practiceAt(idx), title: 'Open practice from here' } : {})}
-                className={`flex items-start gap-3 px-4 py-3 transition-colors ${onPractice ? 'cursor-pointer hover:bg-[var(--ds-gray-alpha-100)]' : ''}`}
+                {...(onPlay ? { role: 'button', tabIndex: 0, onClick: () => playAt(idx), onKeyDown: (e) => e.key === 'Enter' && playAt(idx), title: 'Open the reader from here' } : {})}
+                className={`flex items-start gap-3 px-4 py-3 transition-colors ${onPlay ? 'cursor-pointer hover:bg-[var(--ds-gray-alpha-100)]' : ''}`}
               >
                 <span className="text-label-13 text-[var(--ds-gray-500)] tabular-nums w-6 text-center shrink-0 pt-0.5">{num}</span>
                 <div className="flex-1 min-w-0">
@@ -332,13 +327,15 @@ export default function SetlistOverview({
               {metaBlock}
             </div>
             <div className="shrink-0 ml-auto flex items-center gap-2">
+              {/* ONE button. It said "Play Live" when Live was a destination;
+                  it is not one any more, and a button that names a mode would
+                  be promising a choice this screen no longer makes. */}
               {!hidePlay && onPlay && (
-                <Button variant="brand" size="sm" onClick={onPlay} className="min-w-[108px] justify-center">
+                <Button variant="brand" size="sm" onClick={() => playAt(0)} className="min-w-[108px] justify-center">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="mr-1.5"><path d="M8 5v14l11-7z" /></svg>
-                  Play Live
+                  Play
                 </Button>
               )}
-              {practiceBtnDesktop}
               {editIconBtn}
               {moreMenuEl}
               {onBack && (
@@ -366,7 +363,18 @@ export default function SetlistOverview({
               {moreMenuEl}
             </div>
             {metaBlock}
-            {practiceBtnMobile && <div className="mt-3">{practiceBtnMobile}</div>}
+            {/* ⚠ On a phone this slot held the PRACTICE button and nothing else
+                — there has never been a "Play Live" button on mobile, so the
+                only way into a service from here was to tap a song row and take
+                the practice view it gave you. One button fixes that by
+                existing: same control as the desktop, same slot as the button
+                it replaces, full width because it is the only thing on the row. */}
+            {!hidePlay && onPlay && (
+              <Button variant="brand" size="sm" onClick={() => playAt(0)} className="mt-3 w-full justify-center">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="mr-1.5"><path d="M8 5v14l11-7z" /></svg>
+                Play
+              </Button>
+            )}
           </div>
         </div>
 

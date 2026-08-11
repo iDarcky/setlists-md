@@ -113,7 +113,7 @@ export default function SetlistCard({
         {showPlay && !selectActive && (
           <button
             onClick={(e) => { e.stopPropagation(); onPlay(); }}
-            aria-label="Play live"
+            aria-label="Play"
             className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg border-none bg-[var(--modes-surface)] text-[var(--color-brand)] hover:bg-[var(--modes-surface-strong)] cursor-pointer transition-colors"
           >
             <PlayGlyph size={15} />
@@ -211,7 +211,7 @@ export default function SetlistCard({
           className="inline-flex items-center justify-center gap-2 h-9 px-3 sm:px-4 rounded-lg border-none bg-[var(--color-brand)] text-white font-bold text-label-14 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
         >
           <PlayGlyph size={16} />
-          <span className="hidden sm:inline">Play Live</span>
+          <span className="hidden sm:inline">Play</span>
         </button>
         <span className="text-label-12 text-[var(--modes-text-dim)] font-medium">
           {songCount} Song{songCount !== 1 ? 's' : ''}{durationLabel ? ` • ${durationLabel}` : ''}

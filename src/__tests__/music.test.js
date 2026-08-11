@@ -88,6 +88,27 @@ describe('transposeKey', () => {
     expect(transposeKey('C', 2)).toBe('D');
     expect(transposeKey('F#', 1)).toBe('G');
   });
+
+  // ⚠ A missing transpose rendered the literal string "undefined" where the
+  // key goes: NaN → CHROMATIC[NaN] → undefined → "undefined" + suffix. Silent,
+  // and reachable from any setlist item that predates or omits `transpose` —
+  // imported, shared, or synced from an older client.
+  it('treats a missing or unusable transpose as no transpose', () => {
+    expect(transposeKey('G', undefined)).toBe('G');
+    expect(transposeKey('G', null)).toBe('G');
+    expect(transposeKey('Bbm7', undefined)).toBe('Bbm7');
+    expect(transposeKey('G', NaN)).toBe('G');
+    expect(transposeKey('G', 'two')).toBe('G');
+  });
+
+  // The one case that must NOT take the early return: zero semitones with an
+  // explicit spelling preference is a RE-SPELL, not a no-op (the Song Hub asks
+  // for exactly this).
+  it('still re-spells at zero semitones when a preference is given', () => {
+    expect(transposeKey('Bb', 0, true)).toBe('A#');
+    expect(transposeKey('A#', 0, false)).toBe('Bb');
+    expect(transposeKey('Bb', undefined, true)).toBe('A#');
+  });
 });
 
 describe('semitonesBetween', () => {

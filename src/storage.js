@@ -287,10 +287,7 @@ export const DEFAULT_SETTINGS = {
   // Where the structure (section flow) ribbon sits in reading views:
   // 'top' (default, in the header), 'bottom', 'left', 'right', or 'off'.
   structurePosition: 'top',
-  // Labs: the one unified reader (Live/Rehearsal/Practice as saved bundles of
-  // its settings) in place of the four forked reading surfaces.
-  unifiedReader: false,
-  // Reader display (Labs `unifiedReader`) — see lib/readerConfig.js.
+  // Reader display — see lib/readerConfig.js.
   readerHeading: 'name',
   // 'plain' — no frame. A chart is paper, and paper has no frames on it
   // (owner, 2026-08-04; corrected here 2026-08-06, where it had always been).

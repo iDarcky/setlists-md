@@ -2,10 +2,8 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { resolveSongView } from '@/arrangements';
 import { buildSongFlow } from '@/lib/songFlow';
 import { transposeKey, semitonesBetween, keysInQualityOf } from '@/music';
-import ChartView from '@/features/chart/ChartView';
 import Reader from '@/features/reader/Reader';
 import SongDetails from './SongDetails';
-import FullscreenChartViewer from './FullscreenChartViewer';
 import FullscreenReader from '@/features/reader/FullscreenReader';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import SongPlayerBar from './SongPlayerBar';
@@ -54,13 +52,23 @@ export default function SongHub({
   addedBy,
   settings,
   onUpdateSettings,
-  onOpenAdvancedStyle,
-  defaultColumns,
-  defaultFontSize,
-  showInlineNotes = true,
-  inlineNoteStyle = 'dashes',
-  duplicateSections = 'full',
-  chartLayout = 'columns',
+  // ⚠ SEVEN props were here — onOpenAdvancedStyle, defaultColumns,
+  // defaultFontSize, showInlineNotes, inlineNoteStyle, duplicateSections,
+  // chartLayout. Every one of them fed `chartProps`, which fed `ChartView` and
+  // `FullscreenChartViewer`, which the hub stopped mounting at the graduation.
+  // They are gone from here AND from App's call site — a prop still being
+  // threaded to a component that no longer takes it is the same one-ended
+  // switch in slower motion.
+  //
+  // ⚠ `onTransposed` was the EIGHTH, and it is the one that had to be repaired
+  // rather than deleted. It is the ONLY trigger for the founder note (App:
+  // `setFounderNoteQueued(true)` has exactly one call site, this prop) — and it
+  // was reached only through `chartProps` → `ChartView`. So from the day the
+  // hub started rendering `Reader` behind the Labs flag, transposing in the hub
+  // stopped calling it and the founder note became unreachable. It has not
+  // fired for anyone testing with the flag on, which is everyone who tests.
+  // Deleting the prop would have made that permanent and invisible; it is wired
+  // to the hub's own key change below instead.
   onTransposed,
   // Element 28 — where a locked control in the full-screen reader's ☰ sends
   // you. The hub itself has no gated controls; it just forwards.
@@ -82,13 +90,15 @@ export default function SongHub({
   const keyValue = (song && transposeKey(selectedKey, 0, sharps)) || selectedKey;
   const keyOptions = useMemo(() => (song ? keysInQualityOf(song.key, accidentals) : []), [song, accidentals]);
 
+  // Both the hub's own key Select and the embedded reader go through this, so
+  // the founder-note trigger cannot be attached to one and missed by the other
+  // — which is the shape of the bug it is fixing.
+  const pickKey = useCallback((k) => {
+    setSelectedKey(k);
+    onTransposed?.();
+  }, [onTransposed]);
+
   const [aaAnchor, setAaAnchor] = useState(null);
-  const [displayMode, setDisplayMode] = useState('chords');
-  // Derived HERE rather than reported up by the chart. It used to be filled by
-  // ChartView's `onReportStructure`, which meant that with the `unifiedReader`
-  // flag on — where the hub mounts Reader instead — the song map simply
-  // vanished from the top card. Same source the readers use.
-  const [chartStructure, setChartStructure] = useState([]);
   const [fsMode, setFsMode] = useState(null); // null | 'chart' | 'lyrics' → WIP fullscreen viewer
   const closeAa = useCallback(() => setAaAnchor(null), []);
   const toggleAa = (e) => setAaAnchor(aaAnchor ? null : e.currentTarget.getBoundingClientRect());
@@ -140,32 +150,21 @@ export default function SongHub({
 
   const cleanAddedBy = addedBy && addedBy.trim() && addedBy.trim() !== 'Guest' ? addedBy.trim() : '';
   const byline = [song.artist, cleanAddedBy && `added by ${cleanAddedBy}`].filter(Boolean).join('  ·  ');
-  // Prefer what the chart reports (it knows about repeats/modulations it has
-  // resolved); fall back to the derived flow so the map is never empty.
-  const ribbonStructure = chartStructure.length > 0 ? chartStructure : songMap;
+  // ⚠ There was a `chartStructure` state here, preferred over `songMap` when
+  // non-empty — filled by `ChartView`'s `onReportStructure` and by nothing
+  // else. The hub stopped mounting `ChartView` at the graduation, so it was
+  // permanently `[]` and the fallback was the only branch that ever ran.
+  const ribbonStructure = songMap;
   const showRibbon = ribbonStructure.length > 0;
-  const chartDisplayMode = activeTab === 'lyrics' ? 'lyrics' : displayMode;
+  // ⚠ `displayMode` was STATE, and its only setter was `ChartView`'s
+  // `onDisplayMode`. With `ChartView` unmounted the state could never leave
+  // 'chords', so the tab is the only thing that has ever decided this. Said
+  // plainly, it is one expression: the Lyrics tab shows lyrics, everything
+  // else shows the chart. Turning chords off is the Aa menu's job, inside the
+  // reader, where the control the user can actually see lives.
+  const chartDisplayMode = activeTab === 'lyrics' ? 'lyrics' : 'chords';
   const isReaderTab = activeTab === 'chart' || activeTab === 'lyrics';
   const hasPlayer = !!youtubeId(song.youtube);
-
-  // Shared ChartView props (the inline reader + the fullscreen viewer use the
-  // same config and transpose state).
-  const chartProps = {
-    song: songInput,
-    arrangementId: activeArrId,
-    selectedKey,
-    onSelectKey: setSelectedKey,
-    settings,
-    onUpdateSettings,
-    onOpenAdvancedStyle,
-    defaultColumns,
-    defaultFontSize,
-    showInlineNotes,
-    inlineNoteStyle,
-    duplicateSections,
-    chartLayout,
-    onTransposed,
-  };
 
   // Overflow actions. Edit / Full screen / Play-live / View are intentionally
   // NOT here on desktop (they have dedicated controls). On mobile we fold
@@ -189,7 +188,7 @@ export default function SongHub({
   // Key chip that doubles as the transpose control (dropdown + chevron). Its
   // fill follows the chord colour (--chord) so it tracks the theme/palette.
   const keyChip = (cls) => (
-    <Select value={keyValue} onValueChange={setSelectedKey}>
+    <Select value={keyValue} onValueChange={pickKey}>
       <SelectTrigger
         aria-label="Key (transpose)"
         className={cn('!border-0 gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90', cls)}
@@ -386,10 +385,9 @@ export default function SongHub({
                 song={song}
                 onSave={onUpdateSong ? (patch) => onUpdateSong({ ...songInput, ...patch, updatedAt: Date.now() }) : null}
               />
-            ) : settings?.unifiedReader ? (
-              // Labs `unifiedReader`: the hub keeps its chrome (identity, tabs,
-              // player bar) and swaps only the reader inside it — otherwise the
-              // app would be back to two chart renderers.
+            ) : (
+              // The hub keeps its chrome (identity, tabs, player bar) and the
+              // reader is what sits inside it.
               //
               // ⚠ `!fsMode` — the hub UNMOUNTS its reader while the full-screen
               // one is open, rather than leaving both alive.
@@ -423,21 +421,11 @@ export default function SongHub({
                 settings={settings}
                 onUpdateSettings={onUpdateSettings}
                 selectedKey={selectedKey}
-                onSelectKey={setSelectedKey}
+                onSelectKey={pickKey}
                 aaAnchor={aaAnchor}
                 onAaClose={closeAa}
               />
               )
-            ) : (
-              <ChartView
-                embedded
-                {...chartProps}
-                displayMode={chartDisplayMode}
-                onDisplayMode={activeTab === 'chart' ? setDisplayMode : undefined}
-                aaAnchor={aaAnchor}
-                onAaClose={closeAa}
-                onReportStructure={setChartStructure}
-              />
             )}
           </div>
         </div>
@@ -450,7 +438,7 @@ export default function SongHub({
         )}
       </div>
 
-      {fsMode && (settings?.unifiedReader ? (
+      {fsMode && (
         // Full screen IS the Reader, single-song (`docs/READER.md`, option 1).
         // Not a fork of it and not a bigger hub view: the hub is deliberately
         // uncustomizable, and full screen is exactly where you want the
@@ -463,20 +451,12 @@ export default function SongHub({
           settings={settings}
           onUpdateSettings={onUpdateSettings}
           onUpgrade={onUpgrade}
-          displayMode={fsMode === 'lyrics' ? 'lyrics' : displayMode}
+          displayMode={fsMode === 'lyrics' ? 'lyrics' : 'chords'}
           selectedKey={selectedKey}
-          onSelectKey={setSelectedKey}
+          onSelectKey={pickKey}
           onClose={() => setFsMode(null)}
         />
-      ) : (
-        <FullscreenChartViewer
-          title={song.title}
-          keyLabel={keyValue}
-          displayMode={fsMode === 'lyrics' ? 'lyrics' : displayMode}
-          chartProps={chartProps}
-          onClose={() => setFsMode(null)}
-        />
-      ))}
+      )}
     </div>
   );
 }

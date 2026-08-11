@@ -3,7 +3,6 @@ import { fetchSharedSetlist } from '@/lib/setlistShare';
 import { Button } from '@/ui/Button';
 
 const SetlistOverview = lazy(() => import('@/features/setlist-viewer/SetlistOverview'));
-const SetlistPlayer = lazy(() => import('@/features/performance/SetlistPlayer'));
 const SetlistReader = lazy(() => import('@/features/reader/SetlistReader'));
 
 // Public, read-only viewer for a shared setlist link (`/?setlist=<token>`).
@@ -61,19 +60,25 @@ export default function SharedSetlistViewer({ token, onExit, settings }) {
 
   const { setlist, songs } = state.data;
 
-  // Play Live: a public, read-only live player over the frozen snapshot. No
-  // practice mode, no app shell — just the live chart navigation.
+  // A public, read-only read of the frozen snapshot. No app shell, no account.
+  //
+  // ⚠ ALWAYS Live, and NO mode chip (`onModeChange` absent, owner 2026-08-11:
+  // *"yes, always locked, but we don't use the locked chip there"*). This
+  // closes the one row `docs/READER.md`'s view table left undecided: a shared
+  // link is not a fifth view, it is the reader with the mode nailed down.
+  //
+  // A chip here would offer Practice to someone with no account — no settings
+  // to write to, no song to edit, nothing on the other side of the tap. Every
+  // capability Practice adds needs a writer this surface does not have.
   if (playing) {
-    // A shared link has no account, so there is nothing to write settings back
-    // to — the reader runs read-only on the Live preset.
-    const Player = settings?.unifiedReader ? SetlistReader : SetlistPlayer;
     return (
       <Suspense fallback={<div className="min-h-[100dvh] bg-[var(--ds-background-100)]" />}>
         <div className="h-[100dvh]">
-          <Player
+          <SetlistReader
             setlist={setlist}
             songs={songs || []}
             settings={settings}
+            mode="live"
             onBack={() => setPlaying(false)}
             onFinish={() => setPlaying(false)}
           />
@@ -89,7 +94,7 @@ export default function SharedSetlistViewer({ token, onExit, settings }) {
           Shared setlist · read-only
         </span>
         <div className="flex items-center gap-2">
-          <Button variant="brand" size="sm" onClick={() => setPlaying(true)}>Play Live</Button>
+          <Button variant="brand" size="sm" onClick={() => setPlaying(true)}>Play</Button>
           <Button variant="secondary" size="sm" onClick={onExit}>Open app</Button>
         </div>
       </div>
