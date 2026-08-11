@@ -85,6 +85,10 @@ const GoogleDriveCallback = lazy(() => import('@/features/auth/GoogleDriveCallba
 // Element 13: ONE finale, in place of LiveFinale + PracticeFinale (which were
 // ~80% the same file). Both are unreferenced as of the graduation.
 const ReaderFinale = lazy(() => import('@/features/reader/ReaderFinale'));
+// Shown once per ACCOUNT, the first time someone goes live — the fold in the
+// corner is deliberately cheap rather than self-explanatory, and this is where
+// it gets explained. See `LiveIntro`.
+const LiveIntro = lazy(() => import('@/features/reader/LiveIntro'));
 const LydianShowcase = lazy(() => import('@/features/design/LydianShowcase'));
 // The add-a-song surface: search over the catalog, with Import and Blank
 // underneath. Graduated from Labs 2026-07 (the tabbed Import|Browse modal it
@@ -213,6 +217,19 @@ export default function App() {
   // the reader has unmounted, and because it belongs in the history snapshot:
   // backing into a session must restore the mode you were reading in.
   const [readerMode, setReaderMode] = useState('live');
+  // The teaching sheet for `LiveFold`. Not in the history snapshot: it is a
+  // one-shot acknowledgement, not a screen you can be "back" to.
+  const [showLiveIntro, setShowLiveIntro] = useState(false);
+  // ⚠ Fires on the TRANSITION into live, not on `readerMode === 'live'`.
+  // Reading the state would fire it for anyone whose reader happens to open
+  // live — including the shared-link viewer, which is permanently live and has
+  // no account to remember an acknowledgement with.
+  const enterReaderMode = useCallback((next) => {
+    setReaderMode(prev => {
+      if (next === 'live' && prev !== 'live' && !settings?.seenLiveIntro) setShowLiveIntro(true);
+      return next;
+    });
+  }, [settings?.seenLiveIntro]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [authStartMode, setAuthStartMode] = useState('signin');
   const [newSongModal, setNewSongModal] = useState(null);
@@ -2392,7 +2409,7 @@ export default function App() {
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               myInstrument={myInstrument}
               mode={readerMode}
-              onModeChange={setReaderMode}
+              onModeChange={enterReaderMode}
               startIndex={readerStartIndex}
               onUpdateSong={isTeamReadOnly ? null : handleUpdateSong}
               // A key chosen in PRACTICE sticks onto the setlist item.
@@ -2419,7 +2436,18 @@ export default function App() {
               onGoHome={handleFinaleGoHome}
             />
           )}
-          {view === 'upgrade' && (
+          {showLiveIntro && (
+        <Suspense fallback={null}>
+          <LiveIntro onClose={() => {
+            // Both ends: the sheet closes AND the fact is remembered, per
+            // account. Writing only one of the two is the bug family this
+            // element keeps finding.
+            setSettings(prev => ({ ...prev, seenLiveIntro: true }));
+            setShowLiveIntro(false);
+          }} />
+        </Suspense>
+      )}
+      {view === 'upgrade' && (
             <PricingScreen
               onBack={goBack}
               settings={settings}

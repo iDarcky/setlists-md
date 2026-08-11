@@ -926,6 +926,43 @@ export default function ReaderMenu({
   // height of the phone from the thumb using the panel (owner: *"do we need
   // like an x to close the dock… rather than the top one?"*). The ☰ still
   // toggles; this is the near one.
+  // ── The Live row, ABOVE the tabs ──────────────────────────────────────────
+  // Owner, 2026-08-11: *"maybe have a top bar with live?"* — and he is right
+  // that the first placement was wrong. It went into Layout → The screen, i.e.
+  // the third group of the second tab, which files a SESSION action among
+  // display preferences and buries it behind a tab switch.
+  //
+  // Above the tabs it is the first thing the menu says, in every tab, and it
+  // reads as what it is: the one control here that changes what the reader can
+  // DO rather than how it looks.
+  //
+  // ⚠ It is also the only way out of live, since live has no ✕ (`LiveFold`).
+  // That is why `Reader` refuses to drop the ✕ unless `onModeChange` exists —
+  // this row and that ✕ are the two halves of one invariant.
+  const liveRow = onModeChange ? (
+    <div className={`shrink-0 flex items-center justify-between gap-3 px-3 py-2 ${
+      dock === 'bottom' ? 'border-t' : 'border-b'} border-[var(--border-1)]`}>
+      <span className="flex items-center gap-2 min-w-0">
+        <span
+          aria-hidden="true"
+          className="w-2 h-2 rounded-full shrink-0"
+          style={{ backgroundColor: config?.mode === 'live' ? '#e5484d' : 'var(--ds-gray-500)' }}
+        />
+        <span className="min-w-0">
+          <span className="block text-[13.5px] font-semibold text-[var(--text-1)] leading-tight">Live</span>
+          <span className="block text-[11.5px] text-[var(--text-2)] leading-tight">
+            {config?.mode === 'live'
+              ? 'The service. Tools off, screen stays on.'
+              : 'For the service — hides the tools and keeps the screen on.'}
+          </span>
+        </span>
+      </span>
+      <Switch label="Live"
+        on={config?.mode === 'live'}
+        onChange={(v) => onModeChange(v ? 'live' : 'practice')} />
+    </div>
+  ) : null;
+
   const head = (
     <div className={`shrink-0 flex items-center gap-1 p-1.5 ${
       dock === 'bottom' ? 'border-t' : 'border-b'} border-[var(--border-1)]`}>
@@ -1299,24 +1336,6 @@ export default function ReaderMenu({
               on would be the same lie the old explainer sheet told from the
               other direction. */}
           <GroupTitle>The screen</GroupTitle>
-          {/* ── Live ──────────────────────────────────────────────────────
-              FIRST in the group, above keep-awake, because it is the larger
-              decision and it changes what keep-awake means (live holds the
-              wake lock whatever that switch says).
-
-              A Switch rather than a button: live is a STATE you are in or out
-              of, and the menu already says every other state that way. The
-              info line names what it costs, because going live removes five
-              capabilities at once and a switch that silently takes tools away
-              is the thing this whole element exists to stop. */}
-          {onModeChange && (
-            <Field label="Live" inline
-              info="For the service itself. Hides the click, the edit button, note-writing and arrangement switching, and keeps the screen on. Transposing still works — it just won't be saved to the setlist.">
-              <Switch label="Live"
-                on={config?.mode === 'live'}
-                onChange={(v) => onModeChange(v ? 'live' : 'practice')} />
-            </Field>
-          )}
           <Field label="Keep the screen on" inline
             info="Stops the device locking while you read. Off by default. Going live always keeps the screen on, whether or not this is set.">
             <Switch label="Keep the screen on"
@@ -1446,7 +1465,10 @@ export default function ReaderMenu({
             the screen and the strip is what you reach for repeatedly, so it
             belongs on the edge nearest the thumb. A side panel is full height
             and read top-down, so there the strip goes back on top. */}
-        {side ? <>{head}{body}</> : <>{body}{head}</>}
+        {/* The Live row rides with the TOP in both shapes: it is a heading,
+            not a tab strip, and on the phone dock the tabs are at the bottom
+            (nearest the thumb) while the top is where you read from. */}
+        {side ? <>{liveRow}{head}{body}</> : <>{liveRow}{body}{head}</>}
       </div>
     );
   }
@@ -1499,6 +1521,7 @@ export default function ReaderMenu({
             <div className="w-[34px] h-1 rounded-full bg-[var(--border-2)]" />
           </div>
         )}
+        {liveRow}
         {head}
         {body}
       </div>

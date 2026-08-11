@@ -111,6 +111,10 @@ export const PORTABLE_PREF_KEYS = [
   // preferences predate this key cannot clobber a local `true` with a missing
   // value. The first device to run this pushes the key up and it heals.
   'onboardingComplete',
+  // The one-time "what live means" sheet (`LiveIntro`). Portable for the same
+  // reason onboarding is: the owner met the old per-device sheet on every
+  // branch preview. A teaching moment that repeats is not teaching.
+  'seenLiveIntro',
 ];
 
 export function extractPortablePrefs(s) {

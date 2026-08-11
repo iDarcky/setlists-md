@@ -18,6 +18,10 @@ import { BAR_BUTTON, EDIT_ACCENT, EDIT_INK, EDIT_CHROME } from './readerChrome';
 const ReaderTopBar = forwardRef(function ReaderTopBar(
   {
     title, meta = null, onMenu, onExit, tools = null, leading = null,
+    // Painted INTO the sticky block's top-right corner, outside the layout —
+    // so it costs the title not one pixel. The reader's live fold is the only
+    // user; see `LiveFold`.
+    cornerMark = null,
     aboveBar = null, editing = false, exitDisabled = false, exitLabel = 'Exit', progress = null, children,
     // Element 28: the ☰ LIGHTS UP while its menu is open — the same treatment
     // element 12's practice icon uses. It was briefly a ✕ (the owner's first
@@ -53,8 +57,15 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
           ? EDIT_ACCENT
           : 'var(--chart-divider, var(--chart-rule, var(--ds-gray-300)))',
         background: 'var(--chart-bg, var(--ds-background-100))',
+        // ⚠ NO `position` here. This block is `sticky top-0`, and `sticky` is
+        // already a positioned element — an absolutely-positioned child
+        // resolves against it for free. Adding `position: relative` to "make
+        // the corner mark work" would OVERRIDE the sticky and un-pin the whole
+        // header, which is the kind of change that looks fine in a screenshot
+        // and only shows up when you scroll.
       }}
     >
+      {cornerMark}
       {/* ── The ORANGE part of the block: progress · set · title row ────────
           The set and the header, and NOT the song map (owner, 2026-08-04,
           after a round with the whole block orange). The map is the one thing

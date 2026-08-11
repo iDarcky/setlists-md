@@ -1603,36 +1603,43 @@ describe('the live badge', () => {
     expect(screen.queryByText('Go live')).toBeNull();
   });
 
-  it('shows LIVE while live', () => {
+  it('paints the fold, and drops the ✕ under it', () => {
     render(
       <Reader song={makeSong()} settings={{}} mode="live" onModeChange={() => {}} onExit={() => {}} />
     );
-    expect(screen.getByRole('status', { name: 'Live' }).textContent).toContain('LIVE');
+    // The state is announced as text; the triangle itself is decoration.
+    expect(screen.getByRole('status')).toHaveTextContent('Live');
+    // Owner: "normally you don't want to exit a live stuff." The corner the ✕
+    // used to occupy is the fold's, so element 1's oldest hazard — a mis-tap on
+    // the right-hand edge leaving the service — stops being possible.
+    expect(screen.queryByRole('button', { name: 'Exit' })).toBeNull();
   });
 
-  it('is NOT a button — the ✕ rule is what lets it sit where it sits', () => {
-    // Element 1: nothing tappable goes near the ✕, because a mis-tap on the
-    // right-hand edge leaves the service. A tappable LIVE against the ✕ would
-    // be two ways to end a service under one thumb.
-    render(
+  it('costs the title NOTHING — the fold is outside the layout', () => {
+    // The whole reason this shape won. The bar is byte-identical live and
+    // off-live apart from the capo chip, which live drops on its own.
+    const { container: off } = render(
+      <Reader song={makeSong()} settings={{}} mode="practice" onModeChange={() => {}} onExit={() => {}} />
+    );
+    const offTitle = off.querySelector('.reader-head span.truncate');
+    const { container: on } = render(
       <Reader song={makeSong()} settings={{}} mode="live" onModeChange={() => {}} onExit={() => {}} />
     );
-    expect(screen.queryByRole('button', { name: /live/i })).toBeNull();
+    const onTitle = on.querySelector('.reader-head span.truncate');
+    // jsdom does not lay out, so compare the CLASSES that decide the width —
+    // the style is the decision (READER.md's note on brittle source tests).
+    expect(onTitle.className).toBe(offTitle.className);
+    expect(onTitle.style.maxWidth).toBe(offTitle.style.maxWidth);
   });
 
-  it('sits AFTER the title and key — it is the last thing before the ✕', () => {
-    const { container } = render(
-      <Reader song={makeSong()} settings={{}} mode="live" onModeChange={() => {}} onExit={() => {}} />
-    );
-    const head = container.querySelector('.reader-head');
-    const badge = screen.getByRole('status', { name: 'Live' });
-    const exit = screen.getByRole('button', { name: 'Exit' });
-    const order = [...head.querySelectorAll('*')];
-    expect(order.indexOf(badge)).toBeLessThan(order.indexOf(exit));
-    // And after the key pill, which is a fact about the SONG rather than the
-    // session — the bar reads outward from what you play to how you read it.
-    const key = head.querySelector('[aria-label="Key (transpose)"]');
-    if (key) expect(order.indexOf(key)).toBeLessThan(order.indexOf(badge));
+  // ⚠ THE INVARIANT THIS NEARLY BROKE.
+  // `Reader`'s `mode` defaults to 'live' and `FullscreenReader` passes none, so
+  // a bare "live has no ✕" rule left the hub's full screen with no ✕ AND no
+  // Live switch in the ☰ — trapped. The rule is "someone else can let me out",
+  // not "am I live".
+  it('keeps the ✕ when nothing else can turn live off', () => {
+    render(<Reader song={makeSong()} settings={{}} mode="live" onExit={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Exit' })).toBeTruthy();
   });
 
   it('never in the hub, whatever mode is passed', () => {

@@ -120,52 +120,55 @@ function CapoChip({ capo, soundingKey, shapeKey, writtenCapo, onSelect }) {
 }
 
 /**
- * LIVE — a STATUS, in the bar's right-hand slot.
+ * LIVE — a fold in the top-right corner, and no ✕ under it.
  *
- * How it got here, because the shape changed twice and both changes were the
- * owner's:
+ * Three shapes, each killed by the owner for a reason worth keeping:
  *
- *  1. It was a two-way Practice ⇄ Live chip. He took it apart with the right
- *     question: *"why it should change from practice to live? I understand from
- *     live -> practice, why the other way around?"* Live → Practice is
- *     ordinary; Practice → Live is *"I am about to present"*, which is a thing
- *     you START. So the bar stopped saying "Practice" — not being live is the
- *     absence of a mode, not a mode.
- *  2. Then the remaining "Go live" button was still a control in a bar that was
- *     already full: *"It's a bit too crowded now in the header especially on
- *     mobile. Maybe we move the live to be right aligned and last item before
- *     the x?"* Measured, off-live at 390px the title sat at 51.2px — "Amaz…".
+ *  1. A two-way Practice ⇄ Live chip. *"Why it should change from practice to
+ *     live? I understand from live -> practice, why the other way around?"* —
+ *     right: Practice → Live is not a view change, it is a thing you START.
+ *  2. A "Go live" button plus a LIVE badge. *"It's a bit too crowded now in the
+ *     header especially on mobile."* Measured: the title sat at 51.2px on a
+ *     390px phone, then 48.0px before that.
+ *  3. The badge alone, in the slot before the ✕. Better — the title came back
+ *     to its full 108.7px — but a word in the bar is still a word in the bar.
  *
- * So the bar carries the STATE and not the switch. Off-live it says nothing at
- * all and the title gets its full width back; live shows this badge in the slot
- * before the ✕. Going live and leaving live are one row in the ☰, beside the
- * other decisions about the screen you read from.
+ * The fold costs NOTHING. It is painted into the corner the chrome already
+ * owns, over the top-right, so the bar's layout does not know it exists: the
+ * title is exactly as wide live as off-live. Owner: *"I feel like this one
+ * might be the best? It doesn't take extra space and is different."*
  *
- * ⚠ NOT A BUTTON, and that is the whole reason it may sit where it sits.
- * Element 1's standing rule is *"nothing goes near the ✕: a mis-tap on the
- * right-hand edge leaves the service."* A tappable LIVE against the ✕ would be
- * two ways to end a service, adjacent, under a thumb. A `span` cannot be
- * mis-tapped into anything — the rule holds because the thing obeying it is
- * inert, not because it is careful.
+ * ⚠ And it takes the ✕'s place, which is the other half of the decision. Owner:
+ * *"do we need the x in the live view at all, normally you don't want to exit a
+ * live stuff."* No — so live has no ✕, and the corner it used to occupy is the
+ * corner the fold paints. That retires element 1's oldest hazard rather than
+ * managing it: "a mis-tap on the right-hand edge leaves the service" stops
+ * being true when there is nothing there to tap. Leaving is deliberate — ☰ →
+ * Live off — and the ✕ comes back with it.
  *
- * Red, and solid: the one state in the app with a cost to being wrong about.
- * Not `--chord` (the key's colour) and not the brand (every other control).
+ * It is not self-explanatory, and the owner said so first: *"is not
+ * understandable from the 1st time."* `LiveIntro` is the answer, once, per
+ * account.
+ *
+ * `aria-hidden` because it is decoration: the state is announced by the
+ * `role="status"` line beside it, which is text a screen reader can actually
+ * read. A triangle is not.
  */
-function LiveBadge() {
+function LiveFold() {
   return (
-    <span
-      // A status, announced as one. `role="status"` is what tells a screen
-      // reader this is a state of the screen rather than something to do.
-      role="status"
-      aria-label="Live"
-      className="shrink-0 h-[23px] sm:h-[20px] pl-1.5 pr-2 rounded-lg text-label-11 font-semibold leading-none inline-flex items-center gap-1 select-none"
-      // LONGHANDS — see CapoChip. A `background` shorthand with a nested var()
-      // fallback throws inside jsdom's style expander.
-      style={{ backgroundColor: '#e5484d', color: '#ffffff' }}
-    >
-      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: '#ffffff' }} />
-      LIVE
-    </span>
+    <>
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute top-0 right-0 z-10"
+        style={{
+          width: 0, height: 0,
+          borderTop: '22px solid #e5484d',
+          borderLeft: '22px solid transparent',
+        }}
+      />
+      {/* The fold carries no text, so this is what "live" sounds like. */}
+      <span role="status" className="sr-only">Live</span>
+    </>
   );
 }
 
@@ -643,6 +646,19 @@ export default function Reader({
   // that clears it — the compiler lint rejects reaching a setter defined below.
   const [chordEdit, setChordEdit] = useState(null);
   const canEdit = !embedded && config.can.editSong && !!onUpdateSong;
+  // ── There is ALWAYS exactly one way out ───────────────────────────────────
+  // Live drops the ✕ (owner: *"normally you don't want to exit a live stuff"*)
+  // and paints the fold in that corner instead. But that is only safe where
+  // live is a state the user CHOSE and can leave — i.e. where the ☰ carries the
+  // Live switch.
+  //
+  // ⚠ `Reader`'s `mode` DEFAULTS to 'live', and `FullscreenReader` (the hub's
+  // full screen) passes none. Without `onModeChange` in this condition, that
+  // screen lost its close button and trapped you: no ✕, and no switch in the ☰
+  // to turn live off with. The suite caught it on the test named "always offers
+  // a way out", which is exactly the invariant at stake — so the condition is
+  // written as "someone else can let me out", not as "am I live".
+  const liveOwnsCorner = !embedded && config.mode === 'live' && !!onModeChange;
   const editing = canEdit && editSession?.id === songId;
   const editBase = editing ? editSession.base : null;
 
@@ -1536,7 +1552,7 @@ export default function Reader({
       song={song}
       config={config}
       // Going live, and leaving it. The bar shows the STATE and the menu holds
-      // the SWITCH — see `LiveBadge` for why they were separated. Absent on
+      // the SWITCH — see `LiveFold` for why they were separated. Absent on
       // every surface with exactly one mode (the hub, the editor preview, a
       // shared link), which is what makes the row disappear there.
       onModeChange={onModeChange}
@@ -1581,24 +1597,19 @@ export default function Reader({
         <ReaderTopBar
           ref={headRef}
           aboveBar={aboveBar}
-          // The slot immediately before the ✕. It holds the LIVE status when
-          // live — right-aligned, unmissable, inert (see `LiveBadge`) — and
-          // whatever the host puts here otherwise.
+          leading={railButton}
+          // ⚠ NO ✕ WHILE LIVE. Owner: *"normally you don't want to exit a live
+          // stuff."* The corner is the fold's now, and element 1's oldest
+          // hazard — "a mis-tap on the right-hand edge leaves the service" —
+          // stops being true rather than being managed. Leaving is ☰ → Live
+          // off, which brings the ✕ back with it.
           //
-          // Not in `meta` with the key and the capo: those are facts about the
-          // SONG and this is a fact about the SESSION, and putting it in that
-          // group is what made a 390px bar carry five things and truncate the
-          // title to "Amaz…".
+          // Edit mode is unaffected: it cannot be entered live, and there the
+          // slot is the word Cancel.
           //
-          // ⚠ `config.mode`, not the raw `mode` prop — the hub is hard-wired to
-          // its own mode and must never show this, and `resolveReaderConfig`
-          // is the one place that knows.
-          leading={(
-            <>
-              {railButton}
-              {!embedded && config.mode === 'live' && <LiveBadge />}
-            </>
-          )}
+          // `config.mode`, not the raw `mode` prop — the hub is hard-wired to
+          // its own mode and `resolveReaderConfig` is the one place that knows.
+          cornerMark={liveOwnsCorner ? <LiveFold /> : null}
           title={song.title}
           // ⚠ GONE while editing, not disabled and not live. The category
           // argument settles it (owner, 2026-08-09): *"you're changing the
@@ -1619,7 +1630,7 @@ export default function Reader({
           // mid-edit strands the change". The guard was right and the answer
           // was wrong: ✕ already means "get out without keeping", which is
           // precisely Cancel. `requestCancelEdit` is what makes a mis-tap safe.
-          onExit={editing ? requestCancelEdit : onExit}
+          onExit={editing ? requestCancelEdit : (liveOwnsCorner ? null : onExit)}
           editing={editing}
           exitLabel={editing ? 'Cancel editing' : 'Exit'}
           exitDisabled={false}
