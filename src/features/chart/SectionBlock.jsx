@@ -369,15 +369,29 @@ export default function SectionBlock({
             })
           : null;
         return (
-          <div key={idx} className="mt-5 mb-4 flex items-center gap-2">
+          // ── Trimmed 2026-08-11 ────────────────────────────────────────────
+          // Measured at 68.1px of vertical space (20 + 32.1 + 16) against a
+          // 22px section heading — 3.1× the heading it sits under, and ~8% of a
+          // 390px phone's viewport, for an event that lasts one bar. Owner:
+          // *"it's a bit too big in the reader."*
+          //
+          // Same shape, smaller: the chip drops to the chart's own chord size
+          // (it was ×1.05 — bigger than the chords it is announcing), the
+          // padding halves, and the margins go 20/16 → 12/8. The arrow, the
+          // words and the rule all survive, because what was wrong was the
+          // scale and not the design.
+          <div key={idx} className="mt-3 mb-2 flex items-center gap-2">
             <span
-              className="inline-flex items-baseline gap-1.5 font-black px-2.5 py-1 rounded-lg"
+              className="inline-flex items-baseline gap-1 font-black px-2 py-0.5 rounded-md"
               style={{
                 // Solid, not tinted: this is a moment the whole band has to
                 // hit together, so it reads as loud as it is rare.
                 color: 'var(--chart-bg, #fff)',
                 background: 'var(--chord)',
-                fontSize: 'calc(var(--chart-font-size-chord, 1em) * 1.05)',
+                // The chart's chord size, exactly. A key change is a chord
+                // event; announcing it LARGER than the chords themselves is
+                // what made it the loudest thing on the page.
+                fontSize: 'var(--chart-font-size-chord, 1em)',
                 letterSpacing: '0.02em',
               }}
             >

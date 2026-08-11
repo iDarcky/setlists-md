@@ -82,11 +82,31 @@ export function StructureRibbon({
     const out = [];
     structure.forEach((name, i) => {
       const last = out[out.length - 1];
-      if (collapse && last && last.name === name) last.count += 1;
+      // ⚠ A KEY CHANGE BREAKS THE RUN, and this is the fix for a bug that hid
+      // the most common modulation there is (2026-08-11).
+      //
+      // `keyChanges` is keyed by SLOT, and the mark was read as
+      // `keyChanges[run.index]` — the run's LEAD. So a key change landing on
+      // the second chorus of a `C ×2` run pointed at a slot no chip carried,
+      // and the ribbon silently drew `C ×2` with no mark at all. A chorus
+      // repeated a step up is *the* classic worship modulation, so the map was
+      // omitting exactly the case it exists for. Measured: `V1 C ↗A B` renders
+      // the mark, `V1 C×2` does not.
+      //
+      // Grouping was the error rather than the lookup. Two choruses in
+      // different keys are not the same thing played twice — the chart already
+      // agrees, since a repeat after a key change refuses to condense (element
+      // 8, verified). `C ×2` becomes `C ↗A C`, and the run breaks exactly
+      // where the key does.
+      //
+      // This is READER.md trap 18 again: anything that groups slots has to take
+      // the live state as an argument, not just the song.
+      const startsNewKey = !!keyChanges?.[i];
+      if (collapse && last && last.name === name && !startsNewKey) last.count += 1;
       else out.push({ name, count: 1, index: i });
     });
     return out;
-  }, [structure, collapse]);
+  }, [structure, collapse, keyChanges]);
 
   const scrollerRef = useRef(null);
   const activeRef = useRef(null);

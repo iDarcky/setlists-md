@@ -231,3 +231,61 @@ describe('a dot changes size without shoving its neighbours', () => {
     }
   });
 });
+
+// ── A key change breaks the run ─────────────────────────────────────────────
+// The bug this pins was invisible and it hid the most common modulation there
+// is. `keyChanges` is keyed by SLOT and the mark was read at `run.index` — the
+// run's LEAD — so a key change landing on the second chorus of a `C ×2` run
+// pointed at a slot no chip carried, and the ribbon drew `C ×2` with no mark.
+// A chorus repeated a step up is *the* classic worship modulation, so the map
+// omitted exactly the case it exists for.
+//
+// Measured in Chromium before the fix: `V1 C ↗A B` drew the mark (the key
+// change fell between DIFFERENT sections, so there was no run to hide it) and
+// `V1 C×2` drew nothing.
+describe('a key change breaks a repeat run', () => {
+  const twoChoruses = ['Verse 1', 'Chorus', 'Chorus'];
+
+  it('collapses adjacent repeats when nothing changes key', () => {
+    // The control. Without this, a fix that simply stopped collapsing would
+    // pass every test below while quietly undoing the ribbon's whole job.
+    const { container } = render(
+      <StructureRibbon structure={twoChoruses} style="codes" activeIndex={0} />
+    );
+    expect(container.textContent).toContain('×2');
+  });
+
+  it('splits the run where the key changes, and shows the arrival key', () => {
+    const { container } = render(
+      <StructureRibbon structure={twoChoruses} style="codes" activeIndex={0} keyChanges={{ 2: 'A' }} />
+    );
+    // Two choruses in different keys are not one thing played twice.
+    expect(container.textContent).not.toContain('×2');
+    expect(container.textContent).toContain('A');
+  });
+
+  it('still marks a key change between DIFFERENT sections', () => {
+    // The case that already worked — pinned so the fix cannot trade one for
+    // the other.
+    const { container } = render(
+      <StructureRibbon
+        structure={['Verse 1', 'Chorus', 'Bridge']}
+        style="codes" activeIndex={0} keyChanges={{ 2: 'A' }}
+      />
+    );
+    expect(container.textContent).toContain('A');
+  });
+
+  it('only breaks the run at the slot that changes key', () => {
+    // Three in a row with the change on the last: the first two are still the
+    // same thing and must stay grouped.
+    const { container } = render(
+      <StructureRibbon
+        structure={['Chorus', 'Chorus', 'Chorus']}
+        style="codes" activeIndex={0} keyChanges={{ 2: 'A' }}
+      />
+    );
+    expect(container.textContent).toContain('×2');
+    expect(container.textContent).toContain('A');
+  });
+});

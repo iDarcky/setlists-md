@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 
 // Subset of local settings that gets mirrored to the user's cloud profile
-// (profiles.preferences). Device-local flags like onboardingComplete,
-// helpPageSeen, and the notification inbox are intentionally excluded.
+// (profiles.preferences). Device-local flags like helpPageSeen and the
+// notification inbox are intentionally excluded.
 //
 // Adding a new portable preference? Add its key here or it won't follow the
 // user across devices.
@@ -95,6 +95,22 @@ export const PORTABLE_PREF_KEYS = [
   // then forgot itself on the next device.
   'displayRole',
   'tabInstrument',
+  // ── Onboarding follows the ACCOUNT (owner, 2026-08-11) ────────────────────
+  // It was device-local by an earlier decision, which meant the first-run tour
+  // ran again on every new device — and on every branch preview, since a new
+  // origin is a new IndexedDB.
+  //
+  // ⚠ Honest about what this does and does not fix. The onboarding gate runs
+  // at BOOT (`App.jsx`: `!savedSettings.onboardingComplete && isFirstRun`),
+  // before any cloud read is possible — so on a brand-new origin the intro
+  // still shows once, and is skipped from then on. What it fixes is the real
+  // case: a signed-in user picking up a second device never sees it again.
+  //
+  // Safe for existing users: hydration is `{ ...prev, ...cloud }`, and
+  // `extractPortablePrefs` omits undefined keys — so an account whose cloud
+  // preferences predate this key cannot clobber a local `true` with a missing
+  // value. The first device to run this pushes the key up and it heals.
+  'onboardingComplete',
 ];
 
 export function extractPortablePrefs(s) {
