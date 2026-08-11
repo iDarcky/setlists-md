@@ -380,9 +380,14 @@ export default function SectionBlock({
           // padding halves, and the margins go 20/16 → 12/8. The arrow, the
           // words and the rule all survive, because what was wrong was the
           // scale and not the design.
-          <div key={idx} className="mt-3 mb-2 flex items-center gap-2">
+          // Round 2 (owner: *"I still think we can make it a bit smaller"*).
+          // 46.9 was still 2.1× the 22px heading. The type stays at chord size
+          // — going under it would make the chart announce a key change more
+          // quietly than it names a chord — so the remaining fat is padding and
+          // margin: py-0.5 → py-px, mt-3/mb-2 → mt-2/mb-1.
+          <div key={idx} className="mt-2 mb-1 flex items-center gap-2">
             <span
-              className="inline-flex items-baseline gap-1 font-black px-2 py-0.5 rounded-md"
+              className="inline-flex items-baseline gap-1 font-black px-2 py-px rounded-md"
               style={{
                 // Solid, not tinted: this is a moment the whole band has to
                 // hit together, so it reads as loud as it is rare.
