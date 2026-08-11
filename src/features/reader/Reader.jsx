@@ -120,74 +120,52 @@ function CapoChip({ capo, soundingKey, shapeKey, writtenCapo, onSelect }) {
 }
 
 /**
- * LIVE — the one control in the bar that concerns the mode.
+ * LIVE — a STATUS, in the bar's right-hand slot.
  *
- * ⚠ This was a two-way Practice ⇄ Live chip, and the owner took it apart with
- * the right question (2026-08-11): *"why it should change from practice to
- * live? I understand from live -> practice, why the other way around?"*
+ * How it got here, because the shape changed twice and both changes were the
+ * owner's:
  *
- * He is right, and the asymmetry is the whole design. Live → Practice is
- * ordinary: the tools come back. Practice → Live is not a view change at all —
- * it is *"I am about to present"*, which is a thing you START. A symmetric chip
- * models two destinations; there is one destination and one place you work.
+ *  1. It was a two-way Practice ⇄ Live chip. He took it apart with the right
+ *     question: *"why it should change from practice to live? I understand from
+ *     live -> practice, why the other way around?"* Live → Practice is
+ *     ordinary; Practice → Live is *"I am about to present"*, which is a thing
+ *     you START. So the bar stopped saying "Practice" — not being live is the
+ *     absence of a mode, not a mode.
+ *  2. Then the remaining "Go live" button was still a control in a bar that was
+ *     already full: *"It's a bit too crowded now in the header especially on
+ *     mobile. Maybe we move the live to be right aligned and last item before
+ *     the x?"* Measured, off-live at 390px the title sat at 51.2px — "Amaz…".
  *
- * So the bar never says "Practice". Not being live is not a mode you are in, it
- * is the absence of one — and naming it put a word in the bar for the state
- * that needs no explaining, at 60.7px of a 390px phone's title (measured).
+ * So the bar carries the STATE and not the switch. Off-live it says nothing at
+ * all and the title gets its full width back; live shows this badge in the slot
+ * before the ✕. Going live and leaving live are one row in the ☰, beside the
+ * other decisions about the screen you read from.
  *
- * Proclaim's ON AIR is the same idea and was the reference here; the owner kept
- * the shape and dropped the words: *"I don't want a on air, I want a Live
- * something and that's all."*
+ * ⚠ NOT A BUTTON, and that is the whole reason it may sit where it sits.
+ * Element 1's standing rule is *"nothing goes near the ✕: a mis-tap on the
+ * right-hand edge leaves the service."* A tappable LIVE against the ✕ would be
+ * two ways to end a service, adjacent, under a thumb. A `span` cannot be
+ * mis-tapped into anything — the rule holds because the thing obeying it is
+ * inert, not because it is careful.
  *
- * Two states, deliberately unequal in weight:
- *   off  — a quiet outlined "Go live", the same hollow treatment the capo chip
- *          uses for its off state: findable, ignorable, no colour.
- *   live — a solid red LIVE with a dot. Red because this is the one state in
- *          the app with a cost to being wrong about, and because a filled red
- *          badge is the single most-understood "you are live" signal there is.
- *          It does not use --chord (that is the key's colour) or the brand
- *          (that is every other control).
- *
- * One tap either way, no confirm. Going live only ever removes tools; coming
- * back only ever adds them. Neither can lose work — edit mode is a separate
- * deliberate press and holds its own Cancel.
+ * Red, and solid: the one state in the app with a cost to being wrong about.
+ * Not `--chord` (the key's colour) and not the brand (every other control).
  */
-function LiveChip({ mode, onChange }) {
-  const live = mode === 'live';
-  if (live) {
-    return (
-      <button
-        type="button"
-        onClick={() => onChange('practice')}
-        aria-label="Live. Tap to leave live"
-        className="min-h-0 shrink-0 h-[23px] sm:h-[20px] pl-1.5 pr-2 rounded-lg text-label-11 font-semibold leading-none inline-flex items-center gap-1 cursor-pointer border-0 hover:opacity-90"
-        // LONGHANDS — see CapoChip. A `background` shorthand with a nested
-        // var() fallback throws inside jsdom's style expander.
-        style={{ backgroundColor: '#e5484d', color: '#ffffff' }}
-      >
-        {/* The dot is what makes it read as a status rather than a button —
-            and it is what survives when the word is glanced past. */}
-        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: '#ffffff' }} />
-        LIVE
-      </button>
-    );
-  }
+function LiveBadge() {
   return (
-    <button
-      type="button"
-      onClick={() => onChange('live')}
-      aria-label="Go live"
-      className="min-h-0 shrink-0 h-[23px] sm:h-[20px] px-2 rounded-lg text-label-11 font-semibold leading-none inline-flex items-center cursor-pointer hover:opacity-90"
-      style={{
-        backgroundColor: 'transparent',
-        borderWidth: 1,
-        borderStyle: 'solid',
-        borderColor: 'var(--chart-rule, var(--ds-gray-400))',
-        color: 'var(--chart-subtle, var(--ds-gray-700))',
-      }}
+    <span
+      // A status, announced as one. `role="status"` is what tells a screen
+      // reader this is a state of the screen rather than something to do.
+      role="status"
+      aria-label="Live"
+      className="shrink-0 h-[23px] sm:h-[20px] pl-1.5 pr-2 rounded-lg text-label-11 font-semibold leading-none inline-flex items-center gap-1 select-none"
+      // LONGHANDS — see CapoChip. A `background` shorthand with a nested var()
+      // fallback throws inside jsdom's style expander.
+      style={{ backgroundColor: '#e5484d', color: '#ffffff' }}
     >
-      Go live
-    </button>
+      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: '#ffffff' }} />
+      LIVE
+    </span>
   );
 }
 
@@ -1557,6 +1535,11 @@ export default function Reader({
       onUpdateSettings={onUpdateSettings}
       song={song}
       config={config}
+      // Going live, and leaving it. The bar shows the STATE and the menu holds
+      // the SWITCH — see `LiveBadge` for why they were separated. Absent on
+      // every surface with exactly one mode (the hub, the editor preview, a
+      // shared link), which is what makes the row disappear there.
+      onModeChange={onModeChange}
       lyricSize={config.display.lyricFontSize}
       onLyricSize={(v) => onUpdateSettings?.('defaultFontSize', v)}
       chordSize={config.display.chordFontSize}
@@ -1598,7 +1581,24 @@ export default function Reader({
         <ReaderTopBar
           ref={headRef}
           aboveBar={aboveBar}
-          leading={railButton}
+          // The slot immediately before the ✕. It holds the LIVE status when
+          // live — right-aligned, unmissable, inert (see `LiveBadge`) — and
+          // whatever the host puts here otherwise.
+          //
+          // Not in `meta` with the key and the capo: those are facts about the
+          // SONG and this is a fact about the SESSION, and putting it in that
+          // group is what made a 390px bar carry five things and truncate the
+          // title to "Amaz…".
+          //
+          // ⚠ `config.mode`, not the raw `mode` prop — the hub is hard-wired to
+          // its own mode and must never show this, and `resolveReaderConfig`
+          // is the one place that knows.
+          leading={(
+            <>
+              {railButton}
+              {!embedded && config.mode === 'live' && <LiveBadge />}
+            </>
+          )}
           title={song.title}
           // ⚠ GONE while editing, not disabled and not live. The category
           // argument settles it (owner, 2026-08-09): *"you're changing the
@@ -1706,9 +1706,7 @@ export default function Reader({
                   say "Practice" there — and pressing it would strand an applied
                   change with no way back to Cancel. A control whose only two
                   outcomes are "no-op" and "lose your work" is not a control. */}
-              {onModeChange && !editing && (
-                <LiveChip mode={config.mode} onChange={onModeChange} />
-              )}
+
               {/* The tempo and the time are ALREADY on this row as text. In
                   edit mode they become the fields — which is the owner's
                   "a couple of interactive fields", and the answer to "this

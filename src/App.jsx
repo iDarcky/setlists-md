@@ -1087,13 +1087,6 @@ export default function App() {
     setSessionStats(stats || null);
     navigate('setlist-finale', { setlist: sl });
   };
-  // ⚠ `handleRunSessionAgain` was here, and it is GONE. Element 13 CUT "Run it
-  // again" from the finale (`docs/READER.md` §13: finishing a set and
-  // immediately restarting it is not a thing that happens), but only from the
-  // screen — the handler stayed, fully written, called by nothing, for as long
-  // as `ReaderFinale` has existed. Same family as the dead `ChartView` imports:
-  // a switch wired at one end. When you cut a feature, grep for its handler.
-  //
   // From a finale "Back to setlist" / "View setlist" — replace the finale
   // with the setlist overview so back from there returns to the original
   // entry point rather than the finale.

@@ -1581,84 +1581,64 @@ describe('the side rail is a scrub track', () => {
   });
 });
 
-// ── LIVE — the one control in the bar that concerns the mode ───────────────
-// The two-way Practice ⇄ Live chip these tests were first written for is gone.
-// The owner took it apart with the right question: Live → Practice is ordinary,
-// but Practice → Live is not a view change, it is *"I am about to present"*.
-// So the bar names ONE state and offers ONE way in — and never says "Practice",
-// because not being live needs no word.
-describe('the live control', () => {
+// ── LIVE — a status in the bar, a switch in the ☰ ──────────────────────────
+// Two owner decisions are encoded here and both were corrections:
+//   1. the bar stopped saying "Practice" — not being live is the absence of a
+//      mode, not a mode ("why it should change from practice to live?");
+//   2. the bar then stopped carrying the SWITCH at all, because it was still
+//      crowding the title on a phone ("a bit too crowded... maybe we move the
+//      live to be right aligned and last item before the x?").
+// What is left in the bar is a STATUS, and it is inert on purpose.
+describe('the live badge', () => {
   beforeEach(() => { mockWidth(1024); });
 
-  it('offers a way in, and never names the state you are already in', () => {
+  it('says nothing at all when not live', () => {
     render(
       <Reader song={makeSong()} settings={{}} mode="practice" onModeChange={() => {}} onExit={() => {}} />
     );
-    expect(screen.getByRole('button', { name: 'Go live' })).toBeTruthy();
-    // The word that cost a 390px phone 60.7px of its title, for a state that
-    // explains itself.
+    expect(screen.queryByRole('status', { name: 'Live' })).toBeNull();
+    // The words that cost a 390px phone its title, for states that explain
+    // themselves.
     expect(screen.queryByText('Practice')).toBeNull();
+    expect(screen.queryByText('Go live')).toBeNull();
   });
 
-  it('says LIVE while live, and offers the way back', () => {
+  it('shows LIVE while live', () => {
     render(
       <Reader song={makeSong()} settings={{}} mode="live" onModeChange={() => {}} onExit={() => {}} />
     );
-    const chip = screen.getByRole('button', { name: /^Live\./ });
-    expect(chip.textContent).toContain('LIVE');
-    expect(screen.queryByRole('button', { name: 'Go live' })).toBeNull();
+    expect(screen.getByRole('status', { name: 'Live' }).textContent).toContain('LIVE');
   });
 
-  it('goes both ways, one tap, no confirm', () => {
-    const onModeChange = vi.fn();
-    const { rerender } = render(
-      <Reader song={makeSong()} settings={{}} mode="practice" onModeChange={onModeChange} onExit={() => {}} />
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Go live' }));
-    expect(onModeChange).toHaveBeenLastCalledWith('live');
-
-    rerender(
-      <Reader song={makeSong()} settings={{}} mode="live" onModeChange={onModeChange} onExit={() => {}} />
-    );
-    fireEvent.click(screen.getByRole('button', { name: /^Live\./ }));
-    expect(onModeChange).toHaveBeenLastCalledWith('practice');
-  });
-
-  it('is ABSENT with no onModeChange — the surfaces that have exactly one mode', () => {
-    // The public share link, the hub, the editor preview. A control there would
-    // offer a switch with nothing on the other side of it.
-    render(<Reader song={makeSong()} settings={{}} mode="live" onExit={() => {}} />);
-    expect(screen.queryByRole('button', { name: 'Go live' })).toBeNull();
-    expect(screen.queryByRole('button', { name: /^Live\./ })).toBeNull();
-  });
-
-  it('is absent while editing — the one place it could not honestly offer', () => {
-    // Edit mode exists only off-live, and pressing it would strand the applied
-    // change with no way back to Cancel.
+  it('is NOT a button — the ✕ rule is what lets it sit where it sits', () => {
+    // Element 1: nothing tappable goes near the ✕, because a mis-tap on the
+    // right-hand edge leaves the service. A tappable LIVE against the ✕ would
+    // be two ways to end a service under one thumb.
     render(
-      <Reader
-        song={makeSong()} settings={{}} mode="practice"
-        onModeChange={() => {}} onUpdateSong={() => {}} onExit={() => {}}
-      />
+      <Reader song={makeSong()} settings={{}} mode="live" onModeChange={() => {}} onExit={() => {}} />
     );
-    expect(screen.getByRole('button', { name: 'Go live' })).toBeTruthy();
-    openSongActions();
-    fireEvent.click(screen.getByRole('button', { name: /^Edit/ }));
-    expect(screen.queryByRole('button', { name: 'Go live' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /live/i })).toBeNull();
   });
 
-  it('the control and the capabilities come from the SAME mode', () => {
-    // The failure this pins: a chip fed by the route while the config was fed
-    // by something else. `can.editSong` is live's clearest false, so the Edit
-    // action is the observable end of the capability set.
-    render(
-      <Reader
-        song={makeSong()} settings={{}} mode="live"
-        onModeChange={() => {}} onUpdateSong={() => {}} onExit={() => {}}
-      />
+  it('sits AFTER the title and key — it is the last thing before the ✕', () => {
+    const { container } = render(
+      <Reader song={makeSong()} settings={{}} mode="live" onModeChange={() => {}} onExit={() => {}} />
     );
-    expect(screen.getByRole('button', { name: /^Live\./ })).toBeTruthy();
-    openSongActions();
-    expect(screen.queryByRole('button', { name: /^Edit/ })).toBeNull();
+    const head = container.querySelector('.reader-head');
+    const badge = screen.getByRole('status', { name: 'Live' });
+    const exit = screen.getByRole('button', { name: 'Exit' });
+    const order = [...head.querySelectorAll('*')];
+    expect(order.indexOf(badge)).toBeLessThan(order.indexOf(exit));
+    // And after the key pill, which is a fact about the SONG rather than the
+    // session — the bar reads outward from what you play to how you read it.
+    const key = head.querySelector('[aria-label="Key (transpose)"]');
+    if (key) expect(order.indexOf(key)).toBeLessThan(order.indexOf(badge));
+  });
+
+  it('never in the hub, whatever mode is passed', () => {
+    // `config.mode` is the guard, not the raw prop: embedded resolves to the
+    // hub view, which has exactly one mode and no session.
+    render(<Reader song={makeSong()} settings={{}} mode="live" embedded onExit={() => {}} />);
+    expect(screen.queryByRole('status', { name: 'Live' })).toBeNull();
   });
 });

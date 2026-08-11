@@ -704,6 +704,15 @@ export default function ReaderMenu({
   // Where a locked control sends you. Absent → the lock is stated but not
   // sellable, which is what every locked control here used to be.
   onUpgrade = null,
+  // Going live, and leaving it. The reader's bar shows the STATE (a red LIVE
+  // badge in the slot before the ✕); this is the SWITCH. They were split
+  // because the bar was carrying both and truncating the song title to "Amaz…"
+  // on a 390px phone to do it — and because a tappable control against the ✕
+  // is two ways to end a service under one thumb.
+  //
+  // Absent on every surface with exactly one mode (the hub, the editor
+  // preview, a shared link), which is what makes the row not render there.
+  onModeChange = null,
 }) {
   const [tab, setTab] = useState('style');
   const { allowed: styleAllowed } = useEntitlement('chart-style');
@@ -1290,6 +1299,24 @@ export default function ReaderMenu({
               on would be the same lie the old explainer sheet told from the
               other direction. */}
           <GroupTitle>The screen</GroupTitle>
+          {/* ── Live ──────────────────────────────────────────────────────
+              FIRST in the group, above keep-awake, because it is the larger
+              decision and it changes what keep-awake means (live holds the
+              wake lock whatever that switch says).
+
+              A Switch rather than a button: live is a STATE you are in or out
+              of, and the menu already says every other state that way. The
+              info line names what it costs, because going live removes five
+              capabilities at once and a switch that silently takes tools away
+              is the thing this whole element exists to stop. */}
+          {onModeChange && (
+            <Field label="Live" inline
+              info="For the service itself. Hides the click, the edit button, note-writing and arrangement switching, and keeps the screen on. Transposing still works — it just won't be saved to the setlist.">
+              <Switch label="Live"
+                on={config?.mode === 'live'}
+                onChange={(v) => onModeChange(v ? 'live' : 'practice')} />
+            </Field>
+          )}
           <Field label="Keep the screen on" inline
             info="Stops the device locking while you read. Off by default. Going live always keeps the screen on, whether or not this is set.">
             <Switch label="Keep the screen on"

@@ -341,6 +341,10 @@ export default function SetlistReader({
       onUpdateSettings={onUpdateSettings}
       song={null}
       config={cfg}
+      // The break and missing-song screens get the Live row too — you can be
+      // sitting on a break when the service starts, and a menu that offers it
+      // on a song but not on a break is the fork coming back in miniature.
+      onModeChange={onModeChange}
       lyricSize={cfg.display.lyricFontSize}
       onLyricSize={(v) => onUpdateSettings?.('defaultFontSize', v)}
       chordSize={cfg.display.chordFontSize}

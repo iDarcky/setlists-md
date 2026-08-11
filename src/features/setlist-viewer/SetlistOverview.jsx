@@ -15,6 +15,7 @@ import { useAuth } from '@/auth/useAuth';
 import { SHARE_ENABLED } from '@/lib/setlistShare';
 import { formatClockTime } from '@/lib/dateFormat';
 import { useConfirm } from '@/ui/useConfirmHook';
+import { useMediaQuery, useIsTablet } from '@/lib/useMediaQuery';
 import { toast } from '@/ui/use-toast';
 
 /**
@@ -25,10 +26,12 @@ import { toast } from '@/ui/use-toast';
  * ⚠ There were TWO buttons here — "Play Live" and "Practice" — because there
  * were two routes. There are not two routes any more (2026-08-11), and the
  * owner's question settled the button too: *"Why do we need the 2 buttons?
- * Wasn't the whole idea so we have one single entry point?"* Which mode you
- * read in is now a chip in the reader's own top bar, one tap, visible the whole
- * time — as opposed to a choice made on this screen and then never shown again,
- * which is what made it invisible in the first place.
+ * Wasn't the whole idea so we have one single entry point?"* Live is a state
+ * you enter from inside the reader (its ☰), not a destination you pick here.
+ *
+ * The one button renders only where the BottomNav FAB is not already offering
+ * it — see the note at the button itself; the condition is the FAB's own, not
+ * a breakpoint.
  *
  * `onPlay` takes the index to start at, which is what `onPractice` took: the
  * "start HERE" the song rows have always meant survives the collapse.
@@ -56,6 +59,11 @@ export default function SetlistOverview({
   };
 
   const playAt = (i) => onPlay?.(Number.isInteger(i) ? i : 0);
+  // Exactly the condition `BottomNav` uses to decide it exists at all — see the
+  // note on the Play button below for why this is not a CSS breakpoint.
+  const isPhone = useMediaQuery('(max-width: 639.98px)');
+  const isTablet = useIsTablet();
+  const fabOffersPlay = !embedded && (isPhone || isTablet);
 
   const { songCount, breakCount, totalSeconds, anyEstimated } = useMemo(() => {
     let sc = 0, bc = 0, total = 0, est = false;
@@ -327,10 +335,21 @@ export default function SetlistOverview({
               {metaBlock}
             </div>
             <div className="shrink-0 ml-auto flex items-center gap-2">
-              {/* ONE button. It said "Play Live" when Live was a destination;
-                  it is not one any more, and a button that names a mode would
-                  be promising a choice this screen no longer makes. */}
-              {!hidePlay && onPlay && (
+              {/* ONE button, and only where the FAB is not already offering it
+                  (owner, 2026-08-11: *"we don't need the header play button on
+                  tablet/phone because we have fab. On desktop is fine"*).
+                  It said "Play Live" when Live was a destination; it is not one
+                  any more, and a button that names a mode would promise a
+                  choice this screen no longer makes.
+
+                  ⚠ Gated on the FAB's OWN condition, not on a CSS breakpoint.
+                  `BottomNav` renders when `isMobile || isTablet`, and its
+                  tablet test is `768–1366px AND pointer: coarse` — so a plain
+                  `hidden lg:flex` would have left two holes with no Play button
+                  and no FAB: 640–767px, and any 768–1023px screen with a mouse.
+                  Reusing the condition is what guarantees exactly one of the
+                  two exists on every device. */}
+              {!hidePlay && onPlay && !fabOffersPlay && (
                 <Button variant="brand" size="sm" onClick={() => playAt(0)} className="min-w-[108px] justify-center">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="mr-1.5"><path d="M8 5v14l11-7z" /></svg>
                   Play
@@ -363,18 +382,6 @@ export default function SetlistOverview({
               {moreMenuEl}
             </div>
             {metaBlock}
-            {/* ⚠ On a phone this slot held the PRACTICE button and nothing else
-                — there has never been a "Play Live" button on mobile, so the
-                only way into a service from here was to tap a song row and take
-                the practice view it gave you. One button fixes that by
-                existing: same control as the desktop, same slot as the button
-                it replaces, full width because it is the only thing on the row. */}
-            {!hidePlay && onPlay && (
-              <Button variant="brand" size="sm" onClick={() => playAt(0)} className="mt-3 w-full justify-center">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="mr-1.5"><path d="M8 5v14l11-7z" /></svg>
-                Play
-              </Button>
-            )}
           </div>
         </div>
 
