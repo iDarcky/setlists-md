@@ -1603,7 +1603,11 @@ describe('the live badge', () => {
     expect(screen.queryByText('Go live')).toBeNull();
   });
 
-  it('paints the fold, and drops the ✕ under it', () => {
+  it('paints the fold, and on a PHONE drops the ✕ under it', () => {
+    // ⚠ This asserted "no ✕ in live" at a desktop width until 2026-08-11.
+    // Dropping the ✕ is a phone decision — see "who keeps the ✕ in live" below
+    // — so the assertion needed the width it was always really about.
+    mockWidth(390);
     render(
       <Reader song={makeSong()} settings={{}} mode="live" onModeChange={() => {}} onExit={() => {}} />
     );
@@ -1647,5 +1651,44 @@ describe('the live badge', () => {
     // hub view, which has exactly one mode and no session.
     render(<Reader song={makeSong()} settings={{}} mode="live" embedded onExit={() => {}} />);
     expect(screen.queryByRole('status', { name: 'Live' })).toBeNull();
+  });
+});
+
+// ── The ✕ in live is a PHONE decision ───────────────────────────────────────
+// Owner, 2026-08-11: *"On desktop and tablet we can keep the X I guess."*
+// He is closing a hole, not softening a rule: the gesture that replaces the ✕
+// is touch-only, so on a desktop in live there was no ✕ AND no pull, leaving
+// ☰ → Live off → ✕ as the only exit. The mis-tap being guarded against is a
+// thumb on a phone's right edge; a mouse does not do that.
+describe('who keeps the ✕ in live', () => {
+  const live = (props) => render(
+    <Reader song={makeSong()} settings={{}} mode="live" onModeChange={() => {}} onExit={() => {}} {...props} />
+  );
+
+  it('a phone drops it — the pull is there instead', () => {
+    mockWidth(390);
+    live();
+    expect(screen.queryByRole('button', { name: 'Exit' })).toBeNull();
+    expect(screen.getByRole('status')).toHaveTextContent('Live');
+  });
+
+  it('a tablet and a desktop keep it', () => {
+    mockWidth(820);
+    live();
+    expect(screen.getByRole('button', { name: 'Exit' })).toBeTruthy();
+    mockWidth(1280);
+    live();
+    expect(screen.getAllByRole('button', { name: 'Exit' }).length).toBeGreaterThan(0);
+  });
+
+  it('the fold shows at every width — only the ✕ is conditional', () => {
+    // The fold is the indicator; dropping the ✕ is a separate decision about
+    // thumbs. Conflating them is what hid the desktop hole.
+    for (const w of [390, 820, 1280]) {
+      mockWidth(w);
+      const { unmount } = live();
+      expect(screen.getByRole('status')).toHaveTextContent('Live');
+      unmount();
+    }
   });
 });

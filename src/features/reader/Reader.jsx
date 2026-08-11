@@ -658,7 +658,23 @@ export default function Reader({
   // to turn live off with. The suite caught it on the test named "always offers
   // a way out", which is exactly the invariant at stake — so the condition is
   // written as "someone else can let me out", not as "am I live".
-  const liveOwnsCorner = !embedded && config.mode === 'live' && !!onModeChange;
+  // The fold is the INDICATOR and shows wherever the reader owns the screen.
+  const liveFold = !embedded && config.mode === 'live';
+  // ⚠ Dropping the ✕ is a PHONE decision, not a live decision. Owner,
+  // 2026-08-11: *"On desktop and tablet we can keep the X I guess."*
+  //
+  // And he is closing a hole rather than softening a rule. The gesture that
+  // replaces the ✕ is `touchstart`/`touchmove` — touch only. On a desktop in
+  // live there was therefore no ✕ AND no pull, leaving ☰ → Live off → ✕ as the
+  // only way out: three steps, none of them visible. The mis-tap the ✕ removal
+  // guards against is a thumb on a phone's right edge; a mouse pointer does not
+  // do that, so the guard was costing a real exit to prevent a risk that is not
+  // present.
+  //
+  // `!wide` is the phone (<768px), which is exactly "not desktop and not
+  // tablet". `onModeChange` stays in the condition for the reason the suite
+  // caught earlier: without a way to turn live off, the ✕ must remain.
+  const liveHidesExit = liveFold && !!onModeChange && !wide;
   const editing = canEdit && editSession?.id === songId;
   const editBase = editing ? editSession.base : null;
 
@@ -1260,7 +1276,7 @@ export default function Reader({
   useEffect(() => {
     pullLiveRef.current = editing
       ? { armed: true, label: 'finish', done: toggleEdit }
-      : (liveOwnsCorner && onExit
+      : (liveHidesExit && onExit
         ? { armed: true, label: 'exit', done: onExit }
         : { armed: false });
   });
@@ -1637,7 +1653,7 @@ export default function Reader({
           //
           // `config.mode`, not the raw `mode` prop — the hub is hard-wired to
           // its own mode and `resolveReaderConfig` is the one place that knows.
-          cornerMark={liveOwnsCorner ? <LiveFold /> : null}
+          cornerMark={liveFold ? <LiveFold /> : null}
           title={song.title}
           // ⚠ GONE while editing, not disabled and not live. The category
           // argument settles it (owner, 2026-08-09): *"you're changing the
@@ -1658,7 +1674,7 @@ export default function Reader({
           // mid-edit strands the change". The guard was right and the answer
           // was wrong: ✕ already means "get out without keeping", which is
           // precisely Cancel. `requestCancelEdit` is what makes a mis-tap safe.
-          onExit={editing ? requestCancelEdit : (liveOwnsCorner ? null : onExit)}
+          onExit={editing ? requestCancelEdit : (liveHidesExit ? null : onExit)}
           editing={editing}
           exitLabel={editing ? 'Cancel editing' : 'Exit'}
           exitDisabled={false}
@@ -1806,7 +1822,7 @@ export default function Reader({
               progress, not a control, and Done/Cancel are the reachable way to
               do the same thing. Its text is written by the touch handler
               directly (see the effect) — nothing here re-renders mid-pull. */}
-          {(editing || liveOwnsCorner) && (
+          {(editing || liveHidesExit) && (
             <div
               ref={hintRef}
               aria-hidden="true"

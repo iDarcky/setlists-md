@@ -1,10 +1,13 @@
 // Which mode a setlist opens in, from the clock.
 //
-// The fixture is the owner's own band, because it is the case that shaped the
-// rule: *"we typically have a practice one hour before the service and finish
-// at let's say :45."* A 10:00 service with a 09:00 rehearsal means a plain
-// "30 minutes before" window opens at 09:30 — a quarter of an hour BEFORE the
-// band stops rehearsing.
+// ⚠ The `service` fixture below records a SAME-DAY rehearsal, and that is the
+// less common shape. The owner's own band does not: *"a rehearsal is not
+// recorded for the Sunday morning, is recorded for a Friday afternoon"* — their
+// 09:00–09:45 warm-up exists only in people's heads, so for them the 30-minute
+// lead-in is the entire rule and `noRehearsal` is the realistic fixture.
+//
+// Both are tested because both are real: a church that records a call time
+// gets the clause, and everyone else gets the lead-in.
 import { describe, it, expect } from 'vitest';
 import { resolveOpeningMode } from '@/lib/openingMode';
 

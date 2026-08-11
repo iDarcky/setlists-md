@@ -24,13 +24,22 @@ import { READER_DEFAULT_MODE } from '@/lib/readerConfig';
  *          service does
  *   practice  everywhere else, including any setlist with no date or no time
  *
- * The rehearsal clause is not a nicety, it is the case the owner described:
- * *"we typically have a practice one hour before the service and finish at
- * let's say :45."* A 10:00 service with a 09:00 rehearsal means the plain
- * 30-minute window opens at 09:30 — a quarter of an hour BEFORE the band stops
- * rehearsing. Nobody starts a rehearsal at 09:30; theirs is still running.
- * `rehearsalDate`/`rehearsalTime` are fields the leader already fills in, so
- * this is a fact the app has rather than an inference it makes.
+ * ⚠ THE REHEARSAL CLAUSE DOES NOT COVER THE COMMON CASE, and an earlier version
+ * of this comment claimed it did. The correction, owner 2026-08-11: *"a
+ * rehearsal is not recorded for the Sunday morning, is recorded for a Friday
+ * afternoon."*
+ *
+ * So the Sunday-morning run-through — his band's is 09:00–09:45 for a 10:00
+ * service — is not in the data at all. `rehearsalDate` is the Friday. The
+ * clause fires only for a church that records a SAME-DAY call time, which some
+ * do; for everyone else it is dormant and the 30-minute lead-in is the whole
+ * rule.
+ *
+ * Which means: opening at 09:35, mid-warm-up, gives live. That is a known and
+ * accepted cost — the owner's read was *"nobody starts a rehearsal at 30 min
+ * before the service"*, and the price of being wrong is one tap on the ☰ row.
+ * Do not "fix" it by widening the clause to guess at unrecorded rehearsals; the
+ * clause is only trustworthy because it reads a field a human filled in.
  *
  * Generous on the back edge on purpose: a service that started twenty minutes
  * ago is unambiguously live, and people pick their phone up mid-service.
