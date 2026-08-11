@@ -261,7 +261,6 @@ const PANEL_TITLES = {
   general: 'General',
   account: 'Account',
   appearance: 'Appearance',
-  chart: 'Chart Defaults',
   'chart-style': 'Chart Style',
   sections: 'Sections',
   sync: 'Cloud Sync',
@@ -278,7 +277,6 @@ const PANEL_SUBTITLES = {
   general: 'Language, your landing page, and app behaviour.',
   account: 'Manage your profile, sign-in, and plan.',
   appearance: 'Theme, accent colour, and date/time format.',
-  chart: 'How charts lay out and which elements show by default.',
   'chart-style': 'Fine-tune chart colours, fonts, and spacing.',
   sections: 'Custom section types, colours, and labels.',
   sync: 'Connect cloud storage to sync across devices.',
@@ -403,140 +401,24 @@ function AppearancePanel({ settings, update, isSignedIn }) {
   );
 }
 
-function ChartPanel({ settings, update }) {
-  return (
-    <Section subtitle="How charts are laid out and which elements are visible by default.">
-      <Row label="Library layout" description="Number of columns for the song library view.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {['auto', 1, 2].map(v => (
-            <Button
-              key={v}
-              size="sm"
-              variant={settings.defaultColumns === v ? 'secondary' : 'ghost'}
-              onClick={() => update('defaultColumns', v)}
-              className={settings.defaultColumns === v ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-            >
-              {v === 'auto' ? 'Auto' : `${v} col`}
-            </Button>
-          ))}
-        </div>
-      </Row>
-      <Row label="Setlist rail" description="Show the setlist beside the chart in live & practice on landscape tablets.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {[
-            { key: true, label: 'On' },
-            { key: false, label: 'Off' },
-          ].map(({ key, label }) => {
-            const active = (settings.performanceRail !== false) === key;
-            return (
-              <Button
-                key={String(key)}
-                size="sm"
-                variant={active ? 'secondary' : 'ghost'}
-                onClick={() => update('performanceRail', key)}
-                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </div>
-      </Row>
-      <Row label="Navigation controls" description="How you move between songs in live & practice.">
-        <Select value={settings.navStyle || 'pill'} onValueChange={(v) => update('navStyle', v)}>
-          <SelectTrigger className="h-9 w-48 bg-[var(--ds-background-100)]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pill">Floating pill</SelectItem>
-            <SelectItem value="header">Header buttons</SelectItem>
-            <SelectItem value="edge">Edge arrows</SelectItem>
-            <SelectItem value="swipe">Swipe</SelectItem>
-          </SelectContent>
-        </Select>
-      </Row>
-      <Row label="Accidentals" description="How sharps and flats are spelled. Auto follows the song's key (e.g. F♯ in G, G♭ in D♭).">
-        <Select value={settings.accidentals || 'auto'} onValueChange={(v) => update('accidentals', v)}>
-          <SelectTrigger className="h-9 w-44 bg-[var(--ds-background-100)]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="auto">Auto (by key)</SelectItem>
-            <SelectItem value="sharps">Sharps (♯)</SelectItem>
-            <SelectItem value="flats">Flats (♭)</SelectItem>
-          </SelectContent>
-        </Select>
-      </Row>
-      <Row label="Structure ribbon" description="How the section flow looks in chart, practice & live (header or floating).">
-        <Select value={settings.ribbonStyle || 'codes'} onValueChange={(v) => update('ribbonStyle', v)}>
-          <SelectTrigger className="h-9 w-44 bg-[var(--ds-background-100)]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {/* Three since 2026-08-05 (owner). Inline and Dots + label were
-                variants of Boxes and Dots, not styles of their own. */}
-            <SelectItem value="codes">Boxes</SelectItem>
-            <SelectItem value="chips">Chips</SelectItem>
-            <SelectItem value="dots">Dots</SelectItem>
-          </SelectContent>
-        </Select>
-      </Row>
-      <Row label="Tab grid resolution" description="Default subdivisions when creating a new tab. Beats only keeps it simple; finer grids allow 8th/16th-note detail.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {[
-            { key: 1, label: '1/4' },
-            { key: 2, label: '1/8' },
-            { key: 4, label: '1/16' },
-          ].map(({ key, label }) => {
-            const active = (settings.tabSubdivision || 1) === key;
-            return (
-              <Button
-                key={key}
-                size="sm"
-                variant={active ? 'secondary' : 'ghost'}
-                onClick={() => update('tabSubdivision', key)}
-                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </div>
-      </Row>
-      <Row label="Tab size" description="How large guitar/bass tabs render in the chart view.">
-        <div className="flex p-1 bg-[var(--modes-surface-strong)] rounded-lg">
-          {[
-            { key: 0.85, label: 'Small' },
-            { key: 1, label: 'Medium' },
-            { key: 1.25, label: 'Large' },
-          ].map(({ key, label }) => {
-            const active = (settings.tabSize || 1) === key;
-            return (
-              <Button
-                key={key}
-                size="sm"
-                variant={active ? 'secondary' : 'ghost'}
-                onClick={() => update('tabSize', key)}
-                className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
-              >
-                {label}
-              </Button>
-            );
-          })}
-        </div>
-      </Row>
-      <Row label="Tab string colour" description="Colour of the string lines, bar lines and string labels in tabs.">
-        <TabColorControl value={settings.tabStringColor} fallback="#9b9b9b" onChange={v => update('tabStringColor', v)} />
-      </Row>
-      <Row label="Tab number colour" description="Colour of the fret numbers in tabs.">
-        <TabColorControl value={settings.tabNumberColor} fallback="#e0a82e" onChange={v => update('tabNumberColor', v)} />
-      </Row>
-      <Row label="Tab background" description="Fill behind the fret numbers (where the string line is broken).">
-        <TabColorControl value={settings.tabBg} fallback="#101010" onChange={v => update('tabBg', v)} />
-      </Row>
-    </Section>
-  );
-}
+// ⚠ "Chart Defaults" WAS here, and it is gone (2026-08-11). Owner: *"we don't
+// need the Chart Defaults settings now that we've moved almost everything
+// inside the 3 line menu."* Verified row by row before deleting rather than
+// taking "almost" on trust — a setting whose only control is removed is a
+// switch wired at one end, which is the exact family this element keeps
+// finding:
+//
+//   defaultColumns · accidentals · ribbonStyle · tabSubdivision · tabSize ·
+//   tabStringColor · tabNumberColor · tabBg   → all already in the ☰
+//   (`ReaderMenu`), which is where a decision about the chart belongs: beside
+//   the chart, not two screens away in Settings.
+//
+//   performanceRail · navStyle  → DEAD. Their only readers were
+//   `PerformanceView` and `PracticeView`, which stopped being referenced at
+//   the graduation. The reader has its own `readerNav` (element 10, four
+//   styles) and its rail opens from the footer counter — element 3 removed the
+//   `rail` knob when the permanent strip went. Both keys are dropped from
+//   PORTABLE_PREF_KEYS too; nothing writes them now.
 
 // Labs — experimental features & flags. Lives under the About group.
 function LabsPanel({ settings, update }) {
@@ -573,19 +455,14 @@ function LabsPanel({ settings, update }) {
           </div>
         </Row>
       )}
-      <Row label="Floating structure ribbon" description="Move the section-flow ribbon out of the header into a floating, see-through overlay in chart, practice & live. Off keeps it in the header.">
-        <Select value={settings.structurePosition || 'top'} onValueChange={(v) => update('structurePosition', v)}>
-          <SelectTrigger className="h-9 w-44 bg-[var(--ds-background-100)]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="top">Off (in header)</SelectItem>
-            <SelectItem value="bottom">Bottom</SelectItem>
-            <SelectItem value="left">Left</SelectItem>
-            <SelectItem value="right">Right</SelectItem>
-          </SelectContent>
-        </Select>
-      </Row>
+      {/* ⚠ "Floating structure ribbon" was here and is gone (2026-08-11).
+          Owner: *"the Floating structure ribbon should be removed, we reworked
+          the structure in a better way."* It wrote `structurePosition`, which
+          is very much alive — it is the reader's `ribbon` knob — so this is a
+          removal of the DUPLICATE control, not of the setting. The ☰ owns it as
+          "Structure location" (element 3), with the constraint Settings never
+          knew about: left/right are dots-only, and picking another style moves
+          a side position back to top. */}
       <LabsToggle settings={settings} update={update} flag="songsLibraryPlus"
         label="Songs library +"
         description="Extra Songs-list power: more columns (CCLI, year, length, arrangements, themes…) with drag-to-reorder, a 'used in setlists' count, group-by and data-quality quick filters, bulk tagging, and a row-density toggle. Removes the table view on phones." />
@@ -1142,15 +1019,6 @@ function appearanceSummary(s) {
   return `${theme} · ${week} · ${clock}`;
 }
 
-function chartSummary(s) {
-  const cols = s?.defaultColumns === 'auto' ? 'Auto' : `${s?.defaultColumns || 1}-col`;
-  const flow = s?.chartLayout === 'rows' ? 'L→R' : 'T↓D';
-  const role = s?.displayRole === 'vocalist' ? 'Vocals'
-    : s?.displayRole === 'drummer' ? 'Drums'
-    : 'Full';
-  return `${cols} · ${flow} · ${role}`;
-}
-
 function chartStyleSummary(s) {
   const id = s?.chartTheme || DEFAULT_CHART_THEME_ID;
   const builtIn = CHART_THEME_MAP[id]?.name;
@@ -1275,8 +1143,6 @@ export default function Settings({
         return <GeneralPanel settings={settings} update={update} onShowHelp={onShowHelp} onReplayOnboarding={onReplayOnboarding} />;
       case 'appearance':
         return <AppearancePanel settings={settings} update={update} isSignedIn={isSignedIn} />;
-      case 'chart':
-        return <ChartPanel settings={settings} update={update} />;
       case 'chart-style':
         return <ChartStylePanel settings={settings} update={update} onUpgrade={onUpgrade} />;
       case 'sections':
@@ -1357,7 +1223,6 @@ export default function Settings({
       title: 'Display',
       items: [
         { key: 'appearance', label: 'Appearance', icon: AppearanceIcon, value: appearanceSummary(settings) },
-        { key: 'chart', label: 'Chart Defaults', icon: ChartIcon, value: chartSummary(settings) },
         { key: 'chart-style', label: 'Chart Style', icon: AppearanceIcon, value: chartStyleSummary(settings), badge: 'Pro' },
         { key: 'sections', label: 'Sections', icon: ChartIcon, value: sectionsSummary(settings), badge: 'Pro' },
       ],

@@ -46,8 +46,13 @@ export const PORTABLE_PREF_KEYS = [
   'clockFormat',
   'userName',
   'lastChangelogVersion',
-  'performanceRail',
-  'navStyle',
+  // ⚠ `performanceRail` and `navStyle` were here. Both were read ONLY by
+  // PerformanceView / PracticeView, which stopped being referenced when the
+  // reader flag graduated, and their Settings rows went with the Chart Defaults
+  // panel — so nothing writes them and nothing reads them. Syncing a key no
+  // surface can produce is the same one-ended switch, just travelling between
+  // devices. The reader's equivalents (`readerNav`, and the rail's own
+  // open/closed state) are already portable / per-device by design.
   'displayMode',
   'ribbonStyle',
   'structurePosition',
