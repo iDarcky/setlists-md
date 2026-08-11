@@ -214,13 +214,17 @@ describe('the ribbon style, and the two that were cut', () => {
 
 // ── The mode, now that it is state rather than a route ──────────────────────
 describe('the reader mode', () => {
-  it('opens LIVE', () => {
-    // Owner, 2026-08-11: *"why am I not live when I press play?"* Pressing Play
-    // on a setlist means "we are doing this now"; rehearsing is the special
-    // case you step out to. An earlier version of this test asserted
-    // 'practice', reasoning from the cost of each mistake — which treats the
-    // two as peers you pick between, and they are not.
-    expect(READER_DEFAULT_MODE).toBe('live');
+  it('falls back to practice when nothing schedules the setlist', () => {
+    // ⚠ This constant has asserted BOTH values during this element, which is
+    // the tell that it was the wrong thing to be asserting. A single entry
+    // point cannot have a fixed default without being wrong for one of its two
+    // audiences.
+    //
+    // The clock decides now (`lib/openingMode.js`, tested in
+    // `opening-mode.test.js`). What is left here is the leftover: a setlist
+    // with no date or no time, and campfire, which has neither. Those are all
+    // "I am looking at this", which is practice.
+    expect(READER_DEFAULT_MODE).toBe('practice');
   });
 
   it('the default mode is one the VIEW table actually has', () => {
