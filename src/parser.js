@@ -1,5 +1,32 @@
 import { inferStructureMode, structureFollowsSections } from './music';
 
+// ── The `{modulate}` marker ────────────────────────────────────────────────
+// One shape, two writers, two readers — kept together so the regex, the object
+// and the serialised text can never drift apart. They did not drift before
+// because there was nothing to drift; `every` is the first optional part this
+// marker has ever had.
+//
+//   {modulate: +2}          fire the FIRST time this section is played
+//   {modulate: +2, every}   fire on every repeat (a chorus that climbs)
+//
+// Why the distinction exists at all: a marker lives in the section BODY, and a
+// repeated section replays its body — so a chorus containing "+2" climbed a
+// step every time it was played, with no way to say "modulate, then repeat in
+// the new key". See `sectionModPlan` in `lib/songFlow.js`.
+export function modulateMarker(m) {
+  const marker = { type: 'modulate', semitones: parseInt(m[1], 10) };
+  // Absent, not `false` — the object goes through hashing and equality checks
+  // in the sync engines, and a new always-present key would make every existing
+  // song look changed on the first load after this ships.
+  if (m[2]) marker.every = true;
+  return marker;
+}
+
+export function serializeModulate(l) {
+  const n = `${l.semitones > 0 ? '+' : ''}${l.semitones}`;
+  return `{modulate: ${n}${l.every ? ', every' : ''}}`;
+}
+
 // Parse a .md song file into a structured object
 export function parseSongMd(text) {
   const lines = text.split('\n');
@@ -151,9 +178,11 @@ export function parseSongMd(text) {
     }
 
     // Modulate marker detection
-    const modMatch = line.match(/^\{modulate:\s*([+-]?\d+)\}$/);
+    const modMatch = line.match(/^\{modulate:\s*([+-]?\d+)(\s*,\s*every)?\}$/);
     if (modMatch) {
-      if (current) current.lines.push({ type: 'modulate', semitones: parseInt(modMatch[1], 10) });
+      // `every` = climb on every repeat; bare = fire the first time only.
+      // See `sectionModPlan` for why a repeated section needed the distinction.
+      if (current) current.lines.push(modulateMarker(modMatch));
       continue;
     }
 
@@ -382,7 +411,7 @@ export function songToMd(song, arrangement) {
       if (typeof l === 'string') return l;
       if (l && l.type === 'tab') return serializeTabBlock(l);
       if (l && l.type === 'tabref') return `{tabref: ${l.name}}`;
-      if (l && l.type === 'modulate') return `{modulate: ${l.semitones > 0 ? '+' : ''}${l.semitones}}`;
+      if (l && l.type === 'modulate') return serializeModulate(l);
       return '';
     }).join('\n') + '\n\n';
   }
@@ -572,9 +601,9 @@ export function parseSectionLines(rawText) {
       tabAccum.raw.push(line);
       continue;
     }
-    const modMatch = line.match(/^\{modulate:\s*([+-]?\d+)\}$/);
+    const modMatch = line.match(/^\{modulate:\s*([+-]?\d+)(\s*,\s*every)?\}$/);
     if (modMatch) {
-      out.push({ type: 'modulate', semitones: parseInt(modMatch[1], 10) });
+      out.push(modulateMarker(modMatch));
       continue;
     }
     const refMatch = line.match(/^\{tabref:\s*(.+?)\}$/);

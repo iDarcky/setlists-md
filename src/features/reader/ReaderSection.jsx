@@ -196,7 +196,7 @@ function clampChords(chords, plainText) {
 }
 
 export default function ReaderSection({
-  section, index, config, songKey, settings, transpose, modOffset,
+  section, index, config, songKey, settings, transpose, modOffset, modFires = true,
   repeatOf = -1, onOpenHere, onCollapse = null, tabColors, stickyTop = 0, onChordTap = null,
   // Where this slot sits in a run of back-to-back repeats — `songFlow.runs`.
   // The lead slot draws one pill for the whole run; the rest draw nothing.
@@ -748,6 +748,7 @@ export default function ReaderSection({
         section={section}
         transpose={transpose}
         modOffset={modOffset}
+        modFires={modFires}
         notation={config.display.notation}
         songKey={songKey}
         accidentals={settings?.accidentals}

@@ -106,7 +106,12 @@ function groupChordWords(pairs) {
 }
 
 export default function SectionBlock({
-  section, transpose, modOffset = 0, nns, notation, songKey, accidentals = 'auto',
+  section, transpose, modOffset = 0,
+  // Whether THIS occurrence applies its own `{modulate}` markers. False on the
+  // repeat of a section whose markers are once-only — see `sectionModPlan`.
+  // Defaults true so every existing caller behaves exactly as it did.
+  modFires = true,
+  nns, notation, songKey, accidentals = 'auto',
   showChords = true, showLyrics = true, showTabs = true, inlineNotes = true, noteStyle = 'dashes',
   sectionColors, sectionLabels, customSectionTypes, tabScale = 1, tabColors, tabInstrument = 'all',
   condensed = false, onJumpToFirst,
@@ -147,16 +152,24 @@ export default function SectionBlock({
   // tabs are only shown under "all".
   const tabMatches = (inst) => !tabInstrument || tabInstrument === 'all' || inst === tabInstrument;
 
-  // Pre-compute per-line modulate offsets (cumulative within this section)
+  // Pre-compute per-line modulate offsets (cumulative within this section).
+  //
+  // ⚠ `modFires` is what makes a repeat hold its key instead of climbing again.
+  // A `{modulate}` lives in the section BODY, so replaying the section replayed
+  // the shift — the owner hit this immediately: *"I have C1 and I wanted to add
+  // another C1 but because C1 already had the modulate it modulated again."*
+  // `sectionModPlan` decides per SLOT whether this occurrence's markers fire;
+  // this has to agree with it exactly, or the incoming offset and the in-section
+  // offsets describe two different songs.
   const lineOffsets = useMemo(() => {
     const acc = { running: modOffset };
     return (section.lines || []).map(line => {
-      if (typeof line === 'object' && line.type === 'modulate') {
+      if (typeof line === 'object' && line.type === 'modulate' && (line.every || modFires)) {
         acc.running += line.semitones;
       }
       return acc.running;
     });
-  }, [section.lines, modOffset]);
+  }, [section.lines, modOffset, modFires]);
 
   // Strip trailing colon from section type and apply user label overrides
   // (e.g. Verse → Strofa, preserving trailing numbers).
@@ -356,6 +369,10 @@ export default function SectionBlock({
       if (line.type === 'tab') return showTabs && tabMatches(line.instrument) ? <TabBlock key={idx} {...tabProps(line)} /> : null;
       if (line.type === 'tabref') return showTabs && line.tab && tabMatches(line.tab.instrument) ? <TabBlock key={idx} {...tabProps(line.tab)} /> : null;
       if (line.type === 'modulate') {
+        // Inert on this occurrence — the key change already happened the first
+        // time through. Drawing "↗ A" over a chorus that does not change key is
+        // the chart telling a story the chords do not support.
+        if (!line.every && !modFires) return null;
         // Element 8. Was a full-width brand pill between two rules — the
         // loudest thing on the page for an event that lasts one bar. Now a
         // compact inline chip that names the key you are ARRIVING IN, because

@@ -679,7 +679,7 @@ export default function Reader({
   // deciding your phone shouldn't sleep while you browse.
   useWakeLock(!embedded && (config.mode === 'live' || settings?.keepAwake === true));
 
-  const { ordered, offsets, repeats } = useMemo(() => buildSongFlow(song), [song]);
+  const { ordered, offsets, fires, repeats } = useMemo(() => buildSongFlow(song), [song]);
 
   // The active section IS whichever heading is pinned — so the reading line
   // sits at the pin, not a third of the way down. Otherwise the ribbon
@@ -2053,6 +2053,7 @@ export default function Reader({
               settings={settings}
               transpose={chartTranspose}
               modOffset={offsets[idx]}
+              modFires={fires[idx] !== false}
               repeatOf={repeats[idx]}
               // The tag opens where it stands (owner, option B, 2026-08-05),
               // and a collapsed RUN opens all the plays it stands for — they

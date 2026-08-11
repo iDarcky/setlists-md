@@ -31,22 +31,62 @@ export function orderSections(song) {
 }
 
 /**
- * Cumulative modulate offset entering each ordered section.
+ * The modulation plan for a playback order: what key each slot starts in, and
+ * whether that slot's own markers fire.
  *
- * `{modulate: +2}` markers stack across the whole playback order, so a section
- * repeated after a key change plays in the new key. Returns the offset *going
- * in* to each section — offsets from markers inside a section apply to the
- * lines after them, which `SectionBlock` handles.
+ * ── Why a slot has to be asked ──────────────────────────────────────────────
+ * A `{modulate}` lives in the section BODY, and a repeated section replays its
+ * body — so a chorus containing "+2" used to climb a step every single time it
+ * was played. Owner, 2026-08-11: *"I have C1 and I wanted to add another C1 but
+ * because C1 already had the modulate it modulated again."*
+ *
+ * That is arithmetically consistent and it is one of two real intentions. The
+ * other — the commoner one — is "modulate, then repeat in the new key". The
+ * format could not tell them apart, so it now does:
+ *
+ *   {modulate: +2}          fires the FIRST time this section is played
+ *   {modulate: +2, every}   fires on every repeat (a chorus that climbs)
+ *
+ * ⚠ This CHANGES the sound of existing songs that repeat a modulating section:
+ * they used to climb and now hold. That is the owner's call, taken knowingly —
+ * the alternative was leaving the commoner intention unsayable.
+ *
+ * "First time" is per SECTION, by identity: `orderSections` resolves repeats to
+ * the same object, so the same chorus twice is the same reference twice.
+ *
+ * @returns {{ offsets: number[], fires: boolean[] }}
+ *   offsets — the cumulative shift going IN to each slot. Markers inside a
+ *             section apply to the lines after them; `SectionBlock` does that.
+ *   fires   — whether THIS slot applies its own markers. False on the repeat of
+ *             a section whose markers are once-only, which is what stops the
+ *             chip drawing a key change that does not happen.
+ */
+export function sectionModPlan(ordered) {
+  const acc = { total: 0 };
+  const seen = new Set();
+  const offsets = [];
+  const fires = [];
+  (ordered || []).forEach(section => {
+    offsets.push(acc.total);
+    const first = !seen.has(section);
+    seen.add(section);
+    let fired = false;
+    (section?.lines || []).forEach(line => {
+      if (typeof line !== 'object' || line.type !== 'modulate') return;
+      // `every` climbs on repeats; a bare marker only fires the first time.
+      if (line.every || first) { acc.total += line.semitones; fired = true; }
+    });
+    fires.push(fired);
+  });
+  return { offsets, fires };
+}
+
+/**
+ * Cumulative modulate offset entering each ordered section. Thin wrapper over
+ * `sectionModPlan` — kept because it is the shape callers already ask for.
  */
 export function sectionModOffsets(ordered) {
-  const acc = { total: 0 };
-  return (ordered || []).map(section => {
-    const offset = acc.total;
-    (section.lines || []).forEach(line => {
-      if (typeof line === 'object' && line.type === 'modulate') acc.total += line.semitones;
-    });
-    return offset;
-  });
+  return sectionModPlan(ordered).offsets;
 }
 
 /**
@@ -135,7 +175,7 @@ export function repeatRuns(ordered, repeats, isCollapsed = () => true) {
 /** All of it in one pass — what the reader actually wants. */
 export function buildSongFlow(song) {
   const ordered = orderSections(song);
-  const offsets = sectionModOffsets(ordered);
+  const { offsets, fires } = sectionModPlan(ordered);
   const repeats = repeatFirstIndex(ordered, offsets);
-  return { ordered, offsets, repeats, runs: repeatRuns(ordered, repeats) };
+  return { ordered, offsets, fires, repeats, runs: repeatRuns(ordered, repeats) };
 }
