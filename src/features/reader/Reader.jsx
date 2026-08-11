@@ -1239,7 +1239,21 @@ export default function Reader({
   const pullRef = useRef(null);
   const hintRef = useRef(null);
   const pullLiveRef = useRef({});
-  useEffect(() => { pullLiveRef.current = { editing, done: toggleEdit }; });
+  // ── What the pull is FINISHING ────────────────────────────────────────────
+  // Owner, 2026-08-11: *"Can we do the drag and exit from live?"* — so the
+  // gesture built for edit mode arms for live as well, rather than a second
+  // gesture being written beside it. Same threshold, same damping, same pill;
+  // only the verb changes.
+  //
+  // Edit wins when both are somehow true (they cannot be — editing is
+  // practice-only — but the order states the intent rather than relying on it).
+  useEffect(() => {
+    pullLiveRef.current = editing
+      ? { armed: true, label: 'finish', done: toggleEdit }
+      : (liveOwnsCorner
+        ? { armed: true, label: 'leave live', done: () => onModeChange?.('practice') }
+        : { armed: false });
+  });
 
   useEffect(() => {
     const sc = scrollRef.current;
@@ -1285,18 +1299,22 @@ export default function Reader({
       const arrow = hint.querySelector('[data-pull-arrow]');
       if (arrow) arrow.style.transform = `rotate(${(prog * 180).toFixed(1)}deg)`;
       const label = hint.querySelector('[data-pull-label]');
-      if (label) label.textContent = prog >= 1 ? 'Release to finish' : 'Keep pulling';
+      if (label) {
+        label.textContent = prog >= 1
+          ? `Release to ${pullLiveRef.current.label || 'finish'}`
+          : 'Keep pulling';
+      }
     };
     const cancel = () => { pullRef.current = null; paint(0); };
     const onStart = (e) => {
-      if (!pullLiveRef.current.editing || sc.scrollTop > 0 || e.touches?.length !== 1) return;
+      if (!pullLiveRef.current.armed || sc.scrollTop > 0 || e.touches?.length !== 1) return;
       const t = e.touches[0];
       pullRef.current = { y: t.clientY, d: 0 };
     };
     const onMove = (e) => {
       const p = pullRef.current;
       if (!p) return;
-      if (!pullLiveRef.current.editing) { cancel(); return; }
+      if (!pullLiveRef.current.armed) { cancel(); return; }
       const t = e.touches?.[0];
       if (!t) return;
       const dy = t.clientY - p.y;
@@ -1778,7 +1796,7 @@ export default function Reader({
               progress, not a control, and Done/Cancel are the reachable way to
               do the same thing. Its text is written by the touch handler
               directly (see the effect) — nothing here re-renders mid-pull. */}
-          {editing && (
+          {(editing || liveOwnsCorner) && (
             <div
               ref={hintRef}
               aria-hidden="true"

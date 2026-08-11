@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { fetchSharedSetlist } from '@/lib/setlistShare';
 import { Button } from '@/ui/Button';
 
@@ -11,6 +11,24 @@ const SetlistReader = lazy(() => import('@/features/reader/SetlistReader'));
 export default function SharedSetlistViewer({ token, onExit, settings }) {
   const [state, setState] = useState({ status: 'loading', data: null });
   const [playing, setPlaying] = useState(false);
+  // ⚠ THE ☰ DID NOTHING HERE. Owner, 2026-08-11: *"nothing from the ☰ menu
+  // works in a shared setlist, why?"*
+  //
+  // Because this surface passed `settings` and no `onUpdateSettings`, and
+  // `ReaderMenu`'s writer is `onUpdateSettings?.(key, value)` — so every
+  // control in all three tabs rendered, looked live, and silently discarded the
+  // change. The house bug, on the one surface where the visitor has no other
+  // way to make the chart readable.
+  //
+  // Session-only by design: a shared link has no account to save to, and
+  // writing to this device's real settings would let a link someone opened once
+  // change the app they own. It resets when the tab closes, which is the right
+  // lifetime for a page you were sent.
+  const [viewSettings, setViewSettings] = useState(() => ({ ...(settings || {}) }));
+  const updateViewSetting = useCallback(
+    (key, value) => setViewSettings(prev => ({ ...prev, [key]: value })),
+    [],
+  );
 
   useEffect(() => {
     let alive = true;
@@ -77,7 +95,8 @@ export default function SharedSetlistViewer({ token, onExit, settings }) {
           <SetlistReader
             setlist={setlist}
             songs={songs || []}
-            settings={settings}
+            settings={viewSettings}
+            onUpdateSettings={updateViewSetting}
             mode="live"
             onBack={() => setPlaying(false)}
             onFinish={() => setPlaying(false)}

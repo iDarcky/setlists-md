@@ -214,21 +214,30 @@ describe('the ribbon style, and the two that were cut', () => {
 
 // ── The mode, now that it is state rather than a route ──────────────────────
 describe('the reader mode', () => {
-  it('opens in practice', () => {
-    // The decision, pinned so it cannot drift silently: one button opens the
-    // set, and it opens with capability rather than without. The reasoning is
-    // in the doc comment on READER_DEFAULT_MODE — the short version is that
-    // forgetting to switch TO live costs an edit that needs a deliberate press
-    // and has Undo, while forgetting to switch OUT of live blocks a rehearsal.
-    expect(READER_DEFAULT_MODE).toBe('practice');
+  it('opens LIVE', () => {
+    // Owner, 2026-08-11: *"why am I not live when I press play?"* Pressing Play
+    // on a setlist means "we are doing this now"; rehearsing is the special
+    // case you step out to. An earlier version of this test asserted
+    // 'practice', reasoning from the cost of each mistake — which treats the
+    // two as peers you pick between, and they are not.
+    expect(READER_DEFAULT_MODE).toBe('live');
   });
 
   it('the default mode is one the VIEW table actually has', () => {
-    // A default naming a mode with no row would fall through
-    // `resolveViewCapabilities`'s `|| VIEW.live` and silently open live —
-    // exactly the kind of switch that is wired at one end.
-    const fallback = resolveViewCapabilities('definitely-not-a-mode');
-    expect(resolveViewCapabilities(READER_DEFAULT_MODE)).not.toBe(fallback);
+    // ⚠ This used to compare the default against the fallback, which worked
+    // only while the default was NOT live. The default is live now, and live is
+    // also `resolveViewCapabilities`'s fallback — so that comparison can no
+    // longer express its intent and would pass for a typo'd mode name.
+    //
+    // The property that still matters: the default resolves to a capability set
+    // DIFFERENT from the other named mode. A default with no row in the table
+    // would fall through to live and match it exactly.
+    const other = READER_DEFAULT_MODE === 'live' ? 'practice' : 'live';
+    expect(resolveViewCapabilities(READER_DEFAULT_MODE))
+      .not.toEqual(resolveViewCapabilities(other));
+    // And a name the table has never heard of still lands on live.
+    expect(resolveViewCapabilities('definitely-not-a-mode'))
+      .toEqual(resolveViewCapabilities('live'));
   });
 
   it('carries the capabilities of its mode onto the resolved config', () => {

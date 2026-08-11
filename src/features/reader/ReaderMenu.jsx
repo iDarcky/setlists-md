@@ -940,22 +940,24 @@ export default function ReaderMenu({
   // That is why `Reader` refuses to drop the ✕ unless `onModeChange` exists —
   // this row and that ✕ are the two halves of one invariant.
   const liveRow = onModeChange ? (
-    <div className={`shrink-0 flex items-center justify-between gap-3 px-3 py-2 ${
+    // ONE LINE. Owner, 2026-08-11: *"Make the live more like enable edit. Or
+    // something like that. A single line. Right now it takes too much."* The
+    // two-line version explained what live does; the `LiveIntro` sheet does
+    // that once, properly, and a menu row does not need to repeat it forever.
+    //
+    // It reads as LEAVING, not entering, because that is the only direction
+    // that exists now: Play opens live (`READER_DEFAULT_MODE`), so the switch's
+    // job is the way out. Owner, twice: *"I don't understand why I'd go from
+    // practice to live? I understand the other way around."*
+    <div className={`shrink-0 flex items-center justify-between gap-3 px-3 h-11 ${
       dock === 'bottom' ? 'border-t' : 'border-b'} border-[var(--border-1)]`}>
-      <span className="flex items-center gap-2 min-w-0">
+      <span className="flex items-center gap-2 min-w-0 text-[13.5px] font-semibold text-[var(--text-1)]">
         <span
           aria-hidden="true"
           className="w-2 h-2 rounded-full shrink-0"
           style={{ backgroundColor: config?.mode === 'live' ? '#e5484d' : 'var(--ds-gray-500)' }}
         />
-        <span className="min-w-0">
-          <span className="block text-[13.5px] font-semibold text-[var(--text-1)] leading-tight">Live</span>
-          <span className="block text-[11.5px] text-[var(--text-2)] leading-tight">
-            {config?.mode === 'live'
-              ? 'The service. Tools off, screen stays on.'
-              : 'For the service — hides the tools and keeps the screen on.'}
-          </span>
-        </span>
+        Live
       </span>
       <Switch label="Live"
         on={config?.mode === 'live'}

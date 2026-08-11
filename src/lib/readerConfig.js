@@ -296,27 +296,29 @@ export function resolveViewCapabilities(mode) {
 }
 
 /**
- * Which mode the reader OPENS in, now that one button opens it.
+ * Which mode the reader OPENS in.
  *
- * **Practice**, and the reasons in the order they carried weight:
+ * **Live.** Owner, 2026-08-11: *"why am I not live when I press play?"* and,
+ * twice now, *"I don't understand why I'd go from practice to live? I
+ * understand the other way around."*
  *
- *  1. **Edit mode is already opt-in.** The accidental-mid-service-edit that a
- *     live-by-default would be protecting against is already prevented by
- *     having to press Edit — so live-by-default buys a guard that exists.
- *  2. **The two mistakes are not the same size.** Forgetting to switch TO live
- *     costs you an edit that needed a deliberate press and has Undo. Forgetting
- *     to switch OUT of live blocks you mid-rehearsal, which is when nobody
- *     wants to go looking for a setting.
- *  3. **Most opens are not services.** A set gets read a dozen times in the
- *     week before it is played once.
- *  4. **A default that removes capability teaches people the app cannot do
- *     things.** Someone whose first open silently hides the metronome and the
- *     edit button learns an app without them, and never looks again.
+ * ⚠ This REVERSES an earlier decision of mine, and the earlier reasoning was
+ * wrong in a specific way worth writing down. It argued from the cost of each
+ * mistake — forgetting to switch TO live costs an edit that has Undo, while
+ * forgetting to switch OUT blocks a rehearsal — and concluded "open with more
+ * capability". But that treats the two modes as peers you pick between, and
+ * they are not. Pressing **Play on a setlist means "we are doing this now"**;
+ * rehearsing is the special case you step out to. A default is not a hedge
+ * against mistakes, it is a statement about what the button means.
  *
- * One tap in the top bar changes it, which is what makes a wrong guess cheap
- * enough to have a default at all.
+ * A time-based version was floated and dropped by the owner in the same breath
+ * (*"If I set the time at 10:00 then it starts in live… too complicated"*).
+ * Play means live; the time on the setlist is not asked.
+ *
+ * The one transition that has to be easy is therefore **live → practice**, and
+ * it is: a single row at the top of the ☰, and a drag on the chart.
  */
-export const READER_DEFAULT_MODE = 'practice';
+export const READER_DEFAULT_MODE = 'live';
 
 export function resolveReaderConfig(settings, ctx = {}) {
   const {
