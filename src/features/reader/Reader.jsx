@@ -1245,13 +1245,23 @@ export default function Reader({
   // gesture being written beside it. Same threshold, same damping, same pill;
   // only the verb changes.
   //
+  // ⚠ IN LIVE IT IS THE ✕, NOT A MODE SWITCH. I built it as live → practice and
+  // the owner corrected it: *"the drag to exit wasn't exit from live to edit,
+  // was to exit from the live back to menu, now that we don't have x."* Which
+  // is the whole point — live removes the ✕, so the gesture is what replaces
+  // it. A pull that only dropped you into practice would leave you in the
+  // reader with no way out of the reader, which is the hole the ✕ used to fill.
+  //
+  // Turning live OFF is the ☰ row; LEAVING is this. Two different things, and
+  // conflating them is what made the corner feel like a trap.
+  //
   // Edit wins when both are somehow true (they cannot be — editing is
   // practice-only — but the order states the intent rather than relying on it).
   useEffect(() => {
     pullLiveRef.current = editing
       ? { armed: true, label: 'finish', done: toggleEdit }
-      : (liveOwnsCorner
-        ? { armed: true, label: 'leave live', done: () => onModeChange?.('practice') }
+      : (liveOwnsCorner && onExit
+        ? { armed: true, label: 'exit', done: onExit }
         : { armed: false });
   });
 
