@@ -98,7 +98,6 @@ const PricingScreen = lazy(() => import('@/features/billing/PricingScreen'));
 const TeamScreen = lazy(() => import('@/features/team/TeamScreen'));
 const Schedule = lazy(() => import('@/features/scheduling/Schedule'));
 const SchedulingGrid = lazy(() => import('@/features/scheduling/SchedulingGrid'));
-const WakeLockExplainer = lazy(() => import('@/features/performance/WakeLockExplainer'));
 const AccountWall = lazy(() => import('@/features/settings/AccountWall'));
 const FounderNote = lazy(() => import('@/features/onboarding/FounderNote'));
 const IOSInstallHint = lazy(() => import('@/features/onboarding/IOSInstallHint'));
@@ -237,7 +236,6 @@ export default function App() {
   const [settingsPanel, setSettingsPanel] = useState('hub');
   // Wake-lock explainer is now state-driven (was render-condition-driven) so
   // it can participate in the history stack.
-  const [showWakeLockExplainer, setShowWakeLockExplainer] = useState(false);
   // Session metrics handed off from the reader to the finale.
   //
   // ⚠ `sessionSource` used to live beside this, recording which of the two Live
@@ -714,7 +712,6 @@ export default function App() {
     accountWall: accountWallTrigger,
     founderNote: showFounderNote,
     iosHint: showIOSHint,
-    wakeLockExplainer: showWakeLockExplainer,
     isFullscreen,
     sessionStats,
     // The mode you were reading in. Without this, backing out of the finale
@@ -767,7 +764,6 @@ export default function App() {
       setAccountWallTrigger(prev.accountWall ?? null);
       setShowFounderNote(!!prev.founderNote);
       setShowIOSHint(!!prev.iosHint);
-      setShowWakeLockExplainer(!!prev.wakeLockExplainer);
       if (typeof prev.isFullscreen === 'boolean') setIsFullscreen(prev.isFullscreen);
       setSessionStats(prev.sessionStats ?? null);
       setReaderMode(prev.readerMode || 'live');
@@ -779,7 +775,6 @@ export default function App() {
       setAccountWallTrigger(null);
       setShowFounderNote(false);
       setShowIOSHint(false);
-      setShowWakeLockExplainer(false);
       setIsFullscreen(false);
       setSessionStats(null);
       setReaderMode('live');
@@ -878,31 +873,15 @@ export default function App() {
     }
   }, [isIOS, isStandalone, view, settings?.onboardingComplete, settings?.seenIOSInstallHint, showIOSHint]);
 
-  // ── Auto-fire: the keep-awake OFFER, once, on the first read ──────────────
-  // ⚠ This used to explain a thing that is about to stop being true. The old
-  // `SetlistPlayer` and `PerformanceView` called `useWakeLock(true)` —
-  // unconditional — so the screen just stayed on and this sheet said why. The
-  // Reader asks `settings.keepAwake === true`, and `keepAwake` has no entry in
-  // DEFAULT_SETTINGS, so it is `undefined` for everyone who has never opened
-  // Settings. Graduating the flag would therefore have turned the screen-sleep
-  // back ON mid-service, silently, with a sheet still explaining that it
-  // wouldn't. A switch wired at one end, and it would have been found on a
-  // Sunday.
+  // ⚠ The wake-lock sheet is GONE (2026-08-11), and with it the whole
+  // `seenWakeLockExplainer` / `showWakeLockExplainer` apparatus.
   //
-  // Owner's call, 2026-08-11: *"the keep awake was a bit intrusive anyway, it
-  // should be a setting that's off and the user should decide"* — so the
-  // default stays off and this sheet becomes the place the decision is OFFERED,
-  // once, at the only moment it means anything: the first time you open a set
-  // to read from. It writes `keepAwake`; it no longer describes it.
-  useEffect(() => {
-    if (
-      view === 'setlist-read' &&
-      !settings?.seenWakeLockExplainer &&
-      !showWakeLockExplainer
-    ) {
-      openWakeLockExplainer();
-    }
-  }, [view, settings?.seenWakeLockExplainer, showWakeLockExplainer]);
+  // It existed to explain that stage mode kept your screen on. Going LIVE now
+  // acquires the wake lock by meaning rather than by setting (see `Reader`),
+  // and the user's own switch moved into the ☰ beside the other decisions
+  // about the screen you read from — so the sheet was left interrupting
+  // someone about to start a service to explain a thing that handles itself.
+  // Owner: *"the keep awake was a bit intrusive anyway."*
 
   // Switch a top-level page (Home / Library / Setlists / Settings / Account /
   // Help / Design). Now pushes history so hardware Back navigates within the
@@ -952,7 +931,6 @@ export default function App() {
         setAccountWallTrigger(prev.accountWall ?? null);
         setShowFounderNote(!!prev.founderNote);
         setShowIOSHint(!!prev.iosHint);
-        setShowWakeLockExplainer(!!prev.wakeLockExplainer);
         if (typeof prev.isFullscreen === 'boolean') setIsFullscreen(prev.isFullscreen);
         setSessionStats(prev.sessionStats ?? null);
         setReaderMode(prev.readerMode || 'live');
@@ -985,11 +963,6 @@ export default function App() {
     if (showIOSHint) return;
     pushHistory(snapshot());
     setShowIOSHint(true);
-  };
-  const openWakeLockExplainer = () => {
-    if (showWakeLockExplainer) return;
-    pushHistory(snapshot());
-    setShowWakeLockExplainer(true);
   };
   // All modal close paths route through window.history.back() — this keeps
   // the browser history aligned whether the user tapped X, the primary CTA,
@@ -2738,21 +2711,6 @@ export default function App() {
 
       {/* One-time pre-permission explainer for stage mode — render is
           state-driven now so the modal participates in the back stack. */}
-      {showWakeLockExplainer && (
-        <WakeLockExplainer
-          // BOTH ends of the switch. `seenWakeLockExplainer` stops the sheet
-          // coming back either way; `keepAwake` is the thing the sheet is
-          // actually about, and until now nothing here wrote it.
-          onEnable={() => {
-            setSettings(prev => ({ ...prev, seenWakeLockExplainer: true, keepAwake: true }));
-            dismissTopModal();
-          }}
-          onDecline={() => {
-            setSettings(prev => ({ ...prev, seenWakeLockExplainer: true, keepAwake: false }));
-            dismissTopModal();
-          }}
-        />
-      )}
 
       {/* Account wall — fired by handleSaveSong / handleSaveSetlist on
           first NEW save when the user is not signed in. All three actions

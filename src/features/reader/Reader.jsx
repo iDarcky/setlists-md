@@ -120,48 +120,73 @@ function CapoChip({ capo, soundingKey, shapeKey, writtenCapo, onSelect }) {
 }
 
 /**
- * The MODE, as a chip in the top bar — the union's Phase 0.
+ * LIVE — the one control in the bar that concerns the mode.
  *
- * Until now the mode was chosen two screens ago and nothing on the reader said
- * so. That silence is the real source of *"where did my settings go? why didn't
- * the key change?"* — a key changed in Live is deliberately session-only
- * (`saveKey`), and a reader that never names its mode makes correct behaviour
- * look like a bug. So the first move is not to change what the modes do; it is
- * to put the one you are in ON SCREEN.
+ * ⚠ This was a two-way Practice ⇄ Live chip, and the owner took it apart with
+ * the right question (2026-08-11): *"why it should change from practice to
+ * live? I understand from live -> practice, why the other way around?"*
  *
- * ⚠ It is NOT "locked / unlocked". That framing was proposed and the owner
- * killed it (2026-08-11: *"what is locked? my heart"*) — the words describe a
- * mechanism nobody asked about, where Live and Practice describe the two
- * situations people are actually in. The app already says Live and Practice on
- * the finale, in the docs and on the buttons; inventing a second vocabulary for
- * the same fact is how a collapsed fork survives in the language.
+ * He is right, and the asymmetry is the whole design. Live → Practice is
+ * ordinary: the tools come back. Practice → Live is not a view change at all —
+ * it is *"I am about to present"*, which is a thing you START. A symmetric chip
+ * models two destinations; there is one destination and one place you work.
  *
- * The COLOURS are `ReaderFinale`'s FLAVOUR badges, deliberately: solid ink for
- * Live, brand for Practice. One vocabulary, two screens — you meet the badge
- * when you start and you meet the same badge when you finish.
+ * So the bar never says "Practice". Not being live is not a mode you are in, it
+ * is the absence of one — and naming it put a word in the bar for the state
+ * that needs no explaining, at 60.7px of a 390px phone's title (measured).
  *
- * Tappable, one tap, no confirm. Switching costs nothing in either direction
- * (Practice → Live only ever removes tools; Live → Practice only adds them),
- * and a confirm on a control pressed mid-rehearsal is a dialog nobody reads.
+ * Proclaim's ON AIR is the same idea and was the reference here; the owner kept
+ * the shape and dropped the words: *"I don't want a on air, I want a Live
+ * something and that's all."*
+ *
+ * Two states, deliberately unequal in weight:
+ *   off  — a quiet outlined "Go live", the same hollow treatment the capo chip
+ *          uses for its off state: findable, ignorable, no colour.
+ *   live — a solid red LIVE with a dot. Red because this is the one state in
+ *          the app with a cost to being wrong about, and because a filled red
+ *          badge is the single most-understood "you are live" signal there is.
+ *          It does not use --chord (that is the key's colour) or the brand
+ *          (that is every other control).
+ *
+ * One tap either way, no confirm. Going live only ever removes tools; coming
+ * back only ever adds them. Neither can lose work — edit mode is a separate
+ * deliberate press and holds its own Cancel.
  */
-function ModeChip({ mode, onChange }) {
+function LiveChip({ mode, onChange }) {
   const live = mode === 'live';
+  if (live) {
+    return (
+      <button
+        type="button"
+        onClick={() => onChange('practice')}
+        aria-label="Live. Tap to leave live"
+        className="min-h-0 shrink-0 h-[23px] sm:h-[20px] pl-1.5 pr-2 rounded-lg text-label-11 font-semibold leading-none inline-flex items-center gap-1 cursor-pointer border-0 hover:opacity-90"
+        // LONGHANDS — see CapoChip. A `background` shorthand with a nested
+        // var() fallback throws inside jsdom's style expander.
+        style={{ backgroundColor: '#e5484d', color: '#ffffff' }}
+      >
+        {/* The dot is what makes it read as a status rather than a button —
+            and it is what survives when the word is glanced past. */}
+        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: '#ffffff' }} />
+        LIVE
+      </button>
+    );
+  }
   return (
     <button
       type="button"
-      onClick={() => onChange(live ? 'practice' : 'live')}
-      // The label states the mode AND what pressing does — the chip is the
-      // only place either fact is written down.
-      aria-label={live ? 'Live mode. Switch to Practice' : 'Practice mode. Switch to Live'}
-      className="min-h-0 shrink-0 h-[23px] sm:h-[20px] px-2 rounded-lg text-label-11 font-semibold leading-none inline-flex items-center cursor-pointer border-0 hover:opacity-90"
+      onClick={() => onChange('live')}
+      aria-label="Go live"
+      className="min-h-0 shrink-0 h-[23px] sm:h-[20px] px-2 rounded-lg text-label-11 font-semibold leading-none inline-flex items-center cursor-pointer hover:opacity-90"
       style={{
-        // LONGHANDS — see CapoChip. A `background` shorthand with a nested
-        // var() fallback throws inside jsdom's style expander.
-        backgroundColor: live ? 'var(--chart-text, #111111)' : 'var(--color-brand)',
-        color: live ? 'var(--chart-bg, #ffffff)' : '#ffffff',
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderStyle: 'solid',
+        borderColor: 'var(--chart-rule, var(--ds-gray-400))',
+        color: 'var(--chart-subtle, var(--ds-gray-700))',
       }}
     >
-      {live ? 'Live' : 'Practice'}
+      Go live
     </button>
   );
 }
@@ -654,10 +679,27 @@ export default function Reader({
   // system rather than deriving anything of ours.
   useEffect(() => { onEditingChange?.(editing); }, [editing, onEditingChange]);
 
-  // The ☰ → "The screen" row. Only where the reader owns the screen: embedded
-  // in the hub it is a card in a page, and holding a wake lock for a card is
-  // the app quietly deciding your phone shouldn't sleep while you browse.
-  useWakeLock(!embedded && settings?.keepAwake === true);
+  // ── Keeping the screen on ─────────────────────────────────────────────────
+  // Two sources, and they are different KINDS of thing (owner, 2026-08-11).
+  //
+  //   LIVE  — not a setting. Nobody goes live wanting the screen to sleep, so
+  //           being live acquires it, full stop. This is also what closes the
+  //           regression the graduation would otherwise have shipped: the old
+  //           `PerformanceView` / `SetlistPlayer` called `useWakeLock(true)`
+  //           unconditionally, and the Reader that replaced them asked a
+  //           setting that has no DEFAULT_SETTINGS entry — i.e. `undefined`
+  //           for everyone who never went looking. Live restores it by meaning
+  //           rather than by remembering to.
+  //
+  //   OTHERWISE — `keepAwake`, the user's own switch, default OFF (owner: *"the
+  //           keep awake was a bit intrusive anyway... the user should decide"*).
+  //           It lives in the ☰ now, beside the other decisions about the screen
+  //           you are reading from.
+  //
+  // Either way, only where the reader OWNS the screen: embedded in the hub it
+  // is a card in a page, and holding a wake lock for a card is the app quietly
+  // deciding your phone shouldn't sleep while you browse.
+  useWakeLock(!embedded && (config.mode === 'live' || settings?.keepAwake === true));
 
   const { ordered, offsets, repeats } = useMemo(() => buildSongFlow(song), [song]);
 
@@ -1665,7 +1707,7 @@ export default function Reader({
                   change with no way back to Cancel. A control whose only two
                   outcomes are "no-op" and "lose your work" is not a control. */}
               {onModeChange && !editing && (
-                <ModeChip mode={config.mode} onChange={onModeChange} />
+                <LiveChip mode={config.mode} onChange={onModeChange} />
               )}
               {/* The tempo and the time are ALREADY on this row as text. In
                   edit mode they become the fields — which is the owner's

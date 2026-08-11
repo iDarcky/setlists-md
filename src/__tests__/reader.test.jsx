@@ -1581,65 +1581,73 @@ describe('the side rail is a scrub track', () => {
   });
 });
 
-// ── The mode chip — the union's Phase 0 ─────────────────────────────────────
-// Until 2026-08-11 the mode was chosen two screens ago and the reader never
-// said which one it was in. That silence is the point of these tests: the mode
-// has to be ON SCREEN, and it has to be the mode the capabilities came from —
-// a chip that says "Live" over a reader behaving as practice would be worse
-// than no chip, because it would be believed.
-describe('the mode chip', () => {
+// ── LIVE — the one control in the bar that concerns the mode ───────────────
+// The two-way Practice ⇄ Live chip these tests were first written for is gone.
+// The owner took it apart with the right question: Live → Practice is ordinary,
+// but Practice → Live is not a view change, it is *"I am about to present"*.
+// So the bar names ONE state and offers ONE way in — and never says "Practice",
+// because not being live needs no word.
+describe('the live control', () => {
   beforeEach(() => { mockWidth(1024); });
 
-  it('names the mode it is actually in', () => {
-    const { rerender } = render(
-      <Reader song={makeSong()} settings={{}} mode="live" onModeChange={() => {}} onExit={() => {}} />
-    );
-    expect(screen.getByRole('button', { name: /^Live mode/ })).toBeTruthy();
-
-    rerender(
+  it('offers a way in, and never names the state you are already in', () => {
+    render(
       <Reader song={makeSong()} settings={{}} mode="practice" onModeChange={() => {}} onExit={() => {}} />
     );
-    expect(screen.getByRole('button', { name: /^Practice mode/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Go live' })).toBeTruthy();
+    // The word that cost a 390px phone 60.7px of its title, for a state that
+    // explains itself.
+    expect(screen.queryByText('Practice')).toBeNull();
   });
 
-  it('switches to the OTHER mode, both ways', () => {
+  it('says LIVE while live, and offers the way back', () => {
+    render(
+      <Reader song={makeSong()} settings={{}} mode="live" onModeChange={() => {}} onExit={() => {}} />
+    );
+    const chip = screen.getByRole('button', { name: /^Live\./ });
+    expect(chip.textContent).toContain('LIVE');
+    expect(screen.queryByRole('button', { name: 'Go live' })).toBeNull();
+  });
+
+  it('goes both ways, one tap, no confirm', () => {
     const onModeChange = vi.fn();
     const { rerender } = render(
-      <Reader song={makeSong()} settings={{}} mode="live" onModeChange={onModeChange} onExit={() => {}} />
-    );
-    fireEvent.click(screen.getByRole('button', { name: /^Live mode/ }));
-    expect(onModeChange).toHaveBeenLastCalledWith('practice');
-
-    rerender(
       <Reader song={makeSong()} settings={{}} mode="practice" onModeChange={onModeChange} onExit={() => {}} />
     );
-    fireEvent.click(screen.getByRole('button', { name: /^Practice mode/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Go live' }));
     expect(onModeChange).toHaveBeenLastCalledWith('live');
+
+    rerender(
+      <Reader song={makeSong()} settings={{}} mode="live" onModeChange={onModeChange} onExit={() => {}} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^Live\./ }));
+    expect(onModeChange).toHaveBeenLastCalledWith('practice');
   });
 
   it('is ABSENT with no onModeChange — the surfaces that have exactly one mode', () => {
-    // The public share link, the hub, the editor preview. A chip there would
+    // The public share link, the hub, the editor preview. A control there would
     // offer a switch with nothing on the other side of it.
     render(<Reader song={makeSong()} settings={{}} mode="live" onExit={() => {}} />);
-    expect(screen.queryByRole('button', { name: /mode\./ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Go live' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Live\./ })).toBeNull();
   });
 
-  it('is absent while editing — the one mode it could not honestly offer', () => {
-    // Edit mode exists only in practice, so the chip could only ever say
-    // "Practice" there, and pressing it would strand the applied change.
+  it('is absent while editing — the one place it could not honestly offer', () => {
+    // Edit mode exists only off-live, and pressing it would strand the applied
+    // change with no way back to Cancel.
     render(
       <Reader
         song={makeSong()} settings={{}} mode="practice"
         onModeChange={() => {}} onUpdateSong={() => {}} onExit={() => {}}
       />
     );
-    expect(screen.getByRole('button', { name: /^Practice mode/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Go live' })).toBeTruthy();
     openSongActions();
     fireEvent.click(screen.getByRole('button', { name: /^Edit/ }));
-    expect(screen.queryByRole('button', { name: /^Practice mode/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Go live' })).toBeNull();
   });
 
-  it('the chip and the capabilities come from the SAME mode', () => {
+  it('the control and the capabilities come from the SAME mode', () => {
     // The failure this pins: a chip fed by the route while the config was fed
     // by something else. `can.editSong` is live's clearest false, so the Edit
     // action is the observable end of the capability set.
@@ -1649,7 +1657,7 @@ describe('the mode chip', () => {
         onModeChange={() => {}} onUpdateSong={() => {}} onExit={() => {}}
       />
     );
-    expect(screen.getByRole('button', { name: /^Live mode/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Live\./ })).toBeTruthy();
     openSongActions();
     expect(screen.queryByRole('button', { name: /^Edit/ })).toBeNull();
   });

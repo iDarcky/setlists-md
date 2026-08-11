@@ -212,9 +212,11 @@ function GeneralPanel({ settings, update, onShowHelp, onReplayOnboarding }) {
           ))}
         </div>
       </Row>
-      <Row label="Keep screen awake" description="Stop the screen dimming while you're reading or performing. Uses the Wake Lock API where supported (modern browsers + installed PWA).">
-        <OnOffToggle value={settings?.keepAwake === true} onChange={(v) => update('keepAwake', v)} />
-      </Row>
+      {/* ⚠ "Keep screen awake" moved to the ☰ → Layout → The screen
+          (2026-08-11, owner's call). It is a decision about the screen you are
+          reading from, so it belongs beside that screen. `keepAwake` itself is
+          unchanged and still portable; only its control moved — and going live
+          now acquires the wake lock regardless of it. */}
       <Row label="Lock orientation" description="Best-effort: keep the current orientation while reading. Most browsers only allow this in full screen / an installed PWA.">
         <OnOffToggle value={settings?.lockOrientation === true} onChange={(v) => update('lockOrientation', v)} />
       </Row>

@@ -1277,6 +1277,25 @@ export default function ReaderMenu({
               on={(settings?.readerProgress || 'on') === 'on'}
               onChange={(v) => set('readerProgress', v ? 'on' : 'off')} />
           </Field>
+
+          {/* ── The screen ───────────────────────────────────────────────────
+              Moved out of Settings → General (owner, 2026-08-11: it belongs in
+              the ☰), by the same argument that just emptied the Chart Defaults
+              panel — a decision about the screen you are reading from belongs
+              beside that screen, not two menus away.
+
+              ⚠ The copy has to be honest about the exception: LIVE acquires the
+              wake lock whatever this says, because nobody goes live wanting the
+              screen to sleep. A switch that reads "off" while the screen stays
+              on would be the same lie the old explainer sheet told from the
+              other direction. */}
+          <GroupTitle>The screen</GroupTitle>
+          <Field label="Keep the screen on" inline
+            info="Stops the device locking while you read. Off by default. Going live always keeps the screen on, whether or not this is set.">
+            <Switch label="Keep the screen on"
+              on={settings?.keepAwake === true}
+              onChange={(v) => set('keepAwake', v)} />
+          </Field>
         </>
       )}
 
