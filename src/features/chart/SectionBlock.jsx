@@ -252,42 +252,23 @@ export default function SectionBlock({
     ? { borderLeft: '1px solid var(--chart-rule, var(--border-1))', paddingLeft: '0.5rem' }
     : null;
 
-  const noteGutterHint = (lineIdx, hasChordRow = false) => (
+  const noteInlineHint = (lineIdx) => (
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); onNoteOpen(lineIdx, ''); }}
       aria-label="Add a note to this line"
       title="Add a note to this line"
-      // ── It has to be SEEN before it can be tapped ─────────────────────────
-      // Owner, 2026-08-21: *"the note buttons don't appear when I press the
-      // edit"*. They did appear — measured on a 1280px reader they were drawn
-      // at x≈1145, roughly 800px to the right of the words they belong to, at
-      // **0.72em and 0.4 opacity**: the faintest thing on the page, at the far
-      // edge of the screen, in a gutter that is otherwise empty. "Doesn't
-      // appear" is the honest description of that.
-      //
-      // A dashed 32px chip instead, at full strength — the same shape the
-      // ribbon's own `+` uses, so the two `+`s in edit mode look like siblings.
-      // It can afford to be loud because it renders in EDIT MODE ONLY: `noteHint`
-      // is `!!onEditNote && noteHintHere`, and `Reader` passes `onEditNote` as
-      // null unless `editing`. Nothing about this is visible while reading.
-      //
-      // ⚠ Still in the gutter, which is still a long way from the line on a wide
-      // screen. Whether the `+` should move to the LINE instead is an open
-      // question with the owner; this round makes the existing one findable
-      // rather than moving it, so the two changes stay separable.
-      className="min-h-0 self-start grid place-items-center w-8 h-8 rounded-lg border border-dashed bg-transparent cursor-pointer p-0 leading-none font-bold"
+      // ⚠ `em` on a button resolves against the BUTTON's own font-size, not the
+      // line's. `1.7em` at `fontSize: 0.7em` measured 21px, not the ~32 it
+      // reads like. The two numbers have to be multiplied on purpose.
+      // The `::after` grows the target past the mark, the same trick the ribbon
+      // chips use — 32px of chip, ~44px of hit area, no extra line height.
+      className="min-h-0 shrink-0 self-end inline-flex items-center justify-center rounded-md border border-dashed bg-transparent cursor-pointer p-0 leading-none font-bold align-middle relative outline-offset-2 after:content-[''] after:absolute after:-inset-[6px]"
       style={{
-        ...(gutterRule || {}),
-        fontSize: '15px', opacity: 0.85,
+        width: '2.4em', height: '2.4em', marginLeft: '0.5em',
+        fontSize: '0.75em', opacity: 0.85,
         borderColor: 'var(--chart-rule, var(--ds-gray-400))',
         color: 'var(--chart-subtle, var(--text-2))',
-        // ⚠ `--chart-font-size-chord`, not `--chart-chord-size`. The latter is
-        // written by nobody, so this resolved to `1em` — and `1em` HERE is the
-        // button's own 0.72em text, i.e. 12.96px + 3px = 16px against the
-        // committed note's 20px. The `+` and the field you typed in sat 4px
-        // above the note they turned into.
-        marginTop: hasChordRow ? 'calc(var(--chart-font-size-chord, 17px) + 3px)' : undefined,
       }}
     >
       +
@@ -317,8 +298,8 @@ export default function SectionBlock({
         fontSize: '0.72em', fontStyle: 'italic', lineHeight: 1.3,
         color: 'var(--chart-text, var(--text-1))',
         borderColor: 'var(--color-brand)',
-        // Same var, same reason as `noteGutterHint` above — the field has to
-        // sit exactly where the note it becomes will sit.
+        // Same var, same reason as the committed note — the field has to sit
+        // exactly where the note it becomes will sit.
         marginTop: hasChordRow
           ? 'calc(var(--chart-font-size-chord, 17px) + 3px)'
           : undefined,
@@ -541,6 +522,7 @@ export default function SectionBlock({
           >
             {/* Not a note target either — see the chorded branch below. */}
             <span className="whitespace-pre-wrap">{displayLine}</span>
+            {noteHint && onNoteOpen && !showNote && noteDraft?.lineIdx !== idx && noteInlineHint(idx)}
             {showNote && notePlacement === 'inline' && (
               <span className="italic text-[0.8em]" style={{ color: 'var(--chart-subtle, var(--text-2))' }}>
                 {NOTE_SEPARATORS[noteStyle] || NOTE_SEPARATORS.dashes}{inlineNote}
@@ -552,7 +534,6 @@ export default function SectionBlock({
           {notePlacement === 'gutter' && (
             noteDraft?.lineIdx === idx ? noteGutterEditor()
               : showNote ? noteGutter(inlineNote, false, idx)
-              : (noteHint && onNoteOpen) ? noteGutterHint(idx)
               : <span />
           )}
         </div>
@@ -940,12 +921,12 @@ export default function SectionBlock({
             </span>
           )}
           {inlineNotes && inlineNote && notePlacement === 'leader' && noteLeader(inlineNote)}
+          {noteHint && onNoteOpen && !(inlineNotes && inlineNote) && noteDraft?.lineIdx !== idx && noteInlineHint(idx)}
         </div>
         {inlineNotes && inlineNote && notePlacement === 'below' && noteAbove(inlineNote)}
         {notePlacement === 'gutter' && (
           noteDraft?.lineIdx === idx ? noteGutterEditor(true)
             : (inlineNotes && inlineNote) ? noteGutter(inlineNote, true, idx)
-            : (noteHint && onNoteOpen) ? noteGutterHint(idx, true)
             : <span />
         )}
         </div>

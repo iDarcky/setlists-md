@@ -318,7 +318,13 @@ export default function ReaderSection({
     // ⚠ `|| noteDraft` — the strip is reserved only by sections that already
     // carry a note, so the FIRST note in a section would otherwise have no
     // gutter to be typed into. Drafting reserves it for the duration.
-    ? ((hasInlineNote || noteDraft || (noteHintHere && onEditNote)) && config.inlineNotes ? 'gutter' : 'above')
+    //
+    // ⚠ It used to also reserve for `noteHintHere && onEditNote` — i.e. for every
+    // section, the whole time you were editing, so that the `+` had a column to
+    // live in. The `+` lives on the LINE now (owner, 2026-08-21: *"they should
+    // live in the right side of the line"*), so entering edit mode no longer
+    // narrows every lyric in the song by a gutter's width.
+    ? ((hasInlineNote || noteDraft) && config.inlineNotes ? 'gutter' : 'above')
     : config.notePlacement;
 
   // ── The four frames ─────────────────────────────────────────────────────────
