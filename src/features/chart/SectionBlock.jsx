@@ -138,6 +138,11 @@ export default function SectionBlock({
   // a tab for another instrument collapses to one line instead of taking a
   // block of screen you scroll past every section. Null = show everything.
   myInstrument = null,
+  // The SOUNDING transpose — what the band is in, before the capo is taken off
+  // to make shapes. Only the key-change chip uses it; everything else renders
+  // from `transpose`. Defaults to `transpose` so a caller with no capo concept
+  // (the hub, tests) behaves exactly as before.
+  keyTranspose = null,
   tabTranspose = 0,
   // Element 11. When wired, every chord becomes tappable and calls back with
   // the chord AS WRITTEN (letter names, transposed, capo NOT applied) plus the
@@ -378,11 +383,24 @@ export default function SectionBlock({
         // loudest thing on the page for an event that lasts one bar. Now a
         // compact inline chip that names the key you are ARRIVING IN, because
         // that is what a player needs ("we're in Bb now"), not the interval.
+        // ⚠ `keyTranspose`, NOT `transpose`. `transpose` here is the CHART's,
+        // which already has the capo subtracted so the chords render as shapes
+        // — and computing the arrival key off it made the chip name the shape
+        // key instead of the key the band is in. Measured 2026-08-21, song in
+        // C with a capo on 2 and a `{modulate: +2}`: the pill said C (sounding),
+        // the chip said "↗ C" (shapes), and the band was arriving in D. Two
+        // different keys under one letter, in the one chip whose entire job is
+        // to say "we're in D now", at the one moment the whole band has to hit
+        // together.
+        //
+        // The chords below it stay in shapes; only the NAME is sounding, which
+        // is the same split the top bar already makes between the key pill and
+        // the capo chip.
         const arriveAt = songKey
           ? notateChord(songKey, {
               key: songKey,
               notation: notationMode === 'nashville' ? 'letters' : notationMode,
-              transpose: transpose + lineOffsets[idx],
+              transpose: (keyTranspose ?? transpose) + lineOffsets[idx],
               accidentals,
             })
           : null;

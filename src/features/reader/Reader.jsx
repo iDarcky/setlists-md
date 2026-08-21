@@ -2173,6 +2173,9 @@ export default function Reader({
               songKey={song.key}
               settings={settings}
               transpose={chartTranspose}
+              // The key-change chip names the SOUNDING key, so it needs the
+              // transpose WITHOUT the capo taken off. See `SectionBlock`.
+              keyTranspose={transpose}
               modOffset={offsets[idx]}
               modFires={fires[idx] !== false}
               repeatOf={repeats[idx]}
