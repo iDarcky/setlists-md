@@ -474,43 +474,62 @@ describe('the ☰ menu', () => {
     expect(screen.queryByRole('button', { name: 'Reset Show' })).toBeNull();
   });
 
-  it('resetting Show retires the legacy showChords rather than falling into it', () => {
-    const onUpdateSettings = vi.fn();
-    render(<Reader song={makeSong()} onExit={() => {}} onUpdateSettings={onUpdateSettings}
+  it('recovers from a stuck legacy showChords by PICKING, not by resetting', () => {
+    // ⚠ This replaces a test for "Reset Show", which is gone — the owner
+    // stripped Reset from every dropdown and picker (2026-08-11), keeping it
+    // only on the four steppers whose default cannot be seen.
+    //
+    // The thing that test was really protecting still matters: the old
+    // Performance/Practice views wrote `showChords: false`, and a profile
+    // carrying it must have a way back to chords. It does, and it never needed
+    // the Reset — `displayMode` BEATS `showChords`, so choosing the option is
+    // itself the recovery. That precedence is the real invariant, so it is what
+    // is asserted rather than a click on the widget that expresses it.
+    // ⚠ Scoped to the SECTIONS. A bare `getAllByText('G')` also matches the key
+    // pill in the top bar, which says G whether or not the chart shows chords —
+    // so the unscoped version passes in the stuck state and proves nothing.
+    const chordsIn = (c) => [...c.querySelectorAll('[data-section-index] *')]
+      .filter(e => e.children.length === 0 && e.textContent.trim() === 'G').length;
+
+    const stuck = { showChords: false };
+    const a = render(<Reader song={makeSong()} onExit={() => {}} settings={stuck} />);
+    expect(chordsIn(a.container)).toBe(0);   // the stuck state
+    a.unmount();
+
+    const b = render(<Reader song={makeSong()} onExit={() => {}} settings={{ ...stuck, displayMode: 'chords' }} />);
+    expect(chordsIn(b.container)).toBeGreaterThan(0);
+  });
+
+  it('no longer offers a Reset for Show at all', () => {
+    render(<Reader song={makeSong()} onExit={() => {}} onUpdateSettings={vi.fn()}
       settings={{ displayMode: 'lyrics', showChords: false }} />);
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
     fireEvent.click(screen.getByRole('button', { name: 'Music' }));
-
-    // Clearing `displayMode` alone hands the decision back to `showChords`,
-    // which the old Performance/Practice views write — so "put it back to
-    // default" produced lyrics-only, with the chords gone.
-    fireEvent.click(screen.getByRole('button', { name: 'Reset Show' }));
-    expect(onUpdateSettings).toHaveBeenCalledWith('displayMode', undefined);
-    expect(onUpdateSettings).toHaveBeenCalledWith('showChords', undefined);
+    expect(screen.queryByRole('button', { name: 'Reset Show' })).toBeNull();
   });
 
-  it('offers a Reset per OPTION, and only where there is something to reset', () => {
-    const { unmount } = renderReader();
-    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    // Pristine: no clutter, and no button that would do nothing.
-    expect(screen.queryAllByRole('button', { name: /^Reset / }).length).toBe(0);
-    unmount();
-
+  it('offers Reset ONLY on the steppers', () => {
+    // The rule the owner gave, 2026-08-11: a dropdown or picker shows its own
+    // default as one of its options, so a Reset beside it is a second way to do
+    // what the control already does. A stepper's default is invisible — you
+    // cannot see that 18 was 18 — so those four keep theirs.
     const onUpdateSettings = vi.fn();
-    render(<Reader song={makeSong()} onExit={() => {}}
-      settings={{ chartLyricFont: 'serif', sectionSpacing: 40 }} onUpdateSettings={onUpdateSettings} />);
+    render(<Reader song={makeSong()} onExit={() => {}} onUpdateSettings={onUpdateSettings}
+      settings={{
+        chartLyricFont: 'serif', chartTheme: 'paper', ribbonStyle: 'dots',
+        duplicateSections: 'hide', notation: 'nashville', accidentals: 'flats',
+        sectionSpacing: 40, defaultFontSize: 26,
+      }} />);
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-    // Per option, not per group: resetting the font must not also throw away
-    // the size you spent a minute getting right.
-    expect(screen.getByRole('button', { name: 'Reset Font' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Reset Between sections' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Reset Size' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Reset Line spacing' })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset Font' }));
-    // Cleared, not set to a copy of the default — the default lives at the
-    // point of use, in one place.
-    expect(onUpdateSettings).toHaveBeenCalledWith('chartLyricFont', undefined);
+    // Every one of these is changed from its default and must NOT offer Reset.
+    for (const gone of ['Reset Font', 'Reset Chart theme', 'Reset Structure style']) {
+      expect(screen.queryByRole('button', { name: gone })).toBeNull();
+    }
+    // The steppers keep theirs, per option — resetting spacing must not throw
+    // away the size you spent a minute getting right.
+    expect(screen.getByRole('button', { name: 'Reset Between sections' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reset Size' })).toBeTruthy();
   });
 
   it('gives the themes AND the colours arrows, so they read as scrollable', () => {

@@ -1024,7 +1024,7 @@ export default function ReaderMenu({
       {tab === 'style' && (
         <>
           <GroupTitle>Theme</GroupTitle>
-          <Field label="Chart theme" onReset={reset('chartTheme')}>
+          <Field label="Chart theme">
             <ThemeCarousel
               themes={CHART_THEMES}
               activeId={themeId}
@@ -1040,7 +1040,7 @@ export default function ReaderMenu({
             <Field label="Size" onReset={reset('defaultFontSize')}>
               <Stepper size="lg" value={lyricSize} min={10} max={40} onChange={onLyricSize} label="lyric size" />
             </Field>
-            <Field label="Font" onReset={styleAllowed ? reset('chartLyricFont') : null}>
+            <Field label="Font">
               {styleAllowed
                 ? <Dropdown label="Lyric font" options={FONT_OPTIONS} styleOf={fontStyle}
                     value={settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID}
@@ -1050,7 +1050,6 @@ export default function ReaderMenu({
           </Pair>
           {styleAllowed
             ? <ColorRow label="Colour" value={settings?.chartLyricColor}
-                onReset={reset('chartLyricColor')}
                 onPick={(v) => set('chartLyricColor', v || undefined)} />
             : <Field label="Colour"><LockedNote onUpgrade={onUpgrade}>Colours are part of Pro.</LockedNote></Field>}
 
@@ -1060,7 +1059,7 @@ export default function ReaderMenu({
             <Field label="Size" onReset={reset('chordFontSize')}>
               <Stepper size="lg" value={chordSize} min={8} max={40} onChange={onChordSize} label="chord size" />
             </Field>
-            <Field label="Font" onReset={styleAllowed ? reset('chartChordFont') : null}>
+            <Field label="Font">
               {styleAllowed
                 ? <Dropdown label="Chord font" options={FONT_OPTIONS} styleOf={fontStyle}
                     value={settings?.chartChordFont || DEFAULT_CHORD_FONT_ID}
@@ -1070,7 +1069,6 @@ export default function ReaderMenu({
           </Pair>
           {styleAllowed
             ? <ColorRow label="Colour" value={settings?.chartChordColor}
-                onReset={reset('chartChordColor')}
                 onPick={(v) => set('chartChordColor', v || undefined)} />
             : <Field label="Colour"><LockedNote onUpgrade={onUpgrade}>Colours are part of Pro.</LockedNote></Field>}
 
@@ -1101,14 +1099,14 @@ export default function ReaderMenu({
           {/* ── Tabs ─────────────────────────────────────────────────────── */}
           <GroupTitle>Tabs</GroupTitle>
           <Pair>
-            <Field label="Size" onReset={reset('tabSize')}>
+            <Field label="Size">
               <Picks value={settings?.tabSize || 1} options={[[0.85, 'S'], [1, 'M'], [1.25, 'L']]}
                 onChange={(v) => set('tabSize', v)} />
             </Field>
             {/* A dropdown, not pills: "1/4 · 1/8 · 1/16" needs ~220px and it
                 has half a phone-width column (owner: "Can we make the tab grid
                 options to fit on a single line? Maybe we do a drop-down?"). */}
-            <Field label="Grid" onReset={reset('tabSubdivision')}>
+            <Field label="Grid">
               <Dropdown label="Tab grid" value={settings?.tabSubdivision || 1}
                 options={[[1, '1/4 notes'], [2, '1/8 notes'], [4, '1/16 notes']]}
                 onChange={(v) => set('tabSubdivision', v)} />
@@ -1117,13 +1115,10 @@ export default function ReaderMenu({
           {styleAllowed ? (
             <>
               <ColorRow label="Tab strings" value={settings?.tabStringColor}
-                onReset={reset('tabStringColor')}
                 onPick={(v) => set('tabStringColor', v || undefined)} />
               <ColorRow label="Tab numbers" value={settings?.tabNumberColor}
-                onReset={reset('tabNumberColor')}
                 onPick={(v) => set('tabNumberColor', v || undefined)} />
               <ColorRow label="Tab background" value={settings?.tabBg}
-                onReset={reset('tabBg')}
                 onPick={(v) => set('tabBg', v || undefined)} />
             </>
           ) : (
@@ -1169,15 +1164,13 @@ export default function ReaderMenu({
               on a wide screen, so gating on the explicit setting hid this from
               everyone who had never pressed "2". */}
           {config?.columns === 2 && (
-            <Field label="Reading order" onReset={reset('readerFlow')}
-              info="Down fills the first column to the bottom, then the second, and the two end level. Across lays sections left to right — nothing evens the rows up, so a short section beside a long one leaves a gap.">
+            <Field label="Reading order"              info="Down fills the first column to the bottom, then the second, and the two end level. Across lays sections left to right — nothing evens the rows up, so a short section beside a long one leaves a gap.">
               <Picks value={settings?.readerFlow || 'down'}
                 options={[['down', 'Down'], ['across', 'Across']]}
                 onChange={(v) => set('readerFlow', v)} />
             </Field>
           )}
-          <Field label="Repeats" onReset={reset('duplicateSections')}
-            info="A chorus played three times is written once. This is what the other two times look like.">
+          <Field label="Repeats"            info="A chorus played three times is written once. This is what the other two times look like.">
             {/* Full · Tag · Hidden (owner, 2026-08-05). "Condensed" and "As a
                 tag" were two names for the same pill; the pill is what you see,
                 so the pill is what it is called. The stored value stays
@@ -1189,7 +1182,7 @@ export default function ReaderMenu({
 
           {/* ── Sections ─────────────────────────────────────────────────── */}
           <GroupTitle>Sections</GroupTitle>
-          <Field label="Heading" onReset={reset('readerHeading')}>
+          <Field label="Heading">
             <Picks value={settings?.readerHeading || 'name'}
               options={[['name', 'Name'], ['code', 'Short'], ['caps', 'Uppercase']]}
               onChange={(v) => set('readerHeading', v)} />
@@ -1199,8 +1192,7 @@ export default function ReaderMenu({
               a Card chorus on a phone spent 58px before a lyric started and its
               pinned heading was a slab inset from the card it sat in. Both land
               on Tint, which is the same idea without the box. */}
-          <Field label="Style" onReset={reset('readerSectionStyle')}
-            info="Where the section's colour lives. None of these takes width from the words.">
+          <Field label="Style"            info="Where the section's colour lives. None of these takes width from the words.">
             <Dropdown label="Section style" value={settings?.readerSectionStyle || 'plain'}
               options={[['plain', 'None'], ['rule', 'Rule'], ['bar', 'Margin bar'], ['tint', 'Tint']]}
               onChange={(v) => set('readerSectionStyle', v)} />
@@ -1242,8 +1234,7 @@ export default function ReaderMenu({
               when notes are on — a placement for something switched off is a
               control that cannot do anything. */}
           {(settings?.readerInlineNotes || 'on') === 'on' && (
-            <Field label="Note position" onReset={reset('readerNotePlacement')}
-              info="In a margin down the right, or on its own line above the words.">
+            <Field label="Note position"              info="In a margin down the right, or on its own line above the words.">
               <Dropdown label="Note position" value={config?.notePlacement || 'gutter'}
                 options={[['gutter', 'Right margin'], ['above', 'Above the line']]}
                 onChange={(v) => set('readerNotePlacement', v)} />
@@ -1268,7 +1259,7 @@ export default function ReaderMenu({
               still resolves to the survivor it was a variant of
               (`normalizeRibbonStyle`), so the control never shows a value its
               own list does not contain. */}
-          <Field label="Structure style" onReset={reset('ribbonStyle')}>
+          <Field label="Structure style">
             <Dropdown label="Structure style" value={ribbonStyleNow}
               options={[['codes', 'Boxes'], ['chips', 'Chips'], ['dots', 'Dots']]}
               onChange={(v) => {
@@ -1277,8 +1268,7 @@ export default function ReaderMenu({
                 if (v !== 'dots' && sidePos) set('structurePosition', 'top');
               }} />
           </Field>
-          <Field label="Structure location" onReset={reset('structurePosition')}
-            info={ribbonStyleNow === 'dots'
+          <Field label="Structure location"            info={ribbonStyleNow === 'dots'
               ? 'Down a side the map floats over the chart, in the margin it already had.'
               : 'Left and right need dots — a box or a chip laid over the lyrics covers a word.'}>
             <Dropdown label="Structure location" value={settings?.structurePosition || 'top'}
@@ -1303,7 +1293,7 @@ export default function ReaderMenu({
 
           {/* ── Navigation ───────────────────────────────────────────────── */}
           <GroupTitle>Navigation</GroupTitle>
-          <Field label="Controls" onReset={reset('readerNav')}>
+          <Field label="Controls">
             <Dropdown label="Navigation controls" value={settings?.readerNav || 'footer'}
               options={[['footer', 'Bottom bar'], ['pill', 'Floating pill'], ['edge', 'Edge arrows'], ['swipe', 'Swipe only']]}
               onChange={(v) => set('readerNav', v)} />
@@ -1313,7 +1303,7 @@ export default function ReaderMenu({
               is not on screen (owner, 2026-08-04: "this one should be only for
               the bottom bar"). */}
           {(settings?.readerNav || 'footer') === 'footer' && (
-            <Field label="Bottom bar" onReset={reset('readerFooter')}>
+            <Field label="Bottom bar">
               <Picks value={settings?.readerFooter || 'next'}
                 options={[['next', 'Next song'], ['count', 'Count only']]}
                 onChange={(v) => set('readerFooter', v)} />
@@ -1360,8 +1350,7 @@ export default function ReaderMenu({
               playing name"*). "Your instrument" is the concrete thing, and it
               is the same word the team schema uses (`team_members.instruments`)
               — one day this row and the roster will be the same fact. */}
-          <Field label="Your instrument" onReset={reset('displayRole', 'tabInstrument')}
-            info="Vocals and Drums drop the chords; Guitar and Bass open their own tabs. Everything here stays changeable on its own afterwards.">
+          <Field label="Your instrument"            info="Vocals and Drums drop the chords; Guitar and Bass open their own tabs. Everything here stays changeable on its own afterwards.">
             <Picks value={roleId} options={ROLES.map(r => [r.id, r.label])}
               onChange={(id) => {
                 // Applies its settings VISIBLY. A role that silently overrode
@@ -1390,17 +1379,16 @@ export default function ReaderMenu({
               off there. So "put it back to default" produced lyrics-only.
               Clearing both means the fallback can only ever apply to a profile
               that has never touched this control — which is its whole job. */}
-          <Field label="Show" onReset={reset('displayMode', 'showChords')}>
+          <Field label="Show">
             <Dropdown label="What the chart shows" value={settings?.displayMode || 'chords'}
               options={[['chords', 'Chords + lyrics'], ['lyrics', 'Lyrics only'], ['chordsonly', 'Chords only']]}
               onChange={(v) => { set('displayMode', v); set('showChords', undefined); }} />
           </Field>
-          <Field label="Chord names" onReset={reset('notation')}
-            info="Numbers are Nashville (1, 4, 5). Numerals are Roman, and the numeral itself says major or minor — I, IV, V against ii, iii, vi.">
+          <Field label="Chord names"            info="Numbers are Nashville (1, 4, 5). Numerals are Roman, and the numeral itself says major or minor — I, IV, V against ii, iii, vi.">
             <Dropdown label="Chord names" value={config?.display?.notation || 'letters'}
               options={NOTATIONS} onChange={(v) => set('notation', v)} />
           </Field>
-          <Field label="Sharps or flats" onReset={reset('accidentals')}>
+          <Field label="Sharps or flats">
             <Picks value={settings?.accidentals || 'auto'}
               options={[['auto', 'Follow key'], ['sharps', '♯'], ['flats', '♭']]}
               onChange={(v) => set('accidentals', v)} />
