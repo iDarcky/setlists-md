@@ -14,6 +14,7 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useActiveSection } from '@/hooks/useActiveSection';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import ReaderSection from './ReaderSection';
+import SongInfoSheet from './SongInfoSheet';
 import ReaderTopBar from './ReaderTopBar';
 import { BAR_BUTTON, EDIT_ACCENT } from './readerChrome';
 import { chartSurface, hubSurface } from './readerSurface';
@@ -428,6 +429,9 @@ export default function Reader({
   // Nothing here is persisted, by decision: the tempo re-seeds from the song and
   // the click STOPS on a song change, so there is no stored knob to sync and
   // no way to walk into the next song with a click you forgot was running.
+  // The song's own panel — element 1's newest surface, opened by the title.
+  // See `SongInfoSheet` for what is in it and what deliberately is not.
+  const [infoOpen, setInfoOpen] = useState(false);
   const [practiceOpen, setPracticeOpen] = useState(false);
   const metronome = useMetronome();
 
@@ -1664,6 +1668,7 @@ export default function Reader({
           // its own mode and `resolveReaderConfig` is the one place that knows.
           cornerMark={liveFold ? <LiveFold /> : null}
           title={song.title}
+          onTitleTap={() => setInfoOpen(true)}
           // ⚠ GONE while editing, not disabled and not live. The category
           // argument settles it (owner, 2026-08-09): *"you're changing the
           // song, not the screen."* The ☰ is how the page is PAINTED — the same
@@ -2366,6 +2371,26 @@ export default function Reader({
           bottom={Math.max(footH, restH) + dockH}
         />
       )}
+
+      {/* The song's own panel, opened by the title. A bottom sheet on a phone
+          and a centred dialog on a wide screen — the same split `SetlistRail`
+          makes, for the same reason. It is a read-out, so it is offered in
+          every mode including live and including edit: nothing in it changes
+          the song. */}
+      <SongInfoSheet
+        open={infoOpen}
+        onClose={() => setInfoOpen(false)}
+        wide={wide}
+        song={song}
+        displayKey={displayKey}
+        capo={capo}
+        capoShapeKey={capoShapeKey}
+        // Only worth naming when there is more than one. "Main Arrangement" on
+        // a song that has exactly one arrangement is a row that answers a
+        // question nobody asked.
+        arrangementName={song._arrangementCount > 1 ? song._arrangementName : null}
+        notes={song.notes}
+      />
 
       {/* The dock. A fixed share of the READER, not of the viewport, so it is
           the same share whatever chrome sits above it. 40%, up from the 30%

@@ -1644,11 +1644,15 @@ describe('the live badge', () => {
     const { container: off } = render(
       <Reader song={makeSong()} settings={{}} mode="practice" onModeChange={() => {}} onExit={() => {}} />
     );
-    const offTitle = off.querySelector('.reader-head span.truncate');
+    // ⚠ Element-agnostic on purpose. The title became a <button> when it
+    // started opening the song panel (2026-08-21); `span.truncate` silently
+    // matched nothing and the test died on `null.className` rather than on the
+    // thing it exists to guard.
+    const offTitle = off.querySelector('.reader-head .truncate');
     const { container: on } = render(
       <Reader song={makeSong()} settings={{}} mode="live" onModeChange={() => {}} onExit={() => {}} />
     );
-    const onTitle = on.querySelector('.reader-head span.truncate');
+    const onTitle = on.querySelector('.reader-head .truncate');
     // jsdom does not lay out, so compare the CLASSES that decide the width —
     // the style is the decision (READER.md's note on brittle source tests).
     expect(onTitle.className).toBe(offTitle.className);

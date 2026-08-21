@@ -18,6 +18,9 @@ import { BAR_BUTTON, EDIT_ACCENT, EDIT_INK, EDIT_CHROME } from './readerChrome';
 const ReaderTopBar = forwardRef(function ReaderTopBar(
   {
     title, meta = null, onMenu, onExit, tools = null, leading = null,
+    // Tapping the title opens the song's own panel. Null on any surface that
+    // has no panel to open — see the title block below.
+    onTitleTap = null,
     // Painted INTO the sticky block's top-right corner, outside the layout —
     // so it costs the title not one pixel. The reader's live fold is the only
     // user; see `LiveFold`.
@@ -160,9 +163,18 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
             rather than out by the exit — the key is the only live control here
             and a mis-tap next to ✕ leaves the service. */}
         <span className="min-w-0 flex items-center gap-2.5">
-          <span
-            className="truncate text-label-14 font-semibold"
-            style={{
+          {/* ── The title opens the song's own panel ──────────────────────
+              Owner, 2026-08-21: *"The tap target should be the title
+              everywhere"*. It was the widest, safest thing in the bar and it
+              did nothing at all; "what is this song" is what a title is for,
+              so the panel costs no new chrome and needs no icon to explain it.
+              `SongInfoSheet` says what is in it and why it is not `SongDetails`.
+
+              A <button> only when there is somewhere to go — a title styled as
+              a control that does nothing is READER.md's trap 23, and this bar
+              is rendered on the shared-link surface too. */}
+          {(() => {
+            const titleStyle = {
               // Explicit colour and a real flex basis: inheriting the colour
               // and shrinking from `auto` are both ways this has vanished.
               color: 'var(--chart-text, #111111)',
@@ -170,10 +182,23 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
               flex: '0 1 auto',
               minWidth: '3rem',
               maxWidth: '22rem',
-            }}
-          >
-            {title}
-          </span>
+            };
+            if (!onTitleTap) {
+              return <span className="truncate text-label-14 font-semibold" style={titleStyle}>{title}</span>;
+            }
+            return (
+              <button
+                type="button"
+                onClick={onTitleTap}
+                aria-label={`${title} — song info`}
+                title="Song info"
+                className="min-h-0 truncate text-label-14 font-semibold bg-transparent border-none p-0 text-left cursor-pointer"
+                style={titleStyle}
+              >
+                {title}
+              </button>
+            );
+          })()}
           {meta}
         </span>
 
