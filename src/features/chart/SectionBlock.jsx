@@ -257,10 +257,30 @@ export default function SectionBlock({
       type="button"
       onClick={(e) => { e.stopPropagation(); onNoteOpen(lineIdx, ''); }}
       aria-label="Add a note to this line"
-      className="min-h-0 self-start text-left bg-transparent border-none cursor-pointer p-0"
+      title="Add a note to this line"
+      // ── It has to be SEEN before it can be tapped ─────────────────────────
+      // Owner, 2026-08-21: *"the note buttons don't appear when I press the
+      // edit"*. They did appear — measured on a 1280px reader they were drawn
+      // at x≈1145, roughly 800px to the right of the words they belong to, at
+      // **0.72em and 0.4 opacity**: the faintest thing on the page, at the far
+      // edge of the screen, in a gutter that is otherwise empty. "Doesn't
+      // appear" is the honest description of that.
+      //
+      // A dashed 32px chip instead, at full strength — the same shape the
+      // ribbon's own `+` uses, so the two `+`s in edit mode look like siblings.
+      // It can afford to be loud because it renders in EDIT MODE ONLY: `noteHint`
+      // is `!!onEditNote && noteHintHere`, and `Reader` passes `onEditNote` as
+      // null unless `editing`. Nothing about this is visible while reading.
+      //
+      // ⚠ Still in the gutter, which is still a long way from the line on a wide
+      // screen. Whether the `+` should move to the LINE instead is an open
+      // question with the owner; this round makes the existing one findable
+      // rather than moving it, so the two changes stay separable.
+      className="min-h-0 self-start grid place-items-center w-8 h-8 rounded-lg border border-dashed bg-transparent cursor-pointer p-0 leading-none font-bold"
       style={{
         ...(gutterRule || {}),
-        fontSize: '0.72em', lineHeight: 1.3, opacity: 0.4,
+        fontSize: '15px', opacity: 0.85,
+        borderColor: 'var(--chart-rule, var(--ds-gray-400))',
         color: 'var(--chart-subtle, var(--text-2))',
         // ⚠ `--chart-font-size-chord`, not `--chart-chord-size`. The latter is
         // written by nobody, so this resolved to `1em` — and `1em` HERE is the

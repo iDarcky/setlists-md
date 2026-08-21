@@ -29,6 +29,27 @@ export function StructureRibbon({
   // 'horizontal' (default) or 'vertical' — the side floating rail stacks the
   // items in a column.
   orientation = 'horizontal',
+  // ── How big a chip is ────────────────────────────────────────────────────
+  // 'md' reading · 'lg' editing.
+  //
+  // The chips were 29 × 21px carrying 10px type, and the row's own comment
+  // above `TAP_AREA` says exactly why: "a real 44 costs ~16px of permanent
+  // chrome height, which is element 1's most expensive currency", so the chip
+  // stayed small and a transparent `::after` bought 33px of target instead.
+  // That trade was made when the height mattered more than the target.
+  //
+  // Owner, 2026-08-21, reverses it: *"everything from the header to the menu
+  // and menu items are a bit too small for touch… I would like the whole ui to
+  // be bigger"*, and separately *"the structure bar should be bigger when
+  // entering edit mode"*. So the chip pays the height now — and the ::after
+  // stays, because a bigger chip with a bigger hit area is still better than
+  // either alone.
+  //
+  // ⚠ 'lg' is not just "more padding". In edit mode a chip is a DRAG HANDLE,
+  // and the thing you are dragging has to be big enough to see under your own
+  // finger — which is the second reason the owner asked for it there
+  // specifically.
+  size = 'md',
   // Show a WINDOW of the map rather than all of it: `{ before, after }` runs
   // around the one you are in. The side rail's shape (owner, 2026-08-05: *"they
   // should show maybe like 5-6 elements and they should scroll with the
@@ -150,8 +171,13 @@ export function StructureRibbon({
   // The row adds no height of its own beyond what the chips need — the boxes
   // are 15px tall now, so a taller row is the only thing that could put space
   // back above and below them.
+  const lg = size === 'lg';
+  // One scale, read by every style below, so "bigger" is one edit and not nine.
+  const SZ = lg
+    ? { text: 'text-[14px]', pad: 'px-[11px] py-[7px]', row: 'py-1.5 gap-1.5', dot: 'w-[11px] h-[11px]', dotActive: 'w-[15px] h-[15px]', add: 'w-9 h-9 text-[16px]', ghost: 'w-10 h-9', mono: 'text-[13px]', pill: 'px-3 py-1 text-[14px]' }
+    : { text: 'text-[12px]', pad: 'px-[9px] py-[5px]', row: 'py-1 gap-1.5', dot: 'w-[9px] h-[9px]', dotActive: 'w-[13px] h-[13px]', add: 'w-7 h-7 text-[14px]', ghost: 'w-8 h-7', mono: 'text-[11px]', pill: 'px-3 py-1 text-[13px]' };
   const rowClass = cn(
-    'flex gap-1 px-1 py-0.5 min-w-0',
+    'flex px-1 min-w-0', SZ.row,
     vertical
       ? 'flex-col items-center'
       // Reorderable ⇒ WRAP. A horizontally scrolling strip and a horizontal
@@ -253,7 +279,7 @@ export function StructureRibbon({
             aria-label={`Key change to ${arriveAt}`}
             className={cn(
               'shrink-0 inline-flex items-center gap-[1px] font-mono font-bold whitespace-nowrap leading-none',
-              vertical ? 'text-[9px] py-[1px]' : 'text-[10px]',
+              vertical ? 'text-[10px] py-[1px]' : SZ.mono,
             )}
             // `--chord` is the same gold the chart's own key-change chip uses,
             // and the same one the chords are written in. Not a chip: this is
@@ -475,7 +501,7 @@ export function StructureRibbon({
         <span
           key="bin"
           data-drop-bin="true"
-          className="shrink-0 inline-flex items-center justify-center w-7 h-[19px] rounded-[5px] border border-dashed"
+          className={cn('shrink-0 inline-flex items-center justify-center rounded-[7px] border border-dashed', SZ.ghost)}
           style={drag.over === -1
             ? { borderColor: 'var(--ds-red-900)', background: 'color-mix(in srgb, var(--ds-red-900) 18%, transparent)', color: 'var(--ds-red-900)' }
             : { borderColor: 'var(--ds-red-900)', color: 'var(--ds-red-900)' }}
@@ -489,7 +515,7 @@ export function StructureRibbon({
     }
     if (onAddSection && addOptions?.length) {
       tail.push(
-        <AddSection key="add" options={addOptions} onPick={onAddSection}
+        <AddSection key="add" options={addOptions} onPick={onAddSection} size={SZ.add}
           sectionColors={sectionColors} customSectionTypes={customSectionTypes} />
       );
     }
@@ -537,15 +563,15 @@ export function StructureRibbon({
                   little shoves in a row reads as a shudder.
                   The cell is always 11px, so the column's geometry never
                   changes; only the paint inside one cell does. */}
-              <span className="grid place-items-center w-[11px] h-[11px]">
+              <span className={cn('grid place-items-center', SZ.dotActive)}>
                 <span
                   className={cn('rounded-full transition-[width,height] duration-150',
-                    active ? 'w-[11px] h-[11px]' : 'w-[7px] h-[7px]')}
+                    active ? SZ.dotActive : SZ.dot)}
                   style={{ background: s.b }}
                 />
               </span>
               {showLabels && (
-                <span className="font-mono font-bold text-[11px]" style={{ color: s.b }}>{labelOf(run.name)}</span>
+                <span className={cn('font-mono font-bold', SZ.mono)} style={{ color: s.b }}>{labelOf(run.name)}</span>
               )}
               {run.count > 1 && (
                 <span className="text-[10px] font-semibold" style={{ color: s.b }}>×{run.count}</span>
@@ -578,13 +604,13 @@ export function StructureRibbon({
               ref={active ? activeRef : null}
               {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index), title: labelOf(run.name) } : {})}
               className={cn(
-                'shrink-0 inline-flex items-center gap-1 whitespace-nowrap font-mono text-[10px] leading-[1.5]',
+                'shrink-0 inline-flex items-center gap-1 whitespace-nowrap font-mono leading-[1.5]', SZ.text, SZ.pad,
                 // `button { min-height: 36px }` (44px on a phone) lives in
                 // @layer base and beats every padding utility here. Without
                 // this opt-out the chip is a 44px slab and no amount of
                 // padding tuning touches it.
                 'min-h-0',
-                'tracking-[0.06em] px-[7px] py-[2px] rounded-[5px] border transition-all',
+                'tracking-[0.06em] rounded-[7px] border transition-all',
                 active && 'font-bold',
                 onSelect && `cursor-pointer hover:opacity-80 ${TAP_AREA}`,
               )}
@@ -640,11 +666,11 @@ export function StructureRibbon({
                 {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index) } : {})}
                 className={cn(
                   // Same type as `codes` — the boxes are just gone.
-                  'bg-transparent border-none p-0 min-h-0 font-mono text-[10px] leading-[1.5] tracking-[0.06em]',
+                  'bg-transparent border-none p-0 min-h-0 font-mono leading-[1.5] tracking-[0.06em]', SZ.text,
                   active ? 'font-bold' : 'font-medium',
                   active && !activeFill && 'underline underline-offset-4',
                   // The filled chip is the `codes` chip exactly, borderless.
-                  activeFill && active && 'inline-flex items-center px-[7px] py-[2px] rounded-[5px]',
+                  activeFill && active && cn('inline-flex items-center rounded-[7px]', SZ.pad),
                   onSelect && `cursor-pointer hover:opacity-80 ${TAP_AREA}`,
                 )}
                 style={activeFill
@@ -677,7 +703,7 @@ export function StructureRibbon({
             {...(onSelect ? { type: 'button', onClick: () => onSelect(run.index) } : {})}
             className={cn(
               "inline-flex shrink-0 items-center gap-1 rounded-full border font-medium transition-all min-h-0",
-              compact ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-0.5 text-[12px]",
+              compact ? "px-2.5 py-1 text-[12px]" : SZ.pill,
               onSelect && `cursor-pointer hover:opacity-80 ${TAP_AREA}`,
               active && "ring-2 ring-offset-1 ring-offset-transparent"
             )}
@@ -716,7 +742,7 @@ export function StructureRibbon({
  * Portalled: the ribbon is an `overflow-x-auto` strip, so a menu rendered
  * inside it would be clipped by its own scroller.
  */
-function AddSection({ options, onPick, sectionColors, customSectionTypes }) {
+function AddSection({ options, onPick, sectionColors, customSectionTypes, size = 'w-7 h-7 text-[14px]' }) {
   const [at, setAt] = useState(null);
   return (
     <>
@@ -731,7 +757,7 @@ function AddSection({ options, onPick, sectionColors, customSectionTypes }) {
           const r = e.currentTarget.getBoundingClientRect();
           setAt(prev => (prev ? null : r));
         }}
-        className="shrink-0 min-h-0 w-[19px] h-[19px] grid place-items-center rounded-[5px] border border-dashed bg-transparent cursor-pointer text-[12px] leading-none font-bold"
+        className={cn('shrink-0 min-h-0 grid place-items-center rounded-[7px] border border-dashed bg-transparent cursor-pointer leading-none font-bold', size)}
         style={{ borderColor: 'var(--color-brand)', color: 'var(--color-brand)' }}
       >
         +

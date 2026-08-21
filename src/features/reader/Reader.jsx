@@ -90,7 +90,7 @@ function CapoChip({ capo, soundingKey, shapeKey, writtenCapo, onSelect }) {
     >
       <SelectTrigger
         aria-label={capo ? `Capo ${capo}, shapes in ${shapeKey}` : 'Capo'}
-        className="!border gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90 !h-[23px] !min-h-[23px] sm:!h-[20px] sm:!min-h-[20px] !w-auto !pl-1.5 !pr-1 !py-0 !rounded-lg text-[12px] leading-none [&>svg]:w-[10px] [&>svg]:h-[10px] [&>svg]:shrink-0 [&>svg]:translate-y-[1px]"
+        className="!border gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90 !h-8 !min-h-8 !w-auto !pl-2.5 !pr-1.5 !py-0 !rounded-lg text-[14px] leading-none [&>svg]:w-[12px] [&>svg]:h-[12px] [&>svg]:shrink-0 [&>svg]:translate-y-[1px]"
         style={{
           // ⚠ LONGHANDS. A `background` or `outline` shorthand with a nested
           // `var(a, var(b))` throws in jsdom's style expander, inside the
@@ -259,7 +259,7 @@ function BarField({ value, onCommit, width, label, prefix = '', inputMode }) {
           if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
           if (e.key === 'Escape') { setDraft(String(value ?? '')); e.currentTarget.blur(); }
         }}
-        className="min-h-0 h-[20px] px-1 rounded border bg-transparent text-label-11 tabular-nums text-center outline-none focus:border-[var(--color-brand)]"
+        className="min-h-0 h-8 px-1.5 rounded border bg-transparent text-label-13 tabular-nums text-center outline-none focus:border-[var(--color-brand)]"
         style={{ width, borderColor: 'var(--chart-rule, var(--ds-gray-400))', color: 'inherit' }}
       />
     </span>
@@ -1535,6 +1535,15 @@ export default function Reader({
       // the same object.
       style={editing ? 'codes' : (ribbonSide ? 'dots' : config.ribbonStyle)}
       orientation={ribbonSide ? 'vertical' : 'horizontal'}
+      // Owner, 2026-08-21: *"the structure bar should be bigger when entering
+      // edit mode"*. It is the drag surface there — a chip you are moving has
+      // to be visible under the finger moving it — and edit mode has already
+      // taken the ribbon over anyway (forced to 'codes', forced expanded,
+      // forced to the top, wrapped instead of scrolling). Size is the last of
+      // those five, not a new idea. Never 'lg' on a side rail: that column is
+      // floating over the lyrics, and the whole reason it is allowed to is
+      // that it stays narrow.
+      size={editing && !ribbonSide ? 'lg' : 'md'}
       // No window any more (owner, 2026-08-06: *"now that we have dots, remove
       // the scrolling of 2 and 3, show full"*). The window existed because a
       // column of CHIPS could not carry a whole song — six spelled-out names
@@ -1700,7 +1709,7 @@ export default function Reader({
                       near-black text, mono bold. */}
                   <SelectTrigger
                     aria-label="Key (transpose)"
-                    className="!border-0 gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90 !h-[23px] !min-h-[23px] sm:!h-[20px] sm:!min-h-[20px] !w-auto !pl-2 !pr-1.5 !py-0 !rounded-lg text-[13px] leading-none [&>svg]:w-[11px] [&>svg]:h-[11px] sm:[&>svg]:w-[10px] sm:[&>svg]:h-[10px] [&>svg]:shrink-0 [&>svg]:opacity-100 [&>svg]:translate-y-[1px]"
+                    className="!border-0 gap-0.5 font-mono font-bold focus:!ring-0 shrink-0 hover:!opacity-90 !h-8 !min-h-8 !w-auto !pl-2.5 !pr-2 !py-0 !rounded-lg text-[15px] leading-none [&>svg]:w-[13px] [&>svg]:h-[13px] [&>svg]:shrink-0 [&>svg]:opacity-100 [&>svg]:translate-y-[1px]"
                     style={{ background: 'var(--chord)', color: '#0a0a0a' }}
                   >
                     <span>{displayKey}</span>
@@ -1713,7 +1722,7 @@ export default function Reader({
                 </Select>
               ) : (
                 <span
-                  className="font-mono font-bold text-[13px] rounded-lg px-2 h-[23px] sm:h-[20px] inline-flex items-center"
+                  className="font-mono font-bold text-[15px] rounded-lg px-2.5 h-8 inline-flex items-center"
                   style={{ background: 'var(--chord)', color: '#0a0a0a' }}
                 >
                   {displayKey}
@@ -1743,7 +1752,7 @@ export default function Reader({
                 />
               ) : capo ? (
                 <span
-                  className="font-mono font-bold text-[12px] rounded-lg px-1.5 h-[23px] sm:h-[20px] inline-flex items-center gap-1 shrink-0"
+                  className="font-mono font-bold text-[14px] rounded-lg px-2 h-8 inline-flex items-center gap-1 shrink-0"
                   style={{
                     borderWidth: 1,
                     borderStyle: 'solid',
@@ -1777,7 +1786,7 @@ export default function Reader({
                   <BarField
                     value={song.tempo ?? ''}
                     prefix="♩"
-                    width={38}
+                    width={46}
                     label="Tempo"
                     inputMode="numeric"
                     onCommit={(v) => {
@@ -1787,15 +1796,31 @@ export default function Reader({
                   />
                   <BarField
                     value={song.time || ''}
-                    width={34}
+                    width={42}
                     label="Time signature"
                     onCommit={(v) => writeSong({ time: v.trim() })}
                   />
                 </>
               ) : (
+                // ── Not on a phone ────────────────────────────────────────
+                // ⚠ These two hide below `sm:`, and it is the price of the
+                // chrome getting bigger (2026-08-21). The row is
+                // ☰ · title · key · capo · ♩tempo · time · ✕, and the controls
+                // grew: measured at 390px the title fell from ~123px to ~77px
+                // and "Cel Minunat, Salvatorul" truncated to "Cel Minu…".
+                //
+                // Something had to give, and tempo/time are the only two things
+                // in the row you cannot ACT on — they are facts about the song,
+                // they are both in the practice tools, and the song's own name
+                // is the one thing the bar exists to tell you. On a tablet the
+                // width is there and they stay.
+                //
+                // While EDITING they stay at every width: they are fields then,
+                // not read-outs, and edit mode drops the ribbon's jump targets
+                // anyway so the row has the room.
                 <>
-                  {song.tempo && <span className="tabular-nums">♩{song.tempo}</span>}
-                  {song.time && <span className="tabular-nums">{song.time}</span>}
+                  {song.tempo && <span className="tabular-nums hidden sm:inline">♩{song.tempo}</span>}
+                  {song.time && <span className="tabular-nums hidden sm:inline">{song.time}</span>}
                 </>
               )}
             </span>

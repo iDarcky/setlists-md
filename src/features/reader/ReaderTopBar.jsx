@@ -161,7 +161,7 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
             and a mis-tap next to ✕ leaves the service. */}
         <span className="min-w-0 flex items-center gap-2.5">
           <span
-            className="truncate text-label-13 font-semibold"
+            className="truncate text-label-14 font-semibold"
             style={{
               // Explicit colour and a real flex basis: inheriting the colour
               // and shrinking from `auto` are both ways this has vanished.
@@ -204,7 +204,7 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
           <button
             type="button"
             onClick={onExit}
-            className="min-h-0 h-[26px] shrink-0 px-2.5 rounded-lg border text-label-11 font-semibold cursor-pointer"
+            className="min-h-0 h-9 shrink-0 px-3 rounded-lg border text-label-13 font-semibold cursor-pointer"
             style={{
               backgroundColor: 'transparent',
               borderColor: 'rgba(255,255,255,0.45)',

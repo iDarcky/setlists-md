@@ -219,7 +219,7 @@ function Field({ label, children, onReset, info, inline = false }) {
         {info && (
           <button type="button" onClick={() => setShowInfo(v => !v)}
             aria-label={`About ${label}`} aria-expanded={showInfo}
-            className="min-h-0 w-[17px] h-[17px] shrink-0 grid place-items-center rounded-full text-[11px] font-bold cursor-pointer bg-transparent"
+            className="min-h-0 w-[22px] h-[22px] shrink-0 grid place-items-center rounded-full text-[13px] font-bold cursor-pointer bg-transparent"
             style={{
               color: showInfo ? 'var(--color-brand)' : 'var(--ds-gray-600)',
               boxShadow: `inset 0 0 0 1.2px ${showInfo ? 'var(--color-brand)' : 'var(--border-2)'}`,
@@ -229,7 +229,7 @@ function Field({ label, children, onReset, info, inline = false }) {
         )}
         {onReset && (
           <button type="button" onClick={onReset} aria-label={`Reset ${label}`}
-            className="min-h-0 text-[12px] font-medium cursor-pointer bg-transparent border-none p-0"
+            className="min-h-0 text-[13px] font-medium cursor-pointer bg-transparent border-none px-1.5 py-1.5 -my-1.5 -mx-1.5"
             style={{ color: 'var(--ds-red-900)' }}>
             Reset
           </button>
@@ -418,7 +418,7 @@ function LockedNote({ children, onUpgrade }) {
       <ProNote>{children}</ProNote>
       {onUpgrade && (
         <button type="button" onClick={onUpgrade}
-          className="min-h-0 text-[13px] font-semibold cursor-pointer bg-transparent border-none p-0 underline underline-offset-2"
+          className="min-h-0 text-[14px] font-semibold cursor-pointer bg-transparent border-none px-1.5 py-1.5 -my-1.5 -mx-1.5 underline underline-offset-2"
           style={{ color: 'var(--color-brand)' }}>
           Upgrade
         </button>
@@ -440,7 +440,7 @@ function Arrow({ dir, onClick, disabled, what }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled}
       aria-label={`${dir === 'left' ? 'Previous' : 'More'} ${what}`}
-      className="shrink-0 w-8 h-[40px] min-h-0 grid place-items-center rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-[var(--text-1)] cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed hover:bg-[var(--bg-2)]">
+      className="shrink-0 w-10 h-12 min-h-0 grid place-items-center rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-[var(--text-1)] cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed hover:bg-[var(--bg-2)]">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
         <polyline points={dir === 'left' ? '15 18 9 12 15 6' : '9 18 15 12 9 6'} />
@@ -528,7 +528,7 @@ function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
             <button
               key={t.id} type="button"
               onClick={() => (locked ? onUpgrade?.() : onPick(t.id))}
-              className="relative shrink-0 min-h-0 h-[40px] w-[70px] rounded-lg overflow-hidden cursor-pointer flex items-end justify-end px-2 py-1.5"
+              className="relative shrink-0 min-h-0 h-12 w-[84px] rounded-lg overflow-hidden cursor-pointer flex items-end justify-end px-2 py-1.5"
               style={{
                 backgroundColor: t.bg, color: t.chord, fontFamily: 'var(--font-mono)',
                 opacity: locked ? 0.45 : 1,
@@ -597,7 +597,7 @@ function ColorCarousel({ value, onPick }) {
             <button key={c.id} type="button"
               onClick={() => { setAt(null); onPick(c.value); }}
               title={c.name} aria-label={c.name}
-              className="shrink-0 w-10 h-10 min-h-0 rounded-full cursor-pointer"
+              className="shrink-0 w-11 h-11 min-h-0 rounded-full cursor-pointer"
               style={{
                 ...(c.value === null
                   ? { backgroundImage: 'linear-gradient(135deg, var(--chart-lyric, var(--chart-text, #888)) 50%, var(--chord, #e0b341) 50%)' }
@@ -615,7 +615,7 @@ function ColorCarousel({ value, onPick }) {
         <button type="button"
           onClick={(e) => setAt(a => (a ? null : e.currentTarget.getBoundingClientRect()))}
           aria-label="Any colour" aria-expanded={!!at} title="Any colour"
-          className="relative shrink-0 w-10 h-10 min-h-0 rounded-full cursor-pointer grid place-items-center"
+          className="relative shrink-0 w-11 h-11 min-h-0 rounded-full cursor-pointer grid place-items-center"
           // `backgroundImage`/`backgroundColor`, not the `background`
           // shorthand: jsdom's shorthand parser throws on a `conic-gradient`
           // when Testing Library clones the node for a role query, which takes
@@ -680,10 +680,10 @@ function ColorPopover({ anchor, value, onPick, onClose }) {
               const v = e.target.value.trim();
               if (/^#?[0-9a-fA-F]{6}$/.test(v)) onPick(v.startsWith('#') ? v : `#${v}`);
             }}
-            className="flex-1 min-w-0 h-9 px-2 rounded-lg font-mono text-[13px] text-[var(--text-1)] bg-[var(--bg-1)] border border-[var(--border-1)]"
+            className="flex-1 min-w-0 h-11 px-2.5 rounded-lg font-mono text-[14px] text-[var(--text-1)] bg-[var(--bg-1)] border border-[var(--border-1)]"
           />
           <button type="button" onClick={onClose}
-            className="min-h-0 h-9 px-3 rounded-lg text-[13px] font-semibold cursor-pointer bg-transparent border border-[var(--border-1)] text-[var(--text-1)]">
+            className="min-h-0 h-11 px-3.5 rounded-lg text-[14px] font-semibold cursor-pointer bg-transparent border border-[var(--border-1)] text-[var(--text-1)]">
             Done
           </button>
         </div>
@@ -976,7 +976,7 @@ export default function ReaderMenu({
         <button
           key={id} type="button" onClick={() => setTab(id)}
           aria-pressed={tab === id}
-          className={`flex-1 min-h-0 h-9 rounded-lg text-[13.5px] font-semibold cursor-pointer transition-colors border ${
+          className={`flex-1 min-h-0 h-11 rounded-lg text-[15px] font-semibold cursor-pointer transition-colors border ${
             tab === id
               ? 'text-white border-transparent'
               : 'text-[var(--text-2)] border-transparent bg-transparent hover:text-[var(--text-1)] hover:bg-[var(--bg-2)]'}`}
@@ -999,7 +999,7 @@ export default function ReaderMenu({
           phone-height from the thumb using the panel. */}
       {dock === 'bottom' && (
         <button type="button" onClick={onClose} aria-label="Close display options"
-          className="shrink-0 ml-1 w-9 h-9 min-h-0 grid place-items-center rounded-lg bg-transparent border-none text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--bg-2)] cursor-pointer">
+          className="shrink-0 ml-1 w-11 h-11 min-h-0 grid place-items-center rounded-lg bg-transparent border-none text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--bg-2)] cursor-pointer">
           {/* A chevron DOWN on the phone dock, a ✕ on the desktop panel (owner,
               2026-08-04). The dock slides down out of the way and the chevron
               says which way it goes; the side panel does not go down, and there

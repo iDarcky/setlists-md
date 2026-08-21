@@ -22,17 +22,37 @@
  * height and whether the bottom bar could be smaller: it is centred (every row
  * is `items-center`), it was just taller than it looked.
  *
- * Opting out of the phone floor, but NOT all the way down: **36px on a phone,
- * 32px from `sm:` up** (owner, 2026-08-04: "make the header with everything a
- * couple pixels bigger on mobile"). The two corrections are not in conflict —
- * "too big and too separate" was about the 8px GAPS between three 36px buttons,
- * which is why they went into a 2px cluster. Tightening the cluster is what
- * bought the room to keep the targets comfortable on the device you actually
- * hold. The ☰ and ✕ are still reached between songs, not mid-song — unlike the
- * footer's prev/next, which keep a bigger target because they are hit in the
- * dark (see `ReaderFooter`).
+ * It opted out of the phone floor and then went *below* it: 36px on a phone and
+ * **32px from `sm:` up**, which is where a tablet lives. That was tuned to buy
+ * the title 24px of width, and it bought it from the wrong budget — the ☰ and
+ * the ✕ are the two ways in and out of the reader.
+ *
+ * **44px everywhere now** (owner, 2026-08-21: *"everything from the header to
+ * the menu and menu items are a bit too small for touch, both mobile and
+ * tablet… I would like the whole ui to be bigger."*). It is the platform
+ * minimum on iOS and Android alike, and a tablet is a touch device — the
+ * `sm:` step down was treating ≥640px as "has a mouse", which an iPad does not.
+ * The 2px cluster stays: "too big and too separate" (2026-08-03) was about the
+ * GAPS, not the targets, and tightening the gaps is what pays for this.
  */
-export const BAR_BUTTON = 'min-h-0 h-9 w-9 sm:h-8 sm:w-8 text-[var(--chart-text,var(--ds-gray-1000))]';
+export const BAR_BUTTON = 'min-h-0 h-11 w-11 text-[var(--chart-text,var(--ds-gray-1000))]';
+
+/**
+ * The bar's PILLS — the key chip and the capo chip.
+ *
+ * They were `23px` on a phone and `20px` from `sm:` up, carrying 12–13px type:
+ * a fifth of the platform's 44px minimum, on the two controls in the bar that
+ * are actually *used* mid-song. Owner, 2026-08-21: *"everything from the header
+ * to the menu and menu items are a bit too small for touch, both mobile and
+ * tablet. But I would like the whole ui to be bigger."*
+ *
+ * 32px is the compromise the row can carry: it clears a thumb, it reads at 14px
+ * type, and it still sits under the 44px icon buttons beside it rather than
+ * making the bar taller than they do. A pill is a wide target — 32×53 has more
+ * reachable area than a 44×44 square — so height is the only axis that was
+ * genuinely short.
+ */
+export const BAR_PILL = '!h-8 !min-h-8';
 
 /**
  * Edit mode's colour. ORANGE, not the brand (owner, 2026-08-03: *"maybe we can

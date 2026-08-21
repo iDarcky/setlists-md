@@ -53,15 +53,52 @@ describe('ribbon chips vs the global button min-height', () => {
     expect(container.innerHTML).not.toContain('after:absolute');
   });
 
-  it('codes: the chip is the Score mockup — 10px mono, 2px/7px, 5px radius', () => {
+  // ── The chip is sized for a thumb — 2026-08-21 ───────────────────────────
+  // It used to be the Score mockup exactly: 10px mono in 2px/7px of padding,
+  // which measured 29 × 21px. That is a fine SIZE and a poor TARGET, and the
+  // component's own comment said so — it grew a transparent `::after` to reach
+  // 33px rather than spend chrome height on the chip itself.
+  //
+  // Owner, 2026-08-21: *"everything from the header to the menu and menu items
+  // are a bit too small for touch, both mobile and tablet… I would like the
+  // whole ui to be bigger"*, and *"the structure bar should be bigger when
+  // entering edit mode"*. So the chip pays the height now, and edit mode — where
+  // a chip is a drag handle you have to see under your own finger — pays more.
+  it('codes: the chip is thumb-sized, and edit mode is bigger again', () => {
+    const px = (cls, prop) => Number(cls.match(new RegExp(`${prop}-\\[(\\d+)px\\]`))?.[1]);
+    const chipOf = (size) => {
+      const { container, unmount } = render(
+        <StructureRibbon structure={structure} style="codes" size={size}
+          activeIndex={0} activeFill onSelect={() => {}} />
+      );
+      const cls = container.querySelector('button').className;
+      unmount();
+      return cls;
+    };
+    const md = chipOf('md');
+    const lg = chipOf('lg');
+    // Reading: bigger than the 10px/2px mockup it came from.
+    expect(px(md, 'text')).toBeGreaterThan(10);
+    expect(px(md, 'py')).toBeGreaterThan(2);
+    expect(md).toContain('rounded-[7px]');
+    // Editing: bigger again, on BOTH axes — a taller box with the same type
+    // would be a bigger target holding the same unreadable label.
+    expect(px(lg, 'text')).toBeGreaterThan(px(md, 'text'));
+    expect(px(lg, 'py')).toBeGreaterThan(px(md, 'py'));
+    expect(px(lg, 'px')).toBeGreaterThan(px(md, 'px'));
+  });
+
+  // ⚠ The hit area survives the chip getting bigger. It was the ONLY thing
+  // making the old 21px chip aimable, and the temptation once the chip is
+  // comfortable is to delete it — but a bigger chip with a bigger target is
+  // still better than either alone, and this is a control hit between two
+  // verses without looking.
+  it('codes: a bigger chip still keeps its grown hit area', () => {
     const { container } = render(
-      <StructureRibbon structure={structure} style="codes" activeIndex={0} activeFill onSelect={() => {}} />
+      <StructureRibbon structure={structure} style="codes" size="lg"
+        activeIndex={0} activeFill onSelect={() => {}} />
     );
-    const chip = container.querySelector('button');
-    expect(chip.className).toContain('text-[10px]');
-    expect(chip.className).toContain('px-[7px]');
-    expect(chip.className).toContain('py-[2px]');
-    expect(chip.className).toContain('rounded-[5px]');
+    expect(container.querySelector('button').className).toContain('after:absolute');
   });
 
   it('codes: every code keeps its section colour, and the current one fills', () => {
@@ -223,11 +260,21 @@ describe('a dot changes size without shoving its neighbours', () => {
     // below it, and a fast scroll walks the active dot down the list one
     // section at a time. Measured in Chromium over 14 fast wheel steps: the
     // worst dot wandered 4.0px. With a fixed cell: 0.0px.
+    //
+    // ⚠ The NUMBERS moved on 2026-08-21 (7/11 → 9/13) when the whole reader
+    // chrome went up a size — what this test pins is the SHAPE, not the pixels:
+    // a fixed cell, with the only thing that resizes inside it. Read the cell's
+    // size off the DOM and assert the two children agree with it, so the next
+    // size change cannot quietly reintroduce the shudder.
     for (const cell of container.querySelectorAll('button > span:first-child')) {
-      expect(cell.className).toContain('w-[11px]');
-      expect(cell.className).toContain('h-[11px]');
-      // ...and the thing that actually resizes is INSIDE the cell.
-      expect(cell.firstElementChild.className).toMatch(/w-\[(7|11)px\]/);
+      const cellSize = cell.className.match(/w-\[(\d+)px\]/)?.[1];
+      expect(cellSize).toBeTruthy();
+      expect(cell.className).toContain(`h-[${cellSize}px]`);
+      // ...and the thing that actually resizes is INSIDE the cell, never bigger
+      // than it.
+      const dotSize = cell.firstElementChild.className.match(/w-\[(\d+)px\]/)?.[1];
+      expect(dotSize).toBeTruthy();
+      expect(Number(dotSize)).toBeLessThanOrEqual(Number(cellSize));
     }
   });
 });

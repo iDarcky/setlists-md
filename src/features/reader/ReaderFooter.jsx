@@ -2,14 +2,15 @@ import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 
 /**
- * Bigger than the top bar's `BAR_BUTTON` (36px), and deliberately so.
- *
  * Prev/next is the one control hit MID-song, on a dark stage, without looking.
- * The phone's 44px floor is the right size for that and the wrong size for the
- * ☰; opting out to 40px is as small as this row should ever go. The row shrank
- * by dropping its padding (`py-1.5` → `py-1`), not by shrinking the targets.
+ *
+ * It used to be the BIGGEST thing in the chrome at 40px, because the top bar's
+ * buttons had been trimmed to 36/32 and this row refused to follow them down.
+ * The top bar is 44 now (`BAR_BUTTON`), so this goes to 48: the argument for
+ * the gap was never "40 is enough", it was "this one is hit blind and the ☰ is
+ * not", and that argument survives the whole chrome getting bigger.
  */
-const NAV_BUTTON = 'min-h-0 h-10 w-10 text-[var(--chart-text,var(--ds-gray-1000))]';
+const NAV_BUTTON = 'min-h-0 h-12 w-12 text-[var(--chart-text,var(--ds-gray-1000))]';
 
 /**
  * Element 10 — how you get to the next song.
@@ -54,23 +55,23 @@ export default function ReaderFooter({
           the setlist — prev/next is for the running order, the rail is for the
           closing song they just cut. */}
       <Centre onClick={locked ? null : onOpenSetlist}>
-        <span className="shrink-0 text-label-11 font-mono tabular-nums" style={{ color: muted }}>
+        <span className="shrink-0 text-label-13 font-mono tabular-nums" style={{ color: muted }}>
           {index + 1} / {total}
         </span>
         {style === 'next' && (
           atEnd ? (
-            <span className="truncate text-label-11" style={{ color: muted }}>· Last song</span>
+            <span className="truncate text-label-13" style={{ color: muted }}>· Last song</span>
           ) : nextLabel ? (
             <span className="min-w-0 flex items-center gap-1.5">
-              <span className="shrink-0 text-label-11" style={{ color: muted }}>· Next</span>
+              <span className="shrink-0 text-label-13" style={{ color: muted }}>· Next</span>
               <span
-                className="truncate text-label-12 font-medium"
+                className="truncate text-label-14 font-medium"
                 style={{ color: 'var(--chart-text, var(--ds-gray-1000))' }}
               >
                 {nextLabel}
               </span>
               {nextKey && (
-                <span className="shrink-0 text-label-11 font-mono font-bold" style={{ color: 'var(--chord)' }}>
+                <span className="shrink-0 text-label-13 font-mono font-bold" style={{ color: 'var(--chord)' }}>
                   {nextKey}
                 </span>
               )}
@@ -80,7 +81,7 @@ export default function ReaderFooter({
       </Centre>
 
       {atEnd && onFinish ? (
-        <Button size="sm" variant="brand" onClick={onFinish}>Finish</Button>
+        <Button size="md" variant="brand" onClick={onFinish}>Finish</Button>
       ) : (
         <IconButton
           size="sm"
@@ -99,7 +100,7 @@ export default function ReaderFooter({
 // A button only when there's a setlist to open — a dead button in the middle
 // of the bar reads as broken.
 function Centre({ onClick, children }) {
-  const cls = 'flex-1 min-w-0 flex items-center justify-center gap-2';
+  const cls = 'flex-1 min-w-0 h-12 flex items-center justify-center gap-2';
   if (!onClick) return <div className={cls}>{children}</div>;
   return (
     <button

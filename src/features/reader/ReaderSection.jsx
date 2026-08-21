@@ -32,7 +32,7 @@ function EditHandle({ label, onClick, danger = false, children }) {
       // button"). A bordered × beside a 12px heading read as a control competing
       // with the section's own name; a bare glyph that only fills on hover sits
       // under it instead.
-      className="min-h-0 w-[24px] h-[24px] grid place-items-center rounded-md border-none cursor-pointer bg-transparent hover:bg-[var(--ds-gray-200)]"
+      className="min-h-0 w-8 h-8 grid place-items-center rounded-md border-none cursor-pointer bg-transparent hover:bg-[var(--ds-gray-200)]"
       style={{ color: danger ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--ds-gray-700))' }}
     >
       {children}
@@ -713,9 +713,13 @@ export default function ReaderSection({
             type="button"
             onClick={() => setCueDraft('')}
             aria-label={`Add a cue to ${id.name}`}
-            className="min-h-0 ml-2 px-2 py-0.5 rounded-md bg-transparent cursor-pointer align-middle"
+            className="min-h-0 ml-2 px-2.5 py-1.5 rounded-md bg-transparent cursor-pointer align-middle"
             style={{
-              fontSize: `${Math.max(11, labelPx - 2)}px`,
+              // Was `labelPx - 2` with a floor of 11 — i.e. it shrank as the
+              // heading shrank, and on a small heading it landed at 11px in a
+              // dashed box you could not aim at. It reads at the heading's own
+              // size now, floored at 13, and the padding carries the target.
+              fontSize: `${Math.max(13, labelPx)}px`,
               lineHeight: 1.2,
               fontStyle: 'italic',
               color: 'var(--chart-subtle, var(--ds-gray-700))',
