@@ -939,16 +939,20 @@ export default function ReaderMenu({
   // ⚠ It is also the only way out of live, since live has no ✕ (`LiveFold`).
   // That is why `Reader` refuses to drop the ✕ unless `onModeChange` exists —
   // this row and that ✕ are the two halves of one invariant.
-  const liveRow = onModeChange ? (
+  const liveRow = (onModeChange && config?.mode === 'live') ? (
     // ONE LINE. Owner, 2026-08-11: *"Make the live more like enable edit. Or
-    // something like that. A single line. Right now it takes too much."* The
-    // two-line version explained what live does; the `LiveIntro` sheet does
-    // that once, properly, and a menu row does not need to repeat it forever.
+    // something like that. A single line. Right now it takes too much."*
     //
-    // It reads as LEAVING, not entering, because that is the only direction
-    // that exists now: Play opens live (`READER_DEFAULT_MODE`), so the switch's
-    // job is the way out. Owner, twice: *"I don't understand why I'd go from
-    // practice to live? I understand the other way around."*
+    // ⚠ AND IT ONLY EXISTS IN LIVE. Owner, 2026-08-21: *"do we need the switch
+    // from practice to live when we do practice? Because I don't think so"* —
+    // no. He has now said three times that the practice → live direction is not
+    // a thing anyone wants, and the clock is what puts you in live
+    // (`lib/openingMode.js`). So this is a way OUT and nothing else; in
+    // practice there is no control at all, because there is no question.
+    //
+    // ⚠ The trade, stated: if the setlist's time is wrong or missing, there is
+    // now NO manual way into live. That is deliberate. If it turns out to bite,
+    // the fix is the setlist's time, not a switch here.
     <div className={`shrink-0 flex items-center justify-between gap-3 px-3 h-11 ${
       dock === 'bottom' ? 'border-t' : 'border-b'} border-[var(--border-1)]`}>
       <span className="flex items-center gap-2 min-w-0 text-[13.5px] font-semibold text-[var(--text-1)]">

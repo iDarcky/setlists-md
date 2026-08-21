@@ -58,6 +58,10 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Back-to-back repeats are one tag (Labs)** — a bridge played four times is the bridge and one `↩ BRIDGE ×3`, not three identical pills stacked up. It carries a ▾ so it reads as something you can open, and opening it opens the whole run.
 - **Write a note or a band cue from the reader (Labs)** — tap Edit and every line of the song grows a ＋ in the margin beside it, every section heading a ＋ cue. Write where you're looking, without leaving for the editor. Press Enter and it saves and moves to the next line, so marking up a whole verse is one pass. Tapping a note you already wrote opens it again.
 - **Edit and the metronome float where your thumb is (Labs)** — two round buttons in the bottom-right corner of the reader instead of a row of icons squeezed beside the song's title. They step out of the way while you scroll and come back when you stop.
+- **One reader, one way in** — the four reading screens are now a single viewer, and it is no longer behind a Labs switch. A setlist has one Play button; tapping a song opens the set at that song. Live and Practice stopped being two destinations you choose between and became one screen that knows which it is.
+- **It knows when you're playing** — open a setlist half an hour before the service and the reader opens live; open it on a Tuesday to learn the songs and you get the practice tools. If a rehearsal is booked for that day, live waits until the service actually starts.
+- **Live, and the red corner** — a red fold in the top corner is the whole indicator: it costs the song title nothing, and on a phone the ✕ steps aside so a mis-tap on the edge can't drop you out of a service. Pull down to leave. The first time you go live, a short note explains it, once, on every device you sign in on.
+- **A chorus that climbs, or one that doesn't** — `{modulate: +2}` now lifts the key the first time a section is played, so a chorus you repeat stays in the new key instead of climbing again. Write `{modulate: +2, every}` for the song that really does go up a step every time.
 
 ### Improved
 - **The reader's ☰ menu wears the chart's own colours (Labs)** — it used to be an app-coloured panel with a couple of chart-coloured details leaking into it, so on a cream chart theme in a dark app it never quite belonged to the page it was changing. It now sits on the same paper as the song, which means the theme and colour swatches preview against the thing they're actually about.
@@ -170,6 +174,12 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Edit mode gave a whole bar back to the song (Labs)** — Done, Undo and Cancel moved to the corner and the top bar, so there's one less bar across the bottom while you work.
 - **Your instruments and your role are two different things** — one list of what you play, and separately whether you lead, contribute or read. Vocals now asks which part you sing.
 - **The setlist's key is the key you get** — choosing a key for a song inside a setlist now opens the reader in that key, and a key you change during practice sticks to the setlist rather than being forgotten.
+- **The reader's menu lost 23 Reset buttons** — a dropdown already shows its default as one of its options, so a Reset beside it was a second way to do the same thing. The four sizes keep theirs, because you can't see that 18 was 18.
+- **The header lines up with the words** — the ☰ and the ✕ sat 20px further in than every lyric on the page. They share one margin now.
+- **The ☰ becomes an ✕** while the display menu is open on a desktop or a landscape tablet, and the menu's own close button is gone. One control, two states.
+- **Settings lost the Chart Defaults page** — everything on it lives in the reader's own menu now, beside the chart it changes. Two of its rows had quietly stopped doing anything at all.
+- **Keep the screen awake** moved into the reader's menu, and going live keeps the screen on by itself.
+- **The first-run tour follows your account**, so a second device doesn't show it again.
 
 ### Fixed
 - **Chords could go missing from a chart (Labs)** — a chord standing on its own between two words, which is how most choruses end (`…setea mea  Cm  Bb`), silently took the next chord with it. The chart drew fewer chords than the song had, with nothing to say so. Your songs were never damaged — only what was drawn — and every chord is back.
@@ -240,6 +250,12 @@ A running log of what's new in setlists.md. Newest releases first.
 - **The structure strip doesn't wobble** — it could be scrolled a few pixels up and down for no reason, so it rubber-banded every time you swiped along it.
 - **Setlists stop opening in a half-window on a tablet** — tapping a setlist opens it properly on every size of screen.
 - **"No line" and "Full repeats" really are the defaults** — the app said one thing and shipped another, and pressing Reset in the display menu changed a setting you'd never touched.
+- **The display menu did nothing on a shared link** — every control in all three tabs looked live and silently threw the change away, on the one screen where a visitor has no other way to make a chart readable.
+- **A repeated chorus modulated twice** — a section carrying a key change replayed it every time it was played, so a chorus you added again jumped another step.
+- **The song map lost the key change on a repeat** — two choruses in different keys were drawn as one `C ×2` chip with no mark at all, which is the most common modulation there is. The map splits them now.
+- **A key could read "undefined"** on setlists that arrived by import, share or from an older device.
+- **The menu's tabs sat under the home indicator** on an iPad in Safari.
+- **The founder's note never appeared** for anyone using the new reader.
 
 ## 0.16.0 — Notifications, reliability, and a card-based editor
 *July 2026*

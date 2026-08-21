@@ -456,10 +456,35 @@ export default function SectionBlock({
       return (
         // ⚠ `break-inside: avoid`. A rendered line is a chord row over a lyric
         // row, and in a two-column layout a line box was free to FRAGMENT at
-        // the column boundary — which is how the comma under a Romanian ț
-        // (U+021B, a real descender, not an accent) ended up alone at the top
-        // of the next column, reading as a mystery dot on somebody's chart
-        // mid-rehearsal. It also kept a chord from being cut off its own words.
+        // the column boundary. It also keeps a chord from being cut off its own
+        // words, which is reason enough to have it.
+        //
+        // ⚠ IT DOES NOT FIX THE ROMANIAN STRAY DOT, and this comment used to
+        // claim it did. Re-measured 2026-08-21, after the owner reported it
+        // again on every song with ș or ț ON THE LAST LINE, in both
+        // orientations:
+        //
+        //   section box bottom  258.4
+        //   last line box bottom 258.4   ← the same pixel, padding-bottom 0
+        //
+        // The comma under ț / ș (U+021B, U+0219) is INK THAT OVERFLOWS the line
+        // box's bottom, and an unfragmented box overflows exactly as happily as
+        // a fragmented one. A two-column chart paints that overflow at the top
+        // of the NEXT COLUMN, which is the mystery dot. Interior lines never
+        // show it — their ink lands in the gap above the next line, where
+        // nothing is drawn — so only a section's LAST line has nothing beneath
+        // it to hide in.
+        //
+        // Two fixes were tried and REVERTED, both measured:
+        //   · a trailing spacer child in `ReaderSection` — blocked a margin that
+        //     had been collapsing out of the section, +26.7px per section
+        //     (this file's trap 15, from the other side);
+        //   · padding-bottom here with a matching negative margin — net layout
+        //     zero, which is also net EFFECT zero: the section cannot contain
+        //     the ink without actually growing.
+        //
+        // So the fix has to accept ~0.15em per section. Left undone rather than
+        // guessed at; it wants a pass with screenshots, not blind measurement.
         <div
           key={idx}
           style={{
