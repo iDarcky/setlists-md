@@ -798,11 +798,46 @@ dead space by **8%** — the constant is not where the remaining gaps come from.
 - Sizes, colour, font and notation are user-settable; chords size off
   `--chart-font-size-chord`, not inherited size.
 
-### 8 — Key change (`{modulate}`)
+### 8 — Key change (`{modulate}`) — **OPEN**, most of it closed 2026-08-21
+
 A solid `--chord` chip that names the **arrival key**, not the interval —
-"you're in B now" beats "+2". `mt-5 mb-4` so it doesn't crowd the section
-above it. A section repeated after a key change **always renders in full**,
-never as a reference, because the chords have changed.
+"you're in B now" beats "+2". A section repeated after a key change **always
+renders in full**, never as a reference, because the chords have changed. That
+promise was verified against a control this pass and is genuinely wired: with
+`duplicateSections: 'condensed'` the repeat collapses to a pill WITHOUT the
+modulate and renders in full WITH it.
+
+**The marker was three times the size of the heading it sat under.** Measured:
+68.1px of vertical space (20 + 32.1 + 16) against a 22px section heading, ~8% of
+a 390px phone's viewport, for an event lasting one bar — and the chip rendered at
+chord-size × 1.05, i.e. LARGER than the chords it announces. Trimmed in two
+rounds to **36.9px** (chip at chord size, `px-2 py-px`, `mt-2 mb-1`). The type
+does not go below chord size: a chart that announces a key change more quietly
+than it names a chord has the emphasis backwards.
+
+**The ribbon was swallowing the most common modulation there is.** `keyChanges`
+is keyed by SLOT and the ribbon read the mark at `run.index` — the run's LEAD —
+so a key change landing on the second chorus of a `C ×2` run pointed at a slot no
+chip carried, and the map drew `C ×2` with no mark at all. A chorus repeated a
+step up is *the* classic worship modulation, so the map omitted exactly the case
+it exists for. Measured: `V1 C ↗A B` drew the mark (different sections, no run to
+hide it), `V1 C×2` drew nothing. The GROUPING was the error, not the lookup —
+two choruses in different keys are not one thing played twice, and the chart
+already agrees. `C ×2` now splits into `C ↗A C`. **Trap 18 again.**
+
+**A marker lives in the section BODY, so a repeat replayed it** (owner: *"I have
+C1 and I wanted to add another C1 but because C1 already had the modulate it
+modulated again"*). Not a rendering bug — a gap in what the format could SAY.
+`{modulate: +2}` now fires the first time only; `{modulate: +2, every}` climbs.
+⚠ This CHANGES the sound of existing songs that repeat a modulating section.
+
+**Still open, and it is the reason element 8 is not closed:** a key change
+cannot belong to a SLOT. The owner's case — *"Chorus in C then Verse 2 then
+Chorus again but this time in D"* — is unrepresentable. `once` gives C then C;
+`every` climbs Verse 2 and everything after; the only workaround is duplicating
+the chorus into two sections differing solely by key. The fix is `structure`
+entries carrying the change, which is an `.md` format change and a MAJOR-version
+conversation like bars. **Do not close element 8 without it.**
 
 ### 9 — Tabs
 - **Instrument-aware.** Your instrument's tabs open; everyone else's collapse
@@ -2935,6 +2970,42 @@ being routes into `live`.
    was still open became a non-lead member — and a non-lead member draws
    nothing. Closing the last of three lost it entirely. Anything that groups
    slots has to take the live state as an argument.
+20. **A default that has to be BOTH values is the wrong thing to be deciding.**
+   `READER_DEFAULT_MODE` shipped as 'practice', then 'live', then 'practice'
+   again inside one element. Each flip had a real argument behind it, and each
+   was wrong half the time by construction, because a single entry point cannot
+   have a fixed default without failing one of its two audiences. The answer was
+   not a better default but a different question: the CLOCK decides
+   (`lib/openingMode.js`). When a constant keeps changing its mind, stop tuning
+   it and ask what it is standing in for.
+21. **`break-inside: avoid` does not contain INK.** It stops a line box
+   fragmenting at a column boundary; it does nothing about ink that overflows the
+   box's bottom. The comma under Romanian ț / ș (U+021B, U+0219) descends past
+   the line box, and in a two-column chart the browser paints that overflow at
+   the top of the NEXT COLUMN — the "mystery dot" reported twice, a year apart,
+   and mis-diagnosed as fragmentation both times. Measured 2026-08-21: a
+   section's box bottom and its last line's box bottom were the same pixel, with
+   `padding-bottom: 0`. Interior lines hide their ink in the gap above the next
+   line; only a section's LAST line has nothing beneath it. **Still unfixed** —
+   see the boxed note in `SectionBlock` for the two attempts and why both were
+   reverted.
+22. **You cannot both preserve layout and grow a box.** The padding-plus-negative-
+   margin trick gives the space straight back, so the box's *border* extends but
+   the *parent* does not — net layout zero is also net effect zero when what you
+   needed was for the parent to contain something. Twenty minutes lost to it.
+23. **A control rendered with no writer behind it is the house bug's favourite
+   disguise.** `SharedSetlistViewer` passed `settings` and no `onUpdateSettings`,
+   and `ReaderMenu`'s writer is `onUpdateSettings?.(k, v)` — so every control in
+   all three tabs rendered, looked live, and discarded the change, on the one
+   surface where a visitor has no other way to make a chart readable. Optional
+   chaining is how a missing prop becomes silence instead of a crash: when you
+   write `?.`, decide what it means for the thing to be absent.
+24. **Scope a chord query to the sections.** `getAllByText('G')` also matches the
+   KEY PILL in the top bar, which says G whether or not the chart draws chords —
+   a test written that way passes in the broken state and proves nothing. It
+   cost a false "confirmed broken" on the role picker, too: a chord count taken
+   over the scroller picked up the ☰'s own contents, because on desktop the menu
+   lives INSIDE that scroller.
 19. **A doc that says "removed" is not a removal.** beta.58 wrote the
    `scrollTop`-compensation warning above into both the code and this file and
    left the line itself running; the next round then read the comment, believed

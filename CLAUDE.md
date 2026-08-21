@@ -213,7 +213,8 @@ src/
 │   │                     #   BandPanel, BandReadCard
 │   ├── setlist-viewer/   # SetlistOverview (2 render sites!), SetlistOverviewV2 (legacy),
 │   │                     #   SetlistViewerCards
-│   ├── performance/      # SetlistPlayer, PerformanceView, PracticeView, LiveFinale,
+│   ├── performance/      # ⚠ ALL UNREFERENCED since 2026-08-21 — SetlistPlayer,
+│   │                     #   PerformanceView, PracticeView, LiveFinale,
 │   │                     #   PracticeFinale, PerformanceLayoutSheet/SetlistSheet, WakeLockExplainer
 │   ├── sharing/          # ShareSetlistDialog, SharedSetlistViewer, ExportSetlistDialog
 │   ├── settings/         # Settings.jsx, Account.jsx, AccountWall, AccountPanel,
@@ -268,7 +269,10 @@ is its UI** (`sync/team-engine.js` vs `features/sync/SyncStatus.jsx`).
 
 ## Architecture
 
-- **No router** — App.jsx manages views via `view` state (`library`, `song-hub`, `editor`, `setlist-build`, `setlist-play`, `setlist-performance`, `signin`, `recovery`, `auth-callback`, …). The `song-hub` route replaced the old `chart` route entirely.
+- **No router** — App.jsx manages views via `view` state (`library`, `song-hub`, `editor`, `setlist-build`, `setlist-read`, `setlist-finale`, `signin`, `recovery`, `auth-callback`, …). The `song-hub` route replaced the old `chart` route entirely.
+- **ONE reading route.** `setlist-play`, `setlist-performance` and `setlist-practice` collapsed into **`setlist-read`**, and `practice-finale` + `live-finale` into **`setlist-finale`** (2026-08-21). The three old names rendered the same component with the same props and differed only in which finale they landed on. Live vs practice is now `readerMode` STATE, carried in the history snapshot.
+- **The `unifiedReader` Labs flag is GONE.** `Reader` is the only reader on every surface. ⚠ Flipping a flag's default graduates nobody — `loadSettings` merges defaults under stored settings and `saveSettings` persists the merged object, so every profile already had `unifiedReader: false` written down. Graduation means deleting the READ sites. `ChartView`, `PerformanceView`, `PracticeView`, `SetlistPlayer`, `LiveFinale`, `PracticeFinale` and `FullscreenChartViewer` are still in the tree and are now a closed dead island — no live code imports any of them.
+- **Which mode a setlist opens in is decided by the CLOCK** — `src/lib/openingMode.js`, not a preference. Live from 30 min before the service to `endTime` (or +3h); a rehearsal recorded that same day pushes live back to the service start; everything else, including no date/time and campfire, is practice. `READER_DEFAULT_MODE` is only that leftover. There is deliberately **no manual way into live** — the ☰'s Live row exists only while live, as the way out.
 - **Song Hub** (`SongHub.jsx`) is the song-open target. It owns identity + transpose + tab navigation and embeds `ChartView` as **just the reader** (`embedded` + controlled `selectedKey`/`displayMode`/`aaAnchor`/`arrangementId` props). Tabs are **Chart / Lyrics / Details** rendered as brand-coloured pills (matching the top nav). The **Aa** display popover and a centered **"Advanced"** `Dialog` both render inside `ChartView`; the Aa + full-screen buttons live in the reader **tab header** and show only on Chart/Lyrics (hidden on Details). Full-screen opens `FullscreenChartViewer` (WIP — future home of the chart "view modes"). The hub ⋮ menu carries Print/Move/Copy (desktop) plus Campfire+Edit folded in on mobile. Backing-track audio is `SongPlayerBar` (YouTube-only): a single card pinned to the bottom, laid out as one non-wrapping row (play · title · scrubber · time) so the scrubber stays on the title's line even on phones.
 - **No server for song data** — songs/setlists stored client-side in IndexedDB via idb-keyval. Supabase only handles auth + account-level preferences.
 - **Songs** are stored as parsed objects on a **v2 multi-arrangement schema** (`src/arrangements.js`): top-level identity (`id`, `title`, `artist`, `ccli`, `tags`, `keyHistory`, `defaultArrangementId`) plus an `arrangements[]` array. Each arrangement carries its own `key`, `tempo`, `time`, `capo`, `notes`, `structure[]`, and `sections[]`. The `.md` format flattens to a single arrangement; multi-arrangement state is app-internal.
@@ -313,7 +317,7 @@ is its UI** (`sync/team-engine.js` vs `features/sync/SyncStatus.jsx`).
 - **Password recovery** — `type=recovery` in the URL hash routes to `RecoveryScreen.jsx`. Navigating Back before completion calls `signOut` so the interim recovery session doesn't linger.
 - **Preferences cloud-sync** — defined in `App.jsx` via `PORTABLE_PREF_KEYS`. On sign-in, App hydrates once from `profile.preferences` (cloud wins). After hydration, local changes are pushed to `updateProfile({ preferences })` debounced 800 ms. Device-local fields (`onboardingComplete`, `helpPageSeen`, `notifications`) never sync.
 - **Display name** — `profile?.display_name || settings?.userName || 'Guest'`. Editing in `Account.jsx` writes to both the local settings and `updateProfile({ display_name })` when signed in. When signed in, the account name replaces the "Setlists.md" label in the drawer footer and Settings about header.
-- **Fullscreen performance** — `setlist-performance` and `setlist-play` always pass `isFullscreen={true}` to `DesktopLayout` so the sidebar collapses on desktop/tablet; the existing mobile layout already hides chrome for these views.
+- **Fullscreen performance** — `setlist-read` always passes `isFullscreen={true}` to `DesktopLayout` so the sidebar collapses on desktop/tablet; the existing mobile layout already hides chrome for it.
 
 ## .md Format Quick Reference
 
@@ -354,12 +358,40 @@ E|-----------|
 
 ## Modulate Format
 
-Modulate markers shift all subsequent chords by N semitones. Parsed into `{ type: 'modulate', semitones: N }` in `section.lines[]`.
+Modulate markers shift all subsequent chords by N semitones. Parsed into
+`{ type: 'modulate', semitones: N }` — plus `every: true` when the marker says so
+— in `section.lines[]`. `modulateMarker()` / `serializeModulate()` in `parser.js`
+keep the regex, the object and the text together.
 
+```
+{modulate: +2}          fires the FIRST time this section is played
+{modulate: +2, every}   fires on every repeat (a chorus that climbs)
+```
+
+- **A marker lives in the section BODY, so a repeated section replays it.** That
+  is why `every` exists: without it a chorus containing "+2" climbed a step every
+  single time it was played, and "modulate, then repeat in the new key" — the
+  commoner intention — was unsayable.
+- `sectionModPlan()` (`lib/songFlow.js`) decides per SLOT and returns
+  `{ offsets, fires }`. "First time" is per section BY IDENTITY, which works
+  because `orderSections` resolves a repeat to the same object reference.
+  `SectionBlock` takes `modFires` and must agree with it exactly — the incoming
+  offset and the in-section offsets otherwise describe two different songs.
+- An inert marker draws **no chip**: "↗ A" over a chorus that does not change key
+  is the chart telling a story the chords do not support.
+- `every` is **absent** rather than `false` on a bare marker. The sync engines
+  hash these objects; a new always-present key would make every stored song look
+  changed on the first load after it ships.
 - Cumulative: multiple `{modulate}` markers stack across sections
 - Applied at render time on top of user transpose and capo
-- Visual "Key Change: +N" badge rendered at marker position
-- Round-trip: serialized back to `{modulate: +N}` in `songToMd()`
+- A solid `--chord` chip names the **arrival key**, not the interval
+- Round-trip: serialized back through `serializeModulate()` in `songToMd()`
+
+⚠ **A key change still cannot belong to a SLOT.** "Chorus in C, Verse 2, Chorus
+in D" is unrepresentable: `once` gives you C then C, `every` climbs Verse 2 and
+everything after, and the only workaround is duplicating the chorus into two
+sections that differ solely by key. The fix is to let `structure` entries carry
+the change — an `.md` format change, and a MAJOR-version conversation like bars.
 
 ## Tab Block Format
 
@@ -645,14 +677,13 @@ Each team/church workspace is its own Stripe subscription, paid by the team
 - `RecoveryScreen.handleBack` calls `signOut()` *before* invoking the parent `onBack`. If you ever route away from it through another path, make sure that path also ends the recovery session.
 - PDF export renders an **in-app overlay with a same-origin `<iframe srcdoc>`** on every platform (`openPrintWindow()` in `src/pdf/pdfDocument.js`); printing goes through `iframe.contentWindow.print()`. Do NOT reintroduce `window.open` + `document.write` — popups return `null` handles in installed PWAs and don't exist in Capacitor/Electron webviews. The iframe inherits the page origin (prefs read `localStorage['setlists-md:pdf-prefs']` directly) **and the page CSP** — the print document uses an inline `<script>`/`<style>`, so before flipping the report-only CSP in `vercel.json` to enforcing, `script-src`/`style-src` must accommodate it (hash/nonce or refactor).
 - `SetlistOverview` is rendered in **two places**: (1) the dedicated `setlist-view` route in `App.jsx`, and (2) the desktop preview pane inside `Setlists.jsx`. Both wire its export callbacks (`onExportZip`, `onExportPdfOverview`, `onExportPdfFull`) — when you add or rename one, update *both* call sites or the desktop preview will silently no-op.
-- **Two Readers can be mounted at once.** With the `unifiedReader` flag on, the
-  Song Hub keeps its embedded `Reader` in the DOM *behind* the full-screen one,
-  and both render `id="section-N"` and the same class names. Any
-  `document.getElementById` / `document.querySelector` that means "the reader"
-  finds the HUB's copy — it is first in document order. Scope to the reader's
-  own scroller (`scrollRef.current.querySelector('[data-section-index=…]')`).
-  This is also true of browser-side measurement scripts: scope the probe or you
-  will measure the wrong reader for an hour.
+- **The reader's live state is a FOLD, not a chip, and the ✕ is phone-conditional.**
+  `LiveFold` paints into the chrome's top-right corner OUTSIDE the layout, so the
+  song title is the same width live and off-live. On a phone (`!wide`) live drops
+  the ✕ entirely and a pull-down exits; on tablet/desktop the ✕ stays, because
+  the pull is touch-only and removing both left the hub's full screen with no way
+  out at all. The condition is `onModeChange` exists — "someone else can let me
+  out" — never "am I live".
 - **Firefox draws two focus artifacts that Chromium does not.**
   `:-moz-focusring { outline: auto }` follows `border-radius` and lands *on* a
   small round control (move it with `outline-offset`), and `::-moz-focus-inner`
