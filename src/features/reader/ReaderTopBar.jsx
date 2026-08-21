@@ -32,6 +32,9 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
     // icon"*. The docked menu has no drag and no scrim, so this button is
     // still the way out of it — it just doesn't pretend to be an exit.
     menuOpen = false,
+    // True where the open panel leaves the ☰ reachable (the desktop/landscape
+    // side panel). The ☰ then shows an ✕ and the panel drops its own.
+    menuClosesInPlace = false,
   }, ref,
 ) {
   return (
@@ -134,7 +137,19 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
                 onMenu?.(e.currentTarget.getBoundingClientRect());
               }}
             >
-              <MenuIcon />
+              {/* ⚠ The ☰ BECOMES an ✕ while the panel is open (owner,
+                  2026-08-21: *"the ☰ should transform in an X or something and
+                  we should remove the x next to the tabs"*).
+
+                  It has always been a toggle; it just did not look like one, so
+                  the panel carried a second close control beside its tabs to
+                  say what the ☰ was already doing. One control, two states, and
+                  the thing you opened it with is the thing you close it with.
+                  `menuClosesInPlace` is set only where the ☰ stays reachable
+                  from the open panel — the desktop/landscape side panel —
+                  because on the phone dock the ☰ is a full screen away from the
+                  thumb, which is why that dock keeps its own chevron. */}
+              {menuOpen && menuClosesInPlace ? <CloseIcon /> : <MenuIcon />}
             </IconButton>
           )}
           {tools}

@@ -741,13 +741,21 @@
     padding-right: 32px;
   }
 
-  /* The reader's chrome runs edge-to-edge on a phone — 32px of side padding
-     on a 390px screen is 16% of the bar spent on nothing. */
-  @media (max-width: 639px) {
-    .reader-head .wide-container {
-      padding-left: 10px;
-      padding-right: 10px;
-    }
+  /* ⚠ The chrome and the chart must share ONE margin, at every width.
+     Measured at 1280 on 2026-08-21: the ☰ sat at x=32 and the ✕ 32 from the
+     right, while the section heading AND the lyrics both started at x=12 —
+     the sections bleed 20px outside `wide-container`'s padding so a tint frame
+     can reach edge to edge, and the chrome does not bleed with them. So the two
+     controls you aim at were inset 20px further than every word on the page.
+     Owner, 2026-08-21: *"the ☰ and the X are not in the margin they should
+     be."*
+
+     12px, matching where the text actually lands, rather than `wide-container`'s
+     32. This overrides the shared container for the reader's chrome only — the
+     Editor and the other surfaces that use `wide-container` are untouched. */
+  .reader-head .wide-container {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
   /* Wide Layout for Editor and Performers */

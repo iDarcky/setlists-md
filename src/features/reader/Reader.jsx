@@ -1669,6 +1669,10 @@ export default function Reader({
           // a thumb — that is the jump the floating circles were fixed for.
           onMenu={editing ? null : (rect) => setOwnAaAnchor(a => (a ? null : rect))}
           menuOpen={!editing && !!ownAaAnchor}
+          // The side panel leaves the ☰ on screen, so the ☰ becomes the ✕ and
+          // the panel drops its own. The phone dock keeps its chevron — there
+          // the ☰ is at the top of the screen and the dock is at the bottom.
+          menuClosesInPlace={!menuDocks}
           // ⚠ In edit mode ✕ IS Cancel. It was disabled here — dead pixels in
           // the most reachable spot on the screen, guarding against "leaving
           // mid-edit strands the change". The guard was right and the answer

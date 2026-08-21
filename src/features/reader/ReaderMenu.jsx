@@ -985,7 +985,15 @@ export default function ReaderMenu({
           {label}
         </button>
       ))}
-      {dock && (
+      {/* ⚠ The BOTTOM dock only. The side panel's close moved onto the ☰,
+          which turns into an ✕ while the panel is open (owner, 2026-08-21:
+          *"we should remove the x next to the tabs"*) — two controls doing one
+          job, and the ☰ was already the toggle.
+
+          The phone dock keeps its chevron for the reason it was given one: the
+          dock is at the bottom of the screen and the ☰ is at the top, a full
+          phone-height from the thumb using the panel. */}
+      {dock === 'bottom' && (
         <button type="button" onClick={onClose} aria-label="Close display options"
           className="shrink-0 ml-1 w-9 h-9 min-h-0 grid place-items-center rounded-lg bg-transparent border-none text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--bg-2)] cursor-pointer">
           {/* A chevron DOWN on the phone dock, a ✕ on the desktop panel (owner,
@@ -1449,7 +1457,23 @@ export default function ReaderMenu({
           side ? 'border-r' : 'border-t'} border-[var(--border-2)]`}
         // It is a SIBLING of the reader's scroller, not a child, so it does not
         // inherit `chartSurface` and carries the remap itself.
-        style={chartOverlaySurface}
+        //
+        // ⚠ The bottom dock has to clear the hardware. Owner, 2026-08-21, on an
+        // iPad in Safari (NOT installed): *"the bottom doesn't have a clearing
+        // for tablet, especially when opening the menu, the 3 tabs are too
+        // low."* The tab strip is the last row of this dock, so with no bottom
+        // padding it lands under the home indicator — and in a Safari tab, under
+        // the browser's own toolbar as well.
+        //
+        // `env(safe-area-inset-bottom)` covers the indicator; the 8px floor is
+        // for the case it reports 0, which is exactly the non-installed Safari
+        // tab where the toolbar is not a safe-area inset at all.
+        style={{
+          ...chartOverlaySurface,
+          ...(side ? null : {
+            paddingBottom: 'max(8px, env(safe-area-inset-bottom, 0px))',
+          }),
+        }}
       >
         {/* Tabs at the BOTTOM in the phone dock — it is already the bottom of
             the screen and the strip is what you reach for repeatedly, so it
