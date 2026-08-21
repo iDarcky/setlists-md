@@ -18,9 +18,9 @@ import { BAR_BUTTON, EDIT_ACCENT, EDIT_INK, EDIT_CHROME } from './readerChrome';
 const ReaderTopBar = forwardRef(function ReaderTopBar(
   {
     title, meta = null, onMenu, onExit, tools = null, leading = null,
-    // Tapping the title opens the song's own panel. Null on any surface that
-    // has no panel to open — see the title block below.
-    onTitleTap = null,
+    // Tapping the title unfolds the song's own facts under the ribbon. Null on
+    // any surface that has nothing to unfold — see the title block below.
+    onTitleTap = null, infoOpen = false,
     // Painted INTO the sticky block's top-right corner, outside the layout —
     // so it costs the title not one pixel. The reader's live fold is the only
     // user; see `LiveFold`.
@@ -190,6 +190,9 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
               <button
                 type="button"
                 onClick={onTitleTap}
+                // A disclosure, not a dialog opener: it toggles a row of this
+                // same block, so it says so to a screen reader too.
+                aria-expanded={infoOpen}
                 aria-label={`${title} — song info`}
                 title="Song info"
                 className="min-h-0 truncate text-label-14 font-semibold bg-transparent border-none p-0 text-left cursor-pointer"

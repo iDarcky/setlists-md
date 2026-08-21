@@ -14,7 +14,8 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useActiveSection } from '@/hooks/useActiveSection';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import ReaderSection from './ReaderSection';
-import SongInfoSheet from './SongInfoSheet';
+import SongInfoStrip from './SongInfoStrip';
+import { songInfoFacts } from './songInfo';
 import ReaderTopBar from './ReaderTopBar';
 import { BAR_BUTTON, EDIT_ACCENT } from './readerChrome';
 import { chartSurface, hubSurface } from './readerSurface';
@@ -417,6 +418,12 @@ export default function Reader({
     setTappedChord(prev => (prev?.chord === chord ? null : { chord, rect }));
   }, []);
   const wide = useMediaQuery('(min-width: 768px)');
+  // ⚠ ONE source for "does the bar still carry tempo and time". It was a bare
+  // `hidden sm:inline` on the two spans, which meant CSS knew and JS did not —
+  // so the strip could not tell whether it was repeating them or supplying
+  // them. A switch wired at one end, in the shape this file has been bitten by
+  // most. Both ends read this now; `sm` is 640px in the Tailwind scale.
+  const barShowsMeta = useMediaQuery('(min-width: 640px)');
 
   // Callers should pass a resolved arrangement view; accept a raw v2 song too,
   // because getting it wrong renders a silently blank chart.
@@ -1474,6 +1481,23 @@ export default function Reader({
   if (!song) return null;
 
   const displayKey = selectedKey || song.key;
+
+  // ── The song's own facts, and whether there are any ──────────────────────
+  // Built once and used at BOTH ends: the strip renders them, and the title
+  // becomes a control only when there is something to unfold. A title styled
+  // as a button that opens an empty row is READER.md's trap 23 with extra
+  // steps — and on a wide screen with a bare song there genuinely is nothing,
+  // because the bar is already showing all four facts it has.
+  const infoProps = {
+    song,
+    displayKey,
+    showTempoTime: barShowsMeta,
+    // Only worth naming when there is more than one. "Main Arrangement" on a
+    // song that has exactly one arrangement answers a question nobody asked.
+    arrangementName: song._arrangementCount > 1 ? song._arrangementName : null,
+    notes: song.notes,
+  };
+  const hasSongInfo = songInfoFacts(infoProps).length > 0;
   // ── Element 19 — the capo ────────────────────────────────────────────────
   // YOUR capo for THIS song (`src/lib/capo.js` has the whole argument for why
   // it is yours and not the band's). The chart shows SHAPES, so the chords
@@ -1668,7 +1692,8 @@ export default function Reader({
           // its own mode and `resolveReaderConfig` is the one place that knows.
           cornerMark={liveFold ? <LiveFold /> : null}
           title={song.title}
-          onTitleTap={() => setInfoOpen(true)}
+          onTitleTap={hasSongInfo ? () => setInfoOpen(v => !v) : null}
+          infoOpen={infoOpen}
           // ⚠ GONE while editing, not disabled and not live. The category
           // argument settles it (owner, 2026-08-09): *"you're changing the
           // song, not the screen."* The ☰ is how the page is PAINTED — the same
@@ -1824,8 +1849,8 @@ export default function Reader({
                 // not read-outs, and edit mode drops the ribbon's jump targets
                 // anyway so the row has the room.
                 <>
-                  {song.tempo && <span className="tabular-nums hidden sm:inline">♩{song.tempo}</span>}
-                  {song.time && <span className="tabular-nums hidden sm:inline">{song.time}</span>}
+                  {barShowsMeta && song.tempo && <span className="tabular-nums">♩{song.tempo}</span>}
+                  {barShowsMeta && song.time && <span className="tabular-nums">{song.time}</span>}
                 </>
               )}
             </span>
@@ -1847,6 +1872,13 @@ export default function Reader({
               {ribbonNode}
             </div>
           )}
+
+          {/* The song's own facts, unfolded from the title. A fourth row of the
+              sticky block rather than a surface of its own — see
+              `SongInfoStrip` for why it stopped being a dialog. It is a
+              read-out, so it is offered in every mode including live: nothing
+              in it changes the song, and nothing in it covers the chart. */}
+          <SongInfoStrip open={infoOpen} {...infoProps} />
 
           {/* Pull-to-finish's label. A CHILD of the sticky block, absolutely
               positioned just below it, so the header's transform carries it
@@ -2371,26 +2403,6 @@ export default function Reader({
           bottom={Math.max(footH, restH) + dockH}
         />
       )}
-
-      {/* The song's own panel, opened by the title. A bottom sheet on a phone
-          and a centred dialog on a wide screen — the same split `SetlistRail`
-          makes, for the same reason. It is a read-out, so it is offered in
-          every mode including live and including edit: nothing in it changes
-          the song. */}
-      <SongInfoSheet
-        open={infoOpen}
-        onClose={() => setInfoOpen(false)}
-        wide={wide}
-        song={song}
-        displayKey={displayKey}
-        capo={capo}
-        capoShapeKey={capoShapeKey}
-        // Only worth naming when there is more than one. "Main Arrangement" on
-        // a song that has exactly one arrangement is a row that answers a
-        // question nobody asked.
-        arrangementName={song._arrangementCount > 1 ? song._arrangementName : null}
-        notes={song.notes}
-      />
 
       {/* The dock. A fixed share of the READER, not of the viewport, so it is
           the same share whatever chrome sits above it. 40%, up from the 30%
