@@ -60,6 +60,13 @@ export function songInfoFacts({ song, displayKey, showTempoTime, arrangementName
   // never says which is on screen — the one place that ambiguity costs you
   // something is a rehearsal where half the band is on a different one.
   if (arrangementName) facts.push({ label: 'Arrangement', value: arrangementName });
+  // ⚠ The only two fields borrowed from the hub's cataloguing set, and they are
+  // here on a test rather than because they exist: **does it change how you play
+  // the song in the next four minutes?** Scripture and story set the intent, so
+  // a leader reads them before a rehearsal. CCLI, publisher, label, copyright,
+  // album and year never do, and they stay in the hub.
+  if (song.scripture) facts.push({ label: 'Scripture', value: song.scripture });
+  if (song.story) facts.push({ prose: 'story' });
   if (notes) facts.push({ notes });
   return facts;
 }

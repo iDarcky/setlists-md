@@ -14,7 +14,7 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useActiveSection } from '@/hooks/useActiveSection';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import ReaderSection from './ReaderSection';
-import SongInfoStrip from './SongInfoStrip';
+import SongInfoView from './SongInfoView';
 import { songInfoFacts } from './songInfo';
 import { resolveKeyChanges, fromBodyMarkers } from '@/lib/keyChanges';
 import ReaderTopBar from './ReaderTopBar';
@@ -1509,22 +1509,6 @@ export default function Reader({
 
   const displayKey = selectedKey || song.key;
 
-  // ── The song's own facts, and whether there are any ──────────────────────
-  // Built once and used at BOTH ends: the strip renders them, and the title
-  // becomes a control only when there is something to unfold. A title styled
-  // as a button that opens an empty row is READER.md's trap 23 with extra
-  // steps — and on a wide screen with a bare song there genuinely is nothing,
-  // because the bar is already showing all four facts it has.
-  const infoProps = {
-    song,
-    displayKey,
-    showTempoTime: barShowsMeta,
-    // Only worth naming when there is more than one. "Main Arrangement" on a
-    // song that has exactly one arrangement answers a question nobody asked.
-    arrangementName: song._arrangementCount > 1 ? song._arrangementName : null,
-    notes: song.notes,
-  };
-  const hasSongInfo = songInfoFacts(infoProps).length > 0;
   // ── Element 19 — the capo ────────────────────────────────────────────────
   // YOUR capo for THIS song (`src/lib/capo.js` has the whole argument for why
   // it is yours and not the band's). The chart shows SHAPES, so the chords
@@ -1537,6 +1521,30 @@ export default function Reader({
   const capo = capoFor(settings, song?.id);
   const chartTranspose = transpose - capo;
   const capoShapeKey = capo ? shapeKeyFor(displayKey, capo) : null;
+
+  // ⚠ AFTER `capo`, not before it. This block reads `capo` and
+  // `capoShapeKey`, and `const` in the temporal dead zone throws at RUNTIME
+  // rather than at build — the reader rendered its error boundary and the
+  // title button simply was not there. Same trap the file already documents
+  // for `chordTranspose`; the fix is the same one: declare, then use.
+  // ── The song's own facts, and whether there are any ──────────────────────
+  // Built once and used at BOTH ends: the strip renders them, and the title
+  // becomes a control only when there is something to unfold. A title styled
+  // as a button that opens an empty row is READER.md's trap 23 with extra
+  // steps — and on a wide screen with a bare song there genuinely is nothing,
+  // because the bar is already showing all four facts it has.
+  const infoProps = {
+    song,
+    displayKey,
+    capo,
+    capoShapeKey,
+    showTempoTime: barShowsMeta,
+    // Only worth naming when there is more than one. "Main Arrangement" on a
+    // song that has exactly one arrangement answers a question nobody asked.
+    arrangementName: song._arrangementCount > 1 ? song._arrangementName : null,
+    notes: song.notes,
+  };
+  const hasSongInfo = songInfoFacts(infoProps).length > 0;
   const setCapo = onUpdateSettings && config.can.saveKey
     ? (n) => onUpdateSettings('songCapos', withCapo(settings, song.id, n))
     : null;
@@ -1688,7 +1696,17 @@ export default function Reader({
     // own box, which the docked ☰ is a flex child of — rather than to the
     // full-screen dialog. Anchored to the dialog it sat behind the docked menu
     // instead of riding above it (owner, 2026-08-09).
-    <div className="h-full flex flex-col relative">
+    // ── Element 1's newest surface: the song's own facts ──────────────────
+    // A ROW, so the wide panel is a COLUMN BESIDE the chart rather than a thing
+    // on top of it (owner, 2026-08-21: *"let's do the rail, but let's keep the
+    // cool part"*). The chart narrows; nothing is dimmed. `SetlistRail` already
+    // makes this exact split, and this is the same box.
+    //
+    // With the panel shut — and on a phone, where it is a takeover instead —
+    // this row has a single `flex-1` child, which is the same box the old
+    // `h-full` root was. Nothing moves when nothing is open.
+    <div className="h-full flex">
+    <div className="flex-1 min-w-0 h-full flex flex-col relative">
     <div
       className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden no-scrollbar"
       ref={scrollRef}
@@ -1900,12 +1918,6 @@ export default function Reader({
             </div>
           )}
 
-          {/* The song's own facts, unfolded from the title. A fourth row of the
-              sticky block rather than a surface of its own — see
-              `SongInfoStrip` for why it stopped being a dialog. It is a
-              read-out, so it is offered in every mode including live: nothing
-              in it changes the song, and nothing in it covers the chart. */}
-          <SongInfoStrip open={infoOpen} {...infoProps} />
 
           {/* Pull-to-finish's label. A CHILD of the sticky block, absolutely
               positioned just below it, so the header's transform carries it
@@ -2446,6 +2458,19 @@ export default function Reader({
       {menuDocks && menuNode && (
         <div ref={dockRef} className="shrink-0 min-h-0" style={{ flex: '0 0 40%' }}>{menuNode}</div>
       )}
+
+      {/* ── The phone takeover ───────────────────────────────────────────────
+          Absolute over the READER, which is why the box above it is `relative`.
+          Rendered inside that box rather than beside it, so on a phone the row
+          still has exactly one child. */}
+      {!wide && <SongInfoView open={infoOpen} onClose={() => setInfoOpen(false)} wide={false} {...infoProps} />}
+    </div>
+
+    {/* ── The wide column ────────────────────────────────────────────────────
+        A sibling of the chart, so opening it NARROWS the chart instead of
+        covering it. It keeps its own scroll, because the story and the notes
+        can be longer than the song. */}
+    {wide && <SongInfoView open={infoOpen} onClose={() => setInfoOpen(false)} wide {...infoProps} />}
     </div>
   );
 }

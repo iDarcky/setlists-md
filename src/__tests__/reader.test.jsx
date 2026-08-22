@@ -1135,7 +1135,11 @@ describe('embedded in the Song Hub', () => {
     );
     // The reader is a column whose first child is the scroller; the desktop ☰
     // lives INSIDE that scroller now, below the top bar.
-    const root = container.firstChild.firstChild;
+    // ⚠ Three deep, not two. The reader's root became a flex ROW on
+    // 2026-08-21 so the wide song panel could be a COLUMN BESIDE the chart
+    // rather than an overlay on it — row › column › scroller. The tokens are
+    // still on the scroller; only the path to it moved.
+    const root = container.firstChild.firstChild.firstChild;
     expect(root.style.getPropertyValue('--chart-bg')).toBe('var(--ds-background-100)');
     expect(root.style.getPropertyValue('--chart-text')).toBe('var(--ds-gray-1000)');
   });
