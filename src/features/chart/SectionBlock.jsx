@@ -396,13 +396,27 @@ export default function SectionBlock({
         // The chords below it stay in shapes; only the NAME is sounding, which
         // is the same split the top bar already makes between the key pill and
         // the capo chip.
-        const arriveAt = songKey
-          ? notateChord(songKey, {
-              key: songKey,
-              notation: notationMode === 'nashville' ? 'letters' : notationMode,
-              transpose: (keyTranspose ?? transpose) + lineOffsets[idx],
-              accidentals,
-            })
+        const arriveIn = (t) => notateChord(songKey, {
+          key: songKey,
+          notation: notationMode === 'nashville' ? 'letters' : notationMode,
+          transpose: t + lineOffsets[idx],
+          accidentals,
+        });
+        const arriveAt = songKey ? arriveIn(keyTranspose ?? transpose) : null;
+        // ── Both keys, when they differ ───────────────────────────────────
+        // Owner, 2026-08-21, on the fix above: *"we need to do something like
+        // ↗ D (E) or show the key that you're supposed to play."* Right — the
+        // first version of this said the shape key and the second said the
+        // sounding key, and each was half an answer. With a capo on, the two
+        // facts are both true at once and a guitarist needs both: the band
+        // arrives in D, your hands arrive in C.
+        //
+        // Sounding first, shapes in brackets — the same order and the same
+        // subordination the top bar already uses (`C` in the key pill, `Capo
+        // 2 · Bb` beside it). Nothing in brackets when there is no capo,
+        // because then they are the same letter and the bracket would be noise.
+        const arriveShapes = songKey && (keyTranspose ?? transpose) !== transpose
+          ? arriveIn(transpose)
           : null;
         return (
           // ── Trimmed 2026-08-11 ────────────────────────────────────────────
@@ -438,6 +452,9 @@ export default function SectionBlock({
             >
               <span aria-hidden="true">↗</span>
               {arriveAt || `${line.semitones > 0 ? '+' : ''}${line.semitones}`}
+              {arriveShapes && (
+                <span style={{ opacity: 0.72, fontWeight: 700 }}>({arriveShapes})</span>
+              )}
             </span>
             <span
               className="text-label-10 uppercase tracking-[0.14em] font-bold"
