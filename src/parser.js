@@ -240,6 +240,11 @@ export function parseSongMd(text) {
       : (typeof meta.structure === 'string'
         ? meta.structure.split(',').map(s => s.trim()).filter(Boolean)
         : sections.map(s => s.type)),
+    // Element 8 — key changes as an overlay on the play order. See
+    // `lib/keyChanges.js` for why they are not in the section bodies and not
+    // in `structure`. Wire format is `slot:line:semitones`, one triple per
+    // entry: `keyChanges: [3:0:+2, 5:4:-1]`.
+    keyChanges: parseKeyChangeList(meta.keychanges ?? meta.keyChanges),
     // Whether the play order is a hand-tuned custom slide order or just follows
     // the section (document) order. Honour an explicit frontmatter value;
     // otherwise infer from whether the saved structure already differs.
@@ -302,9 +307,41 @@ export const EXTRA_META_KEYS = EXTRA_META_FIELDS.map(([k]) => k);
 export const KNOWN_FRONTMATTER_KEYS = new Set([
   'id', 'title', 'artist', 'key', 'tempo', 'time', 'duration', 'ccli', 'tags',
   'spotify', 'youtube', 'capo', 'notes', 'structure', 'structuremode',
-  'songid', 'arrangementid', 'arrangementname',
+  'songid', 'arrangementid', 'arrangementname', 'keychanges',
   ...EXTRA_META_KEYS,
 ]);
+
+/**
+ * `[3:0:+2, 5:4:-1]` → `[{slot,line,semitones}]`.
+ *
+ * Deliberately forgiving: anything that is not three integers is dropped
+ * rather than thrown, because a hand-edited `.md` is a text file people mistype
+ * and half a key change is worse than none. `normalizeKeyChanges` (in
+ * `lib/keyChanges.js`) does the same job on the way out of the app; this is the
+ * same contract at the file boundary.
+ */
+export function parseKeyChangeList(raw) {
+  const parts = Array.isArray(raw)
+    ? raw
+    : (typeof raw === 'string' ? raw.split(',') : []);
+  const out = [];
+  for (const part of parts) {
+    const m = String(part).trim().match(/^(\d+):(\d+):([+-]?\d+)$/);
+    if (!m) continue;
+    const semitones = parseInt(m[3], 10);
+    if (!semitones) continue;
+    out.push({ slot: parseInt(m[1], 10), line: parseInt(m[2], 10), semitones });
+  }
+  return out;
+}
+
+/** The inverse. Empty in → nothing emitted, so untouched songs round-trip. */
+export function serializeKeyChangeList(list) {
+  return (list || [])
+    .filter(e => e && Number.isFinite(e.slot) && Number.isFinite(e.line) && e.semitones)
+    .map(e => `${e.slot}:${e.line}:${e.semitones > 0 ? '+' : ''}${e.semitones}`)
+    .join(', ');
+}
 
 // Frontmatter is one line per field. Strip newlines/tabs that would break the
 // parse (or inject stray keys) and trim. Internal single spaces are preserved.
@@ -382,6 +419,11 @@ export function songToMd(song, arrangement) {
   if (view.structure && view.structure.length > 0) {
     md += `structure: [${sv(view.structure.join(', '))}]\n`;
   }
+  // Element 8's overlay. Anchored to the PLAY ORDER, so it is emitted next to
+  // the play order and read with it — an anchor without its structure is an
+  // index into nothing.
+  const kc = serializeKeyChangeList(view.keyChanges);
+  if (kc) md += `keyChanges: [${sv(kc)}]\n`;
   // Flag a hand-tuned custom slide order so the reader (and the editor toggle)
   // honour it. Auto stays implicit. Older custom songs with no flag are
   // detected by their order already differing from document order.

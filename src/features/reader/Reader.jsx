@@ -7,7 +7,7 @@ import { IconButton } from '@/ui/IconButton';
 import PopMenu from '@/ui/PopMenu';
 import { SectionTypeMenuItems } from '@/features/chart/SectionTypeMenu';
 import { sectionTypeOptions } from '@/lib/sectionIdentity';
-import { buildSongFlow, repeatRuns } from '@/lib/songFlow';
+import { buildSongFlow, repeatRuns, repeatFirstIndex } from '@/lib/songFlow';
 import { resolveSectionColors } from '@/lib/sectionIdentity';
 import { resolveReaderConfig } from '@/lib/readerConfig';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -16,6 +16,7 @@ import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import ReaderSection from './ReaderSection';
 import SongInfoStrip from './SongInfoStrip';
 import { songInfoFacts } from './songInfo';
+import { resolveKeyChanges, fromBodyMarkers } from '@/lib/keyChanges';
 import ReaderTopBar from './ReaderTopBar';
 import { BAR_BUTTON, EDIT_ACCENT } from './readerChrome';
 import { chartSurface, hubSurface } from './readerSurface';
@@ -722,7 +723,33 @@ export default function Reader({
   // deciding your phone shouldn't sleep while you browse.
   useWakeLock(!embedded && (config.mode === 'live' || settings?.keepAwake === true));
 
-  const { ordered, offsets, fires, repeats } = useMemo(() => buildSongFlow(song), [song]);
+  const { ordered, fires } = useMemo(() => buildSongFlow(song), [song]);
+
+  // ── Element 8 — the key-change overlay ───────────────────────────────────
+  // A key change is an OVERLAY on the play order, anchored to (slot, line), so
+  // it can live between sections OR mid-chorus and belongs to ONE occurrence of
+  // a repeated section. `lib/keyChanges.js` carries the whole argument.
+  //
+  // ⚠ Stored overlay WINS OUTRIGHT when it is non-empty; only a song with none
+  // falls back to reading its `{modulate}` markers. Merging the two was the
+  // first instinct and it double-counts a song mid-conversion — the markers are
+  // still in the body while the overlay already describes them.
+  const keyOverlay = useMemo(() => {
+    const stored = song?.keyChanges;
+    return Array.isArray(stored) && stored.length > 0 ? stored : fromBodyMarkers(ordered);
+  }, [song?.keyChanges, ordered]);
+  const { slotOffsets, slotMarks, slotSignatures } = useMemo(
+    () => resolveKeyChanges(ordered, keyOverlay),
+    [ordered, keyOverlay],
+  );
+
+  // ⚠ REPEATS ARE DERIVED FROM THE OVERLAY, not from `buildSongFlow`'s own
+  // offsets. `repeatFirstIndex` treats two occurrences of a section as the same
+  // thing only when they are in the SAME KEY — which is the whole point of
+  // element 8's case: "Chorus in C, Verse 2, Chorus in D" must draw two
+  // choruses, not `C1 ×2`. Left reading the legacy offsets, the second chorus
+  // would collapse into a pill announcing a repeat that is a step higher.
+  const repeats = useMemo(() => repeatFirstIndex(ordered, slotSignatures), [ordered, slotSignatures]);
 
   // The active section IS whichever heading is pinned — so the reading line
   // sits at the pin, not a third of the way down. Otherwise the ribbon
@@ -1467,11 +1494,11 @@ export default function Reader({
     const out = {};
     const notation = config.display.notation === 'nashville' ? 'letters' : config.display.notation;
     for (let i = 1; i < ordered.length; i += 1) {
-      if (offsets[i] === offsets[i - 1]) continue;
+      if (slotOffsets[i] === slotOffsets[i - 1]) continue;
       out[i] = notateChord(song.key, {
         key: song.key,
         notation,
-        transpose: transpose + offsets[i],
+        transpose: transpose + slotOffsets[i],
         accidentals: settings?.accidentals,
       });
     }
@@ -2176,7 +2203,12 @@ export default function Reader({
               // The key-change chip names the SOUNDING key, so it needs the
               // transpose WITHOUT the capo taken off. See `SectionBlock`.
               keyTranspose={transpose}
-              modOffset={offsets[idx]}
+              modOffset={slotOffsets[idx] ?? 0}
+              keyMarks={slotMarks[idx] || []}
+              // ⚠ Still passed, and still meaningless once `keyMarks` is set —
+              // `SectionBlock` goes silent on body markers when it has an
+              // overlay. It stays wired for the hub and any caller that has not
+              // moved over, so the two paths cannot drift apart unnoticed.
               modFires={fires[idx] !== false}
               repeatOf={repeats[idx]}
               // The tag opens where it stands (owner, option B, 2026-08-05),

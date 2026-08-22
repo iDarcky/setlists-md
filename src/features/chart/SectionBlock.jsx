@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, Fragment } from 'react';
 import { notateChord, sectionStyle, sectionLabel } from '@/music';
 import { parseLine, INLINE_NOTE_MAX_CHARS } from '@/parser';
 import TabBlock from './TabBlock';
@@ -138,6 +138,12 @@ export default function SectionBlock({
   // a tab for another instrument collapses to one line instead of taking a
   // block of screen you scroll past every section. Null = show everything.
   myInstrument = null,
+  // Element 8's overlay, resolved for THIS slot: `[{ line, semitones, offset }]`.
+  // When present it REPLACES the section's own `{modulate}` markers as the
+  // source of both the chip and the shift — see `lib/keyChanges.js`. Null means
+  // "this caller has no overlay", not "this slot has none", so the legacy path
+  // stays live for the hub, the tests and anything not yet converted.
+  keyMarks = null,
   // The SOUNDING transpose — what the band is in, before the capo is taken off
   // to make shapes. Only the key-change chip uses it; everything else renders
   // from `transpose`. Defaults to `transpose` so a caller with no capo concept
@@ -167,6 +173,19 @@ export default function SectionBlock({
   // this has to agree with it exactly, or the incoming offset and the in-section
   // offsets describe two different songs.
   const lineOffsets = useMemo(() => {
+    // ── The overlay, when the caller has one ────────────────────────────────
+    // A mark applies to ITS OWN line and everything after — "the key changes
+    // here" means this line is already in the new key. The body-marker path
+    // below shifts from the line AFTER the marker instead, because there the
+    // marker is a line of its own; `fromBodyMarkers` bridges the two by
+    // anchoring to `markerIndex + 1`.
+    if (keyMarks) {
+      const acc = { running: modOffset };
+      return (section.lines || []).map((_, i) => {
+        for (const m of keyMarks) if (m.line === i) acc.running = m.offset;
+        return acc.running;
+      });
+    }
     const acc = { running: modOffset };
     return (section.lines || []).map(line => {
       if (typeof line === 'object' && line.type === 'modulate' && (line.every || modFires)) {
@@ -174,7 +193,7 @@ export default function SectionBlock({
       }
       return acc.running;
     });
-  }, [section.lines, modOffset, modFires]);
+  }, [section.lines, modOffset, modFires, keyMarks]);
 
   // Strip trailing colon from section type and apply user label overrides
   // (e.g. Verse → Strofa, preserving trailing numbers).
@@ -360,6 +379,69 @@ export default function SectionBlock({
     </span>
   );
 
+  /**
+   * The key-change chip. ONE renderer, two callers — the section's own
+   * `{modulate}` markers (legacy) and element 8's overlay. They disagreed once
+   * already (the capo bug), and a chip drawn twice by two code paths is how
+   * that happens again.
+   *
+   * `offset` is the CUMULATIVE shift in force from this point on; `semitones`
+   * is only the fallback label for a song with no key to name an arrival in.
+   */
+  const keyChangeChip = (key, semitones, offset) => {
+    const arriveIn = (t) => notateChord(songKey, {
+      key: songKey,
+      notation: notationMode === 'nashville' ? 'letters' : notationMode,
+      transpose: t + offset,
+      accidentals,
+    });
+    const arriveAt = songKey ? arriveIn(keyTranspose ?? transpose) : null;
+    // ── Both keys, when they differ ─────────────────────────────────────────
+    // Owner, 2026-08-21: *"we need to do something like ↗ D (E) or show the key
+    // that you're supposed to play."* With a capo on, two things are true at
+    // once and a guitarist needs both: the band arrives in D, your hands arrive
+    // in C. Sounding first, shapes bracketed — the same order and subordination
+    // the top bar uses between the key pill and the capo chip. Nothing bracketed
+    // without a capo, when it would be the same letter twice.
+    const arriveShapes = songKey && (keyTranspose ?? transpose) !== transpose
+      ? arriveIn(transpose)
+      : null;
+    return (
+      // ── Trimmed twice, 2026-08-11 ─────────────────────────────────────────
+      // It was 68.1px of vertical space against a 22px section heading — 3.1×
+      // the heading it sits under, ~8% of a phone viewport, for an event that
+      // lasts one bar. Owner: *"it's a bit too big in the reader."* Then again
+      // at 46.9: *"I still think we can make it a bit smaller."* The type stays
+      // at the chart's chord size — going under it would announce a key change
+      // more quietly than the chart names a chord — so the fat that came off
+      // was padding and margin, never the arrow, the words or the rule.
+      <div key={key} className="mt-2 mb-1 flex items-center gap-2">
+        <span
+          className="inline-flex items-baseline gap-1 font-black px-2 py-px rounded-md"
+          style={{
+            // Solid, not tinted: this is a moment the whole band has to hit
+            // together, so it reads as loud as it is rare.
+            color: 'var(--chart-bg, #fff)',
+            background: 'var(--chord)',
+            fontSize: 'var(--chart-font-size-chord, 1em)',
+            letterSpacing: '0.02em',
+          }}
+        >
+          <span aria-hidden="true">↗</span>
+          {arriveAt || `${semitones > 0 ? '+' : ''}${semitones}`}
+          {arriveShapes && <span style={{ opacity: 0.72, fontWeight: 700 }}>({arriveShapes})</span>}
+        </span>
+        <span
+          className="text-label-10 uppercase tracking-[0.14em] font-bold"
+          style={{ color: 'var(--chord)' }}
+        >
+          key change
+        </span>
+        <span className="flex-1 h-px" style={{ background: 'var(--chord)', opacity: 0.35 }} />
+      </div>
+    );
+  };
+
   const renderLine = (line, idx) => {
     if (typeof line !== 'string') {
       const tabProps = (t) => ({
@@ -375,96 +457,15 @@ export default function SectionBlock({
       if (line.type === 'tab') return showTabs && tabMatches(line.instrument) ? <TabBlock key={idx} {...tabProps(line)} /> : null;
       if (line.type === 'tabref') return showTabs && line.tab && tabMatches(line.tab.instrument) ? <TabBlock key={idx} {...tabProps(line.tab)} /> : null;
       if (line.type === 'modulate') {
+        // ⚠ SILENT when the caller has an overlay. The overlay replaced these
+        // as the source of truth, and a song mid-conversion carries both — so
+        // rendering this branch too would draw the same key change twice.
+        if (keyMarks) return null;
         // Inert on this occurrence — the key change already happened the first
         // time through. Drawing "↗ A" over a chorus that does not change key is
         // the chart telling a story the chords do not support.
         if (!line.every && !modFires) return null;
-        // Element 8. Was a full-width brand pill between two rules — the
-        // loudest thing on the page for an event that lasts one bar. Now a
-        // compact inline chip that names the key you are ARRIVING IN, because
-        // that is what a player needs ("we're in Bb now"), not the interval.
-        // ⚠ `keyTranspose`, NOT `transpose`. `transpose` here is the CHART's,
-        // which already has the capo subtracted so the chords render as shapes
-        // — and computing the arrival key off it made the chip name the shape
-        // key instead of the key the band is in. Measured 2026-08-21, song in
-        // C with a capo on 2 and a `{modulate: +2}`: the pill said C (sounding),
-        // the chip said "↗ C" (shapes), and the band was arriving in D. Two
-        // different keys under one letter, in the one chip whose entire job is
-        // to say "we're in D now", at the one moment the whole band has to hit
-        // together.
-        //
-        // The chords below it stay in shapes; only the NAME is sounding, which
-        // is the same split the top bar already makes between the key pill and
-        // the capo chip.
-        const arriveIn = (t) => notateChord(songKey, {
-          key: songKey,
-          notation: notationMode === 'nashville' ? 'letters' : notationMode,
-          transpose: t + lineOffsets[idx],
-          accidentals,
-        });
-        const arriveAt = songKey ? arriveIn(keyTranspose ?? transpose) : null;
-        // ── Both keys, when they differ ───────────────────────────────────
-        // Owner, 2026-08-21, on the fix above: *"we need to do something like
-        // ↗ D (E) or show the key that you're supposed to play."* Right — the
-        // first version of this said the shape key and the second said the
-        // sounding key, and each was half an answer. With a capo on, the two
-        // facts are both true at once and a guitarist needs both: the band
-        // arrives in D, your hands arrive in C.
-        //
-        // Sounding first, shapes in brackets — the same order and the same
-        // subordination the top bar already uses (`C` in the key pill, `Capo
-        // 2 · Bb` beside it). Nothing in brackets when there is no capo,
-        // because then they are the same letter and the bracket would be noise.
-        const arriveShapes = songKey && (keyTranspose ?? transpose) !== transpose
-          ? arriveIn(transpose)
-          : null;
-        return (
-          // ── Trimmed 2026-08-11 ────────────────────────────────────────────
-          // Measured at 68.1px of vertical space (20 + 32.1 + 16) against a
-          // 22px section heading — 3.1× the heading it sits under, and ~8% of a
-          // 390px phone's viewport, for an event that lasts one bar. Owner:
-          // *"it's a bit too big in the reader."*
-          //
-          // Same shape, smaller: the chip drops to the chart's own chord size
-          // (it was ×1.05 — bigger than the chords it is announcing), the
-          // padding halves, and the margins go 20/16 → 12/8. The arrow, the
-          // words and the rule all survive, because what was wrong was the
-          // scale and not the design.
-          // Round 2 (owner: *"I still think we can make it a bit smaller"*).
-          // 46.9 was still 2.1× the 22px heading. The type stays at chord size
-          // — going under it would make the chart announce a key change more
-          // quietly than it names a chord — so the remaining fat is padding and
-          // margin: py-0.5 → py-px, mt-3/mb-2 → mt-2/mb-1.
-          <div key={idx} className="mt-2 mb-1 flex items-center gap-2">
-            <span
-              className="inline-flex items-baseline gap-1 font-black px-2 py-px rounded-md"
-              style={{
-                // Solid, not tinted: this is a moment the whole band has to
-                // hit together, so it reads as loud as it is rare.
-                color: 'var(--chart-bg, #fff)',
-                background: 'var(--chord)',
-                // The chart's chord size, exactly. A key change is a chord
-                // event; announcing it LARGER than the chords themselves is
-                // what made it the loudest thing on the page.
-                fontSize: 'var(--chart-font-size-chord, 1em)',
-                letterSpacing: '0.02em',
-              }}
-            >
-              <span aria-hidden="true">↗</span>
-              {arriveAt || `${line.semitones > 0 ? '+' : ''}${line.semitones}`}
-              {arriveShapes && (
-                <span style={{ opacity: 0.72, fontWeight: 700 }}>({arriveShapes})</span>
-              )}
-            </span>
-            <span
-              className="text-label-10 uppercase tracking-[0.14em] font-bold"
-              style={{ color: 'var(--chord)' }}
-            >
-              key change
-            </span>
-            <span className="flex-1 h-px" style={{ background: 'var(--chord)', opacity: 0.35 }} />
-          </div>
-        );
+        return keyChangeChip(idx, line.semitones, lineOffsets[idx]);
       }
       return null;
     }
@@ -1026,7 +1027,19 @@ export default function SectionBlock({
         </div>
       )}
       <div>
-        {(section.lines || []).map((line, i) => renderLine(line, i))}
+        {(section.lines || []).map((line, i) => {
+          // An overlay mark is drawn BEFORE the line it applies to, because
+          // "the key changes here" means this line is already in the new key.
+          const marks = keyMarks ? keyMarks.filter(m => m.line === i) : null;
+          const body = renderLine(line, i);
+          if (!marks || marks.length === 0) return body;
+          return (
+            <Fragment key={`l${i}`}>
+              {marks.map((m, j) => keyChangeChip(`kc${i}-${j}`, m.semitones, m.offset))}
+              {body}
+            </Fragment>
+          );
+        })}
       </div>
     </div>
   );

@@ -110,7 +110,21 @@ export function resolveKeyChanges(ordered, entries) {
     slotOffsets[s] = running;
     for (const m of slotMarks[s]) running = m.offset;
   }
-  return { slotOffsets, slotMarks };
+  // ── What makes two occurrences the SAME occurrence ──────────────────────
+  // `repeatFirstIndex` collapses a repeat only when the two plays are in the
+  // same key, and it compares one number per slot. The incoming offset is the
+  // wrong number: a mark anchored at (slot, line 0) fires INSIDE the slot, so
+  // slot 2 of "Chorus, Verse 2, Chorus ↗D" still has an incoming 0 and matched
+  // slot 0 exactly — collapsing the second chorus into a tag announcing a
+  // repeat that is a step higher. Which is the case element 8 exists for, hidden
+  // by the feature that implements it.
+  //
+  // The signature is the incoming offset PLUS this slot's own marks, so two
+  // plays match only when they sound the same the whole way through.
+  const slotSignatures = slotMarks.map(
+    (marks, s) => `${slotOffsets[s]}|${marks.map(m => `${m.line}:${m.offset}`).join(',')}`,
+  );
+  return { slotOffsets, slotMarks, slotSignatures };
 }
 
 // ── Anchor maintenance ──────────────────────────────────────────────────────

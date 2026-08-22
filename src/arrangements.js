@@ -54,6 +54,10 @@ export function resolveSongView(song, arrangementId) {
     capo: arr.capo || 0,
     notes: arr.notes || '',
     structure: arr.structure || [],
+    // Element 8's overlay travels WITH the arrangement, because its anchors
+    // index that arrangement's play order. A different arrangement is a
+    // different order and its key changes are its own.
+    keyChanges: Array.isArray(arr.keyChanges) ? arr.keyChanges : [],
     // Honour an explicit stored mode; otherwise infer it (migrates older
     // stored arrangements at read time: custom only if order already differs).
     structureMode: arr.structureMode || inferStructureMode(arr.structure, arr.sections),
@@ -163,6 +167,7 @@ export function songFromFlat(flat) {
       capo: flat.capo || 0,
       notes: flat.notes || '',
       structure: Array.isArray(flat.structure) ? flat.structure : [],
+      keyChanges: Array.isArray(flat.keyChanges) ? flat.keyChanges : [],
       // Carry an explicit mode when the flat source (parsed .md) already has
       // one; otherwise infer it so existing songs migrate to custom only when
       // their saved order already differs from document order.

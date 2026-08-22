@@ -233,3 +233,27 @@ describe('a key change names the key the BAND is in, not the shape', () => {
     expect(chart).toBe(-3);  // C -3 = A, shapes
   });
 });
+
+// ── What makes two plays of a section the SAME play ─────────────────────────
+// `repeatFirstIndex` collapses a repeat only when both plays are in the same
+// key, and it compares ONE value per slot. The incoming offset is the wrong
+// one: a mark anchored at line 0 fires inside the slot, so a lifted chorus
+// still reports an incoming 0 and matches the unlifted one — collapsing the
+// second chorus into a tag announcing a repeat a step higher. The case element
+// 8 exists for, hidden by the feature that implements it.
+describe('slot signatures', () => {
+  it('separate two plays that differ only by a change at their first line', () => {
+    const { slotSignatures } = resolveKeyChanges(ordered, [{ slot: 2, line: 0, semitones: 2 }]);
+    expect(slotSignatures[0]).not.toBe(slotSignatures[2]);
+  });
+
+  it('match two plays that really are the same', () => {
+    const { slotSignatures } = resolveKeyChanges(ordered, []);
+    expect(slotSignatures[0]).toBe(slotSignatures[2]);
+  });
+
+  it('separate two plays that differ only mid-section', () => {
+    const { slotSignatures } = resolveKeyChanges(ordered, [{ slot: 2, line: 2, semitones: 1 }]);
+    expect(slotSignatures[0]).not.toBe(slotSignatures[2]);
+  });
+});

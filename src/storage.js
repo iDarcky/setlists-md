@@ -95,6 +95,7 @@ export function migrateSongShape(s) {
       capo: s.capo || 0,
       notes: s.notes || '',
       structure: Array.isArray(s.structure) ? s.structure : [],
+      keyChanges: Array.isArray(s.keyChanges) ? s.keyChanges : [],
       sections: Array.isArray(s.sections) ? s.sections : [],
       updatedAt: s.updatedAt || Date.now(),
     }],
