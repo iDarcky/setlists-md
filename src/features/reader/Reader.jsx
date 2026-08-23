@@ -28,6 +28,8 @@ import ChordPopover from '@/features/chart/ChordPopover';
 import { useEntitlement } from '@/hooks/useEntitlement';
 import { useMetronome } from '@/hooks/useMetronome';
 import { clampTempo } from '@/lib/metronome';
+import { isPitched } from '@/data/instruments';
+import { resolveDisplayInstrument } from '@/lib/myInstrument';
 import ReaderActions from './ReaderActions';
 import { useConfirm } from '@/ui/useConfirmHook';
 
@@ -1525,6 +1527,18 @@ export default function Reader({
   const capo = capoFor(settings, song?.id);
   const chartTranspose = transpose - capo;
   const capoShapeKey = capo ? shapeKeyFor(displayKey, capo) : null;
+  // Element 19's slot, for a player with no pitch: the pill says the tempo and
+  // the capo goes away with the key. See the note at the `meta` block.
+  //
+  // ⚠ BOTH ends of "what am I playing". The `myInstrument` prop is the team
+  // roster; `settings.displayRole` is the ☰'s own "Your instrument" row, and
+  // they are two lists for one idea that have never been introduced. Reading
+  // only the roster would give this to a rostered team drummer and never to the
+  // solo drummer who walked into the menu and picked Drums — who is the more
+  // likely person to have wanted it.
+  const barShowsTempo = !isPitched(
+    resolveDisplayInstrument({ myInstrument, displayRole: settings?.displayRole })
+  );
 
   // ⚠ AFTER `capo`, not before it. This block reads `capo` and
   // `capoShapeKey`, and `const` in the temporal dead zone throws at RUNTIME
@@ -1783,7 +1797,38 @@ export default function Reader({
           // `ReaderTopBar` because other surfaces pass one.
           meta={(
             <span className="shrink-0 flex items-center gap-2 text-label-11 text-[var(--chart-subtle,var(--ds-gray-700))]">
-              {onSelectKey && config.can.transpose ? (
+              {/* ── The pill says the number YOU play by ────────────────────
+                  Owner, 2026-08-23: *"for drummers I think we can change,
+                  instead of key, we can show tempo."*
+
+                  A drummer cannot transpose and never needs to: the key pill
+                  was the most prominent thing in their bar and it was inert.
+                  Tempo is the number they are actually counting, and on a phone
+                  it was the one thing HIDDEN — `barShowsMeta` drops ♩ and the
+                  time signature below 640px to save the title's width, so a
+                  drummer on a phone got a key they cannot use instead of the
+                  tempo they need. This is a straight swap in the same slot,
+                  with the same pill: nothing is added to the row.
+
+                  ⚠ Read `isPitched`, not the display mode. Vocals is also a
+                  lyric sheet and is very much pitched — the key IS the singer's
+                  range. And an unknown or absent instrument answers TRUE, so
+                  every reader who never picked one sees exactly what they see
+                  today.
+
+                  The capo goes with it: a capo is a fret, and a drum kit has
+                  none. */}
+              {barShowsTempo ? (
+                !editing && song.tempo ? (
+                  <span
+                    className="font-mono font-bold text-[15px] rounded-lg px-2.5 h-8 inline-flex items-center gap-0.5 shrink-0 tabular-nums"
+                    style={{ background: 'var(--chord)', color: '#0a0a0a' }}
+                    aria-label={`Tempo ${song.tempo} beats per minute`}
+                  >
+                    <span aria-hidden="true">♩</span>{song.tempo}
+                  </span>
+                ) : null
+              ) : onSelectKey && config.can.transpose ? (
                 <Select value={displayKey} onValueChange={onSelectKey}>
                   {/* Identical to the Song Hub's key chip — solid --chord fill,
                       near-black text, mono bold. */}
@@ -1820,7 +1865,7 @@ export default function Reader({
                   appears only when a capo is already set (owner: *"in live it's
                   only rendered... We needed only if there is already a capo that
                   said capo +3"*). No capo, no chip, no clutter. */}
-              {setCapo ? (
+              {barShowsTempo ? null : setCapo ? (
                 <CapoChip
                   capo={capo}
                   soundingKey={displayKey}
@@ -1899,7 +1944,10 @@ export default function Reader({
                 // not read-outs, and edit mode drops the ribbon's jump targets
                 // anyway so the row has the room.
                 <>
-                  {barShowsMeta && song.tempo && <span className="tabular-nums">♩{song.tempo}</span>}
+                  {/* ⚠ Not when the PILL is already saying it — see
+                      `barShowsTempo`. The time signature stays either way; for
+                      a drummer it is the other half of the count. */}
+                  {barShowsMeta && !barShowsTempo && song.tempo && <span className="tabular-nums">♩{song.tempo}</span>}
                   {barShowsMeta && song.time && <span className="tabular-nums">{song.time}</span>}
                 </>
               )}

@@ -66,6 +66,15 @@ export const VOCAL_PARTS = [
  *   • `display` — the mode this player wants by default (chords vs lyrics)
  *   • `tabs`    — which `TAB_INSTRUMENTS` block is THEIRS (null = none are)
  *   • `diagrams`— whether chord diagrams are useful to them
+ *   • `pitched` — whether the KEY means anything to them. False for drums, and
+ *                 drums only. Owner, 2026-08-23: *"for drummers I think we can
+ *                 change, instead of key, we can show tempo."*
+ *
+ * ⚠ `pitched` is NOT "does this player see chords". Vocals is `display:
+ * 'lyrics'` and is very much pitched — the key IS the singer's range, and it is
+ * the first thing they check. Deriving this from the display mode would have
+ * taken the key away from exactly the person who needs it most. It is its own
+ * column because it is its own question.
  */
 /**
  * ⚠ **Vocals is NOT in this list** (owner, 2026-08-08). Once the vocal part
@@ -79,17 +88,17 @@ export const VOCAL_PARTS = [
  * are not offered.
  */
 export const INSTRUMENTS = [
-  { id: 'acoustic-guitar', label: 'Acoustic Guitar', display: 'chords', tabs: 'acoustic', diagrams: true },
-  { id: 'electric-guitar', label: 'Electric Guitar', display: 'chords', tabs: 'electric', diagrams: true },
-  { id: 'bass-guitar', label: 'Bass Guitar', display: 'chords', tabs: 'bass', diagrams: false },
-  { id: 'keys', label: 'Keys', display: 'chords', tabs: null, diagrams: false },
-  { id: 'piano', label: 'Piano', display: 'chords', tabs: null, diagrams: false },
-  { id: 'drums', label: 'Drums', display: 'lyrics', tabs: null, diagrams: false },
+  { id: 'acoustic-guitar', label: 'Acoustic Guitar', display: 'chords', tabs: 'acoustic', diagrams: true, pitched: true },
+  { id: 'electric-guitar', label: 'Electric Guitar', display: 'chords', tabs: 'electric', diagrams: true, pitched: true },
+  { id: 'bass-guitar', label: 'Bass Guitar', display: 'chords', tabs: 'bass', diagrams: false, pitched: true },
+  { id: 'keys', label: 'Keys', display: 'chords', tabs: null, diagrams: false, pitched: true },
+  { id: 'piano', label: 'Piano', display: 'chords', tabs: null, diagrams: false, pitched: true },
+  { id: 'drums', label: 'Drums', display: 'lyrics', tabs: null, diagrams: false, pitched: false },
 ];
 
 // Retired from the pickable list but still a real stored value. `parseToken`
 // and `labelFor` must keep answering for it, so it lives here.
-const VOCALS = { id: 'vocals', label: 'Vocals', parts: VOCAL_PARTS, display: 'lyrics', tabs: null, diagrams: false };
+const VOCALS = { id: 'vocals', label: 'Vocals', parts: VOCAL_PARTS, display: 'lyrics', tabs: null, diagrams: false, pitched: true };
 
 const BY_ID = new Map([...INSTRUMENTS, VOCALS].map(i => [i.id, i]));
 const PART_BY_ID = new Map(VOCAL_PARTS.map(p => [p.id, p]));
@@ -199,6 +208,20 @@ export function displayModeFor(token) {
 /** Are chord diagrams useful to this player? */
 export function wantsDiagrams(token) {
   return parseToken(token).instrument?.diagrams ?? false;
+}
+
+/**
+ * Does the KEY mean anything to this player? Drums is the only no.
+ *
+ * ⚠ DEFAULTS TRUE, and the default is the whole reason to read this note. An
+ * unknown token, a legacy label nothing maps, a user who never picked an
+ * instrument, a personal (teamless) workspace — every one of those arrives here
+ * as null, and they are the overwhelming majority of readers. "We do not know
+ * what you play" must mean the reader looks exactly as it does today, never
+ * "assume they cannot use a key".
+ */
+export function isPitched(token) {
+  return parseToken(token).instrument?.pitched ?? true;
 }
 
 /** The seven top-level ids, for a picker's first step. */

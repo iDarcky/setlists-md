@@ -193,6 +193,40 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
             if (!onTitleTap) {
               return <span className="truncate text-label-14 font-semibold" style={titleStyle}>{title}</span>;
             }
+            // ── Saying that it is a control ──────────────────────────
+            // Owner, 2026-08-23: *"How do we hint to the user that they can
+            // tap on the title?"* — and the honest answer was that we did not.
+            // It was a `<button>` that looked exactly like the `<span>` in the
+            // branch above it: same weight, same colour, same everything. The
+            // only hint was a `title` attribute, which a tablet has no pointer
+            // to hover with.
+            //
+            // A CARET, and specifically the key pill's caret — same glyph, same
+            // 13px, three inches to the right in this same row. The bar already
+            // teaches "a caret means this opens"; borrowing it costs the reader
+            // no new vocabulary, and consistency inside one row of chrome beats
+            // inventing a second mark for the same idea.
+            //
+            // ⚠ NOT an ⓘ, and not an underline. An info glyph is a new icon in
+            // a bar that element 1 says takes no additions, and an underline
+            // reads as a hyperlink — the one thing in a native-feeling reader
+            // that says "this is a web page".
+            //
+            // The price, measured: 17px off a TRUNCATING title (13px glyph +
+            // the 4px gap), at 390px and at 1024px alike — about a character
+            // and a half. A title with room to spare loses 1px. That is what
+            // the smallest honest affordance costs in the row that has least to
+            // give.
+            //
+            // It ROTATES on `aria-expanded`, which the button was already
+            // setting. That is what makes it self-explaining rather than
+            // decorative: closed it points down at the panel that will appear,
+            // open it points back at the title that closes it.
+            //
+            // ⚠ `shrink-0`, and OUTSIDE the truncating span. Inside it, the
+            // caret is the first thing an ellipsis eats — so on the phone,
+            // where the hint is needed most, it would be the width that
+            // disappears.
             return (
               <button
                 type="button"
@@ -202,10 +236,23 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
                 aria-expanded={infoOpen}
                 aria-label={`${title} — song info`}
                 title="Song info"
-                className="min-h-0 truncate text-label-14 font-semibold bg-transparent border-none p-0 text-left cursor-pointer"
+                className="min-h-0 flex items-center gap-1 bg-transparent border-none p-0 text-left cursor-pointer"
                 style={titleStyle}
               >
-                {title}
+                <span className="truncate text-label-14 font-semibold">{title}</span>
+                <svg
+                  className="shrink-0 transition-transform duration-200"
+                  width="13" height="13" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.5"
+                  strokeLinecap="round" strokeLinejoin="round"
+                  aria-hidden="true"
+                  style={{
+                    opacity: 0.5,
+                    transform: infoOpen ? 'rotate(180deg)' : 'none',
+                  }}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </button>
             );
           })()}

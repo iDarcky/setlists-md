@@ -46,3 +46,41 @@ export function resolveMyInstrument({
 }
 
 function uniq(xs) { return Array.from(new Set(xs)); }
+
+/**
+ * The ☰'s "Your instrument" presets, in the instrument vocabulary.
+ *
+ * ⚠ THE TWO ENDS OF ONE SWITCH. `ReaderMenu`'s `ROLES` and `INSTRUMENTS` are
+ * two lists for one idea that have never been introduced: the menu writes
+ * `settings.displayRole` (`'drums'`, `'vocalist'`) and `resolveMyInstrument`
+ * above reads `team_schedules.role` (`'drums'`, `'vocals:alto'`). Anything that
+ * consults only one of them is right for half the app's users and silently
+ * wrong for the other half — a solo drummer picking Drums in the menu is not in
+ * anybody's schedule, and a rostered drummer has never opened the menu.
+ *
+ * `leader` maps to NULL on purpose. "Leading" is also the value `displayRole`
+ * falls back to when it was never set (`settings?.displayRole || 'leader'`, in
+ * two places in App), so it cannot be told apart from "no answer" — and reading
+ * it as a claim would let an untouched default outrank a leader's roster.
+ */
+const ROLE_INSTRUMENT = {
+  leader: null,
+  vocalist: 'vocals',
+  guitar: 'electric-guitar',
+  bass: 'bass-guitar',
+  keys: 'keys',
+  drums: 'drums',
+};
+
+/**
+ * What the READER should assume you are playing — both ends, one answer.
+ *
+ * The menu pick wins over the roster because it is the more specific statement:
+ * the roster is what a leader put you down for, the pick is you saying what you
+ * want on screen right now. Neither present → null, which every caller must
+ * read as "we do not know", never as a default instrument.
+ */
+export function resolveDisplayInstrument({ myInstrument = null, displayRole = null } = {}) {
+  const picked = ROLE_INSTRUMENT[displayRole] ?? null;
+  return picked || normalize(myInstrument) || null;
+}
