@@ -19,6 +19,7 @@ import { reconcileAdopt, applyPulled } from '@/sync/adopt';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { resolveMyInstrument } from '@/lib/myInstrument';
 import { resolveOpeningMode } from '@/lib/openingMode';
+import { APP_HEIGHT } from '@/lib/appViewport';
 import OnboardingFlow from '@/features/onboarding/OnboardingFlow';
 import Dashboard from '@/features/dashboard/Dashboard';
 import Library from '@/features/library/Library';
@@ -2095,7 +2096,7 @@ export default function App() {
         />
       )}
       {view === 'onboarding' && (
-        <div style={{ height: '100dvh', overflowY: 'auto', overflowX: 'hidden' }}>
+        <div style={{ height: APP_HEIGHT, overflowY: 'auto', overflowX: 'hidden' }}>
         <OnboardingFlow
           onComplete={(quiz) => {
             // Inject demos if not already present (covers the first-run path).
@@ -2822,7 +2823,7 @@ function EdgeSwipeHotspot({ onOpen }) {
       className="fixed top-0 left-0 z-[150] sm:hidden"
       style={{
         width: '24px',
-        height: '100dvh',
+        height: APP_HEIGHT,
         // Keep the strip transparent but touch-reachable
         background: 'transparent',
         touchAction: 'pan-y',

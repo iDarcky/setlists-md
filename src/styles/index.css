@@ -599,13 +599,18 @@
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
-    height: 100dvh;
+    /* `--app-vh` with `100dvh` as the FALLBACK — see `lib/appViewport.js`.
+       iOS resolved `100dvh` short on an installed app's first layout, and the
+       shell being shorter than the screen is what left the reader's bottom bar
+       hanging above it. Nothing changes where `dvh` is right: the variable is
+       set to the same number. */
+    height: var(--app-vh, 100dvh);
     overflow: hidden;
   }
 
   html {
     scroll-behavior: smooth;
-    height: 100dvh;
+    height: var(--app-vh, 100dvh);
     overflow: hidden;
   }
 

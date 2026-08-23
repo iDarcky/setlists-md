@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { APP_HEIGHT } from '@/lib/appViewport';
 import TopHeader from './TopHeader';
 import { useMediaQuery, useIsTablet } from '@/lib/useMediaQuery';
 
@@ -54,7 +55,10 @@ export default function DesktopLayout({
   }, [scrollResetKey]);
 
   return (
-    <div className="w-full h-[100dvh] flex flex-col overflow-hidden">
+    // `APP_HEIGHT`, not `h-[100dvh]` — the third of the three places the shell's
+    // height was stated, and the one the reader's scroller inherits from. See
+    // `lib/appViewport.js`.
+    <div className="w-full flex flex-col overflow-hidden" style={{ height: APP_HEIGHT }}>
       {/*
         Desktop / tablet top header (sm+). Replaces the old left sidebar and the
         church "TeamBanner" — the workspace switcher in the header now owns
