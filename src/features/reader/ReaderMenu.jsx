@@ -713,6 +713,11 @@ export default function ReaderMenu({
   // Absent on every surface with exactly one mode (the hub, the editor
   // preview, a shared link), which is what makes the row not render there.
   onModeChange = null,
+  // Whether the CLOCK currently allows live at all — i.e. we are inside this
+  // setlist's service window (`resolveOpeningMode`). Not the same question as
+  // "are we live", and the difference is the whole reason this prop exists:
+  // see the note on `liveRow`.
+  liveAvailable = false,
 }) {
   const [tab, setTab] = useState('style');
   const { allowed: styleAllowed } = useEntitlement('chart-style');
@@ -939,7 +944,26 @@ export default function ReaderMenu({
   // ⚠ It is also the only way out of live, since live has no ✕ (`LiveFold`).
   // That is why `Reader` refuses to drop the ✕ unless `onModeChange` exists —
   // this row and that ✕ are the two halves of one invariant.
-  const liveRow = (onModeChange && config?.mode === 'live') ? (
+  // ⚠ ON THE WINDOW, NOT ON THE MODE. This read `config?.mode === 'live'`, so
+  // the switch DELETED ITSELF the moment you used it: live → tap → the row it
+  // lived in stops rendering, and there is no way back into live short of
+  // leaving the reader and re-opening the set. Measured 2026-08-23, mid-service
+  // on a 1024×768 tablet:
+  //
+  //   live, ☰ open        switch present, checked
+  //   after switching OFF  switch GONE — nothing in the menu mentions live
+  //
+  // Which is the reader's own house bug: a switch wired at one end. Turning
+  // live off is exactly when someone needs to turn it back on — they wanted
+  // Edit for one song, not to end the service.
+  //
+  // The rule "there is no manual way INTO live" is about the calendar, not
+  // about this trap: it exists so a setlist opened on a Tuesday does not offer
+  // a stage mode nobody asked for. Gating on the service WINDOW keeps that
+  // exactly — outside it the row is still absent, whichever way the switch sits
+  // — while letting the half hour before the service through in both
+  // directions.
+  const liveRow = (onModeChange && (config?.mode === 'live' || liveAvailable)) ? (
     // ONE LINE. Owner, 2026-08-11: *"Make the live more like enable edit. Or
     // something like that. A single line. Right now it takes too much."*
     //

@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import { IconButton } from '@/ui/IconButton';
-import { BAR_BUTTON, EDIT_ACCENT, EDIT_INK, EDIT_CHROME } from './readerChrome';
+import { BAR_BUTTON, EDIT_ACCENT, EDIT_INK, EDIT_CHROME, SAFE_TOP } from './readerChrome';
 
 /**
  * Element 1 — the top bar. ONE component, so a song and a break cannot drift
@@ -63,6 +63,13 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
           ? EDIT_ACCENT
           : 'var(--chart-divider, var(--chart-rule, var(--ds-gray-300)))',
         background: 'var(--chart-bg, var(--ds-background-100))',
+        // ⚠ The status bar of an INSTALLED app is painted OVER this. In a
+        // browser tab the inset is 0 and this is a no-op, which is why it went
+        // unnoticed until the owner ran the installed app on an iPad — see
+        // `SAFE_TOP`. It is padding on the sticky block itself, so the bar's
+        // background fills the strip rather than leaving the status bar over
+        // bare chart.
+        paddingTop: SAFE_TOP,
         // ⚠ NO `position` here. This block is `sticky top-0`, and `sticky` is
         // already a positioned element — an absolutely-positioned child
         // resolves against it for free. Adding `position: relative` to "make

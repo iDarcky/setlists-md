@@ -55,6 +55,38 @@ export const BAR_BUTTON = 'min-h-0 h-11 w-11 text-[var(--chart-text,var(--ds-gra
 export const BAR_PILL = '!h-8 !min-h-8';
 
 /**
+ * The reader's two hardware edges, on an INSTALLED app.
+ *
+ * ── The top ────────────────────────────────────────────────────────────────
+ * In a browser tab the page starts below the browser's own chrome, so the
+ * reader's sticky header never needed to think about the status bar. Installed
+ * to the home screen it does: the web view gets the whole screen and the status
+ * bar is painted OVER it. Owner, 2026-08-23, on an iPad running the installed
+ * app: *"we need to fix the top on paw installed on ipad, there's no
+ * clearance."* Measured in the reader: `.reader-head` at `top: 0` with
+ * `padding-top: 0px` — the bar was not reserving a single pixel for it.
+ *
+ * ── The bottom ─────────────────────────────────────────────────────────────
+ * The opposite mistake, in the same breath: *"Also there's a bit too much
+ * clearance on bot."* The footer block reserved the FULL inset **on top of** the
+ * 4px its own row already carries (`wide-container … py-1`), so the buttons
+ * ended up the inset PLUS 4px above the home indicator.
+ *
+ * ⚠ A safe-area inset is a MINIMUM DISTANCE, not an amount to add. Padding that
+ * is already there counts toward it, so the block tops up to the inset instead
+ * of stacking on it: at inset 0 (every browser tab, every desktop) this is 0px
+ * and nothing moves; at a 20px inset it reserves 16px, and 16 + the row's 4 is
+ * exactly 20. `ReaderMenu`'s dock has said this correctly as `max(8px, env(…))`
+ * since 2026-08-21 — the footer just never learned it.
+ */
+export const SAFE_TOP = 'env(safe-area-inset-top, 0px)';
+
+/** How much a row with `ROW_PAD` of its own padding still owes the inset. */
+export const ROW_PAD = 4;
+export const SAFE_BOTTOM_TOPUP =
+  `max(0px, calc(env(safe-area-inset-bottom, 0px) - ${ROW_PAD}px))`;
+
+/**
  * Edit mode's colour. ORANGE, not the brand (owner, 2026-08-03: *"maybe we can
  * use an orange color for the header, so we know we're doing something"*) —
  * and that is the right instinct: the brand colour is what the app looks like

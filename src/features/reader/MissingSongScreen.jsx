@@ -1,5 +1,6 @@
 import ReaderTopBar from './ReaderTopBar';
 import { chartSurface } from './readerSurface';
+import { SAFE_BOTTOM_TOPUP } from './readerChrome';
 
 /**
  * Element 14 — a setlist item whose song isn't here.
@@ -87,7 +88,7 @@ export default function MissingSongScreen({
       </div>
 
       {footer && (
-        <div className="shrink-0 border-t" style={{ ...rule, paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <div className="shrink-0 border-t" style={{ ...rule, paddingBottom: SAFE_BOTTOM_TOPUP }}>
           <div className="wide-container flex items-center gap-2 py-1">{footer}</div>
         </div>
       )}

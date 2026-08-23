@@ -516,12 +516,23 @@ export default function SectionBlock({
         //   · a trailing spacer child in `ReaderSection` — blocked a margin that
         //     had been collapsing out of the section, +26.7px per section
         //     (this file's trap 15, from the other side);
-        //   · padding-bottom here with a matching negative margin — net layout
-        //     zero, which is also net EFFECT zero: the section cannot contain
-        //     the ink without actually growing.
+        //   · padding-bottom HERE, on the line row, with a matching negative
+        //     margin on the same row — net layout zero, which is also net
+        //     EFFECT zero: a section's height is set by its last child's MARGIN
+        //     box, so the negative margin pulled the section's bottom edge back
+        //     up and the box never grew.
         //
-        // So the fix has to accept ~0.15em per section. Left undone rather than
-        // guessed at; it wants a pass with screenshots, not blind measurement.
+        // ⚠ FIXED 2026-08-23, on the SECTION rather than on this row — see
+        // `--chart-ink-slack` at the section root below. The section's bottom
+        // margin is external and collapses out of its border box, so moving a
+        // couple of pixels from that margin into the section's padding grows
+        // the box without moving anything on screen. Measured in the reader,
+        // lyrics mode (the exposed case — a chorded row already carries 8px
+        // under it): section box bottom 255.98 / last line box bottom 255.98
+        // before, 257.98 / 255.98 after.
+        //
+        // ⚠ So do NOT give this row a bottom margin of 0 and assume the ink is
+        // safe — it is safe because the SECTION holds room for it.
         <div
           key={idx}
           style={{
@@ -1004,7 +1015,51 @@ export default function SectionBlock({
     <div
       className="break-inside-avoid"
       style={{
-        marginBottom: 'var(--chart-section-gap, 24px)',
+        // ── The Romanian dot, second mechanism ─────────────────────────────
+        // A ț (U+021B) carries a real descender comma, and MEASURED in Geist
+        // its ink sits BELOW the line box at ordinary settings:
+        //
+        //   18px / 1.35  →  0.65px of clearance
+        //   18px / 1.25  →  −0.25px   ← ink is outside the box
+        //   24px / 1.25  →  −0.5px
+        //   18px / 1.00  →  −2.5px
+        //
+        // (Line spacing is a stepper from 100% to 240%, so 1.00 is reachable,
+        // and even the DEFAULT has under a pixel to spare.)
+        //
+        // The section's border box therefore ends ABOVE its own last line's
+        // ink. `break-inside: avoid` keeps the border box in one column — but
+        // the ink hanging below it is not in any column. In the tallest column
+        // of a balanced pair the bottom margin is truncated at the break, so
+        // the column ends exactly at that border box, and WebKit paints the
+        // overhang at the TOP OF THE NEXT COLUMN: a comma alone above the next
+        // section's heading, at the same x-offset as the word it came from.
+        //
+        // ⚠ This is NOT the bug 76d713d fixed. That one was the LINE BOX
+        // fragmenting (`break-inside: auto`), and the `avoid` it added is still
+        // right and still needed. This is the ink of an UNFRAGMENTED line
+        // escaping an unfragmented box — the same symptom by a second route,
+        // which is why it came back.
+        //
+        // The fix is to make the border box taller than the ink and take the
+        // difference back out of the margin, so the rhythm is IDENTICAL and
+        // only the box grows. Sized from the same two variables the shortfall
+        // is: `fs × (0.68 − lh/2)` is the overhang, floored at 2px because the
+        // default's sub-pixel clearance is one rounding away from zero.
+        //
+        // ⚠ The difference from the attempt that was tried and reverted is
+        // WHICH BOX carries the padding. That one put it on the LINE row with a
+        // matching negative margin on the same row — and a section's height is
+        // set by its last child's MARGIN box, so the negative margin pulled the
+        // section's own bottom edge straight back up and the section box never
+        // grew. Here the padding is on the SECTION, whose bottom margin is
+        // external and collapses out of the box entirely; taking 2px out of a
+        // margin that lives outside the border box cannot pull the border box
+        // up after it. Same visual gap, and this time the box really is taller.
+        ['--chart-ink-slack']:
+          'max(2px, calc(var(--chart-font-size-lyric, 18px) * (0.68 - var(--chart-line-height-lyric, 1.35) / 2)))',
+        paddingBottom: 'var(--chart-ink-slack)',
+        marginBottom: 'max(0px, calc(var(--chart-section-gap, 24px) - var(--chart-ink-slack)))',
         lineHeight: 'var(--chart-line-height-lyric, 1.35)',
       }}
     >

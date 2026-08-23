@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { resolveSongView } from '@/arrangements';
 import { semitonesBetween, transposeKey } from '@/music';
 import { resolveReaderConfig } from '@/lib/readerConfig';
+import { resolveOpeningMode } from '@/lib/openingMode';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import FloatingNavPill from '@/ui/FloatingNavPill';
 import EdgeNavArrows from '@/ui/EdgeNavArrows';
@@ -140,6 +141,15 @@ export default function SetlistReader({
   }, [goNext, goPrev]);
 
   const cfg = resolveReaderConfig(settings, { wide, mode });
+  // ── Is live on the table at all right now ────────────────────────────────
+  // The same question `App` asks to decide which mode to OPEN in, asked again
+  // for the ☰'s Live row — because the row has to survive the switch being
+  // turned off, and `mode` stops saying live the instant it is.
+  //
+  // Read on every render rather than memoised: it is two string parses, and a
+  // value frozen on mount would be wrong for anyone whose service starts while
+  // they are already looking at the set — which is most of a band.
+  const liveAvailable = resolveOpeningMode(setlist) === 'live';
 
   // Picking a key. Always applies to what you are reading; in practice it is
   // ALSO written onto the setlist item, which is what `saveKey` was declared
@@ -345,6 +355,7 @@ export default function SetlistReader({
       // sitting on a break when the service starts, and a menu that offers it
       // on a song but not on a break is the fork coming back in miniature.
       onModeChange={onModeChange}
+      liveAvailable={liveAvailable}
       lyricSize={cfg.display.lyricFontSize}
       onLyricSize={(v) => onUpdateSettings?.('defaultFontSize', v)}
       chordSize={cfg.display.chordFontSize}
@@ -390,6 +401,7 @@ export default function SetlistReader({
       myInstrument={myInstrument}
       mode={mode}
       onModeChange={onModeChange}
+      liveAvailable={liveAvailable}
       onUpdateSong={onUpdateSong}
       onSaveAsArrangement={onSaveAsArrangement}
       onUpgrade={onUpgrade}

@@ -18,7 +18,7 @@ import SongInfoView from './SongInfoView';
 import { songInfoFacts } from './songInfo';
 import { resolveKeyChanges, fromBodyMarkers } from '@/lib/keyChanges';
 import ReaderTopBar from './ReaderTopBar';
-import { BAR_BUTTON, EDIT_ACCENT } from './readerChrome';
+import { BAR_BUTTON, EDIT_ACCENT, SAFE_BOTTOM_TOPUP } from './readerChrome';
 import { chartSurface, hubSurface } from './readerSurface';
 import ReaderPracticeRow, { MetronomeIcon } from './ReaderPracticeRow';
 import AaMenu from '@/features/chart/AaMenu';
@@ -313,6 +313,10 @@ export default function Reader({
   // does not render at all (the hub, the editor preview, a shared link), which
   // is right: those surfaces have exactly one mode and always will.
   onModeChange = null,
+  // Whether the clock currently allows live (the setlist's service window is
+  // open). Passed straight through to the ☰ — see `ReaderMenu`'s `liveRow`
+  // for why the row asks this and not `mode === 'live'`.
+  liveAvailable = false,
   // Element 12: a tapped tempo writes back to the song (owner, 2026-08-01), so
   // the reader needs a way to save one. Absent → the tempo stays session-only.
   onUpdateSong = null,
@@ -1672,6 +1676,7 @@ export default function Reader({
       // every surface with exactly one mode (the hub, the editor preview, a
       // shared link), which is what makes the row disappear there.
       onModeChange={onModeChange}
+      liveAvailable={liveAvailable}
       lyricSize={config.display.lyricFontSize}
       onLyricSize={(v) => onUpdateSettings?.('defaultFontSize', v)}
       chordSize={config.display.chordFontSize}
@@ -2323,7 +2328,10 @@ export default function Reader({
           style={{
             ...rule,
             background: 'var(--chart-bg, var(--ds-background-100))',
-            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            // The rows below already carry `py-1`; this tops that up to the
+            // inset rather than adding a second one under it. See
+            // `SAFE_BOTTOM_TOPUP`.
+            paddingBottom: SAFE_BOTTOM_TOPUP,
           }}
         >
           {bottomRibbon && (
