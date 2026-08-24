@@ -550,17 +550,39 @@ export default function Dashboard({
   return (
     <div className="min-h-screen pb-[140px] sm:pb-8" data-theme-variant="modes">
 
-      {/* Header: Welcome + Search + Actions */}
-      <div className="max-w-[1320px] mx-auto w-full px-4 sm:px-8 pt-6 sm:pt-10 pb-4 sm:pb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div>
+      {/* ── Header: Welcome + Search + Actions ─────────────────────────────
+          ⚠ `flex-wrap`, and `min-w-0` on both halves. Owner, 2026-08-24, on an
+          iPad: *"you can scroll left/right on the dashboard because of the
+          customize button, or I think that's the reason"* — and it was. From
+          `md:` up (768px) this is a ROW, and neither half could give:
+
+            width   greeting   right group   available   overflow
+             768      213px       565px         768        66px
+             820      213px       565px         820        14px   ← iPad portrait
+             900+     247px+      565px         900        none
+
+          The right group is 565px of things that cannot shrink — a `sm:w-72`
+          search plus New Song, New Setlist and the Customize button, all with
+          text that will not wrap — and the greeting is a 40px display heading
+          with no `min-w-0`, so it will not shrink either. Two immovable objects
+          in one row is an overflow at every width where they do not both fit.
+          `<main>` is `overflow-y-auto`, and `overflow-y: auto` computes
+          `overflow-x` to `auto` as well, so the page slid sideways.
+
+          Wrapping is the honest answer: at a width where they do not fit side
+          by side, they stop being side by side. `min-w-0` lets each half give a
+          little before that happens, so the wrap comes later than it otherwise
+          would. */}
+      <div className="max-w-[1320px] mx-auto w-full px-4 sm:px-8 pt-6 sm:pt-10 pb-4 sm:pb-6 flex flex-col md:flex-row flex-wrap items-start md:items-center justify-between gap-6">
+        <div className="min-w-0">
           <h1 className="text-heading-40 text-[var(--modes-text)] m-0">
             Welcome, <span className="italic font-serif text-[var(--modes-text)]">{userName}</span>
           </h1>
           <p className="text-copy-16 text-[var(--modes-text-muted)] mt-1">{dateStr}</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-          <div className="relative w-full sm:w-72 hidden sm:block" ref={searchContainerRef}>
+        <div className="min-w-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+          <div className="relative w-full sm:w-72 min-w-0 hidden sm:block" ref={searchContainerRef}>
             <SearchBar
               ref={searchInputRef}
               placeholder="Search library…"
