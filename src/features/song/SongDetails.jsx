@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/ui/Button';
+import { rankedTempos } from '@/tempoHistory';
 
 // Song metadata for the hub's Details tab. Read-only by default; when `onSave`
 // is provided an inline **Edit** mode swaps the grid for a form and writes the
@@ -97,9 +98,14 @@ export default function SongDetails({ song, onSave }) {
   const keyPlays = Object.entries(song.keyHistory || {})
     .filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1]);
+  // Unlike the reader's strip, the Details tab shows a single recorded tempo
+  // even when it matches the song's own: this is the catalogue view, where
+  // "played 6× at 72" is a fact about the song's life, not a duplicate of a
+  // number forty pixels above it.
+  const tempoPlays = rankedTempos(song.tempoHistory);
 
   const isEmpty = groups.length === 0 && tags.length === 0 && links.length === 0
-    && longFields.length === 0 && keyPlays.length === 0;
+    && longFields.length === 0 && keyPlays.length === 0 && tempoPlays.length === 0;
 
   return (
     <div className="h-full flex flex-col">
@@ -189,6 +195,20 @@ export default function SongDetails({ song, onSave }) {
                       {keyPlays.map(([k, n]) => (
                         <span key={k} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-12">
                           <span className="font-mono font-semibold text-[var(--text-1)]">{k}</span>
+                          <span className="text-[var(--text-2)]">{n}×</span>
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {tempoPlays.length > 0 && (
+                  <section className="flex flex-col gap-3">
+                    <SectionTitle>Tempo history</SectionTitle>
+                    <div className="flex flex-wrap gap-1.5">
+                      {tempoPlays.map(([bpm, n]) => (
+                        <span key={bpm} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-[var(--border-1)] bg-[var(--bg-1)] text-label-12">
+                          <span className="font-mono font-semibold text-[var(--text-1)]">♩ {bpm}</span>
                           <span className="text-[var(--text-2)]">{n}×</span>
                         </span>
                       ))}

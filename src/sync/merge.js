@@ -46,8 +46,8 @@ function mergeByKeys(keys, base, local, remote) {
 
 // Song fields that merge independently. `arrangements` + `defaultArrangementId`
 // are the chart — compared as one unit (both-touched → conflict). `keyHistory`
-// is device-derived play counts, not user content: never a conflict, union by
-// taking the larger count so no play is lost.
+// and `tempoHistory` are device-derived play counts, not user content: never a
+// conflict, union by taking the larger count so no play is lost.
 const SONG_FIELDS = [
   'title', 'artist', 'ccli', 'tags', 'spotify', 'youtube',
   'originalTitle', 'language', 'translator', 'writers', 'publishers',
@@ -56,7 +56,7 @@ const SONG_FIELDS = [
   'arrangements', 'defaultArrangementId',
 ];
 
-function mergeKeyHistory(base, local, remote) {
+function mergePlayCounts(base, local, remote) {
   const out = {};
   for (const k of new Set([...Object.keys(local || {}), ...Object.keys(remote || {})])) {
     out[k] = Math.max(local?.[k] || 0, remote?.[k] || 0);
@@ -73,7 +73,8 @@ export function threeWayMergeSong(base, local, remote) {
       ...remote,          // carry any fields we don't explicitly merge (id, updatedAt, …)
       ...merged,
       id: local.id,       // identity is never merged — keep ours
-      keyHistory: mergeKeyHistory(base.keyHistory, local.keyHistory, remote.keyHistory),
+      keyHistory: mergePlayCounts(base.keyHistory, local.keyHistory, remote.keyHistory),
+      tempoHistory: mergePlayCounts(base.tempoHistory, local.tempoHistory, remote.tempoHistory),
     },
     conflictFields,
   };

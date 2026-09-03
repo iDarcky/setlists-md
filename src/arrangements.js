@@ -44,6 +44,7 @@ export function resolveSongView(song, arrangementId) {
     spotify: song.spotify || '',
     youtube: song.youtube || '',
     keyHistory: song.keyHistory || {},
+    tempoHistory: song.tempoHistory || {},
     ...Object.fromEntries(EXTRA_KEYS.map(k => [k, song[k] ?? ''])),
     // Frontmatter the build does not model — carried, never dropped.
     ...(song.extraFrontmatter ? { extraFrontmatter: song.extraFrontmatter } : null),
@@ -154,6 +155,7 @@ export function songFromFlat(flat) {
     spotify: flat.spotify || '',
     youtube: flat.youtube || '',
     keyHistory: flat.keyHistory || {},
+    tempoHistory: flat.tempoHistory || {},
     ...Object.fromEntries(EXTRA_KEYS.map(k => [k, flat[k] ?? ''])),
     ...(flat.extraFrontmatter ? { extraFrontmatter: flat.extraFrontmatter } : null),
     defaultArrangementId: arrId,

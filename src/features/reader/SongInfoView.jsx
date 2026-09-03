@@ -97,6 +97,7 @@ function Prose({ label, children }) {
 function Body({ song, displayKey, capo, capoShapeKey, arrangementName, notes, facts }) {
   const inline = facts.filter(f => f.label);
   const usually = inline.find(f => f.label === 'Usually played in');
+  const usuallyAt = inline.find(f => f.label === 'Usually played at');
   const written = inline.find(f => f.label === 'Written in');
 
   return (
@@ -150,6 +151,13 @@ function Body({ song, displayKey, capo, capoShapeKey, arrangementName, notes, fa
       </div>
 
       {usually && <Fact label="Usually played in" value={usually.value} />}
+      {/* ⚠ Only ever present when it disagrees with the ♩ printed six lines
+          up — `songInfo.js` decides that, not this component. The panel is a
+          takeover rather than the old complementary strip, so it prints the
+          song's own tempo unconditionally; a second row saying the same
+          number under a longer label is the duplication this surface has
+          already been corrected for once. */}
+      {usuallyAt && <Fact label="Usually played at" value={usuallyAt.value} />}
       {arrangementName && <Fact label="Arrangement" value={arrangementName} />}
 
       {/* ⚠ These two are the ONLY fields borrowed from the hub's set, and they

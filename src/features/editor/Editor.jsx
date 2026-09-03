@@ -818,7 +818,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         return (
           <div className="flex-1 min-h-0 overflow-y-auto w-full">
             <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 py-4">
-              <MetadataPanel md={md} onChange={setMd} isOpen keyHistory={workingSong.keyHistory} />
+              <MetadataPanel md={md} onChange={setMd} isOpen keyHistory={workingSong.keyHistory} tempoHistory={workingSong.tempoHistory} />
             </div>
           </div>
         );

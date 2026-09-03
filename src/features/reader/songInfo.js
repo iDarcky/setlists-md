@@ -5,16 +5,10 @@
 // cannot tell whether a changed export is a component to hot-swap or a value
 // something else depends on.
 
+import { rankedTempos, tempoHistoryIsInteresting } from '@/tempoHistory';
+
 /**
  * "usually in G ×5 · A ×3" — the leader's question, answered.
- *
- * ⚠ There is deliberately no tempo equivalent. `keyHistory` works because a
- * setlist item records `transpose`, so every past performance carries the key
- * it was played in. **Nothing records a tempo per performance** —
- * `SetlistItemRow`'s tempo field writes straight back to the SONG — so a
- * "most played tempo" would be one number repeated, not a history. Recording a
- * per-item tempo comes first; until it does, this shows the song's tempo and
- * does not pretend to know more.
  */
 function playedIn(keyHistory) {
   const entries = Object.entries(keyHistory || {});
@@ -23,6 +17,26 @@ function playedIn(keyHistory) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
     .map(([k, n]) => `${k} ×${n}`)
+    .join('  ·  ');
+}
+
+/**
+ * "♩72 ×5 · 76 ×2" — the same question about speed.
+ *
+ * ⚠ It used to be impossible, and the reason is worth keeping: `keyHistory`
+ * works because a setlist item records `transpose`, so every past performance
+ * carries the key it was played in, while the setlist editor's tempo field
+ * wrote straight back to the SONG. The cards row records `item.tempo` as a
+ * per-setlist override, so there is a real history now — but only when it says
+ * something the bar does not. One recorded tempo equal to the song's own is
+ * the bar's number printed twice, one row down, which is the exact
+ * carelessness `songInfoFacts` exists to avoid.
+ */
+function playedAt(tempoHistory, songTempo) {
+  if (!tempoHistoryIsInteresting(tempoHistory, songTempo)) return null;
+  return rankedTempos(tempoHistory)
+    .slice(0, 3)
+    .map(([bpm, n], i) => (i === 0 ? `♩ ${bpm} ×${n}` : `${bpm} ×${n}`))
     .join('  ·  ');
 }
 
@@ -56,6 +70,8 @@ export function songInfoFacts({ song, displayKey, showTempoTime, arrangementName
   if (!showTempoTime && song.time) facts.push({ label: 'Time', value: song.time });
   const history = playedIn(song.keyHistory);
   if (history) facts.push({ label: 'Usually played in', value: history });
+  const tempos = playedAt(song.tempoHistory, song.tempo);
+  if (tempos) facts.push({ label: 'Usually played at', value: tempos });
   // Which arrangement you are reading. A song can carry several and the chart
   // never says which is on screen — the one place that ambiguity costs you
   // something is a rehearsal where half the band is on a different one.

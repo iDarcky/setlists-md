@@ -731,6 +731,8 @@ Detail that belongs to a component pass. When you start a pass, read its section
 here first. Nothing in this section is scheduled on its own.
 
 ### Song details
+- ✅ **Tempo history** — *"show all the used tempos somewhere"*. Shipped as the twin of `keyHistory`: `performanceHistory.js` now holds the shared walk/apply/diff and `tempoHistory.js` supplies the tempo `valueOf` (`item.tempo ?? arrangement.tempo`). Shown in the reader's song panel, the hub's Details tab and the editor's metadata panel. Full note in `docs/NEXT-SESSION.md` #5.
+- ⬜ **Should the setlist builder suggest the most-played tempo?** It already pre-fills the most-played KEY (`SetlistBuilder` → `mostPlayedKey`), so the data and the precedent are both there now. Deliberately NOT built — a tempo the leader did not type appearing in a setlist is a change to how setlists get made, which is his call, not a follow-on from showing the history.
 - ❓ **Capo: per-user rather than per-song?** A capo position belongs to the instrumentalist, not the song. Undecided since the June note; would need a per-user store.
 - Rich editor for **Story-behind** (breaks-style) ❓ both Story and Notes, or just Story?
 - Dedicated full song-details view ❓ route or expanded panel?

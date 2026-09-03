@@ -123,8 +123,34 @@ against a control rather than assumed.
    anything.
 4. ⬜ **Empty chords for an intro** — a chord-only line with no lyrics. Check the
    parser round-trips it before assuming the gap is in the editor.
-5. ⬜ **Tempo history** — *"show all the used tempos somewhere"*. Mirrors the
-   existing `keyHistory` cleanly.
+5. ✅ **Tempo history — BUILT.** *"show all the used tempos somewhere"*. It did
+   mirror `keyHistory` cleanly, but only after the thing that made it
+   impossible turned out to be already fixed: `songInfo.js` carried a ⚠ saying
+   nothing records a tempo per performance, naming `SetlistItemRow`'s field
+   that writes straight back to the SONG — and that row is the LEGACY one,
+   unreachable since `SetlistBuilder` started defaulting `cards = true`. The
+   live row (`SetlistCardRow`) has been writing `item.tempo` as a per-setlist
+   override all along. So the resolved performance tempo is
+   `item.tempo ?? arrangement.tempo`, exactly parallel to
+   `arrangement.key + item.transpose`.
+   - `performanceHistory.js` is new: the walk over past-dated setlists, the
+     reference-preserving apply and the save-time diff, once, with `valueOf` as
+     the only difference between the two histories. `keyHistory.js` is now a
+     thin skin over it (its 15 tests unchanged and green); `tempoHistory.js` is
+     the twin.
+   - Three display sites: the reader's song panel ("Usually played at ♩ 72 ×5 ·
+     76 ×2"), the hub's Details tab ("Tempo history" chips) and the editor's
+     metadata panel ("Most played at").
+   - ⚠ **The reader's panel stays quiet when the one recorded tempo equals the
+     song's own** (`tempoHistoryIsInteresting`) — that surface already prints
+     ♩ 118 six lines up, and a second row saying 118 under a longer label is the
+     duplication `songInfoFacts` exists to prevent. The Details tab does NOT
+     apply that rule: it is the catalogue, where "6× at 118" is a fact.
+   - ⚠ **It hit trap 23 while being built.** `songInfoFacts` returning a new
+     fact changed nothing on screen, because `SongInfoView`'s `Body` does not
+     render the fact list — it *cherry-picks by label*. A render test caught it;
+     reading the producer would not have. Anything added to `songInfoFacts`
+     needs a matching pick in `Body`.
 6. ❓ **"Changes in the reader should reflect everywhere"** — he was unsure
    himself and will re-check. Best guess: a key changed in LIVE is session-only
    by design (`can.saveKey` false), which now applies whenever the clock opens

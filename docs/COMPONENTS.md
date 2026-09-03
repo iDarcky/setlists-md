@@ -61,7 +61,8 @@ over. Settle these before the surfaces that sit on them.*
 **Job.** Turn `.md` into structured songs and back, losslessly, and do all
 music theory (transpose, capo, enharmonics, Nashville).
 
-**Owns.** `parser.js` · `music.js` · `arrangements.js` · `keyHistory.js` ·
+**Owns.** `parser.js` · `music.js` · `arrangements.js` ·
+`performanceHistory.js` · `keyHistory.js` · `tempoHistory.js` ·
 `recommendations.js` · `lib/detectSections.js` · `lib/importChords.js` ·
 `lib/cleanPastedText.js`
 
@@ -70,7 +71,7 @@ every other component reads.
 
 **Status.** ✅ The healthiest part of the codebase, and the only part with test
 coverage proportional to its risk (parser, music, arrangements, keyHistory,
-detectSections, importChords, repeat-marks, canvas-frontmatter).
+tempoHistory, detectSections, importChords, repeat-marks, canvas-frontmatter).
 
 **Debt.**
 - Frontmatter is one line per field — multi-line Story/Notes needs a format

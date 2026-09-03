@@ -10,6 +10,7 @@ import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSet
 import { shareTokenFromUrl } from '@/lib/setlistShare';
 import { withArrangement, addArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
+import { computeTempoHistories, applyTempoHistories, incrementTempoForSetlistDiff } from './tempoHistory';
 import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
 import { DEMO_SONGS_MD } from '@/data/demos';
 import { createSyncEngine } from '@/sync/engine';
@@ -505,15 +506,16 @@ export default function App() {
       let savedSetlists = await loadSetlists(activeLibrary);
       if (ignore) return;
 
-      // Recompute keyHistory once on load by scanning past-dated setlists.
-      // This is cheap and self-healing — if the device missed an
-      // increment-on-save (e.g. it was offline) the history catches up.
-      // Done BEFORE the initial setSongs (and before the startup sync gets
+      // Recompute keyHistory + tempoHistory once on load by scanning
+      // past-dated setlists. This is cheap and self-healing — if the device
+      // missed an increment-on-save (e.g. it was offline) the history catches
+      // up. Done BEFORE the initial setSongs (and before the startup sync gets
       // its base snapshot) so the sync sees the same object references React
-      // holds — applyKeyHistories preserves identity for unchanged songs.
+      // holds — both apply* helpers preserve identity for unchanged songs, so
+      // chaining them still leaves an untouched song untouched.
       if (savedSongs.length > 0) {
-        const histories = computeKeyHistories(savedSongs, savedSetlists || []);
-        savedSongs = applyKeyHistories(savedSongs, histories);
+        savedSongs = applyKeyHistories(savedSongs, computeKeyHistories(savedSongs, savedSetlists || []));
+        savedSongs = applyTempoHistories(savedSongs, computeTempoHistories(savedSongs, savedSetlists || []));
       }
 
       // Self-heal orphaned setlist references: re-link items whose songId no
@@ -1558,12 +1560,14 @@ export default function App() {
     if (guardTeamReadOnly()) return;
     setNewSongModal(null);
     // Stable identity across re-imports (batch): if a song with this title
-    // already exists, adopt its id + keyHistory so Save UPDATES it in place and
+    // already exists, adopt its id + play histories so Save UPDATES it in place and
     // keeps every setlist reference intact, instead of minting a new id that
     // orphans past setlists. Same rule as the single-paste import path.
     const queue = parsedSongs.map(s => {
       const existing = matchSongByTitle(songs, s.title);
-      return existing ? { ...s, id: existing.id, keyHistory: existing.keyHistory } : s;
+      return existing
+        ? { ...s, id: existing.id, keyHistory: existing.keyHistory, tempoHistory: existing.tempoHistory }
+        : s;
     });
     if (queue.length === 1) {
       navigate('editor', { song: queue[0] });
@@ -1654,10 +1658,13 @@ export default function App() {
       }
       return [...prev, sl];
     });
-    // Update keyHistory in response to this save. incrementForSetlistDiff
-    // handles all four cases (was-past × is-past) and is a no-op for
+    // Update keyHistory + tempoHistory in response to this save. Both diffs
+    // handle all four cases (was-past × is-past) and are a no-op for
     // future/undated setlists.
-    setSongs(prev => incrementForSetlistDiff(prev, prevSetlist, sl));
+    setSongs(prev => incrementTempoForSetlistDiff(
+      incrementForSetlistDiff(prev, prevSetlist, sl),
+      prevSetlist, sl,
+    ));
     if (!settings?.firstSetlistBuilt) {
       setSettings(prev => ({ ...prev, firstSetlistBuilt: true }));
     }
@@ -1724,8 +1731,13 @@ export default function App() {
       } else if (Array.isArray(updatedSong.arrangements)) {
         next = updatedSong;
       } else {
-        // Legacy flat → wrap as new song with one arrangement, preserving id/keyHistory.
-        next = { ...songFromFlat(updatedSong), id: updatedSong.id, keyHistory: existing.keyHistory };
+        // Legacy flat → wrap as new song with one arrangement, preserving id + play histories.
+        next = {
+          ...songFromFlat(updatedSong),
+          id: updatedSong.id,
+          keyHistory: existing.keyHistory,
+          tempoHistory: existing.tempoHistory,
+        };
       }
       const arr = [...prev];
       arr[i] = { ...next, updatedAt: Date.now() };
