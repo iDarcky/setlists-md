@@ -2,8 +2,8 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
-## 0.17.0 — A new way to add songs, and libraries you can shape
-*August 2026*
+## 0.17.0 — One reader, a new way to add songs, and libraries you can shape
+*September 2026*
 
 ### Added
 - **Your own capo (Labs)** — set a capo per song and the chart shows the shapes you actually finger, while the key beside it keeps saying what the band is playing. It's yours alone: one guitarist's capo no longer changes what the bass player and the keys player read, which is what the old setlist capo did. It follows your account, and it suggests a fret — the one the song was written with, or the one that lands you on open chords.
@@ -62,6 +62,8 @@ A running log of what's new in setlists.md. Newest releases first.
 - **It knows when you're playing** — open a setlist half an hour before the service and the reader opens live; open it on a Tuesday to learn the songs and you get the practice tools. If a rehearsal is booked for that day, live waits until the service actually starts.
 - **Live, and the red corner** — a red fold in the top corner is the whole indicator: it costs the song title nothing, and on a phone the ✕ steps aside so a mis-tap on the edge can't drop you out of a service. Pull down to leave. The first time you go live, a short note explains it, once, on every device you sign in on.
 - **A chorus that climbs, or one that doesn't** — `{modulate: +2}` now lifts the key the first time a section is played, so a chorus you repeat stays in the new key instead of climbing again. Write `{modulate: +2, every}` for the song that really does go up a step every time.
+- **A key change that belongs to one occurrence** — "Chorus in C, then Verse 2, then the Chorus again in D" is finally sayable. A key change is no longer trapped inside the section, so a chorus you play twice can be in two different keys, and a change can land in the middle of a section instead of only at its start. Songs written with the old `{modulate}` marker keep working exactly as they did.
+- **Tap the song's title to see what it is** — the key, the keys you usually play it in, which arrangement is on screen, the scripture, the story behind it and the song's own notes. On a phone it takes the whole screen and a tap anywhere puts it back; on a tablet or a desktop it opens as a column beside the chart and the chart makes room instead of being covered. Nothing in it is buried in a menu, and nothing you don't need mid-service is in it.
 
 ### Improved
 - **The reader's ☰ menu wears the chart's own colours (Labs)** — it used to be an app-coloured panel with a couple of chart-coloured details leaking into it, so on a cream chart theme in a dark app it never quite belonged to the page it was changing. It now sits on the same paper as the song, which means the theme and colour swatches preview against the thing they're actually about.
@@ -180,6 +182,10 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Settings lost the Chart Defaults page** — everything on it lives in the reader's own menu now, beside the chart it changes. Two of its rows had quietly stopped doing anything at all.
 - **Keep the screen awake** moved into the reader's menu, and going live keeps the screen on by itself.
 - **The first-run tour follows your account**, so a second device doesn't show it again.
+- **The reader is sized for a thumb** — every control in the top bar and the display menu is a full-size touch target on a tablet as well as a phone, and the key and capo chips grew with them. A tablet is a touch device; it was being treated as one with a mouse.
+- **The title looks like the control it is** — a small caret beside it, the same one the key chip carries, and it turns over while the panel is open.
+- **Drummers get the tempo where everyone else gets the key** — the gold chip in the reader's top bar shows the tempo instead, and the capo chip goes with it. On a phone that's the one place the tempo used to be hidden, so a drummer was being shown a key they can't use instead of the number they're counting. Singers keep the key: their range is the whole question.
+- **The ＋ for a note follows the words** — it sits at the end of the line you're marking up rather than out in the margin.
 
 ### Fixed
 - **Chords could go missing from a chart (Labs)** — a chord standing on its own between two words, which is how most choruses end (`…setea mea  Cm  Bb`), silently took the next chord with it. The chart drew fewer chords than the song had, with nothing to say so. Your songs were never damaged — only what was drawn — and every chord is back.
@@ -192,7 +198,6 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Discard really is red** — the "Discard your changes?" button was drawn as the calm, ordinary one.
 - **The section list stays on the screen** — picking a section type in the reader or the song editor no longer opens a menu whose bottom half is off the edge. It's narrower, too.
 - **Everything opens up while you're editing (Labs)** — a repeated section shown as a tag has no words to put a chord or a note on, so editing now shows the whole song. Your normal setting comes back when you're done.
-
 - **The next song starts at the top (Labs)** — moving to the next song in a set kept the previous song's scroll position, so song two opened three verses down, or past its own end if it was shorter.
 - **Tapping a section in the map now agrees with the map (Labs)** — it landed the section just below the top bar, which is a hair short of where the reader decides "you are here", so you'd be looking at Verse 2 while the map still highlighted Verse 1. It lands exactly on the line now.
 - **The structure down the side no longer sits on the words (Labs)** — on the left or right it's now a column of small, soft dots floating in the margin the chart already had: it doesn't cover a lyric and it doesn't push one aside either. The whole song fits, so there's nothing to scroll, and **you can drag the strip to scrub through the song** — press anywhere on it and the chart follows section by section. Boxes and Chips are for the top and bottom, where there's room for them, and the display menu now offers the style first with only the locations that suit it.
@@ -256,6 +261,14 @@ A running log of what's new in setlists.md. Newest releases first.
 - **A key could read "undefined"** on setlists that arrived by import, share or from an older device.
 - **The menu's tabs sat under the home indicator** on an iPad in Safari.
 - **The founder's note never appeared** for anyone using the new reader.
+- **The Romanian stray dot is gone** — the comma under a ț or a ș on a section's last line could be sliced off and painted at the top of the next column, reading as a mystery dot on somebody's chart mid-rehearsal. It happened on every song with those letters in the wrong place, and only in two columns.
+- **The Live switch deleted itself** — turning Live off in the reader's menu removed the switch that turned it off, so there was no way back into live short of leaving the set and opening it again. It now stays for as long as the service window is open, and still never appears on a Tuesday.
+- **A key change named the wrong key when you had a capo on** — it showed the shape your fingers make instead of the key the band actually arrives in. Two different keys under one letter, at the one moment the whole band has to hit together.
+- **A chorus repeated in a new key was collapsing into a "repeat" tag**, hiding the key change it was there to announce.
+- **The reader now clears the status bar on an installed iPad**, and stops reserving twice the room it needs at the bottom.
+- **The reader's bottom bar hung above the screen** on an installed app until you left it and came back.
+- **The dashboard scrolled sideways on an iPad held in portrait.**
+- **A black bar across the bottom of the dashboard, setlists and songs** on an iPad.
 
 ## 0.16.0 — Notifications, reliability, and a card-based editor
 *July 2026*
