@@ -831,15 +831,70 @@ modulated again"*). Not a rendering bug — a gap in what the format could SAY.
 `{modulate: +2}` now fires the first time only; `{modulate: +2, every}` climbs.
 ⚠ This CHANGES the sound of existing songs that repeat a modulating section.
 
-**Still open, and it is the reason element 8 is not closed:** a key change
-cannot belong to a SLOT. The owner's case — *"Chorus in C then Verse 2 then
-Chorus again but this time in D"* — is unrepresentable. `once` gives C then C;
-`every` climbs Verse 2 and everything after; the only workaround is duplicating
-the chorus into two sections differing solely by key. The fix is `structure`
-entries carrying the change, which is an `.md` format change and a MAJOR-version
-conversation like bars. **Do not close element 8 without it.**
+**Closed by the overlay, in `0.17.0`.** A key change could not belong to a SLOT
+— the owner's case *"Chorus in C then Verse 2 then Chorus again but this time in
+D"* was unrepresentable, because `once` gives C then C and `every` climbs Verse 2
+and everything after. The expected fix was `structure` entries carrying the
+change, an `.md` format change and a MAJOR-version conversation like bars. It
+was **not** built that way: `arrangement.keyChanges` is an overlay resolved per
+slot (`src/lib/keyChanges.js`), so the format never moved. `SectionBlock` takes
+`keyMarks`, and a caller with an overlay silences the section's own `{modulate}`
+markers so a song mid-conversion does not draw the change twice.
+
+⚠ This paragraph said "do not close element 8 without it" for two weeks AFTER
+the overlay shipped, and `PLAN.md` and `NEXT-SESSION.md` agreed with it — so the
+next session was being sent to build something that already existed. **Trap 19,
+at document scale:** when you close something, grep for every note that says it
+is open.
 
 ### 9 — Tabs
+
+> **The element-9 pass.** Billed as instrument-awareness polish; it found that
+> **element 9 was doing nothing at all for most users**, and three separate
+> reasons why. Everything below the pass note is the original design, which
+> stands.
+>
+> 1. ⚠ **The collapse read its prop once and stopped listening.** `TabBlock`
+>    held `useState(defaultOpen)`, and `defaultOpen` is computed from
+>    `myInstrument` — which comes from Supabase (schedules, members, the setlist
+>    map) and is therefore **null on every first paint**. So every tab mounted
+>    `collapsible: false, defaultOpen: true`, the band data landed a moment
+>    later, and the state was already frozen open. Nothing threw. The ☰'s "Your
+>    instrument" pick died the same way: it recomputed a prop on a component
+>    that had stopped reading it, so picking Bass mid-song visibly changed
+>    nothing — **trap 23 from the state side.** Now `defaultOpen` is the answer
+>    and `openOverride` is only your tap on top of it; a NEW answer clears the
+>    tap on purpose, because "what am I playing" just changed and every tab
+>    deserves re-deciding under it.
+> 2. ⚠ **"Guitar" was one row in the ☰ and it meant ELECTRIC** (`tabInstrument:
+>    'electric'`), silently. On an acoustic player that is element 9 exactly
+>    backwards: the one tab written for them collapsed and the electric one
+>    opened, and nothing about the row said which guitar it meant. Two rows now
+>    — **Acoustic** and **Electric** (owner: *"you're scheduled as electric
+>    guitar → you see the electric guitar view"*); the library is worship
+>    charts, and acoustic is not the rarer half. `guitar` is retired from the
+>    list but NOT from accounts: `displayRole` is a **synced** preference, so
+>    `LEGACY_ROLE` keeps the row lit and `ROLE_INSTRUMENT` still resolves it to
+>    electric, which is what that row actually wrote.
+> 3. ⚠ **A singer-guitarist got no answer** — the commonest entry a worship
+>    roster holds. `resolveMyInstrument` returned null for anything but a
+>    one-item list, so "Guitar, Vocals" fell through to the fallback meant for
+>    people we know nothing about. Vocals now loses to an instrument (owner:
+>    *"instrument + vocals → instrument takes priority"*), and it is not a
+>    guess: vocals carries no tab and no diagram, so the only thing it could
+>    contribute is lyrics-instead-of-chords, which is the half he said loses.
+>    A list that is ONLY vocals still answers vocals — that IS their instrument.
+>    Two real instruments stay ambiguous forever.
+>
+> Also closed: the **hub branch of `resolveReaderConfig` skipped `tabId()`**, so
+> the token→tab-id translation that `data/instruments.js` exists to warn about
+> was missing on one of the two paths. No embedded caller passes an instrument
+> today, which is what made it a landmine rather than a bug — the inversion
+> arrives with whoever wires the next one. There was **no test on that
+> translation at all**, which is how the branch drifted; there is now, on both
+> paths. And the collapsed row named the stored id (`▸ electric tab`) instead of
+> the instrument.
+
 - **Instrument-aware.** Your instrument's tabs open; everyone else's collapse
   to one tappable line. `src/lib/myInstrument.js` answers "what am I playing":
   `team_schedules.role` for this setlist (bridged through `useTeamSetlistMap`
@@ -3006,6 +3061,19 @@ being routes into `live`.
    cost a false "confirmed broken" on the role picker, too: a chord count taken
    over the scroller picked up the ☰'s own contents, because on desktop the menu
    lives INSIDE that scroller.
+25. **`useState(prop)` is trap 23 from the state side, and the async props are
+   where it bites.** `TabBlock` seeded its open/closed state from `defaultOpen`,
+   which is derived from `myInstrument` — a value that arrives from Supabase
+   *after* the first paint, so the seed was always the "we don't know yet"
+   answer and the real one was never read. Element 9 did nothing for anyone, and
+   the ☰ pick that recomputes the same prop changed nothing on screen. The tell
+   is the same as trap 23's: a control that looks live and discards the change.
+   **Any prop that can arrive late or change — anything resolved from the team,
+   the schedule, or a synced setting — must not be seeded into `useState` and
+   left there.** Hold the derived answer as the value and the user's override
+   beside it, and decide explicitly what a NEW answer does to an old override.
+   A rerender test is the only thing that catches it; nothing throws when a
+   component quietly stops listening.
 19. **A doc that says "removed" is not a removal.** beta.58 wrote the
    `scrollTop`-compensation warning above into both the code and this file and
    left the line itself running; the next round then read the comment, believed

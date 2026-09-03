@@ -1,10 +1,13 @@
-# Next session — finish element 8, then the tablet/instrument list
+# Next session — element 10, then the tablet/Romanian-dot list
 
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
-> _Rewritten 2026-08-21. State: `0.17.0-beta.96`, and **`beta` is at the same
-> commit**. 1067 tests, 0 lint errors (7 pre-existing warnings), build clean._
+> _Rewritten 2026-08-21; corrected 2026-09-03 (element 8 was closed and three
+> docs still said it was open). State: `0.17.0` released on `main`; the tempo
+> history and the element-9 pass sit on `claude/next-roadmap-feature-d9eazw`,
+> NOT yet finished or promoted to `beta`. 1209 tests, 0 lint errors (7
+> pre-existing warnings), build clean._
 >
 > ⚠ **`git checkout beta` may land you on a stale LOCAL branch.** It happened on
 > 2026-08-07 and silently reverted a whole element's work in the tree. Always
@@ -19,12 +22,12 @@ heading · **5/5a** notes and the band cue · **6/7** chords and lyrics · **19*
 capo. Closed this session, and not numbered elements: the **`unifiedReader`
 graduation** and the **Practice/Live union**.
 
-**You are on element 8 — key change.** Most of it is done; it is deliberately
-NOT closed. See "What is left in element 8" below.
+**8** key change and **9** tabs are closed too — see below and
+`READER.md` → "The element-9 pass".
 
-After 8: **9** tabs · **10** getting to the next song · **11** chord diagrams ·
-**12** practice tools (⚠ carries a known correction — the metronome must not
-start on tap) · **13** the finale. Then 29, then the 14–27 table.
+**You are on element 10 — getting to the next song.** After it: **11** chord
+diagrams · **12** practice tools (⚠ carries a known correction — the metronome
+must not start on tap) · **13** the finale. Then 29, then the 14–27 table.
 
 ---
 
@@ -72,27 +75,20 @@ the real app. `npm install` first — `vite` is not in the image.
 
 ---
 
-## What is left in element 8
+## Element 8 is CLOSED — and three docs said otherwise
 
-**The slot-level key change, and it is the whole remaining job.** Owner's case:
-*"Chorus in C then Verse 2 then Chorus again but this time in D."* Unrepresentable
-today — `{modulate}` lives in the section BODY, so `once` gives C then C, `every`
-climbs Verse 2 and everything after, and the only workaround is duplicating the
-chorus into two sections differing solely by key.
+⚠ **Read this before believing any element-8 note.** The slot-level key change
+— *"Chorus in C then Verse 2 then Chorus again but this time in D"* — was the
+one thing holding element 8 open, and **it shipped in 0.17.0** as an *overlay on
+the arrangement* (`src/lib/keyChanges.js`, `arrangement.keyChanges`, three test
+suites), which sidestepped the `.md` format change and the MAJOR-version
+conversation entirely. `READER.md`, `PLAN.md` and this file all still carried
+"do not close element 8 without it" afterwards, so the next session was being
+sent to build something that already existed. The lesson is trap 19's, again:
+**a doc that says "open" is not an open item — grep the code.**
 
-The fix is to let `structure` entries carry the change:
-
-```
-structure: [Verse 1, Chorus, Verse 2, Chorus ↗+2, Bridge]
-```
-
-That is an **`.md` format change** and a MAJOR-version conversation, like bars
-(element 32). It would also make `once`/`every` mostly redundant — a body-level
-marker would only mean "this song climbs internally". **Ask him before building
-it**; he chose `once` over this once already, reasonably, because it was smaller.
-
-Done in element 8 already: marker trimmed 68.1 → 36.9px (chip at chord size —
-do not go below it); the ribbon's `C ×2` run splits at a key change; `once` /
+Also done in element 8: marker trimmed 68.1 → 36.9px (chip at chord size — do
+not go below it); the ribbon's `C ×2` run splits at a key change; `once` /
 `every`; and the "a repeat after a key change renders in full" promise verified
 against a control rather than assumed.
 
@@ -110,14 +106,19 @@ against a control rather than assumed.
    section, trap 15 from the other side; padding + negative margin: net layout
    zero is also net effect zero). **The fix has to accept ~0.15em per section.**
    Wants screenshots, not blind measurement.
-2. 🟡 **Your instrument should follow the SCHEDULE.** *"You're scheduled as
-   electric guitar → you see the electric guitar view. Scheduled as instrument +
-   vocals → instrument takes priority."* `src/lib/myInstrument.js` already reads
-   `team_schedules.role`, so the plumbing exists; what is missing is **electric
-   guitar as a distinct option** and that precedence. ⚠ Also: the role picker
-   works in the setlist reader (verified — chords `G C D` before Vocals, none
-   after) but is **dead in the Song Hub**, which passes a hard-coded
-   `displayMode="chords"` prop that beats `settings.displayMode` by design.
+2. ✅ **Your instrument should follow the SCHEDULE — DONE** (element 9's pass).
+   Both halves of *"you're scheduled as electric guitar → you see the electric
+   guitar view; instrument + vocals → instrument takes priority"* shipped, and
+   the pass found that element 9 was **doing nothing at all** for most users
+   first: `TabBlock` seeded its open state from a prop that is null on every
+   first paint (`myInstrument` comes from Supabase) and never read it again.
+   Full note in `docs/READER.md` → "The element-9 pass"; the state-side lesson
+   is **trap 25**.
+   - ⬜ **Still open from this item:** the role picker works in the setlist
+     reader (verified — chords `G C D` before Vocals, none after) but is **dead
+     in the Song Hub**, which passes a hard-coded `displayMode` prop that beats
+     `settings.displayMode` by design. That is the hub's doctrine, not a bug,
+     so changing it is a decision rather than a fix.
 3. 🟡 **Tablet UI is too small.** ⚠ NOT the reader — measured edge-to-edge and
    two-column at 820px. He means other screens; ask which before changing
    anything.

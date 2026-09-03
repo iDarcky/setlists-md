@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import Reader from '@/features/reader/Reader';
 import { songFromFlat } from '@/arrangements';
-import { isPitched } from '@/data/instruments';
+import { isPitched, tabId } from '@/data/instruments';
 import { resolveDisplayInstrument } from '@/lib/myInstrument';
 
 vi.mock('@/hooks/useEntitlement', () => ({
@@ -156,8 +156,27 @@ describe('what the two ends resolve to', () => {
   });
 
   it('lets an explicit pick beat the roster', () => {
-    expect(resolveDisplayInstrument({ myInstrument: 'drums', displayRole: 'guitar' })).toBe('electric-guitar');
+    expect(resolveDisplayInstrument({ myInstrument: 'drums', displayRole: 'electric' })).toBe('electric-guitar');
     expect(resolveDisplayInstrument({ myInstrument: 'acoustic-guitar', displayRole: 'drums' })).toBe('drums');
+  });
+
+  // ⚠ The ☰ offered ONE "Guitar" row and it wrote `tabInstrument: 'electric'`
+  // — so an acoustic player picking the only guitar there was got element 9
+  // backwards: their own tab collapsed and the electric one opened. Two rows
+  // now, and the two ids must reach the two different instruments.
+  it('tells the two guitars apart', () => {
+    expect(resolveDisplayInstrument({ displayRole: 'acoustic' })).toBe('acoustic-guitar');
+    expect(resolveDisplayInstrument({ displayRole: 'electric' })).toBe('electric-guitar');
+    expect(tabId(resolveDisplayInstrument({ displayRole: 'acoustic' }))).toBe('acoustic');
+    expect(tabId(resolveDisplayInstrument({ displayRole: 'electric' }))).toBe('electric');
+  });
+
+  // ⚠ `displayRole` is a SYNCED preference: profiles that picked the old row
+  // still carry `guitar` and keep arriving from other devices. Retiring an id
+  // from the menu does not retire it from an account, so it must keep
+  // resolving — to electric, which is what that row actually wrote.
+  it('still answers for the retired single Guitar pick', () => {
+    expect(resolveDisplayInstrument({ myInstrument: 'drums', displayRole: 'guitar' })).toBe('electric-guitar');
   });
 
   it('and drums is the only instrument with no pitch', () => {

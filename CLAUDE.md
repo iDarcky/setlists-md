@@ -387,11 +387,15 @@ keep the regex, the object and the text together.
 - A solid `--chord` chip names the **arrival key**, not the interval
 - Round-trip: serialized back through `serializeModulate()` in `songToMd()`
 
-⚠ **A key change still cannot belong to a SLOT.** "Chorus in C, Verse 2, Chorus
-in D" is unrepresentable: `once` gives you C then C, `every` climbs Verse 2 and
-everything after, and the only workaround is duplicating the chorus into two
-sections that differ solely by key. The fix is to let `structure` entries carry
-the change — an `.md` format change, and a MAJOR-version conversation like bars.
+⚠ **A key change CAN belong to a slot now — and it is not these markers.**
+"Chorus in C, Verse 2, Chorus in D" is unrepresentable in the body (`once` gives
+you C then C, `every` climbs Verse 2 and everything after), so it is carried by
+an **overlay on the arrangement** instead: `arrangement.keyChanges`, resolved
+per slot by `src/lib/keyChanges.js`. That kept the `.md` format — and the
+MAJOR-version conversation — out of it. `SectionBlock` takes `keyMarks`, and
+when a caller passes an overlay the section's own `{modulate}` markers go
+**silent** rather than drawing the same change twice; a song mid-conversion
+carries both.
 
 ## Tab Block Format
 

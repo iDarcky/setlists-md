@@ -10,8 +10,8 @@ import { normalize } from '@/data/instruments';
  * Two sources, in order:
  *   1. The band for THIS setlist — `team_schedules.role` is the instrument the
  *      leader put you on, so it beats everything else.
- *   2. Your instruments on the team — only when there is exactly one. Someone
- *      listed as "Guitar, Vocals" has no single answer, so we don't guess.
+ *   2. Your instruments on the team — when they come to ONE answer. "Guitar,
+ *      Keys" does not and never will; "Guitar, Vocals" does (see below).
  *
  * Anything else returns null, which means "show every tab".
  */
@@ -42,8 +42,34 @@ export function resolveMyInstrument({
 
   const me = members.find(m => m.user_id === userId);
   const list = uniq((me?.instruments || []).map(normalize).filter(Boolean));
-  return list.length === 1 ? list[0] : null;
+  return singleAnswer(list);
 }
+
+/**
+ * One instrument out of a list, or null when the list genuinely has no answer.
+ *
+ * ⚠ **VOCALS DOES NOT MAKE A LIST AMBIGUOUS** (owner: *"scheduled as
+ * instrument + vocals → instrument takes priority"*). "Guitar, Vocals" is the
+ * commonest entry a worship roster holds and it used to resolve to NOTHING,
+ * so the single most common band member got the fallback meant for people we
+ * know nothing about. It is not a guess: vocals carries no tab and no chord
+ * diagram, so the only thing it could contribute is swapping chords for
+ * lyrics — which is precisely the half the owner said loses.
+ *
+ * A list that is ONLY vocals still answers vocals. That is not a leftover, it
+ * is their instrument: it drives `displayModeFor` → lyrics and `tabId` → null,
+ * which is exactly right for a singer.
+ *
+ * Two real instruments stay ambiguous forever. Hiding the wrong tab is worse
+ * than showing all of them, and no rule can pick between guitar and keys.
+ */
+function singleAnswer(list) {
+  const played = list.filter(t => !isVocals(t));
+  const answer = played.length > 0 ? played : list;
+  return answer.length === 1 ? answer[0] : null;
+}
+
+function isVocals(token) { return token === 'vocals' || token.startsWith('vocals:'); }
 
 function uniq(xs) { return Array.from(new Set(xs)); }
 
@@ -66,6 +92,12 @@ function uniq(xs) { return Array.from(new Set(xs)); }
 const ROLE_INSTRUMENT = {
   leader: null,
   vocalist: 'vocals',
+  acoustic: 'acoustic-guitar',
+  electric: 'electric-guitar',
+  // ⚠ RETIRED from the menu, alive in accounts. `displayRole` is a synced
+  // preference, so every profile that picked the old single "Guitar" row still
+  // carries `guitar` and will keep arriving here from other devices. It meant
+  // electric — that is what the row wrote — so it keeps meaning electric.
   guitar: 'electric-guitar',
   bass: 'bass-guitar',
   keys: 'keys',
